@@ -30,8 +30,7 @@ GoogleService {
 
     // --- state ---------------------------------------------------------------
     // The rows the popup draws, newest first, each {id, message, from,
-    // subject, snippet, at, replyTo, all, subjectRaw} — the last three for
-    // answering it (see reply).
+    // subject, snippet, at}.
     property var threads: []
     // Every unread thread in the inbox, read in full or not. What the badge
     // counts.
@@ -59,9 +58,6 @@ GoogleService {
     // for the session: a mail does not change once sent.
     property var bodies: ({})
 
-    // The account's own address, so a reply to all does not copy yourself in.
-    property string me: ""
-
     // Replies from an earlier poll that land after a later one began are
     // dropped, or a slow one could put an opened row back.
     property int generation: 0
@@ -82,10 +78,6 @@ GoogleService {
 
     // --- reading -------------------------------------------------------------
     function fetchThreads(): void {
-        if (root.me === "")
-            root.send("GET", `${root.api}/profile?fields=emailAddress`, null, function (body) {
-                root.me = (body?.emailAddress ?? "").toLowerCase();
-            });
         root.generation += 1;
         const gen = root.generation;
         const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD&maxResults=100&fields=threads(id,historyId,snippet)`;
@@ -120,7 +112,7 @@ GoogleService {
                     root.publish(unread, wanted);
             };
             for (const t of stale)
-                root.send("GET", `${root.api}/threads/${t.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Reply-To&fields=messages(id,labelIds,internalDate,payload/headers)`, null, function (thread) {
+                root.send("GET", `${root.api}/threads/${t.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,payload/headers)`, null, function (thread) {
                     root.cache[t.id] = {
                         historyId: t.historyId,
                         row: root.rowOf(t, thread)
@@ -163,26 +155,14 @@ GoogleService {
         const unread = messages.filter(m => (m.labelIds ?? []).includes("UNREAD"));
         const m = unread.length > 0 ? unread[unread.length - 1] : messages[messages.length - 1];
         const header = name => (m?.payload?.headers ?? []).find(h => h.name.toLowerCase() === name)?.value ?? "";
-        const sender = root.addresses(header("from"));
         return {
             id: listed.id,
             message: m?.id ?? "",
             from: root.sayFrom(header("from")),
             subject: header("subject").trim() || "(no subject)",
-            subjectRaw: header("subject").trim(),
             snippet: root.unentity(listed.snippet ?? ""),
-            at: Number(m?.internalDate ?? 0),
-            // Who a reply goes to, and who else a reply to all copies in.
-            replyTo: root.addresses(header("reply-to")).concat(sender).slice(0, 1),
-            all: sender.concat(root.addresses(header("to")), root.addresses(header("cc")))
+            at: Number(m?.internalDate ?? 0)
         };
-    }
-
-    // The bare addresses in a header: "Ann <a@x.org>, b@y.org" → [a@x.org,
-    // b@y.org]. Whatever looks like an address, which steps round the commas
-    // a quoted display name can carry.
-    function addresses(header: string): var {
-        return (header.match(/[^\s<>",;:]+@[^\s<>",;:]+/g) ?? []).map(a => a.toLowerCase());
     }
 
     // "Ann Example <ann@example.com>" → "Ann Example". The address when there
@@ -354,43 +334,41 @@ GoogleService {
     // The PWA on the thread itself, and the row gone at once: Gmail marks it
     // read on open, and the poll that confirms that is up to 30s away.
     function open(thread: var): void {
+        root.drop(thread);
+        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh", `${root.web}#inbox/${thread.id}`]);
+    }
+
+    // Read without opening it: the UNREAD label off every message in the
+    // thread, which is what Gmail's own "mark as read" does. Needs the
+    // gmail.modify scope; a token granted before it was added gets a 403 and
+    // the row comes back on the next poll, with `trouble` saying why.
+    function markRead(thread: var): void {
+        root.drop(thread);
+        root.authorised(function () {
+            root.send("POST", `${root.api}/threads/${thread.id}/modify`, {
+                removeLabelIds: ["UNREAD"]
+            }, function () {});
+        });
+    }
+
+    // Off the list at once rather than at the next poll, and kept off it
+    // until a poll agrees (see `opened`).
+    function drop(thread: var): void {
         const mark = Object.assign({}, root.opened);
         mark[thread.id] = Date.now();
         root.opened = mark;
         root.threads = root.threads.filter(t => t.id !== thread.id);
         root.total = Math.max(0, root.total - 1);
         root.snapshot = "";
-        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh", `${root.web}#inbox/${thread.id}`]);
     }
 
     function openInbox(): void {
         Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh"]);
     }
 
-    // Gmail has no address for its own reply box, so an answer is a compose
-    // window filled in the way the reply box would be: to the sender (or to
-    // everyone on it, less yourself), under "Re:" and the subject.
-    function reply(row: var, all: bool): void {
-        const to = all ? row.replyTo.concat(row.all) : row.replyTo;
-        const seen = ({});
-        const list = to.filter(a => {
-            if (a === root.me || seen[a])
-                return false;
-            seen[a] = true;
-            return true;
-        });
-        const subject = /^re:/i.test(row.subjectRaw) ? row.subjectRaw : "Re: " + row.subjectRaw;
-        root.compose({
-            to: list[0] ?? "",
-            cc: list.slice(1).join(","),
-            su: subject
-        });
-    }
-
-    // A compose window in the Gmail app, with whatever fields are given.
-    function compose(fields: var): void {
-        const query = Object.keys(fields ?? {}).filter(k => fields[k]).map(k => `&${k}=${encodeURIComponent(fields[k])}`).join("");
-        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh", `${root.web}?view=cm&fs=1${query}`]);
+    // A new mail, in its own Gmail app window.
+    function compose(): void {
+        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh", `${root.web}?view=cm&fs=1`]);
     }
 
     // qs ipc call email …

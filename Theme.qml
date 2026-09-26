@@ -505,9 +505,9 @@ Singleton {
         taskDone: "\u{f0134}",        // nf-md-checkbox_marked_circle_outline
         undo: "\u{f054c}",            // nf-md-undo
 
-        // Answering a mail from the popup (nf-md-reply, _reply_all).
-        reply: "\u{f045a}",
-        replyAll: "\u{f045b}",
+        // The open mail's two actions in the popup's foot: the thread in the
+        // Gmail app, and marking it read, which is the envelope opened.
+        openApp: "\u{f03cc}",          // nf-md-open_in_new
 
         mailRead: "\u{f05ef}",         // nf-md-email_open_outline
         mailUnread: "\u{f01f0}",       // nf-md-email_outline

@@ -4,9 +4,9 @@ import qs.components
 import qs.services
 
 // Unread mail: who, what about, and when, newest first. A click on a row
-// opens it in place to be read; a click on the text it opens onto takes the
-// thread to the Gmail app. The foot answers the open mail — reply and reply
-// to all, as a compose window filled in for it — and writes a new one.
+// opens it in place to be read, and the foot then has the two things to do
+// with it: open the thread in the Gmail app, or mark it read. The plus at the
+// foot's right end writes a new one.
 //
 // Two lines a row, the way Gmail's list reads: the sender and the time, then
 // the subject with as much of the opening as fits after it. Nothing wraps; a
@@ -33,6 +33,29 @@ Popup {
     // How tall an open mail may get before it scrolls.
     readonly property int bodyMax: 240
 
+    // How much the open mails add to the rows right now, mid-animation
+    // included — the one open and the one closing, when you move from one to
+    // the next.
+    readonly property real grown: {
+        let g = 0;
+        for (let i = 0; i < list.count; i++)
+            g += list.itemAt(i)?.grown ?? 0;
+        return g;
+    }
+
+    // The window is held at the height of a fully open mail, so a row opening
+    // grows the box inside it rather than resizing the popup every frame of
+    // the animation (see Popup.reserveHeight).
+    reserveHeight: chromeHeight - grown + bodyMax + 6
+
+    // The text of every row on show, asked for as the popup opens, so a row
+    // opens straight to its full height instead of to the snippet and then
+    // again when the text lands. Each is read once a session.
+    Component.onCompleted: {
+        for (const r of root.rows)
+            Email.read(r);
+    }
+
     spacing: 3
 
     PopupText {
@@ -45,6 +68,8 @@ Popup {
     }
 
     Repeater {
+        id: list
+
         model: root.rows
 
         delegate: PopupRow {
@@ -54,6 +79,7 @@ Popup {
 
             width: root.bodyWidth
             readonly property bool isOpen: root.expanded === row.modelData.id
+            readonly property real grown: reveal.height
 
             height: lines.implicitHeight + root.rowPad * 2
 
@@ -123,19 +149,28 @@ Popup {
                     }
                 }
 
-                // The mail itself, once the row is open. The snippet stands in,
-                // faintly, until the text lands. Scrolls past bodyMax rather
-                // than growing the popup down the screen; a click on it takes
-                // the thread to the Gmail app, which is where a mail too long
-                // for this goes anyway.
+                // The mail itself, once the row is open, unrolling downwards
+                // from under the subject. The snippet stands in, faintly, if
+                // the text has not landed yet, and the height follows it when
+                // it does rather than jumping. Scrolls past bodyMax rather than
+                // growing the popup down the screen.
                 Flickable {
-                    visible: row.isOpen
+                    id: reveal
+
+                    visible: height > 0
                     width: parent.width
-                    height: visible ? Math.min(body.implicitHeight, root.bodyMax) + 6 : 0
+                    height: row.isOpen ? Math.min(body.implicitHeight, root.bodyMax) + 6 : 0
                     topMargin: 6
                     contentHeight: body.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
+
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: Theme.foldMs
+                            easing.type: Easing.InOutCubic
+                        }
+                    }
 
                     PopupText {
                         id: body
@@ -148,11 +183,6 @@ Popup {
                         color: body.fetched !== undefined ? Theme.label : Theme.label3
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
-
-                        TapHandler {
-                            gesturePolicy: TapHandler.ReleaseWithinBounds
-                            onTapped: Email.open(row.modelData)
-                        }
                     }
                 }
             }
@@ -174,7 +204,7 @@ Popup {
         color: Theme.stroke
     }
 
-    // The foot: the open mail's two answers at the left, a new mail at the
+    // The foot: the open mail's two actions at the left, a new mail at the
     // right end, where every popup under the bar keeps its plus, and what went
     // wrong, if anything, between them.
     Item {
@@ -182,7 +212,7 @@ Popup {
         height: root.footHeight + 2
 
         Row {
-            id: answers
+            id: actions
 
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
@@ -191,21 +221,21 @@ Popup {
             PopupButton {
                 height: root.footHeight
                 framed: true
-                glyph: Theme.glyph.reply
-                label: "reply"
+                glyph: Theme.glyph.openApp
+                label: "open"
                 glyphSize: Theme.popupTextSize - 1
                 textSize: root.rowTextSize - 1
-                onTapped: Email.reply(root.openRow, false)
+                onTapped: Email.open(root.openRow)
             }
 
             PopupButton {
                 height: root.footHeight
                 framed: true
-                glyph: Theme.glyph.replyAll
-                label: "reply all"
+                glyph: Theme.glyph.mailRead
+                label: "mark read"
                 glyphSize: Theme.popupTextSize - 1
                 textSize: root.rowTextSize - 1
-                onTapped: Email.reply(root.openRow, true)
+                onTapped: Email.markRead(root.openRow)
             }
         }
 
@@ -214,7 +244,7 @@ Popup {
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             text: Email.trouble
-            visible: Email.loaded && Email.trouble !== "" && !answers.visible
+            visible: Email.loaded && Email.trouble !== "" && !actions.visible
             color: Theme.warn
             font.pixelSize: root.rowTextSize - 1
             opacity: 0.8
@@ -232,7 +262,7 @@ Popup {
             framed: true
             glyph: Theme.glyph.plus
             glyphSize: Theme.popupTextSize - 1
-            onTapped: Email.compose({})
+            onTapped: Email.compose()
         }
     }
 }
