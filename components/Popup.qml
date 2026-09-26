@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import qs
-import qs.services
 
 // The bar's popup chrome. It used to copy the old GTK tooltip's near-opaque
 // grey; it is the launcher's box now, which is the bar's own half-black with a

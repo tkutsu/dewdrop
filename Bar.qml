@@ -6,7 +6,6 @@ import Quickshell.Wayland
 import qs
 import qs.components
 import qs.modules
-import qs.services as Services
 
 PanelWindow {
     id: bar
@@ -293,7 +292,7 @@ PanelWindow {
         Drawer {
             id: drawer
             holding: rightPill.drawable.some(m => m.present && m.quiet)
-            pointerNear: barHover.hovered || Services.PopupPointer.hovered > 0
+            pointerNear: barHover.hovered || PopupPointer.hovered > 0
         }
 
         Email {
