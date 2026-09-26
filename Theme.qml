@@ -162,9 +162,6 @@ Singleton {
     // to twelve pixels, between the glyphs' ten and the tray's artwork, so a
     // row that mixes the two reads as one hand rather than two sizes.
     readonly property real glyphInk: 0.75
-    // The workspace letters. Lowercase Greek is mostly x-height, so it goes
-    // up past the text size to stand as tall as the icons beside it.
-    readonly property int letterSize: 14
 
     // The count badge on a taskbar icon standing for several windows of one app.
     readonly property int badgeSize: 12
