@@ -5,9 +5,7 @@ import qs
 import qs.components
 import qs.services
 
-// custom/audio. Scroll still goes through volumecontrol.sh: it owns the
-// step-snapping and the media keys call the same script, so there is one
-// definition of what a step means.
+// custom/audio. Scroll is Audio.step, which the popup shares.
 //
 // One glyph, and the level only as the number of waves coming off it — the
 // way the menu bar's sound item does it. A dial or a number for volume was
@@ -15,8 +13,6 @@ import qs.services
 // gauge) and both were a whole island for a figure the ears already know.
 BarItem {
     id: root
-
-    readonly property string scripts: Quickshell.env("HOME") + "/_scripts"
 
     popup: AudioPopup {}
     // Nothing to play through — no speaker, no headphones in the jack — is
@@ -77,6 +73,6 @@ BarItem {
             Quickshell.execDetached(["pavucontrol"]);
     }
 
-    onScrollUp: Quickshell.execDetached([scripts + "/volumecontrol.sh", "--inc"])
-    onScrollDown: Quickshell.execDetached([scripts + "/volumecontrol.sh", "--dec"])
+    onScrollUp: Audio.step(true)
+    onScrollDown: Audio.step(false)
 }

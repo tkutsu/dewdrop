@@ -13,6 +13,26 @@ Popup {
     Column {
         spacing: 6
 
+        // The wheel anywhere on the popup moves the volume, in the same steps
+        // as the wheel on the bar icon. Accumulated the same way BarItem does
+        // it, so a touchpad's fractions add up to notches instead of each
+        // one being a step.
+        WheelHandler {
+            property real acc: 0
+
+            onWheel: function (event) {
+                acc += event.angleDelta.y;
+                while (acc >= 120) {
+                    acc -= 120;
+                    Audio.step(true);
+                }
+                while (acc <= -120) {
+                    acc += 120;
+                    Audio.step(false);
+                }
+            }
+        }
+
         PopupText {
             text: Audio.tooltip
         }
@@ -20,16 +40,20 @@ Popup {
         Row {
             spacing: 8
 
-            // On its advance rather than its ink: the speaker's waves come
-            // and go with the level, and a glyph as wide as its ink shoved
-            // the slider along every time one did. Material icons share one
-            // box, so the speaker itself stays put too.
-            Glyph {
+            // A fixed box, with the speaker against its left edge: the waves
+            // come and go with the level, and a glyph sized to its own ink
+            // shoved the slider along every time one did. Two pixels past the
+            // font size holds the widest of the five.
+            Item {
                 anchors.verticalCenter: parent.verticalCenter
-                tightWidth: false
-                text: Audio.icon
-                fontSize: root.fontSize
-                implicitHeight: root.fontSize + 4
+                width: root.fontSize + 2
+                height: root.fontSize + 4
+
+                Glyph {
+                    height: parent.height
+                    text: Audio.icon
+                    fontSize: root.fontSize
+                }
             }
 
             Slider {

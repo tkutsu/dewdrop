@@ -65,6 +65,13 @@ Singleton {
     // both of its branches.)
     readonly property string tooltip: sink ? description : "No audio output"
 
+    // One notch of the wheel, up or down. Through volumecontrol.sh rather than
+    // setVolume: the script owns the step-snapping and the media keys call it
+    // too, so there is one definition of what a step is.
+    function step(up) {
+        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/volumecontrol.sh", up ? "--inc" : "--dec"]);
+    }
+
     function setVolume(fraction) {
         if (sink?.audio)
             sink.audio.volume = Math.max(0, Math.min(1, fraction));
