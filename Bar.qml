@@ -332,9 +332,13 @@ PanelWindow {
             stowed: quiet && !drawer.open
         }
         Tray {}
+        // A pixel less air on its right than the row gives: the speaker's
+        // waves thin out to nothing at the edge of its box, and at the full
+        // gap the language label read as set apart from it.
         Audio {
             id: audio
             stowed: quiet && !drawer.open
+            Layout.rightMargin: -1
         }
         // Every Glyph on the bar is laid out on its ink, but the language
         // label is text and keeps its advance, which leaves about a pixel
