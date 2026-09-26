@@ -316,15 +316,14 @@ OverlayWindow {
                                     anchors.centerIn: parent
                                     spacing: 6
 
-                                    Text {
+                                    // Full strength on every tile, selected or
+                                    // not — the menu palette dims a label but
+                                    // never its icon.
+                                    Glyph {
                                         anchors.horizontalCenter: parent.horizontalCenter
+                                        implicitHeight: 38
                                         text: tile.modelData.glyph
-                                        // Full strength on every tile, selected
-                                        // or not — the menu palette dims a
-                                        // label but never its icon.
-                                        color: Theme.fg
-                                        font.family: Theme.glyphFont
-                                        font.pixelSize: 30
+                                        fontSize: 30
                                     }
 
                                     Text {

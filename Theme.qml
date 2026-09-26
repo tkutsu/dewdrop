@@ -158,6 +158,10 @@ Singleton {
     // bar's own glyphs, whose ink is ten, and artwork that reached four pixels
     // past them read as a different class of thing rather than as the same row.
     readonly property real iconInk: 0.875
+    // The same for a drawing that stands in a glyph's slot (see Glyph): held
+    // to twelve pixels, between the glyphs' ten and the tray's artwork, so a
+    // row that mixes the two reads as one hand rather than two sizes.
+    readonly property real glyphInk: 0.75
     // The workspace letters. Lowercase Greek is mostly x-height, so it goes
     // up past the text size to stand as tall as the icons beside it.
     readonly property int letterSize: 14
@@ -404,6 +408,13 @@ Singleton {
     // numerals, which would put ϛ at six, and Inter has no ϛ.
     readonly property var workspaceLetters: ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ"]
 
+    // One of WhiteSur's macOS tray drawings, kept in themis under an -osx
+    // suffix, by file rather than by name. Glyph draws any entry below that is
+    // one of these in place of the font.
+    function panel(name) {
+        return "file://" + Quickshell.env("HOME") + "/.local/share/icons/themis/panel/16/" + name + "-osx.svg";
+    }
+
     readonly property var glyph: ({
         launcher: "\u{f0349}",          // nf-md-magnify
 
@@ -411,11 +422,12 @@ Singleton {
         // an outline — the bar and the power menu used to mix in Font Awesome
         // and filled shapes, and read as drawn by several hands.
         //
-        // Power menu.
-        powerShutdown: "\u{f0425}",
-        powerReboot: "\u{f0709}",       // nf-md-restart
-        powerSuspend: "\u{f0904}",      // nf-md-power_sleep
-        powerLogout: "\u{f0343}",
+        // Power menu: WhiteSur's drawings, big enough on the tiles for their
+        // hairlines to hold.
+        powerShutdown: panel("system-shutdown"),
+        powerReboot: panel("system-reboot"),
+        powerSuspend: panel("system-suspend"),
+        powerLogout: panel("system-log-out"),
         // A crosshair rather than the skull it used to be: the skull was the
         // loudest thing on the strip for the least destructive action on it,
         // and a crosshair is what the action actually puts on screen —
@@ -438,8 +450,8 @@ Singleton {
         wallpaper: "\u{f0e09}",
         window: "\u{f4c3}",           // workspace taskbar fallback
 
-        idleOn: "\u{f06ca}",           // nf-md-coffee_outline
-        idleOff: "\u{f0fab}",          // nf-md-coffee_off_outline
+        idleOn: panel("caffeine-cup-full"),
+        idleOff: panel("caffeine-cup-empty"),
 
         nightOn: "\u{f0594}",
         nightOff: "\u{f0599}",         // nf-md-weather_sunny
