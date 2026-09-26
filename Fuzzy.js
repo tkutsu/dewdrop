@@ -37,8 +37,8 @@ function isBoundary(text, i) {
 //
 // So the two halves come apart. prep() is what a caller holding a long list
 // does once, when the list is built; scorePrepped() is what it calls per
-// keystroke. score() is the signature everything else already uses, and still
-// does all of it itself.
+// keystroke. score() does all of it in one call, for a caller with nothing to
+// keep a list in.
 function prep(text) {
     // The folded-but-cased string as well as the lowercased one: isBoundary
     // reads the first to find camelCase humps, so it has to be indexed the
@@ -118,7 +118,10 @@ function scorePrepped(q, raw, t) {
     if (heads === q.length && q.length > 1) s += 10 * q.length;
 
     s -= (end - start + 1 - q.length) * 2;   // penalise gaps inside the match
-    s -= start * 0.5;                        // slight preference for early matches
+    // Capped: a preference, not a penalty that grows without limit. A match
+    // at character 200 of a long title would otherwise score below zero, and
+    // anything that cuts against the best score cannot reason about that.
+    s -= Math.min(start * 0.5, 10);
     if (t === q) s += 40;                    // exact match
     else if (t.startsWith(q)) s += 20;       // prefix match
     return s;

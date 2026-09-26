@@ -43,13 +43,20 @@ Singleton {
         dump.running = true;
     }
 
+    // A dump that was in flight when the database changed describes the
+    // library that was, and is thrown away when it lands rather than
+    // published as if it were the one that is.
+    property bool stale: false
+
     Connections {
         target: Mpd
 
-        // Not reloaded on the spot: the launcher is usually not open when mpd
-        // finishes a rescan, and the next "#" will ask.
+        // Not reloaded from here: the launcher is usually not open when mpd
+        // finishes a rescan, and the next "#" will ask. When it is open in
+        // music mode, LauncherMusic sees `loaded` drop and asks at once.
         function onDatabaseChanged() {
             root.loaded = false;
+            root.stale = root.loading;
         }
     }
 
@@ -68,12 +75,31 @@ Singleton {
         // each — rather than one string to split.
         command: ["mpc", "-f", "%file%\t%albumartist%\t%artist%\t%album%\t%title%\t%date%\t%time%", "listall"]
 
+        // After the collector, which waits for the stream before letting the
+        // exit through. A dump that failed to spawn never closes its stdout,
+        // so this is the only signal that comes back — and without it
+        // `loading` would stay set and ensure() would never ask again.
+        onExited: root.loading = false
+
         stdout: StdioCollector {
             onStreamFinished: root.build(text)
         }
     }
 
     function build(text): void {
+        if (root.stale) {
+            root.stale = false;
+            return;
+        }
+
+        // Most titles fold to themselves, and one that does is kept as the
+        // string it already is rather than as three equal copies of it.
+        const prep = s => {
+            const p = Fuzzy.prep(s);
+            const raw = p[0] === s ? s : p[0];
+            return [raw, p[1] === raw ? raw : p[1]];
+        };
+
         const artists = [];
         const albums = [];
         const tracks = [];
@@ -112,7 +138,7 @@ Singleton {
                 if (ai === undefined) {
                     ai = artists.length;
                     artistAt[who] = ai;
-                    const p = Fuzzy.prep(who);
+                    const p = prep(who);
                     artists.push({
                         name: who,
                         raw: p[0],
@@ -134,7 +160,7 @@ Singleton {
                 if (li === undefined) {
                     li = albums.length;
                     albumAt[key] = li;
-                    const p = Fuzzy.prep(what);
+                    const p = prep(what);
                     albums.push({
                         name: what,
                         raw: p[0],
@@ -152,7 +178,7 @@ Singleton {
                 }
             }
 
-            const p = Fuzzy.prep(title);
+            const p = prep(title);
             const ti = tracks.length;
             tracks.push({
                 file: file,
@@ -188,7 +214,6 @@ Singleton {
         root.artists = artists;
         root.albums = albums;
         root.tracks = tracks;
-        root.loading = false;
         // A dump that came back with nothing is a dump that failed. `mpc`
         // puts its errors on stderr and exits nonzero, but stdout closes
         // either way, so an mpd that was down reads here exactly like one
@@ -245,9 +270,17 @@ Singleton {
         if (!terms.length)
             return [];
 
-        const nA = root.artists.length;
-        const nL = root.albums.length;
-        const nT = root.tracks.length;
+        // Read into locals once. This runs inside the launcher's results
+        // binding, and every `root.tracks[i]` in the loops below would
+        // register a dependency of its own — ten thousand of them, per
+        // keystroke, on a property that changes once a session.
+        const artists = root.artists;
+        const albums = root.albums;
+        const tracks = root.tracks;
+        const inherit = root.inherit;
+        const nA = artists.length;
+        const nL = albums.length;
+        const nT = tracks.length;
 
         // Per term, every artist's, album's and track's score against it, or
         // null for no match. Worked out once and then shared downwards: a
@@ -263,11 +296,11 @@ Singleton {
             const l = new Array(nL);
             const t = new Array(nT);
             for (let i = 0; i < nA; i++)
-                a[i] = Fuzzy.scorePrepped(term, root.artists[i].raw, root.artists[i].low);
+                a[i] = Fuzzy.scorePrepped(term, artists[i].raw, artists[i].low);
             for (let i = 0; i < nL; i++)
-                l[i] = Fuzzy.scorePrepped(term, root.albums[i].raw, root.albums[i].low);
+                l[i] = Fuzzy.scorePrepped(term, albums[i].raw, albums[i].low);
             for (let i = 0; i < nT; i++)
-                t[i] = Fuzzy.scorePrepped(term, root.tracks[i].raw, root.tracks[i].low);
+                t[i] = Fuzzy.scorePrepped(term, tracks[i].raw, tracks[i].low);
             aS.push(a);
             lS.push(l);
             tS.push(t);
@@ -300,14 +333,14 @@ Singleton {
         }
 
         for (let i = 0; i < nL; i++) {
-            const parent = root.albums[i].artist;
+            const parent = albums[i].artist;
             let s = 0;
             let k = 0;
             for (; k < n; k++) {
                 let v = lS[k][i];
                 const up = parent >= 0 ? aS[k][parent] : null;
-                if (up !== null && (v === null || up * root.inherit > v))
-                    v = up * root.inherit;
+                if (up !== null && (v === null || up * inherit > v))
+                    v = up * inherit;
                 if (v === null)
                     break;
                 s += v;
@@ -334,9 +367,9 @@ Singleton {
         }
 
         for (let i = 0; i < nT; i++) {
-            const t = root.tracks[i];
+            const t = tracks[i];
             const parent = t.album;
-            const grand = parent >= 0 ? root.albums[parent].artist : -1;
+            const grand = parent >= 0 ? albums[parent].artist : -1;
             let s = 0;
             let own = false;
             let k = 0;
@@ -345,14 +378,14 @@ Singleton {
                 if (v !== null)
                     own = true;
                 const up = parent >= 0 ? lS[k][parent] : null;
-                if (up !== null && (v === null || up * root.inherit > v))
-                    v = up * root.inherit;
+                if (up !== null && (v === null || up * inherit > v))
+                    v = up * inherit;
                 // Two steps up, and worth two steps of the discount: an
                 // artist's name says less about one of their songs than the
                 // record it is on does.
                 const over = grand >= 0 ? aS[k][grand] : null;
                 if (over !== null) {
-                    const w = over * root.inherit * root.inherit;
+                    const w = over * inherit * inherit;
                     if (v === null || w > v)
                         v = w;
                 }
@@ -377,16 +410,23 @@ Singleton {
             });
         }
 
-        hits.sort((x, y) => y.score - x.score || root.name(x).localeCompare(root.name(y)));
         if (!hits.length)
             return hits;
-        // Measured against the winner, not against zero. A score can come out
-        // negative — the penalty for a match that starts late in a long string
-        // is unbounded — so the cut is held at zero as a floor of its own
-        // rather than being multiplied into something above the scores it is
-        // meant to be below.
-        const cut = Math.max(0, hits[0].score * root.floor);
-        return hits.filter(h => h.score >= cut).slice(0, root.maxHits);
+
+        // Cut first, sort what survives: a sort is the one thing here that
+        // costs more than a pass, and most of what it would have ordered is
+        // about to be dropped.
+        //
+        // Only while the winner is positive. A fraction of a score at or
+        // below zero is a bar above the winner itself, and a query that
+        // matched a handful of long titles late would list nothing.
+        let best = -Infinity;
+        for (const h of hits)
+            if (h.score > best)
+                best = h.score;
+        const kept = best > 0 ? hits.filter(h => h.score >= best * root.floor) : hits;
+        kept.sort((x, y) => y.score - x.score || root.name(x).localeCompare(root.name(y)));
+        return kept.slice(0, root.maxHits);
     }
 
     // --- reading a hit -------------------------------------------------------

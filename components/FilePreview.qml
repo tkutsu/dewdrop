@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import qs
 import qs.components
 
@@ -15,9 +14,7 @@ import qs.components
 // ~/_scripts/thumb.sh does the rendering and the keeping; everything here is
 // about not asking it too often. Holding Down through forty files must not
 // leave forty ffmpegs behind it, so the ask is debounced and queued exactly
-// the way the launcher's other shelling-out modes are — see Launcher.pump,
-// which this is a second copy of because the panel is a component and the
-// service's copy belongs to the service.
+// the way the launcher's other shelling-out modes are — see QueuedProcess.
 Item {
     id: root
 
@@ -50,6 +47,9 @@ Item {
     }
 
     onPathChanged: {
+        // Back to the top before anything else: the last file's scroll
+        // position means nothing in this one, cached or not.
+        bodyView.contentY = 0;
         const hit = root.known[root.path];
         if (hit !== undefined) {
             // Already asked. An empty kind is an answer too — the file has
@@ -58,19 +58,11 @@ Item {
             root.kind = hit.kind;
             root.payload = hit.payload;
             thumb.want = "";
-            debounce.stop();
             return;
         }
         root.kind = "";
         root.payload = "";
-        // Back to the top: the last file's scroll position means nothing in
-        // this one.
-        bodyView.contentY = 0;
         thumb.want = root.path;
-        if (thumb.want)
-            debounce.restart();
-        else
-            debounce.stop();
     }
 
     // A page of the text, up or down, for a file longer than the panel.
@@ -87,81 +79,92 @@ Item {
         return true;
     }
 
-    function pump(): void {
-        if (thumb.running || thumb.want === thumb.arg)
-            return;
-        thumb.arg = thumb.want;
-        if (thumb.arg)
-            thumb.running = true;
-    }
-
-    Process {
+    QueuedProcess {
         id: thumb
-
-        property string want: ""
-        property string arg: ""
-
-        command: [root.script, thumb.arg]
-
-        // A run that finishes to find the selection has moved on restarts the
-        // clock rather than starting the next one itself, or the debounce
-        // would hold back the first ask and none of the ones after it.
-        onExited: if (thumb.want !== thumb.arg)
-            debounce.restart()
-
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // First line is what kind of answer this is, the rest is the
-                // answer. A path has the newline the script printed after it
-                // and nothing else worth keeping; a file's contents keep
-                // every newline they came with.
-                const cut = text.indexOf("\n");
-                const kind = cut < 0 ? "" : text.slice(0, cut);
-                const answer = ({
-                        kind: kind,
-                        payload: kind === "image" ? text.slice(cut + 1).trim() : (kind === "text" ? text.slice(cut + 1) : "")
-                    });
-                root.known[thumb.arg] = answer;
-                // Only if it is still the file being looked at: a soffice
-                // render can land a second after the row it belongs to has
-                // gone by.
-                if (thumb.arg === root.path) {
-                    root.kind = answer.kind;
-                    root.payload = answer.payload;
-                }
-            }
-        }
-    }
-
-    Timer {
-        id: debounce
 
         // Long enough to sit out a held arrow key, which repeats at about
         // 30ms once it gets going, and short enough that landing on a row and
         // stopping feels like the picture was already there.
         interval: 160
-        onTriggered: root.pump()
+        command: [root.script, thumb.arg]
+
+        onResult: function (arg, text) {
+            // First line is what kind of answer this is, the rest is the
+            // answer. A path has the newline the script printed after it
+            // and nothing else worth keeping; a file's contents keep
+            // every newline they came with.
+            const cut = text.indexOf("\n");
+            const kind = cut < 0 ? "" : text.slice(0, cut);
+            const answer = ({
+                    kind: kind,
+                    payload: kind === "image" ? text.slice(cut + 1).trim() : (kind === "text" ? text.slice(cut + 1) : "")
+                });
+            root.known[arg] = answer;
+            // Only if it is still the file being looked at: a soffice
+            // render can land a second after the row it belongs to has
+            // gone by.
+            if (arg === root.path) {
+                root.kind = answer.kind;
+                root.payload = answer.payload;
+            }
+        }
     }
 
-    Image {
-        id: shot
+    // --- the picture ---------------------------------------------------------
 
+    // Two Images taking turns rather than one changing source. An Image drops
+    // to Loading the moment its source moves, even to a file it decoded a
+    // second ago, so one Image meant the glyph flashing up between two
+    // pictures that were both already cached. Here the one on screen holds
+    // its frame until the other has the next file Ready, and only then do
+    // they swap.
+    property Image front: null
+    property Image next: null
+
+    readonly property string imageUrl: root.kind === "image" ? root.fileUrl(root.payload) : ""
+
+    onImageUrlChanged: {
+        root.next = null;
+        if (!root.imageUrl) {
+            root.front = null;
+            return;
+        }
+        if (root.front && String(root.front.source) === root.imageUrl)
+            return;
+        const img = root.front === shotA ? shotB : shotA;
+        img.source = root.imageUrl;
+        // A source it already held decodes nothing and changes no status, so
+        // the swap has to be made here rather than waited for.
+        if (img.status === Image.Ready)
+            root.front = img;
+        else
+            root.next = img;
+    }
+
+    function landed(img): void {
+        if (root.next === img && img.status === Image.Ready) {
+            root.front = img;
+            root.next = null;
+        }
+    }
+
+    // Nothing in here reaches for `root`: an inline component is its own
+    // scope, so what differs between the two is set where they are made.
+    component Shot: Image {
         anchors.fill: parent
-        source: root.kind === "image" ? root.fileUrl(root.payload) : ""
         fillMode: Image.PreserveAspectFit
         // The panel is small and the file may not be: decoded to twice the
         // box it is drawn in, which is sharp on a scaled screen and still a
-        // fraction of what a full-size photograph would cost.
-        sourceSize.width: Math.round(root.width * 2)
-        sourceSize.height: Math.round(root.height * 2)
+        // fraction of what a full-size photograph would cost. Square on the
+        // width alone: the height animates with the list, and a decode size
+        // bound to it would re-decode the file on every frame of that.
+        sourceSize.width: Math.round(width * 2)
+        sourceSize.height: Math.round(width * 2)
         // Loaded off the render thread, so a slow decode cannot stall the
         // list the arrow keys are moving.
         asynchronous: true
         smooth: true
         visible: opacity > 0
-        // Ready and nothing else: a file that fails to decode leaves the
-        // glyph up rather than a hole where a picture was meant to be.
-        opacity: shot.status === Image.Ready ? 1 : 0
 
         Behavior on opacity {
             NumberAnimation {
@@ -169,6 +172,22 @@ Item {
                 easing.type: Easing.OutCubic
             }
         }
+    }
+
+    // Only a Ready image is ever made `front`, so a file that fails to decode
+    // leaves the glyph up rather than a hole where a picture was meant to be.
+    Shot {
+        id: shotA
+
+        opacity: root.front === shotA ? 1 : 0
+        onStatusChanged: root.landed(shotA)
+    }
+
+    Shot {
+        id: shotB
+
+        opacity: root.front === shotB ? 1 : 0
+        onStatusChanged: root.landed(shotB)
     }
 
     // A text file is read rather than looked at, so it is set as text: the
@@ -223,7 +242,7 @@ Item {
         anchors.centerIn: parent
         text: root.path === "" ? Theme.glyph.folder : Theme.glyph.file
         color: Theme.menuText
-        opacity: shot.opacity > 0 || bodyView.opacity > 0 ? 0 : 0.25
+        opacity: root.front !== null || bodyView.opacity > 0 ? 0 : 0.25
         fontSize: Math.round(Math.min(parent.width, parent.height) * 0.4)
         implicitHeight: fontSize
 

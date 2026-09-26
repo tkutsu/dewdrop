@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs
+import qs.components
 import qs.services
 import "../Fuzzy.js" as Fuzzy
 
@@ -271,9 +272,6 @@ Singleton {
     // A new query is a new list, and the old cursor position means nothing in it.
     onQueryChanged: {
         root.index = 0;
-        // A new list is also a new tree, and nothing that was open in the old
-        // one was opened about this query.
-        root.open = ({});
         root.route();
     }
 
@@ -318,9 +316,6 @@ Singleton {
     function show(): void {
         root.query = "";
         root.index = 0;
-        // Cheap enough to redo every open rather than risk showing a stale
-        // list, and it runs while the box is still being drawn.
-        fasd.running = true;
         // The modes that shell out start each open with nothing. Their answers
         // are tagged with the query they were for, so a stale one could not be
         // shown against the wrong input — but the clipboard has moved on since
@@ -329,8 +324,7 @@ Singleton {
         root.fdHits = null;
         root.clipEntries = [];
         clip.asked = false;
-        root.musicQuery = "";
-        root.open = ({});
+        fasd.asked = false;
         root.chosen = -1;
         root.shown = true;
     }
@@ -345,27 +339,56 @@ Singleton {
 
     function hide(): void {
         root.shown = false;
-        // A debounce that outlives the box would spawn its process against a
-        // query nobody is looking at any more. Closing is not a keystroke, so
-        // route() never runs to stop them.
-        calcDebounce.stop();
-        fdDebounce.stop();
-        musicDebounce.stop();
+        // Closing is not a keystroke, so route() never runs to stop the clocks
+        // the modes keep; a run they started against a box that is gone would
+        // be work nobody sees.
+        qalc.cancel();
+        fd.cancel();
+        LauncherMusic.cancel();
+        root.askStop();
     }
 
     // --- matching ------------------------------------------------------------
 
     // Space-separated terms are ANDed, the way rofi's `tokenize: true` did:
     // "fire priv" finds Firefox's private-window entry. Each term scores
-    // against every [text, weight] field it is given and keeps its best hit;
-    // a term that lands nowhere makes the whole thing a miss, which is null
-    // rather than a low score — the caller drops those entirely.
+    // against every field it is given and keeps its best hit; a term that
+    // lands nowhere makes the whole thing a miss, which is null rather than a
+    // low score — the caller drops those entirely.
+    //
+    // Folding is the expensive half of a score (see Fuzzy.js), so both sides
+    // are folded before the loop rather than inside it: the terms once per
+    // keystroke by prepTerms, the fields once per list by prepFields — or,
+    // for a list too short to be worth keeping, once per call by matchScore.
+    // Per entry per keystroke, which is what a folded term inside a folded
+    // field loop came to, was a keystroke's worth of normalize() calls.
+    function prepTerms(query) {
+        return query.split(/\s+/).filter(t => t.length).map(t => Fuzzy.prepQuery(t));
+    }
+
+    // [text, weight] pairs to [raw, low, weight], with the empty ones gone: a
+    // missing generic name is not a field that fails to match, it is no field.
+    function prepFields(fields) {
+        const out = [];
+        for (const [text, weight] of fields) {
+            if (!text)
+                continue;
+            const p = Fuzzy.prep(text);
+            out.push([p[0], p[1], weight]);
+        }
+        return out;
+    }
+
     function matchScore(terms, fields) {
+        return root.matchPrepped(terms, root.prepFields(fields));
+    }
+
+    function matchPrepped(terms, fields) {
         let total = 0;
         for (const term of terms) {
             let best = null;
-            for (const [text, weight] of fields) {
-                const v = Fuzzy.score(term, text);
+            for (const [raw, low, weight] of fields) {
+                const v = Fuzzy.scorePrepped(term, raw, low);
                 if (v !== null && (best === null || v * weight > best))
                     best = v * weight;
             }
@@ -375,6 +398,24 @@ Singleton {
         }
         return total;
     }
+
+    // Each mode's rows, keyed by the character that picks it and given the
+    // query with that character off. Most trim it: a space after the prefix
+    // is not part of a path or a sum. The two that take a line being typed
+    // do not, or ", " would read the same as "," and the preview under the
+    // row would flicker between "nothing to set" and the real answer as the
+    // space went in. The calculator is not strict here: "=" is someone asking
+    // qalc a question on purpose, and whatever it says back is the answer.
+    readonly property var modeResults: ({
+            [root.pathPrefix]: rest => root.pathResults(rest.trim()),
+            [root.calcPrefix]: rest => root.calcResults(rest.trim(), false),
+            [root.cmdPrefix]: rest => root.cmdResults(rest.trim()),
+            [root.clipPrefix]: rest => root.clipResults(rest.trim()),
+            [root.askPrefix]: rest => root.askResults(rest.trim()),
+            [root.musicPrefix]: rest => LauncherMusic.results(rest.trim()),
+            [root.taskPrefix]: rest => root.taskResults(rest),
+            [root.timerPrefix]: rest => root.timerResults(rest)
+        })
 
     readonly property var results: {
         const q = root.query;
@@ -386,31 +427,9 @@ Singleton {
             return [];
 
         const sym = q.charAt(0);
-        const rest = q.slice(1).trim();
-        // charAt on an empty string gives "", which is none of these.
-        if (sym === root.pathPrefix)
-            return root.pathResults(rest);
-        // Not strict: "=" is someone asking qalc a question on purpose, and
-        // whatever it says back is the answer to it. See calcResults.
-        if (sym === root.calcPrefix)
-            return root.calcResults(rest, false);
-        if (sym === root.cmdPrefix)
-            return root.cmdResults(rest);
-        if (sym === root.clipPrefix)
-            return root.clipResults(rest);
-        if (sym === root.askPrefix)
-            return root.askResults(rest);
-        if (sym === root.musicPrefix)
-            return root.musicResults(rest);
-        // Deliberately q.slice(1) rather than the trimmed `rest`: what follows
-        // is a line somebody is typing, and trimming it means the space after
-        // the prefix is eaten and ", " reads the same as ",". It matters for
-        // the preview under the row, which otherwise flickers between "nothing
-        // to set" and the real answer as the space goes in.
-        if (sym === root.taskPrefix)
-            return root.taskResults(q.slice(1));
-        if (sym === root.timerPrefix)
-            return root.timerResults(q.slice(1));
+        const mode = root.modeResults[sym];
+        if (mode)
+            return mode(q.slice(1));
         if (root.prefixes[sym])
             return root.engineResults(sym, q.slice(1));
 
@@ -427,35 +446,40 @@ Singleton {
     // krunner's do: "lock" should beat every app whose name merely contains
     // those letters, and "re" should not put reboot above a browser.
     function mainResults(query) {
-        const terms = query.toLowerCase().split(/\s+/).filter(t => t.length);
+        const terms = root.prepTerms(query);
         const scored = root.appMatches(terms).concat(root.powerMatches(terms));
         scored.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
         return scored.slice(0, root.maxResults).map(x => x.row);
     }
+
+    // The menu with its fields folded, rebuilt when the installed apps
+    // change and read on every keystroke.
+    //
+    // rofi's drun-match-fields: name, generic, keywords, categories.
+    // Weighted, because a hit on the name means more than a hit on a
+    // category half the menu shares.
+    //
+    // Deliberately not e.id: Chrome PWAs are installed with ids like
+    // "chrome-<hash>-Default", so every one of them would answer to "chrome".
+    readonly property var appIndex: DesktopEntries.applications.values.filter(e => !e.noDisplay).map(e => ({
+                entry: e,
+                fields: root.prepFields([[e.name, 1], [e.genericName, 0.7]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
+            }))
 
     // Scored, not rendered: mainResults sorts these in with the power
     // commands, so the rows cannot be cut to maxResults yet.
     function appMatches(terms) {
         const scored = [];
 
-        for (const e of DesktopEntries.applications.values) {
-            if (e.noDisplay)
-                continue;
-
+        for (const a of root.appIndex) {
+            const e = a.entry;
             const f = root.frecency(e.id);
             // With nothing typed the list is pure history, so opening the
             // launcher and pressing Enter reruns what you last ran.
             let s = f;
 
             if (terms.length) {
-                // rofi's drun-match-fields: name, generic, keywords,
-                // categories. Weighted, because a hit on the name means more
-                // than a hit on a category half the menu shares.
-                //
-                // Deliberately not e.id: Chrome PWAs are installed with ids
-                // like "chrome-<hash>-Default", so every one of them would
-                // answer to "chrome".
-                const m = root.matchScore(terms, [[e.name, 1], [e.genericName, 0.7]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])));
+                const m = root.matchPrepped(terms, a.fields);
                 if (m === null)
                     continue;
                 // Logarithmic, so history breaks ties between comparable
@@ -533,9 +557,13 @@ Singleton {
         return scored;
     }
 
-    // fasd's database, re-read on every open. It is one ~80-line file under
-    // ~/.cache/fasd rather than a filesystem walk, so the whole thing lands in
-    // about 15ms — long before the prefix has finished being typed.
+    // fasd's database, re-read on the first "/" of each open. It is one
+    // ~80-line file under ~/.cache/fasd rather than a filesystem walk, so the
+    // whole thing lands in about 15ms — long before the prefix has finished
+    // being typed. Asked for then rather than on every open, because most
+    // opens never reach it. The last read stands in while the new one runs:
+    // a list that is a session old is still the right list, where a blank
+    // one for a frame is a flicker.
     //
     // This half is instant and needs no debounce, which is why it is a
     // separate process from the fd half below rather than one call that
@@ -546,6 +574,9 @@ Singleton {
     // Nothing is filtered out of this. fasd only ever records paths opened on
     // purpose, so cache and build noise never enters it — the ignore file the
     // fd half uses was measured against this database and matched none of it.
+    //
+    // { dir, path, base, fields }, with `fields` the basename and the path
+    // folded for the matcher — once, here, rather than per keystroke.
     property var pathCache: []
 
     // One pass does two jobs: drop entries whose path has since been deleted
@@ -554,21 +585,35 @@ Singleton {
     Process {
         id: fasd
 
+        // Whether the list has been asked for during this open, not whether
+        // it has arrived.
+        property bool asked: false
+
         command: ["sh", "-c", "fasd -Ral | while IFS= read -r p; do if [ -d \"$p\" ]; then printf 'd %s\\n' \"$p\"; elif [ -e \"$p\" ]; then printf 'f %s\\n' \"$p\"; fi; done"]
 
         stdout: StdioCollector {
             onStreamFinished: {
                 // Split on the first space only: the type is one character, and
                 // everything after it is the path, spaces and all.
-                root.pathCache = text.split("\n").filter(l => l.length > 2).map(l => ({
-                            dir: l.charAt(0) === "d",
-                            path: l.slice(2)
-                        }));
+                root.pathCache = text.split("\n").filter(l => l.length > 2).map(l => {
+                    const path = l.slice(2);
+                    const base = path.slice(path.lastIndexOf("/") + 1);
+                    // The basename is the thing being thought of. The
+                    // directories above it are context and score at half, or
+                    // a deep path would beat the file actually named for the
+                    // query on sheer length.
+                    return {
+                        dir: l.charAt(0) === "d",
+                        path: path,
+                        base: base,
+                        fields: root.prepFields([[base, 1], [path, 0.5]])
+                    };
+                });
             }
         }
     }
 
-    // What fd last found, tagged with the query it was for. See pump().
+    // What fd last found, tagged with the query it was for. See QueuedProcess.
     property var fdHits: null
 
     // What never turns up in a search. Not a list here, because
@@ -596,11 +641,12 @@ Singleton {
         return root.fdTerms(query).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
     }
 
-    Process {
+    QueuedProcess {
         id: fd
 
-        property string want: ""
-        property string arg: ""
+        // Longer than the calculator's: this one spawns a walk of the disk,
+        // and the fasd half has already put something on screen to look at.
+        interval: 150
 
         // Lowercase pattern plus fd's smart case means this is case-
         // insensitive, which is what a launcher query wants.
@@ -625,29 +671,17 @@ Singleton {
         // giving it enough to rank.
         command: ["timeout", "5", "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Quickshell.env("HOME")])
 
-        onExited: if (root.shown && fd.want !== fd.arg)
-            fdDebounce.restart()
-
-        stdout: StdioCollector {
-            onStreamFinished: root.fdHits = ({
-                    q: fd.arg,
+        onResult: function (arg, text) {
+            root.fdHits = ({
+                    q: arg,
                     // fd ends a directory with a slash, which is the only
                     // thing in the output that says which of the two it is.
                     list: text.split("\n").filter(l => l.length).map(l => ({
                                 dir: l.charAt(l.length - 1) === "/",
                                 path: l.charAt(l.length - 1) === "/" ? l.slice(0, -1) : l
                             }))
-                })
+                });
         }
-    }
-
-    Timer {
-        id: fdDebounce
-
-        // Longer than the calculator's: this one spawns a walk of the disk,
-        // and the fasd half has already put something on screen to look at.
-        interval: 150
-        onTriggered: root.pump(fd)
     }
 
     function tildeHome(path) {
@@ -659,13 +693,14 @@ Singleton {
         // Split on slashes as well as spaces, so "downloads/torrents" scores
         // as two words against the name and the path rather than as one long
         // one that has to be a subsequence of either.
-        const terms = root.fdTerms(query);
+        const terms = root.fdTerms(query).map(t => Fuzzy.prepQuery(t));
         const scored = [];
+        // A local, not root.pathCache[i] in the loop: each read inside the
+        // results binding would register as a dependency of its own.
+        const cache = root.pathCache;
 
-        for (let i = 0; i < root.pathCache.length; i++) {
-            const e = root.pathCache[i];
-            const cut = e.path.lastIndexOf("/");
-            const base = e.path.slice(cut + 1);
+        for (let i = 0; i < cache.length; i++) {
+            const e = cache[i];
 
             // fasd hands the list over already ranked by frecency, so with
             // nothing typed its order is the answer; scoring down the list is
@@ -673,10 +708,7 @@ Singleton {
             let s = -i;
 
             if (terms.length) {
-                // The basename is the thing being thought of. The directories
-                // above it are context and score at half, or a deep path would
-                // beat the file actually named for the query on sheer length.
-                const m = root.matchScore(terms, [[base, 1], [e.path, 0.5]]);
+                const m = root.matchPrepped(terms, e.fields);
                 if (m === null)
                     continue;
                 // Rank still breaks ties between equally good matches, gently.
@@ -685,8 +717,7 @@ Singleton {
 
             scored.push({
                 s: s,
-                e: e,
-                base: base
+                e: e
             });
         }
 
@@ -832,7 +863,7 @@ Singleton {
         // in ",milk @fri" would be a term no task could match and the list
         // below would empty out exactly as the date was typed.
         const core = typed.length ? Tasks.parse(typed).title : "";
-        const terms = core.toLowerCase().split(/\s+/).filter(t => t.length);
+        const terms = root.prepTerms(core);
         const scored = [];
 
         for (const task of Tasks.ordered) {
@@ -893,12 +924,16 @@ Singleton {
             });
         }
 
+        // No title here: it is Timers.describe(entry), which counts down, and
+        // a string that changed every second would rebuild this list every
+        // second and have the view drop every row. The delegate binds it
+        // live off `entry` instead — see LauncherMenu.qml.
         for (const e of Timers.entries)
             rows.push({
                 kind: "timer",
                 entry: e,
                 glyph: e.kind === "alarm" ? Theme.glyph.alarm : (e.running ? Theme.glyph.timer : Theme.glyph.timerPaused),
-                title: Timers.describe(e),
+                title: "",
                 raw: true,
                 subtitle: e.running ? "" : "paused",
                 dim: !e.running
@@ -911,6 +946,9 @@ Singleton {
         if (!query)
             return [];
         const answered = root.askAnswer && root.askAnswer.q === query;
+        // While the question is out the subtitle is askLabel, which moves
+        // twice a second; the delegate reads that off `q` for itself, so
+        // the row here can hold still. See LauncherMenu.qml.
         return [
             {
                 kind: "ask",
@@ -918,27 +956,52 @@ Singleton {
                 glyph: Theme.glyph.ask,
                 title: query,
                 raw: true,
-                subtitle: root.asking === query ? root.askLabel : (answered ? "copy" : "ask"),
+                subtitle: answered ? "copy" : "ask",
                 answer: answered ? root.askAnswer.text : ""
             }
         ];
     }
 
+    // A second question while one is out replaces it rather than waiting or
+    // being dropped: the row it was asked from is gone, so its answer would
+    // land against nothing. Killing a process is a signal that returns
+    // before the death, so the new run is not started here — it is left in
+    // `want` for onExited to start once the old one is actually gone.
     function askRun(q): void {
-        if (!q || ask.running)
+        if (!q || root.asking === q)
             return;
         root.askAnswer = null;
         root.asking = q;
         root.askTick = 0;
+        if (ask.running) {
+            ask.want = q;
+            ask.running = false;
+            return;
+        }
+        root.askStart(q);
+    }
+
+    function askStart(q): void {
+        ask.want = "";
         ask.acc = "";
         ask.arg = q;
         ask.running = true;
+    }
+
+    // On the way out: nothing is waiting for the answer, and the dots would
+    // otherwise go on ticking behind a closed box.
+    function askStop(): void {
+        ask.want = "";
+        root.asking = "";
+        ask.running = false;
     }
 
     Process {
         id: ask
 
         property string arg: ""
+        // The question asked while this run was still dying, if any.
+        property string want: ""
         // The answer as it arrives. opencode emits a JSON event per part, and
         // a long answer comes in several, so the block fills in rather than
         // appearing all at once.
@@ -957,11 +1020,18 @@ Singleton {
         command: ["sh", "-c", 'exec timeout 60 opencode run --pure --dir "$1" --agent "$2" --format json --title launcher -m "$3" "$4" </dev/null', "sh", Quickshell.env("HOME"), root.askAgent, root.askModel, root.askPreamble + ask.arg]
 
         onExited: {
-            root.asking = "";
-            root.askAnswer = ({
-                    q: ask.arg,
-                    text: ask.acc.trim() || "no answer"
-                });
+            // A run cut short — replaced, or closed on — has nothing to
+            // publish: what it had is not the answer, and "no answer" for a
+            // question nobody is waiting on would be cached against it.
+            if (ask.arg === root.asking) {
+                root.asking = "";
+                root.askAnswer = ({
+                        q: ask.arg,
+                        text: ask.acc.trim() || "no answer"
+                    });
+            }
+            if (ask.want)
+                root.askStart(ask.want);
         }
 
         stdout: SplitParser {
@@ -975,7 +1045,7 @@ Singleton {
                 } catch (err) {
                     return;
                 }
-                if (!e || e.type !== "text" || !e.part || !e.part.text)
+                if (!e || e.type !== "text" || !e.part || !e.part.text || ask.arg !== root.asking)
                     return;
                 ask.acc += (ask.acc ? "\n\n" : "") + e.part.text;
                 root.askAnswer = ({
@@ -999,37 +1069,12 @@ Singleton {
 
     // --- shelling out --------------------------------------------------------
 
-    // qalc, fd and cliphist are all the same shape: run this for the query as
-    // it stands. A query that moves while one is in flight must not mean two
-    // of them at once, and killing the running one is not the answer —
-    // Process.running = false sends a signal and returns, so the next start
-    // would race the death of the last. The new run is queued behind the old
-    // one instead. All three finish in tens of milliseconds, so the queue is
-    // never more than one deep.
-    //
-    // `want` is what the query asks for and `arg` is what the run in progress
-    // was for. Every answer is tagged with the `arg` it came from, so one that
-    // lands after the query has moved on is simply not matched by the results
-    // binding rather than shown against the wrong input.
-    //
-    // Only the debounce timers call this. An exiting run that finds newer work
-    // waiting restarts its timer rather than starting that work itself —
-    // otherwise the debounce would only ever hold back the first run, and
-    // every one after it would launch the moment the last exited. Typing
-    // steadily would then mean a process per exit for as long as you typed,
-    // which is the thing a debounce is there to stop.
-    function pump(proc): void {
-        if (proc.running || proc.want === proc.arg)
-            return;
-        proc.arg = proc.want;
-        if (proc.arg)
-            proc.running = true;
-    }
-
-    // Every keystroke: point the shelling-out modes at what the query now says
-    // and start their clocks. Which of them gets read is the results binding's
-    // business — but a mode has to have been asked before it is shown, or the
-    // answer arrives a beat after the row it belongs to.
+    // Every keystroke: point the modes that work between keystrokes at what
+    // the query now says. qalc and fd are QueuedProcesses and start their own
+    // clocks off `want`; the library scores in-process and keeps its own.
+    // Which of them gets read is the results binding's business — but a mode
+    // has to have been asked before it is shown, or the answer arrives a beat
+    // after the row it belongs to.
     function route(): void {
         const q = root.query;
         const sym = q.charAt(0);
@@ -1037,46 +1082,20 @@ Singleton {
         const t = q.trim();
 
         qalc.want = sym === root.calcPrefix ? rest : (root.looksLikeMath(t) ? t : "");
-        if (qalc.want)
-            calcDebounce.restart();
-        else
-            calcDebounce.stop();
 
         // Three characters before walking the disk. Fewer than that matches
         // most of the home directory, and fasd has already answered anyway.
         fd.want = sym === root.pathPrefix && rest.length >= 3 ? rest : "";
-        if (fd.want)
-            fdDebounce.restart();
-        else
-            fdDebounce.stop();
 
-        // Read once and then kept, so this is a real ask only on the first #
-        // of a session — and a rescan of mpd's database is what makes it one
-        // again. See services/Library.qml.
-        if (sym === root.musicPrefix) {
-            Library.ensure();
-            // Scoring ten thousand titles is 50ms for one word and 160ms for
-            // three, which is a keystroke the box does not answer. Debounced
-            // like the two that shell out, and for the same reason — the only
-            // difference is that this one burns the time here rather than in
-            // another process.
-            //
-            // Except for the first query of the mode, which is scored on the
-            // spot: there is nothing on screen yet to stand in for it, and a
-            // list that arrives blank and fills in 60ms later is the flicker
-            // the debounce is supposed to prevent.
-            if (!root.musicQuery)
-                root.musicQuery = rest;
-            else
-                musicDebounce.restart();
-        } else {
-            musicDebounce.stop();
-            root.musicQuery = "";
-        }
+        LauncherMusic.route(sym === root.musicPrefix, rest);
 
         // Asked once per open, on the keystroke that first names the mode.
         // `asked` rather than "arrived": the second character typed must not
         // start a second read of the same list.
+        if (sym === root.pathPrefix && !fasd.asked) {
+            fasd.asked = true;
+            fasd.running = true;
+        }
         if (sym === root.clipPrefix && !clip.asked) {
             clip.asked = true;
             clip.running = true;
@@ -1085,7 +1104,7 @@ Singleton {
 
     // --- calculator ----------------------------------------------------------
 
-    // What qalc last said, and what it was asked. See pump().
+    // What qalc last said, and what it was asked. See QueuedProcess.
     property var calcAnswer: null
 
     // qalc answers everything. "hello" is 2.718281828 B·h·L² — e, in
@@ -1136,11 +1155,10 @@ Singleton {
         ];
     }
 
-    Process {
+    QueuedProcess {
         id: qalc
 
-        property string want: ""
-        property string arg: ""
+        interval: 60
 
         // The expression as an argument, not on stdin. Fed through a pipe,
         // qalc reads it as an interactive session and answers with its prompt
@@ -1156,30 +1174,17 @@ Singleton {
         // Under timeout, because qalc can be asked something it will never
         // finish: "999999999!" pins a core and never returns. Without a limit
         // that would be the end of the calculator for the rest of the session
-        // — the run never exits, so pump() is never called again and every
-        // later expression queues behind a process that is not coming back.
+        // — the run never exits, so the queue behind it is never pumped and
+        // every later expression waits on a process that is not coming back.
         // Two seconds is an eternity next to the 20ms a real answer takes.
         command: ["timeout", "2", "qalc", "-t", qalc.arg]
 
-        // Not pump() directly: see the note there. Nothing is queued once the
-        // box is gone either, or closing mid-expression would still spawn one
-        // more run against a query nobody can see.
-        onExited: if (root.shown && qalc.want !== qalc.arg)
-            calcDebounce.restart()
-
-        stdout: StdioCollector {
-            onStreamFinished: root.calcAnswer = ({
-                    expr: qalc.arg,
+        onResult: function (arg, text) {
+            root.calcAnswer = ({
+                    expr: arg,
                     text: text.trim()
-                })
+                });
         }
-    }
-
-    Timer {
-        id: calcDebounce
-
-        interval: 60
-        onTriggered: root.pump(qalc)
     }
 
     // --- urls ----------------------------------------------------------------
@@ -1287,17 +1292,18 @@ Singleton {
                 }
             ];
 
-        const terms = query.toLowerCase().split(/\s+/).filter(t => t.length);
+        const terms = root.prepTerms(query);
         const scored = [];
+        const entries = root.clipEntries;
 
-        for (let i = 0; i < root.clipEntries.length; i++) {
-            const e = root.clipEntries[i];
+        for (let i = 0; i < entries.length; i++) {
+            const e = entries[i];
             // cliphist lists newest first, and with nothing typed that order
             // is the answer — the thing you just copied is the thing you want.
             let s = -i;
 
             if (terms.length) {
-                const m = root.matchScore(terms, [[e.text, 1]]);
+                const m = root.matchPrepped(terms, e.fields);
                 if (m === null)
                     continue;
                 s = m - i * 0.1;
@@ -1335,198 +1341,21 @@ Singleton {
         stdout: StdioCollector {
             // Tab-separated: an id and the preview cliphist made of the entry,
             // which for an image is its own "[[ binary data ... ]]" line. The
-            // id is what decodes back to the real thing, so both are kept.
-            onStreamFinished: root.clipEntries = text.split("\n").filter(l => l.indexOf("\t") > 0).map(l => ({
-                        id: l.slice(0, l.indexOf("\t")),
-                        line: l,
-                        text: l.slice(l.indexOf("\t") + 1)
-                    }))
+            // id is what decodes back to the real thing, so both are kept —
+            // and the text folded for the matcher, once, here.
+            onStreamFinished: root.clipEntries = text.split("\n").filter(l => l.indexOf("\t") > 0).map(l => {
+                const body = l.slice(l.indexOf("\t") + 1);
+                return {
+                    id: l.slice(0, l.indexOf("\t")),
+                    line: l,
+                    text: body,
+                    fields: root.prepFields([[body, 1]])
+                };
+            })
         }
     }
 
-    // --- music ---------------------------------------------------------------
-
-    // The library, and the one mode whose rows are a tree rather than a list.
-    // What is in it is services/Library.qml's business; this is how it is laid
-    // out, walked and acted on.
-
-    // The tree's entire state: the keys of the rows Tab has opened. Keys are
-    // paths ("artist:3/album:7"), so the same record found twice — once on
-    // its own, once under its artist — opens where it was asked to and
-    // nowhere else.
-    property var open: ({})
-
-    // The query the library has actually been scored against, which trails
-    // the one in the box by the debounce below. The rows on screen are always
-    // this query's rows, the way the calculator's answer is always tagged with
-    // the expression it came from.
-    property string musicQuery: ""
-
-    Timer {
-        id: musicDebounce
-
-        // The calculator's interval. Both are answering the same thing — the
-        // pause between two keystrokes — and one of them being a process and
-        // the other a loop is not a reason for them to wait different lengths.
-        interval: 60
-        onTriggered: root.musicQuery = root.query.slice(1).trim()
-    }
-
-    // What the query turned up, ranked, before any of it is laid out as rows.
-    //
-    // Separate from the rows on purpose. The tree rearranges itself constantly
-    // — every arrow key opens a record and shuts another — and the rows are
-    // rebuilt each time it does. Ranking and laying out in one pass meant
-    // every one of those presses re-scored the whole library: a tenth of a
-    // second to walk down a discography whose order had not changed. This
-    // depends on the query and the library and nothing else, so the walking is
-    // free and only typing costs anything.
-    readonly property var musicHits: {
-        if (!Library.loaded || !root.musicQuery)
-            return [];
-
-        // Playlists are ranked here rather than in the library, which has
-        // never heard of them — they are mpd's, not the database's. Same
-        // matcher and the same scale, so they sort in among everything else
-        // rather than being a section of their own.
-        const scored = Library.search(root.musicQuery).map(h => ({
-                    hit: h,
-                    s: h.score
-                }));
-        const terms = root.musicQuery.toLowerCase().split(/\s+/).filter(t => t.length);
-        for (const name of Mpd.playlists) {
-            const m = root.matchScore(terms, [[name, 1]]);
-            if (m !== null)
-                scored.push({
-                    playlist: name,
-                    s: m
-                });
-        }
-        scored.sort((a, b) => b.s - a.s);
-        return scored.slice(0, root.maxResults);
-    }
-
-    function musicResults(query) {
-        // route() has already started the read; this is what stands in while
-        // it happens. A note rather than an empty list, for the reason the
-        // clipboard has one: a "nothing here" that turns into a hundred rows a
-        // moment later reads as a bug rather than as a wait.
-        if (!Library.loaded)
-            return [
-                {
-                    kind: "note",
-                    key: "note",
-                    glyph: Theme.glyph.track,
-                    title: "reading the library",
-                    subtitle: "",
-                    raw: true
-                }
-            ];
-
-        // "#" on its own is the stored playlists. Ten thousand tracks in no
-        // particular order is not a list anybody reads — and the playlists are
-        // the one thing in this mode the search below cannot reach, a saved
-        // queue having no artist and no album to be found under.
-        if (!query)
-            return Mpd.playlists.map(name => root.playlistRow(name));
-
-        const rows = [];
-        for (const x of root.musicHits) {
-            if (x.playlist !== undefined)
-                rows.push(root.playlistRow(x.playlist));
-            else if (x.hit.kind === "artist")
-                root.pushArtist(rows, x.hit.at);
-            else if (x.hit.kind === "album")
-                root.pushAlbum(rows, x.hit.at, 0);
-            else
-                rows.push(root.trackRow(x.hit.at, 0, ""));
-        }
-        return rows;
-    }
-
-    // "1 track", "14 tracks". A discography that says "1 tracks" is one
-    // nobody read back.
-    function plural(n, word) {
-        return n + " " + word + (n === 1 ? "" : "s");
-    }
-
-    function playlistRow(name) {
-        return {
-            kind: "music-playlist",
-            key: "playlist:" + name,
-            name: name,
-            glyph: Theme.glyph.playlist,
-            title: name,
-            subtitle: "playlist",
-            raw: true
-        };
-    }
-
-    // Pushed rather than returned, all three of these: a row that can carry
-    // children has to put them directly underneath itself, and a function that
-    // handed back an array would leave the caller splicing.
-    function pushArtist(rows, at): void {
-        const a = Library.artists[at];
-        const key = "artist:" + at;
-        rows.push({
-            kind: "music-artist",
-            key: key,
-            at: at,
-            indent: 0,
-            glyph: Theme.glyph.artist,
-            title: a.name,
-            subtitle: [a.albums.length ? root.plural(a.albums.length, "album") : "", root.plural(a.tracks, "track")].filter(x => x).join("  ·  "),
-            raw: true
-        });
-
-        if (!root.open[key])
-            return;
-        for (const al of a.albums)
-            root.pushAlbum(rows, al, 1, key + "/");
-    }
-
-    function pushAlbum(rows, at, indent, prefix): void {
-        const l = Library.albums[at];
-        const key = (prefix ?? "") + "album:" + at;
-        rows.push({
-            kind: "music-album",
-            key: key,
-            at: at,
-            indent: indent,
-            glyph: Theme.glyph.album,
-            title: l.name,
-            // Under its artist, the artist is the row above and saying so
-            // again is noise. On its own it is the thing that tells two
-            // records of the same name apart.
-            subtitle: [indent ? "" : Library.artistName(l.artist), Library.year(l.date), root.plural(l.tracks.length, "track")].filter(x => x).join("  ·  "),
-            raw: true
-        });
-
-        if (!root.open[key])
-            return;
-        for (const ti of l.tracks)
-            rows.push(root.trackRow(ti, indent + 1, key));
-    }
-
-    function trackRow(at, indent, parent) {
-        const t = Library.tracks[at];
-        return {
-            kind: "music-track",
-            key: (parent ? parent + "/" : "") + "track:" + at,
-            at: at,
-            indent: indent,
-            // Which album row this one belongs to, if it is inside one.
-            parent: parent,
-            glyph: Theme.glyph.track,
-            title: t.title,
-            // Inside a record, who plays it and what it is on are both rows
-            // above; all that is left to say is how long it runs.
-            subtitle: indent ? t.time : [t.artist, Library.albumName(t.album)].filter(x => x).join("  ·  "),
-            raw: true
-        };
-    }
-
-    // --- walking the tree ----------------------------------------------------
+    // --- selection -----------------------------------------------------------
 
     function move(dir): void {
         const n = root.results.length;
@@ -1538,62 +1367,7 @@ Singleton {
         root.index = i;
     }
 
-    // Tab. An artist or a record opens or shuts; anything inside one shuts
-    // the one it is in and goes back up to it, so the same key that went in
-    // comes back out. Opening only adds rows below the selection, and
-    // shutting from inside lands on a row above everything that goes, so the
-    // index never has to be looked up again afterwards.
-    function fold(): void {
-        const rows = root.results;
-        const r = rows[root.index];
-        if (!r)
-            return;
-        let at = root.index;
-        if (r.kind !== "music-artist" && r.kind !== "music-album") {
-            if (!r.indent)
-                return;
-            while (at > 0 && (rows[at].indent ?? 0) >= r.indent)
-                at--;
-        }
-        // A fresh object rather than a mutation: `open` is a var property,
-        // and changing one in place does not notify.
-        const next = Object.assign({}, root.open);
-        const key = rows[at].key;
-        if (next[key])
-            delete next[key];
-        else
-            next[key] = true;
-        root.open = next;
-        root.index = at;
-    }
-
-    // A page, in a tree, is the next thing at this level rather than twelve
-    // rows further down: an open record's songs are stepped over.
-    //
-    // On PageUp and PageDown, which are dead keys in this mode: the two things
-    // they otherwise page — a model's answer and the / panel's file — are
-    // neither of them on screen next to a library. See LauncherMenu.qml.
-    function skip(dir): void {
-        const rows = root.results;
-        for (let i = root.index + dir; i >= 0 && i < rows.length; i += dir) {
-            if (rows[i].kind === "music-track" && rows[i].parent)
-                continue;
-            root.index = i;
-            return;
-        }
-    }
-
-    // What the artwork panel is looking at. Worked out here because the row is
-    // here; the panel only knows how to find a picture in a folder.
-    readonly property string coverDir: {
-        const r = root.selected;
-        if (!root.musicMode || !r || r.kind.indexOf("music-") !== 0)
-            return "";
-        const kind = r.kind.slice(6);
-        if (kind !== "artist" && kind !== "album" && kind !== "track")
-            return "";
-        return Library.coverDir(kind, r.at);
-    }
+    // --- engines -------------------------------------------------------------
 
     function engineResults(sym, rest) {
         const group = root.prefixes[sym];
@@ -1623,128 +1397,129 @@ Singleton {
                 }));
     }
 
+    // --- activating ----------------------------------------------------------
+
+    // Text to the clipboard. Through sh rather than as a wl-copy argument
+    // because an answer can start with a minus — "-40 °C" would be read as
+    // flags — and because it is typed text that nothing should have to quote.
+    function copy(text): void {
+        Quickshell.execDetached(["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", text]);
+    }
+
+    // What Enter does to a row, by kind. Each one decides whether the box
+    // leaves, and the ones that do say so first: leaving snapshots the list
+    // for the exit animation (see LauncherMenu.qml), and a bump or an
+    // execute before it would re-rank the rows the box is closing over.
+    //
+    // Ticking a task off, holding a timer and asking a question are not
+    // leaving. You open this having let three things pile up, and a box that
+    // shut after each one would have to be reopened between them; an answer
+    // is drawn in this box, so the box has to still be here when it arrives.
+    // Adding a task or a timer does leave: that is a sentence finished. So
+    // does copying an answer, the same way the calculator's is.
+    readonly property var actions: ({
+            app: (r, i) => {
+                root.leave(i);
+                root.bump(r.entry.id);
+                r.entry.execute();
+            },
+            calc: (r, i) => {
+                root.leave(i);
+                root.copy(r.answer);
+            },
+            cmd: (r, i) => {
+                root.leave(i);
+                root.bump("cmd:" + r.cmd);
+                // --hold keeps the window up after the command ends, which is
+                // the only reason to have asked for a terminal: a command
+                // that exits instantly would otherwise take its own output
+                // with it.
+                if (r.term)
+                    Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.cmd]);
+                else
+                    Quickshell.execDetached(["sh", "-c", r.cmd]);
+            },
+            power: (r, i) => {
+                root.leave(i);
+                root.bump("power:" + r.action.key);
+                // The irreversible ones keep their second look. See Power.arm.
+                if (r.action.confirm)
+                    Power.arm(r.action);
+                else
+                    Power.run(r.action.arg);
+            },
+            clip: (r, i) => {
+                root.leave(i);
+                // decode, not the preview: the preview is one line of what
+                // may be several, and for an image it is a description of
+                // the bytes.
+                Quickshell.execDetached(["sh", "-c", "cliphist decode \"$1\" | wl-copy", "sh", r.id]);
+            },
+            path: (r, i) => {
+                root.leave(i);
+                // Keep fasd's ranking fresh, the same way f.fish does on its
+                // way out, so picking a path here also trains `f` in the
+                // terminal.
+                Quickshell.execDetached(["fasd", "-A", r.path]);
+                // A file opens in $EDITOR the way f.fish opens one, and in a
+                // terminal because that is where an editor lives. Still not
+                // xdg-open: that would hand a .conf to a text viewer and a
+                // .png to an image app, which is not what f does.
+                //
+                // A directory goes to Dolphin rather than to a prompt sitting
+                // in it. f cd-s there because the next thing you type in a
+                // terminal is a command about the place; picking a folder out
+                // of a list of folders is the other errand, and it wants the
+                // folder open and its contents visible without an ls.
+                if (r.dir)
+                    Quickshell.execDetached(["dolphin", r.path]);
+                else
+                    Quickshell.execDetached(["kitty", "-e", Quickshell.env("EDITOR") || "nvim", r.path]);
+            },
+            url: (r, i) => {
+                root.leave(i);
+                Quickshell.execDetached(["xdg-open", r.url]);
+            },
+            ask: (r, i) => {
+                if (!r.answer) {
+                    root.askRun(r.q);
+                    return;
+                }
+                root.leave(i);
+                root.copy(r.answer);
+            },
+            task: (r, i) => Tasks.complete(r.task),
+            "task-add": (r, i) => {
+                if (!r.ok)
+                    return;
+                root.leave(i);
+                Tasks.run(r.text);
+            },
+            timer: (r, i) => Timers.toggle(r.entry.id),
+            "timer-add": (r, i) => {
+                if (!r.ok)
+                    return;
+                root.leave(i);
+                Timers.run(r.text);
+            }
+        })
+
     // `mode` is only for the music rows — "queue", "play" or "next", from
     // which modifier was held with Enter.
     function activate(i, mode): void {
         const r = root.results[i];
         if (!r)
             return;
-
         // A row that is only telling you something has nothing to activate,
         // and closing the launcher would take the message with it.
         if (r.kind === "note")
             return;
-
-        // Everything else in the library goes the same way: whatever files the
-        // row stands for, wherever the key that chose it says to put them.
-        // A playlist is the exception only in that mpd loads it by name — it
-        // is a list of files this has never read.
-        //
-        // Only play leaves. Queueing and play-next are things you do several
-        // of in a row, so the box stays up with the selection where it was.
         if (r.kind.indexOf("music-") === 0) {
-            mode = mode || "queue";
-            if (mode === "play")
+            if (LauncherMusic.activate(r, mode))
                 root.leave(i);
-            if (r.kind === "music-playlist")
-                Mpd.loadPlaylist(r.name, mode);
-            else
-                Mpd.enqueue(Library.files(r.kind.slice(6), r.at), mode);
             return;
         }
-
-        // Ticking a task off is not leaving. You open this having let three
-        // things pile up, and a box that shut after each one would have to be
-        // reopened between them — same reasoning as queueing a song below.
-        // Adding one does leave: that is a sentence finished.
-        if (r.kind === "task") {
-            Tasks.complete(r.task);
-            return;
-        }
-        if (r.kind === "task-add") {
-            if (!r.ok)
-                return;
-            root.leave(i);
-            Tasks.run(r.text);
-            return;
-        }
-        // Likewise: holding and releasing a timer is something you do to the
-        // one you are looking at, and then look at the next one.
-        if (r.kind === "timer") {
-            Timers.toggle(r.entry.id);
-            return;
-        }
-        if (r.kind === "timer-add") {
-            if (!r.ok)
-                return;
-            root.leave(i);
-            Timers.run(r.text);
-            return;
-        }
-
-        // Asking is not leaving: the answer is drawn in this box, so the box
-        // has to still be here when it arrives. Copying one is leaving, the
-        // same way the calculator's answer is.
-        if (r.kind === "ask") {
-            if (!r.answer) {
-                root.askRun(r.q);
-                return;
-            }
-            root.leave(i);
-            Quickshell.execDetached(["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", r.answer]);
-            return;
-        }
-
-        root.leave(i);
-        if (r.kind === "app") {
-            root.bump(r.entry.id);
-            r.entry.execute();
-        } else if (r.kind === "calc") {
-            // The answer to the clipboard, which is the only place it could be
-            // going. Through sh rather than as a wl-copy argument because an
-            // answer can start with a minus — "-40 °C" would be read as flags.
-            Quickshell.execDetached(["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", r.answer]);
-        } else if (r.kind === "cmd") {
-            root.bump("cmd:" + r.cmd);
-            // --hold keeps the window up after the command ends, which is the
-            // only reason to have asked for a terminal: a command that exits
-            // instantly would otherwise take its own output with it.
-            if (r.term)
-                Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.cmd]);
-            else
-                Quickshell.execDetached(["sh", "-c", r.cmd]);
-        } else if (r.kind === "power") {
-            root.bump("power:" + r.action.key);
-            // The irreversible ones keep their second look. See Power.arm.
-            if (r.action.confirm)
-                Power.arm(r.action);
-            else
-                Power.run(r.action.arg);
-        } else if (r.kind === "clip") {
-            // decode, not the preview: the preview is one line of what may be
-            // several, and for an image it is a description of the bytes.
-            Quickshell.execDetached(["sh", "-c", "cliphist decode \"$1\" | wl-copy", "sh", r.id]);
-        } else if (r.kind === "path") {
-            // Keep fasd's ranking fresh, the same way f.fish does on its way
-            // out, so picking a path here also trains `f` in the terminal.
-            Quickshell.execDetached(["fasd", "-A", r.path]);
-            // A file opens in $EDITOR the way f.fish opens one, and in a
-            // terminal because that is where an editor lives. Still not
-            // xdg-open: that would hand a .conf to a text viewer and a .png to
-            // an image app, which is not what f does.
-            //
-            // A directory goes to Dolphin rather than to a prompt sitting in
-            // it. f cd-s there because the next thing you type in a terminal
-            // is a command about the place; picking a folder out of a list of
-            // folders is the other errand, and it wants the folder open and
-            // its contents visible without an ls.
-            if (r.dir)
-                Quickshell.execDetached(["dolphin", r.path]);
-            else
-                Quickshell.execDetached(["kitty", "-e", Quickshell.env("EDITOR") || "nvim", r.path]);
-        } else {
-            Quickshell.execDetached(["xdg-open", r.url]);
-        }
+        root.actions[r.kind](r, i);
     }
 
     // Ctrl+Delete. Only the clipboard has anything to forget: an app you
@@ -1782,11 +1557,20 @@ Singleton {
         return Object.keys(root.db).filter(k => k.indexOf(prefix) === 0).sort((a, b) => root.frecency(b) - root.frecency(a)).slice(0, 10).map(k => k.slice(prefix.length));
     }
 
+    // How long an unused entry is kept. Past a week its weight is already at
+    // the floor, and past this it is only a line in a file that would
+    // otherwise grow by one for every command ever typed.
+    readonly property int keepMs: 90 * 24 * 3600000
+
     function bump(id): void {
         // A fresh object rather than a mutation: `db` is a var property, and
         // changing one in place does not notify, so the results binding would
         // keep the ranking it had until the next keystroke.
-        const next = Object.assign({}, root.db);
+        const next = {};
+        const since = Date.now() - root.keepMs;
+        for (const k in root.db)
+            if (root.db[k].last >= since)
+                next[k] = root.db[k];
         next[id] = {
             // Capped, so an app opened a thousand times cannot sit at the top
             // of the list for the rest of the machine's life.

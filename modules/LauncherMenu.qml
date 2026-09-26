@@ -220,30 +220,65 @@ OverlayWindow {
         return true;
     }
 
-    // Tab in music mode, which rebuilds a list that is not supposed to move.
-    // The model is a plain array and replacing one empties the view before it
-    // refills it: the count drops to nothing, contentY drops with it, and the
-    // list comes back at the top however far down it had been scrolled. The
-    // selection is restored by then, so what is seen is a list that jumped to
-    // the top of the library and a highlight flying back down to where it
-    // already was.
-    //
-    // So the scroll is taken before the fold and put back after it. Opening
-    // only adds rows below the selection and shutting in place only takes
-    // them away, and neither is a reason for anything on screen to move.
-    // Shutting from inside a record is the one case that has to: the row it
-    // goes back up to can be off the top edge by then, and is brought in no
-    // further than it has to come.
-    function foldTree() {
-        const was = list.contentY;
-        Launcher.fold();
-        // Otherwise the rows are made on the next polish and contentHeight,
-        // which the scroll is clamped against, is still the old list's.
-        list.forceLayout();
-        const max = Math.max(0, list.contentHeight - list.height);
-        list.contentY = Math.max(0, Math.min(max, was));
-        root.reveal();
+    // +1 for the keys that go down, -1 for the ones that go up, 0 for the
+    // rest. Readline's pair and vim's are in here, since both are muscle
+    // memory somewhere on this machine — with Ctrl only, because bare they
+    // are letters being typed.
+    function stepOf(key, ctrl) {
+        switch (key) {
+        case Qt.Key_Down:
+        case Qt.Key_Tab:
+        case Qt.Key_PageDown:
+            return 1;
+        case Qt.Key_Up:
+        case Qt.Key_Backtab:
+        case Qt.Key_PageUp:
+            return -1;
+        case Qt.Key_N:
+        case Qt.Key_J:
+            return ctrl ? 1 : 0;
+        case Qt.Key_P:
+        case Qt.Key_K:
+            return ctrl ? -1 : 0;
+        }
+        return 0;
     }
+
+    // What a step does depends on the key and the mode. Tab opens and shuts
+    // the tree in music mode and moves the selection everywhere else; nothing
+    // is lost to the swap, since the arrows and both Ctrl pairs still move it.
+    // Page keys page whichever long thing is on screen — an answer too tall
+    // for the box, or the file under the / list, never both at once — and in
+    // music mode, where neither is, step a level of the tree instead. The
+    // answer takes any step first, because while it is scrolling there is
+    // only the one row and the selection has nowhere to go.
+    function step(key, dir) {
+        const tab = key === Qt.Key_Tab || key === Qt.Key_Backtab;
+        const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
+        if (Launcher.musicMode && tab) {
+            LauncherMusic.fold();
+            return;
+        }
+        if (Launcher.musicMode && page) {
+            LauncherMusic.skip(dir);
+            return;
+        }
+        if (root.scroll(dir))
+            return;
+        if (page) {
+            if (preview.item)
+                preview.item.scroll(dir);
+            return;
+        }
+        Launcher.move(dir);
+    }
+
+    // True for the length of a keystroke. A new query is a new list, and the
+    // highlight and the scroll are put on its first row rather than slid
+    // there: travelling through rows that are about to be replaced is motion
+    // about nothing. Set around the write to Launcher.query, because that is
+    // where the index reset and the list rebuild both happen, synchronously.
+    property bool settling: false
 
     // Keeping the selected row on screen, and scrolling no further than it
     // takes to get it there. The view used to do this for itself, off the
@@ -252,16 +287,23 @@ OverlayWindow {
     // nothing to track will happily let the selection walk off the bottom
     // edge. So the rule it had is written out: never above the top edge,
     // never below the bottom one, and otherwise wherever the list already is.
-    function reveal() {
+    //
+    // Not `reveal`: that is the property above, and a function of the same
+    // name is shadowed by it.
+    function keepSelectionVisible() {
         const top = Launcher.index * root.rowHeight;
         const floor = top + root.rowHeight - list.height;
         const max = Math.max(0, list.contentHeight - list.height);
         const y = Math.max(0, Math.min(max, Math.max(floor, Math.min(top, list.contentY))));
         scrollTo.stop();
-        if (y !== list.contentY) {
-            scrollTo.to = y;
-            scrollTo.start();
+        if (y === list.contentY)
+            return;
+        if (root.settling) {
+            list.contentY = y;
+            return;
         }
+        scrollTo.to = y;
+        scrollTo.start();
     }
 
     // On its own rather than a Behavior on contentY: that property is also
@@ -514,7 +556,11 @@ OverlayWindow {
                     }
                 }
 
-                onTextChanged: Launcher.query = input.text
+                onTextChanged: {
+                    root.settling = true;
+                    Launcher.query = input.text;
+                    root.settling = false;
+                }
 
                 // Keys handlers run before TextInput's own, so the navigation
                 // keys are ours and everything else still types.
@@ -524,55 +570,6 @@ OverlayWindow {
                     switch (event.key) {
                     case Qt.Key_Escape:
                         Launcher.hide();
-                        break;
-                    // Tab opens and shuts the tree in music mode and moves the
-                    // selection everywhere else. Nothing is lost to the swap:
-                    // Down, Up and both Ctrl pairs still move the selection.
-                    case Qt.Key_Tab:
-                        if (Launcher.musicMode) {
-                            root.foldTree();
-                            break;
-                        }
-                        if (root.scroll(1))
-                            break;
-                        Launcher.move(1);
-                        break;
-                    case Qt.Key_Backtab:
-                        if (Launcher.musicMode) {
-                            root.foldTree();
-                            break;
-                        }
-                        if (root.scroll(-1))
-                            break;
-                        Launcher.move(-1);
-                        break;
-                    case Qt.Key_Down:
-                        if (root.scroll(1))
-                            break;
-                        Launcher.move(1);
-                        break;
-                    case Qt.Key_Up:
-                        if (root.scroll(-1))
-                            break;
-                        Launcher.move(-1);
-                        break;
-                    // A page of whichever of the two long things is on
-                    // screen: the file under the / list, or an answer too
-                    // tall for the box. Never both at once, so they are
-                    // simply asked in turn.
-                    case Qt.Key_PageDown:
-                        if (Launcher.musicMode) {
-                            Launcher.skip(1);
-                            break;
-                        }
-                        root.scroll(1) || (preview.item && preview.item.scroll(1));
-                        break;
-                    case Qt.Key_PageUp:
-                        if (Launcher.musicMode) {
-                            Launcher.skip(-1);
-                            break;
-                        }
-                        root.scroll(-1) || (preview.item && preview.item.scroll(-1));
                         break;
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
@@ -588,23 +585,16 @@ OverlayWindow {
                             return;
                         Launcher.forget(Launcher.index);
                         break;
-                    // Readline's pair and vim's, since both are muscle memory
-                    // somewhere on this machine.
-                    case Qt.Key_N:
-                    case Qt.Key_J:
-                        if (!ctrl)
-                            return;
-                        Launcher.move(1);
-                        break;
-                    case Qt.Key_P:
-                    case Qt.Key_K:
-                        if (!ctrl)
-                            return;
-                        Launcher.move(-1);
-                        break;
                     default:
-                        // Let the TextInput have it.
-                        return;
+                        // Everything else this takes is a step one way or the
+                        // other, and each key's mirror does the same in the
+                        // other direction — so the direction is read once and
+                        // the pair is handled as one. Anything that is not a
+                        // step is the TextInput's.
+                        const dir = root.stepOf(event.key, ctrl);
+                        if (!dir)
+                            return;
+                        root.step(event.key, dir);
                     }
                     event.accepted = true;
                 }
@@ -678,11 +668,44 @@ OverlayWindow {
 
                     function onIndexChanged() {
                         list.currentIndex = Launcher.index;
-                        root.reveal();
+                        root.keepSelectionVisible();
                     }
                 }
 
-                onCountChanged: list.currentIndex = Launcher.index
+                // Where the list was scrolled to before the last rebuild.
+                // Replacing a plain-array model empties the view first and
+                // the scroll goes with the rows, so this is recorded only
+                // while there are rows: the drop to nothing is not a
+                // position anyone chose.
+                property real keptY: 0
+
+                onContentYChanged: if (list.count > 0)
+                    list.keptY = list.contentY
+
+                // Every rebuild, whether a keystroke or the list changing
+                // under a selection that did not move — a timer removed, an
+                // answer landing, a record opened with Tab. Without this the
+                // list came back at the top however far down it had been,
+                // and the highlight flew back down to a row it had never
+                // left. The scroll is put back where it was and the selected
+                // row is then brought in only as far as it has to come, which
+                // for Tab is nowhere: opening only adds rows below the
+                // selection and shutting in place only takes them away.
+                //
+                // forceLayout first, or the rows are made on the next polish
+                // and contentHeight, which the scroll is clamped against, is
+                // still the old list's. Not while the box is leaving: the
+                // exit swaps in a frozen copy of the rows, and that is not a
+                // list to scroll.
+                onModelChanged: {
+                    if (!Launcher.shown)
+                        return;
+                    list.currentIndex = Launcher.index;
+                    list.forceLayout();
+                    list.contentY = Math.max(0, Math.min(Math.max(0, list.contentHeight - list.height), list.keptY));
+                    root.keepSelectionVisible();
+                }
+
                 // The selection belongs to the view, not to the row. A row
                 // can only be selected or not, so a fill drawn by the delegate
                 // can only appear and disappear — while one the view owns is a
@@ -697,8 +720,8 @@ OverlayWindow {
                 // is animated — so every Tab in music mode had the grey bar
                 // set off from the first row of the library and fly down the
                 // whole list to the row it had never actually left. contentY
-                // is reset by the same rebuild and put back in foldTree();
-                // this is the other half of that.
+                // is reset by the same rebuild and put back in onModelChanged
+                // above; this is the other half of that.
                 //
                 // Every row is the same height, so there is nothing to size
                 // to either — which is just as well, because a resize
@@ -723,8 +746,12 @@ OverlayWindow {
                     // Duration and no velocity: a velocity would cap it, so a
                     // jump from the first row to the last would take as long
                     // as it took to cross, which is most of a second of
-                    // sliding.
+                    // sliding. Off for a keystroke, when the index goes back
+                    // to the top of a list that no longer exists — see
+                    // `settling`.
                     Behavior on y {
+                        enabled: !root.settling
+
                         NumberAnimation {
                             duration: Theme.selectMs
                             easing.type: Easing.OutCubic
@@ -780,7 +807,15 @@ OverlayWindow {
                         // command and a copied line are not — they are text
                         // that came from somewhere else and has to come back
                         // out the way it went in.
-                        text: row.modelData.raw ? row.modelData.title : row.modelData.title.toLowerCase()
+                        // A timer's title counts down, so it is read live
+                        // here rather than carried in the row: a row that
+                        // changed every second would rebuild the list every
+                        // second. See Launcher.timerResults.
+                        text: {
+                            const d = row.modelData;
+                            const t = d.kind === "timer" ? Timers.describe(d.entry) : d.title;
+                            return d.raw ? t : t.toLowerCase();
+                        }
                         color: row.current ? Theme.menuSelectionText : Theme.menuText
                         font.family: Theme.bodyFont
                         font.pixelSize: Theme.labelSize
@@ -811,7 +846,9 @@ OverlayWindow {
                             verticalCenter: parent.verticalCenter
                         }
                         visible: text !== ""
-                        text: row.modelData.subtitle ?? ""
+                        // Same again for the question that is out: its dots
+                        // move twice a second, and only this row needs to.
+                        text: row.modelData.kind === "ask" && Launcher.asking === row.modelData.q ? Launcher.askLabel : (row.modelData.subtitle ?? "")
                         color: Theme.menuText
                         // Under the title even on the row you are on: it is
                         // context, not the thing you picked. Further under it
@@ -968,51 +1005,55 @@ OverlayWindow {
             }
         }
 
-        // The panel, out in the width the box grew for it. Built only in /
-        // mode, and kept past it for as long as the box is still wider than
-        // the list: it is left where it is and the box's own clip takes it
-        // away, so leaving / mode closes over the panel at the speed the box
-        // closes rather than blinking it out first.
+        // The panel slot, out in the width the box grew for it. One place for
+        // the two panels rather than the same geometry written on each: the
+        // two modes that grow one never do it at the same time.
         //
         // Its y is the Column's, so the reveal wipes the two in together.
-        Loader {
-            id: preview
-
+        Item {
             x: root.boxWidth - root.boxPad + root.panelGap
             y: content.y
             width: root.panelWidth
             height: Math.round(box.bodyHeight) - root.boxPad * 2
-            active: Launcher.pathMode || (!Launcher.musicMode && box.bodyWidth > root.boxWidth)
 
-            sourceComponent: FilePreview {
-                // Files only. A directory has no picture in it, and its row is
-                // a place to go rather than a thing to look at.
-                path: Launcher.pathMode && Launcher.selected && Launcher.selected.kind === "path" && !Launcher.selected.dir ? Launcher.selected.path : ""
+            // Built only in / mode, and kept past it for as long as the box
+            // is still wider than the list: it is left where it is and the
+            // box's own clip takes it away, so leaving / mode closes over the
+            // panel at the speed the box closes rather than blinking it out
+            // first.
+            Loader {
+                id: preview
+
+                anchors.fill: parent
+                active: Launcher.pathMode || (!Launcher.musicMode && box.bodyWidth > root.boxWidth)
+
+                sourceComponent: FilePreview {
+                    // Files only. A directory has no picture in it, and its
+                    // row is a place to go rather than a thing to look at.
+                    path: Launcher.pathMode && Launcher.selected && Launcher.selected.kind === "path" && !Launcher.selected.dir ? Launcher.selected.path : ""
+                }
             }
-        }
 
-        // The other panel, in the same slot: the two modes that grow one never
-        // do it at the same time. Its own component rather than a mode inside
-        // FilePreview, which shells out to a thumbnailer because a path can be
-        // any kind of file at all — where this is always a picture already
-        // sitting in the folder with the music.
-        //
-        // Built only in # mode. It has always blinked out on leaving it rather
-        // than being clipped away, so there is no fold-away to keep it for.
-        Loader {
-            x: root.boxWidth - root.boxPad + root.panelGap
-            y: content.y
-            width: root.panelWidth
-            height: Math.round(box.bodyHeight) - root.boxPad * 2
-            active: Launcher.musicMode
+            // The other panel. Its own component rather than a mode inside
+            // FilePreview, which shells out to a thumbnailer because a path
+            // can be any kind of file at all — where this is always a picture
+            // already sitting in the folder with the music.
+            //
+            // Built only in # mode. It has always blinked out on leaving it
+            // rather than being clipped away, so there is no fold-away to
+            // keep it for.
+            Loader {
+                anchors.fill: parent
+                active: Launcher.musicMode
 
-            sourceComponent: CoverArt {
-                dir: Launcher.coverDir
-                // The row's own two lines, which the panel has the width to
-                // wrap and the row does not.
-                title: Launcher.selected ? Launcher.selected.title : ""
-                subtitle: Launcher.selected ? (Launcher.selected.subtitle ?? "") : ""
-                glyph: Launcher.selected ? (Launcher.selected.glyph ?? "") : ""
+                sourceComponent: CoverArt {
+                    dir: LauncherMusic.coverDir
+                    // The row's own two lines, which the panel has the width
+                    // to wrap and the row does not.
+                    title: Launcher.selected ? Launcher.selected.title : ""
+                    subtitle: Launcher.selected ? (Launcher.selected.subtitle ?? "") : ""
+                    glyph: Launcher.selected ? (Launcher.selected.glyph ?? "") : ""
+                }
             }
         }
     }
