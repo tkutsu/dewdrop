@@ -405,11 +405,12 @@ Singleton {
     // numerals, which would put ϛ at six, and Inter has no ϛ.
     readonly property var workspaceLetters: ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ"]
 
-    // One of WhiteSur's macOS tray drawings, kept in themis under an -osx
-    // suffix, by file rather than by name. Glyph draws any entry below that is
-    // one of these in place of the font.
+    // One of WhiteSur's macOS tray drawings, by file rather than by name, from
+    // the copies in icons/ beside this file, so the config does not depend on
+    // an icon theme having them. Glyph draws any entry below that is one of
+    // these in place of the font.
     function panel(name) {
-        return "file://" + Quickshell.env("HOME") + "/.local/share/icons/themis/panel/16/" + name + "-osx.svg";
+        return "file://" + Quickshell.shellPath("icons/" + name + ".svg");
     }
 
     readonly property var glyph: ({
