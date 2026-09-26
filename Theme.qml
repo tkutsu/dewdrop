@@ -158,10 +158,9 @@ Singleton {
     // bar's own glyphs, whose ink is ten, and artwork that reached four pixels
     // past them read as a different class of thing rather than as the same row.
     readonly property real iconInk: 0.875
-    // The Material Design roman numerals draw a short numeral inside a square
-    // icon box, so they need a bigger box than a text digit did to read at the
-    // same size as the icons beside them.
-    readonly property int numeralSize: 18
+    // The workspace letters. Lowercase Greek is mostly x-height, so it goes
+    // up past the text size to stand as tall as the icons beside it.
+    readonly property int letterSize: 14
 
     // The count badge on a taskbar icon standing for several windows of one app.
     readonly property int badgeSize: 12
@@ -324,7 +323,7 @@ Singleton {
     readonly property color calTodayText: "black"
 
     // --- opacity -------------------------------------------------------------
-    readonly property real idleOpacity: 0.75  // #workspaces > button
+    readonly property real idleOpacity: 0.55  // a workspace you are not on
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
@@ -400,11 +399,12 @@ Singleton {
     // --- glyphs --------------------------------------------------------------
     // Lifted verbatim from config.jsonc and the scripts it called, by codepoint
     // so nothing is lost to a copy/paste through a non-symbol font.
-    readonly property var glyph: ({
-        // nf-md-roman_numeral_1 .. _10, for the workspace labels. Indexed
-        // from zero, so numeral[0] is I.
-        numeral: ["\u{f1088}", "\u{f1089}", "\u{f108a}", "\u{f108b}", "\u{f108c}", "\u{f108d}", "\u{f108e}", "\u{f108f}", "\u{f1090}", "\u{f1091}"],
+    // The workspace labels: the alphabet in order, α for the first key on
+    // the number row and κ for the tenth. The alphabet rather than the Greek
+    // numerals, which would put ϛ at six, and Inter has no ϛ.
+    readonly property var workspaceLetters: ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ"]
 
+    readonly property var glyph: ({
         launcher: "\u{f0349}",          // nf-md-magnify
 
         // Every glyph here is Material Design, outlined wherever the set has
@@ -427,7 +427,6 @@ Singleton {
         // entry, and the lock command the power menu deliberately omits.
         web: "\u{f059f}",
         clipboard: "\u{f014c}",
-        ask: "\u{f0674}",
         lock: "\u{f0341}",
         // The / mode's preview panel, for the rows it has no picture to show:
         // a file that is only ever text, and the directories that never will
@@ -480,7 +479,6 @@ Singleton {
         timerPaused: "\u{f1adf}",     // nf-md-timer_pause_outline
         timerRing: "\u{f1acd}",       // nf-md-timer_alert_outline
         alarm: "\u{f0020}",           // nf-md-alarm
-        snooze: "\u{f068e}",          // nf-md-alarm_snooze
 
 
         // The popup's own controls. Plus and minus rather than the circled
@@ -560,10 +558,6 @@ Singleton {
 
         // Which way the popup's playlist section is folded (nf-md-chevron_*).
         sectionOpen: "\u{f0140}",
-        sectionShut: "\u{f0142}",
-
-        // The right pill's drawer, which opens to the left: the chevron
-        // points the way it will grow, and turns round once it has.
-        drawer: "\u{f0141}"          // nf-md-chevron_left
+        sectionShut: "\u{f0142}"
     })
 }

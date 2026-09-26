@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs
 import qs.components
 import qs.modules
+import qs.services as Services
 
 PanelWindow {
     id: bar
@@ -121,6 +122,12 @@ PanelWindow {
             const a = Theme.barBg.a;
             return (1 - (1 - a) / (1 - a * (1 - bar.mergeProgress))) / a;
         }
+    }
+
+    // Anywhere on the bar, pills or the air between them. The drawer stays
+    // open while the pointer is here or down in one of the bar's popups.
+    HoverHandler {
+        id: barHover
     }
 
     // "fixed-center": true — the centre pill is centred on the bar, not on
@@ -281,16 +288,12 @@ PanelWindow {
         // puts the pill back exactly as it always was. The modules decide what
         // "nothing to say" is (BarItem.quiet); the drawer only decides whether
         // they are showing anyway.
-        readonly property var drawable: [email, tasks, updater, bell, satty, idle, wallpaper, night, audio]
-
-        HoverHandler {
-            id: rightPillHover
-        }
+        readonly property var drawable: [email, tasks, updater, bell, satty, idle, wallpaper, night, sys, audio]
 
         Drawer {
             id: drawer
             holding: rightPill.drawable.some(m => m.present && m.quiet)
-            pointerNear: rightPillHover.hovered
+            pointerNear: barHover.hovered || Services.PopupPointer.hovered > 0
         }
 
         Email {
@@ -325,7 +328,10 @@ PanelWindow {
             id: night
             stowed: quiet && !drawer.open
         }
-        Sys {}
+        Sys {
+            id: sys
+            stowed: quiet && !drawer.open
+        }
         Tray {}
         Audio {
             id: audio

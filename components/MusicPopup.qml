@@ -664,4 +664,29 @@ Popup {
             }
         }
     }
+
+    Rectangle {
+        width: root.bodyWidth
+        height: Theme.pillBorder
+        color: Theme.stroke
+    }
+
+    // The way to put something else on: the launcher's # mode, which has the
+    // whole library. At the right end of the foot, where every popup under
+    // the bar keeps its plus.
+    Item {
+        width: root.bodyWidth
+        height: root.rowHeight
+
+        PopupButton {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.rowHeight - 2
+            height: root.rowHeight - 2
+            framed: true
+            glyph: Theme.glyph.plus
+            glyphSize: Theme.popupTextSize - 1
+            onTapped: Launcher.openWith(Launcher.musicPrefix)
+        }
+    }
 }

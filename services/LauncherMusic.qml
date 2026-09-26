@@ -49,8 +49,10 @@ Singleton {
         }
         // Read once and then kept, so this is a real ask only on the first #
         // of a session — and a rescan of mpd's database is what makes it one
-        // again. See services/Library.qml.
-        Library.ensure();
+        // again. See services/Library.qml. Not while mpd is down: there is
+        // nobody to read it from, and the row on top offers to start it.
+        if (Mpd.connected)
+            Library.ensure();
         // Scoring ten thousand titles is 50ms for one word and 160ms for
         // three, which is a keystroke the box does not answer. Debounced
         // like the modes that shell out, and for the same reason — the only
@@ -88,8 +90,18 @@ Singleton {
         }
     }
 
+    // And mpd coming up while the mode is open, which is what the start row
+    // below is waiting on.
+    Connections {
+        target: Mpd
+
+        function onConnectedChanged() {
+            root.reask();
+        }
+    }
+
     function reask(): void {
-        if (!Library.loaded && !Library.loading && Launcher.musicMode)
+        if (!Library.loaded && !Library.loading && Launcher.musicMode && Mpd.connected)
             Library.ensure();
     }
 
@@ -132,28 +144,38 @@ Singleton {
     // --- rows ----------------------------------------------------------------
 
     function results(query) {
+        // "#" on its own with mpd down is one row: start it. That is what the
+        // mode is being opened for, and it is gone the moment anything is
+        // typed, which is a search rather than a wish to hear something.
+        const start = !Mpd.connected && !query ? [
+            {
+                kind: "music-start",
+                key: "start",
+                glyph: Theme.glyph.playing,
+                title: Mpd.starting ? "starting mpd" : "start music",
+                subtitle: "mpd is not running",
+                raw: true
+            }
+        ] : [];
+
         // route() has already started the read; this is what stands in while
         // it happens. A note rather than an empty list, for the reason the
         // clipboard has one: a "nothing here" that turns into a hundred rows a
-        // moment later reads as a bug rather than as a wait.
-        if (!Library.loaded)
-            return [
-                {
-                    kind: "note",
-                    key: "note",
-                    glyph: Theme.glyph.track,
-                    title: "reading the library",
-                    subtitle: "",
-                    raw: true
-                }
-            ];
+        // moment later reads as a bug rather than as a wait. Except with mpd
+        // down, when there is no read to wait for and the note would stand
+        // there for good.
+        if (!Library.loaded) {
+            if (!Mpd.connected)
+                return start.length ? start : [root.note("mpd is not running")];
+            return [root.note(Library.failed ? "could not read the library" : "reading the library")];
+        }
 
         // "#" on its own is the stored playlists. Ten thousand tracks in no
         // particular order is not a list anybody reads — and the playlists are
         // the one thing in this mode the search below cannot reach, a saved
         // queue having no artist and no album to be found under.
         if (!query)
-            return Mpd.playlists.map(name => root.playlistRow(name));
+            return start.concat(Mpd.playlists.map(name => root.playlistRow(name)));
 
         const rows = [];
         for (const x of root.hits) {
@@ -167,6 +189,17 @@ Singleton {
                 rows.push(root.trackRow(x.hit.at, 0, ""));
         }
         return rows;
+    }
+
+    function note(text) {
+        return {
+            kind: "note",
+            key: "note",
+            glyph: Theme.glyph.track,
+            title: text,
+            subtitle: "",
+            raw: true
+        };
     }
 
     // "1 track", "14 tracks". A discography that says "1 tracks" is one
@@ -285,9 +318,9 @@ Singleton {
     // A page, in a tree, is the next thing at this level rather than twelve
     // rows further down: an open record's songs are stepped over.
     //
-    // On PageUp and PageDown, which are dead keys in this mode: the two things
-    // they otherwise page — a model's answer and the / panel's file — are
-    // neither of them on screen next to a library. See LauncherMenu.qml.
+    // On PageUp and PageDown, which are dead keys in this mode: the thing they
+    // otherwise page, the / panel's file, is not on screen next to a library.
+    // See LauncherMenu.qml.
     function skip(dir): void {
         const rows = Launcher.results;
         for (let i = Launcher.index + dir; i >= 0 && i < rows.length; i += dir) {
@@ -322,6 +355,12 @@ Singleton {
     // play-next are things you do several of in a row, so the box stays up
     // with the selection where it was.
     function activate(r, mode): bool {
+        // The box stays up: mpd is a second away, and the library it brings
+        // is what the mode was opened to look through.
+        if (r.kind === "music-start") {
+            Mpd.startServer();
+            return false;
+        }
         mode = mode || "queue";
         if (r.kind === "music-playlist")
             Mpd.loadPlaylist(r.name, mode);

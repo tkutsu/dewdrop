@@ -49,7 +49,7 @@ BarItem {
 
         // The focused workspace sits on a rounded fill, the way the open item
         // on the system's menu bar does: a lighter slab inside the pill,
-        // holding the numeral and its icons. It was a rule under the group
+        // holding the letter and its icons. It was a rule under the group
         // before that, which is a tab's idiom rather than a menu bar's.
         // Urgency is not its business — the icon of the app that wants you
         // bounces for that, wherever on the strip it is, rather than only on
@@ -110,15 +110,15 @@ BarItem {
                     required property int index
                     readonly property bool active: Hyprland.focusedWorkspace?.id === modelData.id
 
-                    // Roman numerals for the ten workspaces of a number row. The tenth
-                    // is named "0" here, which is where X goes; anything named something
-                    // else keeps its name as text.
-                    readonly property string numeral: {
+                    // Greek letters for the ten workspaces of a number row. The
+                    // tenth is named "0" here, which is where κ goes; anything
+                    // named something else keeps its name.
+                    readonly property string letter: {
                         const name = modelData.name;
                         if (!/^[0-9]$/.test(name))
                             return "";
                         const index = name === "0" ? 9 : Number(name) - 1;
-                        return Theme.glyph.numeral[index];
+                        return Theme.workspaceLetters[index];
                     }
 
                     // One entry per window class, in the order the classes first appear,
@@ -151,7 +151,7 @@ BarItem {
                     }
 
                     // The fade a workspace goes under when it is not the one you
-                    // are on. It is handed to the numeral and the icons rather
+                    // are on. It is handed to the letter and the icons rather
                     // than put on the whole button, so the count badges are left
                     // out of it: a badge is the same badge wherever it sits on
                     // this bar, and one that dimmed with its workspace would read
@@ -188,27 +188,29 @@ BarItem {
                         BarText {
                             Layout.fillHeight: true
                             opacity: button.dim
-                            text: button.numeral || button.modelData.name
-                            // A numeral is a Nerd Font glyph and gets a glyph's
-                            // treatment: symbol font, single weight, laid out on its ink.
-                            family: button.numeral ? Theme.glyphFont : Theme.bodyFont
-                            fontSize: button.numeral ? Theme.numeralSize : Theme.textSize
-                            opticalCentre: button.numeral !== ""
-                            tightWidth: button.numeral !== ""
-                            weight: button.numeral ? Font.Normal : (button.active ? Font.DemiBold : Theme.bodyWeight)
+                            text: button.letter || button.modelData.name
+                            // A single letter is centred and spaced on its ink,
+                            // like the icons it sits among, and at one weight:
+                            // the fade says which workspace is yours, and a
+                            // letter that went bold would widen the mark as it
+                            // arrived.
+                            fontSize: button.letter ? Theme.letterSize : Theme.textSize
+                            opticalCentre: button.letter !== ""
+                            tightWidth: button.letter !== ""
+                            weight: button.letter ? Theme.bodyWeight : (button.active ? Font.DemiBold : Theme.bodyWeight)
                             color: Theme.fg
 
-                            transform: Translate { y: numeralBounce.offset + (press.pressed ? Theme.pressDip : 0) }
+                            transform: Translate { y: letterBounce.offset + (press.pressed ? Theme.pressDip : 0) }
                         }
 
                         // The fallback, and only that. Urgency belongs on the
-                        // icon of the app that wants you, so the numeral moves
+                        // icon of the app that wants you, so the letter moves
                         // just when the workspace is shouting and no icon on it
                         // has owned up — an ignored window, or one Hyprland
                         // flagged by workspace without flagging the window.
                         // Otherwise a shouting app would move twice over.
                         Bounce {
-                            id: numeralBounce
+                            id: letterBounce
                             running: button.modelData.urgent && !button.apps.some(a => root.anyUrgent(a.addresses))
                         }
 

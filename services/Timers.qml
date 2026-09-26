@@ -27,7 +27,6 @@ Singleton {
     // meeting room.
     readonly property int ringMs: 60000
     readonly property int beatMs: 3000
-    readonly property int snoozeMs: 5 * 60000
 
     // How overdue a restored countdown may be and still be worth announcing.
     // The shell coming back up an hour later should not fire a timer set for a
@@ -144,7 +143,7 @@ Singleton {
 
     readonly property string tooltip: {
         if (root.ringing.length > 0)
-            return root.ringing.map(e => root.ringTitle(e) + " — click to dismiss, right-click to snooze").join("\n");
+            return root.ringing.map(e => root.ringTitle(e) + " — click to dismiss").join("\n");
         const lines = root.timers.filter(e => e.running).map(e => root.describe(e));
         if (root.tooltipStill !== "")
             lines.push(root.tooltipStill);
@@ -398,21 +397,12 @@ Singleton {
         root.ringing = [];
     }
 
-    // Whatever emptied the ring — dismissed, snoozed, or the whole list thrown
-    // away — the sound stops with it. As a handler on the list rather than a
-    // line inside hush(), because there are three ways for it to empty and only
-    // one of them went through hush; clearing the timers used to leave the rest
+    // Whatever emptied the ring — dismissed, or the whole list thrown away —
+    // the sound stops with it. As a handler on the list rather than a line
+    // inside hush(), because there is more than one way for it to empty; clearing the timers used to leave the rest
     // of the alarm playing to itself.
     onRingingChanged: if (root.ringing.length === 0)
         ring.running = false
-
-    function snooze(minutes: int): void {
-        if (root.ringing.length === 0)
-            return;
-        const e = root.ringing[0];
-        root.ringing = root.ringing.slice(1);
-        root.countdown(minutes > 0 ? minutes * 60000 : root.snoozeMs, e.label !== "" ? e.label : "snoozed");
-    }
 
     function notify(title: string, body: string, urgent: bool): void {
         Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", urgent ? "critical" : "normal", title, body]);
@@ -624,10 +614,6 @@ Singleton {
                 root.hush();
             else if (root.focus)
                 root.cancel(root.focus.id);
-        }
-
-        function snooze(minutes: int): void {
-            root.snooze(minutes);
         }
 
         function clear(): void {

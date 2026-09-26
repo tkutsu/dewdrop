@@ -160,6 +160,25 @@ Singleton {
         Quickshell.execDetached(["systemctl", "--user", "stop", "mpd.service"]);
     }
 
+    // And back up, from the launcher's # mode. A process rather than a detached
+    // call, because the moment it exits is the moment to dial: mpd.service is
+    // Type=notify, so systemctl returns once mpd says it is ready — and the
+    // links may by then have backed off to a retry most of a minute away.
+    function startServer() {
+        starter.running = true;
+    }
+
+    readonly property bool starting: starter.running
+
+    Process {
+        id: starter
+        command: ["systemctl", "--user", "start", "mpd.service"]
+        onExited: {
+            link.dialNow();
+            cmdLink.dialNow();
+        }
+    }
+
     // The same four steps the bar's own volume icon takes, so the player's
     // level and the system's are read off the same shapes.
     readonly property string volumeIcon: volume <= 0 ? Theme.glyph.muted : volume < 34 ? Theme.glyph.volLow : volume < 67 ? Theme.glyph.volMed : Theme.glyph.volHigh

@@ -10,6 +10,10 @@ import qs.services
 BarItem {
     popup: SysPopup {}
 
+    // A temperature is only news once it is a warning, so the tube waits in
+    // the drawer until the reading crosses the top of its scale.
+    quiet: !Sys.hot
+
     // Dimmed until a sensor has answered: an empty tube is a reading of
     // nothing, and it should not look like a reading of cold.
     opacity: Sys.temp > 0 ? 1 : Theme.dimOpacity

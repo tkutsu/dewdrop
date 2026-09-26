@@ -210,16 +210,6 @@ OverlayWindow {
     // one used to, and every shorter one keeps its query line on that same line.
     readonly property int fullHeight: boxPad * 2 + inputHeight + contentGap * 2 + Theme.pillBorder + visibleRows * rowHeight
 
-    // Move the answer instead of the selection, when there is an answer too
-    // long to sit in the box and only the one row that asked for it. Returns
-    // whether it took the key.
-    function scroll(dir) {
-        if (!answer.visible || answer.contentHeight <= answer.height)
-            return false;
-        answer.contentY = Math.max(0, Math.min(answer.contentHeight - answer.height, answer.contentY + dir * root.rowHeight * 2));
-        return true;
-    }
-
     // +1 for the keys that go down, -1 for the ones that go up, 0 for the
     // rest. Readline's pair and vim's are in here, since both are muscle
     // memory somewhere on this machine — with Ctrl only, because bare they
@@ -247,11 +237,8 @@ OverlayWindow {
     // What a step does depends on the key and the mode. Tab opens and shuts
     // the tree in music mode and moves the selection everywhere else; nothing
     // is lost to the swap, since the arrows and both Ctrl pairs still move it.
-    // Page keys page whichever long thing is on screen — an answer too tall
-    // for the box, or the file under the / list, never both at once — and in
-    // music mode, where neither is, step a level of the tree instead. The
-    // answer takes any step first, because while it is scrolling there is
-    // only the one row and the selection has nowhere to go.
+    // Page keys page the file under the / list, and in music mode, where
+    // there is none, step a level of the tree instead.
     function step(key, dir) {
         const tab = key === Qt.Key_Tab || key === Qt.Key_Backtab;
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
@@ -263,8 +250,6 @@ OverlayWindow {
             LauncherMusic.skip(dir);
             return;
         }
-        if (root.scroll(dir))
-            return;
         if (page) {
             if (preview.item)
                 preview.item.scroll(dir);
@@ -846,9 +831,7 @@ OverlayWindow {
                             verticalCenter: parent.verticalCenter
                         }
                         visible: text !== ""
-                        // Same again for the question that is out: its dots
-                        // move twice a second, and only this row needs to.
-                        text: row.modelData.kind === "ask" && Launcher.asking === row.modelData.q ? Launcher.askLabel : (row.modelData.subtitle ?? "")
+                        text: row.modelData.subtitle ?? ""
                         color: Theme.menuText
                         // Under the title even on the row you are on: it is
                         // context, not the thing you picked. Further under it
@@ -965,42 +948,6 @@ OverlayWindow {
 
                         onClicked: Launcher.activate(row.index)
                     }
-                }
-            }
-
-            // What the model said, under the row that asked it. Three
-            // sentences do not go on a 28px line, so this is the one answer in
-            // the box that is not a row — it is a paragraph the box grows to
-            // fit, and stops growing at the height the list stops at.
-            //
-            // Past that it scrolls, on the same keys that would have been
-            // moving a selection: there is only ever one row in this mode, so
-            // Up and Down have nothing else to do. See the Keys handler above.
-            Flickable {
-                id: answer
-
-                width: parent.width
-                height: Math.min(contentHeight, root.visibleRows * root.rowHeight)
-                visible: body.text !== ""
-                contentHeight: body.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-
-                Text {
-                    id: body
-
-                    width: answer.width
-                    text: Launcher.answerShown
-                    color: Theme.menuText
-                    font.family: Theme.bodyFont
-                    font.pixelSize: Theme.labelSize
-                    font.weight: Theme.bodyWeight
-                    wrapMode: Text.WordWrap
-                    // The paragraph is set in from the left the same distance
-                    // a row's title is, so the answer starts on the line the
-                    // question started on.
-                    leftPadding: Theme.pillPad
-                    rightPadding: Theme.pillPad
                 }
             }
         }

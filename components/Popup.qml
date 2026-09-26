@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import qs
+import qs.services
 
 // The bar's popup chrome. It used to copy the old GTK tooltip's near-opaque
 // grey; it is the launcher's box now, which is the bar's own half-black with a
@@ -52,12 +53,19 @@ PopupWindow {
     color: "transparent"
 
     // The room the window keeps round the box for its shadow to fall into.
-    // The shadow drops, so there is less of it above than below. Whoever
-    // anchors a popup by one of its edges rather than by its middle has to
-    // take these back off the anchor, or the box lands this far from where it
-    // was aimed (HoverPopup, the tray and MenuPopup's submenus all do).
+    // Whoever anchors a popup by one of its edges rather than by its middle
+    // has to take these back off the anchor, or the box lands this far from
+    // where it was aimed (HoverPopup, the tray and MenuPopup's submenus all do).
+    //
+    // Next to nothing above: the box hangs popupGap under the pill, and any
+    // more room than that puts the top of the window over the pill's lower
+    // half. Hyprland hands the pointer to the popup's window there, mask or
+    // no mask, so a pointer resting low on a module opened its popup, was
+    // taken off the module by it, and closed it again a moment later — and
+    // stayed that way until it moved. The shadow's faint top edge is cut
+    // off instead; it falls on the bar, where nothing showed it anyway.
     readonly property int shadowSide: Theme.shadowBlur
-    readonly property int shadowTop: Theme.shadowBlur - Theme.shadowY
+    readonly property int shadowTop: Theme.popupGap
     readonly property int shadowBottom: Theme.shadowPad
 
     // How tall the box is drawn, which is not always how tall the window is.
@@ -77,6 +85,12 @@ PopupWindow {
     // A popup that can be clicked has to outlive the pointer leaving the bar
     // item that opened it; HoverPopup watches this to decide when to close.
     readonly property bool hovered: pointer.hovered
+
+    // Counted for the whole shell, so the right pill's drawer can tell a
+    // pointer that has gone off to a popup from one that has left the bar.
+    onHoveredChanged: PopupPointer.hovered += hovered ? 1 : -1
+    Component.onDestruction: if (hovered)
+        PopupPointer.hovered--
 
     // Under the box rather than round it: the fill is translucent, so the
     // middle of the shadow shows through it too, and darkens it by about the

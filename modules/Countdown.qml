@@ -78,9 +78,7 @@ BarItem {
     }
 
     // Left is the thing you came to do: shut it up if it is shouting, hold it
-    // if it is running, and otherwise set one. Right is the second thought —
-    // five more minutes, or a new timer when there is nothing to snooze.
-    // Middle throws away, which is the one action here that cannot be undone
+    // if it is running, and otherwise set one. Right sets another. Middle throws away, which is the one action here that cannot be undone
     // and so is the one nothing lands on by accident.
     onClicked: function (mouse) {
         if (mouse.button === Qt.LeftButton) {
@@ -91,10 +89,7 @@ BarItem {
             else
                 Launcher.openWith(Launcher.timerPrefix);
         } else if (mouse.button === Qt.RightButton) {
-            if (root.ringing)
-                Timers.snooze(5);
-            else
-                Launcher.openWith(Launcher.timerPrefix);
+            Launcher.openWith(Launcher.timerPrefix);
         } else if (mouse.button === Qt.MiddleButton) {
             if (root.ringing)
                 Timers.hush();

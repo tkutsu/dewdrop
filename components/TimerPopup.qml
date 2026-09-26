@@ -3,13 +3,12 @@ import qs
 import qs.components
 import qs.services
 
-// The timer pill's popup: everything that is set, and the quickest ways to set
-// something else.
+// The timer pill's popup: everything that is set, and a way to set something
+// else.
 //
 // The pill itself only ever shows one timer — the one nearest its end — which
 // is the right answer to a glance and the wrong one to a question. This is the
-// question: all of them, each with the two things that can be done to it, and a
-// row of the durations that get asked for over and over.
+// question: all of them, each with the things that can be done to it.
 Popup {
     id: root
 
@@ -58,10 +57,6 @@ Popup {
                 title: Timers.ringTitle(e),
                 readout: "",
                 buttons: [
-                    {
-                        glyph: Theme.glyph.snooze,
-                        act: () => Timers.snooze(5)
-                    },
                     {
                         glyph: Theme.glyph.powerCancel,
                         act: () => Timers.hush()
@@ -129,28 +124,6 @@ Popup {
 
         return out;
     }
-
-    // The durations worth a button. Five and ten are the ones set without
-    // thinking about it, and twenty-five is the length of a working stretch
-    // for anyone who keeps to them.
-    readonly property var presets: [
-        {
-            label: "5",
-            act: () => Timers.startCountdown(5 * 60000, "")
-        },
-        {
-            label: "10",
-            act: () => Timers.startCountdown(10 * 60000, "")
-        },
-        {
-            label: "20",
-            act: () => Timers.startCountdown(20 * 60000, "")
-        },
-        {
-            label: "25",
-            act: () => Timers.startCountdown(25 * 60000, "")
-        }
-    ]
 
     PopupText {
         visible: root.rows.length === 0
@@ -248,32 +221,11 @@ Popup {
         color: Theme.stroke
     }
 
-    // The quick ways in: four durations, and the launcher for everything that is
-    // not one of those.
+    // The way in to setting another: the launcher, which takes any duration
+    // or time of day.
     Item {
         width: root.bodyWidth
         height: root.rowHeight + 2
-
-        Row {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            Repeater {
-                model: root.presets
-
-                delegate: PopupButton {
-                    required property var modelData
-
-                    // One width for the four, whatever their figures measure.
-                    width: 34
-                    height: root.rowHeight - 2
-                    framed: true
-                    label: modelData.label
-                    textSize: root.rowTextSize
-                    onTapped: modelData.act()
-                }
-            }
-        }
 
         PopupButton {
             anchors.right: parent.right

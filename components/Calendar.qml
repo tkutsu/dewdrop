@@ -25,22 +25,23 @@ Popup {
     property string hoverDay: ""
     readonly property string listDay: hoverDay !== "" ? hoverDay : Agenda.today
 
-    // A fixed number of rows, so the popup is the same height whatever day
-    // is under the pointer: a popup that resized on hover would jerk on every
-    // cell (see Popup.reserveHeight).
+    // At most this many rows, and the box stops under the last one. The
+    // window keeps the height of a full list regardless, so the box grows and
+    // shrinks inside it as the pointer crosses the grid rather than the whole
+    // popup resizing on every cell (see Popup.reserveHeight).
     readonly property int listRows: 4
     readonly property int listRowHeight: 18
     readonly property int dotSize: 3
+
+    // The window is held at the height of a full list; the box stops under
+    // whatever the day actually has.
+    reserveHeight: list.visible ? chromeHeight - list.height + list.fullHeight : 0
 
     readonly property var locale: Qt.locale()
     readonly property int firstDay: locale.firstDayOfWeek
 
     readonly property real cell: 24
     readonly property int fontSize: Theme.popupTextSize
-
-    // The column of week numbers down the left. Narrower than a day: it is a
-    // margin note, not an eighth day.
-    readonly property real weekWidth: 20
 
     // Google Calendar, the same app the clock's own click opens (see
     // ~/_scripts/pwa-gcalendar.sh, which holds this id too), but pointed at
@@ -51,18 +52,47 @@ Popup {
         offset += months;
     }
 
+    // One of the header's arrows: a day cell's worth of target round a
+    // chevron, lit on hover the way a day is.
+    component MonthStep: Item {
+        id: arrow
+
+        property alias text: glyph.text
+        signal step
+
+        width: root.cell
+        height: root.cell
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: root.cell - 4
+            height: width
+            radius: width / 2
+            visible: arrowHover.hovered
+            color: Theme.selection
+        }
+
+        PopupText {
+            id: glyph
+            anchors.centerIn: parent
+            // Up a pixel: the guillemet sits high in Inter's box.
+            anchors.verticalCenterOffset: -1
+            opacity: arrowHover.hovered ? 1 : 0.6
+            font.pixelSize: root.fontSize + 4
+        }
+
+        HoverHandler {
+            id: arrowHover
+        }
+
+        TapHandler {
+            onTapped: arrow.step()
+        }
+    }
+
     function openDay(day) {
         const url = `https://calendar.google.com/calendar/r/day/${day.getFullYear()}/${day.getMonth() + 1}/${day.getDate()}`;
         Quickshell.execDetached(["chromium", "--profile-directory=Default", "--app-id=" + root.calendarApp, "--app-launch-url-for-shortcuts-menu-item=" + url]);
-    }
-
-    // ISO 8601: weeks start on Monday, and week 1 is the one with the year's
-    // first Thursday in it — so a week belongs to whichever year its Thursday
-    // does, which is how a date in late December can be in week 1.
-    function isoWeek(day) {
-        const thursday = new Date(day.getFullYear(), day.getMonth(), day.getDate() - (day.getDay() + 6) % 7 + 3);
-        const jan1 = new Date(thursday.getFullYear(), 0, 1);
-        return 1 + Math.floor(Math.round((thursday - jan1) / 86400000) / 7);
     }
 
     // The date in any cell of the grid, which starts on the week holding the
@@ -77,25 +107,17 @@ Popup {
         spacing: 5
 
         // --- header: ‹ month year › ---------------------------------------
-        // Over the days and not the week column, like everything above the
-        // grid: the column is a note in its margin.
+        // The arrows stand over the first and last columns and are a whole
+        // day cell each, with the same hover disc a day gets: a bare chevron
+        // was a few pixels of ink to aim at.
         Item {
-            x: root.weekWidth
             width: root.cell * 7
-            height: title.implicitHeight + 2
+            height: root.cell
 
-            PopupText {
+            MonthStep {
                 anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
                 text: "‹"
-                opacity: backHover.hovered ? 1 : 0.5
-                font.pixelSize: root.fontSize + 2
-                HoverHandler {
-                    id: backHover
-                }
-                TapHandler {
-                    onTapped: root.step(-1)
-                }
+                onStep: root.step(-1)
             }
 
             PopupText {
@@ -111,24 +133,14 @@ Popup {
                 }
             }
 
-            PopupText {
+            MonthStep {
                 anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
                 text: "›"
-                opacity: forwardHover.hovered ? 1 : 0.5
-                font.pixelSize: root.fontSize + 2
-                HoverHandler {
-                    id: forwardHover
-                }
-                TapHandler {
-                    onTapped: root.step(1)
-                }
+                onStep: root.step(1)
             }
         }
 
         Row {
-            x: root.weekWidth
-
             Repeater {
                 model: 7
 
@@ -143,140 +155,116 @@ Popup {
             }
         }
 
-        Row {
-            // The week numbers. The footer that used to sit under the grid said
-            // "Saturday 26 September" under a header that already said September
-            // and a disc that already said 26; this is the one fact about the
-            // month that nothing else here shows.
-            Column {
-                Repeater {
-                    model: 6
+        Grid {
+            columns: 7
+
+            Repeater {
+                // Six rows always, so the popup does not resize as the months
+                // go by.
+                model: 42
+
+                Item {
+                    id: dayCell
+
+                    required property int index
+
+                    readonly property date day: root.cellDate(index)
+                    readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
+                    readonly property bool isToday: day.toDateString() === root.today.toDateString()
+                    readonly property string dayKey: Agenda.dayString(day)
+                    readonly property bool busy: Agenda.has(dayKey)
+
+                    width: root.cell
+                    height: root.cell
+
+                    // A click opens that day in the calendar, and the pointer
+                    // says so first with the same fill any other clickable
+                    // row gets under it.
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: root.cell - 4
+                        height: width
+                        radius: width / 2
+                        visible: dayHover.hovered && !dayCell.isToday
+                        color: Theme.selection
+                    }
+
+                    HoverHandler {
+                        id: dayHover
+                        onHoveredChanged: {
+                            if (hovered)
+                                root.hoverDay = dayCell.dayKey;
+                            else if (root.hoverDay === dayCell.dayKey)
+                                root.hoverDay = "";
+                        }
+                    }
+
+                    TapHandler {
+                        onTapped: root.openDay(dayCell.day)
+                    }
+
+                    // Today gets a filled pill rather than an underline: at this
+                    // size an underline is one grey pixel.
+                    // Today is a filled disc with the number cut out of it,
+                    // the way the system's calendar marks it.
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: root.cell - 4
+                        height: width
+                        radius: width / 2
+                        visible: dayCell.isToday
+                        color: Theme.calToday
+                    }
 
                     PopupText {
-                        required property int index
-
-                        width: root.weekWidth
-                        height: root.cell
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignLeft
-                        // The Monday of the row, which is the day ISO numbers a
-                        // week by whichever day the locale starts its rows on.
-                        text: root.isoWeek(root.cellDate(index * 7 + (8 - root.firstDay) % 7))
-                        color: Theme.label3
-                        font.pixelSize: root.fontSize - 2
+                        anchors.centerIn: parent
+                        text: dayCell.day.getDate()
+                        // The days either side are context, not padding — worth
+                        // showing, faintly, so a month boundary reads at a glance.
+                        color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.fg : Theme.label3)
+                        font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
                     }
-                }
-            }
 
-            Grid {
-                columns: 7
-
-                Repeater {
-                    // Six rows always, so the popup does not resize as the months
-                    // go by.
-                    model: 42
-
-                    Item {
-                        id: dayCell
-
-                        required property int index
-
-                        readonly property date day: root.cellDate(index)
-                        readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
-                        readonly property bool isToday: day.toDateString() === root.today.toDateString()
-                        readonly property string dayKey: Agenda.dayString(day)
-                        readonly property bool busy: Agenda.has(dayKey)
-
-                        width: root.cell
-                        height: root.cell
-
-                        // A click opens that day in the calendar, and the pointer
-                        // says so first with the same fill any other clickable
-                        // row gets under it.
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: root.cell - 4
-                            height: width
-                            radius: width / 2
-                            visible: dayHover.hovered && !dayCell.isToday
-                            color: Theme.selection
-                        }
-
-                        HoverHandler {
-                            id: dayHover
-                            onHoveredChanged: {
-                                if (hovered)
-                                    root.hoverDay = dayCell.dayKey;
-                                else if (root.hoverDay === dayCell.dayKey)
-                                    root.hoverDay = "";
-                            }
-                        }
-
-                        TapHandler {
-                            onTapped: root.openDay(dayCell.day)
-                        }
-
-                        // Today gets a filled pill rather than an underline: at this
-                        // size an underline is one grey pixel.
-                        // Today is a filled disc with the number cut out of it,
-                        // the way the system's calendar marks it.
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: root.cell - 4
-                            height: width
-                            radius: width / 2
-                            visible: dayCell.isToday
-                            color: Theme.calToday
-                        }
-
-                        PopupText {
-                            anchors.centerIn: parent
-                            text: dayCell.day.getDate()
-                            // The days either side are context, not padding — worth
-                            // showing, faintly, so a month boundary reads at a glance.
-                            color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.fg : Theme.label3)
-                            font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
-                        }
-
-                        // Something is on that day. One dot whether it is one
-                        // thing or six: the list below says how many, and a
-                        // count under every numeral would be a second grid.
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 1
-                            width: root.dotSize
-                            height: width
-                            radius: width / 2
-                            visible: dayCell.busy
-                            color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.label2 : Theme.label3)
-                        }
+                    // Something is on that day. One dot whether it is one
+                    // thing or six: the list below says how many, and a
+                    // count under every numeral would be a second grid.
+                    Rectangle {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 1
+                        width: root.dotSize
+                        height: width
+                        radius: width / 2
+                        visible: dayCell.busy
+                        color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.label2 : Theme.label3)
                     }
                 }
             }
         }
-    
+
         // --- the day's events ---------------------------------------------
         // Under the grid, for the day under the pointer or today. Present
         // only once Google is connected: without it the popup is the month
         // view it always was.
         Column {
+            id: list
+
             visible: Agenda.configured
-            x: root.weekWidth
             width: root.cell * 7
-            height: root.listRowHeight * root.listRows + 6
             topPadding: 6
             spacing: 0
 
             readonly property var events: Agenda.forDay(root.listDay)
+            // The most the list can take: a full page and the "more" line.
+            readonly property real fullHeight: topPadding + root.listRowHeight * (root.listRows + 1)
 
             // Wraps rather than elides: the one long thing that lands here
             // is the reconnect message, which is no use cut short.
             PopupText {
                 visible: parent.events.length === 0
                 width: parent.width
-                height: root.listRowHeight * root.listRows
-                verticalAlignment: Text.AlignTop
+                height: Math.max(root.listRowHeight, implicitHeight)
+                verticalAlignment: Text.AlignVCenter
                 text: !Agenda.loaded ? (Agenda.trouble !== "" ? Agenda.trouble : "Connecting…") : (root.listDay === Agenda.today ? "Nothing today" : "Nothing on")
                 color: Theme.label3
                 wrapMode: Text.WordWrap

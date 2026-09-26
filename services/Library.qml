@@ -21,6 +21,10 @@ Singleton {
     // every path and tag in it a guess, and the flag is what goes false.
     property bool loaded: false
     property bool loading: false
+    // The last read came back with nothing, which is mpc failing rather than
+    // a library: see the end of build().
+    property bool failed: false
+    property real triedAt: 0
 
     // { name, raw, low, albums: [albumIndex], loose: [trackIndex], tracks }
     property var artists: []
@@ -39,6 +43,12 @@ Singleton {
     function ensure(): void {
         if (root.loaded || root.loading)
             return;
+        // Not straight back at a read that has just failed. Whoever asked
+        // hears `loading` drop and would ask again at once, and that was mpc
+        // spawned in a loop for as long as the # mode stayed open.
+        if (root.failed && Date.now() - root.triedAt < 5000)
+            return;
+        root.triedAt = Date.now();
         root.loading = true;
         dump.running = true;
     }
@@ -223,6 +233,7 @@ Singleton {
         // a re-dump per "#", which is a tenth of a second nobody with no
         // music will notice.
         root.loaded = tracks.length > 0;
+        root.failed = !root.loaded;
     }
 
     // --- searching -----------------------------------------------------------

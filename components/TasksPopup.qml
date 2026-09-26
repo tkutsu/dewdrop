@@ -188,10 +188,11 @@ Popup {
         visible: Tasks.loaded
     }
 
-    // The foot: add something, and put back what was just ticked off. Undo only
-    // appears for the ten seconds after a tick (Tasks.undoable), so it is never
-    // sitting there offering to undo something from this morning — and it is
-    // needed more now than it was, because the whole row is a target.
+    // The foot: put back what was just ticked off, and add something — the
+    // plus at the right end, where every popup under the bar keeps it. Undo
+    // only appears for the ten seconds after a tick (Tasks.undoable), so it is
+    // never sitting there offering to undo something from this morning — and
+    // it is needed more now than it was, because the whole row is a target.
     Item {
         width: root.bodyWidth
         height: root.footHeight + 2
@@ -200,16 +201,6 @@ Popup {
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
-
-            PopupButton {
-                height: root.footHeight
-                framed: true
-                glyph: Theme.glyph.plus
-                label: "add"
-                glyphSize: Theme.popupTextSize - 1
-                textSize: root.rowTextSize - 1
-                onTapped: Launcher.openWith(Launcher.taskPrefix)
-            }
 
             Repeater {
                 model: Object.keys(Tasks.undoable)
@@ -229,7 +220,8 @@ Popup {
         }
 
         PopupText {
-            anchors.right: parent.right
+            anchors.right: add.left
+            anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             text: Tasks.trouble
             visible: Tasks.trouble !== ""
@@ -238,6 +230,19 @@ Popup {
             opacity: 0.8
             elide: Text.ElideRight
             width: Math.min(implicitWidth, root.bodyWidth - 130)
+        }
+
+        PopupButton {
+            id: add
+
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.footHeight
+            height: root.footHeight
+            framed: true
+            glyph: Theme.glyph.plus
+            glyphSize: Theme.popupTextSize - 1
+            onTapped: Launcher.openWith(Launcher.taskPrefix)
         }
     }
 }

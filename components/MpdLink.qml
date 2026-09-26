@@ -44,6 +44,16 @@ Item {
         retry.restart();
     }
 
+    // For when mpd is known to have just come up: dial at once, and go back to
+    // the quick retries whatever the wait had grown to.
+    function dialNow(): void {
+        if (root.connected)
+            return;
+        root.tries = 0;
+        root.redial();
+        retry.restart();
+    }
+
     property int tries: 0
     property real lastTry: 0
 

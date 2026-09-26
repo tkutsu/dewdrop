@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import qs
 import qs.components
@@ -36,8 +37,7 @@ Singleton {
     // full stop this would rather have been: a leading dot would take the
     // decimals off the calculator, since the mode is picked before anything
     // looks at what follows and ".5*2" would be a web search for "5*2". See
-    // looksLikeMath. The underscore it used to be went to the model below,
-    // the two having swapped places.
+    // looksLikeMath. The underscore it used to be went to the windows below.
     //
     // One letter each, and Google has none at all — it is what a bare "@"
     // does, so the search run most often costs the fewest keys. That is also
@@ -155,16 +155,15 @@ Singleton {
     readonly property string calcPrefix: "="
     readonly property string cmdPrefix: ">"
     readonly property string clipPrefix: '"'
-    // A question put to a model, answered in the box. The underscore, which
-    // the web search had until the two changed places: a line waiting to be
-    // filled in, and the one character here that starts nothing else — not a
-    // path, not a sum, not a command, not a quoted line.
-    readonly property string askPrefix: "_"
+    // The windows that are open, by workspace, to go to one. The underscore:
+    // the one character here that starts nothing else — not a path, not a
+    // sum, not a command, not a quoted line.
+    readonly property string windowPrefix: "_"
     // The library: artists, their records, the songs on them, and the stored
     // playlists. The sharp, which is the one piece of music notation that is
     // also a key on the keyboard, and the last of the punctuation here that
     // starts nothing else — it is not a path, a sum, a prompt, a quoted line
-    // or a blank to be filled in.
+    // or a window.
     readonly property string musicPrefix: "#"
     // Writing something down, and setting something going. These two replace a
     // quick-entry overlay of their own: it was a second box on the same screen
@@ -190,7 +189,7 @@ Singleton {
     // In search mode it turns into the engines, because by then the mode is
     // not the question any more — which of the ten answers it is, and the
     // letter that picks each one is the thing worth having in front of you.
-    readonly property string prefixHint: [root.calcPrefix + "calc", root.cmdPrefix + "run", root.askPrefix + "ask", root.enginePrefix + "web", root.pathPrefix + "files", root.clipPrefix + "clip", root.musicPrefix + "music", root.taskPrefix + "task", root.timerPrefix + "timer"].join("   ")
+    readonly property string prefixHint: [root.calcPrefix + "calc", root.cmdPrefix + "run", root.windowPrefix + "windows", root.enginePrefix + "web", root.pathPrefix + "files", root.clipPrefix + "clip", root.musicPrefix + "music", root.taskPrefix + "task", root.timerPrefix + "timer"].join("   ")
 
     // Each engine written as one word with its key bracketed inside it:
     // "@[y]outube". The brackets are the whole instruction — which letter to
@@ -345,7 +344,6 @@ Singleton {
         qalc.cancel();
         fd.cancel();
         LauncherMusic.cancel();
-        root.askStop();
     }
 
     // --- matching ------------------------------------------------------------
@@ -411,7 +409,7 @@ Singleton {
             [root.calcPrefix]: rest => root.calcResults(rest.trim(), false),
             [root.cmdPrefix]: rest => root.cmdResults(rest.trim()),
             [root.clipPrefix]: rest => root.clipResults(rest.trim()),
-            [root.askPrefix]: rest => root.askResults(rest.trim()),
+            [root.windowPrefix]: rest => root.windowResults(rest.trim()),
             [root.musicPrefix]: rest => LauncherMusic.results(rest.trim()),
             [root.taskPrefix]: rest => root.taskResults(rest),
             [root.timerPrefix]: rest => root.timerResults(rest)
@@ -760,59 +758,6 @@ Singleton {
         };
     }
 
-    // --- ask -----------------------------------------------------------------
-
-    // Big Pickle is free on opencode's Zen for as long as opencode keeps it
-    // there: a stealth model on a trial, which is also why the answers are
-    // fed back into it. So this line is the one that will need changing, and
-    // nothing typed here should be anything worth keeping private.
-    //
-    // Reached through the CLI rather than over HTTP because the free tier is
-    // only served to opencode itself — a request straight to the API comes
-    // back "can only be used from within OpenCode".
-    readonly property string askModel: "opencode/big-pickle"
-    // plan, not build: it can read the machine to answer questions about it
-    // and cannot write to it. A box that opens on a keystroke must not be one
-    // keystroke away from editing a file.
-    readonly property string askAgent: "plan"
-
-    // The answer lands in a box under a query line, not in a terminal: an
-    // essay would be scrolled past rather than read, and the markdown would
-    // be drawn as the asterisks it is written with.
-    readonly property string askPreamble: "Answer in at most three sentences, as plain text: no markdown, no preamble, no closing question. "
-
-    // { q, text } — the answer and the question it belongs to, so one that
-    // lands after the query has moved on is shown against nothing. The same
-    // tagging the modes below use, for the same reason.
-    property var askAnswer: null
-    // The question a run is currently out for, or "". Also what the row's
-    // subtitle reads off, which is why the dots below have a clock.
-    property string asking: ""
-    property int askTick: 0
-
-    // "thinking" with one, two and three dots — padded back out to three with
-    // U+2008, the punctuation space, which is a period wide. The subtitle is
-    // right-aligned, so a label that grows a character pushes the word left:
-    // without the padding "thinking" walks back and forth twice a second while
-    // the answer is out.
-    readonly property string askLabel: {
-        const dots = 1 + root.askTick % 3;
-        return "thinking" + ".".repeat(dots) + "\u2008".repeat(3 - dots);
-    }
-
-    // The answer to what is on screen now, or "": the one thing the box needs
-    // to know to draw it.
-    readonly property string answerShown: {
-        if (root.query.charAt(0) !== root.askPrefix)
-            return "";
-        const q = root.query.slice(1).trim();
-        return root.askAnswer && root.askAnswer.q === q ? root.askAnswer.text : "";
-    }
-
-    // One row, which is the question itself: Enter on it asks, and Enter on
-    // it once there is an answer copies that instead. The answer is not in the
-    // row — three sentences do not fit on a 28px line — it is the block the
-    // box grows underneath it. See LauncherMenu.qml.
     // --- tasks and timers ----------------------------------------------------
 
     // Typing writes something down; not typing lists what is already written.
@@ -942,129 +887,72 @@ Singleton {
         return rows;
     }
 
-    function askResults(query) {
-        if (!query)
-            return [];
-        const answered = root.askAnswer && root.askAnswer.q === query;
-        // While the question is out the subtitle is askLabel, which moves
-        // twice a second; the delegate reads that off `q` for itself, so
-        // the row here can hold still. See LauncherMenu.qml.
-        return [
-            {
-                kind: "ask",
-                q: query,
-                glyph: Theme.glyph.ask,
-                title: query,
-                raw: true,
-                subtitle: answered ? "copy" : "ask",
-                answer: answered ? root.askAnswer.text : ""
-            }
-        ];
-    }
+    // --- windows -------------------------------------------------------------
 
-    // A second question while one is out replaces it rather than waiting or
-    // being dropped: the row it was asked from is gone, so its answer would
-    // land against nothing. Killing a process is a signal that returns
-    // before the death, so the new run is not started here — it is left in
-    // `want` for onExited to start once the old one is actually gone.
-    function askRun(q): void {
-        if (!q || root.asking === q)
-            return;
-        root.askAnswer = null;
-        root.asking = q;
-        root.askTick = 0;
-        if (ask.running) {
-            ask.want = q;
-            ask.running = false;
-            return;
-        }
-        root.askStart(q);
-    }
+    // Every window, grouped by the workspace it is on in the order the bar
+    // lists them, and within one in the order Hyprland does. Typing narrows
+    // the list rather than reordering it: the workspaces are the map, and a
+    // window found by name is still found where it lives. Special workspaces
+    // go last, being the ones nobody keeps in their head.
+    function windowResults(query) {
+        const terms = root.prepTerms(query);
+        const rows = [];
 
-    function askStart(q): void {
-        ask.want = "";
-        ask.acc = "";
-        ask.arg = q;
-        ask.running = true;
-    }
+        for (const t of Hyprland.toplevels.values) {
+            const ws = t.workspace;
+            if (!ws)
+                continue;
+            // A window that opened since the last `hyprctl clients` has no IPC
+            // object yet; its Wayland app id is the same name a moment early.
+            const cls = t.lastIpcObject?.class || t.wayland?.appId || "";
+            const entry = cls ? DesktopEntries.heuristicLookup(cls) : null;
+            const app = entry?.name || cls;
 
-    // On the way out: nothing is waiting for the answer, and the dots would
-    // otherwise go on ticking behind a closed box.
-    function askStop(): void {
-        ask.want = "";
-        root.asking = "";
-        ask.running = false;
-    }
+            if (terms.length && root.matchScore(terms, [[t.title, 1], [app, 0.8], [cls, 0.6]]) === null)
+                continue;
 
-    Process {
-        id: ask
-
-        property string arg: ""
-        // The question asked while this run was still dying, if any.
-        property string want: ""
-        // The answer as it arrives. opencode emits a JSON event per part, and
-        // a long answer comes in several, so the block fills in rather than
-        // appearing all at once.
-        property string acc: ""
-
-        // Through sh for the redirect, which is not a nicety: opencode reads
-        // its stdin whenever its stdout is a pipe, and a process spawned from
-        // here has a stdin that nothing will ever write to or close — so the
-        // run hangs on it forever rather than answering. /dev/null is the EOF
-        // it is waiting for. The question goes in as an argument for the same
-        // reason the clipboard copy passes text as one: it is typed text, and
-        // nothing should have to quote it.
-        //
-        // timeout, because this is a network call through a node process and
-        // the box is sitting on it with a row that says "thinking".
-        command: ["sh", "-c", 'exec timeout 60 opencode run --pure --dir "$1" --agent "$2" --format json --title launcher -m "$3" "$4" </dev/null', "sh", Quickshell.env("HOME"), root.askAgent, root.askModel, root.askPreamble + ask.arg]
-
-        onExited: {
-            // A run cut short — replaced, or closed on — has nothing to
-            // publish: what it had is not the answer, and "no answer" for a
-            // question nobody is waiting on would be cached against it.
-            if (ask.arg === root.asking) {
-                root.asking = "";
-                root.askAnswer = ({
-                        q: ask.arg,
-                        text: ask.acc.trim() || "no answer"
-                    });
-            }
-            if (ask.want)
-                root.askStart(ask.want);
+            rows.push({
+                kind: "window",
+                address: t.address,
+                // Negative ids are the special workspaces, sorted after the
+                // numbered ones rather than before them.
+                order: ws.id < 0 ? 1e6 - ws.id : ws.id,
+                at: rows.length,
+                icon: root.windowIcon(cls, entry),
+                title: t.title || app,
+                subtitle: [app, root.workspaceLabel(ws)].filter(x => x).join("  ·  "),
+                raw: true
+            });
         }
 
-        stdout: SplitParser {
-            onRead: function (line) {
-                let e = null;
-                // Every line is an event and only some of them are the answer.
-                // A line that is not JSON at all is opencode talking to its
-                // own terminal, which is not this box's business.
-                try {
-                    e = JSON.parse(line);
-                } catch (err) {
-                    return;
-                }
-                if (!e || e.type !== "text" || !e.part || !e.part.text || ask.arg !== root.asking)
-                    return;
-                ask.acc += (ask.acc ? "\n\n" : "") + e.part.text;
-                root.askAnswer = ({
-                        q: ask.arg,
-                        text: ask.acc.trim()
-                    });
-            }
-        }
+        // Hyprland's own order inside a workspace, said outright rather than
+        // left to whether the engine's sort happens to be stable.
+        rows.sort((a, b) => a.order - b.order || a.at - b.at);
+        return rows.slice(0, root.maxResults);
     }
 
-    // The dots after "thinking". Three and a half seconds of a word that does
-    // not move reads as a box that has stopped rather than one that is busy.
-    Timer {
-        id: askDots
+    // What the bar calls a workspace: its letter, for the ten on the number
+    // row (see modules/Workspaces.qml), and its name for anything else.
+    function workspaceLabel(ws) {
+        const name = ws.name ?? "";
+        if (/^[0-9]$/.test(name))
+            return Theme.workspaceLetters[name === "0" ? 9 : Number(name) - 1];
+        return name.replace(/^special:/, "");
+    }
 
-        running: root.asking !== ""
-        repeat: true
-        interval: 400
-        onTriggered: root.askTick++
+    // The same search the taskbar makes (components/AppIcon.qml): the desktop
+    // entry's icon, else a theme icon named after the class. Empty for none,
+    // which the row answers with the window glyph.
+    function windowIcon(cls, entry) {
+        const override = Theme.appIconOverride[cls];
+        if (override)
+            return override;
+        if (entry?.icon)
+            return entry.icon;
+        for (const candidate of [cls, cls.toLowerCase()])
+            if (candidate && Quickshell.hasThemeIcon(candidate))
+                return candidate;
+        return "";
     }
 
     // --- shelling out --------------------------------------------------------
@@ -1375,7 +1263,7 @@ Singleton {
         let key = group.fallback;
         let q = rest.trim();
         // The first word is an engine key only if it actually names one, so
-        // "_lofi" searches for lofi rather than looking for an engine "lofi".
+        // "@lofi" searches for lofi rather than looking for an engine "lofi".
         if (m && group.engines.some(e => e.key === m[1])) {
             key = m[1];
             q = (m[2] || "").trim();
@@ -1411,12 +1299,10 @@ Singleton {
     // for the exit animation (see LauncherMenu.qml), and a bump or an
     // execute before it would re-rank the rows the box is closing over.
     //
-    // Ticking a task off, holding a timer and asking a question are not
-    // leaving. You open this having let three things pile up, and a box that
-    // shut after each one would have to be reopened between them; an answer
-    // is drawn in this box, so the box has to still be here when it arrives.
-    // Adding a task or a timer does leave: that is a sentence finished. So
-    // does copying an answer, the same way the calculator's is.
+    // Ticking a task off and holding a timer are not leaving. You open this
+    // having let three things pile up, and a box that shut after each one
+    // would have to be reopened between them. Adding a task or a timer does
+    // leave: that is a sentence finished.
     readonly property var actions: ({
             app: (r, i) => {
                 root.leave(i);
@@ -1480,13 +1366,9 @@ Singleton {
                 root.leave(i);
                 Quickshell.execDetached(["xdg-open", r.url]);
             },
-            ask: (r, i) => {
-                if (!r.answer) {
-                    root.askRun(r.q);
-                    return;
-                }
+            window: (r, i) => {
                 root.leave(i);
-                root.copy(r.answer);
+                Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${r.address}" })`);
             },
             task: (r, i) => Tasks.complete(r.task),
             "task-add": (r, i) => {
