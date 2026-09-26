@@ -17,9 +17,6 @@ Item {
     // recolouring: it is the same thing a tray icon asking for attention says,
     // and the two should not say it differently.
     property bool urgent: false
-    // The taskbar's idle fade, applied to the icon alone. The badge on its
-    // corner is deliberately left out of it — see Workspaces.qml.
-    property real dim: 1
     // Held under the pointer; the owner's MouseArea says so.
     property bool pressed: false
     // What to draw when nothing resolves. A window, on the taskbar; the
@@ -78,7 +75,6 @@ Item {
         id: art
 
         visible: root.hasIcon
-        opacity: root.dim
         y: Math.round((root.height - implicitHeight) / 2)
         source: root.iconName ? Quickshell.iconPath(root.iconName, true) : ""
         // The tray's line, found the same way (components/InkProbe.qml). The
@@ -105,7 +101,6 @@ Item {
         id: fallback
 
         visible: !root.hasIcon
-        opacity: root.dim
         implicitHeight: root.height
         text: root.fallbackGlyph
         transform: Translate { y: root.shift }

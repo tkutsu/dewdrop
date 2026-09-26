@@ -15,7 +15,7 @@ BarItem {
 
     property bool open: false
     // Whether anything is in the drawer. The handle is only there while it
-    // holds something — a handle that opened onto nothing would be a control
+    // holds something — a chevron that opened onto nothing would be a control
     // for its own sake.
     property bool holding: false
     // Whether the pointer is anywhere on the bar or in one of its popups.
@@ -23,8 +23,8 @@ BarItem {
 
     present: holding
 
-    // A dot is a few pixels of ink, and its box ended at the ink: a click a
-    // pixel to its right fell into the gap before the next module and did
+    // A chevron is a few pixels of ink, and its box ended at the ink: a click
+    // a pixel to its right fell into the gap before the next module and did
     // nothing. The box reaches halfway across that gap instead, and gives the
     // same back as margin so nothing on the bar moves.
     padRight: Math.round(Theme.gap / 2)
@@ -32,15 +32,35 @@ BarItem {
     onHoldingChanged: if (!holding)
         open = false
 
-    // A middle dot, the clock's own separator, rather than a chevron: the
-    // handle is a place to click, not an arrow to follow, and the modules
-    // coming out beside it say which way it opened. Text rather than a Glyph
-    // and a size up, the same as the clock's, so the two dots on the bar are
-    // the same mark.
-    BarText {
+    // One chevron that turns over, on the drawer's own clock, rather than
+    // two glyphs swapped at the start of the fold: the handle moves with the
+    // modules it is handing out, and ends pointing the way they will go back.
+    //
+    // Mirrored rather than rotated. A half turn about the box's centre lands
+    // the ink a pixel higher than it started (the box is an odd height), so
+    // the open chevron sat above the icons beside it; a mirror only ever
+    // moves it sideways, about its own middle, onto the same columns.
+    property real turned: root.open ? 1 : 0
+
+    Behavior on turned {
+        NumberAnimation {
+            duration: Theme.foldMs
+            easing.type: Easing.OutCubic
+        }
+    }
+
+    Glyph {
+        id: chevron
+
         Layout.fillHeight: true
-        fontSize: Theme.textSize + 1
-        text: "\u00b7"
+        text: Theme.glyph.drawer
+        transform: Scale {
+            origin.x: chevron.width / 2
+            xScale: 1 - 2 * root.turned
+        }
+        // A step down the label scale: it is a handle on the modules, not one
+        // of them, and it should not read as another status.
+        color: Theme.label2
     }
 
     onClicked: function (mouse) {

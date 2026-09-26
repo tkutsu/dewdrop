@@ -151,11 +151,8 @@ BarItem {
                     }
 
                     // The fade a workspace goes under when it is not the one you
-                    // are on. It is handed to the letter and the icons rather
-                    // than put on the whole button, so the count badges are left
-                    // out of it: a badge is the same badge wherever it sits on
-                    // this bar, and one that dimmed with its workspace would read
-                    // as a different mark from the ones on the right.
+                    // are on: the whole button, count badges and all, so a
+                    // workspace you are not on reads as one quieter thing.
                     property real dim: button.active ? 1 : Theme.idleOpacity
 
                     Behavior on dim {
@@ -167,6 +164,7 @@ BarItem {
 
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
+                    opacity: button.dim
 
                     MouseArea {
                         id: press
@@ -187,7 +185,6 @@ BarItem {
 
                         BarText {
                             Layout.fillHeight: true
-                            opacity: button.dim
                             text: button.letter || button.modelData.name
                             // A single letter is centred and spaced on its ink,
                             // like the icons it sits among, and at one weight:
@@ -234,7 +231,6 @@ BarItem {
                                 required property int index
 
                                 Layout.alignment: Qt.AlignVCenter
-                                dim: button.dim
                                 windowClass: modelData.windowClass
                                 count: modelData.addresses.length
                                 urgent: root.anyUrgent(modelData.addresses)

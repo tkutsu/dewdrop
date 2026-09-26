@@ -43,9 +43,10 @@ OverlayWindow {
     // Being dismissed folds the box shut about its own middle, which is the
     // reveal run backwards and is what `reveal` above already does. Being used
     // is a different event and gets a different exit: the box closes onto the
-    // row that was picked. Its top edge falls and its bottom edge climbs until
-    // the two of them wrap that row and nothing else, they hold there long
-    // enough for it to be read as the answer, and then they close over it too.
+    // row that was picked. Its top edge falls and its bottom edge climbs, and
+    // its sides come in at the same time, until the box is the selection's
+    // own rounded fill and nothing else; it holds there long enough for that
+    // to be read as the answer, and then the top and bottom close over it too.
     //
     // Nothing moves but the edges. The contents hold their place on screen and
     // are covered rather than pushed, which is the same trick the reveal uses:
@@ -65,7 +66,7 @@ OverlayWindow {
     // no pause at all the edges never arrive anywhere, and the row they close
     // on is a frame they pass through rather than the answer they picked.
     //
-    // `zip` is the first, 1 at the full box and 0 at one row; `fold` is the
+    // `zip` is the first, 1 at the full box and 0 at the selection; `fold` is the
     // second, 1 at that row's full height and 0 at none. Both sit at 1 for as
     // long as the box is open, so a box leaving any other way never feels them.
     property real zip: 1
@@ -382,6 +383,15 @@ OverlayWindow {
         readonly property int topEdge: Math.round(root.zipping ? root.focus * (1 - root.zip) + root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight * (1 - root.reveal) / 2)
         readonly property int bottomEdge: Math.round(root.zipping ? box.bodyHeight - (box.bodyHeight - root.focus - root.rowHeight) * (1 - root.zip) - root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight - box.bodyHeight * (1 - root.reveal) / 2)
 
+        // The sides, which only the zip moves: in to where the selection's
+        // fill is drawn, held in from the list's ends (see the list's
+        // `highlight`), so the box arrives on the selection itself rather
+        // than on a row-shaped strip of the whole width. The right one has
+        // the panel to cross as well, in the two modes that open one. Same
+        // rounding rule as the top and bottom, for the same reason.
+        readonly property int leftEdge: Math.round(root.zipping ? Theme.selectionInset * (1 - root.zip) : 0)
+        readonly property int rightEdge: Math.round(root.zipping ? box.bodyWidth - (box.bodyWidth - root.boxWidth + Theme.pillBorder + Theme.selectionInset) * (1 - root.zip) : box.bodyWidth)
+
         y: Math.round((root.height - root.fullHeight) / 2) + box.topEdge
         // Placed rather than centred, for the same reason the y is placed
         // rather than centred. In / mode the box grows a preview panel on its
@@ -390,9 +400,7 @@ OverlayWindow {
         // where a 680-wide box's left edge was, the panel opens out into the
         // screen instead and nothing already drawn moves at all.
         // What the box is across: the list, and the panel when / mode has one.
-        // Nothing in the exit touches it any more — both of that animation's
-        // motions belong to the top and bottom edges — so opening the panel is
-        // the only thing the width ever does.
+        // The exit takes it in from both sides as well (leftEdge, rightEdge).
         //
         // Still animated a step away from `width` rather than on it, so the
         // drawn width can be a whole number while the animation runs through
@@ -407,8 +415,8 @@ OverlayWindow {
             }
         }
 
-        x: Math.round((root.width - root.boxWidth) / 2)
-        width: Math.round(box.bodyWidth)
+        x: Math.round((root.width - root.boxWidth) / 2) + box.leftEdge
+        width: box.rightEdge - box.leftEdge
         // Whatever is left between the two edges. Zero while closed, the full
         // body while open, and on the way through either animation a band that
         // Rectangle draws as a thinning bar — it caps its radius at half the
@@ -421,7 +429,9 @@ OverlayWindow {
         // Same fill as a bar pill, and for the same reason: the 0.5 alpha is
         // what keeps the compositor blurring behind it.
         color: Theme.popupBg
-        radius: Theme.popupRadius
+        // And the corners go from the box's to the selection's on the way in,
+        // so what the edges close on is the same shape the fill was.
+        radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)
 
         // Its edge, above everything drawn inside it so that no row's fill
         // can paint over it.
@@ -461,7 +471,7 @@ OverlayWindow {
         Column {
             id: content
 
-            x: root.boxPad
+            x: root.boxPad - box.leftEdge
             y: root.boxPad - box.topEdge
             // The list's width rather than the box's, which are no longer the
             // same thing: what the box grew for the panel is not the list's
@@ -958,7 +968,7 @@ OverlayWindow {
         //
         // Its y is the Column's, so the reveal wipes the two in together.
         Item {
-            x: root.boxWidth - root.boxPad + root.panelGap
+            x: root.boxWidth - root.boxPad + root.panelGap - box.leftEdge
             y: content.y
             width: root.panelWidth
             height: Math.round(box.bodyHeight) - root.boxPad * 2
