@@ -10,17 +10,21 @@ import qs
 // The bar speaks the REST API directly rather than shelling out to a client,
 // because there is no client to shell out to: nothing packaged here talks to
 // Tasks, and the whole protocol is a token refresh and three GETs. The sign-in
-// itself lives in services/Google.qml, shared with the calendar.
-Singleton {
+// itself lives in services/Google.qml, shared with the calendar, and the
+// polling and gathering in GoogleService.qml, likewise.
+GoogleService {
     id: root
 
     readonly property string api: "https://tasks.googleapis.com/tasks/v1"
 
+    service: "Tasks"
     // Every two minutes. Tasks arrive from a phone rather than from this
     // machine, so the bar is watching someone else's typing — often enough to
     // be current when you look, far enough apart to be nothing on a quota of
     // 50,000 requests a day.
-    readonly property int pollMs: 2 * 60000
+    pollMs: 2 * 60000
+
+    onFetch: root.fetchLists()
 
     // --- state ---------------------------------------------------------------
     property var lists: []
@@ -28,12 +32,6 @@ Singleton {
     // The last list as text, for telling a poll that changed something from one
     // that only proved nothing had. See fetchTasks.
     property string snapshot: ""
-
-    // Whether anything has been heard back yet. The module dims itself until
-    // this turns, the same way the mail one does — a count of zero because the
-    // network is down should not read as a clear list.
-    property bool loaded: false
-    property string trouble: ""
 
     // What has just been ticked off, keyed by task id, each with the moment it
     // went. This is what the popup's undo is offered from.
@@ -45,8 +43,6 @@ Singleton {
     property var undoable: ({})
     readonly property int undoMs: 10000
 
-    readonly property bool configured: Google.configured
-
     // --- days ----------------------------------------------------------------
     // Google stores a due date as an RFC 3339 instant pinned to midnight UTC,
     // but it means a calendar day: "due Saturday" and nothing about what time.
@@ -54,27 +50,12 @@ Singleton {
     // anywhere west of Greenwich, midnight UTC on the 26th is the evening of
     // the 25th, and every task in the list would sit a day early. So the day is
     // taken off the front of the string and compared as text, which is also why
-    // these are strings rather than dates: ISO days sort lexicographically, so
-    // "before today" is just "<".
+    // these are strings rather than dates (see Google.dayString).
     function dayOf(task: var): string {
         return task.due ? String(task.due).slice(0, 10) : "";
     }
 
-    function dayString(date: var): string {
-        const pad = n => n < 10 ? "0" + n : String(n);
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-    }
-
-    // Recomputed at midnight rather than per read, so a bar left up overnight
-    // does not still think yesterday is today. SystemClock at Hours is the
-    // cheapest thing that notices.
-    readonly property string today: root.dayString(clock.date)
-    readonly property string tomorrow: root.dayString(new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate() + 1))
-
-    SystemClock {
-        id: clock
-        precision: SystemClock.Hours
-    }
+    readonly property string tomorrow: root.dayString(new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + 1))
 
     // --- the groups ----------------------------------------------------------
     // Sorted by day, then by the order they sit in on Google's side, so a list
@@ -170,38 +151,13 @@ Singleton {
         if (day < root.today)
             return Qt.formatDate(new Date(day + "T12:00:00"), "d MMM");
         const at = new Date(day + "T12:00:00");
-        const week = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate() + 7);
+        const week = new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + 7);
         if (at < week)
             return Qt.locale().dayName(at.getDay(), Locale.ShortFormat).toLowerCase();
         return Qt.formatDate(at, "d MMM");
     }
 
-    // --- talking to Google ---------------------------------------------------
-    // The sign-in and the status codes are Google.qml's; what is kept here is
-    // what a failure means for this module.
-    function send(method: string, url: string, body: var, then: var): void {
-        Google.send(method, url, body, function (parsed) {
-            root.trouble = "";
-            then(parsed);
-        }, root.fail);
-    }
-
-    function fail(why: string): void {
-        root.trouble = why;
-    }
-
-    function authorised(then: var): void {
-        Google.authorised(function () {
-            root.trouble = "";
-            then();
-        }, root.fail);
-    }
-
     // --- reading -------------------------------------------------------------
-    function refresh(): void {
-        root.authorised(() => root.fetchLists());
-    }
-
     function fetchLists(): void {
         root.send("GET", `${root.api}/users/@me/lists`, null, function (body) {
             root.lists = (body.items ?? []).map(l => ({
@@ -216,63 +172,58 @@ Singleton {
     // from the shopping, and a bar that showed one of the two would be wrong
     // about the day in a way that is hard to notice.
     //
-    // The replies arrive in whatever order they arrive in, so they are
-    // collected and published in one go — a list built up as they land would
-    // reorder itself under the pointer on every poll.
+    // Gathered and published in one go (see GoogleService.gather); a list that
+    // could not be read keeps what was on screen rather than publishing a day
+    // with a whole list missing from it, and says so in `trouble`.
     function fetchTasks(): void {
-        const wanted = root.lists.slice();
-        if (wanted.length === 0) {
-            root.tasks = [];
+        const sources = root.lists.map(l => ({
+                    url: `${root.api}/lists/${l.id}/tasks?showCompleted=false&showHidden=false&maxResults=100`,
+                    list: l
+                }));
+        root.gather("tasks", sources, function (item, source) {
+            // Google keeps subtasks in the same list with a parent id. They
+            // belong under their parent, and the bar has no room to draw a
+            // tree, so they stay out of it rather than appearing as loose tasks
+            // with no context.
+            if (item.parent)
+                return null;
+            return {
+                id: item.id,
+                listId: source.list.id,
+                listTitle: source.list.title,
+                title: item.title ?? "",
+                notes: item.notes ?? "",
+                due: item.due ?? "",
+                position: item.position ?? ""
+            };
+        }, function (gathered, failed) {
+            if (failed.length > 0)
+                return;
+            // A row just ticked off may still be in a reply that Google built
+            // before the PATCH reached it. It is gone from the bar already;
+            // keeping it out until the undo window closes stops it flickering
+            // back for a poll.
+            const kept = gathered.filter(t => !root.undoable[t.id]);
+            // Sorted into a fixed order first, because the replies come back
+            // in whatever order the network gives them and the same list must
+            // not look different for that reason alone.
+            kept.sort((a, b) => a.listId !== b.listId ? (a.listId < b.listId ? -1 : 1) : a.position === b.position ? 0 : (a.position < b.position ? -1 : 1));
+
+            // Replaced only when something actually moved. Every poll builds a
+            // new array whether or not anything changed, and a new array is a
+            // new model: the popup's rows are destroyed and rebuilt, which
+            // drops whatever the pointer was hovering — and Qt does not work
+            // out what is under the pointer again until it moves, so the hover
+            // is left on whichever row took that position. Same fault the
+            // timer popup had once a second; here it would have been once
+            // every two minutes, which is rarer and no less baffling.
+            const next = JSON.stringify(kept);
+            if (next !== root.snapshot) {
+                root.snapshot = next;
+                root.tasks = kept;
+            }
             root.loaded = true;
-            return;
-        }
-
-        const gathered = [];
-        let outstanding = wanted.length;
-
-        for (const list of wanted)
-            root.send("GET", `${root.api}/lists/${list.id}/tasks?showCompleted=false&showHidden=false&maxResults=100`, null, function (body) {
-                for (const item of body.items ?? []) {
-                    // Google keeps subtasks in the same list with a parent id.
-                    // They belong under their parent, and the bar has no room to
-                    // draw a tree, so they stay out of it rather than appearing
-                    // as loose tasks with no context.
-                    if (item.parent)
-                        continue;
-                    gathered.push({
-                        id: item.id,
-                        listId: list.id,
-                        listTitle: list.title,
-                        title: item.title ?? "",
-                        notes: item.notes ?? "",
-                        due: item.due ?? "",
-                        position: item.position ?? ""
-                    });
-                }
-                outstanding--;
-                if (outstanding === 0) {
-                    // Sorted into a fixed order first, because the replies come
-                    // back in whatever order the network gives them and the
-                    // same list must not look different for that reason alone.
-                    gathered.sort((a, b) => a.listId !== b.listId ? (a.listId < b.listId ? -1 : 1) : a.position === b.position ? 0 : (a.position < b.position ? -1 : 1));
-
-                    // Replaced only when something actually moved. Every poll
-                    // builds a new array whether or not anything changed, and a
-                    // new array is a new model: the popup's rows are destroyed
-                    // and rebuilt, which drops whatever the pointer was hovering
-                    // — and Qt does not work out what is under the pointer again
-                    // until it moves, so the hover is left on whichever row took
-                    // that position. Same fault the timer popup had once a
-                    // second; here it would have been once every two minutes,
-                    // which is rarer and no less baffling.
-                    const next = JSON.stringify(gathered);
-                    if (next !== root.snapshot) {
-                        root.snapshot = next;
-                        root.tasks = gathered;
-                    }
-                    root.loaded = true;
-                }
-            });
+        });
     }
 
     // --- writing -------------------------------------------------------------
@@ -398,7 +349,7 @@ Singleton {
         // nearly over.
         const locale = Qt.locale();
         for (let ahead = 1; ahead <= 7; ahead++) {
-            const at = new Date(clock.date.getFullYear(), clock.date.getMonth(), clock.date.getDate() + ahead);
+            const at = new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + ahead);
             const short = locale.dayName(at.getDay(), Locale.ShortFormat).toLowerCase();
             const long = locale.dayName(at.getDay(), Locale.LongFormat).toLowerCase();
             if (word === short || word === long || short.startsWith(word) && word.length >= 2)
@@ -427,21 +378,6 @@ Singleton {
         return p.day === "" ? `Added ${p.title}` : `Added ${p.title} for ${root.sayDay(p.day)}`;
     }
 
-    // --- credentials ---------------------------------------------------------
-    // Google.qml reads them; this only has to notice when they have arrived.
-    // Both paths, because which one runs depends on whether the file landed
-    // before or after this singleton was first touched.
-    Component.onCompleted: if (root.configured)
-        root.refresh()
-
-    Connections {
-        target: Google
-
-        function onReady(): void {
-            root.refresh();
-        }
-    }
-
     // Ages the undos out. One second is finer than it needs to be, but it only
     // runs while something is actually undoable, which is ten seconds after a
     // tick and never otherwise.
@@ -455,13 +391,6 @@ Singleton {
                 if (now - root.undoable[key].at > root.undoMs)
                     root.forget(key);
         }
-    }
-
-    Timer {
-        interval: root.pollMs
-        running: root.configured
-        repeat: true
-        onTriggered: root.refresh()
     }
 
     // qs ipc call tasks …
