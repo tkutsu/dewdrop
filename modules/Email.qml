@@ -5,12 +5,14 @@ import qs
 import qs.components
 import qs.services
 
-// custom/email
+// Unread mail, with the threads themselves in the popup. A click on the icon
+// opens the inbox; a click on a row in the popup opens it to be read there.
 BarItem {
     // #custom-email.loading { opacity: 0.55 }
     opacity: Email.loaded ? 1 : Theme.dimOpacity
 
     tooltip: Email.tooltip
+    popup: EmailPopup {}
     quiet: Email.count === 0
 
     BadgedGlyph {
@@ -22,7 +24,7 @@ BarItem {
 
     onClicked: function (mouse) {
         if (mouse.button === Qt.LeftButton)
-            Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh"]);
+            Email.openInbox();
         else if (mouse.button === Qt.RightButton)
             Email.refresh();
     }

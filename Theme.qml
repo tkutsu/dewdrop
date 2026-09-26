@@ -505,6 +505,10 @@ Singleton {
         taskDone: "\u{f0134}",        // nf-md-checkbox_marked_circle_outline
         undo: "\u{f054c}",            // nf-md-undo
 
+        // Answering a mail from the popup (nf-md-reply, _reply_all).
+        reply: "\u{f045a}",
+        replyAll: "\u{f045b}",
+
         mailRead: "\u{f05ef}",         // nf-md-email_open_outline
         mailUnread: "\u{f01f0}",       // nf-md-email_outline
 
