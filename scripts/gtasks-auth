@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""One-time Google consent (Tasks, Calendar and Gmail) for the Quickshell bar.
+
+Google has no device-code flow for the Tasks scope, so the only way to get a
+refresh token on a desktop is the loopback redirect: open a browser at the
+consent page, listen on 127.0.0.1 for the redirect Google sends back, and trade
+the code it carries for tokens.
+
+What it leaves behind is ~/.local/share/quickshell/gtasks.json, which
+services/Google.qml reads. The bar's popups run this themselves (their
+"reconnect" button) when the token is dead or lacks a scope, and re-read the
+file once it exits. The access token is deliberately not in it: those last
+an hour and the shell fetches a fresh one at startup, so writing one down would
+only be a second thing that can go stale.
+
+Stdlib only, on purpose. This runs once, and a virtualenv that has to survive
+until the next time the token is revoked is a worse dependency than the fifty
+lines it would save.
+"""
+
+import argparse
+import base64
+import hashlib
+import http.server
+import json
+import os
+import secrets
+import socket
+import sys
+import threading
+import urllib.error
+import urllib.parse
+import urllib.request
+import webbrowser
+
+# gmail.modify rather than gmail.readonly: it reads everything readonly does,
+# and adds the label changes the bar's "mark read" button makes. It cannot
+# delete mail or send it.
+SCOPE = " ".join(
+    "https://www.googleapis.com/auth/" + s for s in ("tasks", "calendar.readonly", "gmail.modify")
+)
+AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+TASKS_API = "https://tasks.googleapis.com/tasks/v1"
+CALENDAR_API = "https://www.googleapis.com/calendar/v3"
+GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
+DEST = os.path.expanduser("~/.local/share/quickshell/gtasks.json")
+
+DONE_PAGE = b"""<!doctype html><meta charset="utf-8">
+<title>Connected</title>
+<body style="font:16px/1.5 system-ui;margin:4rem auto;max-width:28rem;color:#222">
+<h1 style="font-size:1.2rem">Google connected</h1>
+<p>You can close this tab and go back to the terminal.</p>
+"""
+
+FAIL_PAGE = b"""<!doctype html><meta charset="utf-8">
+<title>Not connected</title>
+<body style="font:16px/1.5 system-ui;margin:4rem auto;max-width:28rem;color:#222">
+<h1 style="font-size:1.2rem">Something went wrong</h1>
+<p>Go back to the terminal, it will say what.</p>
+"""
+
+
+def b64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def free_port() -> int:
+    """A port the loopback listener can have.
+
+    Asked of the kernel rather than picked: a Desktop OAuth client may redirect
+    to any 127.0.0.1 port without registering it, so there is nothing to be
+    gained by insisting on a number somebody else might already be using.
+    """
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+class Catcher(http.server.BaseHTTPRequestHandler):
+    """Serves exactly one request: the one Google redirects the browser to."""
+
+    result = None
+
+    def do_GET(self):  # noqa: N802 - name fixed by the base class
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        Catcher.result = {k: v[0] for k, v in params.items()}
+        ok = "code" in Catcher.result
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(DONE_PAGE if ok else FAIL_PAGE)
+
+    def log_message(self, *args):
+        """Quiet. The wizard around this is doing the talking."""
+
+
+def post_form(url: str, fields: dict) -> dict:
+    body = urllib.parse.urlencode(fields).encode()
+    request = urllib.request.Request(
+        url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"}
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as err:
+        detail = err.read().decode("utf-8", "replace")
+        raise SystemExit(f"Google refused the request ({err.code}):\n{detail}")
+
+
+def consent(client_id: str, client_secret: str) -> dict:
+    port = free_port()
+    redirect_uri = f"http://127.0.0.1:{port}"
+    verifier = b64url(secrets.token_bytes(32))
+    challenge = b64url(hashlib.sha256(verifier.encode("ascii")).digest())
+    state = secrets.token_urlsafe(16)
+
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": SCOPE,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+        "state": state,
+        # Both are needed for a refresh token that is actually handed over:
+        # offline asks for one at all, and consent forces the screen even for an
+        # account that has already said yes once — without it a second run gets
+        # an access token and no refresh token, and the shell has nothing to
+        # come back with in an hour.
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    url = f"{AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
+
+    server = http.server.HTTPServer(("127.0.0.1", port), Catcher)
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+
+    print(f"Opening your browser. If nothing happens, go to:\n\n  {url}\n")
+    webbrowser.open(url)
+    print("Waiting for Google to redirect back…")
+    thread.join(timeout=900)
+    server.server_close()
+
+    got = Catcher.result
+    if not got:
+        raise SystemExit("Timed out waiting for the browser. Nothing was written.")
+    if "error" in got:
+        raise SystemExit(f"Google said: {got['error']}. Nothing was written.")
+    # The state is the only thing standing between this listener and any page
+    # on the machine that can reach localhost.
+    if got.get("state") != state:
+        raise SystemExit("The redirect came back with the wrong state. Nothing was written.")
+
+    tokens = post_form(
+        TOKEN_ENDPOINT,
+        {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "code": got["code"],
+            "code_verifier": verifier,
+            "grant_type": "authorization_code",
+            "redirect_uri": redirect_uri,
+        },
+    )
+    if "refresh_token" not in tokens:
+        raise SystemExit(
+            "Google returned no refresh token. Remove this app at\n"
+            "https://myaccount.google.com/permissions and run this again."
+        )
+    return tokens
+
+
+def save(client_id: str, client_secret: str, refresh_token: str) -> None:
+    os.makedirs(os.path.dirname(DEST), exist_ok=True)
+    # Written through a private temporary file rather than opened and filled:
+    # between the open and the write, a file created with the default umask is
+    # a refresh token readable by anything on the machine.
+    tmp = DEST + ".new"
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    with os.fdopen(os.open(tmp, flags, 0o600), "w") as handle:
+        json.dump(
+            {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "refresh_token": refresh_token,
+            },
+            handle,
+            indent=2,
+        )
+        handle.write("\n")
+    os.replace(tmp, DEST)
+
+
+def check() -> int:
+    """Prove the saved credentials still work, by doing what the shell does."""
+    try:
+        with open(DEST) as handle:
+            saved = json.load(handle)
+    except FileNotFoundError:
+        print(f"No credentials at {DEST}. Run this without --check first.")
+        return 1
+
+    tokens = post_form(
+        TOKEN_ENDPOINT,
+        {
+            "client_id": saved["client_id"],
+            "client_secret": saved["client_secret"],
+            "refresh_token": saved["refresh_token"],
+            "grant_type": "refresh_token",
+        },
+    )
+    access = tokens["access_token"]
+
+    request = urllib.request.Request(
+        f"{TASKS_API}/users/@me/lists",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        lists = json.load(response).get("items", [])
+
+    if not lists:
+        print("Connected, but the account has no task lists yet.")
+    else:
+        print(f"Connected. {len(lists)} task list(s):")
+        for item in lists:
+            print(f"  · {item['title']}")
+
+    # The calendar is the second thing the token has to be good for. A 403
+    # here with the tasks above fine means the API is off or the token was
+    # granted before the calendar scope was added: re-consent.
+    request = urllib.request.Request(
+        f"{CALENDAR_API}/users/me/calendarList?minAccessRole=reader",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            calendars = json.load(response).get("items", [])
+    except urllib.error.HTTPError as err:
+        print(f"Calendar not reachable ({err.code}). Enable the Calendar API and run this without --check.")
+        return 1
+    print(f"{len(calendars)} calendar(s):")
+    for item in calendars:
+        mark = "·" if item.get("selected") else "○"
+        print(f"  {mark} {item.get('summary', '?')}")
+
+    # Gmail, third, and the same reading of a 403.
+    request = urllib.request.Request(
+        f"{GMAIL_API}/labels/INBOX",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            inbox = json.load(response)
+    except urllib.error.HTTPError as err:
+        print(f"Gmail not reachable ({err.code}). Enable the Gmail API and run this without --check.")
+        return 1
+    print(f"Inbox: {inbox.get('threadsUnread', 0)} unread thread(s).")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--client-id", help="OAuth client ID from the Google console")
+    parser.add_argument("--client-secret", help="OAuth client secret")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="test the saved credentials instead of asking for new ones",
+    )
+    args = parser.parse_args()
+
+    if args.check:
+        return check()
+
+    # A re-consent (a scope added since) reuses the client already saved, so
+    # it is this script and nothing else.
+    saved = {}
+    if not (args.client_id and args.client_secret) and os.path.exists(DEST):
+        with open(DEST) as handle:
+            saved = json.load(handle)
+    client_id = args.client_id or saved.get("client_id") or input("OAuth client ID: ").strip()
+    client_secret = args.client_secret or saved.get("client_secret") or input("OAuth client secret: ").strip()
+    if not client_id or not client_secret:
+        raise SystemExit("Both a client ID and a client secret are needed.")
+
+    tokens = consent(client_id, client_secret)
+    save(client_id, client_secret, tokens["refresh_token"])
+    print(f"\nSaved to {DEST} (owner-readable only).")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

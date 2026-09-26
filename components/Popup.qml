@@ -85,6 +85,17 @@ PopupWindow {
     // item that opened it; HoverPopup watches this to decide when to close.
     readonly property bool hovered: pointer.hovered
 
+    // Stay open a while even with the pointer outside. For a button whose
+    // press shrinks the popup — a row gone from a list — and so leaves the
+    // pointer over the empty strip under it, where the popup cannot see it:
+    // without this the popup closed on the pointer it had just moved out from
+    // under, before it could be brought back.
+    property real heldUntil: 0
+
+    function hold(ms: int): void {
+        root.heldUntil = Date.now() + ms;
+    }
+
     // Counted for the whole shell, so the right pill's drawer can tell a
     // pointer that has gone off to a popup from one that has left the bar.
     onHoveredChanged: PopupPointer.hovered += hovered ? 1 : -1

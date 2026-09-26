@@ -48,8 +48,26 @@ Item {
         // Long enough to cross the seam between the bar and the popup, short
         // enough that a tooltip still feels like it closes on the way out.
         interval: 150
-        onTriggered: if (!root.hovered && !root.popupHovered)
-            root.settled = false
+        onTriggered: root.close()
+    }
+
+    // The rest of a hold the popup asked for (Popup.hold), if the pointer
+    // was still away when the usual wait ran out.
+    Timer {
+        id: grace
+        onTriggered: root.close()
+    }
+
+    function close(): void {
+        if (root.hovered || root.popupHovered)
+            return;
+        const held = (loader.item?.heldUntil ?? 0) - Date.now();
+        if (held > 0) {
+            grace.interval = held;
+            grace.restart();
+            return;
+        }
+        root.settled = false;
     }
 
     Loader {

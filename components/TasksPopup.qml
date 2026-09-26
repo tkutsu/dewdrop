@@ -185,7 +185,7 @@ Popup {
         width: root.bodyWidth
         height: Theme.pillBorder
         color: Theme.stroke
-        visible: Tasks.loaded
+        visible: foot.visible
     }
 
     // The foot: put back what was just ticked off, and add something — the
@@ -194,9 +194,11 @@ Popup {
     // never sitting there offering to undo something from this morning — and
     // it is needed more now than it was, because the whole row is a target.
     Item {
+        id: foot
+
         width: root.bodyWidth
         height: root.footHeight + 2
-        visible: Tasks.loaded
+        visible: Tasks.loaded || Google.needsConsent
 
         Row {
             anchors.verticalCenter: parent.verticalCenter
@@ -220,29 +222,39 @@ Popup {
         }
 
         PopupText {
-            anchors.right: add.left
+            anchors.right: ends.left
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             text: Tasks.trouble
-            visible: Tasks.trouble !== ""
+            visible: Tasks.trouble !== "" && Tasks.trouble !== Google.reconnect
             color: Theme.warn
             font.pixelSize: root.rowTextSize - 1
             opacity: 0.8
             elide: Text.ElideRight
-            width: Math.min(implicitWidth, root.bodyWidth - 130)
+            width: Math.min(implicitWidth, root.bodyWidth - 130, parent.width - ends.width - 8)
         }
 
-        PopupButton {
-            id: add
+        Row {
+            id: ends
 
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            width: root.footHeight
-            height: root.footHeight
-            framed: true
-            glyph: Theme.glyph.plus
-            glyphSize: Theme.popupTextSize - 1
-            onTapped: Launcher.openWith(Launcher.taskPrefix)
+            spacing: 4
+
+            ReconnectButton {
+                height: root.footHeight
+                textSize: root.rowTextSize - 1
+            }
+
+            PopupButton {
+                visible: Tasks.loaded
+                width: root.footHeight
+                height: root.footHeight
+                framed: true
+                glyph: Theme.glyph.plus
+                glyphSize: Theme.popupTextSize - 1
+                onTapped: Launcher.openWith(Launcher.taskPrefix)
+            }
         }
     }
 }

@@ -51,9 +51,9 @@ Singleton {
     }
 
     function fail(why: string, status: int): void {
-        // 403 is the one failure with a specific cause: the API is not enabled
-        // on the project, or the token was granted before its scope was added.
-        base.trouble = status === 403 ? `${base.service} not granted: enable the API and re-run ~/_scripts/gtasks-setup` : why;
+        // A 403 that is not a missing scope (Google.send says which) is the
+        // API switched off on the project, which only the console can fix.
+        base.trouble = status === 403 && why !== Google.reconnect ? `${base.service} API not enabled in the Google console` : why;
     }
 
     // --- gathering -----------------------------------------------------------

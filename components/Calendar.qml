@@ -307,5 +307,12 @@ Popup {
                 font.pixelSize: root.fontSize - 1
             }
         }
+
+        // The way back in when the sign-in needs you. Under the list, where
+        // the reason it is empty is already written.
+        ReconnectButton {
+            height: 20
+            textSize: root.fontSize - 2
+        }
     }
 }

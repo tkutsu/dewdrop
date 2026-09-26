@@ -235,34 +235,48 @@ Popup {
                 label: "mark read"
                 glyphSize: Theme.popupTextSize - 1
                 textSize: root.rowTextSize - 1
-                onTapped: Email.markRead(root.openRow)
+                // The row goes, the box shrinks, and the pointer is left
+                // below it; a moment's grace to bring it back to the list.
+                onTapped: {
+                    root.hold(1500);
+                    Email.markRead(root.openRow);
+                }
             }
         }
 
         PopupText {
-            anchors.right: add.left
+            anchors.right: ends.left
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
             text: Email.trouble
-            visible: Email.loaded && Email.trouble !== "" && !actions.visible
+            visible: Email.trouble !== "" && Email.trouble !== Google.reconnect && !actions.visible
             color: Theme.warn
             font.pixelSize: root.rowTextSize - 1
             opacity: 0.8
             elide: Text.ElideRight
-            width: Math.min(implicitWidth, root.bodyWidth - 60)
+            width: Math.min(implicitWidth, parent.width - ends.width - 8)
         }
 
-        PopupButton {
-            id: add
+        Row {
+            id: ends
 
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            width: root.footHeight
-            height: root.footHeight
-            framed: true
-            glyph: Theme.glyph.plus
-            glyphSize: Theme.popupTextSize - 1
-            onTapped: Email.compose()
+            spacing: 4
+
+            ReconnectButton {
+                height: root.footHeight
+                textSize: root.rowTextSize - 1
+            }
+
+            PopupButton {
+                width: root.footHeight
+                height: root.footHeight
+                framed: true
+                glyph: Theme.glyph.plus
+                glyphSize: Theme.popupTextSize - 1
+                onTapped: Email.compose()
+            }
         }
     }
 }

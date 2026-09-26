@@ -8,7 +8,8 @@ import Quickshell.Io
 // Google API (Tasks and Agenda so far).
 //
 // ~/_scripts/gtasks-setup walks the consent once and leaves a refresh token in
-// the file read below, granted for every scope the bar uses. Everything after
+// the file read below, granted for every scope the bar uses; scripts/gtasks-auth
+// is the consent step on its own, which the popups run to reconnect. Everything after
 // that happens here: the refresh token is traded for an access token that lasts
 // an hour, kept in memory and never written down — a copy on disk would only
 // be a second thing able to go stale.
@@ -43,7 +44,41 @@ Singleton {
     // arrived later finds `configured` already true and just goes.
     signal ready
 
-    readonly property string reconnect: "Google needs reconnecting: run ~/_scripts/gtasks-setup"
+    readonly property string reconnect: "Google needs reconnecting"
+
+    // Whether the sign-in needs you: there are no credentials, the refresh
+    // token is dead, or a request came back 403 for a scope the token was
+    // never granted (one added to gtasks-auth since). All three are cured by
+    // the consent script, which the popups offer as a "reconnect" button.
+    property bool scopeMissing: false
+    readonly property bool needsConsent: !root.configured || root.tokenDead || root.scopeMissing
+    property bool tokenDead: false
+    readonly property bool consenting: consent.running
+
+    function reconsent(): void {
+        consent.running = true;
+    }
+
+    // In a terminal, because the script talks — it prints the consent URL in
+    // case the browser does not open, and asks for the client id on a machine
+    // that has none saved. Held open only when it fails, so the reason can be
+    // read; "(floating)" is the window rule in hypr/configs/wrules.lua.
+    Process {
+        id: consent
+
+        command: ["kitty", "--title", "Google sign-in (floating)", "sh", "-c", '"$1" || { printf "\nPress Enter to close. "; read _; }', "sh", Quickshell.shellPath("scripts/gtasks-auth")]
+
+        // Whatever it did, the file is the truth now: forget the token in
+        // memory and read the credentials again. Their `loaded` is `ready`,
+        // which has every service fetch again under the new grant.
+        onExited: {
+            root.accessToken = "";
+            root.tokenExpiry = 0;
+            root.tokenDead = false;
+            root.scopeMissing = false;
+            credentials.reload();
+        }
+    }
 
     // --- days ----------------------------------------------------------------
     // Google's APIs speak in calendar days, and both services compare them as
@@ -88,6 +123,14 @@ Singleton {
                     return;
                 }
                 if (xhr.status < 200 || xhr.status >= 300) {
+                    // A 403 is either an API switched off in the console or a
+                    // token without the scope; only the second is reconnecting's
+                    // to cure, and Google names it in the body.
+                    if (xhr.status === 403 && /ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficientPermissions/.test(xhr.responseText)) {
+                        root.scopeMissing = true;
+                        fail(root.reconnect, 403);
+                        return;
+                    }
                     fail(xhr.status === 0 ? "No network" : `Google said ${xhr.status}`, xhr.status);
                     return;
                 }
@@ -169,7 +212,9 @@ Singleton {
                 // expired because the app was left in Testing. Nothing the bar
                 // can do about that, so it says which one it is rather than
                 // retrying every two minutes forever.
-                root.settleRefresh(xhr.status === 400 || xhr.status === 401 ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`));
+                const dead = xhr.status === 400 || xhr.status === 401;
+                root.tokenDead = dead;
+                root.settleRefresh(dead ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`));
                 return;
             }
             let parsed;
@@ -204,10 +249,11 @@ Singleton {
     }
 
     // --- credentials ---------------------------------------------------------
-    // Written once by ~/_scripts/gtasks-setup. No watchChanges: the file only
-    // moves when that script runs, and running it ends with a note to reload
-    // the bar anyway.
+    // Written by the consent script. No watchChanges: the file only moves when
+    // that runs, and a run from the popups reloads it when it exits.
     FileView {
+        id: credentials
+
         path: Quickshell.env("HOME") + "/.local/share/quickshell/gtasks.json"
         printErrors: false
 
