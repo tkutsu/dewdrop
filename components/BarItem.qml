@@ -1,0 +1,147 @@
+import QtQuick
+import QtQuick.Layouts
+import qs
+
+// The per-module shell: pointer handling, scroll accumulation and the hover
+// popup. Spacing is not its business — the bar's rows space their children
+// uniformly, so a module is exactly as wide as what it draws.
+MouseArea {
+    id: root
+
+    default property alias content: layout.data
+    // Modules are spaced by the pill they sit in; this is for the one whose
+    // own contents are a group rather than a row of separate things.
+    property alias spacing: layout.spacing
+
+    // Text for a plain hover tooltip, or a Component for something richer — a
+    // calendar, a volume slider. Both appear on hover, because that is what
+    // these were in waybar: tooltips. `popupItem` is the live instance, for
+    // modules that need to drive it (scrolling the calendar through months).
+    property string tooltip: ""
+    property Component popup: null
+    readonly property var popupItem: hover.item
+
+    // Fitts's law: the modules at the ends of the bar back onto a screen edge,
+    // which makes them the cheapest targets on screen — but only if their hit
+    // area reaches that edge instead of stopping at the row's margin. Padding
+    // widens the MouseArea; the content still sits where the margin put it.
+    property int padLeft: 0
+    property int padRight: 0
+
+    // The click's press-in: the contents dip a pixel while the button is held.
+    // A module that answers to several targets inside itself (Music) turns
+    // this off and dips each target on its own instead.
+    property bool dips: true
+
+    // Wheel events arrive in 1/8-degree units and a single notch is 120 of
+    // them. Free-spinning wheels and touchpads send fractions, so accumulate
+    // rather than firing per event.
+    signal scrollUp
+    signal scrollDown
+    property int scrollThreshold: 120
+    property real _scrollAcc: 0
+
+    // Whether the module is there at all — false for something that was never
+    // set up, which is not the same as having nothing to say. Use this rather
+    // than `visible`, which the drawer below drives.
+    property bool present: true
+
+    // Nothing to say right now: no unread mail, no updates, a tool rather than
+    // a status. The right pill keeps modules like that in its drawer, so the
+    // bar shows what is true at the moment and the rest is a click away.
+    property bool quiet: false
+
+    // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
+    // `quiet` and whether the drawer is open.
+    property bool stowed: false
+
+    // How far out of the drawer the module is, 0..1. It folds to nothing
+    // rather than blinking out: its width goes, and so does the gap in front
+    // of it, which the row would otherwise go on reserving for an item of no
+    // width. The contents keep their size and slide under the module's left
+    // edge as it closes, so it reads as being drawn in behind its neighbour
+    // rather than as squashed.
+    property real reveal: stowed ? 0 : 1
+
+    Behavior on reveal {
+        NumberAnimation {
+            duration: Theme.foldMs
+            easing.type: Easing.InOutCubic
+        }
+    }
+
+    // Whether `reveal` takes the width with it. A module in the right pill's
+    // drawer folds; a pill that goes away by sliding under the clock keeps its
+    // width and lets the bar place it off `reveal` instead (see Bar.qml).
+    property bool folds: true
+    readonly property real _fold: folds ? reveal : 1
+
+    visible: present && reveal > 0
+    clip: _fold < 1
+    // Whether a gap goes in front of this module: yes, unless it is the first
+    // in its pill (Pill sets that). The gap folds with the module, so a module
+    // going into the drawer takes its share of the row with it.
+    //
+    // Rounded to the nearest pixel here, the width below too, because the
+    // layout would otherwise round them up: a module a hundredth of the way
+    // out of the drawer was given a whole pixel of width and another of gap,
+    // and seven of them together made the pill jump fifteen pixels on the
+    // first frame of the fold and again on the last.
+    property bool lead: true
+    Layout.leftMargin: lead ? Math.round(Theme.gap * _fold) : 0
+
+    // Whether this module's popup is on screen. A plain tooltip does not
+    // count: it is a note beside the module, not a place the module opened.
+    readonly property bool open: popup !== null && hover.item !== null
+
+    implicitWidth: Math.round((layout.implicitWidth + padLeft + padRight) * _fold)
+    implicitHeight: Theme.barHeight
+    Layout.fillHeight: true
+
+    hoverEnabled: true
+    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+    // config.jsonc sets "cursor": false on every module — no pointer hand.
+    cursorShape: Qt.ArrowCursor
+
+    // Pinned to the right and at its own width rather than filling the
+    // module, so that folding into the drawer takes the module's left edge
+    // across its contents instead of squeezing them.
+    RowLayout {
+        id: layout
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
+        anchors.rightMargin: root.padRight
+        width: implicitWidth
+        // On the contents rather than the module, which several modules set
+        // an opacity of their own on to say they are still loading. In step
+        // with the slot, so the icon and the room it stands in come and go
+        // together rather than one after the other.
+        opacity: root._fold
+        spacing: Theme.gap
+        transform: Translate { y: root.dips && root.pressed ? Theme.pressDip : 0 }
+    }
+
+    onWheel: function (wheel) {
+        root._scrollAcc += wheel.angleDelta.y;
+        while (root._scrollAcc >= root.scrollThreshold) {
+            root._scrollAcc -= root.scrollThreshold;
+            root.scrollUp();
+        }
+        while (root._scrollAcc <= -root.scrollThreshold) {
+            root._scrollAcc += root.scrollThreshold;
+            root.scrollDown();
+        }
+    }
+
+    // --- hover tooltip -------------------------------------------------------
+    onEntered: hover.hovered = true
+    onExited: hover.hovered = false
+
+    HoverPopup {
+        id: hover
+        anchorItem: root
+        text: root.tooltip
+        popup: root.popup
+    }
+}

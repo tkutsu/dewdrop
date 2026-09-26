@@ -1,0 +1,54 @@
+import QtQuick
+import qs
+import qs.services
+
+// The updater tooltip was two counts. The counts are already the line totals of
+// a list of package names, so show the list.
+Popup {
+    id: root
+
+    readonly property int fontSize: Theme.popupTextSize
+    readonly property int shown: 14
+
+    readonly property var entries: Updates.officialList.concat(Updates.aurList)
+
+    Column {
+        spacing: 3
+
+        PopupText {
+            text: Updates.pending > 0 ? `Official ${Updates.official}/${Updates.officialTotal}    AUR ${Updates.aur}/${Updates.aurTotal}` : "System up to date"
+            font.weight: Font.DemiBold
+        }
+
+        Item {
+            width: 1
+            height: 2
+            visible: root.entries.length > 0
+        }
+
+        Repeater {
+            model: root.entries.slice(0, root.shown)
+
+            delegate: PopupText {
+                required property string modelData
+
+                // "pkg 1.2-1 -> 1.2-2": the name is what identifies it, the
+                // versions are the detail, so they are dimmed rather than cut.
+                text: {
+                    const parts = modelData.split(" ");
+                    return `${parts[0]}  <font color="#888888">${parts.slice(1).join(" ")}</font>`;
+                }
+                textFormat: Text.StyledText
+                font.family: Theme.monoFont
+                font.pixelSize: root.fontSize - 1
+            }
+        }
+
+        PopupText {
+            visible: root.entries.length > root.shown
+            text: `… and ${root.entries.length - root.shown} more`
+            opacity: 0.6
+            font.pixelSize: root.fontSize - 1
+        }
+    }
+}

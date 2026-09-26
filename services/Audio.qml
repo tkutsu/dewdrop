@@ -1,0 +1,155 @@
+pragma Singleton
+
+import QtQuick
+import Quickshell
+import Quickshell.Io
+import Quickshell.Services.Pipewire
+import qs
+
+// Output device state for the bar.
+//
+// Volume, mute and the active sink come straight from PipeWire, so they update
+// without a poll and without a subprocess per change — that is the bulk of what
+// taskbar-audio.sh was paying for.
+//
+// What PipeWire does not expose through Quickshell is *port availability*, and
+// that is the whole point of the old script: an analog jack with nothing in it
+// should read as disconnected rather than as "speakers". So one long-lived
+// `pactl subscribe` supplies the events and a one-shot `pactl list sinks`
+// answers the port question, only when something about a sink actually moved —
+// not on every volume tick, which is what the shell version did.
+Singleton {
+    id: root
+
+    readonly property PwNode sink: Pipewire.defaultAudioSink
+    readonly property bool muted: sink?.audio?.muted ?? false
+    readonly property int volume: Math.round((sink?.audio?.volume ?? 0) * 100)
+    readonly property string description: sink?.description || "Audio output"
+
+    // Bluetooth sinks have no jack to detect, and being connected is the whole
+    // point of them, so they skip the availability check entirely.
+    readonly property bool bluetooth: (sink?.properties?.["device.api"] ?? "") === "bluez5"
+
+    property string portType: "none"
+    property bool portAvailable: false
+
+    readonly property bool connected: !!sink && sink.name !== "auto_null" && (bluetooth || portAvailable)
+    // 0% is silent either way, so it shows the muted icon.
+    readonly property bool silent: muted || volume <= 0
+
+    // The level as the number of waves off the speaker, in three steps, and
+    // the same speaker whatever it is playing through: which output is on is
+    // the popup's to say. It used to be a headphones or a loudspeaker glyph
+    // for those ports, which named the device and threw the level away.
+    readonly property string icon: {
+        if (!connected)
+            return Theme.glyph.audioOff;
+        if (silent)
+            return Theme.glyph.muted;
+        if (volume < 34)
+            return Theme.glyph.volLow;
+        if (volume < 67)
+            return Theme.glyph.volMed;
+        return Theme.glyph.volHigh;
+    }
+
+    // Volume as a fraction, for the ring around the icon. waybar had no way to
+    // draw one and wrote the level as a digit instead — tens of a percent, with
+    // full as a hex-style "F" to keep it to one glyph. The ring shows the real
+    // number, so it needs no rounding to fit.
+    readonly property real level: volume / 100
+
+    // The name of the sink when there is one, whether or not anything is
+    // plugged into it: an unplugged jack is still the output the machine would
+    // use. (This was written as a conditional that returned `description` from
+    // both of its branches.)
+    readonly property string tooltip: sink ? description : "No audio output"
+
+    function setVolume(fraction) {
+        if (sink?.audio)
+            sink.audio.volume = Math.max(0, Math.min(1, fraction));
+    }
+
+    // Keep the sink's bindings alive; without this `audio` and `description`
+    // stay empty. Only the default one: nothing here reads any of the others.
+    PwObjectTracker {
+        objects: root.sink ? [root.sink] : []
+    }
+
+    onSinkChanged: probe.reload()
+
+    Process {
+        id: probe
+        command: ["pactl", "--format=json", "list", "sinks"]
+
+        // A burst of pactl events can land while the probe is already out. The
+        // debounce collapses those into one reload() that then finds `running`
+        // still true and drops it, leaving the port state stale until some
+        // unrelated sink event comes along — which, for a jack that was just
+        // plugged in, is the one event that mattered. Remember the miss instead
+        // and go again on the way out.
+        property bool stale: false
+
+        function reload() {
+            if (running)
+                stale = true;
+            else
+                running = true;
+        }
+
+        onExited: {
+            if (stale) {
+                stale = false;
+                running = true;
+            }
+        }
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const name = root.sink?.name;
+                if (!name)
+                    return;
+                let sinks;
+                try {
+                    sinks = JSON.parse(text);
+                } catch (e) {
+                    return;
+                }
+                const entry = sinks.find(s => s.name === name);
+                const port = entry?.ports?.find(p => p.name === entry.active_port);
+                root.portType = port?.type ?? "none";
+                // Ports without jack detection (S/PDIF) report "unknown" and so
+                // read as disconnected, which is what we want here: the analog
+                // outs are the ones actually in use on this box.
+                root.portAvailable = port?.availability === "available";
+            }
+        }
+    }
+
+    // The event feed. pactl fires a burst per change, so the reload is debounced
+    // rather than run once per line.
+    Process {
+        running: true
+        command: ["pactl", "subscribe"]
+        // A hot reload destroys this object but leaves the subprocess running,
+        // reparented to init, and pulse only accepts so many clients before it
+        // starts refusing them — at which point the bar loses the sink and
+        // every volume command fails. Hand it back on the way out.
+        Component.onDestruction: running = false
+
+        stdout: SplitParser {
+            onRead: function (line) {
+                if (/ on (sink|server|card) /.test(line))
+                    debounce.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: debounce
+        interval: 50
+        onTriggered: probe.reload()
+    }
+
+    Component.onCompleted: probe.reload()
+}
