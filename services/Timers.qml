@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs
+import "TimersParse.js" as Parse
 
 // Countdowns and alarms — one list, one clock, one place they are
 // written down.
@@ -128,24 +129,35 @@ Singleton {
         return "";
     }
 
+    // The rows that do not move: paused timers and alarms. Kept apart from
+    // the running ones so that the tick, which moves `now` every second,
+    // rebuilds only the lines that read it rather than the whole list.
+    readonly property string tooltipStill: {
+        const lines = [];
+        for (const e of root.timers)
+            if (!e.running)
+                lines.push(root.describe(e));
+        for (const e of root.alarms)
+            lines.push(root.describe(e));
+        return lines.join("\n");
+    }
+
     readonly property string tooltip: {
         if (root.ringing.length > 0)
             return root.ringing.map(e => root.ringTitle(e) + " — click to dismiss, right-click to snooze").join("\n");
-        const lines = [];
-        for (const e of root.timers)
-            lines.push(root.describe(e));
-        for (const e of root.alarms)
-            lines.push(root.describe(e));
+        const lines = root.timers.filter(e => e.running).map(e => root.describe(e));
+        if (root.tooltipStill !== "")
+            lines.push(root.tooltipStill);
         return lines.length > 0 ? lines.join("\n") : "No timers";
     }
 
     // --- formatting ----------------------------------------------------------
     function pad(n: int): string {
-        return n < 10 ? "0" + n : String(n);
+        return Parse.pad(n);
     }
 
     function hhmm(h: int, m: int): string {
-        return root.pad(h) + ":" + root.pad(m);
+        return Parse.hhmm(h, m);
     }
 
     // Rounded up, so a 25 minute timer reads 25:00 for its first second rather
@@ -159,25 +171,8 @@ Singleton {
         return h > 0 ? `${h}:${root.pad(m)}:${root.pad(s)}` : `${m}:${root.pad(s)}`;
     }
 
-    // Plain words for a duration, for the notification that announces it: "25
-    // minutes" rather than "25:00", which is a readout and not a sentence.
     function spell(ms: real): string {
-        const t = Math.round(ms / 1000);
-        const h = Math.floor(t / 3600);
-        const m = Math.floor((t % 3600) / 60);
-        const s = t % 60;
-        const parts = [];
-        if (h > 0)
-            parts.push(h === 1 ? "1 hour" : `${h} hours`);
-        if (m > 0)
-            parts.push(m === 1 ? "1 minute" : `${m} minutes`);
-        // Seconds only while they are still most of what was asked for. "45
-        // seconds" and "1 minute 30 seconds" are what someone said; "1 hour 30
-        // minutes 4 seconds" is a readout being spelled out loud, and the four
-        // seconds at the end of it are not why the timer was set.
-        if (s > 0 && h === 0 && m < 5)
-            parts.push(s === 1 ? "1 second" : `${s} seconds`);
-        return parts.length > 0 ? parts.join(" ") : "no time at all";
+        return Parse.spell(ms);
     }
 
     // What a ring is called. A timer that has gone off keeps only enough of
@@ -244,7 +239,7 @@ Singleton {
     }
 
     // --- making them ---------------------------------------------------------
-    function startCountdown(ms: real, label: string): void {
+    function countdown(ms: real, label: string): void {
         root._add({
             id: "",
             kind: "countdown",
@@ -257,9 +252,12 @@ Singleton {
             minute: 0,
             days: []
         });
-        root.tick();
     }
 
+    function startCountdown(ms: real, label: string): void {
+        root.countdown(ms, label);
+        root.tick();
+    }
 
     function addAlarm(hour: int, minute: int, label: string, days: var): void {
         root._add({
@@ -277,21 +275,8 @@ Singleton {
         root.tick();
     }
 
-    // The next time this hour and minute comes round, in local wall-clock terms
-    // — built out of a Date for that calendar day rather than by adding 24
-    // hours, so the two days a year that are not 24 hours long land on the time
-    // that was asked for rather than an hour either side of it.
     function occurrence(hour: int, minute: int, days: var, from: real): real {
-        const base = new Date(from);
-        for (let i = 0; i <= 8; i++) {
-            const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, hour, minute, 0, 0);
-            if (d.getTime() <= from)
-                continue;
-            if (days && days.length > 0 && days.indexOf(d.getDay()) < 0)
-                continue;
-            return d.getTime();
-        }
-        return from + 86400000;
+        return Parse.occurrence(hour, minute, days, from);
     }
 
     // --- changing them -------------------------------------------------------
@@ -369,8 +354,12 @@ Singleton {
         const due = root.entries.filter(e => e.running && e.endsAt <= root.now);
         for (const e of due)
             root.fire(e);
-        if (root.ringing.length > 0 && root.now - root.ringing[0].firedAt > root.ringMs)
-            root.hush();
+        // Each ring gives up on its own clock. One hush for the lot would
+        // silence a timer that just went off because an older one had been
+        // ringing a minute.
+        const kept = root.ringing.filter(r => root.now - r.firedAt <= root.ringMs);
+        if (kept.length !== root.ringing.length)
+            root.ringing = kept;
     }
 
     function fire(e: var): void {
@@ -421,20 +410,8 @@ Singleton {
         if (root.ringing.length === 0)
             return;
         const e = root.ringing[0];
-        const ms = (minutes > 0 ? minutes : 5) * 60000;
         root.ringing = root.ringing.slice(1);
-        root._add({
-            id: "",
-            kind: "countdown",
-            label: e.label !== "" ? e.label : "snoozed",
-            total: ms,
-            endsAt: root.stamp() + ms,
-            left: ms,
-            running: true,
-            hour: 0,
-            minute: 0,
-            days: []
-        });
+        root.countdown(minutes > 0 ? minutes * 60000 : root.snoozeMs, e.label !== "" ? e.label : "snoozed");
     }
 
     function notify(title: string, body: string, urgent: bool): void {
@@ -460,154 +437,24 @@ Singleton {
     }
 
     // --- reading what was typed ----------------------------------------------
-    // One grammar for the IPC call and the prompt box, because they are the
-    // same act: "25m", "1h30", "7:30 wake up". What is not a duration
-    // and not a time of day is not a timer, and says so rather than guessing.
-    //
-    // Returns { ok, kind, ms, hour, minute, label, error }.
+    // The grammar lives in TimersParse.js; these are the names the launcher
+    // and the IPC call it by.
+    readonly property string syntax: Parse.syntax
+
     function parse(text: string): var {
-        const raw = (text ?? "").trim();
-        if (raw === "")
-            return {
-                ok: false,
-                error: "Nothing to set"
-            };
-
-        const head = raw.split(/\s+/)[0].toLowerCase();
-        const rest = raw.slice(raw.split(/\s+/)[0].length).trim();
-
-        // A time of day, which is what a colon means when the number before it
-        // could be an hour. "7:30" is half past seven; "90:00" is not a time,
-        // so it falls through to the duration reading below and is ninety
-        // minutes.
-        const at = head.match(/^(\d{1,2}):(\d{2})(am|pm)?$/);
-        if (at) {
-            let hour = parseInt(at[1]);
-            const minute = parseInt(at[2]);
-            const suffix = at[3];
-            if (suffix === "pm" && hour < 12)
-                hour += 12;
-            if (suffix === "am" && hour === 12)
-                hour = 0;
-            if (hour < 24 && minute < 60)
-                return {
-                    ok: true,
-                    kind: "alarm",
-                    ms: 0,
-                    hour: hour,
-                    minute: minute,
-                    label: rest
-                };
-        }
-
-        // "7am" / "7pm" with no minutes at all.
-        const oclock = head.match(/^(\d{1,2})(am|pm)$/);
-        if (oclock) {
-            let hour = parseInt(oclock[1]);
-            if (oclock[2] === "pm" && hour < 12)
-                hour += 12;
-            if (oclock[2] === "am" && hour === 12)
-                hour = 0;
-            if (hour < 24)
-                return {
-                    ok: true,
-                    kind: "alarm",
-                    ms: 0,
-                    hour: hour,
-                    minute: 0,
-                    label: rest
-                };
-        }
-
-        const ms = root.duration(head);
-        if (ms > 0)
-            return {
-                ok: true,
-                kind: "countdown",
-                ms: ms,
-                hour: 0,
-                minute: 0,
-                label: rest
-            };
-
-        return {
-            ok: false,
-            error: `Not a time: ${head}`
-        };
+        return Parse.parse(text);
     }
 
-    // "90" (minutes, because that is what a bare number means when you are
-    // setting a timer), "90s", "1h30m", "1h30", "2h".
     function duration(word: string): real {
-        const bare = word.match(/^(\d+(?:\.\d+)?)$/);
-        if (bare)
-            return Math.round(parseFloat(bare[1]) * 60000);
-
-        const hm = word.match(/^(\d+)h(\d+)$/);
-        if (hm)
-            return (parseInt(hm[1]) * 60 + parseInt(hm[2])) * 60000;
-
-        let total = 0;
-        let seen = false;
-        const parts = word.match(/(\d+(?:\.\d+)?)(h|m|s)/g);
-        if (!parts)
-            return 0;
-        // Only a run of unit-suffixed numbers and nothing else: "1h30m" counts,
-        // "at1h" does not.
-        if (parts.join("") !== word)
-            return 0;
-        for (const part of parts) {
-            const n = parseFloat(part);
-            const unit = part.slice(-1);
-            total += n * (unit === "h" ? 3600000 : unit === "m" ? 60000 : 1000);
-            seen = true;
-        }
-        return seen ? Math.round(total) : 0;
+        return Parse.duration(word);
     }
 
-    // What `run` would do, without doing it. The prompt box shows this under
-    // the line as it is typed, which is what saves the box from needing a
-    // confirmation step: the answer to "did it understand me" is already on
-    // screen before Enter is pressed.
     function preview(text: string): string {
-        const p = root.parse(text);
-        if (!p.ok)
-            return (text ?? "").trim() === "" ? "" : p.error;
-
-        if (p.kind === "alarm") {
-            // Which day it lands on is the one thing about an alarm that is
-            // not in what was typed, and the one thing worth getting wrong
-            // about at half past seven in the morning.
-            const at = root.occurrence(p.hour, p.minute, [], Date.now());
-            const today = new Date().toDateString() === new Date(at).toDateString();
-            return `Alarm ${root.hhmm(p.hour, p.minute)} ${today ? "today" : "tomorrow"}${p.label !== "" ? "  ·  " + p.label : ""}`;
-        }
-
-        return `Timer ${root.spell(p.ms)}${p.label !== "" ? "  ·  " + p.label : ""}`;
+        return Parse.preview(text);
     }
 
-    // What can be written here, for the grey line under the launcher's query.
-    // Kept beside parse() rather than in the launcher, because it is a
-    // description of parse() and nothing else — a form added there and not
-    // here is a form nobody ever finds.
-    //
-    // Forms, not sentences: the label is whatever you write after the time and
-    // needs no example. These are the six shapes the time itself can take,
-    // which is the part that has to be remembered rather than guessed.
-    readonly property string syntax: ["25m", "1h30", "90s", "7:30", "8pm"].join("   ")
-
-    // The same reading as preview(), without the label echoed back. For a row
-    // that is already showing what was typed — see the launcher's timer mode.
     function brief(text: string): string {
-        const p = root.parse(text);
-        if (!p.ok)
-            return p.error;
-        if (p.kind === "alarm") {
-            const at = root.occurrence(p.hour, p.minute, [], Date.now());
-            const today = new Date().toDateString() === new Date(at).toDateString();
-            return `alarm  ·  ${root.hhmm(p.hour, p.minute)} ${today ? "today" : "tomorrow"}`;
-        }
-        return `timer  ·  ${root.spell(p.ms)}`;
+        return Parse.brief(text);
     }
 
     // Parse and act. The one entry point the prompt and the IPC both use, so
@@ -626,19 +473,48 @@ Singleton {
     }
 
     // --- the clock -----------------------------------------------------------
-    // One second while something is counting down in front of someone, five
-    // while the only thing pending is an alarm hours away. A countdown's label
-    // changes every second and has to; an alarm's does not change at all until
-    // it goes off, and a per-second wakeup for it would be the bar redrawing
-    // all night to show the same four digits.
+    // One second while something is counting down in front of someone, and
+    // nothing at all while the only thing pending is an alarm hours away. A
+    // countdown's label changes every second and has to; an alarm's does not
+    // change until it goes off, so it gets one wakeup, aimed at that moment.
     readonly property bool counting: root.timers.some(e => e.running) || root.ringing.length > 0
 
     Timer {
-        interval: root.counting ? 1000 : 5000
-        running: root.entries.length > 0 || root.ringing.length > 0
+        interval: 1000
+        running: root.counting
         repeat: true
         onTriggered: root.tick()
     }
+
+    // Re-aimed whenever the list changes, since the next alarm may have, and
+    // after every shot, since one shot is rarely the whole wait: it is held
+    // to a minute at most rather than armed for the distance. Qt's timers run
+    // on a clock that stops during suspend, so one armed for eight hours
+    // before the lid closed would fire eight awake hours later, long after
+    // the alarm it was for. A wakeup a minute costs nothing, and the tick it
+    // runs fires anything the clock has already passed.
+    //
+    // Set by hand rather than bound: a single-shot Timer turns its own
+    // `running` off when it fires, and a binding on it would not be looked at
+    // again until something else changed.
+    Timer {
+        id: wake
+        onTriggered: {
+            root.tick();
+            root.arm();
+        }
+    }
+
+    function arm(): void {
+        wake.stop();
+        if (root.counting || !root.nextAlarm)
+            return;
+        wake.interval = Math.max(50, Math.min(60000, root.nextAlarm.endsAt - Date.now()));
+        wake.start();
+    }
+
+    onNextAlarmChanged: root.arm()
+    onCountingChanged: root.arm()
 
     // The ring, on its own timer rather than one sound per tick: the file is
     // about a second long and a beat a second would be a siren.

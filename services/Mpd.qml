@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Qt.labs.folderlistmodel
 import qs
+import qs.components
 
 // MPD state, straight off the MPD protocol.
 //
@@ -12,9 +13,10 @@ import qs
 // polled every 5 seconds instead. MPD's own `idle` command pushes changes as
 // they happen, so this sits silent until something actually moves.
 //
-// Playback commands go through mpc: sending on an idling connection means a
-// noidle handshake that has to be unwound around every response, and mpc is
-// already the vocabulary these buttons were written in.
+// Two connections, both components/MpdLink.qml: one parked in `idle` that
+// everything is read over, and one that never idles that everything is sent
+// over. Sending on the idling one would mean a noidle handshake unwound
+// around every reply; a second socket has none of that problem.
 Singleton {
     id: root
 
@@ -23,11 +25,7 @@ Singleton {
     property string artist: ""
     property int elapsed: 0
     property int duration: 0
-    // Read off the live socket rather than set by its signal: a socket is
-    // already open by the time a handler on it would be attached, so the first
-    // change never arrives. Null while the connection is being rebuilt — see
-    // the note above the Loader that holds it.
-    readonly property bool connected: link.item ? link.item.connected : false
+    readonly property bool connected: link.connected
     property string album: ""
     property string file: ""
     property bool repeatOn: false
@@ -86,8 +84,44 @@ Singleton {
         return `${m}:${s < 10 ? "0" : ""}${s}`;
     }
 
-    function send(args) {
-        Quickshell.execDetached(["mpc"].concat(args));
+    // mpc's words, spoken over the command socket. The buttons and the bar's
+    // scroll were written in mpc's vocabulary and there is no reason to
+    // rewrite them; a process per press was what those words cost when they
+    // were handed to mpc itself. Anything not translated here still goes to
+    // mpc, so a new caller is never silently dropped.
+    function send(args): void {
+        const verb = args[0];
+        const arg = args[1];
+        switch (verb) {
+        case "toggle":
+            // `mpc toggle` starts a stopped queue; MPD's bare `pause` would
+            // not, and the pill's play button is pressed on a stopped queue
+            // more often than on a paused one.
+            root.run([root.state === "play" ? "pause 1" : root.state === "pause" ? "pause 0" : "play"]);
+            return;
+        case "pause":
+            root.run(["pause 1"]);
+            return;
+        case "prev":
+            root.run(["previous"]);
+            return;
+        case "next":
+            root.run(["next"]);
+            return;
+        case "seek":
+            // "+10" and "-10" as they are; anything else is seconds.
+            root.run(["seekcur " + arg]);
+            return;
+        case "volume":
+            root.run([/^[+-]/.test(arg) ? "volume " + arg : "setvol " + arg]);
+            return;
+        case "repeat":
+        case "single":
+            root.run([verb + " " + (arg === "on" ? "1" : "0")]);
+            return;
+        default:
+            Quickshell.execDetached(["mpc"].concat(args));
+        }
     }
 
     // Nothing left to hear it through — the headphones came out and there is
@@ -121,7 +155,7 @@ Singleton {
     // Putting the daemon down, which `mpc stop` does not: that ends playback
     // and leaves mpd up, still holding the output. Through systemd because
     // that is what brought it up — and mpd.socket is disabled on this machine,
-    // so nothing activates it straight back when the socket below retries.
+    // so nothing activates it straight back when the links below retry.
     function stopServer() {
         Quickshell.execDetached(["systemctl", "--user", "stop", "mpd.service"]);
     }
@@ -130,9 +164,8 @@ Singleton {
     // level and the system's are read off the same shapes.
     readonly property string volumeIcon: volume <= 0 ? Theme.glyph.muted : volume < 34 ? Theme.glyph.volLow : volume < 67 ? Theme.glyph.volMed : Theme.glyph.volHigh
 
-    // A drag hands over a new value every pixel it crosses, and every one of
-    // them would be an mpc process of its own. Only the latest is worth
-    // spawning; the ones behind it are already out of date.
+    // A drag hands over a new value every pixel it crosses. Only the latest
+    // is worth sending; the ones behind it are already out of date.
     property int volumeTarget: -1
 
     // mpd has no mute, so it is a volume of nothing and the level to come back
@@ -163,6 +196,15 @@ Singleton {
             volumeWrite.start();
     }
 
+    // When the last volume and seek were written, so commit() knows which of
+    // mpd's answers are older than the hand on the slider. Every write makes
+    // mpd report a change, and the status that answers it can still carry the
+    // level from before the write it is answering; letting that through is
+    // the slider jumping back mid-drag.
+    property real volumeSentAt: 0
+    property real seekSentAt: 0
+    readonly property int holdMs: 200
+
     // Throttled rather than held to the end of the drag: volume is a thing you
     // set by ear, and a slider that stays silent until you stop moving is one
     // you have to aim at instead of listen to. Repeating, and stopping itself
@@ -183,7 +225,8 @@ Singleton {
                 return;
             }
             pending = false;
-            root.send(["volume", String(root.volumeTarget)]);
+            root.volumeSentAt = Date.now();
+            root.run(["setvol " + root.volumeTarget]);
         }
     }
 
@@ -197,10 +240,6 @@ Singleton {
     function seekTo(fraction) {
         if (duration <= 0)
             return;
-        // Seconds, where this used to send a percentage. Two significant
-        // figures over a four-minute track is a landing point two seconds
-        // from the one the bar was dropped on, and now that the bar stays
-        // where it was dropped, that gap is something you can see.
         seekTarget = Math.round(Math.max(0, Math.min(1, fraction)) * duration);
         elapsed = seekTarget;
         seekWrite.restart();
@@ -209,45 +248,48 @@ Singleton {
     Timer {
         id: seekWrite
         interval: 60
-        onTriggered: if (root.seekTarget >= 0)
-            root.send(["seek", root.clock(root.seekTarget)])
+        onTriggered: {
+            if (root.seekTarget < 0)
+                return;
+            root.seekSentAt = Date.now();
+            root.run(["seekcur " + root.seekTarget]);
+        }
     }
 
     function cycleRepeat() {
         if (repeatMode === "off") {
-            send(["repeat", "on"]);
+            run(["repeat 1"]);
         } else if (repeatMode === "all") {
-            send(["single", "on"]);
+            run(["single 1"]);
         } else {
-            send(["repeat", "off"]);
             // Single has to come off with it. Left on by itself it is still
             // "stop after this song", and playback would come to a halt at the
             // end of every track rather than going back to a plain queue.
-            send(["single", "off"]);
+            run(["repeat 0", "single 0"]);
         }
     }
 
     // --- the queue ---------------------------------------------------------
-    // mpc counts the queue from one; MPD's own Pos, which is what the rows
-    // carry, counts from zero.
+    // Positions are MPD's own Pos, counted from zero, which is what the rows
+    // carry.
     function playAt(pos) {
-        send(["play", String(pos + 1)]);
+        run(["play " + pos]);
     }
 
     function removeAt(pos) {
-        send(["del", String(pos + 1)]);
+        run(["delete " + pos]);
     }
 
     function moveTo(from, to) {
         if (to < 0 || to >= root.queue.length)
             return;
-        send(["move", String(from + 1), String(to + 1)]);
+        run(["move " + from + " " + to]);
     }
 
     // --- playlists ---------------------------------------------------------
 
-    // The stored playlists, by name. Read once at startup and then only when
-    // MPD says they changed — see the idle subsystems below.
+    // The stored playlists, by name. Asked for with the status on connect and
+    // again whenever `idle` says they changed.
     property var playlists: []
 
     // Whether the popup's playlist section is folded open. Here rather than in
@@ -261,25 +303,10 @@ Singleton {
     // here owns that copy. See services/Library.qml.
     signal databaseChanged
 
-    Process {
-        id: playlistList
-
-        command: ["mpc", "lsplaylists"]
-        running: true
-
-        stdout: StdioCollector {
-            onStreamFinished: root.playlists = text.split("\n").filter(l => l.length)
-        }
-    }
-
     // --- commands ----------------------------------------------------------
 
-    // A second connection, which never idles.
-    //
-    // The socket below is parked in `idle`, and sending on it means a noidle
-    // handshake to unwind around every reply — which is why the transport
-    // buttons shell out to mpc. A connection of its own has none of that
-    // problem, and buys three things mpc cannot:
+    // The connection everything is sent over. It buys three things mpc
+    // cannot:
     //
     // Exact adds. The launcher hands over the files it is already holding
     // rather than a `findadd albumartist "..." album "..."`, which would miss
@@ -294,67 +321,29 @@ Singleton {
     //
     // Positions. MPD takes one on `add` and on `load`, so "play next" is an
     // insert rather than an append followed by a move. mpc exposes neither.
-    //
-    // Rebuilt rather than re-dialled, the same way and for the same reason as
-    // the status socket further down.
-    Loader {
+    MpdLink {
         id: cmdLink
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/mpd.sock"
 
-        sourceComponent: Component {
-            Socket {
-                id: sock
-
-                path: Quickshell.env("XDG_RUNTIME_DIR") + "/mpd.sock"
-                connected: true
-
-                // A fresh socket is already open by the time this runs and so
-                // has no change to report; a re-dialled one reports the change
-                // and never runs this. Between the two, every way the link can
-                // come up ends in a flush.
-                //
-                // Handed to the flush rather than looked up there: a Loader
-                // sets its `item` only once the object inside it is finished,
-                // which is after this runs (checked against this build). Read
-                // through `cmdLink.item`, the flush on a freshly built socket
-                // would find null, decide it was not connected, and leave the
-                // one command the outbox exists for sitting in it.
-                Component.onCompleted: root.flush(sock)
-                onConnectedChanged: if (sock.connected)
-                    root.flush(sock)
-
-                parser: SplitParser {
-                    // Nothing here asks a question, so every reply is an OK to be
-                    // dropped — except the ACK that says a command was refused, which
-                    // is worth a line in the log rather than a queue that quietly did
-                    // not change.
-                    onRead: function (line) {
-                        if (line.startsWith("ACK"))
-                            console.warn("mpd refused:", line);
-                    }
-                }
-            }
+        // Nothing here asks a question, so every reply is an OK to be dropped
+        // — except the greeting, which is the moment to send what was typed
+        // while the link was down, and the ACK that says a command was
+        // refused, which is worth a line in the log rather than a queue that
+        // quietly did not change.
+        onLine: line => {
+            if (line.startsWith("OK MPD"))
+                root.flush();
+            else if (line.startsWith("ACK"))
+                console.warn("mpd refused:", line);
         }
     }
-
-    readonly property bool cmdConnected: cmdLink.item ? cmdLink.item.connected : false
 
     // Whatever could not be sent while the link was down, once it is up.
-    function flush(sock): void {
-        if (!root.outbox || !sock || !sock.connected)
+    function flush(): void {
+        if (!root.outbox)
             return;
-        sock.write(root.outbox);
+        cmdLink.write(root.outbox);
         root.outbox = "";
-    }
-
-    Timer {
-        id: cmdReconnect
-        interval: 5000
-        repeat: true
-        running: !root.cmdConnected
-        onTriggered: {
-            cmdLink.active = false;
-            cmdLink.active = true;
-        }
     }
 
     Timer {
@@ -370,14 +359,14 @@ Singleton {
         // nowhere near the edge, not to win a race with it.
         interval: 30000
         repeat: true
-        running: root.cmdConnected
-        onTriggered: cmdLink.item.write("ping\n")
+        running: cmdLink.connected
+        onTriggered: cmdLink.write("ping\n")
     }
 
     // What could not be sent because the connection was down, so that pressing
-    // Enter during the five seconds of a reconnect is not silently nothing.
-    // One slot: these arrive on a keypress, and a second one queued behind a
-    // dead socket is a command whose moment has passed.
+    // Enter during a reconnect is not silently nothing. One slot: these arrive
+    // on a keypress, and a second one queued behind a dead socket is a command
+    // whose moment has passed.
     property string outbox: ""
 
     // MPD's quoting. A backslash and a double quote are the two characters
@@ -393,10 +382,15 @@ Singleton {
         // A list even for the single commands, so there is one shape to read
         // and one reply to expect.
         const text = "command_list_begin\n" + commands.join("\n") + "\ncommand_list_end\n";
-        if (root.cmdConnected)
-            cmdLink.item.write(text);
-        else
+        if (cmdLink.connected) {
+            cmdLink.write(text);
+        } else {
+            // A command is the one thing worth dialling early for: the link's
+            // slow retry is tuned for an mpd that is off for the evening, not
+            // for one that was just started and asked to play.
             root.outbox = text;
+            cmdLink.wake();
+        }
     }
 
     // Where a batch of files goes. "queue" is the end of it, "play" is instead
@@ -455,39 +449,50 @@ Singleton {
     // --- protocol ----------------------------------------------------------
     property bool idling: false
     property var pending: ({})
-    property var songs: []
+    property var changes: []
+    property var names: []
 
-    // Which reply of the command list the lines coming in belong to. The
-    // replies arrive back to back in the order they were asked for, separated
-    // by list_OK, so this is what tells a song's Title from the current one's
-    // rather than the keys having to be unique across all three.
+    // What the command list in flight asked, in order, and which of those
+    // the lines coming in belong to. The replies arrive back to back in the
+    // order they were asked for, separated by list_OK, so this is what tells
+    // a queued song's Title from the current one's rather than the keys
+    // having to be unique across the lot.
+    property var asked: []
     property int section: 0
 
-    // The queue is the expensive part of a refresh — a few hundred lines for a
-    // long one — and it only moves when it is edited. So it is asked for on
-    // connect and then only when `idle` says the playlist changed, rather than
-    // on every song boundary and every seek.
+    // The queue is the expensive part of a refresh — a few hundred lines for
+    // a long one — and it only moves when it is edited. So it is fetched by
+    // difference: status carries the queue's version, `plchanges` answers
+    // with only the songs touched since the version given, and the array is
+    // patched rather than replaced from scratch. Zero is "everything", which
+    // is what a fresh connection asks for.
     property bool queueStale: true
-    property bool queueAsked: false
+    property int queueVersion: 0
+    property bool playlistsStale: true
 
     // Onto the status socket, which only exists while the connection does.
     // Nothing is queued for one that is missing: everything this file sends
     // over it is asked for again by the greeting on the way back up.
     function say(text): void {
-        if (link.item)
-            link.item.write(text);
+        link.write(text);
     }
 
     function query() {
         idling = false;
         section = 0;
         pending = {};
-        songs = [];
-        queueAsked = queueStale;
-        queueStale = false;
+        changes = [];
+        names = [];
         // One round trip for all of it, rather than a request/response pair
         // each. The _ok_ form is what puts the list_OK between the replies.
-        const commands = queueAsked ? ["status", "currentsong", "playlistinfo"] : ["status", "currentsong"];
+        const commands = ["status", "currentsong"];
+        if (queueStale)
+            commands.push("plchanges " + queueVersion);
+        if (playlistsStale)
+            commands.push("listplaylists");
+        queueStale = false;
+        playlistsStale = false;
+        asked = commands.map(c => c.split(" ")[0]);
         root.say("command_list_ok_begin\n" + commands.join("\n") + "\ncommand_list_end\n");
     }
 
@@ -502,119 +507,146 @@ Singleton {
     }
 
     function commit() {
+        const now = Date.now();
         root.state = pending["state"] ?? "stop";
         root.title = pending["Title"] ?? pending["Name"] ?? (pending["file"] ? pending["file"].split("/").pop() : "");
         root.artist = pending["Artist"] ?? "";
         root.album = pending["Album"] ?? "";
         root.file = pending["file"] ?? "";
-        root.elapsed = Math.round(parseFloat(pending["elapsed"] ?? "0"));
         root.duration = Math.round(parseFloat(pending["duration"] ?? pending["Time"] ?? "0"));
         root.songPos = pending["song"] === undefined ? -1 : parseInt(pending["song"]);
         root.repeatOn = pending["repeat"] === "1";
         // MPD reports single as 0/1/oneshot.
         root.singleOn = (pending["single"] ?? "0") !== "0";
-        root.volume = parseInt(pending["volume"] ?? "-1");
+        // Not while the hand is still on the slider, or just off it: see
+        // volumeSentAt.
+        if (!seekWrite.running && now - root.seekSentAt > root.holdMs)
+            root.elapsed = Math.round(parseFloat(pending["elapsed"] ?? "0"));
+        if (!volumeWrite.running && now - root.volumeSentAt > root.holdMs)
+            root.volume = parseInt(pending["volume"] ?? "-1");
 
-        if (!root.queueAsked)
+        if (root.asked.includes("listplaylists"))
+            root.playlists = root.names;
+
+        const version = parseInt(pending["playlist"] ?? "0");
+        if (!root.asked.includes("plchanges")) {
+            // A version that moved without `idle` saying so — a change that
+            // landed between the query and the idle — is fetched on the next
+            // pass rather than waited out.
+            if (version !== root.queueVersion)
+                root.queueStale = true;
             return;
+        }
 
-        const next = [];
-        for (const song of root.songs)
-            next.push({
-                pos: parseInt(song["Pos"] ?? String(next.length)),
+        const length = parseInt(pending["playlistlength"] ?? "0");
+        const next = root.queue.slice(0, length);
+        for (const song of root.changes) {
+            const pos = parseInt(song["Pos"]);
+            if (isNaN(pos) || pos >= length)
+                continue;
+            next[pos] = {
+                pos: pos,
                 title: song["Title"] ?? song["Name"] ?? (song["file"] ? song["file"].split("/").pop() : ""),
                 artist: song["Artist"] ?? "",
                 duration: Math.round(parseFloat(song["Time"] ?? "0"))
-            });
+            };
+        }
+        // A gap means the difference did not cover the queue — which should
+        // not happen, and is answered with the whole thing rather than a
+        // queue with a hole in it.
+        if (next.length < length || next.some(s => s === undefined)) {
+            root.queueVersion = 0;
+            root.queueStale = true;
+            return;
+        }
+        root.queueVersion = version;
         root.queueChanging();
         root.queue = next;
     }
 
-    // The connection is rebuilt rather than re-dialled.
-    //
-    // A Socket whose *first* connect fails is dead for good in Quickshell
-    // 0.3.1: `connected` never changes, so nothing hears about the failure,
-    // and neither assigning `connected = true` again nor reassigning `path`
-    // makes it try a second time — measured against this build, not assumed.
-    // A drop from a connection that did come up does re-dial, but the two
-    // arrive together whenever mpd is stopped rather than merely absent, so
-    // both go the same way: throw the object away and build another.
-    Loader {
+    // The status connection, parked in `idle` between refreshes.
+    MpdLink {
         id: link
+        path: Quickshell.env("XDG_RUNTIME_DIR") + "/mpd.sock"
+        onLine: line => root.receive(line)
+    }
 
-        sourceComponent: Component {
-            Socket {
-                path: Quickshell.env("XDG_RUNTIME_DIR") + "/mpd.sock"
-                connected: true
-
-                parser: SplitParser {
-                    onRead: function (line) {
-                        if (line.startsWith("OK MPD")) {
-                            root.queueStale = true;
-                            root.query();
-                            return;
-                        }
-                        if (line === "list_OK") {
-                            root.section++;
-                            return;
-                        }
-                        if (line === "OK") {
-                            if (root.idling) {
-                                root.query();
-                            } else {
-                                root.commit();
-                                root.idle();
-                            }
-                            return;
-                        }
-                        if (line.startsWith("ACK")) {
-                            // Whatever was being asked for is lost with the rest of the
-                            // command list, the queue included.
-                            root.queueStale = true;
-                            root.query();
-                            return;
-                        }
-                        const split = line.indexOf(": ");
-                        if (split < 0)
-                            return;
-                        const key = line.slice(0, split);
-                        const value = line.slice(split + 2);
-
-                        if (root.idling) {
-                            // `idle` answers with the subsystems that moved. The queue
-                            // is the only one worth remembering — everything else is
-                            // in the status the next query asks for regardless, or is
-                            // somebody else's to go and fetch.
-                            if (key === "changed") {
-                                if (value === "playlist")
-                                    root.queueStale = true;
-                                else if (value === "stored_playlist")
-                                    playlistList.running = true;
-                                else if (value === "database")
-                                    root.databaseChanged();
-                            }
-                        } else if (root.section < 2) {
-                            // status and currentsong, merged: they share no key that
-                            // means two different things.
-                            root.pending[key] = value;
-                        } else if (key === "file") {
-                            // playlistinfo runs the songs together with nothing between
-                            // them; `file` is the first line of each.
-                            root.songs.push({
-                                file: value
-                            });
-                        } else if (root.songs.length > 0) {
-                            root.songs[root.songs.length - 1][key] = value;
-                        }
-                    }
-                }
+    function receive(line): void {
+        if (line.startsWith("OK MPD")) {
+            root.queueVersion = 0;
+            root.queueStale = true;
+            root.playlistsStale = true;
+            root.query();
+            return;
+        }
+        if (line === "list_OK") {
+            root.section++;
+            return;
+        }
+        if (line === "OK") {
+            if (root.idling) {
+                root.query();
+                return;
             }
+            root.commit();
+            // Straight back round when the commit found something it still
+            // needs, rather than idling on a queue known to be wrong.
+            if (root.queueStale)
+                root.query();
+            else
+                root.idle();
+            return;
+        }
+        if (line.startsWith("ACK")) {
+            // Whatever was being asked for is lost with the rest of the
+            // command list, the queue included.
+            root.queueVersion = 0;
+            root.queueStale = true;
+            root.query();
+            return;
+        }
+        const split = line.indexOf(": ");
+        if (split < 0)
+            return;
+        const key = line.slice(0, split);
+        const value = line.slice(split + 2);
+
+        if (root.idling) {
+            // `idle` answers with the subsystems that moved. Two are worth
+            // remembering — everything else is in the status the next query
+            // asks for regardless, or is somebody else's to go and fetch.
+            if (key === "changed") {
+                if (value === "playlist")
+                    root.queueStale = true;
+                else if (value === "stored_playlist")
+                    root.playlistsStale = true;
+                else if (value === "database")
+                    root.databaseChanged();
+            }
+            return;
+        }
+
+        const reply = root.asked[root.section];
+        if (reply === "plchanges") {
+            // Songs run together with nothing between them; `file` is the
+            // first line of each.
+            if (key === "file")
+                root.changes.push({
+                    file: value
+                });
+            else if (root.changes.length > 0)
+                root.changes[root.changes.length - 1][key] = value;
+        } else if (reply === "listplaylists") {
+            if (key === "playlist")
+                root.names.push(value);
+        } else {
+            // status and currentsong, merged: they share no key that means
+            // two different things.
+            root.pending[key] = value;
         }
     }
 
-    // Losing the connection is losing everything that was read over it. Here
-    // rather than on the socket: the object that would have reported it is
-    // the one being thrown away.
+    // Losing the connection is losing everything that was read over it.
     onConnectedChanged: {
         if (root.connected)
             return;
@@ -622,21 +654,8 @@ Singleton {
         root.queueChanging();
         root.queue = [];
         root.songPos = -1;
+        root.queueVersion = 0;
         root.queueStale = true;
-    }
-
-    // Runs only while there is nothing on the other end, which is all three
-    // ways of getting there at once: mpd down at login, mpd stopped from the
-    // popup, and a rebuild that found it still gone.
-    Timer {
-        id: reconnect
-        interval: 5000
-        repeat: true
-        running: !root.connected
-        onTriggered: {
-            link.active = false;
-            link.active = true;
-        }
     }
 
     // `idle` reports that the song changed, not that a second passed, so the

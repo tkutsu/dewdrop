@@ -6,10 +6,13 @@ import Quickshell.Io
 
 // CPU, GPU and memory, behind the bar's thermometer.
 //
-// Two polls rather than one. The badge only ever shows a temperature, and that
-// is four cheap reads out of sysfs; every process's CPU time and nvidia-smi are
-// only worth paying for while something is on screen to read them, so that half
-// runs while `watchers` is up and stops when the popup closes.
+// Three tiers of asking. The badge only ever shows a temperature, and that is
+// one sysfs file read in place, no process at all. The CPU, memory and fan
+// section runs while the popup is up, and every process's CPU time and the
+// disks are only worth paying for while something is on screen to read them,
+// so that half runs while `watchers` is up and stops when the popup closes.
+// nvidia-smi is one long-lived process for as long as anything reads the
+// card, the badge included.
 Singleton {
     id: root
 
@@ -126,25 +129,32 @@ Singleton {
     readonly property var tempPreference: ["Tctl", "Tdie", "Package id 0", "CPU"]
 
     // --- the cheap poll ------------------------------------------------------
-    // Sections rather than one file per Process: four reads is four forks, and
-    // this runs every couple of seconds forever.
+    // What the popup reads about the CPU, memory and fans, in sections rather
+    // than one file per Process: four reads is four forks, and this runs every
+    // two seconds while the popup is up. While it is not, only the badge's one
+    // temperature is wanted, and that is read without a shell at all — see
+    // tempFile below.
     //
     // Every sysfs value is taken with `read`, which is a shell builtin, rather
     // than with `$(cat ...)`, which is a fork each. The chip names alone were
     // one per hwmon directory whether or not the chip turned out to be the
     // CPU's, and the whole section measured six times what it costs now —
-    // 8.6ms against 1.3ms on this machine, every two seconds for the life of
-    // the session. The greps are left as they are: three processes for three
-    // files, where the shell equivalent would be slower and unreadable.
+    // 8.6ms against 1.3ms on this machine. The greps are left as they are:
+    // three processes for three files, where the shell equivalent would be
+    // slower and unreadable.
     //
     // hwmon numbers are handed out in probe order and shuffle between boots, so
     // the CPU's chip is found by name every time instead of being remembered as
     // a path. Only the CPU's own chips are asked — the board, the NVMe and the
     // wifi card all publish temperatures too, and none of them are this module.
+    // Label, reading and path per sensor; the path is what the badge's own
+    // reader below is resolved from.
+    readonly property string tempLoop: "for d in /sys/class/hwmon/*; do read -r n < \"$d/name\"; case $n in k10temp|zenpower*|coretemp|cpu_thermal) ;; *) continue;; esac; for f in \"$d\"/temp*_input; do l=\"${f%_input}_label\"; [ -r \"$l\" ] || continue; read -r lab < \"$l\"; read -r val < \"$f\"; printf '%s\\t%s\\t%s\\n' \"$lab\" \"$val\" \"$f\"; done; done"
+
     readonly property string lightScript: ["echo :cpu", "grep ^cpu /proc/stat", "echo :freq",
         // Measured, not requested: on AMD this line comes from aperf/mperf,
         // where cpufreq's scaling_cur_freq is the governor's last ask.
-        "grep '^cpu MHz' /proc/cpuinfo", "echo :temp", "for d in /sys/class/hwmon/*; do read -r n < \"$d/name\"; case $n in k10temp|zenpower*|coretemp|cpu_thermal) ;; *) continue;; esac; for f in \"$d\"/temp*_input; do l=\"${f%_input}_label\"; [ -r \"$l\" ] || continue; read -r lab < \"$l\"; read -r val < \"$f\"; printf '%s\\t%s\\n' \"$lab\" \"$val\"; done; done", "echo :mem", "grep -E '^(MemTotal|MemAvailable|Cached|SReclaimable|Shmem|SwapTotal|SwapFree):' /proc/meminfo", "echo :fan",
+        "grep '^cpu MHz' /proc/cpuinfo", "echo :temp", root.tempLoop, "echo :mem", "grep -E '^(MemTotal|MemAvailable|Cached|SReclaimable|Shmem|SwapTotal|SwapFree):' /proc/meminfo", "echo :fan",
         // Every chip this time, not just the CPU's: the fans hang off whatever
         // the board's Super-I/O is, which is a different chip from the one that
         // reports the temperatures. Chip and file name first, so a fan with no
@@ -162,14 +172,20 @@ Singleton {
     // out between the first "(" and the last ")", and the numbered fields are
     // counted from what is left. ppid is field 4, utime + stime is 14 + 15, and
     // rss is 24.
-    //
-    // Then what each one is running, for the roll-up in parseProcs. find rather
+    readonly property string procScript: "awk '{n=$0;sub(/.*\\) /,\"\",n);split(n,f,\" \");c=$0;sub(/^[0-9]+ \\(/,\"\",c);sub(/\\)[^)]*$/,\"\",c);print $1,f[2],f[12]+f[13],f[22],c}' /proc/[0-9]*/stat 2>/dev/null"
+
+    // What each process is running, for the roll-up in rollUp. find rather
     // than a readlink per process: one command for all of them, and %l comes
     // back empty for the processes this user is not allowed to look inside,
     // which is exactly the answer that stops them being rolled anywhere.
-    readonly property string procScript: ["echo :proc",
-        "awk '{n=$0;sub(/.*\\) /,\"\",n);split(n,f,\" \");c=$0;sub(/^[0-9]+ \\(/,\"\",c);sub(/\\)[^)]*$/,\"\",c);print $1,f[2],f[12]+f[13],f[22],c}' /proc/[0-9]*/stat 2>/dev/null",
-        "echo :exe", "find /proc -maxdepth 2 -name exe -printf '%h\\t%l\\n' 2>/dev/null"].join("\n")
+    //
+    // A binary does not change under a running pid, so this is asked once per
+    // pid and remembered: the first sample of a popup looks at every process,
+    // the ones after it only at whatever was started since.
+    function exeScript(pids) {
+        const where = pids.length ? pids.map(p => "/proc/" + p).join(" ") + " -maxdepth 1" : "/proc -maxdepth 2";
+        return "find " + where + " -name exe -printf '%h\\t%l\\n' 2>/dev/null";
+    }
 
     // The disks, which are three unrelated questions about the same hardware:
     // how warm it is, how hard it is being worked, and how much of it is left.
@@ -187,13 +203,14 @@ Singleton {
     // field 10 is milliseconds spent with anything in flight — which over a
     // known interval is the drive's own utilisation, the same figure as the
     // card's and the CPU's beside it.
-    //
+    readonly property string diskScript: "for d in /sys/block/*; do b=${d##*/}; case $b in loop*|ram*|zram*|dm-*|md*|sr*) continue;; esac; [ -r \"$d/device/model\" ] || continue; read -r m < \"$d/device/model\"; read -r st < \"$d/stat\"; t=; for h in \"$d\"/device/hwmon*/temp1_input; do [ -r \"$h\" ] && read -r t < \"$h\" && break; done; printf '%s\\t%s\\t%s\\t%s\\n' \"$b\" \"$t\" \"$st\" \"$m\"; done"
+
     // Free space is the one part that cannot come from sysfs: a disk does not
     // know what has been written on it, only the filesystems do, and df is the
-    // thing that asks all of them at once.
-    readonly property string diskScript: ["echo :disk",
-        "for d in /sys/block/*; do b=${d##*/}; case $b in loop*|ram*|zram*|dm-*|md*|sr*) continue;; esac; [ -r \"$d/device/model\" ] || continue; read -r m < \"$d/device/model\"; read -r st < \"$d/stat\"; t=; for h in \"$d\"/device/hwmon*/temp1_input; do [ -r \"$h\" ] && read -r t < \"$h\" && break; done; printf '%s\\t%s\\t%s\\t%s\\n' \"$b\" \"$t\" \"$st\" \"$m\"; done",
-        "echo :df", "df -B1 --output=source,target,size,avail -x tmpfs -x devtmpfs -x squashfs -x overlay -x efivarfs -x ramfs 2>/dev/null"].join("\n")
+    // thing that asks all of them at once. On its own, slower clock: a figure
+    // that moves by the gigabyte a day does not need asking every second and a
+    // half alongside the throughput counters.
+    readonly property string dfScript: "df -B1 --output=source,target,size,avail -x tmpfs -x devtmpfs -x squashfs -x overlay -x efivarfs -x ramfs 2>/dev/null"
 
     // The tick rate of the utime/stime counters (getconf CLK_TCK), and the unit
     // rss is counted in.
@@ -206,6 +223,14 @@ Singleton {
     property real _procAt: 0
     property var _drivePrev: ({})
     property real _driveAt: 0
+    // The last sysfs pass over the disks and the last df, kept apart because
+    // they arrive on different clocks and `drives` is put together from both.
+    property var _disks: []
+    property var _df: []
+    // pid → binary, "" for one this user may not read. See exeScript.
+    property var _exe: ({})
+    // The last process sample, waiting on the binaries it has not seen before.
+    property var _procs: []
 
     // The reading the badge carries, chosen in the order tempPreference is
     // written rather than the order the chip happens to publish its sensors
@@ -214,15 +239,32 @@ Singleton {
     // more than one of them, which is not what the list is for.
     function pickTemp(temps) {
         if (!temps.length)
-            return 0;
+            return null;
         for (const label of root.tempPreference) {
             const hit = temps.find(t => t.label === label);
             if (hit)
-                return hit.value;
+                return hit;
         }
         // Whatever the chip calls its hottest reading, so an unfamiliar one
         // still shows a number rather than nothing.
-        return temps.reduce((a, b) => b.value > a.value ? b : a).value;
+        return temps.reduce((a, b) => b.value > a.value ? b : a);
+    }
+
+    // label \t millidegrees \t path, one per sensor — the shape tempLoop
+    // prints.
+    function readTemps(text) {
+        const temps = [];
+        for (const line of text.split("\n")) {
+            if (line === "")
+                continue;
+            const f = line.split("\t");
+            temps.push({
+                label: f[0],
+                value: Number(f[1]) / 1000,
+                path: f[2]
+            });
+        }
+        return temps;
     }
 
     function parseLight(text) {
@@ -260,11 +302,7 @@ Singleton {
                 freqSum += parseFloat(line.split(":")[1]);
                 freqN++;
             } else if (mode === ":temp") {
-                const f = line.split("\t");
-                temps.push({
-                    label: f[0],
-                    value: Number(f[1]) / 1000
-                });
+                temps.push(line);
             } else if (mode === ":fan") {
                 const f = line.split("\t");
                 fans.push({
@@ -292,8 +330,8 @@ Singleton {
         if (freqN > 0)
             root.cpuMhz = Math.round(freqSum / freqN);
 
-        root.cpuTemps = temps;
-        root.cpuTemp = root.pickTemp(temps);
+        root.cpuTemps = root.readTemps(temps.join("\n"));
+        root.cpuTemp = root.pickTemp(root.cpuTemps)?.value ?? 0;
 
         // A board publishes a header whether or not anything is plugged into
         // it, so five of these are usually a steady zero. A fan counts as real
@@ -331,62 +369,23 @@ Singleton {
         const dt = (now - root._driveAt) / 1000;
         const prev = root._drivePrev;
         const next = {};
-        const byName = {};
-        const seen = {};
         const list = [];
-        let rootDisk = "";
-        let mode = "";
 
         for (const line of text.split("\n")) {
-            if (line.startsWith(":")) {
-                mode = line;
-                continue;
-            }
             if (line === "")
                 continue;
-
-            if (mode === ":disk") {
-                const f = line.split("\t");
-                const st = f[2].split(/ +/).map(Number);
-                const d = {
-                    name: f[0],
-                    model: f[3].trim(),
-                    // No sensor reads as no number rather than as zero: a drive
-                    // at 0 °C is a reading, and this is the absence of one.
-                    temp: f[1] === "" ? NaN : Number(f[1]) / 1000,
-                    total: 0,
-                    free: 0,
-                    _read: st[2],
-                    _write: st[6],
-                    _io: st[9]
-                };
-                list.push(d);
-                byName[d.name] = d;
-            } else if (mode === ":df") {
-                if (!line.startsWith("/dev/"))
-                    continue;
-                // "/dev/nvme1n1p2 /home 1999324123136 1121467109376", and the
-                // mount point in the middle is the one field that can hold
-                // spaces, so both ends are counted from their own end.
-                const f = line.split(/ +/);
-                const part = f[0].slice(5);
-                if (f[1] === "/")
-                    rootDisk = root.diskOf(part, byName);
-                // One filesystem however many places it is mounted: btrfs
-                // subvolumes are one device mounted once per subvolume, and
-                // every one of them reports the whole filesystem's free space.
-                if (seen[part])
-                    continue;
-                seen[part] = true;
-                const disk = byName[root.diskOf(part, byName)];
-                if (!disk)
-                    continue;
-                disk.total += Number(f[f.length - 2]);
-                disk.free += Number(f[f.length - 1]);
-            }
-        }
-
-        for (const d of list) {
+            const f = line.split("\t");
+            const st = f[2].split(/ +/).map(Number);
+            const d = {
+                name: f[0],
+                model: f[3].trim(),
+                // No sensor reads as no number rather than as zero: a drive
+                // at 0 °C is a reading, and this is the absence of one.
+                temp: f[1] === "" ? NaN : Number(f[1]) / 1000,
+                _read: st[2],
+                _write: st[6],
+                _io: st[9]
+            };
             next[d.name] = {
                 read: d._read,
                 write: d._write,
@@ -401,57 +400,138 @@ Singleton {
             d.read = ok ? Math.max(0, (d._read - p.read) * 512 / dt) : 0;
             d.write = ok ? Math.max(0, (d._write - p.write) * 512 / dt) : 0;
             d.util = ok ? Math.max(0, Math.min(1, (d._io - p.io) / 1000 / dt)) : 0;
+            list.push(d);
+        }
+
+        root._drivePrev = next;
+        root._driveAt = now;
+        root._disks = list;
+        root.placeDrives();
+    }
+
+    // "/dev/nvme1n1p2 /home 1999324123136 1121467109376", one per filesystem.
+    // The mount point in the middle is the one field that can hold spaces, so
+    // both ends are counted from their own end.
+    function parseDf(text) {
+        const rows = [];
+        for (const line of text.split("\n")) {
+            if (!line.startsWith("/dev/"))
+                continue;
+            const f = line.split(/ +/);
+            rows.push({
+                part: f[0].slice(5),
+                mount: f[1],
+                size: Number(f[f.length - 2]),
+                avail: Number(f[f.length - 1])
+            });
+        }
+        root._df = rows;
+        root.placeDrives();
+    }
+
+    // The sysfs pass and the df joined into `drives`, whichever of the two
+    // arrived last. Fresh objects each time: the space is summed onto the
+    // disk, and summing onto the same object twice would double it.
+    function placeDrives() {
+        const byName = {};
+        const seen = {};
+        const list = root._disks.map(d => {
+            const copy = Object.assign({}, d, {
+                total: 0,
+                free: 0
+            });
+            byName[copy.name] = copy;
+            return copy;
+        });
+        let rootDisk = "";
+
+        for (const fs of root._df) {
+            if (fs.mount === "/")
+                rootDisk = root.diskOf(fs.part, byName);
+            // One filesystem however many places it is mounted: btrfs
+            // subvolumes are one device mounted once per subvolume, and
+            // every one of them reports the whole filesystem's free space.
+            if (seen[fs.part])
+                continue;
+            seen[fs.part] = true;
+            const disk = byName[root.diskOf(fs.part, byName)];
+            if (!disk)
+                continue;
+            disk.total += fs.size;
+            disk.free += fs.avail;
         }
 
         // The disk the system is on leads; the rest in the order the kernel
         // named them. A machine with four of them should not have to be read
         // through to find the one that matters.
         list.sort((a, b) => (b.name === rootDisk) - (a.name === rootDisk) || (a.name < b.name ? -1 : 1));
-
-        root._drivePrev = next;
-        root._driveAt = now;
         root.drives = list;
     }
 
     function parseProcs(text) {
+        const procs = [];
+        for (const line of text.split("\n")) {
+            if (line === "")
+                continue;
+            const f = line.split(" ");
+            procs.push({
+                pid: f[0],
+                ppid: f[1],
+                used: Number(f[2]),
+                rss: Number(f[3]) * root.pageSize,
+                // A name can hold spaces (kernel threads, and anything that
+                // renamed itself), so it is everything after the numbers.
+                name: f.slice(4).join(" ")
+            });
+        }
+        root._procs = procs;
+
+        // Forget the pids that have gone, so a number the kernel hands out
+        // again is looked up afresh rather than filed under its last owner.
+        const exe = {};
+        const missing = [];
+        for (const p of procs) {
+            if (root._exe[p.pid] !== undefined)
+                exe[p.pid] = root._exe[p.pid];
+            else
+                missing.push(p.pid);
+        }
+        root._exe = exe;
+
+        if (missing.length === 0) {
+            root.rollUp();
+            return;
+        }
+        // Everything, or just the newcomers: a full /proc walk is one find
+        // either way, and shorter to type than four hundred paths.
+        exeProbe.command = ["sh", "-c", root.exeScript(Object.keys(exe).length === 0 ? [] : missing)];
+        exeProbe.running = true;
+    }
+
+    // "/proc/1234\t/usr/lib/firefox/firefox", one per process find could
+    // reach. Unreadable ones come back with nothing after the tab and are
+    // remembered as such, so they are not asked about again every sample.
+    function parseExe(text) {
+        for (const line of text.split("\n")) {
+            if (line === "")
+                continue;
+            const f = line.split("\t");
+            root._exe[f[0].substring(6)] = f[1] ?? "";   // past "/proc/"
+        }
+        root.rollUp();
+    }
+
+    function rollUp() {
         const now = Date.now();
         const dt = (now - root._procAt) / 1000;
         const prev = root._procPrev;
+        const exe = root._exe;
         const jiffies = {};
         const byName = {};
         const byPid = {};
-        const exe = {};
-        const procs = [];
-        let mode = "";
-
-        for (const line of text.split("\n")) {
-            if (line.startsWith(":")) {
-                mode = line;
-                continue;
-            }
-            if (line === "")
-                continue;
-
-            if (mode === ":proc") {
-                const f = line.split(" ");
-                const p = {
-                    pid: f[0],
-                    ppid: f[1],
-                    used: Number(f[2]),
-                    rss: Number(f[3]) * root.pageSize,
-                    // A name can hold spaces (kernel threads, and anything that
-                    // renamed itself), so it is everything after the numbers.
-                    name: f.slice(4).join(" ")
-                };
-                procs.push(p);
-                byPid[p.pid] = p;
-            } else {
-                // "/proc/1234\t/usr/lib/firefox/firefox"
-                const f = line.split("\t");
-                if (f[1] !== "")
-                    exe[f[0].substring(6)] = f[1];   // past "/proc/"
-            }
-        }
+        const procs = root._procs;
+        for (const p of procs)
+            byPid[p.pid] = p;
 
         // Which process a process's work belongs to: climb to the furthest
         // ancestor running the same binary, and stop there.
@@ -470,7 +550,7 @@ Singleton {
             // label, not the bar.
             for (let i = 0; i < 16; i++) {
                 const parent = byPid[cur.ppid];
-                if (!parent || exe[cur.pid] === undefined || exe[parent.pid] !== exe[cur.pid])
+                if (!parent || !exe[cur.pid] || exe[parent.pid] !== exe[cur.pid])
                     break;
                 cur = parent;
             }
@@ -523,6 +603,42 @@ Singleton {
         }
     }
 
+    // --- the badge alone -----------------------------------------------------
+    // With nothing watching, the one reading wanted is the badge's, and that
+    // is one sysfs file. Which file is settled once — the same search the
+    // popup's poll makes, run for its path rather than its value — and from
+    // then on the tick is a read of it, no shell and no grep, all day.
+    // Settled again if the read ever fails, which is what a chip going away
+    // (a module unloaded, a suspend the driver did not survive) looks like.
+    property string tempPath: ""
+    property bool tempLooked: false
+
+    Process {
+        id: tempFind
+        command: ["sh", "-c", root.tempLoop]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.tempLooked = true;
+                const temps = root.readTemps(text);
+                root.tempPath = root.pickTemp(temps)?.path ?? "";
+                root.cpuTemp = root.pickTemp(temps)?.value ?? 0;
+            }
+        }
+    }
+
+    FileView {
+        id: tempFile
+        path: root.tempPath
+        printErrors: false
+
+        onLoaded: root.cpuTemp = Number(text()) / 1000
+        onLoadFailed: {
+            root.tempPath = "";
+            root.tempLooked = false;
+        }
+    }
+
     Process {
         id: light
         command: ["sh", "-c", root.lightScript]
@@ -540,6 +656,13 @@ Singleton {
     }
 
     Process {
+        id: exeProbe
+        stdout: StdioCollector {
+            onStreamFinished: root.parseExe(text)
+        }
+    }
+
+    Process {
         id: disks
         command: ["sh", "-c", root.diskScript]
         stdout: StdioCollector {
@@ -548,54 +671,79 @@ Singleton {
     }
 
     Process {
-        id: gpuPoll
-        command: ["nvidia-smi", "--query-gpu=name,temperature.gpu,utilization.gpu,clocks.current.graphics,clocks.max.graphics,clocks.current.memory,memory.used,memory.total,power.draw,power.limit,fan.speed", "--format=csv,noheader,nounits"]
-
+        id: df
+        command: ["sh", "-c", root.dfScript]
         stdout: StdioCollector {
-            onStreamFinished: {
-                // One line per card; the bar has room for one card.
-                const f = text.trim().split("\n")[0].split(",").map(s => s.trim());
-                if (f.length < 11)
-                    return;
-                const n = i => Number(f[i]);   // "[N/A]" becomes NaN, and reads as "—"
-                root.gpu = {
-                    // "NVIDIA GeForce RTX 4070 SUPER" is a heading and a half.
-                    name: f[0].replace(/^NVIDIA\s+/, ""),
-                    temp: n(1),
-                    util: n(2),
-                    clock: n(3),
-                    clockMax: n(4),
-                    memClock: n(5),
-                    memUsed: n(6),
-                    memTotal: n(7),
-                    power: n(8),
-                    powerMax: n(9),
-                    fan: n(10)
-                };
-            }
+            onStreamFinished: root.parseDf(text)
+        }
+    }
+
+    // One nvidia-smi for as long as the card is being read, printing a line
+    // every two seconds, rather than a fresh one per sample: starting it is
+    // the expensive part (the driver is opened and every card enumerated), and
+    // it was being paid every five seconds all day whenever the badge showed
+    // the card. Card 0 only — the bar has room for one card, and with two the
+    // lines would alternate.
+    readonly property bool gpuWanted: root.gpuPresent && (root.showGpu || root.watchers > 0)
+
+    Process {
+        id: gpuPoll
+        running: root.gpuWanted
+        command: ["nvidia-smi", "-i", "0", "--query-gpu=name,temperature.gpu,utilization.gpu,clocks.current.graphics,clocks.max.graphics,clocks.current.memory,memory.used,memory.total,power.draw,power.limit,fan.speed", "--format=csv,noheader,nounits", "-lms", "2000"]
+
+        stdout: SplitParser {
+            onRead: line => root.parseGpu(line)
         }
 
         // No driver, no card, or a card that cannot be talked to: stop asking.
+        // Only while it was wanted — being stopped from here ends it the same
+        // way, and that is not the card's fault.
         onExited: function (exitCode) {
-            if (exitCode !== 0) {
+            if (exitCode !== 0 && root.gpuWanted) {
                 root.gpu = null;
                 root.gpuPresent = false;
             }
         }
     }
 
-    function sample() {
-        if (!light.running)
-            light.running = true;
-        // nvidia-smi is not part of the cheap half, except when the badge is
-        // showing what it has to say.
-        if (root.showGpu)
-            root.sampleGpu();
+    function parseGpu(line) {
+        const f = line.split(",").map(s => s.trim());
+        if (f.length < 11)
+            return;
+        const n = i => Number(f[i]);   // "[N/A]" becomes NaN, and reads as "—"
+        root.gpu = {
+            // "NVIDIA GeForce RTX 4070 SUPER" is a heading and a half.
+            name: f[0].replace(/^NVIDIA\s+/, ""),
+            temp: n(1),
+            util: n(2),
+            clock: n(3),
+            clockMax: n(4),
+            memClock: n(5),
+            memUsed: n(6),
+            memTotal: n(7),
+            power: n(8),
+            powerMax: n(9),
+            fan: n(10)
+        };
     }
 
-    function sampleGpu() {
-        if (root.gpuPresent && !gpuPoll.running)
-            gpuPoll.running = true;
+    // A badge set to a card that turned out not to be there falls back to
+    // the chip, rather than showing nothing until it is clicked again.
+    onGpuPresentChanged: if (!gpuPresent)
+        showGpu = false
+
+    function sample() {
+        // The whole section only while the popup is up to read it, or on a
+        // machine whose chip the path search did not recognise, where the
+        // shell's wider net is the only reading there is.
+        if (root.watchers > 0 || (root.tempLooked && root.tempPath === "")) {
+            if (!light.running)
+                light.running = true;
+        } else if (root.tempPath !== "") {
+            tempFile.reload();
+        } else if (!tempFind.running) {
+            tempFind.running = true;
+        }
     }
 
     function sampleDetail() {
@@ -603,16 +751,11 @@ Singleton {
             procs.running = true;
         if (!disks.running)
             disks.running = true;
-        root.sampleGpu();
     }
-
-    // Switching to a card that has not been asked anything for a while would
-    // otherwise leave the bar on its last reading until the next tick.
-    onShowGpuChanged: root.sampleGpu()
 
     // Every 2s while the popup is up, 5s otherwise. The badge is a ten-step
     // tube with hysteresis, so a temperature read every 2s all day bought
-    // nothing but a shell and three greps it did not need.
+    // nothing.
     Timer {
         interval: root.watchers > 0 ? 2000 : 5000
         running: true
@@ -621,6 +764,9 @@ Singleton {
         onTriggered: root.sample()
     }
 
+    // Started by the first watcher, which is when the first detail sample
+    // runs — the popup counts itself in only once its reveal has finished, so
+    // that this does not land in the middle of the slide.
     Timer {
         interval: 1500
         running: root.watchers > 0
@@ -629,15 +775,33 @@ Singleton {
         onTriggered: root.sampleDetail()
     }
 
-    // The first sample of a fresh popup has no previous one to subtract, so the
-    // CPU column would sit empty for a whole interval. This is the second
-    // sample, taken as soon as a delta is worth anything at all.
     Timer {
-        id: prime
-        interval: 350
-        onTriggered: root.sampleDetail()
+        interval: 30000
+        running: root.watchers > 0
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!df.running)
+            df.running = true
     }
 
-    onWatchersChanged: if (watchers > 0)
-        prime.restart()
+    // A popup opening hours after the last one closed has counters from
+    // hours ago to subtract, and a rate over that gap is an average of the
+    // afternoon, not the load now. Dropped, so the first sample reads idle
+    // and the second is honest — the same as a first popup of the session.
+    // The cheap half is asked for at once rather than at its next tick.
+    property bool watched: false
+
+    onWatchersChanged: {
+        const watching = watchers > 0;
+        if (watching === root.watched)
+            return;
+        root.watched = watching;
+        if (!watching)
+            return;
+        root._cpuPrev = null;
+        root._corePrev = [];
+        root._procPrev = {};
+        root._drivePrev = {};
+        root.sample();
+    }
 }
