@@ -558,6 +558,10 @@ Singleton {
 
         // Which way the popup's playlist section is folded (nf-md-chevron_*).
         sectionOpen: "\u{f0140}",
-        sectionShut: "\u{f0142}"
+        sectionShut: "\u{f0142}",
+
+        // The right pill's drawer, which opens to the left: the chevron
+        // points the way it will grow, and turns round once it has.
+        drawer: "\u{f0141}"          // nf-md-chevron_left
     })
 }
