@@ -27,8 +27,6 @@ BarItem {
         Layout.fillHeight: true
         glyph: Updates.icon
         glyphSize: Theme.glyphSizeLarge
-        // Measured, not guessed: this glyph's reported ink box sits a pixel
-        // below where its ink actually lands, so optical centring leaves it low.
         badge: Updates.label
     }
 

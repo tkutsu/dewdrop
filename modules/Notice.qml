@@ -18,11 +18,15 @@ BarItem {
 
     readonly property var entry: Notifications.latest
     // Kept through the fold: the notification can be closed while its notice
-    // is still on the way out, and the line should not blank mid-fold.
+    // is still on the way out, and the line should not blank mid-fold. Bound
+    // while there is a line and left holding the last one after.
     property string shownLine: ""
 
-    onLineChanged: if (line !== "")
-        shownLine = line
+    Binding {
+        root.shownLine: root.line
+        when: root.line !== ""
+        restoreMode: Binding.RestoreNone
+    }
 
     // What goes on the line: the summary, and the body after it when there is
     // room. A sender with no summary is rare but legal, and falls back to the
@@ -54,7 +58,7 @@ BarItem {
         id: icon
         Layout.alignment: Qt.AlignVCenter
         windowClass: Notifications.keyOf(root.entry)
-        fallbackGlyph: Theme.glyph.notifNone
+        fallbackGlyph: Theme.glyph.notif
     }
 
     BarText {

@@ -69,7 +69,7 @@ Popup {
     Repeater {
         model: root.rows.slice(0, root.cap)
 
-        delegate: Item {
+        delegate: PopupRow {
             id: row
 
             required property var modelData
@@ -82,24 +82,11 @@ Popup {
             // middle line.
             height: Math.max(label.implicitHeight, root.footHeight) + root.rowPad * 2
 
-            HoverHandler {
-                id: rowHover
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Theme.selectionRadius
-                color: rowHover.hovered ? Theme.selection : "transparent"
-            }
-
-            // The whole row completes it. ReleaseWithinBounds so a press that
-            // wanders off the row on its way up does not count — on a list this
-            // tightly packed, a slipped click would otherwise tick off whatever
-            // it started on.
-            TapHandler {
-                gesturePolicy: TapHandler.ReleaseWithinBounds
-                onTapped: Tasks.complete(row.modelData)
-            }
+            // The whole row completes it. On a list this tightly packed a
+            // slipped press would otherwise tick off whatever it started on,
+            // so only a release on the row counts.
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: Tasks.complete(row.modelData)
 
             // Hung off the first line's baseline and sat a pixel over the
             // middle of its x-height, which is where that line looks like it
@@ -116,7 +103,7 @@ Popup {
                 x: (root.gutter - width) / 2
                 anchors.baseline: label.baseline
                 anchors.baselineOffset: -(metrics.xHeight + height) / 2 - 1
-                width: rowHover.hovered ? root.dotSize + 2 : root.dotSize
+                width: row.hovered ? root.dotSize + 2 : root.dotSize
                 height: width
                 radius: width / 2
                 color: root.dotColour(row.modelData)
@@ -214,83 +201,29 @@ Popup {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
 
-            Rectangle {
-                width: 58
+            PopupButton {
                 height: root.footHeight
-                radius: Theme.selectionRadius
-                color: addHover.hovered ? Theme.selection : "transparent"
-                border.width: Theme.pillBorder
-                border.color: Theme.stroke
-
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 3
-
-                    Glyph {
-                        text: Theme.glyph.plus
-                        implicitHeight: root.footHeight
-                        fontSize: Theme.popupTextSize - 1
-                        opacity: addHover.hovered ? 1 : 0.7
-                    }
-
-                    PopupText {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "add"
-                        font.pixelSize: root.rowTextSize - 1
-                        opacity: addHover.hovered ? 1 : 0.7
-                    }
-                }
-
-                HoverHandler {
-                    id: addHover
-                }
-                TapHandler {
-                    gesturePolicy: TapHandler.ReleaseWithinBounds
-                    onTapped: Launcher.openWith(Launcher.taskPrefix)
-                }
+                framed: true
+                glyph: Theme.glyph.plus
+                label: "add"
+                glyphSize: Theme.popupTextSize - 1
+                textSize: root.rowTextSize - 1
+                onTapped: Launcher.openWith(Launcher.taskPrefix)
             }
 
             Repeater {
                 model: Object.keys(Tasks.undoable)
 
-                delegate: Rectangle {
-                    id: undo
-
+                delegate: PopupButton {
                     required property string modelData
 
-                    width: 66
                     height: root.footHeight
-                    radius: Theme.selectionRadius
-                    color: undoHover.hovered ? Theme.selection : "transparent"
-                    border.width: Theme.pillBorder
-                    border.color: Theme.stroke
-
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 3
-
-                        Glyph {
-                            text: Theme.glyph.undo
-                            implicitHeight: root.footHeight
-                            fontSize: Theme.popupTextSize - 1
-                            opacity: undoHover.hovered ? 1 : 0.7
-                        }
-
-                        PopupText {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "undo"
-                            font.pixelSize: root.rowTextSize - 1
-                            opacity: undoHover.hovered ? 1 : 0.7
-                        }
-                    }
-
-                    HoverHandler {
-                        id: undoHover
-                    }
-                    TapHandler {
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: Tasks.restore(Tasks.undoable[undo.modelData].task)
-                    }
+                    framed: true
+                    glyph: Theme.glyph.undo
+                    label: "undo"
+                    glyphSize: Theme.popupTextSize - 1
+                    textSize: root.rowTextSize - 1
+                    onTapped: Tasks.restore(Tasks.undoable[modelData].task)
                 }
             }
         }

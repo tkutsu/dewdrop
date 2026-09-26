@@ -162,23 +162,13 @@ Popup {
     Repeater {
         model: root.rows
 
-        delegate: Item {
+        delegate: PopupRow {
             id: row
 
             required property var modelData
 
             width: root.bodyWidth
             height: root.rowHeight
-
-            HoverHandler {
-                id: rowHover
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Theme.selectionRadius
-                color: rowHover.hovered ? Theme.selection : "transparent"
-            }
 
             Glyph {
                 x: 2
@@ -239,39 +229,13 @@ Popup {
                 Repeater {
                     model: row.modelData.buttons
 
-                    delegate: Item {
-                        id: button
-
+                    delegate: PopupButton {
                         required property var modelData
 
                         width: root.buttonWidth
                         height: root.rowHeight
-
-                        Glyph {
-                            anchors.centerIn: parent
-                            text: button.modelData.glyph
-                            implicitHeight: root.rowHeight
-                            // The popup's text size and not a size under it:
-                            // Symbols Nerd Font only hints cleanly at some
-                            // pixel sizes, and ten is one of the ones where a
-                            // glyph with any detail in it goes to mush.
-                            fontSize: Theme.popupTextSize
-                            opacity: buttonHover.hovered ? 1 : 0.5
-                        }
-
-                        HoverHandler {
-                            id: buttonHover
-                        }
-
-                        // The row underneath has no action of its own, but the
-                        // policy stays: a passive grab would let a press on a
-                        // button reach whatever is put behind these rows later,
-                        // and "cancel the timer and also start it" is the kind
-                        // of bug that only turns up once the row is clickable.
-                        TapHandler {
-                            gesturePolicy: TapHandler.ReleaseWithinBounds
-                            onTapped: button.modelData.act()
-                        }
+                        glyph: modelData.glyph
+                        onTapped: modelData.act()
                     }
                 }
             }
@@ -297,78 +261,29 @@ Popup {
             Repeater {
                 model: root.presets
 
-                delegate: Rectangle {
-                    id: preset
-
+                delegate: PopupButton {
                     required property var modelData
 
+                    // One width for the four, whatever their figures measure.
                     width: 34
                     height: root.rowHeight - 2
-                    radius: Theme.selectionRadius
-                    color: presetHover.hovered ? Theme.selection : "transparent"
-                    border.width: Theme.pillBorder
-                    border.color: Theme.stroke
-
-                    PopupText {
-                        anchors.centerIn: parent
-                        text: preset.modelData.label
-                        font.pixelSize: root.rowTextSize
-                        opacity: presetHover.hovered ? 1 : 0.7
-                    }
-
-                    HoverHandler {
-                        id: presetHover
-                    }
-                    TapHandler {
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: preset.modelData.act()
-                    }
+                    framed: true
+                    label: modelData.label
+                    textSize: root.rowTextSize
+                    onTapped: modelData.act()
                 }
             }
         }
 
-        Row {
+        PopupButton {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            Repeater {
-                model: [
-                    {
-                        glyph: Theme.glyph.plus,
-                        act: () => Launcher.openWith(Launcher.timerPrefix)
-                    }
-                ]
-
-                delegate: Rectangle {
-                    id: extra
-
-                    required property var modelData
-
-                    width: root.rowHeight - 2
-                    height: root.rowHeight - 2
-                    radius: Theme.selectionRadius
-                    color: extraHover.hovered ? Theme.selection : "transparent"
-                    border.width: Theme.pillBorder
-                    border.color: Theme.stroke
-
-                    Glyph {
-                        anchors.centerIn: parent
-                        text: extra.modelData.glyph
-                        implicitHeight: root.rowHeight - 2
-                        fontSize: Theme.popupTextSize - 1
-                        opacity: extraHover.hovered ? 1 : 0.7
-                    }
-
-                    HoverHandler {
-                        id: extraHover
-                    }
-                    TapHandler {
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: extra.modelData.act()
-                    }
-                }
-            }
+            width: root.rowHeight - 2
+            height: root.rowHeight - 2
+            framed: true
+            glyph: Theme.glyph.plus
+            glyphSize: Theme.popupTextSize - 1
+            onTapped: Launcher.openWith(Launcher.timerPrefix)
         }
     }
 }

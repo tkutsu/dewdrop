@@ -21,7 +21,7 @@ Singleton {
     property var aurList: []
 
     readonly property int pending: official + aur
-    readonly property string icon: pending > 0 ? Theme.glyph.updatePending : Theme.glyph.updateDone
+    readonly property string icon: Theme.glyph.update
     // Held at 99 rather than spilling into "99+": the badge is for noticing
     // there is a pile, not for counting it.
     readonly property string label: pending === 0 ? "" : String(Math.min(pending, 99))

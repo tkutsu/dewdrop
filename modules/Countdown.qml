@@ -28,15 +28,17 @@ BarItem {
 
     // What the pill shows, kept while the pill goes: the timer is gone before
     // its pill is under the clock, and the glyph and figures would otherwise
-    // swap to "nothing set" halfway there. Same as Notice.shownLine.
-    property string shownGlyph: Timers.glyph
-    property string shownLabel: Timers.label
-    readonly property string liveGlyph: Timers.glyph
-    readonly property string liveLabel: Timers.label
-    onLiveGlyphChanged: if (Timers.loaded)
-        shownGlyph = liveGlyph
-    onLiveLabelChanged: if (Timers.loaded)
-        shownLabel = liveLabel
+    // swap to "nothing set" halfway there. Bound only while something is set
+    // and left holding the last value after (same as Music and Notice).
+    property string shownGlyph: ""
+    property string shownLabel: ""
+
+    Binding {
+        root.shownGlyph: Timers.glyph
+        root.shownLabel: Timers.label
+        when: Timers.loaded
+        restoreMode: Binding.RestoreNone
+    }
 
     spacing: Theme.mediaGap
     popup: TimerPopup {}
@@ -45,14 +47,8 @@ BarItem {
         Layout.fillHeight: true
         text: root.shownGlyph
         fontSize: Theme.glyphSizeLarge
-        // Measured, not guessed: this glyph's reported ink box sits a pixel
-        // below where its ink actually lands, so optical centring leaves it low.
-        // The one state that has to be noticed from across the room used to get
-        // the one colour on this bar that is not white. It bounces instead now:
-        // the alarm is already making a noise on a beat, and a hop on that same
-        // beat is one signal in two senses rather than two signals. Colour is
-        // also the wrong tool for it — orange says "this is warm" wherever else
-        // it appears, and a timer that has finished is not a warning.
+        // White even while ringing: the hop below on the alarm's beat is the
+        // signal, and orange means "warm" everywhere else on this bar.
         color: Theme.fg
 
         transform: Translate { y: bounce.offset }

@@ -58,7 +58,11 @@ BarItem {
     }
 
     Repeater {
-        model: root.entries
+        // Diffed rather than replaced: an item joining or leaving the tray
+        // otherwise rebuilt every icon, its tooltip and any open menu with it.
+        model: ScriptModel {
+            values: root.entries
+        }
 
         delegate: Item {
             id: entry

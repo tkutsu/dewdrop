@@ -213,7 +213,17 @@ BarItem {
                         }
 
                         Repeater {
-                            model: button.apps
+                            // Keyed by class, so a window opening or closing
+                            // anywhere on the desktop touches only the icon it
+                            // belongs to. The array itself is new on every
+                            // change, and a Repeater handed the array rebuilt
+                            // every icon on every workspace each time: a new
+                            // desktop entry lookup and a new image load per
+                            // icon, for a window that was not theirs.
+                            model: ScriptModel {
+                                values: button.apps
+                                objectProp: "windowClass"
+                            }
 
                             delegate: AppIcon {
                                 id: app

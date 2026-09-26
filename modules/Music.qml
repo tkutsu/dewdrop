@@ -24,12 +24,15 @@ BarItem {
     readonly property real progress: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
 
     // The title, kept while the pill goes: the queue is empty before the pill
-    // is under the clock, and the line should not blank on the way. Same as
-    // Notice.shownLine.
-    property string shownLabel: Mpd.label
-    readonly property string liveLabel: Mpd.label
-    onLiveLabelChanged: if (Mpd.loaded)
-        shownLabel = liveLabel
+    // is under the clock, and the line should not blank on the way. Bound only
+    // while there is something to show and left holding the last value after.
+    property string shownLabel: ""
+
+    Binding {
+        root.shownLabel: Mpd.label
+        when: Mpd.loaded
+        restoreMode: Binding.RestoreNone
+    }
 
     spacing: Theme.mediaGap
     popup: MusicPopup {}

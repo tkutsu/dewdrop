@@ -175,7 +175,15 @@ OverlayWindow {
                     spacing: root.cardGap
                     boundsBehavior: Flickable.StopAtBounds
 
-                    model: Notifications.list
+                    // Through a ScriptModel rather than the array itself: the
+                    // array is rebuilt on every change, and handed straight to
+                    // the view that tore down every card and built it again
+                    // per arrival — and once per notification on Clear. The
+                    // model diffs by object, so only the card that came or
+                    // went is touched and the others keep their place.
+                    model: ScriptModel {
+                        values: Notifications.list
+                    }
 
                     // A card arriving or leaving slides the ones below it rather
                     // than jumping them.
@@ -386,7 +394,7 @@ OverlayWindow {
 
                     Text {
                         anchors.centerIn: parent
-                        text: Theme.glyph.notifNone
+                        text: Theme.glyph.notif
                         color: Theme.label2
                         font.family: Theme.glyphFont
                         font.pixelSize: Theme.glyphSizeLarge

@@ -32,11 +32,7 @@ Singleton {
         state.writeAdapter();
     }
 
-    readonly property string icon: {
-        if (dnd)
-            return Theme.glyph.notifDndNone;
-        return count > 0 ? Theme.glyph.notifSome : Theme.glyph.notifNone;
-    }
+    readonly property string icon: dnd ? Theme.glyph.notifDnd : Theme.glyph.notif
 
     // Hidden at 0, held at 99.
     readonly property string label: count === 0 ? "" : String(Math.min(count, 99))
@@ -89,11 +85,7 @@ Singleton {
     function focusOn(n) {
         if (!n)
             return;
-        if (root.passing[n.id]) {
-            const rest = Object.assign({}, root.passing);
-            delete rest[n.id];
-            root.passing = rest;
-        }
+        delete root.passing[n.id];
         root.centreFocus = n;
         root.centreShown = true;
     }
@@ -175,7 +167,13 @@ Singleton {
     }
 
     // When each one came in, by id. The server does not record it.
-    property var arrived: ({})
+    //
+    // Mutated in place and pruned when the notification closes, never
+    // replaced: an arrival time is written before any card exists to read it
+    // and never changes afterwards, so there is nothing for a change signal to
+    // tell anyone — and replacing the object made every card's age re-run on
+    // every arrival, while never pruning grew it for the life of the session.
+    readonly property var arrived: ({})
 
     // --- arrival ------------------------------------------------------------
     // Senders that only ever have something to say in the moment: shown as
@@ -209,21 +207,22 @@ Singleton {
         return root.fleeting.some(r => (!r.app || r.app.test(n.appName)) && (!r.summary || r.summary.test(n.summary)));
     }
 
-    // The ids that go as soon as their notice has been seen.
-    property var passing: ({})
+    // The ids that go as soon as their notice has been seen. Only ever read
+    // from functions, so it is mutated in place like `arrived`.
+    readonly property var passing: ({})
 
     function receive(n) {
         // Kept by default; a fleeting one is kept too, just for as long as its
         // notice is up, since an untracked notification is closed the moment
         // this handler returns.
         n.tracked = true;
-        root.arrived = Object.assign({}, root.arrived, {
-            [n.id]: Date.now()
+        root.arrived[n.id] = Date.now();
+        n.closed.connect(() => {
+            delete root.arrived[n.id];
+            delete root.passing[n.id];
         });
         if (root.isFleeting(n))
-            root.passing = Object.assign({}, root.passing, {
-                [n.id]: true
-            });
+            root.passing[n.id] = true;
 
         // A sender that tags its notifications (the volume and mic toasts do,
         // with x-canonical-private-synchronous) means each one to replace the
@@ -254,9 +253,7 @@ Singleton {
     // Done with as a notice. A fleeting one is done with altogether.
     function letGo(n) {
         if (n && root.passing[n.id]) {
-            const rest = Object.assign({}, root.passing);
-            delete rest[n.id];
-            root.passing = rest;
+            delete root.passing[n.id];
             n.expire();
         }
     }

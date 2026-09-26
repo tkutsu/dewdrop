@@ -179,34 +179,20 @@ Popup {
                 // than on the service on purpose: the popup is built and
                 // thrown away with every hover, so a button left armed
                 // disarms itself as soon as the pointer leaves.
-                Item {
+                PopupButton {
                     id: quit
 
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.buttonWidth
                     height: root.rowHeight
-
-                    Glyph {
-                        anchors.centerIn: parent
-                        text: root.quitArmed ? Theme.glyph.powerConfirm : Theme.glyph.powerShutdown
-                        implicitHeight: root.rowHeight
-                        color: root.quitArmed ? Theme.warn : Theme.fg
-                        opacity: root.quitArmed || quitHover.hovered ? 1 : 0.45
-                    }
-
-                    HoverHandler {
-                        id: quitHover
-                    }
-
-                    TapHandler {
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: {
-                            if (root.quitArmed)
-                                Mpd.stopServer();
-                            else
-                                root.quitArmed = true;
-                        }
+                    glyph: root.quitArmed ? Theme.glyph.powerConfirm : Theme.glyph.powerShutdown
+                    warn: root.quitArmed
+                    onTapped: {
+                        if (root.quitArmed)
+                            Mpd.stopServer();
+                        else
+                            root.quitArmed = true;
                     }
                 }
             }
@@ -341,27 +327,15 @@ Popup {
             color: Theme.stroke
         }
 
-        Item {
+        PopupRow {
             id: head
 
             width: root.bodyWidth
             height: root.rowHeight
 
-            HoverHandler {
-                id: headHover
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Theme.selectionRadius
-                color: headHover.hovered ? Theme.selection : "transparent"
-            }
-
             // The whole line folds it, not the chevron: the mark is eight
             // pixels of ink and the line is the width of the popup.
-            TapHandler {
-                onTapped: Mpd.playlistsOpen = !Mpd.playlistsOpen
-            }
+            onTapped: Mpd.playlistsOpen = !Mpd.playlistsOpen
 
             Glyph {
                 id: fold
@@ -399,7 +373,13 @@ Popup {
         Repeater {
             model: Mpd.playlistsOpen ? Mpd.playlists : []
 
-            delegate: Item {
+            // Deliberately no tap on the row itself, where a queue row plays
+            // the song under the pointer. The two things you might mean here
+            // are adding a playlist to what is on and throwing away what is on
+            // for it, and no reading of a click on the name picks between them
+            // — least of all one that can lose a queue somebody spent the
+            // evening building.
+            delegate: PopupRow {
                 id: entry
 
                 required property string modelData
@@ -409,28 +389,11 @@ Popup {
 
                 readonly property bool armed: Mpd.armedPlaylist === entry.modelData
 
-                HoverHandler {
-                    id: entryHover
-
-                    // Leaving the row is how a half-pressed delete is called
-                    // off. There is no cancel button because there does not
-                    // need to be one: the way out is the direction the pointer
-                    // was going anyway.
-                    onHoveredChanged: if (!entryHover.hovered && entry.armed)
-                        Mpd.armedPlaylist = ""
-                }
-
-                // Deliberately nothing on the row itself, where a queue row
-                // plays the song under the pointer. The two things you might
-                // mean here are adding a playlist to what is on and throwing
-                // away what is on for it, and no reading of a click on the
-                // name picks between them — least of all one that can lose a
-                // queue somebody spent the evening building.
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.selectionRadius
-                    color: entryHover.hovered ? Theme.selection : "transparent"
-                }
+                // Leaving the row is how a half-pressed delete is called off.
+                // There is no cancel button because there does not need to be
+                // one: the way out is the direction the pointer was going.
+                onHoveredChanged: if (!entry.hovered && entry.armed)
+                    Mpd.armedPlaylist = ""
 
                 PopupText {
                     anchors {
@@ -461,7 +424,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     height: root.rowHeight
                     spacing: 0
-                    visible: entryHover.hovered
+                    visible: entry.hovered
 
                     Repeater {
                         model: [
@@ -496,35 +459,19 @@ Popup {
                             }
                         ]
 
-                        delegate: Item {
-                            id: button
-
+                        // Armed, the other two go quiet where they stand
+                        // rather than making way: three buttons becoming one
+                        // would slide the answer under a pointer already on
+                        // its way to it.
+                        delegate: PopupButton {
                             required property var modelData
 
                             width: root.buttonWidth
                             height: root.rowHeight
-
-                            Glyph {
-                                anchors.centerIn: parent
-                                text: button.modelData.glyph
-                                implicitHeight: root.rowHeight
-                                // Armed, the other two go quiet where they
-                                // stand rather than making way: three buttons
-                                // becoming one would slide the answer under a
-                                // pointer already on its way to it.
-                                opacity: !button.modelData.live ? 0.15 : buttonHover.hovered ? 1 : 0.6
-                                color: button.modelData.warn ? Theme.warn : Theme.fg
-                            }
-
-                            HoverHandler {
-                                id: buttonHover
-                            }
-
-                            TapHandler {
-                                gesturePolicy: TapHandler.ReleaseWithinBounds
-                                onTapped: if (button.modelData.live)
-                                    button.modelData.act()
-                            }
+                            glyph: modelData.glyph
+                            live: modelData.live
+                            warn: modelData.warn
+                            onTapped: modelData.act()
                         }
                     }
                 }
@@ -580,7 +527,7 @@ Popup {
             }
         }
 
-        delegate: Item {
+        delegate: PopupRow {
             id: row
 
             required property var modelData
@@ -591,21 +538,9 @@ Popup {
             width: ListView.view.width
             height: root.rowHeight
 
-            HoverHandler {
-                id: rowHover
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Theme.selectionRadius
-                color: rowHover.hovered ? Theme.selection : "transparent"
-            }
-
             // Anywhere on the row plays it, except the controls at its end —
             // they take the press off it rather than letting both happen.
-            TapHandler {
-                onTapped: Mpd.playAt(row.modelData.pos)
-            }
+            onTapped: Mpd.playAt(row.modelData.pos)
 
             // The queue position, except on the song that is playing — there
             // the number is the one thing you already know, and the state icon
@@ -681,7 +616,7 @@ Popup {
                     anchors.right: parent.right
                     anchors.rightMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: !rowHover.hovered
+                    visible: !row.hovered
                     text: Mpd.clock(row.modelData.duration)
                     font.pixelSize: root.rowTextSize - 1
                     opacity: 0.4
@@ -690,7 +625,7 @@ Popup {
                 Row {
                     anchors.fill: parent
                     spacing: 0
-                    visible: rowHover.hovered
+                    visible: row.hovered
 
                     Repeater {
                         model: [
@@ -711,38 +646,18 @@ Popup {
                             }
                         ]
 
-                        // The box is the button; the glyph only marks where it
-                        // is. Each one takes the press rather than watching it
-                        // go past, or the row underneath — a button itself —
-                        // would act on the same tap.
-                        delegate: Item {
-                            id: button
-
+                        // Nothing to move past at the ends of the queue: the
+                        // control stays where it is and goes quiet, rather
+                        // than the row's three buttons becoming two and the
+                        // rest sliding over.
+                        delegate: PopupButton {
                             required property var modelData
 
                             width: root.buttonWidth
                             height: root.rowHeight
-
-                            Glyph {
-                                anchors.centerIn: parent
-                                text: button.modelData.glyph
-                                implicitHeight: root.rowHeight
-                                // Nothing to move past at the ends of the
-                                // queue: the control stays where it is and
-                                // goes quiet, rather than the row's three
-                                // buttons becoming two and the rest sliding
-                                // over.
-                                opacity: !button.modelData.live ? 0.15 : hover.hovered ? 1 : 0.6
-                            }
-
-                            HoverHandler {
-                                id: hover
-                            }
-
-                            TapHandler {
-                                gesturePolicy: TapHandler.ReleaseWithinBounds
-                                onTapped: button.modelData.act()
-                            }
+                            glyph: modelData.glyph
+                            live: modelData.live
+                            onTapped: modelData.act()
                         }
                     }
                 }

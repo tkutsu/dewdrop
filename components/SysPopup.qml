@@ -28,8 +28,24 @@ Popup {
     readonly property int fontSize: Theme.popupTextSize - 1
     readonly property int rows: 5
 
-    Component.onCompleted: Sys.watchers++
-    Component.onDestruction: Sys.watchers--
+    // The service only samples processes and the card while someone is
+    // looking. Counted in a beat after opening rather than at once: the first
+    // detail sample is the heaviest work the popup does, and landing it during
+    // the slide-in stalled the slide. The pointer has to rest for half a second
+    // before the popup exists at all, so a further fade's worth costs nothing.
+    property bool watching: false
+
+    Timer {
+        interval: Theme.fadeMs
+        running: true
+        onTriggered: {
+            root.watching = true;
+            Sys.watchers++;
+        }
+    }
+
+    Component.onDestruction: if (root.watching)
+        Sys.watchers--
 
     function gib(kb) {
         return (kb / 1048576).toFixed(1);

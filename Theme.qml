@@ -450,8 +450,7 @@ Singleton {
         ram: "\u{f035b}",
         disk: "\u{f02ca}",
 
-        updatePending: "\u{f03d7}",
-        updateDone: "\u{f03d7}",
+        update: "\u{f03d7}",
 
         // The tray, for nm-applet. The theme draws wireless as a filled cone
         // with a padlock welded onto it, which at bar size is a blob beside the
@@ -502,12 +501,9 @@ Singleton {
         mailRead: "\u{f05ef}",         // nf-md-email_open_outline
         mailUnread: "\u{f01f0}",       // nf-md-email_outline
 
-        notifSome: "\u{f009c}",
-        notifNone: "\u{f009c}",
-        notifDndSome: "\u{f0a93}",
-        notifDndNone: "\u{f0a93}",
-        notifInhibitedSome: "\u{f0a91}",
-        notifInhibitedNone: "\u{f0a91}",
+        // One bell whatever the count: the badge carries the number.
+        notif: "\u{f009c}",
+        notifDnd: "\u{f0a93}",
         // Do not disturb, in the centre's header: the moon the system uses.
         dnd: "\u{f0904}",            // nf-md-power_sleep
         close: "\u{f0156}",          // nf-md-close

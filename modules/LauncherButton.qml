@@ -17,7 +17,6 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: Theme.glyph.launcher
-        // Same as the updater's box: measured a pixel low.
     }
 
     onClicked: function (mouse) {

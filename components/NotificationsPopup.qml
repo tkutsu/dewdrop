@@ -54,7 +54,7 @@ Popup {
                     height: root.iconBox
                     implicitHeight: root.iconBox
                     windowClass: Notifications.keyOf(row.modelData)
-                    fallbackGlyph: Theme.glyph.notifNone
+                    fallbackGlyph: Theme.glyph.notif
                 }
 
                 Column {
