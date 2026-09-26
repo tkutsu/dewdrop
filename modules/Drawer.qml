@@ -41,9 +41,6 @@ BarItem {
         Layout.fillHeight: true
         fontSize: Theme.textSize + 1
         text: "\u00b7"
-        // A step down the label scale: it is a handle on the modules, not one
-        // of them, and it should not read as another status.
-        color: Theme.label2
     }
 
     onClicked: function (mouse) {
