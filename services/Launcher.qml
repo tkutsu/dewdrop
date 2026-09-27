@@ -1135,20 +1135,17 @@ Singleton {
     function cmdResults(cmd) {
         // ">" on its own is the history, the same way the empty app query is.
         if (!cmd)
-            return root.recent("cmd:").map(c => root.cmdRow(c, false));
-        // Two rows for the one command, because the answer to "did that work"
-        // lives in a terminal and the answer to "open this thing" does not.
-        return [root.cmdRow(cmd, false), root.cmdRow(cmd, true)];
+            return root.recent("cmd:").map(root.cmdRow);
+        return [root.cmdRow(cmd)];
     }
 
-    function cmdRow(cmd, term) {
+    function cmdRow(cmd) {
         return {
             kind: "cmd",
             cmd: cmd,
-            term: term,
             title: cmd,
-            subtitle: term ? "run in terminal" : "run",
-            badge: term ? root.cmdPrefix + "_" : root.cmdPrefix,
+            subtitle: "run in terminal",
+            badge: root.cmdPrefix,
             raw: true
         };
     }
@@ -1317,13 +1314,10 @@ Singleton {
             cmd: (r, i) => {
                 root.leave(i);
                 root.bump("cmd:" + r.cmd);
-                // Held open after the command ends, which is the only reason
-                // to have asked for a terminal: a command that exits
-                // instantly would otherwise take its own output with it.
-                if (r.term)
-                    Quickshell.execDetached(Settings.inTerminal(["sh", "-c", r.cmd], "", true));
-                else
-                    Quickshell.execDetached(["sh", "-c", r.cmd]);
+                // Floating by title (see wrules.lua), and held open after the
+                // command ends: one that exits instantly would otherwise take
+                // its own output with it.
+                Quickshell.execDetached(Settings.inTerminal(["sh", "-c", r.cmd], r.cmd + " (floating)", true));
             },
             power: (r, i) => {
                 root.leave(i);
