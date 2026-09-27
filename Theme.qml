@@ -147,9 +147,9 @@ Singleton {
     // mattering and the second size went with it.
     readonly property int iconSize: 18
     // How tall an icon's ink should stand in its box, measured rather than
-    // assumed (components/InkProbe.qml). Sixteen pixels of ink in an
-    // eighteen pixel box, the height macOS's menu bar icons stand at, and
-    // deliberately under every icon the theme ships —
+    // assumed (components/InkProbe.qml). Thirteen pixels of ink in an
+    // eighteen pixel box: level with the bar's 16px glyphs, whose ink comes
+    // out at 12 to 14, and deliberately under every icon the theme ships —
     // those come in between 0.75 and 0.97 depending on who drew them, and an
     // app handing the tray one of its own — or a taskbar window icon, which is
     // an application icon and fills its box outright — can reach the full box.
@@ -157,7 +157,7 @@ Singleton {
     // is pulled down onto it rather than only the ones that overshot, so the
     // tray and the taskbar each stand at one height instead of at the theme's
     // spread of them, and both stand at the same one.
-    readonly property real iconInk: 16 / 18
+    readonly property real iconInk: 13 / 18
     // The same for a drawing that stands in a glyph's slot (see Glyph): held
     // to twelve pixels, between the glyphs' ten and the tray's artwork, so a
     // row that mixes the two reads as one hand rather than two sizes.

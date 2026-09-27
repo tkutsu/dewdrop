@@ -159,6 +159,9 @@ Item {
         Rim {
             anchors.fill: parent
             radius: Theme.pillRadius
+            // A touch under the popups' rim: a pill sits on the wallpaper
+            // rather than over a window, and needs less edge to read as one.
+            topColor: Qt.rgba(1, 1, 1, 0.15)
             opacity: 1 - root.mergeProgress
             visible: opacity > 0
         }
