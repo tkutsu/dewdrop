@@ -18,13 +18,11 @@ BarItem {
         badge: Notifications.label
     }
 
-    // Left opens the centre, the way the system's clock does, and right is do
-    // not disturb. Clearing everything is the centre's header, beside its own
-    // do-not-disturb; middle pins the bell (BarItem.pinKey).
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.RightButton)
-            Notifications.setDnd(!Notifications.dnd);
-        else if (mouse.button === Qt.LeftButton)
-            Notifications.toggleCentre();
-    }
+    // Left opens the centre, the way the system's clock does, and right clears
+    // everything in it. Do not disturb is the centre's header, beside its own
+    // clear; middle pins the bell (BarItem.pinKey).
+    actions: ({
+            [Qt.LeftButton]: () => Notifications.toggleCentre(),
+            [Qt.RightButton]: () => Notifications.clearAll()
+        })
 }
