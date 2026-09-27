@@ -1317,12 +1317,11 @@ Singleton {
             cmd: (r, i) => {
                 root.leave(i);
                 root.bump("cmd:" + r.cmd);
-                // --hold keeps the window up after the command ends, which is
-                // the only reason to have asked for a terminal: a command
-                // that exits instantly would otherwise take its own output
-                // with it.
+                // Held open after the command ends, which is the only reason
+                // to have asked for a terminal: a command that exits
+                // instantly would otherwise take its own output with it.
                 if (r.term)
-                    Quickshell.execDetached(["kitty", "--hold", "sh", "-c", r.cmd]);
+                    Quickshell.execDetached(Settings.inTerminal(["sh", "-c", r.cmd], "", true));
                 else
                     Quickshell.execDetached(["sh", "-c", r.cmd]);
             },
@@ -1361,7 +1360,7 @@ Singleton {
                 if (r.dir)
                     Quickshell.execDetached(["dolphin", r.path]);
                 else
-                    Quickshell.execDetached(["kitty", "-e", Quickshell.env("EDITOR") || "nvim", r.path]);
+                    Quickshell.execDetached(Settings.inTerminal([Quickshell.env("EDITOR") || "nvim", r.path]));
             },
             url: (r, i) => {
                 root.leave(i);

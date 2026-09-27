@@ -46,6 +46,12 @@ MouseArea {
     // than `visible`, which the drawer below drives.
     property bool present: true
 
+    // The module's name in Settings, for the ones that can be switched off
+    // on the settings page. Off is `present` false from outside: the module
+    // is not on this machine's bar at all.
+    property string settingsKey: pinKey
+    readonly property bool here: present && Settings.moduleOn(settingsKey)
+
     // Nothing to say right now: no unread mail, no updates, a tool rather than
     // a status. The right pill keeps modules like that in its drawer, so the
     // bar shows what is true at the moment and the rest is a click away.
@@ -90,7 +96,7 @@ MouseArea {
     property bool folds: true
     readonly property real _fold: folds ? reveal : 1
 
-    visible: present && reveal > 0
+    visible: here && reveal > 0
     clip: _fold < 1
     // Whether a gap goes in front of this module: yes, unless it is the first
     // in its pill (Pill sets that). The gap folds with the module, so a module

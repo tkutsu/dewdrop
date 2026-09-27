@@ -76,7 +76,7 @@ Popup {
             label: "clean up"
             glyphSize: root.fontSize - 1
             textSize: root.fontSize - 1
-            onTapped: Quickshell.execDetached(["kitty", "--title", "cleanup", "sh", "-c", Quickshell.env("HOME") + "/_scripts/cleanup.sh"])
+            onTapped: Quickshell.execDetached(Settings.inTerminal([Quickshell.env("HOME") + "/_scripts/cleanup.sh"], "cleanup"))
         }
     }
 }

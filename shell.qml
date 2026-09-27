@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import qs
 import qs.modules
 import qs.services
 
@@ -71,5 +72,12 @@ ShellRoot {
         active: Notifications.centreActive
 
         NotificationCentre {}
+    }
+
+    // The settings page, the same way once more.
+    LazyLoader {
+        active: Settings.active
+
+        SettingsPage {}
     }
 }

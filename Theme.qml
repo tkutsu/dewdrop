@@ -427,6 +427,12 @@ Singleton {
         // and its 1.75px ring stands the weight of the outlined glyphs beside
         // it. launcher-tabler.svg is the thinner one it replaced.
         launcher: panel("launcher"),
+        settings: "\u{f08bb}",        // nf-md-cog_outline
+        // The settings page's sections.
+        settingsGeneral: "\u{f062e}", // nf-md-tune
+        settingsBar: "\u{f0a1d}",     // nf-md-view_dashboard_outline
+        settingsPaths: "\u{f0770}",   // nf-md-folder_outline
+        settingsAccounts: "\u{f0b55}", // nf-md-account_circle_outline
 
         // Every glyph here is Material Design, outlined wherever the set has
         // an outline — the bar and the power menu used to mix in Font Awesome

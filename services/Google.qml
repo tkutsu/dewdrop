@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs
 
 // The one Google sign-in the bar has, shared by everything that talks to a
 // Google API (Tasks and Agenda so far).
@@ -66,7 +67,7 @@ Singleton {
     Process {
         id: consent
 
-        command: ["kitty", "--title", "Google sign-in (floating)", "sh", "-c", '"$1" || { printf "\nPress Enter to close. "; read _; }', "sh", Quickshell.shellPath("scripts/gtasks-auth")]
+        command: Settings.inTerminal(["sh", "-c", '"$1" || { printf "\nPress Enter to close. "; read _; }', "sh", Quickshell.shellPath("scripts/gtasks-auth")], "Google sign-in (floating)")
 
         // Whatever it did, the file is the truth now: forget the token in
         // memory and read the credentials again. Their `loaded` is `ready`,

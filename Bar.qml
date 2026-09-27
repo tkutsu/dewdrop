@@ -290,9 +290,13 @@ PanelWindow {
         // are showing anyway.
         readonly property var drawable: [email, tasks, updater, bell, satty, idle, wallpaper, night, sys, audio]
 
+        // First, so it is always in the same place and never in the drawer:
+        // the way back to everything that can be switched off.
+        SettingsButton {}
+
         Drawer {
             id: drawer
-            holding: rightPill.drawable.some(m => m.present && !m.showsClosed)
+            holding: rightPill.drawable.some(m => m.here && !m.showsClosed)
             pointerNear: barHover.hovered || PopupPointer.hovered > 0
         }
 
@@ -350,7 +354,9 @@ PanelWindow {
             stowed: !showsClosed && !drawer.open
             marksPin: drawer.open
         }
-        Tray {}
+        Tray {
+            settingsKey: "tray"
+        }
         // A pixel less air on its right than the row gives: the speaker's
         // waves thin out to nothing at the edge of its box, and at the full
         // gap the language label read as set apart from it.
@@ -370,6 +376,7 @@ PanelWindow {
         // shifting the label keeps the module's own width fixed, so nothing
         // moves when the layout changes.
         Language {
+            settingsKey: "language"
             Layout.rightMargin: -2
         }
         LauncherButton {}

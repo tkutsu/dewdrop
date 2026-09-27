@@ -73,7 +73,7 @@ BarItem {
     BarText {
         Layout.fillHeight: true
         Layout.leftMargin: root.dotGap
-        text: Qt.formatDateTime(clock.date, "HH:mm")
+        text: Qt.formatDateTime(clock.date, Settings.clock24h ? "HH:mm" : "h:mm AP")
     }
 
     onClicked: function (mouse) {

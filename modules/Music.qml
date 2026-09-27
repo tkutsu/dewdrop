@@ -18,7 +18,7 @@ BarItem {
     // For the pill around it, which is this module and nothing else and so
     // slides under the clock with it when there is nothing to play: the bar
     // places the pill off `reveal` (see Bar.qml), and nothing folds.
-    stowed: !Mpd.loaded
+    stowed: !Mpd.loaded || !Settings.moduleOn("music")
     folds: false
     // And for the outline it draws: how far through the track we are.
     readonly property real progress: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0

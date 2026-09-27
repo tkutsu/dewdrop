@@ -159,6 +159,6 @@ BarItem {
         if (mouse.button === Qt.LeftButton)
             Sys.showGpu = !Sys.showGpu && Sys.gpuPresent;
         else if (mouse.button === Qt.RightButton)
-            Quickshell.execDetached(["kitty", "--title", (Sys.showGpu ? "nvtop" : "btop") + " (floating)", Sys.showGpu ? "nvtop" : "btop"]);
+            Quickshell.execDetached(Settings.inTerminal([Sys.showGpu ? "nvtop" : "btop"], (Sys.showGpu ? "nvtop" : "btop") + " (floating)"));
     }
 }

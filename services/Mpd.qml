@@ -49,7 +49,7 @@ Singleton {
     // mpd's music_directory, so a song's relative path can be turned into the
     // album's directory. Album art over the protocol means readpicture/albumart
     // binary chunks; the file sitting next to the music is the same picture.
-    readonly property string musicDir: "/files/_media/_music/"
+    readonly property string musicDir: Settings.musicDir
     readonly property string albumDir: file ? musicDir + file.slice(0, file.lastIndexOf("/") + 1) : ""
 
     // Found by listing the directory rather than by trying each candidate name
@@ -342,7 +342,7 @@ Singleton {
     // insert rather than an append followed by a move. mpc exposes neither.
     MpdLink {
         id: cmdLink
-        path: Quickshell.env("XDG_RUNTIME_DIR") + "/mpd.sock"
+        path: Settings.mpdSocket
 
         // Nothing here asks a question, so every reply is an OK to be dropped
         // — except the greeting, which is the moment to send what was typed
@@ -586,7 +586,7 @@ Singleton {
     // The status connection, parked in `idle` between refreshes.
     MpdLink {
         id: link
-        path: Quickshell.env("XDG_RUNTIME_DIR") + "/mpd.sock"
+        path: Settings.mpdSocket
         onLine: line => root.receive(line)
     }
 

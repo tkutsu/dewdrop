@@ -14,7 +14,7 @@ import qs
 Singleton {
     id: root
 
-    readonly property string dir: Quickshell.env("HOME") + "/_media/wallpapers"
+    readonly property string dir: Settings.wallpaperDir
 
     property var files: []
     // The wallpaper is remembered by path, not by position: the folder is a
@@ -249,7 +249,7 @@ Singleton {
     }
 
     function openFolder() {
-        Quickshell.execDetached(["kitty", "-e", "yazi", root.dir]);
+        Quickshell.execDetached(Settings.inTerminal(["yazi", root.dir]));
     }
 
     Process {
