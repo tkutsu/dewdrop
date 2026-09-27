@@ -378,39 +378,16 @@ PanelWindow {
         LauncherButton {}
     }
 
-    // A click anywhere but the right pill puts the drawer away, the way a
-    // menu bar's extras fold back once you click on something else. Two
-    // halves, because the bar only hears the clicks that land on it.
+    // A click anywhere on the bar but the right pill puts the drawer away,
+    // the way a menu bar's extras fold back once you click on something else.
+    // A click in another window is left to the drawer's own timer. A focus
+    // grab on the bar would hear it, but Hyprland keeps the pointer on the
+    // grabbed surfaces while one is up, and the popups are surfaces of their
+    // own: none of them could be hovered with the drawer open, so each one
+    // closed as the pointer came down into it.
     //
-    // Off the bar: a focus grab on it while the drawer is open, which Hyprland
-    // clears on the first click in any other window. Built only while open,
-    // the way the tray's menus build theirs. A click down in one of the bar's
-    // own popups clears it too, and that one is still the bar (a volume
-    // slider under a module in the drawer), so it is re-armed rather than
-    // taken as the way out.
-    property bool drawerGrabReset: false
-
-    Loader {
-        active: drawer.open && !bar.drawerGrabReset
-
-        sourceComponent: Item {
-            HyprlandFocusGrab {
-                active: true
-                windows: [bar]
-                onCleared: {
-                    if (PopupPointer.hovered > 0) {
-                        bar.drawerGrabReset = true;
-                        Qt.callLater(() => bar.drawerGrabReset = false);
-                    } else {
-                        drawer.open = false;
-                    }
-                }
-            }
-        }
-    }
-
-    // On the bar: the clock, the left pill, the air between them. Laid over
-    // everything, it looks at each press and turns it down, which hands it on
+    // On the bar, this is laid over everything: it looks at each press and
+    // turns it down, which hands it on
     // to the module underneath as if this were not here. Not a TapHandler: a
     // handler takes the press even when its grab is only passive, and every
     // module in the open drawer stopped answering clicks.
