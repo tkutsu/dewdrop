@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 import qs.services
 
@@ -13,42 +14,69 @@ Popup {
     readonly property var entries: Updates.officialList.concat(Updates.aurList)
 
     Column {
-        spacing: 3
+        spacing: 6
 
-        PopupText {
-            text: Updates.pending > 0 ? `Official ${Updates.official}/${Updates.officialTotal}    AUR ${Updates.aur}/${Updates.aurTotal}` : "System up to date"
-            font.weight: Font.DemiBold
-        }
+        Column {
+            id: list
 
-        Item {
-            width: 1
-            height: 2
-            visible: root.entries.length > 0
-        }
+            spacing: 3
 
-        Repeater {
-            model: root.entries.slice(0, root.shown)
+            PopupText {
+                text: Updates.pending > 0 ? `Official ${Updates.official}/${Updates.officialTotal}    AUR ${Updates.aur}/${Updates.aurTotal}` : "System up to date"
+                font.weight: Font.DemiBold
+            }
 
-            delegate: PopupText {
-                required property string modelData
+            Item {
+                width: 1
+                height: 2
+                visible: root.entries.length > 0
+            }
 
-                // "pkg 1.2-1 -> 1.2-2": the name is what identifies it, the
-                // versions are the detail, so they are dimmed rather than cut.
-                text: {
-                    const parts = modelData.split(" ");
-                    return `${parts[0]}  <font color="#888888">${parts.slice(1).join(" ")}</font>`;
+            Repeater {
+                model: root.entries.slice(0, root.shown)
+
+                delegate: PopupText {
+                    required property string modelData
+
+                    // "pkg 1.2-1 -> 1.2-2": the name is what identifies it, the
+                    // versions are the detail, so they are dimmed rather than cut.
+                    text: {
+                        const parts = modelData.split(" ");
+                        return `${parts[0]}  <font color="#888888">${parts.slice(1).join(" ")}</font>`;
+                    }
+                    textFormat: Text.StyledText
+                    font.family: Theme.monoFont
+                    font.pixelSize: root.fontSize - 1
                 }
-                textFormat: Text.StyledText
-                font.family: Theme.monoFont
+            }
+
+            PopupText {
+                visible: root.entries.length > root.shown
+                text: `… and ${root.entries.length - root.shown} more`
+                opacity: 0.6
                 font.pixelSize: root.fontSize - 1
             }
         }
 
-        PopupText {
-            visible: root.entries.length > root.shown
-            text: `… and ${root.entries.length - root.shown} more`
-            opacity: 0.6
-            font.pixelSize: root.fontSize - 1
+        Rectangle {
+            width: Math.max(list.width, clean.width)
+            height: Theme.pillBorder
+            color: Theme.stroke
+        }
+
+        // The system's maintenance: caches, orphans, snapshots, logs. A button
+        // you have to open the popup to reach rather than a click on the bar,
+        // because it removes packages without asking.
+        PopupButton {
+            id: clean
+
+            framed: true
+
+            glyph: Theme.glyph.cleanup
+            label: "clean up"
+            glyphSize: root.fontSize - 1
+            textSize: root.fontSize - 1
+            onTapped: Quickshell.execDetached(["kitty", "--title", "cleanup", "sh", "-c", Quickshell.env("HOME") + "/_scripts/cleanup.sh"])
         }
     }
 }

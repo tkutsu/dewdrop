@@ -460,6 +460,7 @@ Singleton {
         disk: "\u{f02ca}",
 
         update: "\u{f03d7}",
+        cleanup: "\u{f00e2}",        // nf-md-broom
 
         // The tray, for nm-applet. The theme draws wireless as a filled cone
         // with a padlock welded onto it, which at bar size is a blob beside the

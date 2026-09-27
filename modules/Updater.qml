@@ -31,10 +31,9 @@ BarItem {
     }
 
     onClicked: function (mouse) {
-        // No refresh here: the count rechecks itself every six hours and
-        // after every upgrade (qs ipc call updates refresh).
+        // Cleaning up is the button at the foot of the popup, not a click.
         if (mouse.button === Qt.RightButton)
-            Quickshell.execDetached(["kitty", "--title", "cleanup", "sh", "-c", scripts + "/cleanup.sh"]);
+            Updates.refresh();
         else if (mouse.button === Qt.LeftButton)
             Quickshell.execDetached([scripts + "/taskbar-update.sh"]);
     }
