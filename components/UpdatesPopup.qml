@@ -59,24 +59,41 @@ Popup {
         }
 
         Rectangle {
-            width: Math.max(list.width, clean.width)
+            width: Math.max(list.width, foot.width)
             height: Theme.pillBorder
             color: Theme.stroke
         }
 
-        // The system's maintenance: caches, orphans, snapshots, logs. A button
-        // you have to open the popup to reach rather than a click on the bar,
-        // because it removes packages without asking.
-        PopupButton {
-            id: clean
+        Row {
+            id: foot
 
-            framed: true
+            spacing: 4
 
-            glyph: Theme.glyph.cleanup
-            label: "clean up"
-            glyphSize: root.fontSize - 1
-            textSize: root.fontSize - 1
-            onTapped: Quickshell.execDetached(Settings.inTerminal([Quickshell.env("HOME") + "/_scripts/cleanup.sh"], "cleanup"))
+            // The same check as a right-click on the bar, where it can be
+            // found. Faint while one is out, rather than queueing another.
+            PopupButton {
+                framed: true
+                live: !Updates.loading
+
+                glyph: Theme.glyph.refresh
+                label: Updates.loading ? "checking…" : "refresh"
+                glyphSize: root.fontSize - 1
+                textSize: root.fontSize - 1
+                onTapped: Updates.refresh()
+            }
+
+            // The system's maintenance: caches, orphans, snapshots, logs. A
+            // button you have to open the popup to reach rather than a click
+            // on the bar, because it removes packages without asking.
+            PopupButton {
+                framed: true
+
+                glyph: Theme.glyph.cleanup
+                label: "clean up"
+                glyphSize: root.fontSize - 1
+                textSize: root.fontSize - 1
+                onTapped: Quickshell.execDetached(Settings.inTerminal([Quickshell.env("HOME") + "/_scripts/cleanup.sh"], "cleanup"))
+            }
         }
     }
 }
