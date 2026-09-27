@@ -492,6 +492,12 @@ Singleton {
         wifiOff: "\u{f092e}",
         wired: "\u{f0200}",
         wiredOff: "\u{f0202}",
+        // Mullvad, whose own icon is a solid padlock filling its box with a
+        // status dot on it. The same outlined hand as the cone: shut while the
+        // tunnel is up, the shackle swung open otherwise (nf-md-lock_outline,
+        // nf-md-lock_open_variant_outline).
+        vpn: "\u{f0341}",
+        vpnOff: "\u{f0fc7}",
 
         // The timer module. A countdown and an alarm are the same machine
         // pointed at different things — a span versus an instant — so they are

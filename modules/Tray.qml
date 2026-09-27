@@ -19,15 +19,21 @@ BarItem {
         .sort((a, b) => a.id.localeCompare(b.id))
 
     // Where the theme's artwork is at odds with the bar, the bar draws its own
-    // glyph in its place. nm-applet is the one that needs it: its wireless
+    // glyph in its place. nm-applet is where it started: its wireless
     // icons are filled cones with a padlock welded onto them, which at this
     // size is a blob in a row of outlined Material glyphs. Keyed by the icon
     // name rather than the item id, because the state lives in the name — the
     // item is "nm-applet" whether it is on wifi, on a cable or on nothing.
     // Anything unmatched keeps its artwork; this is a correction, not a
     // reimplementation of somebody else's tray icon.
-    function glyphFor(icon) {
-        const name = String(icon);
+    function glyphFor(item) {
+        // Mullvad is the exception to reading the name: it is an Electron app
+        // and hands over a bare pixmap with no name at all. Its tooltip is
+        // where the state lives: "Connected. Athens, Greece" while the tunnel
+        // is up, and something else while it is coming up or down.
+        if (item.id.startsWith("Mullvad VPN"))
+            return item.tooltipTitle.startsWith("Connected") ? Theme.glyph.vpn : Theme.glyph.vpnOff;
+        const name = String(item.icon);
         // nm-applet carries the signal in the name, quantised to five buckets,
         // with "-secure" after it on an encrypted network — which is dropped,
         // because every network worth joining is encrypted and a padlock
@@ -72,7 +78,7 @@ BarItem {
                 || String(modelData.icon).includes("-attention")
 
             // Empty when the theme's own artwork is what gets drawn.
-            readonly property string glyph: root.glyphFor(modelData.icon)
+            readonly property string glyph: root.glyphFor(modelData)
 
             // blueman renames its icon with its state — blueman-tray,
             // blueman-active once something is connected, blueman-disabled
@@ -85,8 +91,10 @@ BarItem {
             // A tray app says it is switched off by renaming its icon —
             // blueman-disabled, nm-no-connection, anything wired "-offline" —
             // and the bar says the same by dimming it, as it does with a
-            // module that is off or has nothing loaded yet.
+            // module that is off or has nothing loaded yet. Mullvad has no
+            // name to rename, so its open lock stands for the same thing.
             readonly property bool off: /disabled|offline|no-connection|-off\b/.test(String(modelData.icon))
+                || glyph === Theme.glyph.vpnOff
 
             // Where the icon is drawn against its line: bouncing for attention,
             // pressed in under the pointer, or both at once.
