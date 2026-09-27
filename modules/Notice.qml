@@ -17,16 +17,25 @@ BarItem {
     id: root
 
     readonly property var entry: Notifications.latest
-    // Kept through the fold: the notification can be closed while its notice
-    // is still on the way out, and the line should not blank mid-fold. Bound
-    // while there is a line and left holding the last one after.
-    property string shownLine: ""
 
-    Binding {
-        root.shownLine: root.line
-        when: root.line !== ""
-        restoreMode: Binding.RestoreNone
-    }
+    // What the notice says (its line, icon and count), kept as it was while
+    // it slides back under the clock. Letting go of a notice can close its
+    // notification (a fleeting one expires on the spot), which empties the
+    // entry and zeroes the count the moment the slide begins.
+    //
+    // `current` is null unless there is a notice up to read, and `kept` only
+    // ever takes it when it is not. A Binding with a `when` did this before
+    // and blanked the line anyway: its value and its condition both hung off
+    // the entry going null, and Qt re-evaluated the value first.
+    readonly property var current: Notifications.showing && entry ? {
+        line: line,
+        key: Notifications.keyOf(entry),
+        burst: Notifications.burst
+    } : null
+    property var kept: ({ line: "", key: "", burst: 0 })
+
+    onCurrentChanged: if (current)
+        kept = current
 
     // What goes on the line: the summary, and the body after it when there is
     // room. A sender with no summary is rare but legal, and falls back to the
@@ -57,13 +66,13 @@ BarItem {
     AppIcon {
         id: icon
         Layout.alignment: Qt.AlignVCenter
-        windowClass: Notifications.keyOf(root.entry)
+        windowClass: root.kept.key
         fallbackGlyph: Theme.glyph.notif
     }
 
     BarText {
         Layout.fillHeight: true
-        text: root.shownLine
+        text: root.kept.line
         // Summed from the parts rather than read off the row's width, which
         // is this line's own width plus theirs and would be a binding loop.
         // Never under a pixel: 0 is no ceiling at all.
@@ -74,10 +83,10 @@ BarItem {
     // line, the way a count is: it is how much there is, not what it says.
     BarText {
         id: burst
-        readonly property bool shown: Notifications.burst > 0
+        readonly property bool shown: root.kept.burst > 0
         Layout.fillHeight: true
         visible: shown
-        text: "+" + Notifications.burst
+        text: "+" + root.kept.burst
         color: Theme.label2
     }
 
