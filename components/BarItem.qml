@@ -52,12 +52,13 @@ MouseArea {
     property bool quiet: false
 
     // The module's name in DrawerPins, for the ones the right pill's drawer
-    // holds: middle click then pins it out of the drawer or into it. Empty for
-    // everything else, which keeps middle click for itself.
+    // holds: middle click then pins it out of the drawer, and again lets it
+    // go back to its own `quiet`. Empty for everything else, which keeps
+    // middle click for itself.
     property string pinKey: ""
-    // Whether the module stands out of the drawer while it is closed: by its
-    // own `quiet`, unless a pin says otherwise.
-    readonly property bool showsClosed: pinKey === "" || DrawerPins.showsClosed(pinKey, quiet)
+    // Whether the module stands out of the drawer while it is closed: when
+    // it has something to say, or always once it is pinned.
+    readonly property bool showsClosed: pinKey === "" || !quiet || DrawerPins.pinned(pinKey)
 
     // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
     // `showsClosed` and whether the drawer is open.
@@ -130,11 +131,17 @@ MouseArea {
         transform: Translate { y: root.dips && root.pressed ? Theme.pressDip : 0 }
     }
 
-    // Runs beside the module's own onClicked rather than instead of it; the
-    // modules that carry a pinKey leave middle click to this.
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.MiddleButton && root.pinKey !== "")
-            DrawerPins.toggle(root.pinKey, root.quiet);
+    // Middle click on a pinnable module is the pin and nothing else. A layer
+    // on top that answers to the middle button alone takes it before the
+    // module's own onClicked can, so a module whose handler reads anything
+    // but right as left (the screenshot tool did) never fires on a pin;
+    // left, right, hover and the wheel all go on through to the module.
+    MouseArea {
+        anchors.fill: parent
+        enabled: root.pinKey !== ""
+        acceptedButtons: Qt.MiddleButton
+        cursorShape: Qt.ArrowCursor
+        onClicked: DrawerPins.toggle(root.pinKey)
     }
 
     onWheel: function (wheel) {

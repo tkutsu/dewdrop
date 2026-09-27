@@ -4,10 +4,10 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The right pill's modules you have middle-clicked out of the drawer or into
-// it, overruling what they say about themselves (BarItem.quiet). Keyed by
-// BarItem.pinKey: true keeps a module out, false keeps it in, and a module
-// with no entry goes by its own quiet. Kept across restarts, and at the root
+// The right pill's modules you have middle-clicked out of the drawer for good,
+// keyed by BarItem.pinKey. A pin only ever adds: an unpinned module still comes
+// out whenever it has something to say (BarItem.quiet), because taking the pin
+// off means "back to normal", not "hide". Kept across restarts, and at the root
 // rather than in services/ because BarItem reads it (see Popup.qml's note on
 // why components cannot import qs.services).
 Singleton {
@@ -15,21 +15,16 @@ Singleton {
 
     property var pins: ({})
 
-    function showsClosed(key, quiet) {
-        const pin = root.pins[key];
-        return pin === undefined ? !quiet : pin;
+    function pinned(key) {
+        return root.pins[key] === true;
     }
 
-    // Flip where the module stands now. A flip that lands it where its own
-    // quiet would have put it drops the pin instead of keeping one that says
-    // nothing, so two clicks is always the way back to how it was.
-    function toggle(key, quiet) {
-        const next = !root.showsClosed(key, quiet);
+    function toggle(key) {
         const pins = Object.assign({}, root.pins);
-        if (next === !quiet)
+        if (root.pinned(key))
             delete pins[key];
         else
-            pins[key] = next;
+            pins[key] = true;
         root.pins = pins;
         stored.pins = pins;
         file.writeAdapter();

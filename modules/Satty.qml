@@ -9,6 +9,8 @@ import qs.components
 BarItem {
     readonly property string script: Quickshell.env("HOME") + "/_scripts/taskbar-satty.sh"
 
+    // A tool, never news: it waits in the drawer unless it is pinned out.
+    quiet: true
 
     Glyph {
         Layout.fillHeight: true
