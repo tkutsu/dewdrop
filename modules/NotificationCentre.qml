@@ -30,12 +30,13 @@ OverlayWindow {
 
     // --- geometry ------------------------------------------------------------
     readonly property int panelWidth: 360
-    // Concentric with the content inset below: a card's corner is its padding
-    // plus the icon's own corner, the rule every nested radius here follows.
+    // A card's corner is the popups' own, the launcher's and the settings
+    // page's: the concentric one (padding plus the icon's corner, 18) read as
+    // a lozenge beside them.
     readonly property int cardPad: 12
     readonly property int iconSize: 32
     readonly property int iconRadius: 6
-    readonly property int cardRadius: cardPad + iconRadius
+    readonly property int cardRadius: Theme.popupRadius
     readonly property int cardGap: 8
     // The sender's picture, when it sent one: a contact, a sleeve, a
     // screenshot. Square on the right of the card, as the system shows it.

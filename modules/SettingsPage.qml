@@ -22,7 +22,9 @@ OverlayWindow {
     // --- geometry ------------------------------------------------------------
     readonly property int boxWidth: 640
     readonly property int boxHeight: 440
-    readonly property int boxRadius: 12
+    // The launcher's corner, so the two boxes in the middle of the screen
+    // read as the same kind of thing.
+    readonly property int boxRadius: Theme.popupRadius
     readonly property int sideWidth: 176
     readonly property int pad: 20
 

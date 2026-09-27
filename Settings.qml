@@ -40,6 +40,15 @@ Singleton {
         function toggle(): void {
             root.toggle();
         }
+
+        // For ~/_scripts/smart-close.sh: Super+Q closes the page when it is
+        // up, rather than the window behind it, which is still the one
+        // Hyprland calls active. Prints whether there was anything to close.
+        function dismiss(): bool {
+            const was = root.shown;
+            root.shown = false;
+            return was;
+        }
     }
 
     // --- modules -------------------------------------------------------------
