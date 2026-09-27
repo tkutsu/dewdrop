@@ -70,6 +70,14 @@ Singleton {
         shown: root.centreShown
     }
 
+    // An action picked in the centre, run once it has gone (see activate).
+    property NotificationAction afterCentre: null
+
+    onCentreActiveChanged: if (!centreActive && afterCentre) {
+        root.afterCentre.invoke();
+        root.afterCentre = null;
+    }
+
     // The notification the centre opens on: picked from the notice beside the
     // clock, so the centre scrolls to it and marks it rather than opening at
     // the top as if nothing had been asked for.
@@ -101,9 +109,17 @@ Singleton {
 
     // Clicking a notification is asking for what it is about: its default
     // action when it has one. Either way it has been dealt with, so it goes.
+    //
+    // Picked in the centre, the action waits for the centre to fold away:
+    // while it holds the keyboard, Hyprland refuses focus to the window the
+    // action raises, and letting go only reaches Hyprland with a later frame
+    // than the sender's request for focus.
     function activate(n) {
         const open = n.actions.find(a => a.identifier === "default");
-        if (open)
+        if (open && root.centreActive) {
+            root.afterCentre = open;
+            root.centreShown = false;
+        } else if (open)
             open.invoke();
         else if (!n.resident)
             n.dismiss();

@@ -90,15 +90,18 @@ BarItem {
         color: Theme.label2
     }
 
-    // Left opens it in the centre — scrolled to and marked there, with what
-    // arrived around it — rather than acting on it: its own action is one more
-    // click away on its card, and a banner that ran the action outright also
-    // closed the notification, so the click that asked to see it was the one
-    // that took it away. Anything else only waves the notice off; the
-    // notification stays in the centre either way.
+    // Left goes where it came from, as clicking its card in the centre does
+    // (Notifications.activate). One with nowhere to go opens in the centre
+    // instead, scrolled to and marked there, since activating it would only
+    // put it away. Anything else only waves the notice off, and the
+    // notification stays in the centre.
     actions: ({
             [Qt.LeftButton]: () => {
-                Notifications.focusOn(root.entry);
+                const n = root.entry;
+                if (n?.actions.some(a => a.identifier === "default"))
+                    Notifications.activate(n);
+                else
+                    Notifications.focusOn(n);
                 Notifications.dismissNotice();
             },
             [Qt.RightButton]: () => Notifications.dismissNotice(),
