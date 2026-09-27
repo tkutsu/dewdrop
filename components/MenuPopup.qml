@@ -180,7 +180,7 @@ Popup {
                     id: art
                     anchors.verticalCenter: parent.verticalCenter
                     x: row.pad
-                    implicitSize: Theme.glyphSize
+                    implicitSize: Theme.popupGlyphSize
                     visible: row.modelData.icon !== ""
                     source: row.modelData.icon
                 }

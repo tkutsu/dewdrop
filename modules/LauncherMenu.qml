@@ -849,7 +849,7 @@ OverlayWindow {
                         // services/Launcher.qml.
                         opacity: row.modelData.dim ? 0.4 : 0.6
                         font.family: Theme.bodyFont
-                        font.pixelSize: Theme.textSize
+                        font.pixelSize: Theme.captionSize
                         horizontalAlignment: Text.AlignRight
                         elide: Text.ElideLeft
                     }
@@ -915,7 +915,7 @@ OverlayWindow {
                             text: row.modelData.badge ?? ""
                             color: Theme.fg
                             font.family: Theme.bodyFont
-                            font.pixelSize: Theme.textSize
+                            font.pixelSize: Theme.captionSize
                             font.weight: Font.Bold
                         }
                     }

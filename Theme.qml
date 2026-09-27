@@ -122,13 +122,18 @@ Singleton {
     // cleanly at some pixel sizes — 11 and 13 come out thin and fuzzy, 12 and 14
     // land on the grid — so the 90%/110%/120% spans in config.jsonc are
     // resolved here once instead of rounding into a blurry 13 at each call site.
-    readonly property int textSize: 11
+    readonly property int textSize: 12
+    // The popups' secondary lines — a notification's app and age, the
+    // launcher's right-hand hint — one step under their 12px body text.
+    readonly property int captionSize: 11
     // Text that has to hold its own in a row of icons rather than stand alone.
     // At textSize the language switcher's cap height is 8px against the icons'
     // 10-12, and it reads as an afterthought between them. Two pixels up is
     // enough to even that out; more and a word starts to look like a button.
     readonly property int labelSize: 12
-    readonly property int glyphSize: 14
+    readonly property int glyphSize: 16
+    // Glyphs inside a popup, beside its 12px text rather than the bar's.
+    readonly property int popupGlyphSize: 14
     readonly property int glyphSizeLarge: 16
     // One size for everything the bar draws from artwork rather than from a
     // font — the tray and the workspace taskbar. 18 is the box macOS gives a
@@ -142,8 +147,9 @@ Singleton {
     // mattering and the second size went with it.
     readonly property int iconSize: 18
     // How tall an icon's ink should stand in its box, measured rather than
-    // assumed (components/InkProbe.qml). Twelve pixels of ink in a sixteen
-    // pixel box, which is deliberately under every icon the theme ships —
+    // assumed (components/InkProbe.qml). Sixteen pixels of ink in an
+    // eighteen pixel box, the height macOS's menu bar icons stand at, and
+    // deliberately under every icon the theme ships —
     // those come in between 0.75 and 0.97 depending on who drew them, and an
     // app handing the tray one of its own — or a taskbar window icon, which is
     // an application icon and fills its box outright — can reach the full box.
@@ -151,11 +157,7 @@ Singleton {
     // is pulled down onto it rather than only the ones that overshot, so the
     // tray and the taskbar each stand at one height instead of at the theme's
     // spread of them, and both stand at the same one.
-    //
-    // Twelve rather than fourteen because these sit in the same pills as the
-    // bar's own glyphs, whose ink is ten, and artwork that reached four pixels
-    // past them read as a different class of thing rather than as the same row.
-    readonly property real iconInk: 0.875
+    readonly property real iconInk: 16 / 18
     // The same for a drawing that stands in a glyph's slot (see Glyph): held
     // to twelve pixels, between the glyphs' ten and the tray's artwork, so a
     // row that mixes the two reads as one hand rather than two sizes.

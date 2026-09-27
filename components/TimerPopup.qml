@@ -147,6 +147,7 @@ Popup {
                 x: 2
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.modelData.glyph
+                fontSize: Theme.popupGlyphSize
                 implicitHeight: root.rowHeight
                 color: row.modelData.warn ? Theme.warn : Theme.fg
                 opacity: row.modelData.dim ? 0.45 : 1

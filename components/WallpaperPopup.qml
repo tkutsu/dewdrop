@@ -335,7 +335,7 @@ Popup {
             anchors.verticalCenter: parent.verticalCenter
             text: Wallpaper.drift ? Theme.glyph.taskDone : Theme.glyph.taskOpen
             font.family: Theme.glyphFont
-            font.pixelSize: Theme.glyphSize
+            font.pixelSize: Theme.popupGlyphSize
             color: Wallpaper.drift || driftHover.hovered ? Theme.fg : Theme.label2
         }
 

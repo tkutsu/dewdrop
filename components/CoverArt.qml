@@ -167,7 +167,7 @@ Item {
             color: Theme.menuText
             opacity: 0.6
             font.family: Theme.bodyFont
-            font.pixelSize: Theme.textSize
+            font.pixelSize: Theme.captionSize
             font.weight: Theme.bodyWeight
             wrapMode: Text.WordWrap
             maximumLineCount: 2

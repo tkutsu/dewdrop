@@ -421,7 +421,7 @@ OverlayWindow {
                         text: card.n?.appName || "Notification"
                         color: Theme.label2
                         font.family: Theme.bodyFont
-                        font.pixelSize: Theme.textSize
+                        font.pixelSize: Theme.captionSize
                         elide: Text.ElideRight
                     }
 
@@ -433,7 +433,7 @@ OverlayWindow {
                         color: Theme.label3
                         font.family: Theme.bodyFont
                         font.features: Theme.figures
-                        font.pixelSize: Theme.textSize
+                        font.pixelSize: Theme.captionSize
                     }
                 }
 
@@ -491,7 +491,7 @@ OverlayWindow {
                                 text: action.modelData.text
                                 color: Theme.label
                                 font.family: Theme.bodyFont
-                                font.pixelSize: Theme.textSize
+                                font.pixelSize: Theme.captionSize
                             }
 
                             MouseArea {
