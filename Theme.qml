@@ -498,6 +498,12 @@ Singleton {
         // nf-md-lock_open_variant_outline).
         vpn: "\u{f0341}",
         vpnOff: "\u{f0fc7}",
+        // blueman, whose theme drawing is a thin rune in the theme's own blue
+        // and narrow enough to read a size down once scaled to the row. On or
+        // off only, struck through like the cone (nf-md-bluetooth,
+        // nf-md-bluetooth_off).
+        bluetooth: "\u{f00af}",
+        bluetoothOff: "\u{f00b2}",
 
         // The timer module. A countdown and an alarm are the same machine
         // pointed at different things — a span versus an instant — so they are

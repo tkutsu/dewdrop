@@ -53,6 +53,12 @@ BarItem {
             return Theme.glyph.wifiOff;
         if (name.includes("nm-device-wired"))
             return name.includes("offline") ? Theme.glyph.wiredOff : Theme.glyph.wired;
+        // blueman renames its icon with its state — blueman-tray,
+        // blueman-active once something is connected, blueman-disabled with
+        // the radio off. Connected is not told apart from on: the tooltip and
+        // the menu say which device, where it is read rather than glimpsed.
+        if (name.includes("blueman"))
+            return name.includes("disabled") ? Theme.glyph.bluetoothOff : Theme.glyph.bluetooth;
         return "";
     }
 
@@ -79,14 +85,6 @@ BarItem {
 
             // Empty when the theme's own artwork is what gets drawn.
             readonly property string glyph: root.glyphFor(modelData)
-
-            // blueman renames its icon with its state — blueman-tray,
-            // blueman-active once something is connected, blueman-disabled
-            // with the radio off — and the theme draws the three differently,
-            // so the icon changed shape every time a headset came and went.
-            // One drawing, whatever the state: the state is in the tooltip
-            // and the menu, where it is read rather than glimpsed.
-            readonly property string iconSource: String(modelData.icon).replace(/blueman-[a-z-]+/, "blueman-tray")
 
             // A tray app says it is switched off by renaming its icon —
             // blueman-disabled, nm-no-connection, anything wired "-offline" —
@@ -128,7 +126,7 @@ BarItem {
                 x: -inkX
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !entry.glyph
-                source: entry.glyph ? "" : entry.iconSource
+                source: entry.glyph ? "" : entry.modelData.icon
                 // Everything here used to be drawn at one size, on the theme's
                 // promise that a panel icon brings its own margin — with a
                 // guess knocked off for apps publishing a pixmap, which hand
