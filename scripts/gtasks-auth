@@ -44,7 +44,10 @@ TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 TASKS_API = "https://tasks.googleapis.com/tasks/v1"
 CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
-DEST = os.path.expanduser("~/.local/share/quickshell/gtasks.json")
+# Paths.data("gtasks.json") on the shell side: the same XDG rule.
+DEST = os.path.join(
+    os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "quickshell", "gtasks.json"
+)
 
 DONE_PAGE = b"""<!doctype html><meta charset="utf-8">
 <title>Connected</title>

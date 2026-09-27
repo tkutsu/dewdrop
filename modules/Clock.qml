@@ -77,7 +77,7 @@ BarItem {
     }
 
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gcalendar.sh"]),
+            [Qt.LeftButton]: () => Quickshell.execDetached([Paths.script("pwa-gcalendar.sh")]),
             [Qt.MiddleButton]: () => {
                 // was: t=$(date '+%F %T'); wl-copy; notify-send
                 // Not clock.date: that one only moves on the minute now, and a

@@ -209,7 +209,7 @@ Popup {
                     anchors.fill: parent
                     color: "transparent"
                     border.width: 1
-                    border.color: cell.current ? Theme.fg : (hover.hovered ? Qt.rgba(1, 1, 1, 0.5) : "transparent")
+                    border.color: cell.current ? Theme.fg : (hover.hovered ? Theme.outlineHover : "transparent")
                 }
 
                 HoverHandler {
@@ -240,7 +240,7 @@ Popup {
                 border.width: 1
                 // Lit the same way a thumbnail is, and for the same reason:
                 // this is what is on screen right now.
-                border.color: Wallpaper.color === root.hex ? Theme.fg : (swatchHover.hovered ? Qt.rgba(1, 1, 1, 0.5) : Qt.rgba(1, 1, 1, 0.3))
+                border.color: Wallpaper.color === root.hex ? Theme.fg : (swatchHover.hovered ? Theme.outlineHover : Theme.outline)
 
                 HoverHandler {
                     id: swatchHover
@@ -259,7 +259,7 @@ Popup {
                 width: root.swatchWidth
                 horizontalAlignment: Text.AlignHCenter
                 text: root.hex
-                font.pixelSize: 11
+                font.pixelSize: Theme.captionSize
             }
         }
 

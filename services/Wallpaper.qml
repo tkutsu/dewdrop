@@ -23,7 +23,7 @@ Singleton {
     // scripts/wallpaper-thumbs, looked up by path. A file with no entry yet —
     // the first time the folder is seen, or one just dropped into it — is
     // drawn from the original until its thumbnail lands.
-    readonly property string thumbDir: Quickshell.env("HOME") + "/.cache/quickshell/wallpaper-thumbs"
+    readonly property string thumbDir: Paths.cache("wallpaper-thumbs")
     property var thumbs: ({})
 
     function thumbOf(path) {
@@ -72,7 +72,7 @@ Singleton {
     // that going back to a colour is one click rather than mixing it again. It
     // outlives `color`, which is cleared the moment an image goes up.
     property string lastColor: ""
-    readonly property string colorPath: Quickshell.env("HOME") + "/.cache/quickshell-wallpaper-color.png"
+    readonly property string colorPath: Paths.cache("wallpaper-color.png")
 
     // Whether a flat colour drifts with the time of day: warmer towards dusk,
     // darker through the night, itself again by mid-morning — the way a

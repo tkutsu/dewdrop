@@ -26,7 +26,6 @@ Popup {
     // Wider than it was, because the text is no longer allowed to run off the
     // end: the width is what decides how often a task needs a second line.
     readonly property int bodyWidth: 300
-    readonly property int rowTextSize: Theme.popupTextSize - 1
     readonly property int rowPad: 4
     // The head of a row: the dot, and the air between it and the text.
     readonly property int gutter: 16
@@ -135,7 +134,7 @@ Popup {
                 y: Math.round((row.height - implicitHeight) / 2)
                 width: root.bodyWidth - root.gutter - root.dayWidth - 6
                 text: row.modelData.title
-                font.pixelSize: root.rowTextSize
+                font.pixelSize: Theme.captionSize
                 opacity: 0.9
                 wrapMode: Text.WordWrap
             }
@@ -165,7 +164,7 @@ Popup {
                         return "";
                     return Tasks.sayDay(day);
                 }
-                font.pixelSize: root.rowTextSize - 1
+                font.pixelSize: Theme.footnoteSize
                 color: Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.fg
                 opacity: Tasks.urgency(row.modelData) === "late" ? 0.75 : 0.4
                 elide: Text.ElideRight
@@ -177,7 +176,7 @@ Popup {
         width: root.bodyWidth
         visible: root.rows.length > root.cap
         text: `    … and ${root.rows.length - root.cap} more`
-        font.pixelSize: root.rowTextSize - 1
+        font.pixelSize: Theme.footnoteSize
         opacity: 0.45
     }
 
@@ -214,8 +213,8 @@ Popup {
                     framed: true
                     glyph: Theme.glyph.undo
                     label: "undo"
-                    glyphSize: Theme.popupTextSize - 1
-                    textSize: root.rowTextSize - 1
+                    glyphSize: Theme.captionSize
+                    textSize: Theme.footnoteSize
                     onTapped: Tasks.restore(Tasks.undoable[modelData].task)
                 }
             }
@@ -228,7 +227,7 @@ Popup {
             text: Tasks.trouble
             visible: Tasks.trouble !== "" && Tasks.trouble !== Google.reconnect
             color: Theme.warn
-            font.pixelSize: root.rowTextSize - 1
+            font.pixelSize: Theme.footnoteSize
             opacity: 0.8
             elide: Text.ElideRight
             width: Math.min(implicitWidth, root.bodyWidth - 130, parent.width - ends.width - 8)
@@ -243,7 +242,7 @@ Popup {
 
             ReconnectButton {
                 height: root.footHeight
-                textSize: root.rowTextSize - 1
+                textSize: Theme.footnoteSize
             }
 
             PopupButton {
@@ -252,7 +251,7 @@ Popup {
                 height: root.footHeight
                 framed: true
                 glyph: Theme.glyph.plus
-                glyphSize: Theme.popupTextSize - 1
+                glyphSize: Theme.captionSize
                 onTapped: Launcher.openWith(Launcher.taskPrefix)
             }
         }

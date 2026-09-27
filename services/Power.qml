@@ -14,7 +14,7 @@ import qs
 Singleton {
     id: root
 
-    readonly property string script: Quickshell.env("HOME") + "/_scripts/power.sh"
+    readonly property string script: Paths.script("power.sh")
 
     // Whether the menu is wanted on screen. Everything that opens or closes the
     // menu goes through here rather than reaching for the window.

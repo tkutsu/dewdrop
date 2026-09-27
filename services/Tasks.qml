@@ -115,7 +115,7 @@ GoogleService {
 
     readonly property string tooltip: {
         if (!root.configured)
-            return "Google Tasks not connected\nRun ~/_scripts/gtasks-setup";
+            return `Google Tasks not connected\nRun ${Google.setup}`;
         if (root.trouble !== "")
             return root.trouble;
         if (!root.loaded)
@@ -360,7 +360,7 @@ GoogleService {
 
     function preview(text: string): string {
         if (!root.configured)
-            return "Google Tasks not connected — run ~/_scripts/gtasks-setup";
+            return `Google Tasks not connected — run ${Google.setup}`;
         const p = root.parse(text);
         if (p.title === "" && p.day === "")
             return "";
@@ -407,7 +407,7 @@ GoogleService {
 
         function list(): string {
             if (!root.configured)
-                return "Not connected. Run ~/_scripts/gtasks-setup";
+                return `Not connected. Run ${Google.setup}`;
             if (!root.loaded)
                 return root.trouble !== "" ? root.trouble : "Connecting…";
             const out = [];

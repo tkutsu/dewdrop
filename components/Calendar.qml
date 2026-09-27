@@ -41,7 +41,6 @@ Popup {
     readonly property int firstDay: locale.firstDayOfWeek
 
     readonly property real cell: 24
-    readonly property int fontSize: Theme.popupTextSize
 
     // Google Calendar, the same app the clock's own click opens (see
     // ~/_scripts/pwa-gcalendar.sh, which holds this id too), but pointed at
@@ -78,7 +77,7 @@ Popup {
             // Up a pixel: the guillemet sits high in Inter's box.
             anchors.verticalCenterOffset: -1
             opacity: arrowHover.hovered ? 1 : 0.6
-            font.pixelSize: root.fontSize + 4
+            font.pixelSize: Theme.popupTextSize + 4
         }
 
         HoverHandler {
@@ -285,7 +284,7 @@ Popup {
                         verticalAlignment: Text.AlignVCenter
                         text: Agenda.sayTime(modelData)
                         color: modelData.allDay ? Theme.label3 : Theme.label2
-                        font.pixelSize: root.fontSize - 1
+                        font.pixelSize: Theme.captionSize
                     }
 
                     PopupText {
@@ -304,7 +303,7 @@ Popup {
                 verticalAlignment: Text.AlignVCenter
                 text: `+${parent.events.length - root.listRows} more`
                 color: Theme.label3
-                font.pixelSize: root.fontSize - 1
+                font.pixelSize: Theme.captionSize
             }
         }
 
@@ -312,7 +311,7 @@ Popup {
         // the reason it is empty is already written.
         ReconnectButton {
             height: 20
-            textSize: root.fontSize - 2
+            textSize: Theme.footnoteSize
         }
     }
 }

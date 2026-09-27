@@ -117,8 +117,15 @@ Singleton {
     // resolved here once instead of rounding into a blurry 13 at each call site.
     readonly property int textSize: 12
     // The popups' secondary lines — a notification's app and age, the
-    // launcher's right-hand hint — one step under their 12px body text.
-    readonly property int captionSize: 11
+    // launcher's right-hand hint, a list's rows — one step under their body
+    // text (popupTextSize), and moving with it.
+    readonly property int captionSize: popupTextSize - 1
+    // A step under that again: what is read after the row it belongs to — a
+    // row's date, "… and 3 more", the labels on a popup's foot buttons.
+    readonly property int footnoteSize: captionSize - 1
+    // The / mode's preview of a file's contents, in the mono face: small
+    // enough to show a file's shape rather than to be read line by line.
+    readonly property int previewTextSize: 9
     // Text that has to hold its own in a row of icons rather than stand alone
     // (the language label, the launcher's rows). The same 12 as textSize now
     // that the bar's text came down to 12 too; kept as its own name because
@@ -272,6 +279,9 @@ Singleton {
     // fading to almost nothing by the bottom one. See components/Rim.qml.
     readonly property color rimTop: Qt.rgba(1, 1, 1, 0.2)
     readonly property color rimBottom: Qt.rgba(1, 1, 1, 0.03)
+    // A touch under the popups' rim: a pill sits on the wallpaper rather than
+    // over a window, and needs less edge to read as one.
+    readonly property color pillRimTop: Qt.rgba(1, 1, 1, 0.15)
 
     // The soft shadow under everything that floats over a window: popups, the
     // launcher, the power menu. Not the pills, which sit on the wallpaper
@@ -290,6 +300,35 @@ Singleton {
     // Lighter than the surface rather than darker, which is which way round
     // macOS does it on a dark material.
     readonly property color selection: Qt.rgba(1, 1, 1, 0.12)
+    // One step past it: a toggle that is on, or the pointer on a button that
+    // already sits on a selection fill (the notification centre's).
+    readonly property color selectionStrong: Qt.rgba(1, 1, 1, 0.2)
+
+    // Outlines round a thing you can pick — the wallpaper popup's thumbnails
+    // and swatch: none, or `outline`, at rest, `outlineHover` under the
+    // pointer, and `fg` once it is the one on screen.
+    readonly property color outline: Qt.rgba(1, 1, 1, 0.3)
+    readonly property color outlineHover: Qt.rgba(1, 1, 1, 0.5)
+
+    // The empty frame a picture is drawn into, there whether or not the
+    // picture is: album art, a folder's cover.
+    readonly property color well: Qt.rgba(1, 1, 1, 0.06)
+    // The dark fade laid over the foot of a picture so controls read on it.
+    readonly property color scrim: Qt.rgba(0, 0, 0, 0.72)
+
+    // The empty part of a readout bar (the system popup's meters and cores),
+    // quiet enough that an empty one is not a bright line, and of a slider,
+    // which is a control and a step brighter.
+    readonly property color meterTrack: Qt.rgba(1, 1, 1, 0.12)
+    readonly property color sliderTrack: Qt.rgba(1, 1, 1, 0.2)
+    // A slider's knob is `fg` with a dark edge. On a gradient track it crosses
+    // white, yellow and black, so there the edge is darker still.
+    readonly property color knobEdge: Qt.rgba(0, 0, 0, 0.35)
+    readonly property color markerEdge: Qt.rgba(0, 0, 0, 0.7)
+
+    // A handle on other things rather than a thing (the drawer's chevron):
+    // fainter than the glyphs it opens onto, so it does not read as a status.
+    readonly property color handle: Qt.rgba(1, 1, 1, 0.4)
 
     // A row that is not the selected one carries its text one step down the
     // label scale; the selected one comes up to primary. That is the whole
@@ -302,6 +341,13 @@ Singleton {
     // the way round, which is most of the disc there is.
     readonly property color badgeBg: "#1a1a1a"
     readonly property color badgeFg: "white"
+
+    // The ✕ disc on a notification card's corner: the badge's dark disc a step
+    // lighter, ringed because it sits half off the card, over whatever is
+    // behind it.
+    readonly property color closeBg: "#262626"
+    readonly property color closeBgHover: "#3a3a3a"
+    readonly property color closeRing: Qt.rgba(1, 1, 1, 0.15)
 
     readonly property color warn: "#ff88aa"
 

@@ -116,7 +116,7 @@ Popup {
                 height: root.iconBox
                 visible: row.hovered
                 glyph: Theme.glyph.close
-                glyphSize: Theme.popupTextSize - 1
+                glyphSize: Theme.captionSize
                 onTapped: {
                     root.hold(1500);
                     row.modelData.dismiss();

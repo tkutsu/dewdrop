@@ -623,7 +623,7 @@ Singleton {
     //
     // A missing file costs a warning on fd's stderr, which nothing here reads,
     // and an unfiltered walk. The mode gets noisy rather than breaking.
-    readonly property string fdIgnore: Quickshell.env("HOME") + "/_scripts/f/ignore"
+    readonly property string fdIgnore: Paths.script("f/ignore")
 
     // A slash separates terms the same way a space does, so a path can be
     // described either way round: "downloads torrents" and "downloads/torrents"
@@ -668,7 +668,7 @@ Singleton {
         // would all come from whichever one fd reached first. The ranking
         // below still puts a name match over a path match; this is about
         // giving it enough to rank.
-        command: ["timeout", "5", "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Quickshell.env("HOME")])
+        command: ["timeout", "5", "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
 
         onResult: function (arg, text) {
             root.fdHits = ({
@@ -684,7 +684,7 @@ Singleton {
     }
 
     function tildeHome(path) {
-        const home = Quickshell.env("HOME");
+        const home = Settings.home;
         return home && path.startsWith(home) ? "~" + path.slice(home.length) : path;
     }
 
@@ -776,7 +776,7 @@ Singleton {
                 {
                     kind: "note",
                     glyph: Theme.glyph.tasks,
-                    title: "Google Tasks not connected — run ~/_scripts/gtasks-setup",
+                    title: `Google Tasks not connected — run ${Google.setup}`,
                     raw: true,
                     subtitle: ""
                 }

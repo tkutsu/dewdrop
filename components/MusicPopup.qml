@@ -10,7 +10,6 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int fontSize: Theme.popupTextSize
     readonly property int columnWidth: 290
     // The two tracks run between the same two points: an icon's width of
     // gutter on the left, a readout's on the right. The volume has something
@@ -40,7 +39,6 @@ Popup {
     // in without it becoming a window of its own.
     readonly property int rowHeight: 22
     readonly property int visibleRows: 8
-    readonly property int rowTextSize: fontSize - 1
 
     // A row's controls are boxes rather than bare glyphs, and they are laid
     // side by side with nothing between them. A glyph is about eight pixels of
@@ -65,7 +63,7 @@ Popup {
         Rectangle {
             width: root.artSize
             height: root.artSize
-            color: Qt.rgba(1, 1, 1, 0.06)
+            color: Theme.well
 
             Image {
                 id: cover
@@ -96,11 +94,11 @@ Popup {
                 gradient: Gradient {
                     GradientStop {
                         position: 0
-                        color: Qt.rgba(0, 0, 0, 0)
+                        color: "transparent"
                     }
                     GradientStop {
                         position: 1
-                        color: Qt.rgba(0, 0, 0, 0.72)
+                        color: Theme.scrim
                     }
                 }
 
@@ -222,12 +220,12 @@ Popup {
                 // the track it is a question about.
                 Item {
                     width: root.gutter
-                    height: root.fontSize + 4
+                    height: Theme.popupTextSize + 4
 
                     Glyph {
                         anchors.centerIn: parent
                         text: Mpd.repeatIcon
-                        fontSize: root.fontSize - 1
+                        fontSize: Theme.captionSize
                         implicitHeight: parent.height
                         opacity: Mpd.repeatMode === "off" ? 0.3 : 1
                     }
@@ -252,7 +250,7 @@ Popup {
                     horizontalAlignment: Text.AlignRight
                     text: `${Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}`
                     opacity: 0.75
-                    font.pixelSize: root.fontSize - 1
+                    font.pixelSize: Theme.captionSize
                 }
             }
 
@@ -265,12 +263,12 @@ Popup {
 
                 Item {
                     width: root.gutter
-                    height: root.fontSize + 4
+                    height: Theme.popupTextSize + 4
 
                     Glyph {
                         anchors.centerIn: parent
                         text: Mpd.volumeIcon
-                        fontSize: root.fontSize - 1
+                        fontSize: Theme.captionSize
                         implicitHeight: parent.height
                         // Lit while it is the thing standing between you and
                         // the music, quiet while it is only a label for the
@@ -296,7 +294,7 @@ Popup {
                     horizontalAlignment: Text.AlignRight
                     text: Math.max(0, Mpd.volume) + "%"
                     opacity: 0.75
-                    font.pixelSize: root.fontSize - 1
+                    font.pixelSize: Theme.captionSize
                 }
             }
 
@@ -344,7 +342,7 @@ Popup {
                 anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: Mpd.playlistsOpen ? Theme.glyph.sectionOpen : Theme.glyph.sectionShut
-                fontSize: root.rowTextSize - 1
+                fontSize: Theme.footnoteSize
                 implicitHeight: root.rowHeight
                 opacity: 0.5
             }
@@ -356,7 +354,7 @@ Popup {
                 anchors.leftMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
                 text: "playlists"
-                font.pixelSize: root.rowTextSize
+                font.pixelSize: Theme.captionSize
                 opacity: 0.8
             }
 
@@ -365,7 +363,7 @@ Popup {
                 anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: String(Mpd.playlists.length)
-                font.pixelSize: root.rowTextSize - 1
+                font.pixelSize: Theme.footnoteSize
                 opacity: 0.4
             }
         }
@@ -407,7 +405,7 @@ Popup {
                         verticalCenter: parent.verticalCenter
                     }
                     text: entry.modelData
-                    font.pixelSize: root.rowTextSize
+                    font.pixelSize: Theme.captionSize
                     opacity: 0.8
                     elide: Text.ElideRight
                 }
@@ -555,7 +553,7 @@ Popup {
                 horizontalAlignment: Text.AlignRight
                 text: row.current ? Mpd.stateIcon : String(row.index + 1)
                 font.family: row.current ? Theme.glyphFont : Theme.bodyFont
-                font.pixelSize: root.rowTextSize - 1
+                font.pixelSize: Theme.footnoteSize
                 opacity: row.current ? 1 : 0.4
             }
 
@@ -579,7 +577,7 @@ Popup {
                     // same name in a queue are told apart by who plays them.
                     width: Math.min(implicitWidth, row.modelData.artist ? line.width * 0.62 : line.width)
                     text: row.modelData.title
-                    font.pixelSize: root.rowTextSize
+                    font.pixelSize: Theme.captionSize
                     font.weight: row.current ? Font.DemiBold : Font.Normal
                     opacity: row.current ? 1 : 0.8
                     elide: Text.ElideRight
@@ -593,7 +591,7 @@ Popup {
                         verticalCenter: parent.verticalCenter
                     }
                     text: row.modelData.artist
-                    font.pixelSize: root.rowTextSize
+                    font.pixelSize: Theme.captionSize
                     opacity: 0.45
                     elide: Text.ElideRight
                 }
@@ -618,7 +616,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !row.hovered
                     text: Mpd.clock(row.modelData.duration)
-                    font.pixelSize: root.rowTextSize - 1
+                    font.pixelSize: Theme.footnoteSize
                     opacity: 0.4
                 }
 
@@ -685,7 +683,7 @@ Popup {
             height: root.rowHeight - 2
             framed: true
             glyph: Theme.glyph.plus
-            glyphSize: Theme.popupTextSize - 1
+            glyphSize: Theme.captionSize
             onTapped: Launcher.openWith(Launcher.musicPrefix)
         }
     }

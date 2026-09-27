@@ -33,7 +33,7 @@ Singleton {
     FileView {
         id: file
 
-        path: Quickshell.env("HOME") + "/.local/state/quickshell/drawer.json"
+        path: Paths.state("drawer.json")
         printErrors: false
         onLoaded: root.pins = stored.pins
         onLoadFailed: file.writeAdapter()

@@ -308,7 +308,7 @@ Singleton {
     FileView {
         id: state
 
-        path: Quickshell.env("HOME") + "/.local/state/quickshell/notifications.json"
+        path: Paths.state("notifications.json")
         printErrors: false
         onLoaded: root.dnd = stored.dnd
         onLoadFailed: state.writeAdapter()

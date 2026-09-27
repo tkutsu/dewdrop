@@ -521,7 +521,7 @@ Singleton {
     FileView {
         id: file
 
-        path: Quickshell.env("HOME") + "/.local/state/quickshell/timers.json"
+        path: Paths.state("timers.json")
         printErrors: false
 
         onLoaded: root.adopt()

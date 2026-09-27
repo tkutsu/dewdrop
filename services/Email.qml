@@ -68,7 +68,7 @@ GoogleService {
 
     readonly property string tooltip: {
         if (!root.configured)
-            return "Gmail not connected\nRun ~/_scripts/gtasks-setup";
+            return `Gmail not connected\nRun ${Google.setup}`;
         if (root.trouble !== "")
             return root.trouble;
         if (!root.loaded)
@@ -335,7 +335,7 @@ GoogleService {
     // read on open, and the poll that confirms that is up to 30s away.
     function open(thread: var): void {
         root.drop(thread);
-        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh", `${root.web}#inbox/${thread.id}`]);
+        Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}#inbox/${thread.id}`]);
     }
 
     // Read without opening it: the UNREAD label off every message in the
@@ -363,12 +363,12 @@ GoogleService {
     }
 
     function openInbox(): void {
-        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh"]);
+        Quickshell.execDetached([Paths.script("pwa-gmail.sh")]);
     }
 
     // A new mail, in its own Gmail app window.
     function compose(): void {
-        Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gmail.sh", `${root.web}?view=cm&fs=1`]);
+        Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}?view=cm&fs=1`]);
     }
 
     // qs ipc call email …

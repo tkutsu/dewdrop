@@ -8,7 +8,6 @@ import qs.services
 // custom/updater. The upgrade itself still runs taskbar-update.sh in a kitty
 // window — that half of the script is the action, not bar plumbing.
 BarItem {
-    readonly property string scripts: Quickshell.env("HOME") + "/_scripts"
 
     popup: UpdatesPopup {}
     quiet: Updates.pending === 0
@@ -32,7 +31,7 @@ BarItem {
 
     // Cleaning up is the button at the foot of the popup, not a click.
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([scripts + "/taskbar-update.sh"]),
+            [Qt.LeftButton]: () => Quickshell.execDetached([Paths.script("taskbar-update.sh")]),
             [Qt.RightButton]: () => Updates.refresh()
         })
 }

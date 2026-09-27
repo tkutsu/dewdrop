@@ -24,7 +24,7 @@ Item {
         width: parent.width
         height: root.trackGradient ? root.height : root.trackHeight
         radius: height / 2
-        color: root.trackGradient ? "transparent" : Qt.rgba(1, 1, 1, 0.2)
+        color: root.trackGradient ? "transparent" : Theme.sliderTrack
         gradient: root.trackGradient
 
         Rectangle {
@@ -47,7 +47,7 @@ Item {
         x: Math.max(0, Math.min(root.width - width, root.value * root.width - width / 2))
         color: Theme.fg
         border.width: Theme.pillBorder
-        border.color: Qt.rgba(0, 0, 0, 0.35)
+        border.color: Theme.knobEdge
     }
 
     Rectangle {
@@ -59,10 +59,8 @@ Item {
         // is as readable as the ones in the middle.
         x: Math.max(0, Math.min(root.width - width, root.value * root.width - width / 2))
         color: Theme.fg
-        // The marker crosses white, yellow and black on the same track; an
-        // outline is what keeps it from vanishing into one of them.
         border.width: 1
-        border.color: Qt.rgba(0, 0, 0, 0.7)
+        border.color: Theme.markerEdge
     }
 
     MouseArea {

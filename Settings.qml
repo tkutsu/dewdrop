@@ -39,6 +39,7 @@ Singleton {
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
+    readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")
 
     // A module off is gone from the bar, not put in the drawer. Keyed as
     // BarItem.settingsKey; one the file does not mention is on.

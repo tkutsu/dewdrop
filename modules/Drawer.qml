@@ -58,9 +58,7 @@ BarItem {
             origin.x: chevron.width / 2
             xScale: 1 - 2 * root.turned
         }
-        // Fainter than the modules' own glyphs: it is a handle on them, not
-        // one of them, and it should not read as another status.
-        color: Qt.rgba(1, 1, 1, 0.4)
+        color: Theme.handle
     }
 
     actions: ({

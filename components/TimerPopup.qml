@@ -14,7 +14,6 @@ Popup {
 
     readonly property int bodyWidth: 236
     readonly property int rowHeight: 22
-    readonly property int rowTextSize: Theme.popupTextSize - 1
 
     // The readout is a fixed column rather than as wide as what it says. It
     // changes every second, and a popup that sized itself to it would ask the
@@ -163,7 +162,7 @@ Popup {
                 }
                 text: row.modelData.title
                 color: row.modelData.warn ? Theme.warn : Theme.fg
-                font.pixelSize: root.rowTextSize
+                font.pixelSize: Theme.captionSize
                 opacity: row.modelData.dim ? 0.45 : 0.9
                 elide: Text.ElideRight
             }
@@ -184,7 +183,7 @@ Popup {
                 // The one thing on a row that moves. A binding here rather
                 // than a value in the model is what keeps the row itself still.
                 text: row.modelData.entry ? Timers.clock(Timers.remaining(row.modelData.entry)) : row.modelData.readout
-                font.pixelSize: root.rowTextSize
+                font.pixelSize: Theme.captionSize
                 opacity: row.modelData.dim ? 0.45 : 0.75
             }
 
@@ -235,7 +234,7 @@ Popup {
             height: root.rowHeight - 2
             framed: true
             glyph: Theme.glyph.plus
-            glyphSize: Theme.popupTextSize - 1
+            glyphSize: Theme.captionSize
             onTapped: Launcher.openWith(Launcher.timerPrefix)
         }
     }

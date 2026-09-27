@@ -47,6 +47,9 @@ Singleton {
 
     readonly property string reconnect: "Google needs reconnecting"
 
+    // The one-time sign-in, as the messages name it for you to go and run.
+    readonly property string setup: Paths.script("gtasks-setup").replace(Settings.home, "~")
+
     // Whether the sign-in needs you: there are no credentials, the refresh
     // token is dead, or a request came back 403 for a scope the token was
     // never granted (one added to gtasks-auth since). All three are cured by
@@ -255,7 +258,7 @@ Singleton {
     FileView {
         id: credentials
 
-        path: Quickshell.env("HOME") + "/.local/share/quickshell/gtasks.json"
+        path: Paths.data("gtasks.json")
         printErrors: false
 
         onLoaded: root.ready()

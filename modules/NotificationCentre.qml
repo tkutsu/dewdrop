@@ -288,7 +288,7 @@ OverlayWindow {
         width: buttonRow.implicitWidth + 20
         height: 26
         radius: height / 2
-        color: button.lit ? Qt.rgba(1, 1, 1, 0.2) : (buttonArea.containsMouse ? Theme.selection : "transparent")
+        color: button.lit ? Theme.selectionStrong : (buttonArea.containsMouse ? Theme.selection : "transparent")
 
         Row {
             id: buttonRow
@@ -656,7 +656,7 @@ OverlayWindow {
                             width: actionText.implicitWidth + 20
                             height: 24
                             radius: height / 2
-                            color: actionArea.containsMouse ? Qt.rgba(1, 1, 1, 0.2) : Theme.selection
+                            color: actionArea.containsMouse ? Theme.selectionStrong : Theme.selection
 
                             Text {
                                 id: actionText
@@ -713,9 +713,9 @@ OverlayWindow {
             height: 20
             radius: width / 2
             visible: hover.hovered
-            color: closeArea.containsMouse ? "#3a3a3a" : "#262626"
+            color: closeArea.containsMouse ? Theme.closeBgHover : Theme.closeBg
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.15)
+            border.color: Theme.closeRing
 
             Text {
                 anchors.centerIn: parent

@@ -95,7 +95,7 @@ Item {
         Rectangle {
             width: parent.width
             height: parent.width
-            color: Qt.rgba(1, 1, 1, 0.06)
+            color: Theme.well
             radius: 3
             clip: true
 

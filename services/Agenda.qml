@@ -220,7 +220,7 @@ GoogleService {
 
         function today(): string {
             if (!root.configured)
-                return "Not connected. Run ~/_scripts/gtasks-setup";
+                return `Not connected. Run ${Google.setup}`;
             if (!root.loaded)
                 return root.trouble !== "" ? root.trouble : "Connecting…";
             const out = root.todays.map(ev => `${root.sayTime(ev)}  ${ev.title}`);

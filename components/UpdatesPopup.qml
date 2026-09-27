@@ -8,7 +8,6 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int fontSize: Theme.popupTextSize
     readonly property int shown: 14
 
     readonly property var entries: Updates.officialList.concat(Updates.aurList)
@@ -42,11 +41,11 @@ Popup {
                     // versions are the detail, so they are dimmed rather than cut.
                     text: {
                         const parts = modelData.split(" ");
-                        return `${parts[0]}  <font color="#888888">${parts.slice(1).join(" ")}</font>`;
+                        return `${parts[0]}  <font color="${Theme.label2}">${parts.slice(1).join(" ")}</font>`;
                     }
                     textFormat: Text.StyledText
                     font.family: Theme.monoFont
-                    font.pixelSize: root.fontSize - 1
+                    font.pixelSize: Theme.captionSize
                 }
             }
 
@@ -54,7 +53,7 @@ Popup {
                 visible: root.entries.length > root.shown
                 text: `… and ${root.entries.length - root.shown} more`
                 opacity: 0.6
-                font.pixelSize: root.fontSize - 1
+                font.pixelSize: Theme.captionSize
             }
         }
 
@@ -77,8 +76,8 @@ Popup {
 
                 glyph: Theme.glyph.refresh
                 label: Updates.loading ? "checking…" : "refresh"
-                glyphSize: root.fontSize - 1
-                textSize: root.fontSize - 1
+                glyphSize: Theme.captionSize
+                textSize: Theme.captionSize
                 onTapped: Updates.refresh()
             }
 
@@ -90,9 +89,9 @@ Popup {
 
                 glyph: Theme.glyph.cleanup
                 label: "clean up"
-                glyphSize: root.fontSize - 1
-                textSize: root.fontSize - 1
-                onTapped: Quickshell.execDetached(Settings.inTerminal([Quickshell.env("HOME") + "/_scripts/cleanup.sh"], "cleanup"))
+                glyphSize: Theme.captionSize
+                textSize: Theme.captionSize
+                onTapped: Quickshell.execDetached(Settings.inTerminal([Paths.script("cleanup.sh")], "cleanup"))
             }
         }
     }

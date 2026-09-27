@@ -15,7 +15,6 @@ Popup {
     id: root
 
     readonly property int bodyWidth: 320
-    readonly property int rowTextSize: Theme.popupTextSize - 1
     readonly property int rowPad: 4
     // The text's inset from the edge of the row's highlight.
     readonly property int inset: 6
@@ -109,7 +108,7 @@ Popup {
                         id: from
                         width: parent.width - root.whenWidth
                         text: row.modelData.from
-                        font.pixelSize: root.rowTextSize
+                        font.pixelSize: Theme.captionSize
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
@@ -118,7 +117,7 @@ Popup {
                         anchors.right: parent.right
                         anchors.baseline: from.baseline
                         text: Email.sayWhen(row.modelData.at)
-                        font.pixelSize: root.rowTextSize - 1
+                        font.pixelSize: Theme.footnoteSize
                         color: Theme.label2
                     }
                 }
@@ -133,7 +132,7 @@ Popup {
                         id: subject
                         width: Math.min(implicitWidth, parent.width)
                         text: row.modelData.subject
-                        font.pixelSize: root.rowTextSize
+                        font.pixelSize: Theme.captionSize
                         color: Theme.label
                         elide: Text.ElideRight
                     }
@@ -143,7 +142,7 @@ Popup {
                         visible: !row.isOpen && width > 30 && text !== ""
                         leftPadding: 6
                         text: row.modelData.snippet
-                        font.pixelSize: root.rowTextSize
+                        font.pixelSize: Theme.captionSize
                         color: Theme.label2
                         elide: Text.ElideRight
                     }
@@ -179,7 +178,7 @@ Popup {
 
                         width: parent.width
                         text: body.fetched !== undefined ? body.fetched : row.modelData.snippet + "…"
-                        font.pixelSize: root.rowTextSize
+                        font.pixelSize: Theme.captionSize
                         color: body.fetched !== undefined ? Theme.label : Theme.label3
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
@@ -194,7 +193,7 @@ Popup {
         leftPadding: root.inset
         visible: Email.loaded && Email.total > root.rows.length && root.rows.length > 0
         text: `… and ${Email.total - root.rows.length} more`
-        font.pixelSize: root.rowTextSize - 1
+        font.pixelSize: Theme.footnoteSize
         opacity: 0.45
     }
 
@@ -223,8 +222,8 @@ Popup {
                 framed: true
                 glyph: Theme.glyph.openApp
                 label: "open"
-                glyphSize: Theme.popupTextSize - 1
-                textSize: root.rowTextSize - 1
+                glyphSize: Theme.captionSize
+                textSize: Theme.footnoteSize
                 onTapped: Email.open(root.openRow)
             }
 
@@ -233,8 +232,8 @@ Popup {
                 framed: true
                 glyph: Theme.glyph.mailRead
                 label: "mark read"
-                glyphSize: Theme.popupTextSize - 1
-                textSize: root.rowTextSize - 1
+                glyphSize: Theme.captionSize
+                textSize: Theme.footnoteSize
                 // The row goes, the box shrinks, and the pointer is left
                 // below it; a moment's grace to bring it back to the list.
                 onTapped: {
@@ -251,7 +250,7 @@ Popup {
             text: Email.trouble
             visible: Email.trouble !== "" && Email.trouble !== Google.reconnect && !actions.visible
             color: Theme.warn
-            font.pixelSize: root.rowTextSize - 1
+            font.pixelSize: Theme.footnoteSize
             opacity: 0.8
             elide: Text.ElideRight
             width: Math.min(implicitWidth, parent.width - ends.width - 8)
@@ -266,7 +265,7 @@ Popup {
 
             ReconnectButton {
                 height: root.footHeight
-                textSize: root.rowTextSize - 1
+                textSize: Theme.footnoteSize
             }
 
             PopupButton {
@@ -274,7 +273,7 @@ Popup {
                 height: root.footHeight
                 framed: true
                 glyph: Theme.glyph.plus
-                glyphSize: Theme.popupTextSize - 1
+                glyphSize: Theme.captionSize
                 onTapped: Email.compose()
             }
         }

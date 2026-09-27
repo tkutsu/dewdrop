@@ -22,10 +22,9 @@ Popup {
     readonly property int w: 302
     // One below the rest of the popups rather than at their size: this one is
     // three sections of figures where they are a line or two, and it is the
-    // only place where a whole machine has to fit under a pointer. It is a
-    // step off the shared size rather than a number of its own, so it moves
-    // when that does.
-    readonly property int fontSize: Theme.popupTextSize - 1
+    // only place where a whole machine has to fit under a pointer. The caption
+    // size rather than a number of its own, so it moves when that does.
+    readonly property int fontSize: Theme.captionSize
     readonly property int rows: 5
 
     // The service only samples processes and the card while someone is
@@ -153,7 +152,7 @@ Popup {
 
         width: root.w
         height: 3
-        color: Qt.rgba(1, 1, 1, 0.12)
+        color: Theme.meterTrack
 
         Rectangle {
             width: Math.round(meter.width * Math.max(0, Math.min(1, meter.value)))
@@ -239,7 +238,7 @@ Popup {
 
                     width: cores.barWidth
                     height: 11
-                    color: Qt.rgba(1, 1, 1, 0.12)
+                    color: Theme.meterTrack
 
                     Rectangle {
                         anchors.bottom: parent.bottom

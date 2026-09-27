@@ -8,7 +8,6 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int fontSize: Theme.popupTextSize
 
     // The wheel anywhere on the popup moves the volume, in the same steps as
     // the wheel on the bar icon. Accumulated the same way BarItem does it, so
@@ -52,13 +51,13 @@ Popup {
                 // font size holds the widest of the five.
                 Item {
                     anchors.verticalCenter: parent.verticalCenter
-                    width: root.fontSize + 2
-                    height: root.fontSize + 4
+                    width: Theme.popupTextSize + 2
+                    height: Theme.popupTextSize + 4
 
                     Glyph {
                         height: parent.height
                         text: Audio.icon
-                        fontSize: root.fontSize
+                        fontSize: Theme.popupTextSize
                     }
                 }
 

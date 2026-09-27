@@ -19,7 +19,6 @@ import qs
 Singleton {
     id: root
 
-    readonly property string scripts: Quickshell.env("HOME") + "/_scripts"
 
     property bool on: false
     property int brightness: 100
@@ -31,11 +30,11 @@ Singleton {
     readonly property string tooltip: on ? "Night mode" : `Brightness ${brightness}%`
 
     function toggle() {
-        Quickshell.execDetached([scripts + "/display.sh", "toggle"]);
+        Quickshell.execDetached([Paths.script("display.sh"), "toggle"]);
     }
 
     function nudge(up) {
-        Quickshell.execDetached([scripts + "/display.sh", up ? "up" : "down"]);
+        Quickshell.execDetached([Paths.script("display.sh"), up ? "up" : "down"]);
     }
 
     // watchChanges only reports that the file moved; it does not re-read it, so

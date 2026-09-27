@@ -22,7 +22,7 @@ Item {
     // directory, an empty list, a mode that is not /.
     property string path: ""
 
-    readonly property string script: Quickshell.env("HOME") + "/_scripts/thumb.sh"
+    readonly property string script: Paths.script("thumb.sh")
 
     // What the script said for a path: { kind, payload }. Kept for the life
     // of the window rather than forever — the script has a real cache on
@@ -228,7 +228,7 @@ Item {
             textFormat: Text.PlainText
             color: Theme.menuText
             font.family: Theme.monoFont
-            font.pixelSize: 9
+            font.pixelSize: Theme.previewTextSize
             wrapMode: Text.NoWrap
         }
     }

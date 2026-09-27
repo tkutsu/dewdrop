@@ -25,7 +25,7 @@ Item {
     // than in a run of controls at the end of a row.
     property bool framed: false
     property int glyphSize: Theme.popupTextSize
-    property int textSize: Theme.popupTextSize - 1
+    property int textSize: Theme.captionSize
 
     readonly property bool hovered: hover.hovered
 
