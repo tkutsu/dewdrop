@@ -472,6 +472,15 @@ OverlayWindow {
                     radius: root.cardRadius
                     color: Theme.popupBg
 
+                    // A shade lighter than the card in front, which is all
+                    // that tells a sheet from that card's shadow.
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        color: Theme.selection
+                        opacity: 0.6
+                    }
+
                     Rim {
                         anchors.fill: parent
                         radius: parent.radius
