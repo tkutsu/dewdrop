@@ -673,7 +673,7 @@ OverlayWindow {
 
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: action.modelData.invoke()
+                                onClicked: Notifications.run(action.modelData)
                             }
                         }
                     }
