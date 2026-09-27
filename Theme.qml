@@ -528,7 +528,9 @@ Singleton {
         volLow: "\u{f057f}",
         volMed: "\u{f0580}",
         volHigh: "\u{f057e}",
-        audioOff: "\u{f075b}",
+        // No output to play through reads as the same struck-out speaker as
+        // muted, not the struck-out note it used to be (nf-md-volume_off).
+        audioOff: "\u{f0581}",
 
         playing: "\u{f040a}",
         paused: "\u{f03e4}",
