@@ -30,11 +30,9 @@ BarItem {
         badge: Updates.label
     }
 
-    onClicked: function (mouse) {
-        // Cleaning up is the button at the foot of the popup, not a click.
-        if (mouse.button === Qt.RightButton)
-            Updates.refresh();
-        else if (mouse.button === Qt.LeftButton)
-            Quickshell.execDetached([scripts + "/taskbar-update.sh"]);
-    }
+    // Cleaning up is the button at the foot of the popup, not a click.
+    actions: ({
+            [Qt.LeftButton]: () => Quickshell.execDetached([scripts + "/taskbar-update.sh"]),
+            [Qt.RightButton]: () => Updates.refresh()
+        })
 }

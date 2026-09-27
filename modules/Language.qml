@@ -17,10 +17,9 @@ BarItem {
         opticalCentre: true
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            Keyboard.next();
-    }
+    actions: ({
+            [Qt.LeftButton]: () => Keyboard.next()
+        })
 
     onScrollUp: Keyboard.prev()
     onScrollDown: Keyboard.next()

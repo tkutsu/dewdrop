@@ -4,8 +4,10 @@ import qs
 
 // The per-module shell: pointer handling, scroll accumulation and the hover
 // popup. Spacing is not its business — the bar's rows space their children
-// uniformly, so a module is exactly as wide as what it draws.
-MouseArea {
+// uniformly, so a module is exactly as wide as what it draws. What a click
+// does is the module's `actions`, a table from button to what it runs (see
+// ClickArea).
+ClickArea {
     id: root
 
     default property alias content: layout.data
@@ -115,7 +117,6 @@ MouseArea {
     Layout.fillHeight: true
 
     hoverEnabled: true
-    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     // config.jsonc sets "cursor": false on every module — no pointer hand.
     cursorShape: Qt.ArrowCursor
 
@@ -135,7 +136,9 @@ MouseArea {
         // together rather than one after the other.
         opacity: root._fold
         spacing: Theme.gap
-        transform: Translate { y: root.dips && root.pressed ? Theme.pressDip : 0 }
+        transform: Translate {
+            y: root.dips && (root.acting || pin.acting) ? Theme.pressDip : 0
+        }
     }
 
     // The pin mark: the badge's dark disc on the lower right corner, where the
@@ -169,15 +172,17 @@ MouseArea {
 
     // Middle click on a pinnable module is the pin and nothing else. A layer
     // on top that answers to the middle button alone takes it before the
-    // module's own onClicked can, so a module whose handler reads anything
-    // but right as left (the screenshot tool did) never fires on a pin;
-    // left, right, hover and the wheel all go on through to the module.
-    MouseArea {
+    // module's own actions can; left, right, hover and the wheel all go on
+    // through to the module.
+    ClickArea {
+        id: pin
         anchors.fill: parent
         enabled: root.pinKey !== ""
         acceptedButtons: Qt.MiddleButton
         cursorShape: Qt.ArrowCursor
-        onClicked: DrawerPins.toggle(root.pinKey)
+        actions: ({
+                [Qt.MiddleButton]: () => DrawerPins.toggle(root.pinKey)
+            })
     }
 
     onWheel: function (wheel) {

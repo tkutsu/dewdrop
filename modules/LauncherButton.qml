@@ -19,13 +19,12 @@ BarItem {
         text: Theme.glyph.launcher
     }
 
-    onClicked: function (mouse) {
-        // Left opens the launcher, right the power menu — as it always was,
-        // except both are ours now rather than rofi modes. Both toggle, so a
-        // second click closes what the first opened.
-        if (mouse.button === Qt.RightButton)
-            Power.toggle();
-        else
-            Launcher.toggle();
-    }
+    // Left opens the launcher, right the power menu — as it always was,
+    // except both are ours now rather than rofi modes. Both toggle, so a
+    // second click closes what the first opened.
+    actions: ({
+            [Qt.LeftButton]: () => Launcher.toggle(),
+            [Qt.RightButton]: () => Power.toggle(),
+            [Qt.MiddleButton]: () => Launcher.toggle()
+        })
 }

@@ -63,10 +63,11 @@ BarItem {
         color: Qt.rgba(1, 1, 1, 0.4)
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            root.open = !root.open;
-    }
+    actions: ({
+            [Qt.LeftButton]: () => {
+                root.open = !root.open;
+            }
+        })
 
     // A drawer left open is the whole bar again, so it shuts itself once the
     // pointer has been off the bar for a moment — the way a menu bar folds

@@ -66,12 +66,10 @@ BarItem {
         }
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.RightButton)
-            Quickshell.execDetached(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"]);
-        else
-            Quickshell.execDetached(["pavucontrol"]);
-    }
+    actions: ({
+            [Qt.LeftButton]: () => Quickshell.execDetached(["pavucontrol"]),
+            [Qt.RightButton]: () => Quickshell.execDetached(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
+        })
 
     onScrollUp: Audio.step(true)
     onScrollDown: Audio.step(false)

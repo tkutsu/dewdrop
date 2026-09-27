@@ -40,8 +40,9 @@ BarItem {
         fontSize: Theme.glyphSizeLarge
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            state.active = !state.active;
-    }
+    actions: ({
+            [Qt.LeftButton]: () => {
+                state.active = !state.active;
+            }
+        })
 }

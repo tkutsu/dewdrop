@@ -22,10 +22,8 @@ BarItem {
         badge: Email.label
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            Email.openInbox();
-        else if (mouse.button === Qt.RightButton)
-            Email.refresh();
-    }
+    actions: ({
+            [Qt.LeftButton]: () => Email.openInbox(),
+            [Qt.RightButton]: () => Email.refresh()
+        })
 }

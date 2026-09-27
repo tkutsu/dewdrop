@@ -96,9 +96,12 @@ BarItem {
     // closed the notification, so the click that asked to see it was the one
     // that took it away. Anything else only waves the notice off; the
     // notification stays in the centre either way.
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            Notifications.focusOn(root.entry);
-        Notifications.dismissNotice();
-    }
+    actions: ({
+            [Qt.LeftButton]: () => {
+                Notifications.focusOn(root.entry);
+                Notifications.dismissNotice();
+            },
+            [Qt.RightButton]: () => Notifications.dismissNotice(),
+            [Qt.MiddleButton]: () => Notifications.dismissNotice()
+        })
 }

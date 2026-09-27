@@ -98,7 +98,7 @@ BarItem {
 
             // Where the icon is drawn against its line: bouncing for attention,
             // pressed in under the pointer, or both at once.
-            readonly property real shift: bounce.offset + (pointer.pressed ? Theme.pressDip : 0)
+            readonly property real shift: bounce.offset + (pointer.acting ? Theme.pressDip : 0)
 
             opacity: entry.off ? Theme.dimOpacity : 1
 
@@ -166,25 +166,29 @@ BarItem {
                 text: entry.modelData.tooltipTitle || entry.modelData.title || entry.modelData.id
             }
 
-            MouseArea {
+            // Null for an item with no menu, which leaves every button that
+            // would have opened one doing nothing.
+            readonly property var toggleMenu: modelData.hasMenu ? () => {
+                entry.menuOpen = !entry.menuOpen;
+            } : null
+
+            ClickArea {
                 id: pointer
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.ArrowCursor
-                acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
-                onClicked: function (mouse) {
-                    const item = entry.modelData;
-                    // Items that only carry a menu have no useful activate().
-                    if (mouse.button === Qt.RightButton || item.onlyMenu) {
-                        if (item.hasMenu)
-                            entry.menuOpen = !entry.menuOpen;
-                    } else if (mouse.button === Qt.MiddleButton) {
-                        item.secondaryActivate();
-                    } else {
-                        item.activate();
-                    }
-                }
+                // Right is the menu. An item that is nothing but its menu has
+                // no useful activate(), so on one of those every button is.
+                actions: entry.modelData.onlyMenu ? ({
+                        [Qt.LeftButton]: entry.toggleMenu,
+                        [Qt.RightButton]: entry.toggleMenu,
+                        [Qt.MiddleButton]: entry.toggleMenu
+                    }) : ({
+                        [Qt.LeftButton]: () => entry.modelData.activate(),
+                        [Qt.RightButton]: entry.toggleMenu,
+                        [Qt.MiddleButton]: () => entry.modelData.secondaryActivate()
+                    })
 
                 onWheel: function (wheel) {
                     if (wheel.angleDelta.y !== 0)

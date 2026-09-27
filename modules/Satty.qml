@@ -18,7 +18,8 @@ BarItem {
         fontSize: Theme.glyphSizeLarge
     }
 
-    onClicked: function (mouse) {
-        Quickshell.execDetached(mouse.button === Qt.RightButton ? [script, "fast"] : [script]);
-    }
+    actions: ({
+            [Qt.LeftButton]: () => Quickshell.execDetached([script]),
+            [Qt.RightButton]: () => Quickshell.execDetached([script, "fast"])
+        })
 }

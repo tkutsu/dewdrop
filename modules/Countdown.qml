@@ -80,23 +80,24 @@ BarItem {
     // Left is the thing you came to do: shut it up if it is shouting, hold it
     // if it is running, and otherwise set one. Right sets another. Middle throws away, which is the one action here that cannot be undone
     // and so is the one nothing lands on by accident.
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton) {
-            if (root.ringing)
-                Timers.hush();
-            else if (Timers.focus)
-                Timers.toggle(Timers.focus.id);
-            else
-                Launcher.openWith(Launcher.timerPrefix);
-        } else if (mouse.button === Qt.RightButton) {
-            Launcher.openWith(Launcher.timerPrefix);
-        } else if (mouse.button === Qt.MiddleButton) {
-            if (root.ringing)
-                Timers.hush();
-            else if (Timers.focus)
-                Timers.cancel(Timers.focus.id);
-        }
-    }
+    actions: ({
+            [Qt.LeftButton]: () => {
+                if (root.ringing)
+                    Timers.hush();
+                else if (Timers.focus)
+                    Timers.toggle(Timers.focus.id);
+                else
+                    Launcher.openWith(Launcher.timerPrefix);
+            },
+            [Qt.RightButton]: () => Launcher.openWith(Launcher.timerPrefix),
+            // Nothing to throw away with no timer running or ringing.
+            [Qt.MiddleButton]: root.ringing || Timers.focus ? () => {
+                if (root.ringing)
+                    Timers.hush();
+                else
+                    Timers.cancel(Timers.focus.id);
+            } : null
+        })
 
     // A minute a notch, on whichever timer the pill is showing. The commonest
     // correction to a timer is that it was set a bit short, and this is the one

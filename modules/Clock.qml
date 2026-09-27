@@ -76,16 +76,15 @@ BarItem {
         text: Qt.formatDateTime(clock.date, Settings.timeFormat)
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.MiddleButton) {
-            // was: t=$(date '+%F %T'); wl-copy; notify-send
-            // Not clock.date: that one only moves on the minute now, and a
-            // timestamp is the one thing here that wants the seconds.
-            const stamp = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss");
-            Quickshell.clipboardText = stamp;
-            Quickshell.execDetached(["notify-send", "Copied timestamp", stamp]);
-        } else if (mouse.button === Qt.LeftButton) {
-            Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gcalendar.sh"]);
-        }
-    }
+    actions: ({
+            [Qt.LeftButton]: () => Quickshell.execDetached([Quickshell.env("HOME") + "/_scripts/pwa-gcalendar.sh"]),
+            [Qt.MiddleButton]: () => {
+                // was: t=$(date '+%F %T'); wl-copy; notify-send
+                // Not clock.date: that one only moves on the minute now, and a
+                // timestamp is the one thing here that wants the seconds.
+                const stamp = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss");
+                Quickshell.clipboardText = stamp;
+                Quickshell.execDetached(["notify-send", "Copied timestamp", stamp]);
+            }
+        })
 }

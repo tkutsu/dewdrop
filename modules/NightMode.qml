@@ -15,10 +15,9 @@ BarItem {
         text: NightMode.icon
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            NightMode.toggle();
-    }
+    actions: ({
+            [Qt.LeftButton]: () => NightMode.toggle()
+        })
 
     onScrollUp: NightMode.nudge(true)
     onScrollDown: NightMode.nudge(false)

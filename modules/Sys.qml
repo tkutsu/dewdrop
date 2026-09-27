@@ -152,13 +152,16 @@ BarItem {
     // one it is currently on, in the thing that shows it properly.
     // "(floating)" is a window rule in hypr/configs/wrules.lua, not part of the
     // name: it centres the window at 55% of the screen.
-    onClicked: function (mouse) {
-        // Nothing to swap to on a machine with no card the driver will own up
-        // to: the tube would go empty and the reading behind it would be a
-        // temperature of zero, with no way to tell that from a cold one.
-        if (mouse.button === Qt.LeftButton)
-            Sys.showGpu = !Sys.showGpu && Sys.gpuPresent;
-        else if (mouse.button === Qt.RightButton)
-            Quickshell.execDetached(Settings.inTerminal([Sys.showGpu ? "nvtop" : "btop"], (Sys.showGpu ? "nvtop" : "btop") + " (floating)"));
-    }
+    actions: ({
+            // Nothing to swap to on a machine with no card the driver will own up
+            // to: the tube would go empty and the reading behind it would be a
+            // temperature of zero, with no way to tell that from a cold one.
+            [Qt.LeftButton]: Sys.gpuPresent ? () => {
+                Sys.showGpu = !Sys.showGpu;
+            } : null,
+            [Qt.RightButton]: () => {
+                const tool = Sys.showGpu ? "nvtop" : "btop";
+                Quickshell.execDetached(Settings.inTerminal([tool], tool + " (floating)"));
+            }
+        })
 }

@@ -35,13 +35,11 @@ BarItem {
         badge: Tasks.label
     }
 
-    onClicked: function (mouse) {
-        if (mouse.button === Qt.LeftButton)
-            Launcher.openWith(Launcher.taskPrefix);
-        else if (mouse.button === Qt.RightButton)
+    actions: ({
+            [Qt.LeftButton]: () => Launcher.openWith(Launcher.taskPrefix),
             // The site rather than one of the PWA wrappers beside it: there is
             // no Google Tasks web app installed here, and a wrapper round an
             // app id nobody has is a launcher that silently does nothing.
-            Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
-    }
+            [Qt.RightButton]: () => Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"])
+        })
 }

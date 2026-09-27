@@ -31,14 +31,12 @@ BarItem {
     // too, so it is no longer the only touch, but it is the one that says so.)
     Component.onCompleted: Wallpaper.rescan()
 
-    onClicked: function (mouse) {
-        // Left cycles to a wallpaper the scroll wheel would not have reached;
-        // the folder moves to right click.
-        if (mouse.button === Qt.LeftButton)
-            Wallpaper.random();
-        else if (mouse.button === Qt.RightButton)
-            Wallpaper.openFolder();
-    }
+    // Left cycles to a wallpaper the scroll wheel would not have reached;
+    // the folder moves to right click.
+    actions: ({
+            [Qt.LeftButton]: () => Wallpaper.random(),
+            [Qt.RightButton]: () => Wallpaper.openFolder()
+        })
 
     onScrollUp: Wallpaper.prev()
     onScrollDown: Wallpaper.next()
