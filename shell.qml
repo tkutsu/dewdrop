@@ -26,9 +26,9 @@ ShellRoot {
     }
 
     Variants {
-        // "all-outputs": true — one bar per screen, rebuilt as monitors come
-        // and go.
-        model: Quickshell.screens
+        // One bar per screen, rebuilt as monitors come and go — or only on the
+        // ones settings.json names.
+        model: Quickshell.screens.filter(s => Settings.screenOn(s.name))
 
         Bar {}
     }
@@ -74,10 +74,4 @@ ShellRoot {
         NotificationCentre {}
     }
 
-    // The settings page, the same way once more.
-    LazyLoader {
-        active: Settings.active
-
-        SettingsPage {}
-    }
 }

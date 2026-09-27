@@ -1358,9 +1358,9 @@ Singleton {
                 // of a list of folders is the other errand, and it wants the
                 // folder open and its contents visible without an ls.
                 if (r.dir)
-                    Quickshell.execDetached(["dolphin", r.path]);
+                    Quickshell.execDetached([Settings.fileManager, r.path]);
                 else
-                    Quickshell.execDetached(Settings.inTerminal([Quickshell.env("EDITOR") || "nvim", r.path]));
+                    Quickshell.execDetached(Settings.inTerminal([Settings.editor, r.path]));
             },
             url: (r, i) => {
                 root.leave(i);

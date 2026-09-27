@@ -4,118 +4,53 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The few things that differ from one machine to the next: which modules the
-// bar shows, where the wallpapers and the music are, what terminal to open,
-// how the clock reads. Kept in settings.json beside shell.qml, which git
-// ignores, and edited from the settings page (modules/SettingsPage.qml)
-// rather than by hand.
+// Everything that differs from one machine to the next: which monitors and
+// modules, the clock's format, fonts, the apps the bar opens, where the
+// wallpapers and the music are.
 //
-// A path left empty means its default, so the file only ever holds what was
-// actually changed, and a default moving later moves everyone who kept it.
+// Two files beside shell.qml. settings.default.json is in the repo: every
+// setting with its default and a comment on what it does, which makes it the
+// documentation as well as the fallback. settings.json is the machine's own
+// (git ignores it), starts as a copy of the defaults, and wins key by key.
+// Both may carry // comments and trailing commas, which are stripped before
+// parsing. Edits are picked up on save.
 //
-// At the root rather than in services/ because BarItem reads it (see
+// At the root rather than in services/ because BarItem and Theme read it (see
 // Popup.qml's note on why components cannot import qs.services).
 Singleton {
     id: root
 
     readonly property string home: Quickshell.env("HOME")
 
-    // --- the page ------------------------------------------------------------
-    property bool shown: false
-    // Outlives `shown` by the length of the page's fold, like the centre.
-    readonly property bool active: linger.active
-
-    function toggle(): void {
-        root.shown = !root.shown;
-    }
-
-    Linger {
-        id: linger
-        shown: root.shown
-    }
-
-    IpcHandler {
-        target: "settings"
-
-        function toggle(): void {
-            root.toggle();
-        }
-
-        // For ~/_scripts/smart-close.sh: Super+Q closes the page when it is
-        // up, rather than the window behind it, which is still the one
-        // Hyprland calls active. Prints whether there was anything to close.
-        function dismiss(): bool {
-            const was = root.shown;
-            root.shown = false;
-            return was;
-        }
-    }
-
-    // --- modules -------------------------------------------------------------
-    // Every module the bar can go without, keyed as BarItem.settingsKey, in the
-    // order the page lists them. Off means gone from the bar, not put in the
-    // drawer: the drawer is for things with nothing to say right now, and
-    // this is for things this machine does not have.
-    readonly property var modules: [
-        { key: "music", name: "Music", note: "Now playing, from mpd" },
-        { key: "email", name: "Mail", note: "Unread Gmail" },
-        { key: "tasks", name: "Tasks", note: "Google Tasks" },
-        { key: "updater", name: "Updates", note: "Pending pacman and AUR updates" },
-        { key: "bell", name: "Notifications", note: "The notification centre" },
-        { key: "satty", name: "Screenshot", note: "Annotate a screenshot with satty" },
-        { key: "idle", name: "Caffeine", note: "Keep the screen awake" },
-        { key: "wallpaper", name: "Wallpaper", note: "Cycle the wallpaper folder" },
-        { key: "night", name: "Night mode", note: "Warm the screen" },
-        { key: "sys", name: "System", note: "CPU, memory and temperatures" },
-        { key: "tray", name: "Tray", note: "Apps' status icons" },
-        { key: "audio", name: "Volume", note: "Output and level" },
-        { key: "language", name: "Keyboard layout", note: "The current layout" }
-    ]
-
-    function moduleOn(key: string): bool {
-        return key === "" || stored.modules[key] !== false;
-    }
-
-    function setModule(key: string, on: bool): void {
-        const modules = Object.assign({}, stored.modules);
-        if (on)
-            delete modules[key];
-        else
-            modules[key] = false;
-        root.set("modules", modules);
-    }
+    property var defaults: ({})
+    property var user: ({})
+    readonly property var values: Object.assign({}, root.defaults, root.user)
 
     // --- values --------------------------------------------------------------
-    readonly property bool clock24h: stored.clock24h
+    readonly property var screens: root.values.screens ?? []
+    readonly property var modules: root.values.modules ?? ({})
+    readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
+    readonly property var layoutNames: root.values.layoutNames ?? ({})
+    readonly property string font: root.values.font ?? ""
+    readonly property string monoFont: root.values.monoFont ?? ""
+    readonly property string terminal: root.values.terminal ?? "kitty"
+    readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
+    readonly property string fileManager: root.values.fileManager ?? "xdg-open"
+    readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
+    readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
+    readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
 
-    readonly property string defaultTerminal: "kitty"
-    readonly property string terminal: stored.terminal || root.defaultTerminal
-
-    readonly property string defaultWallpaperDir: "~/Pictures/Wallpapers"
-    readonly property string wallpaperDir: root.expand(stored.wallpaperDir || root.defaultWallpaperDir)
-
-    // mpd's music_directory: the bar finds album covers beside the files.
-    readonly property string defaultMusicDir: "~/Music"
-    readonly property string musicDir: root.expand(stored.musicDir || root.defaultMusicDir).replace(/\/?$/, "/")
-
-    // The bar speaks the MPD protocol over a unix socket, which mpd.conf has
-    // to name with a bind_to_address line.
-    readonly property string defaultMpdSocket: "$XDG_RUNTIME_DIR/mpd.sock"
-    readonly property string mpdSocket: root.expand(stored.mpdSocket || root.defaultMpdSocket)
-
-    // What the file holds, before defaults: an empty path is "the default",
-    // and the page shows it as that rather than as the path it stands for.
-    function value(key: string): var {
-        return stored[key];
+    // A module off is gone from the bar, not put in the drawer. Keyed as
+    // BarItem.settingsKey; one the file does not mention is on.
+    function moduleOn(key: string): bool {
+        return key === "" || root.modules[key] !== false;
     }
 
-    function set(key: string, value: var): void {
-        stored[key] = value;
-        file.writeAdapter();
+    function screenOn(name: string): bool {
+        return root.screens.length === 0 || root.screens.includes(name);
     }
 
-    // "~" and "$XDG_RUNTIME_DIR" as the shell would read them, so the page can
-    // show and store paths the way they are written by hand.
+    // "~" and "$XDG_RUNTIME_DIR" as the shell would read them.
     function expand(path: string): string {
         return path.replace(/^~(?=\/|$)/, root.home).replace("$XDG_RUNTIME_DIR", Quickshell.env("XDG_RUNTIME_DIR"));
     }
@@ -128,24 +63,71 @@ Singleton {
         return [root.terminal, ...(title ? ["--title=" + title] : []), "-e", ...run];
     }
 
+    // --- the files -----------------------------------------------------------
+    // JSON plus // comments and trailing commas. The comment stripper walks
+    // the text rather than using a regex so that a "//" inside a string — a
+    // URL, say — is left alone.
+    function parse(text: string): var {
+        let out = "";
+        let quoted = false;
+        for (let i = 0; i < text.length; i++) {
+            const c = text[i];
+            if (quoted) {
+                out += c;
+                if (c === "\\")
+                    out += text[++i] ?? "";
+                else if (c === '"')
+                    quoted = false;
+            } else if (c === '"') {
+                quoted = true;
+                out += c;
+            } else if (c === "/" && text[i + 1] === "/") {
+                while (i + 1 < text.length && text[i + 1] !== "\n")
+                    i++;
+            } else {
+                out += c;
+            }
+        }
+        return JSON.parse(out.replace(/,(\s*[}\]])/g, "$1"));
+    }
+
+    // A file that does not parse keeps the last settings that did, and says
+    // so where it will be seen: whoever saved it is looking at the screen.
+    // Qt's JSON.parse names no line ("Parse error" and nothing else), so the
+    // notice points at the edit instead.
+    function load(view: var, name: string): var {
+        try {
+            return root.parse(view.text());
+        } catch (e) {
+            console.warn(`${name}: ${e.message}`);
+            Quickshell.execDetached(["notify-send", "-a", "Bar", `${name} did not parse`, "Look for a missing comma or quote in the last change. The bar keeps the settings it had."]);
+            return null;
+        }
+    }
+
+    // Both read synchronously the first time they are asked for, so the bar
+    // is built on the real values rather than drawn once on none and again a
+    // moment later — and the wallpaper is never looked for in the wrong place.
     FileView {
-        id: file
+        id: defaultFile
+
+        path: Quickshell.shellPath("settings.default.json")
+        blockLoading: true
+        onLoaded: root.defaults = root.load(defaultFile, "settings.default.json") ?? root.defaults
+    }
+
+    FileView {
+        id: userFile
 
         path: Quickshell.shellPath("settings.json")
+        blockLoading: true
         printErrors: false
-        // Saved on the first run, so there is a file to open and see what can go
-        // in it; everything in it is a default at that point.
-        onLoadFailed: file.writeAdapter()
-
-        JsonAdapter {
-            id: stored
-
-            property var modules: ({})
-            property bool clock24h: true
-            property string terminal: ""
-            property string wallpaperDir: ""
-            property string musicDir: ""
-            property string mpdSocket: ""
-        }
+        // watchChanges only signals: text() goes on returning what was read
+        // at startup, and `loaded` never fires again, until reload().
+        watchChanges: true
+        onFileChanged: userFile.reload()
+        onLoaded: root.user = root.load(userFile, "settings.json") ?? root.user
+        // First run: the defaults, comments and all, as the file to edit.
+        onLoadFailed: userFile.setText(defaultFile.text())
     }
 }

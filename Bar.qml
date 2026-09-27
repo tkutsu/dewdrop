@@ -288,21 +288,12 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [settings, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, audio]
+        readonly property var drawable: [email, tasks, updater, bell, satty, idle, wallpaper, night, sys, audio]
 
         Drawer {
             id: drawer
             holding: rightPill.drawable.some(m => m.here && !m.showsClosed)
             pointerNear: barHover.hovered || PopupPointer.hovered > 0
-        }
-
-        // First out of the drawer, so it is always in the same place once it
-        // is open.
-        SettingsButton {
-            id: settings
-            pinKey: "settings"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
         }
 
         Email {

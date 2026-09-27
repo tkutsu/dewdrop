@@ -1,0 +1,96 @@
+// Settings for the bar, beside shell.qml.
+//
+// settings.default.json comes with the bar: every setting with its default and
+// what it does. It is replaced on every update, so leave it alone. settings.json
+// is yours: it starts as a copy of the defaults, git ignores it, and the bar
+// picks it up the moment you save it. A key you delete from it falls back to
+// its default.
+//
+// // comments and trailing commas are fine. A file that does not parse is
+// reported as a notification, and the last settings that did parse stay.
+{
+    // --- where the bar goes ----------------------------------------------
+
+    // Monitors that get a bar, by the names `hyprctl monitors` prints, e.g.
+    // ["DP-1", "HDMI-A-1"]. Empty: every monitor.
+    "screens": [],
+
+    // --- what the bar shows ----------------------------------------------
+
+    // false takes a module off the bar altogether. To keep one out of sight
+    // but within reach, leave it true: the quiet ones already sit in the
+    // drawer behind the chevron, and a middle click on a module pins it out
+    // of the drawer or lets it go back.
+    "modules": {
+        "music": true,     // now playing, from mpd (see musicDir, mpdSocket)
+        "email": true,     // unread Gmail (needs Google, see the end)
+        "tasks": true,     // Google Tasks (needs Google)
+        "updater": true,   // pending pacman and AUR updates
+        "bell": true,      // the notification centre and do not disturb
+        "satty": true,     // screenshot a region and annotate it with satty
+        "idle": true,      // caffeine: keep the screen awake
+        "wallpaper": true, // cycle the images in wallpaperDir
+        "night": true,     // night mode and brightness
+        "sys": true,       // CPU, memory and temperatures
+        "tray": true,      // apps' status icons
+        "audio": true,     // output volume
+        "language": true,  // the keyboard layout (see layoutNames)
+    },
+
+    // The clock, as a Qt date format: "HH:mm" reads 14:05, "h:mm AP" reads
+    // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
+    // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
+    "timeFormat": "HH:mm",
+
+    // What the language module shows for each keyboard layout, keyed by the
+    // name `hyprctl devices` gives it. A layout not listed here shows its
+    // first two letters.
+    "layoutNames": {
+        "English (US)": "EN",
+        "English (UK)": "UK",
+        "Greek": "GR",
+        "German": "DE",
+        "French": "FR",
+        "Spanish": "ES",
+    },
+
+    // --- how it looks ------------------------------------------------------
+
+    // The bar's text, and the monospaced face for code and package lists.
+    // Icons always come from Symbols Nerd Font (ttf-nerd-fonts-symbols).
+    "font": "Inter",
+    "monoFont": "IosevkaTerm Nerd Font Mono",
+
+    // --- apps it opens -----------------------------------------------------
+
+    // Opens btop, yazi, the editor and the Google sign-in. Whatever it is
+    // must accept --title=<title> and -e <command> (kitty, alacritty, foot
+    // and ghostty all do).
+    "terminal": "kitty",
+
+    // For the launcher's files. Empty: $EDITOR, or nvim without one.
+    "editor": "",
+
+    // For the launcher's folders. xdg-open hands them to your default file
+    // manager.
+    "fileManager": "xdg-open",
+
+    // --- where things are --------------------------------------------------
+    // ~ and $XDG_RUNTIME_DIR are expanded.
+
+    // The images the wallpaper module cycles through (jpg and png).
+    "wallpaperDir": "~/Pictures/Wallpapers",
+
+    // mpd's music_directory: album covers are read from beside the files.
+    "musicDir": "~/Music",
+
+    // The bar speaks to mpd over a unix socket, which mpd.conf has to open
+    // alongside whatever else it listens on:
+    //   bind_to_address "$XDG_RUNTIME_DIR/mpd.sock"
+    "mpdSocket": "$XDG_RUNTIME_DIR/mpd.sock",
+
+    // --- Google ------------------------------------------------------------
+    // Mail, Tasks and the calendar's agenda need a one-time sign-in with your
+    // own Google Cloud OAuth client: run scripts/gtasks-auth, or click
+    // reconnect in any of their popups. Nothing to set here.
+}

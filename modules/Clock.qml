@@ -39,10 +39,10 @@ BarItem {
 
     SystemClock {
         id: clock
-        // The bar shows a date and HH:mm; neither changes more than once a
-        // minute, and at Seconds this re-evaluated both, on every bar, sixty
-        // times for each time it could possibly have mattered.
-        precision: SystemClock.Minutes
+        // By the minute unless the format shows seconds: at Seconds this
+        // re-evaluated the date and the time, on every bar, sixty times for
+        // each time it could possibly have mattered.
+        precision: Settings.timeFormat.includes("s") ? SystemClock.Seconds : SystemClock.Minutes
     }
 
     // Which day, then what time — two facts rather than three, so the weekday
@@ -73,7 +73,7 @@ BarItem {
     BarText {
         Layout.fillHeight: true
         Layout.leftMargin: root.dotGap
-        text: Qt.formatDateTime(clock.date, Settings.clock24h ? "HH:mm" : "h:mm AP")
+        text: Qt.formatDateTime(clock.date, Settings.timeFormat)
     }
 
     onClicked: function (mouse) {

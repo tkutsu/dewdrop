@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import qs
 
 // Active keyboard layout. (Named Keyboard, not Layout: QtQuick.Layouts already
 // owns `Layout` as an attached property on every item in the bar.)
@@ -19,16 +20,9 @@ Singleton {
     // the activelayout event names a keyboard and only the main one counts.
     property string mainKeyboard: ""
 
-    readonly property var shortNames: ({
-        "English (US)": "EN",
-        "Greek": "GR",
-        "English (Colemak-DH Ortholinear)": "EN-cmk",
-        "Greek Colemak-DH": "GR-cmk",
-        "Enthium": "EN-ent",
-        "Grthium": "GR-ent"
-    })
-
-    readonly property string short: shortNames[layout] ?? layout
+    // What the bar shows for each layout (layoutNames in settings.json), or
+    // the first two letters of one it does not list.
+    readonly property string short: Settings.layoutNames[layout] ?? layout.slice(0, 2).toUpperCase()
 
     // Not Hyprland.dispatch: `dispatch` is a Lua call now, and hl.dsp has no
     // xkb dispatcher to call. The top-level hyprctl command is the only way in,
