@@ -161,10 +161,12 @@ OverlayWindow {
                     x: 20
                     y: root.boxHeight - root.pad - height
                     width: root.sideWidth - 30
-                    text: "Saved to\n" + Quickshell.shellPath("settings.json").replace(Settings.home, "~")
+                    // The name on a line of its own, so a long folder wraps
+                    // at a slash rather than through the file name.
+                    text: "Saved to settings.json in\n" + Quickshell.shellDir.replace(Settings.home, "~").replace(/\//g, "/​")
                     color: Theme.label3
                     font.pixelSize: Theme.captionSize
-                    wrapMode: Text.WrapAnywhere
+                    wrapMode: Text.Wrap
                 }
 
                 Rectangle {
