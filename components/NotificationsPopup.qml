@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 import qs.services
 
@@ -46,7 +47,13 @@ Popup {
     }
 
     Repeater {
-        model: root.shown
+        // Diffed by object, as in the centre: a plain array rebuilt every row
+        // on each change, and the rebuilt rows left the hover (and the ✕, and
+        // the next click) on whichever row now stood where the pointer had
+        // been, rather than on the one under it.
+        model: ScriptModel {
+            values: root.shown
+        }
 
         delegate: PopupRow {
             id: row
