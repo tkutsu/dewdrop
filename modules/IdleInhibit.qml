@@ -21,10 +21,19 @@ BarItem {
         window: QsWindow.window
     }
 
-    Glyph {
+    // A pixel narrower than the drawing's box, taken off its right: the box
+    // is square and the cup is not, so it stood a pixel too far from the
+    // module after it.
+    Item {
         Layout.fillHeight: true
-        text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
-        fontSize: Theme.glyphSizeLarge
+        implicitWidth: cup.implicitWidth - 1
+
+        Glyph {
+            id: cup
+            height: parent.height
+            text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
+            fontSize: Theme.glyphSizeLarge
+        }
     }
 
     onClicked: function (mouse) {
