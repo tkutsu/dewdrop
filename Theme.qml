@@ -14,12 +14,11 @@ Singleton {
     // icon into a smudge. Nothing here is allowed to be fractional, and neither
     // is anything derived from it.
     //
-    // config.jsonc asks for height 20, but GTK grows waybar to fit its contents
-    // and the bar it actually draws is 25px — that is the height the rest of
-    // the desktop has been laid out against, so it is the one to match. This is
-    // the height of a pill now rather than of the bar: the layer surface is
+    // macOS's menu bar height (24pt since Big Sur). Even, so an icon centres
+    // on whole pixels and the pill's round end is exactly half of it. This is
+    // the height of a pill rather than of the bar: the layer surface is
     // barMargin taller on each side, and the extra is transparent.
-    readonly property int barHeight: 25
+    readonly property int barHeight: 24
 
     // The bar draws nothing itself; its three groups are three separate pills
     // floating on the wallpaper. This is the air around them — off the screen
@@ -132,9 +131,8 @@ Singleton {
     readonly property int glyphSize: 14
     readonly property int glyphSizeLarge: 16
     // One size for everything the bar draws from artwork rather than from a
-    // font — the tray and the workspace taskbar. 16 is the size the theme draws
-    // its panel icons at (panel/16/*.svg), and any other size is a downscale of
-    // fine strokes.
+    // font — the tray and the workspace taskbar. 18 is the box macOS gives a
+    // menu bar item; iconInk decides how much of it the artwork fills.
     //
     // It used to be two, 16 here and 13 for the taskbar, because the two sets
     // are drawn to different conventions: a panel icon keeps margin inside its
@@ -142,7 +140,7 @@ Singleton {
     // them visibly different ink. The box is not what decides that any more
     // (see iconInk), so the convention the artwork was drawn to stopped
     // mattering and the second size went with it.
-    readonly property int iconSize: 16
+    readonly property int iconSize: 18
     // How tall an icon's ink should stand in its box, measured rather than
     // assumed (components/InkProbe.qml). Twelve pixels of ink in a sixteen
     // pixel box, which is deliberately under every icon the theme ships —

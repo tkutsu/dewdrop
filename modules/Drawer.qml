@@ -58,9 +58,9 @@ BarItem {
             origin.x: chevron.width / 2
             xScale: 1 - 2 * root.turned
         }
-        // A step down the label scale: it is a handle on the modules, not one
-        // of them, and it should not read as another status.
-        color: Theme.label2
+        // Fainter than the modules' own glyphs: it is a handle on them, not
+        // one of them, and it should not read as another status.
+        color: Qt.rgba(1, 1, 1, 0.4)
     }
 
     onClicked: function (mouse) {
