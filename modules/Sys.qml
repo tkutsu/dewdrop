@@ -41,7 +41,7 @@ BarItem {
     Item {
         id: tube
 
-        // Seven by twelve. The tube is five wide, which leaves a three-pixel
+        // Seven by thirteen. The tube is five wide, which leaves a three-pixel
         // bore between two one-pixel walls — a column with a pixel of dark
         // either side of it reads as a mark rising inside the tube rather than
         // the tube filling in. The bulb is a pixel wider than the tube on each
@@ -54,7 +54,7 @@ BarItem {
         // exactly as wide as the bore, so it is not drawn: the bore runs
         // straight down into the bulb and the walls run into the ring, the way
         // the glass does.
-        readonly property int join: 5
+        readonly property int join: 6
         // From the inside of the cap down to the ball: the whole run the
         // column has, which is where the service's steps land. It is a row
         // longer than the tube, because it runs on through the ring's missing

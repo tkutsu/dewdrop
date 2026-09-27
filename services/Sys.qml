@@ -94,7 +94,7 @@ Singleton {
     readonly property real gauge: (temp - coolTemp) / (hotTemp - coolTemp)
 
     // How far up the tube the mercury stands: one step per row of the ball in
-    // the bulb (three), then one per pixel of bore at bar size (six, see
+    // the bulb (three), then one per pixel of bore at bar size (seven, see
     // modules/Sys.qml) — which is as fine as the reading can be told. Empty at the bottom of the scale,
     // full at the top, and hot is the top and past it, where the mercury
     // changes colour.
@@ -103,7 +103,7 @@ Singleton {
     // sample and the next and a bare threshold would have the column twitching
     // up and down a pixel all afternoon: going up takes reaching the step,
     // coming back down takes a tenth of the scale clear of it.
-    readonly property int steps: 9
+    readonly property int steps: 10
     property int level: 0
     property bool hot: false
 
