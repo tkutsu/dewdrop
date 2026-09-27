@@ -17,6 +17,10 @@ import qs.services
 // the space between them is the desktop rather than more panel. The same
 // reason there is no panel behind them to close: a click anywhere that is not
 // a card closes the centre, and so does Escape (OverlayWindow's surface).
+//
+// Grouped by sender, the way swaync did it: an app with several waiting is
+// one card with the rest stacked behind it, opened with a click to pick one
+// out, and cleared with one click on its ✕ rather than one per notification.
 OverlayWindow {
     id: root
 
@@ -36,6 +40,10 @@ OverlayWindow {
     // The sender's picture, when it sent one: a contact, a sleeve, a
     // screenshot. Square on the right of the card, as the system shows it.
     readonly property int thumbSize: 40
+    // The cards stacked behind a closed group: how far each one shows below
+    // the card in front of it, and how much narrower it is on each side.
+    readonly property int sheetPeek: 5
+    readonly property int sheetInset: 8
     // Under the bar by the same air the bar keeps off the screen's edges, and
     // in from the right edge by that air too, so the column lines up with the
     // end of the right pill above it.
@@ -55,6 +63,26 @@ OverlayWindow {
             duration: Theme.revealMs
             easing.type: Easing.OutCubic
         }
+    }
+
+    // --- groups ---------------------------------------------------------------
+    // By the name the card shows, so what is grouped is what reads as the
+    // same sender.
+    function groupOf(n) {
+        return n?.appName || "Notification";
+    }
+
+    // The senders, in the order of their newest notification. Names rather
+    // than arrays of notifications, so the list's model diffs them by value
+    // and a group keeps its card (and whether it is open) as it changes.
+    readonly property var groups: {
+        const keys = [];
+        for (const n of Notifications.list) {
+            const key = root.groupOf(n);
+            if (!keys.includes(key))
+                keys.push(key);
+        }
+        return keys;
     }
 
     // The time the ages are written against. On the minute, like the clock:
@@ -179,14 +207,14 @@ OverlayWindow {
                     // array is rebuilt on every change, and handed straight to
                     // the view that tore down every card and built it again
                     // per arrival — and once per notification on Clear. The
-                    // model diffs by object, so only the card that came or
+                    // model diffs by value, so only the group that came or
                     // went is touched and the others keep their place.
                     model: ScriptModel {
-                        values: Notifications.list
+                        values: root.groups
                     }
 
-                    // A card arriving or leaving slides the ones below it rather
-                    // than jumping them.
+                    // A group arriving or leaving slides the ones below it
+                    // rather than jumping them.
                     displaced: Transition {
                         NumberAnimation {
                             property: "y"
@@ -195,13 +223,14 @@ OverlayWindow {
                         }
                     }
 
-                    delegate: Card {}
+                    delegate: Group {}
 
-                // Opened from the notice beside the clock: bring that one into
-                // view. Once the rows exist rather than now, since the list is
-                // built in the same pass as this.
+                // Opened from the notice beside the clock: bring its group
+                // into view. Once the rows exist rather than now, since the
+                // list is built in the same pass as this.
                 Component.onCompleted: Qt.callLater(() => {
-                    const at = Notifications.list.indexOf(Notifications.centreFocus);
+                    const focus = Notifications.centreFocus;
+                    const at = focus ? root.groups.indexOf(root.groupOf(focus)) : -1;
                     if (at >= 0)
                         cards.positionViewAtIndex(at, ListView.Contain);
                 })
@@ -293,12 +322,113 @@ OverlayWindow {
         }
     }
 
+    // Everything one sender has waiting. Closed, it is its newest card with
+    // the rest stacked behind it; open, a header and every card under it.
+    component Group: Column {
+        id: group
+
+        required property string modelData
+        readonly property var items: Notifications.list.filter(n => root.groupOf(n) === group.modelData)
+        // Closed until asked, unless the centre was opened on one of these:
+        // that one is what was asked for, and it should be in plain sight.
+        property bool open: group.items.includes(Notifications.centreFocus)
+        readonly property bool stacked: group.items.length > 1 && !group.open
+
+        // Down to one, it is a card like any other, and it closes so that the
+        // next to arrive stacks on it rather than finding it open.
+        onItemsChanged: if (group.items.length < 2)
+            group.open = false
+
+        width: ListView.view.width
+        spacing: root.cardGap
+
+        // A card leaving an open group slides the ones below it up, as the
+        // list does.
+        move: Transition {
+            NumberAnimation {
+                property: "y"
+                duration: Theme.fadeMs
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        // Open: whose these are, and the two things that act on all of them.
+        // Clicking it anywhere else closes it again.
+        Rectangle {
+            width: parent.width
+            height: 30
+            visible: group.open && group.items.length > 1
+            radius: height / 2
+            color: Theme.popupBg
+
+            Rim {
+                anchors.fill: parent
+                radius: parent.radius
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: group.open = false
+            }
+
+            Text {
+                anchors.left: parent.left
+                anchors.leftMargin: 14
+                anchors.right: groupButtons.left
+                anchors.rightMargin: 8
+                anchors.verticalCenter: parent.verticalCenter
+                text: group.modelData
+                color: Theme.label
+                font.family: Theme.bodyFont
+                font.pixelSize: Theme.popupTextSize
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+
+            Row {
+                id: groupButtons
+
+                anchors.right: parent.right
+                anchors.rightMargin: 2
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+
+                HeaderButton {
+                    label: "show less"
+                    onClicked: group.open = false
+                }
+
+                HeaderButton {
+                    label: "clear"
+                    onClicked: group.items.forEach(n => n.dismiss())
+                }
+            }
+        }
+
+        Repeater {
+            model: ScriptModel {
+                values: group.stacked ? group.items.slice(0, 1) : group.items
+            }
+
+            delegate: Card {
+                behind: group.stacked ? group.items.slice(1) : []
+                onOpened: group.open = true
+            }
+        }
+    }
+
     // One notification.
     component Card: Item {
         id: card
 
         required property var modelData
         readonly property Notification n: modelData
+        // The rest of its group, stacked behind it while the group is closed.
+        // Then a click opens the group rather than following this one, and
+        // the ✕ clears all of them.
+        property var behind: []
+        readonly property int sheets: Math.min(card.behind.length, 2)
+        signal opened
         readonly property var buttons: Notifications.buttons(card.n)
         readonly property string icon: Notifications.iconFor(card.n)
         // A picture of its own — a contact, a sleeve, a screenshot. Not the
@@ -310,11 +440,44 @@ OverlayWindow {
             return url.startsWith("image://icon/") || url === card.icon ? "" : url;
         }
 
-        width: ListView.view.width
-        height: content.implicitHeight + root.cardPad * 2
+        width: parent.width
+        height: fill.height + card.sheets * root.sheetPeek
 
         HoverHandler {
             id: hover
+        }
+
+        // The cards behind, each only the strip of it that shows below the
+        // one in front. Clipped to that strip rather than drawn whole behind:
+        // the fills are translucent, and a whole card behind would darken the
+        // one in front of it.
+        Repeater {
+            model: card.sheets
+
+            delegate: Item {
+                required property int index
+
+                x: root.sheetInset * (index + 1)
+                y: fill.height + root.sheetPeek * index
+                width: card.width - x * 2
+                height: root.sheetPeek
+                clip: true
+
+                Rectangle {
+                    id: sheet
+
+                    y: root.sheetPeek - height
+                    width: parent.width
+                    height: root.cardRadius * 2
+                    radius: root.cardRadius
+                    color: Theme.popupBg
+
+                    Rim {
+                        anchors.fill: parent
+                        radius: parent.radius
+                    }
+                }
+            }
         }
 
         RectangularShadow {
@@ -328,7 +491,8 @@ OverlayWindow {
         Rectangle {
             id: fill
 
-            anchors.fill: parent
+            width: parent.width
+            height: content.implicitHeight + root.cardPad * 2
             radius: root.cardRadius
             color: Theme.popupBg
 
@@ -356,11 +520,11 @@ OverlayWindow {
         }
 
         // Clicking the card is asking for what it is about (see
-        // Notifications.activate). Also what keeps a click on a card from
-        // being a click off the centre.
+        // Notifications.activate), or, on a stack, which of them. Also what
+        // keeps a click on a card from being a click off the centre.
         MouseArea {
             anchors.fill: parent
-            onClicked: Notifications.activate(card.n)
+            onClicked: card.behind.length > 0 ? card.opened() : Notifications.activate(card.n)
         }
 
         Item {
@@ -418,7 +582,7 @@ OverlayWindow {
                         id: appName
 
                         width: parent.width - age.implicitWidth - 8
-                        text: card.n?.appName || "Notification"
+                        text: (card.n?.appName || "Notification") + (card.behind.length > 0 ? `  ·  ${card.behind.length + 1}` : "")
                         color: Theme.label2
                         font.family: Theme.bodyFont
                         font.pixelSize: Theme.captionSize
@@ -559,7 +723,7 @@ OverlayWindow {
                 // corner.
                 anchors.margins: -2
                 hoverEnabled: true
-                onClicked: card.n.dismiss()
+                onClicked: [card.n, ...card.behind].forEach(n => n.dismiss())
             }
         }
     }
