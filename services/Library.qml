@@ -83,7 +83,13 @@ Singleton {
         // Deliberately not `listallinfo` over the socket. Same data, but it
         // arrives as eighty thousand lines through SplitParser — a signal
         // each — rather than one string to split.
-        command: ["mpc", "-f", "%file%\t%albumartist%\t%artist%\t%album%\t%title%\t%date%\t%time%", "listall"]
+        //
+        // Under timeout, the same way the calculator and fd are: a dump that
+        // never exits (mpc waiting on an mpd that is up but not answering,
+        // mid-update or wedged) would leave `loading` set for the rest of
+        // the session, and "reading the library" on screen for as long. A
+        // real dump of this library is a tenth of a second.
+        command: ["timeout", "15", "mpc", "-f", "%file%\t%albumartist%\t%artist%\t%album%\t%title%\t%date%\t%time%", "listall"]
 
         // After the collector, which waits for the stream before letting the
         // exit through. A dump that failed to spawn never closes its stdout,

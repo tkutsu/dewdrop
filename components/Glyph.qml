@@ -19,7 +19,11 @@ Item {
 
     readonly property bool drawing: text.startsWith("file:")
 
-    implicitWidth: drawing ? art.implicitWidth : label.implicitWidth
+    // A drawing is laid out on its ink too, like the font's glyphs, rather
+    // than on the square box it is drawn in: the launcher's 12px magnifier
+    // sat in 18px of box and stood three pixels further from its neighbours
+    // than the glyphs between them stood from each other.
+    implicitWidth: !drawing ? label.implicitWidth : tightWidth ? art.inkWidth : art.implicitWidth
     implicitHeight: Theme.barHeight
     baselineOffset: label.baselineOffset
 
@@ -44,6 +48,7 @@ Item {
     ShadowedIcon {
         id: art
         visible: root.drawing
+        x: root.tightWidth ? -inkX : 0
         y: Math.floor((root.height - height) / 2) + root.nudge
         source: root.drawing ? root.text : ""
         size: Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)

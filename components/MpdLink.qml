@@ -83,12 +83,14 @@ Item {
         root.tries = 0
 
     // Quick for the first half minute, then patient. mpd is normally either
-    // up or stopped for the evening; a dial every five seconds for the
-    // second case is a ConnectionRefused in the log by the thousand and a
-    // socket built and torn down for nothing all night.
+    // up or stopped for the evening, and it comes back through the launcher's
+    // # row, which dials at once (dialNow) — so the slow retry only covers an
+    // mpd started by hand from a terminal, and five minutes is soon enough
+    // for that. At 45 s the evening was two ConnectionRefused lines in the
+    // log every three quarters of a minute, for nothing.
     Timer {
         id: retry
-        interval: root.tries < 6 ? 5000 : 45000
+        interval: root.tries < 6 ? 5000 : 5 * 60000
         repeat: true
         running: !root.connected
         onTriggered: root.redial()

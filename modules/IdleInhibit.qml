@@ -10,9 +10,22 @@ import qs.components
 BarItem {
     id: root
 
-    property bool active: false
+    // Kept through a hot reload of the config. As a plain property it went
+    // back to false on every reload, and with it the cup went back into the
+    // drawer, so caffeine had to be found and switched on again by hand after
+    // each edit. Only reloads: a restart still comes up with it off, which is
+    // what a thing that holds the screen awake should do.
+    PersistentProperties {
+        id: state
 
-    tooltip: active ? "Caffeine mode on" : "Caffeine mode off"
+        reloadableId: "caffeine"
+
+        property bool active: false
+    }
+
+    readonly property bool active: state.active
+
+    tooltip: active ? "Caffeine on" : "Caffeine off"
     // Only worth a place on the bar while it is holding the screen awake.
     quiet: !active
 
@@ -21,23 +34,14 @@ BarItem {
         window: QsWindow.window
     }
 
-    // A pixel narrower than the drawing's box, taken off its right: the box
-    // is square and the cup is not, so it stood a pixel too far from the
-    // module after it.
-    Item {
+    Glyph {
         Layout.fillHeight: true
-        implicitWidth: cup.implicitWidth - 1
-
-        Glyph {
-            id: cup
-            height: parent.height
-            text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
-            fontSize: Theme.glyphSizeLarge
-        }
+        text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
+        fontSize: Theme.glyphSizeLarge
     }
 
     onClicked: function (mouse) {
         if (mouse.button === Qt.LeftButton)
-            root.active = !root.active;
+            state.active = !state.active;
     }
 }

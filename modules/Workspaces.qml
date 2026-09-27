@@ -186,11 +186,10 @@ BarItem {
                         BarText {
                             Layout.fillHeight: true
                             text: button.letter || button.modelData.name
-                            // Set like the clock's date, so the two ends of the
-                            // bar are one size of text. A letter stays at one
-                            // weight: the fade says which workspace is yours,
-                            // and a letter that went bold would widen the mark
-                            // as it arrived.
+                            // A letter stays at one weight: the fade says which
+                            // workspace is yours, and a letter that went bold
+                            // would widen the mark as it arrived.
+                            fontSize: Theme.workspaceTextSize
                             weight: button.letter ? Theme.bodyWeight : (button.active ? Font.DemiBold : Theme.bodyWeight)
                             color: Theme.fg
 

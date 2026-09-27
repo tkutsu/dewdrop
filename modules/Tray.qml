@@ -11,13 +11,6 @@ import qs.components
 BarItem {
     id: root
 
-    // Same correction at the group's edges as between its icons: the first and
-    // last tray icons bring their own margin, so the bar's gap has to give some
-    // back or the tray sits further from its neighbours than they do from
-    // each other.
-    Layout.leftMargin: Theme.gap - Theme.iconPadding
-    Layout.rightMargin: -Theme.iconPadding
-
     readonly property var entries: SystemTray.items.values
         // Passive is the SNI way of saying "nothing worth showing right now".
         .filter(item => item.status !== Status.Passive)
@@ -89,8 +82,6 @@ BarItem {
             // and the menu, where it is read rather than glimpsed.
             readonly property string iconSource: String(modelData.icon).replace(/blueman-[a-z-]+/, "blueman-tray")
 
-            // Fixed boxes, evenly spaced: the icons' own ink varies, but the
-            // boxes are identical, so the row keeps a steady rhythm.
             // A tray app says it is switched off by renaming its icon —
             // blueman-disabled, nm-no-connection, anything wired "-offline" —
             // and the bar says the same by dimming it, as it does with a
@@ -109,16 +100,25 @@ BarItem {
                 }
             }
 
+            // Laid out on the ink, like every Glyph on the bar, and spaced by
+            // the row's own gap. The artwork's box used to set the width, with
+            // a guessed 3px of margin inside it taken back out of the gap
+            // either side; blueman's drawing carries 4px, so the tray stood a
+            // pixel further from its left neighbour than from its right.
             Layout.fillHeight: true
-            implicitWidth: icon.implicitWidth
-            Layout.leftMargin: entry.index === 0 ? 0 : Theme.trayGap - Theme.gap
+            implicitWidth: entry.glyph ? substitute.implicitWidth : icon.inkWidth
 
+            // A pixel less air either side of the wifi cone: it is widest at
+            // its top edge and a point at the bottom, so most of its height
+            // stands well in from the ink box, and at the row's gap it read
+            // as set apart from both neighbours.
+            readonly property bool cone: Theme.glyph.wifiStrength.includes(entry.glyph) || entry.glyph === Theme.glyph.wifiOff
+            Layout.leftMargin: entry.cone ? -1 : 0
+            Layout.rightMargin: entry.cone ? -1 : 0
             ShadowedIcon {
                 id: icon
-                anchors.centerIn: parent
-                // A substitute takes the artwork's place but not its box: the
-                // row's rhythm is the boxes', and they stay identical whichever
-                // of the two is drawn.
+                x: -inkX
+                anchors.verticalCenter: parent.verticalCenter
                 visible: !entry.glyph
                 source: entry.glyph ? "" : entry.iconSource
                 // Everything here used to be drawn at one size, on the theme's
@@ -137,13 +137,11 @@ BarItem {
             // its own height, and the bar's is what every other glyph on it is
             // centred against.
             Glyph {
-                // Placed by hand for the same reason ShadowedIcon is: centring
-                // a 12px ink in a 17px box gives a half pixel, and half a pixel
-                // is a blurred glyph.
-                x: Math.floor((parent.width - width) / 2)
+                id: substitute
                 height: parent.height
                 visible: !!entry.glyph
                 text: entry.glyph
+                fontSize: Theme.trayGlyphSize
                 transform: Translate {
                     y: entry.shift
                 }

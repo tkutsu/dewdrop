@@ -53,12 +53,6 @@ Singleton {
         return Theme.glyph.volHigh;
     }
 
-    // Volume as a fraction, for the ring around the icon. waybar had no way to
-    // draw one and wrote the level as a digit instead — tens of a percent, with
-    // full as a hex-style "F" to keep it to one glyph. The ring shows the real
-    // number, so it needs no rounding to fit.
-    readonly property real level: volume / 100
-
     // The name of the sink when there is one, whether or not anything is
     // plugged into it: an unplugged jack is still the output the machine would
     // use. (This was written as a conditional that returned `description` from

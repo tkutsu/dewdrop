@@ -104,10 +104,6 @@ MouseArea {
     property bool lead: true
     Layout.leftMargin: lead ? Math.round(Theme.gap * _fold) : 0
 
-    // Whether this module's popup is on screen. A plain tooltip does not
-    // count: it is a note beside the module, not a place the module opened.
-    readonly property bool open: popup !== null && hover.item !== null
-
     implicitWidth: Math.round((layout.implicitWidth + padLeft + padRight) * _fold)
     implicitHeight: Theme.barHeight
     Layout.fillHeight: true

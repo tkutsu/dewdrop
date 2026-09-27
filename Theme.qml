@@ -110,13 +110,6 @@ Singleton {
     // so the inner edge lands on the grid (2 left it straddling a pixel).
     readonly property real pillTrack: 1.5
 
-    // The theme's panel icons (the tray) are drawn with margin inside their own
-    // box — roughly 3px a side at 16px — so laying them out `gap` apart reads as
-    // half again the gap everything else gets. This is the correction, not a
-    // second opinion about spacing: gap minus what the artwork already brings.
-    readonly property int iconPadding: 3
-    readonly property int trayGap: gap - iconPadding * 2
-
     // --- type and icon sizes -------------------------------------------------
     // Named rather than scaled off a base size: Symbols Nerd Font only hints
     // cleanly at some pixel sizes — 11 and 13 come out thin and fuzzy, 12 and 14
@@ -126,15 +119,23 @@ Singleton {
     // The popups' secondary lines — a notification's app and age, the
     // launcher's right-hand hint — one step under their 12px body text.
     readonly property int captionSize: 11
-    // Text that has to hold its own in a row of icons rather than stand alone.
-    // At textSize the language switcher's cap height is 8px against the icons'
-    // 10-12, and it reads as an afterthought between them. Two pixels up is
-    // enough to even that out; more and a word starts to look like a button.
+    // Text that has to hold its own in a row of icons rather than stand alone
+    // (the language label, the launcher's rows). The same 12 as textSize now
+    // that the bar's text came down to 12 too; kept as its own name because
+    // it is a different question, and the two have differed before.
     readonly property int labelSize: 12
+    // The workspace letters: a step under the clock, so they read as marks
+    // on the taskbar rather than as words beside its icons.
+    readonly property int workspaceTextSize: 11
     readonly property int glyphSize: 16
     // Glyphs inside a popup, beside its 12px text rather than the bar's.
     readonly property int popupGlyphSize: 14
     readonly property int glyphSizeLarge: 16
+    // The glyphs the tray draws in place of nm-applet's artwork. A step under
+    // glyphSize: at 16 the wifi cone was 12px of solid ink with its tip a row
+    // below the Bluetooth and launcher drawings either side of it, and read a
+    // size up from them. At 15 it is 11px and ends on their bottom row.
+    readonly property int trayGlyphSize: 15
     // One size for everything the bar draws from artwork rather than from a
     // font — the tray and the workspace taskbar. 18 is the box macOS gives a
     // menu bar item; iconInk decides how much of it the artwork fills.
@@ -225,9 +226,9 @@ Singleton {
     readonly property int bodyWeight: Font.Medium // style.css font-weight: 500
 
     // --- colours -------------------------------------------------------------
-    // Text and glyphs, in macOS's four steps of label: primary for what is
-    // read, secondary for what is read after it, tertiary for what is only
-    // there, quaternary for a mark that has to be found rather than seen. All
+    // Text and glyphs, in three of macOS's steps of label: primary for what
+    // is read, secondary for what is read after it, tertiary for what is only
+    // there. All
     // white at an alpha rather than greys, so they sit on any wallpaper the
     // material lets through. Primary is short of full white on purpose — on
     // a bright wallpaper pure white glares, and 0.85 is where the system
@@ -235,7 +236,6 @@ Singleton {
     readonly property color label: Qt.rgba(1, 1, 1, 0.85)
     readonly property color label2: Qt.rgba(1, 1, 1, 0.55)
     readonly property color label3: Qt.rgba(1, 1, 1, 0.25)
-    readonly property color label4: Qt.rgba(1, 1, 1, 0.1)
     readonly property color fg: label
     // A pill's fill, and the popups' too: a tooltip or a menu is the bar's own
     // surface carried a little further down, so it is the same half-black
@@ -504,11 +504,10 @@ Singleton {
         alarm: "\u{f0020}",           // nf-md-alarm
 
 
-        // The popup's own controls. Plus and minus rather than the circled
-        // pair: these sit at the end of a row the width of a word, and a
-        // circle at that size is a ring around two pixels of sign.
+        // The popups' add button. A bare plus rather than the circled one: it
+        // sits at the end of a row the width of a word, and a circle at that
+        // size is a ring around two pixels of sign.
         plus: "\u{f0415}",            // nf-md-plus
-        minus: "\u{f0374}",           // nf-md-minus
 
         // Google Tasks. A checklist for the module, and the two states of one
         // row in its popup: an empty circle to aim at and the same circle with
@@ -533,10 +532,8 @@ Singleton {
         dnd: "\u{f0904}",            // nf-md-power_sleep
         close: "\u{f0156}",          // nf-md-close
 
-        headphones: "\u{f02cb}",
-        headphonesMuted: "\u{f07ce}",
-        speaker: "\u{f04c3}",
-        speakerMuted: "\u{f04c4}",
+        // One speaker for every output (see services/Audio.qml): the level is
+        // its wave count, and muted is the same speaker struck through.
         muted: "\u{f0581}",
         volLow: "\u{f057f}",
         volMed: "\u{f0580}",

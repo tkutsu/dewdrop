@@ -315,12 +315,13 @@ Singleton {
     function show(): void {
         root.query = "";
         root.index = 0;
-        // The modes that shell out start each open with nothing. Their answers
-        // are tagged with the query they were for, so a stale one could not be
-        // shown against the wrong input — but the clipboard has moved on since
-        // last time, and a row that is merely old is not worth the doubt.
-        root.calcAnswer = null;
-        root.fdHits = null;
+        // The calculator's and fd's last answers are kept: each is tagged with
+        // the query it was for, so it can only ever show against that query —
+        // and it has to be kept, because QueuedProcess will not run the same
+        // query twice in a row. Clearing them here meant that reopening the
+        // box and typing the last expression again showed nothing at all.
+        // The clipboard is different: it has moved on since last time, and a
+        // row that is merely old is not worth the doubt.
         root.clipEntries = [];
         clip.asked = false;
         fasd.asked = false;

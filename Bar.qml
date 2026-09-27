@@ -363,15 +363,64 @@ PanelWindow {
         }
         // Every Glyph on the bar is laid out on its ink, but the language
         // label is text and keeps its advance, which leaves about a pixel
-        // of side bearing to the right of the "N", and the launcher's own
-        // magnifier carries more air on its left than the glyphs do. Take
-        // both back out of the spacing so the pair sits the same distance
-        // apart as every other pair of neighbours. Trimming the gap rather
-        // than shifting the label keeps the module's own width fixed, so
-        // nothing moves when the layout changes.
+        // of side bearing to the right of the "N". That pixel comes back
+        // out, and one more: the launcher's ring meets the N's straight stem
+        // only at its middle, and at the measured gap the pair read as
+        // further apart than their neighbours. Trimming the gap rather than
+        // shifting the label keeps the module's own width fixed, so nothing
+        // moves when the layout changes.
         Language {
             Layout.rightMargin: -2
         }
         LauncherButton {}
+    }
+
+    // A click anywhere but the right pill puts the drawer away, the way a
+    // menu bar's extras fold back once you click on something else. Two
+    // halves, because the bar only hears the clicks that land on it.
+    //
+    // Off the bar: a focus grab on it while the drawer is open, which Hyprland
+    // clears on the first click in any other window. Built only while open,
+    // the way the tray's menus build theirs. A click down in one of the bar's
+    // own popups clears it too, and that one is still the bar (a volume
+    // slider under a module in the drawer), so it is re-armed rather than
+    // taken as the way out.
+    property bool drawerGrabReset: false
+
+    Loader {
+        active: drawer.open && !bar.drawerGrabReset
+
+        sourceComponent: Item {
+            HyprlandFocusGrab {
+                active: true
+                windows: [bar]
+                onCleared: {
+                    if (PopupPointer.hovered > 0) {
+                        bar.drawerGrabReset = true;
+                        Qt.callLater(() => bar.drawerGrabReset = false);
+                    } else {
+                        drawer.open = false;
+                    }
+                }
+            }
+        }
+    }
+
+    // On the bar: the clock, the left pill, the air between them. Laid over
+    // everything, it looks at each press and turns it down, which hands it on
+    // to the module underneath as if this were not here. Not a TapHandler: a
+    // handler takes the press even when its grab is only passive, and every
+    // module in the open drawer stopped answering clicks.
+    MouseArea {
+        anchors.fill: parent
+        z: 1
+        enabled: drawer.open
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+
+        onPressed: function (mouse) {
+            mouse.accepted = false;
+            if (!rightPill.contains(mapToItem(rightPill, mouse.x, mouse.y)))
+                drawer.open = false;
+        }
     }
 }

@@ -30,8 +30,24 @@ Singleton {
         return root.known[source] ?? 0;
     }
 
-    function remember(source, extent) {
+    // Where the ink runs across the box, as fractions of its width: `left` is
+    // the first column that shows at bar size and `right` the edge after the
+    // last (InkProbe's edgeLeft/edgeRight). Null until measured, which callers
+    // read as "the whole box".
+    property var spans: ({})
+
+    function spanOf(source) {
+        root.revision;
+        return root.spans[source] ?? null;
+    }
+
+    function remember(source, extent, left, right) {
         root.known[source] = extent;
+        if (left !== undefined)
+            root.spans[source] = {
+                left: left,
+                right: right
+            };
         root.revision++;
     }
 }

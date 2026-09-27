@@ -37,12 +37,23 @@ Item {
     Loader {
         active: root.measureKey !== "" && root.extent <= 0 && image.status === Image.Ready
 
+        // Off `bounds` rather than `measured`, so the height and the span land
+        // in one go: the height alone is what retires this probe, and it would
+        // be gone before the span it had also found was heard.
         sourceComponent: InkProbe {
             target: image
             ready: true
-            onMeasured: value => IconInk.remember(root.measureKey, value)
+            onBounds: (top, bottom, left, right, edgeLeft, edgeRight) => IconInk.remember(root.measureKey, (bottom - top + 1) / height, edgeLeft / width, (edgeRight + 1) / width)
         }
     }
+
+    // Where the ink sits across the item, in whole pixels: its first column
+    // from the item's left edge, and how many columns it spans. The whole box
+    // until it has been measured, so a caller laying the icon out on its ink
+    // starts from exactly where it would have been without.
+    readonly property var span: root.measureKey ? IconInk.spanOf(root.measureKey) : null
+    readonly property int inkX: span ? artwork.x + Math.round(root.drawn * span.left) : 0
+    readonly property int inkWidth: span ? artwork.x + Math.round(root.drawn * span.right) - inkX : box
 
     // Shrink only. Ink cannot be taller than the box holding it, so the target
     // is a floor as well as a target: nothing comes out under it, and the cap
@@ -65,6 +76,8 @@ Item {
     // being grabbed hands back the effect's output instead, and a shadow one
     // pixel below the artwork would have measured as one more pixel of artwork.
     Item {
+        id: artwork
+
         // Placed by hand rather than by anchors: centring a 13px icon in a 17px
         // box gives a half pixel, and half a pixel is a blurred icon.
         x: Math.floor((root.implicitWidth - root.drawn) / 2)

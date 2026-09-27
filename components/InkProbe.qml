@@ -41,7 +41,14 @@ Canvas {
     // first and last inked row, first and last inked column, in the pixels
     // of the grab. For the things that need to know where the ink is rather
     // than only how tall it stands.
-    signal bounds(int top, int bottom, int left, int right)
+    //
+    // Then the first and last column that shows at bar size, also in the
+    // grab's pixels: the grab averaged back down to the pixels the item is
+    // really drawn in, and a column counted once some pixel in it is a sixth
+    // covered. The floor above is right for how far an icon reaches, but at
+    // four times the size it also counts the sliver a thin tip leaves, and
+    // blueman's rune measured a column wider than anything that showed.
+    signal bounds(int top, int bottom, int left, int right, int edgeLeft, int edgeRight)
 
     property var _grab: null
 
@@ -115,13 +122,41 @@ Canvas {
         if (bottom < 0)
             return;
 
+        // The columns that show once drawn at size (see `bounds`).
+        const cols = Math.max(1, Math.round(target.width));
+        const rows = Math.max(1, Math.round(target.height));
+        const sx = width / cols, sy = height / rows;
+        let edgeLeft = -1, edgeRight = -1;
+        // Only the grab pixels wholly inside each drawn pixel: the ones it
+        // shares with a neighbour carry that neighbour's ink into it.
+        for (let cx = 0; cx < cols; cx++) {
+            const x0 = Math.ceil(cx * sx), x1 = Math.max(x0 + 1, Math.floor((cx + 1) * sx));
+            for (let cy = 0; cy < rows; cy++) {
+                const y0 = Math.ceil(cy * sy), y1 = Math.max(y0 + 1, Math.floor((cy + 1) * sy));
+                let sum = 0;
+                for (let y = y0; y < y1; y++)
+                    for (let x = x0; x < x1; x++)
+                        sum += data[(y * width + x) * 4 + 3];
+                if (sum / ((x1 - x0) * (y1 - y0)) < 43)
+                    continue;
+                if (edgeLeft < 0)
+                    edgeLeft = x0;
+                edgeRight = x1 - 1;
+                break;
+            }
+        }
+        if (edgeLeft < 0) {
+            edgeLeft = left;
+            edgeRight = right;
+        }
+
         // Out of the paint before the answer lands: it is what retires this
         // probe, and a canvas should not be destroyed from inside its own
         // paint handler.
         const extent = (bottom - top + 1) / height;
         Qt.callLater(function () {
             root.measured(extent);
-            root.bounds(top, bottom, left, right);
+            root.bounds(top, bottom, left, right, edgeLeft, edgeRight);
         });
     }
 }
