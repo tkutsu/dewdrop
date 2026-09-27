@@ -300,46 +300,55 @@ PanelWindow {
             id: email
             pinKey: "email"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         Tasks {
             id: tasks
             pinKey: "tasks"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         Updater {
             id: updater
             pinKey: "updater"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         NotificationBell {
             id: bell
             pinKey: "bell"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         Satty {
             id: satty
             pinKey: "satty"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         IdleInhibit {
             id: idle
             pinKey: "idle"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         Wallpaper {
             id: wallpaper
             pinKey: "wallpaper"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         NightMode {
             id: night
             pinKey: "night"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         Sys {
             id: sys
             pinKey: "sys"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
         }
         Tray {}
         // A pixel less air on its right than the row gives: the speaker's
@@ -349,6 +358,7 @@ PanelWindow {
             id: audio
             pinKey: "audio"
             stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
             Layout.rightMargin: -1
         }
         // Every Glyph on the bar is laid out on its ink, but the language

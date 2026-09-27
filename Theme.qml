@@ -171,6 +171,12 @@ Singleton {
     // beneath them is.
     readonly property int badgeLine: 8
 
+    // The pin mark on a pinned module's lower right corner, shown while the
+    // drawer is open: the badge's dark disc a size down, since it answers a
+    // question you only ask with the drawer out.
+    readonly property int pinMarkSize: 10
+    readonly property int pinGlyphSize: 7
+
     // Every count on the bar rides the top edge of the pill instead of sitting
     // inside it: half on the slab, half on the margin above, which gives the
     // icon underneath its corner back. A margin's worth of rise is as far as
@@ -579,6 +585,8 @@ Singleton {
 
         // The right pill's drawer, which opens to the left: the chevron
         // points the way it will grow, and turns round once it has.
-        drawer: "\u{f0141}"          // nf-md-chevron_left
+        drawer: "\u{f0141}",         // nf-md-chevron_left
+        // The mark on a module pinned out of the drawer (nf-md-pin).
+        pin: "\u{f0403}"
     })
 }

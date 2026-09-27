@@ -60,6 +60,11 @@ MouseArea {
     // it has something to say, or always once it is pinned.
     readonly property bool showsClosed: pinKey === "" || !quiet || DrawerPins.pinned(pinKey)
 
+    // Whether to mark a pinned module as pinned. Set by the drawer's owner
+    // while the drawer is open, which is when pinned and unpinned stand side
+    // by side and the difference is worth saying.
+    property bool marksPin: false
+
     // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
     // `showsClosed` and whether the drawer is open.
     property bool stowed: false
@@ -129,6 +134,35 @@ MouseArea {
         opacity: root._fold
         spacing: Theme.gap
         transform: Translate { y: root.dips && root.pressed ? Theme.pressDip : 0 }
+    }
+
+    // The pin mark: the badge's dark disc on the lower right corner, where the
+    // badge takes the upper. It stays inside the pill, because the bar's
+    // surface ends at the pill's bottom edge and anything past it is cut off.
+    Rectangle {
+        readonly property int size: Theme.pinMarkSize
+
+        x: layout.x + layout.width - size / 2
+        y: Theme.pillTop(root.height) + Theme.barHeight - size - 1
+        width: size
+        height: size
+        radius: size / 2
+        color: Theme.badgeBg
+        opacity: root.pinKey !== "" && root.marksPin && DrawerPins.pinned(root.pinKey) ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.fadeMs
+            }
+        }
+
+        Glyph {
+            anchors.centerIn: parent
+            text: Theme.glyph.pin
+            fontSize: Theme.pinGlyphSize
+            color: Theme.badgeFg
+        }
     }
 
     // Middle click on a pinnable module is the pin and nothing else. A layer
