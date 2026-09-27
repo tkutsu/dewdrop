@@ -411,16 +411,22 @@ Singleton {
     // numerals, which would put ϛ at six, and Inter has no ϛ.
     readonly property var workspaceLetters: ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ"]
 
-    // One of WhiteSur's macOS tray drawings, by file rather than by name, from
-    // the copies in icons/ beside this file, so the config does not depend on
-    // an icon theme having them. Glyph draws any entry below that is one of
-    // these in place of the font.
+    // A drawing, by file rather than by name, from the copies in icons/ beside
+    // this file (its README says where each came from), so the config does not
+    // depend on an icon theme having them. Glyph draws any entry below that is
+    // one of these in place of the font.
     function panel(name) {
         return "file://" + Quickshell.shellPath("icons/" + name + ".svg");
     }
 
     readonly property var glyph: ({
-        launcher: "\u{f0349}",          // nf-md-magnify
+        // Drawn after SF Symbols' magnifyingglass rather than nf-md-magnify:
+        // that glyph centred on its ink sat the lens a pixel and a half up and
+        // left of centre, with the long handle pulling the box the other way.
+        // This one's handle is a stub, its viewBox puts it on the pixel grid,
+        // and its 1.75px ring stands the weight of the outlined glyphs beside
+        // it. launcher-tabler.svg is the thinner one it replaced.
+        launcher: panel("launcher"),
 
         // Every glyph here is Material Design, outlined wherever the set has
         // an outline — the bar and the power menu used to mix in Font Awesome
