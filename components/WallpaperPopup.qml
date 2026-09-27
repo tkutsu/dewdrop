@@ -194,11 +194,13 @@ Popup {
 
                 Image {
                     anchors.fill: parent
-                    source: "file://" + cell.modelData
+                    // The kept thumbnail once there is one (Wallpaper.thumbs).
+                    source: "file://" + Wallpaper.thumbOf(cell.modelData)
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    // Thumbnails, not the 4K original: without this each cell
-                    // decodes a full wallpaper into memory.
+                    // Decoded at cell size: the thumbnail is 512 wide, and
+                    // until it exists this is all that stands between a cell
+                    // and a full 4K wallpaper in memory.
                     sourceSize.width: root.cellWidth * 2
                     opacity: cell.current || hover.hovered ? 1 : 0.6
                 }

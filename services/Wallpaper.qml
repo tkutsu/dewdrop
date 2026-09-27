@@ -17,6 +17,48 @@ Singleton {
     readonly property string dir: Settings.wallpaperDir
 
     property var files: []
+
+    // --- thumbnails -------------------------------------------------------------
+    // What the popup draws for each file: a small copy kept on disk by
+    // scripts/wallpaper-thumbs, looked up by path. A file with no entry yet —
+    // the first time the folder is seen, or one just dropped into it — is
+    // drawn from the original until its thumbnail lands.
+    readonly property string thumbDir: Quickshell.env("HOME") + "/.cache/quickshell/wallpaper-thumbs"
+    property var thumbs: ({})
+
+    function thumbOf(path) {
+        return root.thumbs[path] ?? path;
+    }
+
+    // Every scan hands over a new array whether the files moved or not, and
+    // every scroll notch scans, so the script is only asked when the list
+    // itself changed. One that changes mid-run is caught by the next scan.
+    property string thumbed: ""
+
+    onFilesChanged: {
+        const list = root.files.join("\n");
+        if (list === root.thumbed || thumbnail.running)
+            return;
+        root.thumbed = list;
+        thumbnail.exec([Quickshell.shellPath("scripts/wallpaper-thumbs"), root.thumbDir].concat(root.files));
+    }
+
+    Process {
+        id: thumbnail
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const map = {};
+                for (const line of text.split("\n")) {
+                    const tab = line.indexOf("\t");
+                    if (tab > 0)
+                        map[line.slice(0, tab)] = line.slice(tab + 1);
+                }
+                root.thumbs = map;
+            }
+        }
+    }
+
     // The wallpaper is remembered by path, not by position: the folder is a
     // place the user drops files into, and an index would point at a different
     // image the moment one is added or removed.

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Thumbnails for the wallpaper popup (components/WallpaperPopup.qml).
+#
+#   wallpaper-thumbs <cache dir> <wallpaper>...
+#
+# Answers one line per wallpaper it has a picture for, "<wallpaper>\t<thumb>".
+# A wallpaper missing from the answer is one magick could not read, and the
+# popup draws the original for it instead.
+#
+# The popup's cells are 104x58 and the wallpapers are 4K photographs, 70MB of
+# them, all decoded again every time it opened. Each is drawn down here once,
+# to 512 on the long edge like ~/_scripts/thumb.sh's renders, and kept.
+#
+# Keyed by path, mtime and size, again the way thumb.sh keys, so a wallpaper
+# replaced in place gets a new picture. Every run is handed the whole folder,
+# which makes anything in the cache it did not answer with a leftover: a
+# wallpaper deleted, moved or replaced. Those go.
+
+set -uo pipefail
+
+cache=${1:?}
+shift
+mkdir -p "$cache" || exit 0
+
+declare -A keep
+
+for src; do
+    stamp=$(stat -Lc '%Y %s' -- "$src" 2>/dev/null) || continue
+    key=$(printf '%s\n%s' "$src" "$stamp" | sha1sum | cut -d' ' -f1)
+    out="$cache/$key.jpg"
+    # Written beside the real name and moved into place, so the popup can
+    # never be handed a half-written file (see thumb.sh).
+    if [[ ! -s $out ]]; then
+        tmp=$(mktemp "$cache/.$key.XXXXXX") || continue
+        if timeout 10 magick "$src[0]" -auto-orient -thumbnail 512x512 -quality 85 "jpg:$tmp" 2>/dev/null; then
+            mv -f "$tmp" "$out"
+        else
+            rm -f "$tmp"
+        fi
+    fi
+    [[ -s $out ]] || continue
+    keep[$out]=1
+    printf '%s\t%s\n' "$src" "$out"
+done
+
+for f in "$cache"/*.jpg; do
+    [[ -e $f && -z ${keep[$f]:-} ]] && rm -f -- "$f"
+done
+exit 0
