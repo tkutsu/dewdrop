@@ -18,14 +18,13 @@ BarItem {
         badge: Notifications.label
     }
 
-    // Left opens the centre, the way the system's clock does. Middle is do not
-    // disturb and right clears everything, as they were under swaync.
+    // Left opens the centre, the way the system's clock does, and right is do
+    // not disturb. Clearing everything is the centre's header, beside its own
+    // do-not-disturb; middle pins the bell (BarItem.pinKey).
     onClicked: function (mouse) {
         if (mouse.button === Qt.RightButton)
-            Notifications.clearAll();
-        else if (mouse.button === Qt.MiddleButton)
             Notifications.setDnd(!Notifications.dnd);
-        else
+        else if (mouse.button === Qt.LeftButton)
             Notifications.toggleCentre();
     }
 }

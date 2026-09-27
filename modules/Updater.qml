@@ -31,11 +31,11 @@ BarItem {
     }
 
     onClicked: function (mouse) {
-        if (mouse.button === Qt.MiddleButton)
+        // No refresh here: the count rechecks itself every six hours and
+        // after every upgrade (qs ipc call updates refresh).
+        if (mouse.button === Qt.RightButton)
             Quickshell.execDetached(["kitty", "--title", "cleanup", "sh", "-c", scripts + "/cleanup.sh"]);
-        else if (mouse.button === Qt.RightButton)
-            Updates.refresh();
-        else
+        else if (mouse.button === Qt.LeftButton)
             Quickshell.execDetached([scripts + "/taskbar-update.sh"]);
     }
 }

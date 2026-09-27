@@ -38,12 +38,10 @@ BarItem {
     onClicked: function (mouse) {
         if (mouse.button === Qt.LeftButton)
             Launcher.openWith(Launcher.taskPrefix);
-        else if (mouse.button === Qt.MiddleButton)
+        else if (mouse.button === Qt.RightButton)
             // The site rather than one of the PWA wrappers beside it: there is
             // no Google Tasks web app installed here, and a wrapper round an
             // app id nobody has is a launcher that silently does nothing.
             Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
-        else if (mouse.button === Qt.RightButton)
-            Tasks.refresh();
     }
 }

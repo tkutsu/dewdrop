@@ -285,51 +285,61 @@ PanelWindow {
         // Whatever has nothing to say right now folds away behind this handle,
         // each module in its own place in the row so that opening the drawer
         // puts the pill back exactly as it always was. The modules decide what
-        // "nothing to say" is (BarItem.quiet); the drawer only decides whether
-        // they are showing anyway.
+        // "nothing to say" is (BarItem.quiet), a middle click can overrule them
+        // either way (DrawerPins), and the drawer only decides whether they
+        // are showing anyway.
         readonly property var drawable: [email, tasks, updater, bell, satty, idle, wallpaper, night, sys, audio]
 
         Drawer {
             id: drawer
-            holding: rightPill.drawable.some(m => m.present && m.quiet)
+            holding: rightPill.drawable.some(m => m.present && !m.showsClosed)
             pointerNear: barHover.hovered || PopupPointer.hovered > 0
         }
 
         Email {
             id: email
-            stowed: quiet && !drawer.open
+            pinKey: "email"
+            stowed: !showsClosed && !drawer.open
         }
         Tasks {
             id: tasks
-            stowed: quiet && !drawer.open
+            pinKey: "tasks"
+            stowed: !showsClosed && !drawer.open
         }
         Updater {
             id: updater
-            stowed: quiet && !drawer.open
+            pinKey: "updater"
+            stowed: !showsClosed && !drawer.open
         }
         NotificationBell {
             id: bell
-            stowed: quiet && !drawer.open
+            pinKey: "bell"
+            stowed: !showsClosed && !drawer.open
         }
         Satty {
             id: satty
-            stowed: quiet && !drawer.open
+            pinKey: "satty"
+            stowed: !showsClosed && !drawer.open
         }
         IdleInhibit {
             id: idle
-            stowed: quiet && !drawer.open
+            pinKey: "idle"
+            stowed: !showsClosed && !drawer.open
         }
         Wallpaper {
             id: wallpaper
-            stowed: quiet && !drawer.open
+            pinKey: "wallpaper"
+            stowed: !showsClosed && !drawer.open
         }
         NightMode {
             id: night
-            stowed: quiet && !drawer.open
+            pinKey: "night"
+            stowed: !showsClosed && !drawer.open
         }
         Sys {
             id: sys
-            stowed: quiet && !drawer.open
+            pinKey: "sys"
+            stowed: !showsClosed && !drawer.open
         }
         Tray {}
         // A pixel less air on its right than the row gives: the speaker's
@@ -337,7 +347,8 @@ PanelWindow {
         // gap the language label read as set apart from it.
         Audio {
             id: audio
-            stowed: quiet && !drawer.open
+            pinKey: "audio"
+            stowed: !showsClosed && !drawer.open
             Layout.rightMargin: -1
         }
         // Every Glyph on the bar is laid out on its ink, but the language

@@ -51,8 +51,16 @@ MouseArea {
     // bar shows what is true at the moment and the rest is a click away.
     property bool quiet: false
 
+    // The module's name in DrawerPins, for the ones the right pill's drawer
+    // holds: middle click then pins it out of the drawer or into it. Empty for
+    // everything else, which keeps middle click for itself.
+    property string pinKey: ""
+    // Whether the module stands out of the drawer while it is closed: by its
+    // own `quiet`, unless a pin says otherwise.
+    readonly property bool showsClosed: pinKey === "" || DrawerPins.showsClosed(pinKey, quiet)
+
     // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
-    // `quiet` and whether the drawer is open.
+    // `showsClosed` and whether the drawer is open.
     property bool stowed: false
 
     // How far out of the drawer the module is, 0..1. It folds to nothing
@@ -120,6 +128,13 @@ MouseArea {
         opacity: root._fold
         spacing: Theme.gap
         transform: Translate { y: root.dips && root.pressed ? Theme.pressDip : 0 }
+    }
+
+    // Runs beside the module's own onClicked rather than instead of it; the
+    // modules that carry a pinKey leave middle click to this.
+    onClicked: function (mouse) {
+        if (mouse.button === Qt.MiddleButton && root.pinKey !== "")
+            DrawerPins.toggle(root.pinKey, root.quiet);
     }
 
     onWheel: function (wheel) {
