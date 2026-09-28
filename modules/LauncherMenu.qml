@@ -374,12 +374,15 @@ OverlayWindow {
         // had it, which is the one place the two ways of closing differ.
         //
         // Opening and being dismissed, both are the reveal and nothing else:
-        // half the height the box has yet to gain, off each end, which puts a
-        // closed box on the centre line of where it is about to be and walks
-        // its edges out to the settled ones as it opens. Open, `reveal` is 1
-        // and both terms are zero, so the top is the pinned line exactly and a
-        // list that grows can only grow downwards — the reveal borrows the
-        // box's position and gives it back.
+        // the box opens out of the query line's middle and folds back into
+        // it, so a closed box is a line through the query and each edge walks
+        // out from there to the settled one as it opens. That line is the
+        // box's own middle only while there is no list under the query; with
+        // one, folding about the middle would shut the box on a row rather
+        // than on the query it was opened for. Open, `reveal` is 1 and both
+        // terms are zero, so the top is the pinned line exactly and a list
+        // that grows can only grow downwards — the reveal borrows the box's
+        // position and gives it back.
         //
         // Leaving on a choice, they are the zip and then the fold: the top edge
         // falls by everything above the chosen row and the bottom edge climbs
@@ -394,8 +397,9 @@ OverlayWindow {
         // time the rounding falls either side of a half. That pixel appears
         // and disappears as the animation runs, which reads as the whole list
         // jittering up and down inside a box that is moving smoothly.
-        readonly property int topEdge: Math.round(root.zipping ? root.focus * (1 - root.zip) + root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight * (1 - root.reveal) / 2)
-        readonly property int bottomEdge: Math.round(root.zipping ? box.bodyHeight - (box.bodyHeight - root.focus - root.rowHeight) * (1 - root.zip) - root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight - box.bodyHeight * (1 - root.reveal) / 2)
+        readonly property real queryLine: root.boxPad + root.inputHeight / 2
+        readonly property int topEdge: Math.round(root.zipping ? root.focus * (1 - root.zip) + root.rowHeight * (1 - root.fold) / 2 : box.queryLine * (1 - root.reveal))
+        readonly property int bottomEdge: Math.round(root.zipping ? box.bodyHeight - (box.bodyHeight - root.focus - root.rowHeight) * (1 - root.zip) - root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight - (box.bodyHeight - box.queryLine) * (1 - root.reveal))
 
         // The sides, which only the zip moves: in to where the selection's
         // fill is drawn, held in from the list's ends (see the list's
@@ -470,16 +474,16 @@ OverlayWindow {
         // Placed rather than anchored, because the box's two motions want two
         // different things of it.
         //
-        // Through the reveal it has to sit centred, or the box would peel open
-        // from a top edge the contents were nailed to and the wipe would come
-        // from the top rather than the middle. Once open it has to sit at
+        // Through the reveal it has to hold still on screen, or the box would
+        // peel open from a top edge the contents were nailed to and the wipe
+        // would come from the top rather than the query line. Once open it has to sit at
         // boxPad and stay there, or the drawer animation below would drag the
         // query line down with the bottom edge — the one thing being looked at
         // while typing would be the one thing that will not hold still.
         //
-        // This is both: the term is the centring offset written against the
-        // height the box is heading for rather than the one it is drawn at, so
-        // it vanishes the moment `reveal` reaches 1 and the list can then grow
+        // This is both: it is moved up by exactly as much as the top edge has
+        // come down, and that is nothing the moment `reveal` reaches 1, so the
+        // list can then grow
         // underneath a query line that does not move. The width still comes
         // from the box, so the rows below can go on sizing off `parent.width`.
         Column {
