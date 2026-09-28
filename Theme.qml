@@ -91,11 +91,12 @@ Singleton {
     // walks across the bar every time a remix credit turns up.
     readonly property int mediaTitleWidth: 170
 
-    // The air between neighbouring islands. Two of waybar's rems (29.33px),
-    // rounded to a whole pixel like everything else here: far enough that two
-    // pills read as separate islands rather than as one pill with a seam in
-    // it, near enough that they still read as neighbours.
-    readonly property int pillSpread: 29
+    // The air between neighbouring islands. Apple's spacing between groups of
+    // capsules, two thirds of a pill's height: far enough that two pills read
+    // as separate islands rather than as one pill with a seam in it, near
+    // enough that they still read as neighbours. Content to content, with
+    // `pillPad` on either side, it is still over twice `gap`.
+    readonly property int pillSpread: 16
 
     // The pill's outline. Also how far in anything that sits flush against the
     // inside of a pill has to start — the active workspace's rule does.

@@ -60,6 +60,11 @@ Item {
     // that are carrying nothing that runs — which is all of them but one.
     property real progress: -1
 
+    // How much of that outline is showing, 0..1, for a pill that goes away:
+    // the line is the brightest thing on it, and one that slid under the
+    // clock at full strength read as the last of the pill to leave.
+    property real trackOpacity: 1
+
     // The outline as a single line around the pill, starting from the left and
     // going clockwise. Its measurements, in the slab's own coordinates: the
     // stroke is centred on the path it follows, so the path is half a stroke
@@ -179,10 +184,10 @@ Item {
         y: slab.y
         width: slab.width
         height: slab.height
-        visible: root.progress >= 0 && root.lit > 0
+        visible: root.progress >= 0 && root.lit > 0 && opacity > 0
         // Goes with the outline it stands in for: once the pills have merged
         // into one strip there are no ends for a line to run between.
-        opacity: 1 - root.mergeProgress
+        opacity: (1 - root.mergeProgress) * root.trackOpacity
         // The curve renderer, because this is a line on a curve and the
         // triangulated one leaves steps on the ends.
         preferredRendererType: Shape.CurveRenderer
