@@ -16,7 +16,10 @@ ClickArea {
     property alias spacing: layout.spacing
 
     // Text for a plain hover tooltip, or a Component for something richer — a
-    // calendar, a volume slider. The tooltip appears on hover; the popup on a
+    // calendar, a volume slider. A tooltip says what the icon cannot: the
+    // state behind it ("Volume 40%", "Home Wi-Fi"), or for a tool, its name.
+    // A short phrase in sentence case with no full stop, and nothing on a
+    // module whose own text already says it. It appears on hover; the popup on a
     // click of `popupButton`, and stays until a click anywhere else, because
     // a popup is somewhere to go rather than something to glance at.
     // `popupItem` is the live instance, for modules that need to drive it
@@ -228,13 +231,14 @@ ClickArea {
     }
 
     // --- tooltip and popup ---------------------------------------------------
-    // The tooltip stands aside while the popup is up: both hang from the same
-    // spot.
+    // The tooltip stands aside while any popup is up, this one's included
+    // (HoverPopup).
     HoverPopup {
         id: hover
         anchorItem: root
-        hovered: root.containsMouse && !root.popupOpen
-        text: root.popupOpen ? "" : root.tooltip
+        hovered: root.containsMouse
+        pressed: root.pressed || pin.pressed || opener.pressed
+        text: root.tooltip
     }
 
     HoverPopup {

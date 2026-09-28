@@ -63,9 +63,14 @@ PopupWindow {
     // taken off the module by it, and closed it again a moment later — and
     // stayed that way until it moved. The shadow's faint top edge is cut
     // off instead; it falls on the bar, where nothing showed it anyway.
-    readonly property int shadowSide: Theme.shadowBlur
+    //
+    // The shadow itself is a popover's; a tooltip, smaller and nearer the
+    // surface, casts a smaller one.
+    property int shadowBlur: Theme.shadowBlur
+    property int shadowY: Theme.shadowY
+    readonly property int shadowSide: shadowBlur
     readonly property int shadowTop: Theme.popupGap
-    readonly property int shadowBottom: Theme.shadowPad
+    readonly property int shadowBottom: shadowBlur + shadowY
 
     // How tall the box is drawn, which is not always how tall the window is.
     readonly property real chromeHeight: Math.max(1, body.implicitHeight + vPadding * 2)
@@ -81,8 +86,7 @@ PopupWindow {
         item: reach
     }
 
-    // A popup that can be clicked has to outlive the pointer leaving the bar
-    // item that opened it; HoverPopup watches this to decide when to close.
+    // Whether the pointer is on the popup, which the bar counts (below).
     readonly property bool hovered: pointer.hovered
 
     // Stay open a while even with the pointer outside. For a button whose
@@ -106,9 +110,9 @@ PopupWindow {
     // it up to the window's top edge. The bar's surface ends at the pill, and
     // that edge is where the module lets go of the pointer, so the strip is
     // the seam between the two. Counted from the box alone, a pointer crossing
-    // it slowly belonged to neither, and HoverPopup's leave timer closed the
-    // popup before it arrived. The box and its shadow sit inside, so the
-    // handler hears the pointer over anything a popup puts in its body.
+    // it slowly belonged to neither, and a click there closed the popup it
+    // was on its way into. The box and its shadow sit inside, so the handler
+    // hears the pointer over anything a popup puts in its body.
     Item {
         id: reach
 
@@ -125,9 +129,9 @@ PopupWindow {
         // the same amount the blur behind it lightens it.
         RectangularShadow {
             anchors.fill: chrome
-            offset.y: Theme.shadowY
+            offset.y: root.shadowY
             radius: chrome.radius
-            blur: Theme.shadowBlur
+            blur: root.shadowBlur
             color: Theme.shadow
         }
 

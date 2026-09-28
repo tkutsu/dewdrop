@@ -13,6 +13,15 @@ BarItem {
     id: root
 
     settingsKey: "network"
+    tooltip: {
+        if (Network.wiredUp)
+            return "Ethernet";
+        if (Network.current)
+            return Network.current.name;
+        if (Network.joining)
+            return "Joining…";
+        return Network.wifiOn ? "Not connected" : "Wi-Fi off";
+    }
     popup: NetworkPopup {}
 
     opacity: Network.online ? 1 : Theme.dimOpacity

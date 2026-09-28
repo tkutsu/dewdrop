@@ -14,6 +14,8 @@ import qs.services
 BarItem {
     id: root
 
+    // The level the waves only hint at; which device is the popup's to say.
+    tooltip: !Audio.connected ? "No output" : Audio.muted ? "Muted" : `Volume ${Audio.volume}%`
     popup: AudioPopup {}
     // Nothing to play through — no speaker, no headphones in the jack — is
     // nothing to set a volume on either, so it waits in the drawer until an

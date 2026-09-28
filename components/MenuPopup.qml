@@ -142,9 +142,8 @@ Popup {
                 Timer {
                     id: submenuLeave
 
-                    // The same grace components/HoverPopup.qml gives the bar's
-                    // popups: long enough to cross the seam, short enough that
-                    // the menu still closes on the way out.
+                    // Long enough to cross the seam into the submenu, short
+                    // enough that it still closes on the way out.
                     interval: 150
                     onTriggered: if (!row.pointerNear)
                         row.submenuOpen = false

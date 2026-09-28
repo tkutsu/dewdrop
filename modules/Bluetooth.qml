@@ -16,6 +16,14 @@ BarItem {
 
     settingsKey: "bluetooth"
     present: Bluetooth.present
+    tooltip: {
+        if (!Bluetooth.on)
+            return "Bluetooth off";
+        const devices = Bluetooth.connected;
+        if (devices.length === 0)
+            return "Bluetooth on";
+        return devices.length === 1 ? devices[0].name : `${devices.length} devices`;
+    }
     popup: BluetoothPopup {}
 
     opacity: Bluetooth.on ? 1 : Theme.dimOpacity

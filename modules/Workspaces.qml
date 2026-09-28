@@ -333,9 +333,19 @@ BarItem {
                                 pressed: tap.pressed
                                 badgeFill: button.badgeFill
 
+                                // The app's name, the way the Dock labels its
+                                // icons; the badge already says how many.
+                                HoverPopup {
+                                    anchorItem: app
+                                    hovered: tap.containsMouse
+                                    pressed: tap.pressed
+                                    text: app.entry?.name || app.windowClass
+                                }
+
                                 MouseArea {
                                     id: tap
                                     anchors.fill: parent
+                                    hoverEnabled: true
 
                                     // Focusing a window switches workspace as a side
                                     // effect. Where an icon stands for several windows,

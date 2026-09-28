@@ -11,6 +11,7 @@ BarItem {
 
     // A tool, never news: it waits in the drawer unless it is pinned out.
     quiet: true
+    tooltip: "Screenshot"
 
     Glyph {
         Layout.fillHeight: true

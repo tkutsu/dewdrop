@@ -8,6 +8,12 @@ import qs.services
 // window — that half of the script is the action, not bar plumbing.
 BarItem {
 
+    tooltip: {
+        if (!Updates.loaded || Updates.loading)
+            return "Checking for updates…";
+        const n = Updates.pending;
+        return n === 0 ? "Up to date" : n === 1 ? "1 update" : `${n} updates`;
+    }
     popup: UpdatesPopup {}
     quiet: Updates.pending === 0
 

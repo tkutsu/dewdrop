@@ -135,7 +135,10 @@ BarItem {
             HoverPopup {
                 anchorItem: entry
                 hovered: pointer.containsMouse && !entry.menuOpen
-                text: entry.modelData.tooltipTitle || entry.modelData.title || entry.modelData.id
+                pressed: pointer.pressed
+                // Not the id when the app gives neither: a service name
+                // ("chrome_status_icon_1") tells nobody anything.
+                text: entry.modelData.tooltipTitle || entry.modelData.title
             }
 
             // Null for an item with no menu, which leaves every button that

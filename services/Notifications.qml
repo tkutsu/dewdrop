@@ -39,7 +39,7 @@ Singleton {
 
     readonly property string tooltip: {
         const n = count === 0 ? "No notifications" : count === 1 ? "1 notification" : `${count} notifications`;
-        return n + (dnd ? "  ·  do not disturb" : "");
+        return n + (dnd ? "  ·  Do Not Disturb" : "");
     }
 
     // --- the notice beside the clock ----------------------------------------

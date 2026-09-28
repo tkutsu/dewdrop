@@ -23,6 +23,7 @@ BarItem {
     property bool pointerNear: false
 
     present: holding
+    tooltip: open ? "Show less" : "Show more"
 
     // A chevron is a few pixels of ink, and its box ended at the ink: a click
     // a pixel to its right fell into the gap before the next module and did

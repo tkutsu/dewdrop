@@ -6,6 +6,7 @@ import qs.services
 
 // custom/wallpaper. Stage 4 turns the "12/47" tooltip into a thumbnail grid.
 BarItem {
+    tooltip: "Wallpaper"
     popup: WallpaperPopup {}
     // A tool, like the screenshot button: nothing about it is ever news.
     quiet: true

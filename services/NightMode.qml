@@ -27,7 +27,7 @@ Singleton {
     // The panel is dimmed to 0 whenever night mode goes on, so a dark screen is
     // what the mode looks like from outside; say that rather than "Brightness 0%".
     // Scrolling to 0 by hand is not the mode, so key this off the flag, not the level.
-    readonly property string tooltip: on ? "Night mode" : `Brightness ${brightness}%`
+    readonly property string tooltip: on ? "Night mode on" : `Brightness ${brightness}%`
 
     function toggle() {
         Quickshell.execDetached([Paths.script("display.sh"), "toggle"]);

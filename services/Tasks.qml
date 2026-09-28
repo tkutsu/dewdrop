@@ -125,12 +125,10 @@ GoogleService {
             parts.push(`${root.overdue.length} overdue`);
         if (root.due.length > 0)
             parts.push(`${root.due.length} due today`);
+        // What the badge counts and no more: later and undated are the
+        // popup's, where there is room to read them.
         if (parts.length === 0)
             parts.push(root.tasks.length === 0 ? "Nothing on the list" : "Nothing due today");
-        if (root.soon.length > 0)
-            parts.push(`${root.soon.length} later`);
-        if (root.undated.length > 0)
-            parts.push(`${root.undated.length} undated`);
         return parts.join("  ·  ");
     }
 

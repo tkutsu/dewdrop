@@ -1,18 +1,37 @@
 import QtQuick
+import Quickshell
 import qs
 
-// A plain text popup: what every "tooltip": true module used to get from GTK.
+// A module's tooltip, drawn the way the Mac draws a help tag: a line of small
+// type in a snug box, smaller than a popover in every measure — type, padding,
+// corner and shadow — so it reads as a note on the thing under the pointer
+// rather than as somewhere to go.
 Popup {
     id: root
 
     property alias text: label.text
+
+    hPadding: 7
+    vPadding: 3
+    radius: Theme.menuRadius
+    shadowBlur: 8
+    shadowY: 2
+
+    // Nothing to point at, so the pointer goes through it: a tag is never in
+    // the way of what is under it, and never holds itself open.
+    mask: Region {}
 
     PopupText {
         id: label
         // Tooltips carried newlines in waybar (the updater's two lines, mpd's
         // five); nothing in them was ever markup.
         textFormat: Text.PlainText
+        font.pixelSize: Theme.captionSize
         lineHeight: 1.2
+        // A tag is a phrase, but a tray app writes what it likes into its
+        // own; past this it wraps rather than running across the bar.
+        width: Math.min(implicitWidth, 280)
+        wrapMode: Text.Wrap
         // Qt hangs proportional leading below every line, the last one included,
         // so the 1.2 that spaces the multi-line tooltips also hands the popup a
         // line's worth of empty at the bottom and nothing at the top. Give back

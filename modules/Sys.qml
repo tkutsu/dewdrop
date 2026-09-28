@@ -8,6 +8,8 @@ import qs.services
 // custom/sys. A thermometer reading the CPU or the card — whichever was asked
 // for last — with the machine behind it in the popup.
 BarItem {
+    // The figure the tube stands for, and which chip it is reading.
+    tooltip: Sys.temp > 0 ? `${Sys.showGpu ? "GPU" : "CPU"} ${Math.round(Sys.temp)} °C` : "No temperature sensor"
     popup: SysPopup {}
 
     // A temperature is only news once it is a warning, so the tube waits in

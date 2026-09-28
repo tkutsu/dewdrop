@@ -13,6 +13,7 @@ import qs.services
 // The dummy `exec`/`interval: once` the waybar version needed (a custom module
 // with no output gets hidden) has no equivalent here.
 BarItem {
+    tooltip: "Search"
 
     Glyph {
         Layout.fillHeight: true

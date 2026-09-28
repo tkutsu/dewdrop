@@ -7,6 +7,7 @@ import qs.services
 
 // The bell: how many notifications are being kept, and the way into them.
 BarItem {
+    tooltip: Notifications.tooltip
     popup: NotificationsPopup {}
     // Do-not-disturb is something true right now even with nothing waiting,
     // so the bell only goes in the drawer when it is both empty and ordinary.
