@@ -38,6 +38,13 @@ ClickArea {
         OpenPopup.toggle(root);
     }
 
+    // With another module's popup up, arriving here opens this one in its
+    // place (OpenPopup.browse). Only where the whole module is the popup's
+    // button: Music's popup belongs to its title, and the rest of it is
+    // controls that a pointer on its way to them should not open anything.
+    onContainsMouseChanged: if (containsMouse && popup !== null && popupButton !== Qt.NoButton)
+        OpenPopup.browse(root)
+
     // Fitts's law: the modules at the ends of the bar back onto a screen edge,
     // which makes them the cheapest targets on screen — but only if their hit
     // area reaches that edge instead of stopping at the row's margin. Padding

@@ -6,12 +6,19 @@ import Quickshell.Hyprland
 
 // The bar item whose popup a click has opened, or null. One at a time, the
 // way a menu bar's menus are: opening one puts away whichever was up. Kept by
-// components/BarItem.qml; a click anywhere else closes it (Bar.qml for clicks
-// on the bar, the Connections below for the rest).
+// components/BarItem.qml and the tray's icons; a click anywhere else closes it
+// (Bar.qml for clicks on the bar, the Connections below for the rest).
 Singleton {
     id: root
 
     property Item owner: null
+
+    // Whether the popup now up took over from another one rather than opening
+    // from nothing. The Mac draws a menu that the pointer slid across to at
+    // once, without the reveal it gave the first: that one was the answer to
+    // a click, and the rest are the same menu bar being browsed. Read by
+    // components/Popup.qml as the new popup comes up.
+    property bool switched: false
 
     // Layer surfaces hear nothing of clicks in other windows, so Hyprland
     // tells us: a non-consuming bind in hypr/configs/keybinds.lua emits
@@ -25,21 +32,35 @@ Singleton {
 
         function onRawEvent(event: HyprlandEvent): void {
             if (event.name === "custom" && event.data === "click" && PopupPointer.hovered === 0 && PopupPointer.bars === 0)
-                root.owner = null;
+                root.dismiss();
         }
     }
 
+    function set(item: Item, handover: bool): void {
+        root.switched = handover;
+        root.owner = item;
+    }
+
     function toggle(item: Item): void {
-        root.owner = root.owner === item ? null : item;
+        root.set(root.owner === item ? null : item, false);
+    }
+
+    // The pointer has arrived on `item`, which can open a popup of its own.
+    // Once one popup is up the bar is being browsed rather than passed over,
+    // so the popup follows the pointer, the way a menu bar's menus do after
+    // the first click. With nothing up, a hover is only a hover.
+    function browse(item: Item): void {
+        if (root.owner !== null && root.owner !== item)
+            root.set(item, true);
     }
 
     function close(item: Item): void {
         if (root.owner === item)
-            root.owner = null;
+            root.set(null, false);
     }
 
     // Whichever is up: for a button in a popup that sends you somewhere else.
     function dismiss(): void {
-        root.owner = null;
+        root.set(null, false);
     }
 }

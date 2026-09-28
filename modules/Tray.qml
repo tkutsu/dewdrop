@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Services.SystemTray
 import qs
 import qs.components
@@ -56,7 +55,10 @@ BarItem {
             required property var modelData
             required property int index
 
-            property bool menuOpen: false
+            // A tray menu is one of the bar's popups like any other: one up at
+            // a time, closed by a click elsewhere, handed over as the pointer
+            // browses the bar (OpenPopup).
+            readonly property bool menuOpen: OpenPopup.owner === entry
 
             // SNI has a status for this, but Telegram — the one app here that
             // ever asks — says it by swapping its icon for the attention
@@ -143,15 +145,16 @@ BarItem {
 
             // Null for an item with no menu, which leaves every button that
             // would have opened one doing nothing.
-            readonly property var toggleMenu: modelData.hasMenu ? () => {
-                entry.menuOpen = !entry.menuOpen;
-            } : null
+            readonly property var toggleMenu: modelData.hasMenu ? () => OpenPopup.toggle(entry) : null
 
             ClickArea {
                 id: pointer
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.ArrowCursor
+
+                onContainsMouseChanged: if (containsMouse && entry.modelData.hasMenu)
+                    OpenPopup.browse(entry)
 
                 // Right is the menu. An item that is nothing but its menu has
                 // no useful activate(), so on one of those every button is.
@@ -193,17 +196,7 @@ BarItem {
                     anchor.edges: Edges.Bottom | Edges.Left
                     anchor.gravity: Edges.Bottom | Edges.Right
 
-                    onDismissed: entry.menuOpen = false
-
-                    // Without a grab, a click anywhere else leaves the menu on
-                    // screen — layer surfaces get no focus-out of their own.
-                    // The whole tree, not just this window: a click on a
-                    // submenu the grab does not list counts as "anywhere else".
-                    HyprlandFocusGrab {
-                        active: true
-                        windows: menu.windows
-                        onCleared: entry.menuOpen = false
-                    }
+                    onDismissed: OpenPopup.close(entry)
                 }
             }
         }

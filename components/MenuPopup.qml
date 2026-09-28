@@ -14,21 +14,8 @@ Popup {
     property QsMenuHandle handle
     signal dismissed
 
-    // Every popup of this tree that is on screen: this one and, through each
-    // row, whatever it has open below it. The focus grab that dismisses the
-    // menu whitelists surfaces, not trees, and a submenu is its own surface —
-    // so a click on one the grab did not know about ended the grab, and the
-    // menu shut instead of acting on the row. The tray hands this list to
-    // the grab, which follows it as submenus come and go.
-    readonly property list<QtObject> windows: {
-        const all = [root];
-        for (let i = 0; i < body.children.length; i++) {
-            const below = body.children[i].submenuWindows;
-            if (below)
-                all.push(...below);
-        }
-        return all;
-    }
+    // A menu drops whole, as the Mac's do; only a popover grows.
+    grows: false
 
     // Whether the pointer is anywhere in this tree, rather than on this
     // surface alone. A row keeps its submenu open while the pointer is
@@ -125,8 +112,6 @@ Popup {
                 // is a sequence of events rather than a binding on itself.
                 property bool submenuOpen: false
 
-                // What this row contributes to the tree's window list above.
-                readonly property list<QtObject> submenuWindows: submenu.item ? submenu.item.windows : []
                 readonly property bool submenuHovered: submenu.item ? submenu.item.treeHovered === true : false
 
                 onPointerNearChanged: {

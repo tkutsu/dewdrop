@@ -100,6 +100,33 @@ PopupWindow {
         root.heldUntil = Date.now() + ms;
     }
 
+    // A popover grows out of the pill that opened it, the way the Mac's come
+    // out of their anchor, rather than being there whole on the next frame.
+    // Scale alone: Hyprland fades the surface in (fadePopupsIn in
+    // hypr/configs/animation.lua), and fades the blur with it, which an
+    // opacity here would drop out halfway at the 0.3 alpha floor.
+    //
+    // Off for a tooltip and a menu, which the Mac draws flat, and skipped for
+    // a popup the pointer slid across to from another (OpenPopup.switched).
+    property bool grows: true
+    // How far in the box starts. Enough to read as coming from the pill,
+    // not so much that a wide popup visibly travels.
+    readonly property real growFrom: 0.94
+    property real grown: 1
+
+    onVisibleChanged: if (visible && grows && !OpenPopup.switched)
+        growIn.restart()
+
+    NumberAnimation {
+        id: growIn
+        target: root
+        property: "grown"
+        from: 0
+        to: 1
+        duration: Theme.revealMs
+        easing.type: Easing.OutCubic
+    }
+
     // Counted for the whole shell, so the right pill's drawer can tell a
     // pointer that has gone off to a popup from one that has left the bar.
     onHoveredChanged: PopupPointer.hovered += hovered ? 1 : -1
@@ -124,38 +151,55 @@ PopupWindow {
             id: pointer
         }
 
-        // Under the box rather than round it: the fill is translucent, so the
-        // middle of the shadow shows through it too, and darkens it by about
-        // the same amount the blur behind it lightens it.
-        RectangularShadow {
-            anchors.fill: chrome
-            offset.y: root.shadowY
-            radius: chrome.radius
-            blur: root.shadowBlur
-            color: Theme.shadow
-        }
+        // The box and its shadow, grown together from the middle of the
+        // box's top edge: the point right under the pill. Only what is drawn
+        // scales; the reach above keeps its full size, so the pointer is
+        // counted the same from the first frame.
+        Item {
+            anchors.fill: parent
 
-        Rectangle {
-            id: chrome
+            transform: Scale {
+                readonly property real s: root.growFrom + (1 - root.growFrom) * root.grown
 
-            y: root.shadowTop
-            width: parent.width
-            height: root.chromeHeight
-            color: Theme.popupBg
-            radius: root.radius
-
-            Rim {
-                anchors.fill: parent
-                radius: chrome.radius
-                // Above the rows, which run edge to edge in a menu and would
-                // otherwise paint over it where the pointer is.
-                z: 1
+                origin.x: chrome.width / 2
+                origin.y: root.shadowTop
+                xScale: s
+                yScale: s
             }
 
-            Column {
-                id: body
-                x: root.hPadding
-                y: root.vPadding
+            // Under the box rather than round it: the fill is translucent, so
+            // the middle of the shadow shows through it too, and darkens it by
+            // about the same amount the blur behind it lightens it.
+            RectangularShadow {
+                anchors.fill: chrome
+                offset.y: root.shadowY
+                radius: chrome.radius
+                blur: root.shadowBlur
+                color: Theme.shadow
+            }
+
+            Rectangle {
+                id: chrome
+
+                y: root.shadowTop
+                width: parent.width
+                height: root.chromeHeight
+                color: Theme.popupBg
+                radius: root.radius
+
+                Rim {
+                    anchors.fill: parent
+                    radius: chrome.radius
+                    // Above the rows, which run edge to edge in a menu and
+                    // would otherwise paint over it where the pointer is.
+                    z: 1
+                }
+
+                Column {
+                    id: body
+                    x: root.hPadding
+                    y: root.vPadding
+                }
             }
         }
     }
