@@ -439,11 +439,7 @@ PanelWindow {
 
     // A click anywhere on the bar but the right pill puts the drawer away,
     // the way a menu bar's extras fold back once you click on something else.
-    // A click in another window is left to the drawer's own timer. A focus
-    // grab on the bar would hear it, but Hyprland keeps the pointer on the
-    // grabbed surfaces while one is up, and the popups are surfaces of their
-    // own: none of them could be hovered with the drawer open, so each one
-    // closed as the pointer came down into it.
+    // A click in another window is Drawer.qml's, off Hyprland's click event.
     //
     // On the bar, this is laid over everything: it looks at each press and
     // turns it down, which hands it on
