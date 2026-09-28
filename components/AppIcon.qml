@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import qs
 
@@ -23,17 +22,7 @@ Item {
     // What to draw when nothing resolves. A window, on the taskbar; the
     // notifications draw their own mark for a sender with no icon.
     property string fallbackGlyph: Theme.glyph.window
-
-    // The badge as a disc of glass rather than of ink: the icon is cut out
-    // from under it, so nothing of the app comes up under the count, and the
-    // disc is the pill's own tint laid once more over whatever the icon sits
-    // on — the pill, or the workspace mark as it flows in under it.
-    property bool cutout: false
-    // Where the icon before this one cuts its own badge, in this icon's
-    // pixels. Its owner says: a badge overhangs the gap to the next icon, and
-    // the hole has to carry on through whatever it lands on.
-    property rect neighbourHole: Qt.rect(0, 0, 0, 0)
-    readonly property rect hole: root.badged ? Qt.rect(badge.x, badge.y, badge.width, badge.height) : Qt.rect(0, 0, 0, 0)
+    property alias badgeFill: badge.fill
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -83,108 +72,43 @@ Item {
     // rather than against a box that is itself floating in the middle of the row.
     implicitHeight: Theme.barHeight
 
-    // The artwork and its fallback, in one layer so the holes can be cut from
-    // either. Only a cutout icon with a hole to cut pays for the layer.
-    Item {
-        id: picture
+    ShadowedIcon {
+        id: art
 
-        width: root.width
-        height: root.height
-        layer.enabled: root.cutout && (root.badged || root.neighbourHole.width > 0)
-        layer.effect: MultiEffect {
-            autoPaddingEnabled: false
-            maskEnabled: true
-            maskInverted: true
-            maskSource: holes
-        }
-
-        ShadowedIcon {
-            id: art
-
-            visible: root.hasIcon
-            y: Math.round((root.height - implicitHeight) / 2)
-            source: root.iconName ? Quickshell.iconPath(root.iconName, true) : ""
-            // The tray's line, found the same way (components/InkProbe.qml). The
-            // taskbar used to sit on a guess instead: application icons fill their
-            // box edge to edge where the theme's panel icons keep margin inside
-            // theirs, so the box was made smaller — 13 against the tray's 16 — to
-            // land the two sets at the same height. That only held for icons that
-            // did fill their box. The ones drawn with any margin of their own came
-            // out short, and the ones that overshot got a hand-written trim. The
-            // ink is measured now, so one line covers every window on the bar and
-            // the second box size goes.
-            ink: Theme.iconInk
-            transform: Translate { y: root.shift }
-            // Unlike the tray, the box follows the artwork rather than staying
-            // fixed. The tray keeps identical boxes so a row of unrelated icons
-            // holds a steady rhythm; a workspace is the opposite job — its icons
-            // pack tight (Theme.appIconGap) so the group reads as one thing — and
-            // a fixed box would have each icon carrying whatever margin the ink
-            // measurement took off it into the gap to the next.
-            box: art.drawn
-        }
-
-        Glyph {
-            id: fallback
-
-            visible: !root.hasIcon
-            implicitHeight: root.height
-            text: root.fallbackGlyph
-            transform: Translate { y: root.shift }
-            // A glyph rather than artwork, so it is not the probe's to measure:
-            // BarText lays it out on its ink already, and glyphSizeLarge is what
-            // puts that ink on the same line the icons are pulled down to.
-            fontSize: Theme.glyphSizeLarge
-        }
+        visible: root.hasIcon
+        y: Math.round((root.height - implicitHeight) / 2)
+        source: root.iconName ? Quickshell.iconPath(root.iconName, true) : ""
+        // The tray's line, found the same way (components/InkProbe.qml). The
+        // taskbar used to sit on a guess instead: application icons fill their
+        // box edge to edge where the theme's panel icons keep margin inside
+        // theirs, so the box was made smaller — 13 against the tray's 16 — to
+        // land the two sets at the same height. That only held for icons that
+        // did fill their box. The ones drawn with any margin of their own came
+        // out short, and the ones that overshot got a hand-written trim. The
+        // ink is measured now, so one line covers every window on the bar and
+        // the second box size goes.
+        ink: Theme.iconInk
+        transform: Translate { y: root.shift }
+        // Unlike the tray, the box follows the artwork rather than staying
+        // fixed. The tray keeps identical boxes so a row of unrelated icons
+        // holds a steady rhythm; a workspace is the opposite job — its icons
+        // pack tight (Theme.appIconGap) so the group reads as one thing — and
+        // a fixed box would have each icon carrying whatever margin the ink
+        // measurement took off it into the gap to the next.
+        box: art.drawn
     }
 
-    // The mask for the picture above: where it is opaque, the picture is cut.
-    Item {
-        id: holes
+    Glyph {
+        id: fallback
 
-        width: root.width
-        height: root.height
-        visible: false
-        layer.enabled: picture.layer.enabled
-
-        Rectangle {
-            visible: root.badged
-            x: root.hole.x
-            y: root.hole.y
-            width: root.hole.width
-            height: root.hole.height
-            radius: height / 2
-        }
-
-        Rectangle {
-            x: root.neighbourHole.x
-            y: root.neighbourHole.y
-            width: root.neighbourHole.width
-            height: root.neighbourHole.height
-            radius: height / 2
-        }
-    }
-
-    // A cutout badge still rides the pill's edge, and above the edge there is
-    // no pill under the disc to lay its tint over. This puts one there, so the
-    // disc is the same depth of glass on both sides of the edge: over the pill
-    // it is two coats of tint, and above it a coat from here and one from the
-    // disc itself. Without it, that sliver was a single coat — the pill's own
-    // colour — and read as a smudge on the pill's edge rather than as a disc.
-    Item {
-        visible: root.cutout && root.badged
-        x: badge.x
-        y: badge.y
-        width: badge.width
-        height: Math.max(0, Theme.pillTop(root.height) - badge.y)
-        clip: true
-
-        Rectangle {
-            width: badge.width
-            height: badge.height
-            radius: height / 2
-            color: Theme.barBg
-        }
+        visible: !root.hasIcon
+        implicitHeight: root.height
+        text: root.fallbackGlyph
+        transform: Translate { y: root.shift }
+        // A glyph rather than artwork, so it is not the probe's to measure:
+        // BarText lays it out on its ink already, and glyphSizeLarge is what
+        // puts that ink on the same line the icons are pulled down to.
+        fontSize: Theme.glyphSizeLarge
     }
 
     // Sits on the icon's top right corner, mostly outside it, so the app stays
@@ -195,7 +119,6 @@ Item {
         id: badge
         visible: root.badged
         text: Math.min(root.count, 99)
-        fill: root.cutout ? Theme.barBg : Theme.badgeBg
         x: root.implicitWidth - Theme.badgeSize / 2
         // A fixed line, so every badge on the bar sits at the same height
         // whatever size the icon beneath it is — measured from the top of the
