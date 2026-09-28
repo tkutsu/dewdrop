@@ -191,31 +191,47 @@ PanelWindow {
         width: clockPill.x
         clip: true
 
-        // The player, outermost on this side. What it carries is a song title —
-        // text from somewhere else, as long as whoever named the track made it
-        // — and nothing else should have to move along every time a new one
-        // starts: it is anchored by its right edge, so a longer title only
-        // grows it outwards. Measured off the timer pill, which is where the
-        // clock's edge is once the timer has gone under, so the two arrive and
-        // leave in step. Declared before the timer so that on its way to the
-        // clock it passes under the timer too.
-        Pill {
-            id: musicPill
+        // The player goes under its nearest neighbour, not all the way to the
+        // clock: a stage of its own, ending at the timer's outer edge. That
+        // edge is the clock's once the timer has gone under, so with no timer
+        // set the player goes under the clock as before, and while one is set
+        // it goes under the timer and leaves the timer where it was.
+        Item {
+            id: musicStage
 
-            edges: false
+            anchors {
+                top: parent.top
+                bottom: parent.bottom
+                left: parent.left
+            }
+            width: countdownPill.x
+            clip: true
 
-            side: Pill.Side.Right
-            edgeOffset: bar.under(musicPill, leftStage.width - countdownPill.x + Theme.pillSpread, music.reveal)
-            mergeProgress: bar.mergeProgress
-            // With nothing to play there is no pill, rather than an empty one.
-            // Off the module's `reveal` rather than its visibility: hiding an
-            // item hides its children with it, so a pill reading its child's
-            // `visible` would latch shut the first time mpd was quiet.
-            visible: music.reveal > 0
-            progress: music.progress
+            // The player, outermost on this side. What it carries is a song
+            // title — text from somewhere else, as long as whoever named the
+            // track made it — and nothing else should have to move along every
+            // time a new one starts: it is anchored by its right edge, so a
+            // longer title only grows it outwards. Its stage follows the timer,
+            // so the two arrive and leave in step.
+            Pill {
+                id: musicPill
 
-            Music {
-                id: music
+                edges: false
+
+                side: Pill.Side.Right
+                edgeOffset: bar.under(musicPill, Theme.pillSpread, music.reveal)
+                mergeProgress: bar.mergeProgress
+                // With nothing to play there is no pill, rather than an empty
+                // one. Off the module's `reveal` rather than its visibility:
+                // hiding an item hides its children with it, so a pill reading
+                // its child's `visible` would latch shut the first time mpd was
+                // quiet.
+                visible: music.reveal > 0
+                progress: music.progress
+
+                Music {
+                    id: music
+                }
             }
         }
 
