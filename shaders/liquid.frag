@@ -7,6 +7,8 @@
 // so the translucent fill never doubles up where two of them meet.
 //
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o liquid.frag.qsb liquid.frag
+// A hot reload keeps drawing with the shader it already loaded, so restart
+// Quickshell after recompiling.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
