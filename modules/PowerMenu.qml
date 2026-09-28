@@ -4,13 +4,14 @@ import qs
 import qs.components
 import qs.services
 
-// The power menu, as a row of buttons.
+// The power menu, drawn the Mac's way.
 //
-// rofi drew this as a list because a list is all rofi draws. Here it is five
-// tiles on one strip: hover or arrow to one, click or Enter to take it. The
-// three irreversible ones (shut down, reboot, log out) still ask first, the
-// way rofi-power.sh's `confirmations` did — the strip swaps to a yes/no pair
-// rather than opening a second menu on top of the first.
+// Five round buttons on one panel, the way Control Center draws its own, each
+// named as the Apple menu names it: hover or arrow to one, click or Enter to
+// take it. The three irreversible ones (shut down, restart, log out) still
+// ask first, the way rofi-power.sh's `confirmations` did, and they ask it the
+// way the Mac does: the panel turns into an alert, with the action's icon,
+// the Mac's own question, and Cancel beside the action it would take.
 //
 // The screen-sized surface under it, the keyboard grab and the click-to-exit
 // are OverlayWindow's, which the launcher is drawn on too.
@@ -22,46 +23,53 @@ OverlayWindow {
     onDismissed: Power.shown = false
 
     // --- geometry ------------------------------------------------------------
-    readonly property int tileSize: 88
-    readonly property int tileRadius: 12
-    readonly property int tileGap: 8
-    readonly property int stripPad: 16
+    readonly property int discSize: 52
+    readonly property int tileWidth: 78
+    readonly property int panelPad: 18
+    readonly property int buttonWidth: 112
+    readonly property int buttonHeight: 28
+    readonly property int buttonGap: 8
+    // The alert's width: its two buttons and the gap between them. The
+    // question wraps inside it.
+    readonly property int alertWidth: buttonWidth * 2 + buttonGap
+    // Round enough to read as the Mac's panels, and nested round the
+    // buttons' capsules: their radius plus the air between them and the edge.
+    readonly property int panelRadius: buttonHeight / 2 + panelPad / 2
 
     // --- state ---------------------------------------------------------------
-    // The action awaiting a yes/no, or null when the strip is showing the
+    // The action awaiting an answer, or null when the panel is showing the
     // normal five.
     property var pending: null
     property int index: 0
 
     // Where the pointer was when it last actually moved, and whether it has
-    // moved at all since the strip last changed what it is showing.
+    // moved at all since the panel last changed what it is showing.
     //
-    // A tile that appears under a stationary pointer is handed a hover event
-    // by Qt, and that is exactly what a confirmation is: tile 0 is "shut
-    // down", and the "yes" replacing it is built under the cursor that just
-    // clicked. Selecting on that would walk the selection off "cancel" and
-    // undo the one thing the confirm strip is for. Same trap, and the same
-    // answer, as the launcher's list — see modules/LauncherMenu.qml.
+    // A button that appears under a stationary pointer is handed a hover
+    // event by Qt, and that is exactly what a confirmation is: the alert's
+    // buttons are built under the cursor that just clicked. Selecting on that
+    // would walk the selection off "Cancel" and undo the one thing the alert
+    // is for. Same trap, and the same answer, as the launcher's list — see
+    // modules/LauncherMenu.qml.
     property point pointer: Qt.point(-1, -1)
     property bool pointerLive: false
 
-    // Swapping between the five and a confirmation is the moment that has to
+    // Swapping between the five and an alert is the moment that has to
     // forget where the pointer was.
     onEntriesChanged: root.pointerLive = false
 
-    // One model for both states, so the row does not care which it is in. The
-    // confirm pair carries the action's own glyph on the yes button, which is
-    // what tells you at a glance what you are agreeing to.
+    // One model for both states, so the keys and the pointer do not care
+    // which it is in. The alert's pair is in the Mac's order: Cancel first,
+    // the action last, named without the ellipsis — the question has been
+    // asked.
     readonly property var entries: pending ? [
         {
-            label: "yes, " + pending.label,
-            glyph: pending.glyph,
-            accept: true
+            name: "Cancel",
+            accept: false
         },
         {
-            label: "cancel",
-            glyph: Theme.glyph.powerCancel,
-            accept: false
+            name: pending.name.replace("…", ""),
+            accept: true
         }
     ] : Power.actions
 
@@ -80,20 +88,20 @@ OverlayWindow {
 
         if (entry.confirm) {
             root.pending = entry;
-            // Land on "cancel", not on the thing that wipes the session.
-            root.index = 1;
+            // Land on Cancel, not on the thing that wipes the session.
+            root.index = 0;
             return;
         }
 
         Power.run(entry.arg);
     }
 
-    // Escape and the cancel button share this: out of a confirmation, back to
-    // the five; out of the five, gone.
+    // Escape and Cancel share this: out of an alert, back to the five; out
+    // of the five, gone.
     function back() {
         if (root.pending) {
             // -1 when the launcher armed something the menu does not list,
-            // which would leave the strip with nothing selected.
+            // which would leave the panel with nothing selected.
             root.index = Math.max(0, Power.actions.indexOf(root.pending));
             root.pending = null;
         } else {
@@ -103,18 +111,19 @@ OverlayWindow {
 
     // What the menu is opening as. Normally nothing, and it comes up showing
     // its five; the launcher can set Power.armed instead and have it come up
-    // on the confirm pair. Taken rather than read, so the next open is a fresh
-    // one either way — a menu that came back up still asking "shut down?"
-    // would be answering a question from the last time it was open.
+    // on the alert. Taken rather than read, so the next open is a fresh one
+    // either way — a menu that came back up still asking "shut down?" would
+    // be answering a question from the last time it was open.
     function adopt(): void {
         root.pending = Power.armed;
         Power.armed = null;
-        // Land on "cancel" when the menu opens already asking, the same way
-        // choose() does when the asking started here. Arriving from the
-        // launcher is the one path that skipped choose(), and it was landing
-        // on "yes" — so typing "reboot" and pressing Enter twice rebooted,
-        // which is the confirm doing the opposite of its job.
-        root.index = root.pending ? 1 : 0;
+        // On Cancel when the menu opens already asking, the same way choose()
+        // lands there when the asking started here. Arriving from the
+        // launcher is the one path that skips choose(), and it once landed on
+        // the action — so typing "reboot" and pressing Enter twice rebooted,
+        // which is the confirm doing the opposite of its job. Cancel is index
+        // 0 in the alert, so both states open on the first entry.
+        root.index = 0;
     }
 
     // Two ways in, because the window is not always new. Usually it is built
@@ -132,6 +141,64 @@ OverlayWindow {
         function onShownChanged() {
             if (Power.shown)
                 root.adopt();
+        }
+    }
+
+    // The pointer's half of the selection, on every button in both states:
+    // rofi's hover-select, where the pointer moves the selection rather than
+    // acting on its own — and only when it has really moved. See root.pointer
+    // for the case that forces it. A MouseArea rather than a HoverHandler,
+    // because a real move is the thing being asked about and that is what
+    // positionChanged reports.
+    component Pick: MouseArea {
+        required property int at
+
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.ArrowCursor
+
+        onPositionChanged: function (mouse) {
+            const p = mapToItem(null, mouse.x, mouse.y);
+            if (!root.pointerLive) {
+                root.pointer = p;
+                root.pointerLive = true;
+                return;
+            }
+            if (Math.abs(p.x - root.pointer.x) < 1 && Math.abs(p.y - root.pointer.y) < 1)
+                return;
+            root.pointer = p;
+            root.index = at;
+        }
+
+        onClicked: root.choose(at)
+    }
+
+    // A round button's face: the Control Center disc, a step brighter and
+    // ringed while it is the one Enter would take.
+    component Disc: Rectangle {
+        id: disc
+
+        property string glyph
+        property bool current: false
+
+        width: root.discSize
+        height: root.discSize
+        radius: width / 2
+        color: current ? Theme.selectionStrong : Theme.selection
+        border.width: Theme.pillBorder
+        border.color: current ? Theme.outline : "transparent"
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.fadeMs
+            }
+        }
+
+        Glyph {
+            anchors.centerIn: parent
+            height: disc.height
+            text: disc.glyph
+            fontSize: 24
         }
     }
 
@@ -161,8 +228,8 @@ OverlayWindow {
                 root.choose(root.index);
                 break;
             default:
-                // 1-5 go straight to a tile. Only while the five are showing:
-                // a number is no way to answer "are you sure".
+                // 1-5 go straight to a button. Only while the five are
+                // showing: a number is no way to answer "are you sure".
                 if (!root.pending && event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
                     const n = event.key - Qt.Key_1;
                     if (n < root.entries.length) {
@@ -176,44 +243,44 @@ OverlayWindow {
         }
 
         RectangularShadow {
-            anchors.fill: strip
-            visible: strip.height > 0
+            anchors.fill: panel
+            visible: panel.height > 0
             offset.y: Theme.shadowY
-            radius: strip.radius
+            radius: panel.radius
             blur: Theme.shadowBlur
             color: Theme.shadow
         }
 
         Rectangle {
-            id: strip
+            id: panel
 
             anchors.centerIn: parent
-            // Same fill and outline as a bar pill, and for the same reason: the
-            // 0.5 alpha is what keeps the compositor blurring behind it.
+            // Same fill and outline as a popup, and for the same reason: the
+            // alpha is what keeps the compositor blurring behind it.
             color: Theme.popupBg
-            radius: root.tileRadius + root.stripPad / 2
+            radius: root.panelRadius
 
             Rim {
                 anchors.fill: parent
-                radius: strip.radius
+                radius: panel.radius
                 z: 1
             }
 
-            width: body.implicitWidth + root.stripPad * 2
+            width: body.implicitWidth + root.panelPad * 2
             // Zero while closed, which is the whole of the open and close
-            // animation: the strip is centred, so a height that grows from
+            // animation: the panel is centred, so a height that grows from
             // nothing grows away from the centre line in both directions at
             // once. Rectangle caps its radius at half the shorter side, so on
             // the way through it draws as a thinning bar rather than as a
             // rectangle with corners too big for it.
-            height: root.opened ? body.implicitHeight + root.stripPad * 2 : 0
-            // The tiles keep their own size through all of that and get cut off
-            // by the strip's edges, so the row is wiped in from its middle
-            // rather than squashed into the gap.
+            height: root.opened ? body.implicitHeight + root.panelPad * 2 : 0
+            // The contents keep their own size through all of that and get
+            // cut off by the panel's edges, so they are wiped in from the
+            // middle rather than squashed into the gap.
             clip: true
 
             // The two states are different sizes; grow between them rather
-            // than cutting, so it reads as the same strip asking a question.
+            // than cutting, so it reads as the same panel asking a question.
             Behavior on width {
                 NumberAnimation {
                     duration: Theme.fadeMs
@@ -221,11 +288,9 @@ OverlayWindow {
                 }
             }
 
-            // Both the reveal and a change of state come through here. Same
-            // easing either way: the strip settles into its height rather than
-            // arriving at it.
+            // Both the reveal and a change of state come through here.
             //
-            // Deliberately height alone and not a fade as well: the strip's 0.5
+            // Deliberately height alone and not a fade as well: the panel's
             // alpha is only just over the 0.3 the compositor's blur rule
             // ignores, so anything that takes its opacity down drops the blur
             // out from behind it partway through, which is a far louder event
@@ -237,7 +302,7 @@ OverlayWindow {
                 }
             }
 
-            // The strip is not "off the menu": clicking its padding should do
+            // The panel is not "off the menu": clicking its padding should do
             // nothing, not dismiss. Only the screen around it closes.
             MouseArea {
                 anchors.fill: parent
@@ -247,135 +312,129 @@ OverlayWindow {
                 id: body
 
                 anchors.centerIn: parent
-                spacing: 10
 
-                // Only while asking. The five speak for themselves.
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: root.pending !== null
-                    text: root.pending ? root.pending.label.toLowerCase() + "?" : ""
-                    color: Theme.fg
-                    font.family: Theme.bodyFont
-                    font.pixelSize: Theme.popupTextSize
-                    font.weight: Theme.bodyWeight
-                }
+                // The five: a disc each, the Apple menu's name under it.
+                Row {
+                    visible: root.pending === null
 
-                // The row and the selection behind it. The selection cannot
-                // live inside the Row — a Row positions every child it has —
-                // so both sit in an item sized to the row.
-                Item {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    implicitWidth: row.implicitWidth
-                    implicitHeight: row.implicitHeight
+                    Repeater {
+                        model: Power.actions
 
-                    // One rectangle for the whole strip rather than one per
-                    // tile: it slides to whichever tile you are on, so the
-                    // selection reads as a thing being moved instead of five
-                    // outlines taking turns appearing. Every tile is the same
-                    // width, so the target is just arithmetic.
-                    Rectangle {
-                        id: selection
+                        delegate: Item {
+                            id: tile
 
-                        x: root.index * (root.tileSize + root.tileGap)
-                        width: root.tileSize
-                        height: root.tileSize
-                        radius: root.tileRadius
-                        // Solid black against the strip's half-black, with the
-                        // outline stopping that from reading as a hole when the
-                        // wallpaper behind is dark. See Theme's menu* colours.
-                        color: Theme.selection
+                            required property int index
+                            required property var modelData
 
-                        Behavior on x {
-                            NumberAnimation {
-                                duration: Theme.fadeMs
-                                easing.type: Easing.OutCubic
+                            readonly property bool current: root.pending === null && root.index === tile.index
+
+                            width: root.tileWidth
+                            height: column.implicitHeight
+
+                            Column {
+                                id: column
+
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 8
+
+                                Disc {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    glyph: tile.modelData.glyph
+                                    current: tile.current
+                                }
+
+                                Text {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: tile.modelData.name
+                                    // The menu text/selection pair: the name
+                                    // brightens over the same span the disc
+                                    // does, so the two are one movement.
+                                    color: tile.current ? Theme.menuSelectionText : Theme.menuText
+                                    font.family: Theme.bodyFont
+                                    font.pixelSize: Theme.captionSize
+                                    font.weight: Theme.bodyWeight
+
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: Theme.fadeMs
+                                        }
+                                    }
+                                }
+                            }
+
+                            Pick {
+                                at: tile.index
                             }
                         }
                     }
+                }
+
+                // The alert: what it is about, the question, and the answers.
+                Column {
+                    visible: root.pending !== null
+                    spacing: 14
+
+                    Disc {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        glyph: root.pending?.glyph ?? ""
+                    }
+
+                    Text {
+                        width: root.alertWidth
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
+                        text: root.pending?.question ?? ""
+                        color: Theme.label
+                        font.family: Theme.bodyFont
+                        font.pixelSize: Theme.popupTextSize + 1
+                        font.weight: Font.DemiBold
+                        lineHeight: 1.1
+                    }
 
                     Row {
-                        id: row
-
-                        spacing: root.tileGap
+                        spacing: root.buttonGap
 
                         Repeater {
-                            model: root.entries
+                            model: root.pending ? root.entries : []
 
-                            delegate: Item {
-                                id: tile
+                            delegate: Rectangle {
+                                id: button
 
                                 required property int index
                                 required property var modelData
 
-                                readonly property bool current: root.index === tile.index
+                                readonly property bool current: root.index === button.index
 
-                                width: root.tileSize
-                                height: root.tileSize
+                                width: root.buttonWidth
+                                height: root.buttonHeight
+                                radius: height / 2
+                                color: current ? Theme.selectionStrong : Theme.selection
+                                border.width: Theme.pillBorder
+                                border.color: current ? Theme.outline : "transparent"
 
-                                Column {
-                                    anchors.centerIn: parent
-                                    spacing: 6
-
-                                    // Full strength on every tile, selected or
-                                    // not — the menu palette dims a label but
-                                    // never its icon.
-                                    Glyph {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        implicitHeight: 38
-                                        text: tile.modelData.glyph
-                                        fontSize: 30
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Theme.fadeMs
                                     }
+                                }
 
-                                    Text {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        // rofi lowercased every row it drew.
-                                        text: tile.modelData.label.toLowerCase()
-                                        // The menu text/selection pair, rather
-                                        // than the bar's idle dimming. It
-                                        // brightens over the same span the
-                                        // selection takes to arrive, so the two
-                                        // are one movement.
-                                        color: tile.current ? Theme.menuSelectionText : Theme.menuText
-                                        font.family: Theme.bodyFont
-                                        font.pixelSize: Theme.labelSize
-                                        font.weight: Theme.bodyWeight
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: button.modelData.name
+                                    color: button.current ? Theme.menuSelectionText : Theme.menuText
+                                    font.family: Theme.bodyFont
+                                    font.pixelSize: Theme.popupTextSize
+                                    font.weight: Theme.bodyWeight
 
-                                        Behavior on color {
-                                            ColorAnimation {
-                                                duration: Theme.fadeMs
-                                            }
+                                    Behavior on color {
+                                        ColorAnimation {
+                                            duration: Theme.fadeMs
                                         }
                                     }
                                 }
 
-                                // rofi's hover-select: the pointer moves the
-                                // selection rather than acting on its own —
-                                // and only when it has really moved. See
-                                // root.pointer for the case that forces it.
-                                //
-                                // A MouseArea rather than the handler pair it
-                                // replaces, because a real move is the thing
-                                // being asked about and that is what
-                                // positionChanged reports.
-                                MouseArea {
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.ArrowCursor
-
-                                    onPositionChanged: function (mouse) {
-                                        const p = mapToItem(null, mouse.x, mouse.y);
-                                        if (!root.pointerLive) {
-                                            root.pointer = p;
-                                            root.pointerLive = true;
-                                            return;
-                                        }
-                                        if (Math.abs(p.x - root.pointer.x) < 1 && Math.abs(p.y - root.pointer.y) < 1)
-                                            return;
-                                        root.pointer = p;
-                                        root.index = tile.index;
-                                    }
-
-                                    onClicked: root.choose(tile.index)
+                                Pick {
+                                    at: button.index
                                 }
                             }
                         }

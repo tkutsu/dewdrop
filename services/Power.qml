@@ -31,44 +31,58 @@ Singleton {
         shown: root.shown
     }
 
-    // The same five rofi-power.sh listed, in its order. `confirm` marks the
-    // ones it would not do without asking twice — the irreversible ones.
+    // The same five rofi-power.sh listed, in the Apple menu's order: sleep,
+    // restart, shut down, then log out. `confirm` marks the ones it would not
+    // do without asking twice — the irreversible ones — and `question` is
+    // what the Mac asks before each of them. `label` is the launcher's word
+    // for it; `name` is the menu's, the Mac's, with the ellipsis the Mac puts
+    // on anything that asks something more before it acts.
     //
     // lockscreen and hibernate stay out for the reasons the old script gave:
     // lock was unwanted, and hibernate cannot work on this machine (zram-only
     // swap, no resume= parameter).
     readonly property var actions: [
         {
-            key: "shutdown",
-            label: "shut down",
-            glyph: Theme.glyph.powerShutdown,
-            arg: "--poweroff",
-            confirm: true
-        },
-        {
-            key: "reboot",
-            label: "reboot",
-            glyph: Theme.glyph.powerReboot,
-            arg: "--reboot",
-            confirm: true
-        },
-        {
             key: "suspend",
             label: "suspend",
+            name: "Sleep",
             glyph: Theme.glyph.powerSuspend,
             arg: "--suspend",
             confirm: false
         },
         {
+            key: "reboot",
+            label: "reboot",
+            name: "Restart…",
+            question: "Are you sure you want to restart your computer now?",
+            glyph: Theme.glyph.powerReboot,
+            arg: "--reboot",
+            confirm: true
+        },
+        {
+            key: "shutdown",
+            label: "shut down",
+            name: "Shut Down…",
+            question: "Are you sure you want to shut down your computer now?",
+            glyph: Theme.glyph.powerShutdown,
+            arg: "--poweroff",
+            confirm: true
+        },
+        {
             key: "logout",
             label: "log out",
+            name: "Log Out…",
+            question: "Are you sure you want to quit all apps and log out now?",
             glyph: Theme.glyph.powerLogout,
             arg: "--logout",
             confirm: true
         },
         {
+            // A click-to-kill cursor rather than a window, but still a
+            // further step, so it keeps the Mac's ellipsis.
             key: "killprocess",
             label: "kill process",
+            name: "Force Quit…",
             glyph: Theme.glyph.powerKill,
             arg: "--kill",
             confirm: false

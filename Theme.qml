@@ -515,7 +515,7 @@ Singleton {
         // an outline — the bar and the power menu used to mix in Font Awesome
         // and filled shapes, and read as drawn by several hands.
         //
-        // Power menu: WhiteSur's drawings, big enough on the tiles for their
+        // Power menu: WhiteSur's drawings, big enough on the discs for their
         // hairlines to hold.
         powerShutdown: panel("system-shutdown"),
         powerReboot: panel("system-reboot"),
