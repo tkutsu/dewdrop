@@ -50,7 +50,7 @@ BarItem {
     }
 
     // How wide the whole notice may get, which the bar sets from the room
-    // between the workspaces and the clock. The line takes whatever the icon,
+    // between the clock (or the timer beside it) and the right pill. The line takes whatever the icon,
     // the count and the padding leave of it, and elides past that.
     property int room: 0
 

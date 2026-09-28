@@ -229,49 +229,52 @@ PanelWindow {
     readonly property real clockLeft: clockPill.x
     readonly property real clockRight: clockPill.x + clockPill.width
 
-    readonly property vector4d noticeDrop: bar.drop(bar.clockLeft, -1, noticePill.width, notice.reveal)
+    readonly property vector4d musicDrop: bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal)
     readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal)
-    // The player is placed off the timer's glass rather than the clock's, so
+    // The notice is placed off the timer's glass rather than the clock's, so
     // it goes into the timer while one is set and follows it in as it goes.
     // Once the timer is inside the clock its far edge is too, and the clock's
     // edge is the one to go by.
-    readonly property real musicEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
-    readonly property vector4d musicDrop: bar.drop(bar.musicEdge, 1, musicPill.width, music.reveal)
+    readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
+    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal)
 
-    // A notification as it comes in, one spread to the left of the clock.
-    // Anchored by its right edge, so it grows away from the clock, and it may
-    // run as far as a spread short of the workspaces: someone else's text, but
-    // read once and then gone, so it gets all the room there is rather than a
-    // fixed ceiling.
+    // The player, alone on the clock's left. What it carries is a song title —
+    // text from somewhere else, as long as whoever named the track made it —
+    // and nothing else should have to move along every time a new one starts:
+    // it is anchored by its right edge, so a longer title only grows it
+    // outwards.
     //
     // The pills stay where they rest while their glass runs off from under
     // them; their contents have gone by then (bar.contents).
     Pill {
-        id: noticePill
+        id: musicPill
 
         edges: false
         drawsSlab: false
-        contentOpacity: bar.contents(notice.reveal)
+        contentOpacity: bar.contents(music.reveal)
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
         mergeProgress: bar.mergeProgress
-        // Off the module's `reveal`, never its visibility (see the music pill
-        // below).
-        visible: notice.reveal > 0
+        // With nothing to play there is no pill, rather than an empty one. Off
+        // the module's `reveal` rather than its visibility: hiding an item
+        // hides its children with it, so a pill reading its child's `visible`
+        // would latch shut the first time mpd was quiet.
+        visible: music.reveal > 0
+        progress: music.progress
+        trackOpacity: contentOpacity
 
-        Notice {
-            id: notice
+        Music {
+            id: music
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
-            room: clockPill.x - Theme.pillSpread - (leftPill.x + leftPill.width + Theme.pillSpread)
         }
     }
 
     // The timer, immediately right of the clock. It is a clock of another kind
     // and reads as one while the two are neighbours. Anchored by its left edge,
     // so it grows away from the clock. Its label only changes width when its
-    // format does — the figures are tabular — so the player beside it is not
+    // format does — the figures are tabular — so the notice beside it is not
     // shoved along once a second.
     Pill {
         id: countdownPill
@@ -294,34 +297,31 @@ PanelWindow {
         }
     }
 
-    // The player, outermost on this side. What it carries is a song title —
-    // text from somewhere else, as long as whoever named the track made it —
-    // and nothing else should have to move along every time a new one starts:
-    // it is anchored by its left edge, so a longer title only grows it
-    // outwards. Placed off the timer's glass (bar.musicEdge), so the two
-    // arrive and leave in step.
+    // A notification as it comes in, outermost on this side: right of the
+    // timer when one is set, of the clock when not. Placed off the timer's
+    // glass (bar.noticeEdge), so the two arrive and leave in step. Anchored by
+    // its left edge, so it grows away from the clock, and it may run as far as
+    // a spread short of the right pill: someone else's text, but read once and
+    // then gone, so it gets all the room there is rather than a fixed ceiling.
     Pill {
-        id: musicPill
+        id: noticePill
 
         edges: false
         drawsSlab: false
-        contentOpacity: bar.contents(music.reveal)
+        contentOpacity: bar.contents(notice.reveal)
 
         side: Pill.Side.Left
-        edgeOffset: bar.musicEdge + Theme.pillSpread
+        edgeOffset: bar.noticeEdge + Theme.pillSpread
         mergeProgress: bar.mergeProgress
-        // With nothing to play there is no pill, rather than an empty one. Off
-        // the module's `reveal` rather than its visibility: hiding an item
-        // hides its children with it, so a pill reading its child's `visible`
-        // would latch shut the first time mpd was quiet.
-        visible: music.reveal > 0
-        progress: music.progress
-        trackOpacity: contentOpacity
+        // Off the module's `reveal`, never its visibility (see the music pill
+        // above).
+        visible: notice.reveal > 0
 
-        Music {
-            id: music
+        Notice {
+            id: notice
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
+            room: rightPill.x - Theme.pillSpread - (bar.noticeEdge + Theme.pillSpread)
         }
     }
 
