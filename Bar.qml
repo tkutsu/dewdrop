@@ -265,6 +265,7 @@ PanelWindow {
                 // quiet.
                 visible: music.reveal > 0
                 progress: music.progress
+                trackOpacity: music.reveal
 
                 Music {
                     id: music
