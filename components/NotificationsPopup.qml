@@ -92,38 +92,23 @@ Popup {
         precision: SystemClock.Minutes
     }
 
-    // --- header ---------------------------------------------------------------
-    Item {
+    PopupHeader {
         width: root.bodyWidth
-        height: 22
+        title: "Notifications"
 
-        PopupText {
-            x: root.inset
-            anchors.verticalCenter: parent.verticalCenter
-            text: "Notifications"
-            font.weight: Font.DemiBold
+        PopupButton {
+            framed: true
+            lit: Notifications.dnd
+            glyph: Theme.glyph.dnd
+            label: "do not disturb"
+            onTapped: Notifications.setDnd(!Notifications.dnd)
         }
 
-        Row {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            PopupButton {
-                framed: true
-                lit: Notifications.dnd
-                glyph: Theme.glyph.dnd
-                label: "do not disturb"
-                glyphSize: Theme.captionSize
-                onTapped: Notifications.setDnd(!Notifications.dnd)
-            }
-
-            PopupButton {
-                visible: Notifications.count > 0
-                framed: true
-                label: "clear"
-                onTapped: Notifications.clearAll()
-            }
+        PopupButton {
+            visible: Notifications.count > 0
+            framed: true
+            label: "clear"
+            onTapped: Notifications.clearAll()
         }
     }
 
@@ -206,38 +191,21 @@ Popup {
         }
 
         // Open: whose these are, and the two things that act on all of them.
-        Item {
+        PopupHeader {
             width: parent.width
-            height: 22
             visible: group.open && group.items.length > 1
+            title: group.modelData
 
-            PopupText {
-                x: root.inset
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - x - groupButtons.width - 8
-                text: group.modelData
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
+            PopupButton {
+                framed: true
+                label: "show less"
+                onTapped: group.open = false
             }
 
-            Row {
-                id: groupButtons
-
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
-
-                PopupButton {
-                    framed: true
-                    label: "show less"
-                    onTapped: group.open = false
-                }
-
-                PopupButton {
-                    framed: true
-                    label: "clear"
-                    onTapped: group.items.forEach(n => n.dismiss())
-                }
+            PopupButton {
+                framed: true
+                label: "clear"
+                onTapped: group.items.forEach(n => n.dismiss())
             }
         }
 

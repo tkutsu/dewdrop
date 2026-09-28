@@ -39,7 +39,8 @@ Popup {
     // eighty tasks get worked through.
     readonly property int cap: 9
 
-    readonly property int footHeight: 20
+    // A row is never shorter than a single line's worth of row.
+    readonly property int rowMin: 20
 
     spacing: 3
 
@@ -55,6 +56,51 @@ Popup {
             return Theme.taskSoon;
         }
         return Theme.taskUndated;
+    }
+
+    // Put back what was just ticked off, and add something: the plus at the
+    // right end, where every popup under the bar keeps it. Undo only appears
+    // for the ten seconds after a tick (Tasks.undoable), so it is never
+    // sitting there offering to undo something from this morning, and it is
+    // needed, because the whole row is a target.
+    PopupHeader {
+        width: root.bodyWidth
+        title: "Tasks"
+
+        Repeater {
+            model: Object.keys(Tasks.undoable)
+
+            delegate: PopupButton {
+                required property string modelData
+
+                framed: true
+                glyph: Theme.glyph.undo
+                label: "undo"
+                onTapped: Tasks.restore(Tasks.undoable[modelData].task)
+            }
+        }
+
+        ReconnectButton {}
+
+        PopupButton {
+            visible: Tasks.loaded
+            framed: true
+            glyph: Theme.glyph.plus
+            onTapped: Launcher.openWith(Launcher.taskPrefix)
+        }
+    }
+
+    // What went wrong since the list loaded. Before that, the line below
+    // says it in place of the list.
+    PopupText {
+        width: root.bodyWidth
+        leftPadding: 6
+        visible: Tasks.loaded && Tasks.trouble !== "" && Tasks.trouble !== Google.reconnect
+        text: Tasks.trouble
+        color: Theme.warn
+        font.pixelSize: Theme.footnoteSize
+        opacity: 0.8
+        elide: Text.ElideRight
     }
 
     PopupText {
@@ -79,7 +125,7 @@ Popup {
             // hang off its first line rather than off the row — a dot floating
             // halfway down a three-line task would read as belonging to the
             // middle line.
-            height: Math.max(label.implicitHeight, root.footHeight) + root.rowPad * 2
+            height: Math.max(label.implicitHeight, root.rowMin) + root.rowPad * 2
 
             // The whole row completes it. On a list this tightly packed a
             // slipped press would otherwise tick off whatever it started on,
@@ -178,82 +224,5 @@ Popup {
         text: `    … and ${root.rows.length - root.cap} more`
         font.pixelSize: Theme.footnoteSize
         opacity: 0.45
-    }
-
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-        visible: foot.visible
-    }
-
-    // The foot: put back what was just ticked off, and add something — the
-    // plus at the right end, where every popup under the bar keeps it. Undo
-    // only appears for the ten seconds after a tick (Tasks.undoable), so it is
-    // never sitting there offering to undo something from this morning — and
-    // it is needed more now than it was, because the whole row is a target.
-    Item {
-        id: foot
-
-        width: root.bodyWidth
-        height: root.footHeight + 2
-        visible: Tasks.loaded || Google.needsConsent
-
-        Row {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            Repeater {
-                model: Object.keys(Tasks.undoable)
-
-                delegate: PopupButton {
-                    required property string modelData
-
-                    height: root.footHeight
-                    framed: true
-                    glyph: Theme.glyph.undo
-                    label: "undo"
-                    glyphSize: Theme.captionSize
-                    textSize: Theme.footnoteSize
-                    onTapped: Tasks.restore(Tasks.undoable[modelData].task)
-                }
-            }
-        }
-
-        PopupText {
-            anchors.right: ends.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: Tasks.trouble
-            visible: Tasks.trouble !== "" && Tasks.trouble !== Google.reconnect
-            color: Theme.warn
-            font.pixelSize: Theme.footnoteSize
-            opacity: 0.8
-            elide: Text.ElideRight
-            width: Math.min(implicitWidth, root.bodyWidth - 130, parent.width - ends.width - 8)
-        }
-
-        Row {
-            id: ends
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            ReconnectButton {
-                height: root.footHeight
-                textSize: Theme.footnoteSize
-            }
-
-            PopupButton {
-                visible: Tasks.loaded
-                width: root.footHeight
-                height: root.footHeight
-                framed: true
-                glyph: Theme.glyph.plus
-                glyphSize: Theme.captionSize
-                onTapped: Launcher.openWith(Launcher.taskPrefix)
-            }
-        }
     }
 }

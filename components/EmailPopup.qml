@@ -21,14 +21,14 @@ Popup {
     // A fixed column, so the times line up down the right edge.
     readonly property int whenWidth: 44
     readonly property int cap: 8
-    readonly property int footHeight: 20
+    // The open mail's buttons, under its text.
+    readonly property int actionsHeight: 20
 
     readonly property var rows: Email.threads.slice(0, root.cap)
 
-    // The thread opened in place, by id, and its row while it is still on
-    // the list. One at a time: two open mails would be a page, not a popup.
+    // The thread opened in place, by id. One at a time: two open mails would
+    // be a page, not a popup.
     property string expanded: ""
-    readonly property var openRow: root.rows.find(r => r.id === root.expanded) ?? null
     // How tall an open mail may get before it scrolls.
     readonly property int bodyMax: 240
 
@@ -45,7 +45,7 @@ Popup {
     // The window is held at the height of a fully open mail, so a row opening
     // grows the box inside it rather than resizing the popup every frame of
     // the animation (see Popup.reserveHeight).
-    reserveHeight: chromeHeight - grown + bodyMax + 6
+    reserveHeight: chromeHeight - grown + bodyMax + actionsHeight + 12
 
     // The text of every row on show, asked for as the popup opens, so a row
     // opens straight to its full height instead of to the snippet and then
@@ -56,6 +56,44 @@ Popup {
     }
 
     spacing: 3
+
+    // Gmail itself, and a new mail at the right end, where every popup under
+    // the bar keeps its plus.
+    PopupHeader {
+        width: root.bodyWidth
+        title: "Mail"
+
+        ReconnectButton {}
+
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.openApp
+            label: "inbox"
+            onTapped: {
+                OpenPopup.dismiss();
+                Email.openInbox();
+            }
+        }
+
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.plus
+            onTapped: Email.compose("")
+        }
+    }
+
+    // What went wrong since the list loaded. Before that, the line below
+    // says it in place of the list.
+    PopupText {
+        width: root.bodyWidth
+        leftPadding: root.inset
+        visible: Email.loaded && Email.trouble !== "" && Email.trouble !== Google.reconnect
+        text: Email.trouble
+        color: Theme.warn
+        font.pixelSize: Theme.footnoteSize
+        opacity: 0.8
+        elide: Text.ElideRight
+    }
 
     PopupText {
         width: root.bodyWidth
@@ -149,20 +187,18 @@ Popup {
                 }
 
                 // The mail itself, once the row is open, unrolling downwards
-                // from under the subject. The snippet stands in, faintly, if
-                // the text has not landed yet, and the height follows it when
-                // it does rather than jumping. Scrolls past bodyMax rather than
-                // growing the popup down the screen.
-                Flickable {
+                // from under the subject, with the two things to do with it
+                // under the text. The snippet stands in, faintly, if the text
+                // has not landed yet, and the height follows it when it does
+                // rather than jumping. Scrolls past bodyMax rather than growing
+                // the popup down the screen.
+                Item {
                     id: reveal
 
                     visible: height > 0
                     width: parent.width
-                    height: row.isOpen ? Math.min(body.implicitHeight, root.bodyMax) + 6 : 0
-                    topMargin: 6
-                    contentHeight: body.implicitHeight
+                    height: row.isOpen ? mail.height + mailActions.height + 12 : 0
                     clip: true
-                    boundsBehavior: Flickable.StopAtBounds
 
                     Behavior on height {
                         NumberAnimation {
@@ -171,17 +207,49 @@ Popup {
                         }
                     }
 
-                    PopupText {
-                        id: body
+                    Flickable {
+                        id: mail
 
-                        readonly property var fetched: Email.bodies[row.modelData.message]
-
+                        y: 6
                         width: parent.width
-                        text: body.fetched !== undefined ? body.fetched : row.modelData.snippet + "…"
-                        font.pixelSize: Theme.captionSize
-                        color: body.fetched !== undefined ? Theme.label : Theme.label3
-                        wrapMode: Text.Wrap
-                        textFormat: Text.PlainText
+                        height: Math.min(body.implicitHeight, root.bodyMax)
+                        contentHeight: body.implicitHeight
+                        clip: true
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        PopupText {
+                            id: body
+
+                            readonly property var fetched: Email.bodies[row.modelData.message]
+
+                            width: parent.width
+                            text: body.fetched !== undefined ? body.fetched : row.modelData.snippet + "…"
+                            font.pixelSize: Theme.captionSize
+                            color: body.fetched !== undefined ? Theme.label : Theme.label3
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                        }
+                    }
+
+                    Row {
+                        id: mailActions
+
+                        y: mail.y + mail.height + 6
+                        spacing: 4
+
+                        PopupButton {
+                            framed: true
+                            glyph: Theme.glyph.openApp
+                            label: "open"
+                            onTapped: Email.open(row.modelData)
+                        }
+
+                        PopupButton {
+                            framed: true
+                            glyph: Theme.glyph.mailRead
+                            label: "mark read"
+                            onTapped: Email.markRead(row.modelData)
+                        }
                     }
                 }
             }
@@ -195,100 +263,5 @@ Popup {
         text: `… and ${Email.total - root.rows.length} more`
         font.pixelSize: Theme.footnoteSize
         opacity: 0.45
-    }
-
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-    }
-
-    // The foot: the open mail's two actions at the left, a new mail at the
-    // right end, where every popup under the bar keeps its plus, and what went
-    // wrong, if anything, between them.
-    Item {
-        width: root.bodyWidth
-        height: root.footHeight + 2
-
-        Row {
-            id: actions
-
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-            visible: root.openRow !== null
-
-            PopupButton {
-                height: root.footHeight
-                framed: true
-                glyph: Theme.glyph.openApp
-                label: "open"
-                glyphSize: Theme.captionSize
-                textSize: Theme.footnoteSize
-                onTapped: Email.open(root.openRow)
-            }
-
-            PopupButton {
-                height: root.footHeight
-                framed: true
-                glyph: Theme.glyph.mailRead
-                label: "mark read"
-                glyphSize: Theme.captionSize
-                textSize: Theme.footnoteSize
-                // The row goes, the box shrinks, and the pointer is left
-                // below it; a moment's grace to bring it back to the list.
-                onTapped: {
-                    root.hold(1500);
-                    Email.markRead(root.openRow);
-                }
-            }
-        }
-
-        PopupText {
-            anchors.right: ends.left
-            anchors.rightMargin: 8
-            anchors.verticalCenter: parent.verticalCenter
-            text: Email.trouble
-            visible: Email.trouble !== "" && Email.trouble !== Google.reconnect && !actions.visible
-            color: Theme.warn
-            font.pixelSize: Theme.footnoteSize
-            opacity: 0.8
-            elide: Text.ElideRight
-            width: Math.min(implicitWidth, parent.width - ends.width - 8)
-        }
-
-        Row {
-            id: ends
-
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 4
-
-            ReconnectButton {
-                height: root.footHeight
-                textSize: Theme.footnoteSize
-            }
-
-            PopupButton {
-                height: root.footHeight
-                framed: true
-                glyph: Theme.glyph.openApp
-                label: "inbox"
-                glyphSize: Theme.captionSize
-                textSize: Theme.footnoteSize
-                onTapped: {
-                    OpenPopup.dismiss();
-                    Email.openInbox();
-                }
-            }
-
-            PopupButton {
-                width: root.footHeight
-                height: root.footHeight
-                framed: true
-                glyph: Theme.glyph.plus
-                glyphSize: Theme.captionSize
-                onTapped: Email.compose("")
-            }
-        }
     }
 }

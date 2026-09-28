@@ -11,12 +11,12 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: 240
-    readonly property int footHeight: 20
+    // Wide enough for the header: the title and both of its buttons.
+    readonly property int bodyWidth: 264
 
     spacing: 6
 
-    // Scanning is started from the foot and only lasts as long as the popup:
+    // Scanning is started from the header and only lasts as long as the popup:
     // nobody is reading the list once it has closed.
     Component.onDestruction: Bluetooth.scan(false)
 
@@ -29,6 +29,29 @@ Popup {
             return "pair";
         const battery = Bluetooth.battery(device);
         return device.connected && battery >= 0 ? battery + "%" : "";
+    }
+
+    PopupHeader {
+        width: root.bodyWidth
+        title: "Bluetooth"
+
+        PopupButton {
+            framed: true
+            glyph: Bluetooth.on ? Theme.glyph.bluetoothOff : Theme.glyph.bluetooth
+            label: Bluetooth.on ? "turn off" : "turn on"
+            onTapped: Bluetooth.toggle()
+        }
+
+        // New devices only turn up while the adapter is looking, and
+        // looking is loud on the radio, so it is asked for rather than
+        // started every time the popup opens.
+        PopupButton {
+            framed: true
+            visible: Bluetooth.on
+            glyph: Theme.glyph.refresh
+            label: Bluetooth.scanning ? "stop looking" : "look for devices"
+            onTapped: Bluetooth.scan(!Bluetooth.scanning)
+        }
     }
 
     PopupText {
@@ -83,40 +106,6 @@ Popup {
                     }
                 }
             }
-        }
-    }
-
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-    }
-
-    Row {
-        spacing: 4
-
-        PopupButton {
-            height: root.footHeight
-            framed: true
-            glyph: Bluetooth.on ? Theme.glyph.bluetoothOff : Theme.glyph.bluetooth
-            label: Bluetooth.on ? "turn off" : "turn on"
-            glyphSize: Theme.captionSize
-            textSize: Theme.captionSize
-            onTapped: Bluetooth.toggle()
-        }
-
-        // New devices only turn up while the adapter is looking, and
-        // looking is loud on the radio, so it is asked for rather than
-        // started on every hover.
-        PopupButton {
-            height: root.footHeight
-            framed: true
-            visible: Bluetooth.on
-            glyph: Theme.glyph.refresh
-            label: Bluetooth.scanning ? "stop looking" : "look for devices"
-            glyphSize: Theme.captionSize
-            textSize: Theme.captionSize
-            onTapped: Bluetooth.scan(!Bluetooth.scanning)
         }
     }
 }
