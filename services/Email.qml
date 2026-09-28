@@ -421,6 +421,18 @@ GoogleService {
     // Off the list at once rather than at the next poll, and kept off it
     // until a poll agrees (see `opened`).
     function drop(thread: var): void {
+        // Once: a mail read in the launcher and then opened in Gmail would
+        // otherwise come off the count twice.
+        if (root.opened[thread.id])
+            return;
+        // A search that turned it up says so too, or going back to it from
+        // the launcher's reader would show it still unread.
+        if (root.found)
+            root.found = Object.assign({}, root.found, {
+                rows: root.found.rows.map(r => r.id === thread.id ? Object.assign({}, r, {
+                        unread: false
+                    }) : r)
+            });
         const mark = Object.assign({}, root.opened);
         mark[thread.id] = Date.now();
         root.opened = mark;

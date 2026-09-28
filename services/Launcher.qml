@@ -208,6 +208,8 @@ Singleton {
             return Timers.syntax;
         // The keys, and Gmail's own search operators, which nothing on a mail
         // row hints at.
+        if (root.mailOpen)
+            return "tab back  ·  ↑↓ scroll  ·  enter open in gmail";
         if (root.mailMode)
             return "tab read  ·  ctrl+enter new mail  ·  from:  subject:  has:attachment";
         if (root.taskMode)
@@ -257,7 +259,7 @@ Singleton {
     // A new query is a new list, and the old cursor position means nothing in it.
     onQueryChanged: {
         root.index = 0;
-        root.mailOpen = "";
+        root.mailOpen = null;
         root.route();
     }
 
@@ -897,10 +899,15 @@ Singleton {
         if (!Email.configured)
             return note(`Gmail not connected — run ${Google.setup}`);
 
+        // Reading one: its row alone, as the header over its text, which the
+        // box draws under the list (see LauncherMenu's reader).
+        if (root.mailOpen)
+            return [root.mailRow(root.mailOpen)];
+
         if (!query) {
             if (!Email.loaded)
                 return note(Email.trouble || "reading mail…");
-            return Email.threads.length ? root.mailRows(Email.threads) : note("no unread mail");
+            return Email.threads.length ? Email.threads.map(root.mailRow) : note("no unread mail");
         }
 
         const found = Email.found;
@@ -908,100 +915,36 @@ Singleton {
             return note("searching…");
         if (found.trouble)
             return note(found.trouble);
-        return found.rows.length ? root.mailRows(found.rows) : note("no mail matches");
+        return found.rows.length ? found.rows.map(root.mailRow) : note("no mail matches");
     }
 
-    // The thread Tab has unfolded under its row, by id. One at a time, the
-    // way the music tree opens one record: two mails' lines in one list would
-    // read as one mail.
-    property string mailOpen: ""
+    // The thread Tab opened to read, or null. The thread itself rather than
+    // its id: reading marks it read, which takes it off the unread list this
+    // would otherwise have to find it in.
+    property var mailOpen: null
+    // Its text, "" until it lands.
+    readonly property string mailText: root.mailOpen ? (Email.bodies[root.mailOpen.message] ?? "") : ""
 
-    function mailRows(threads) {
-        const rows = [];
-        for (const t of threads) {
-            rows.push(root.mailRow(t));
-            if (t.id === root.mailOpen)
-                rows.push(...root.mailBody(t));
-        }
-        return rows;
-    }
-
-    // The text as rows of their own, since a row is one line high and the
-    // list's scrolling counts in rows. Enough of it to read in the box; the
-    // "…" at the end, like every line here, opens the thread for the rest.
-    readonly property int mailLines: 60
-
-    function mailBody(t) {
-        const text = Email.bodies[t.message];
-        const lines = text === undefined ? ["reading…"] : root.wrap(text || "(no text)", root.mailLines + 1);
-        if (lines.length > root.mailLines)
-            lines.splice(root.mailLines, lines.length, "…");
-        return lines.map(line => ({
-                    kind: "mail-body",
-                    thread: t,
-                    title: line,
-                    raw: true,
-                    subtitle: "",
-                    indent: 1
-                }));
-    }
-
-    // Wrapped by width rather than by count, with the font the rows are set
-    // in, so a line runs to the edge instead of stopping at a guess. The width
-    // is a row's title share (LauncherMenu: 0.88 of a 680 box, less one step
-    // of indent). A word too long for a line — a link — is left to elide.
-    // Stops once it has `max` lines, since the rest is not drawn.
-    readonly property int mailWrapWidth: 570
-
-    FontMetrics {
-        id: bodyMetrics
-
-        font.family: Theme.bodyFont
-        font.pixelSize: Theme.labelSize
-        font.weight: Theme.bodyWeight
-    }
-
-    function wrap(text, max) {
-        const out = [];
-        for (const para of text.split("\n")) {
-            // Paragraphs keep one blank line between them, never a run.
-            if (!para.trim()) {
-                if (out.length && out[out.length - 1] !== "")
-                    out.push("");
-                continue;
-            }
-            let line = "";
-            for (const word of para.trim().split(/\s+/)) {
-                const next = line ? line + " " + word : word;
-                if (line && bodyMetrics.advanceWidth(next) > root.mailWrapWidth) {
-                    out.push(line);
-                    line = word;
-                } else {
-                    line = next;
-                }
-            }
-            out.push(line);
-            if (out.length >= max)
-                break;
-        }
-        return out;
-    }
-
-    // Tab in mail mode: open the selected mail under its row, or shut it from
-    // the mail or any of its lines, which puts the selection back on the mail.
-    // Reading it here does not mark it read; opening it does.
+    // Tab in mail mode: read the selected mail, or go back to the list from
+    // one, onto the row it was read from if it is still there. Reading counts
+    // as read, the way opening it in Gmail does.
     function mailFold(): void {
-        const r = root.selected;
-        if (!r || (r.kind !== "mail" && r.kind !== "mail-body"))
-            return;
-        const id = r.thread.id;
-        if (root.mailOpen === id) {
-            root.mailOpen = "";
-            root.index = root.results.findIndex(x => x.kind === "mail" && x.thread.id === id);
+        const open = root.mailOpen;
+        if (open) {
+            root.mailOpen = null;
+            root.index = Math.max(0, root.results.findIndex(x => x.kind === "mail" && x.thread.id === open.id));
             return;
         }
-        root.mailOpen = id;
+        const r = root.selected;
+        if (!r || r.kind !== "mail")
+            return;
         Email.read(r.thread);
+        if (r.thread.unread)
+            Email.markRead(r.thread);
+        root.mailOpen = Object.assign({}, r.thread, {
+            unread: false
+        });
+        root.index = 0;
     }
 
     // Subject first, since it is what the mail is; who and when to the right.
@@ -1509,10 +1452,6 @@ Singleton {
                 Quickshell.execDetached(["xdg-open", r.url]);
             },
             mail: (r, i) => {
-                root.leave(i);
-                Email.open(r.thread);
-            },
-            "mail-body": (r, i) => {
                 root.leave(i);
                 Email.open(r.thread);
             },

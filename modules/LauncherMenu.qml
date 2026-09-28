@@ -236,7 +236,7 @@ OverlayWindow {
     }
 
     // What a step does depends on the key and the mode. Tab opens and shuts
-    // the tree in music mode, and a mail's text in mail mode, and moves the
+    // the tree in music mode, and a mail to read in mail mode, and moves the
     // selection everywhere else; nothing is lost to the swap, since the arrows
     // and both Ctrl pairs still move it.
     // Page keys page the file under the / list, and in music mode, where
@@ -246,6 +246,15 @@ OverlayWindow {
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
         if (Launcher.musicMode && tab) {
             LauncherMusic.fold();
+            return;
+        }
+        // Reading a mail, every step is the reader's: Tab back to the list,
+        // the arrows a row's height of text, the page keys a screenful.
+        if (Launcher.mailOpen) {
+            if (tab)
+                Launcher.mailFold();
+            else
+                reader.scroll(dir * (page ? reader.height - root.rowHeight : root.rowHeight));
             return;
         }
         if (Launcher.mailMode && tab) {
@@ -963,6 +972,44 @@ OverlayWindow {
 
                         onClicked: Launcher.activate(row.index)
                     }
+                }
+            }
+
+            // The mail Tab opened, under its own row: the text in one piece,
+            // wrapped to the box and scrolled by the keys that otherwise move
+            // the selection. As tall as the text, and at most what the rest of
+            // a full list would have been, so reading never grows the box past
+            // its usual size. Only while one is open (see Launcher.mailOpen).
+            Flickable {
+                id: reader
+
+                function scroll(by) {
+                    reader.contentY = Math.max(0, Math.min(reader.contentHeight - reader.height, reader.contentY + by));
+                }
+
+                visible: Launcher.mailOpen !== null
+                width: parent.width
+                height: Math.min(reader.contentHeight, (root.visibleRows - 1) * root.rowHeight - root.contentGap)
+                contentHeight: body.implicitHeight + root.contentGap
+                boundsBehavior: Flickable.StopAtBounds
+                clip: true
+
+                Text {
+                    id: body
+
+                    // Set in where a row's title is, so the text starts under
+                    // the subject rather than out at the box's edge.
+                    x: Theme.pillPad
+                    width: reader.width - Theme.pillPad * 2
+                    text: Launcher.mailText || "reading…"
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    lineHeight: 1.25
+                    color: Theme.menuText
+                    font.family: Theme.bodyFont
+                    font.pixelSize: Theme.labelSize
+                    // A new mail starts at its top.
+                    onTextChanged: reader.contentY = 0
                 }
             }
         }
