@@ -67,7 +67,8 @@ BarItem {
     }
 
     // Left used to open pavucontrol. Everything it was opened for, the
-    // outputs and each app's volume, is in the popup now.
+    // outputs and each app's volume, is in the popup now, which left opens
+    // (BarItem.popupButton).
     actions: ({
             [Qt.RightButton]: () => Audio.toggleMute()
         })

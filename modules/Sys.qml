@@ -9,6 +9,8 @@ import qs.services
 // for last — with the machine behind it in the popup.
 BarItem {
     popup: SysPopup {}
+    // Nothing in it to click, so it stays a glance on hover.
+    popupButton: Qt.NoButton
 
     // A temperature is only news once it is a warning, so the tube waits in
     // the drawer until the reading crosses the top of its scale.

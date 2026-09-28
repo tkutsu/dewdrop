@@ -8,6 +8,9 @@ Item {
 
     required property Item anchorItem
     property bool hovered: false
+    // Shown outright, hover or not: a popup a click opened, which stays up
+    // until something closes it (see BarItem).
+    property bool open: false
     property string text: ""
     property Component popup: null
 
@@ -72,7 +75,7 @@ Item {
 
     Loader {
         id: loader
-        active: root.settled && (root.popup !== null || root.text !== "")
+        active: (root.open || root.settled) && (root.popup !== null || root.text !== "")
         sourceComponent: root.popup !== null ? root.popup : plain
 
         onLoaded: {

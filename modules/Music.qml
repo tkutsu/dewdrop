@@ -44,6 +44,8 @@ BarItem {
 
     spacing: Theme.mediaGap
     popup: MusicPopup {}
+    // Left is the three targets, so the popup is right.
+    popupButton: Qt.RightButton
     // Each target presses in by itself; the pill as a whole does not.
     dips: false
 

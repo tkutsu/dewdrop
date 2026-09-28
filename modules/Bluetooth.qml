@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import qs
 import qs.components
 import qs.services
@@ -35,8 +34,8 @@ BarItem {
         fontSize: Theme.trayGlyphSize
     }
 
+    // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached(["blueman-manager"]),
             [Qt.RightButton]: () => Bluetooth.toggle()
         })
 }
