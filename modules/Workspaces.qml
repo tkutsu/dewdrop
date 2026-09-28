@@ -61,6 +61,12 @@ BarItem {
         // the inset, so its ends sit inside the pill's ends by the same air
         // it keeps off the top and bottom.
         //
+        // The top is measured from inside the pill's rim. The rim is lit
+        // along the top and all but gone along the bottom, so it reads as the
+        // pill's edge up there and as more pill down here. An inset of two
+        // from the slab's edge on both sides left one dark pixel above the
+        // mark and two below it, which looked like the mark riding high.
+        //
         // The move is the state change, and it moves the way a drop does along
         // a surface: the mark's front end runs ahead to the workspace you are
         // on, stretching it out of the one you left, then its back end lets go
@@ -73,8 +79,8 @@ BarItem {
             id: mark
 
             readonly property int inset: Theme.markInset
-            readonly property real slabTop: Theme.pillTop(strip.height) + inset
-            readonly property real thickness: Theme.barHeight - inset * 2
+            readonly property real slabTop: Theme.pillTop(strip.height) + Theme.pillBorder + inset
+            readonly property real thickness: Theme.barHeight - Theme.pillBorder - inset * 2
 
             // Where the mark belongs, in this item's pixels.
             readonly property real wantLeft: strip.selected ? strip.selected.x + inset : 0
