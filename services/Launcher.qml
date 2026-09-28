@@ -907,7 +907,14 @@ Singleton {
         if (!query) {
             if (!Email.loaded)
                 return note(Email.trouble || "reading mail…");
-            return Email.threads.length ? Email.threads.map(root.mailRow) : note("no unread mail");
+            if (Email.threads.length)
+                return Email.threads.map(root.mailRow);
+            // Nothing unread: the inbox, newest first, which route() has
+            // already asked for. The note stands in until it lands.
+            const recent = Email.found;
+            if (!recent || recent.q !== root.recentMail || !recent.rows.length)
+                return note("no unread mail");
+            return recent.rows.map(root.mailRow);
         }
 
         const found = Email.found;
@@ -948,12 +955,13 @@ Singleton {
     }
 
     // Subject first, since it is what the mail is; who and when to the right.
-    // A read thread, which only a search turns up, sits a shade back.
+    // A read thread sits a shade back; a starred one wears the star, which is
+    // what put it at the top of a search.
     function mailRow(t) {
         return {
             kind: "mail",
             thread: t,
-            glyph: t.unread ? Theme.glyph.mailUnread : Theme.glyph.mailRead,
+            glyph: t.starred ? Theme.glyph.mailStarred : t.unread ? Theme.glyph.mailUnread : Theme.glyph.mailRead,
             title: t.subject,
             subtitle: [t.from, Email.sayWhen(t.at)].filter(x => x).join("  ·  "),
             raw: true,
@@ -967,8 +975,11 @@ Singleton {
         property string want: ""
 
         interval: 300
-        onTriggered: Email.search(mailSearch.want)
+        onTriggered: Email.search(mailSearch.want, true)
     }
+
+    // What a bare "#" lists when nothing is unread.
+    readonly property string recentMail: "in:inbox"
 
     // --- windows -------------------------------------------------------------
 
@@ -1059,6 +1070,11 @@ Singleton {
         fd.want = sym === root.pathPrefix && rest.length >= 3 ? rest : "";
 
         LauncherMusic.route(sym === root.musicPrefix, rest);
+
+        // A bare "#" with nothing unread lists the inbox instead. Asked at
+        // once rather than after the debounce: nothing was typed to wait out.
+        if (sym === root.mailPrefix && !rest && !Email.threads.length)
+            Email.search(root.recentMail, false);
 
         const mail = sym === root.mailPrefix ? rest : "";
         if (mail !== mailSearch.want) {
