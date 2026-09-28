@@ -20,19 +20,22 @@ ClickArea {
     // Text for a plain hover tooltip, or a Component for something richer — a
     // calendar, a volume slider. The tooltip appears on hover; the popup on a
     // click of `popupButton`, and stays until a click anywhere else, because
-    // a popup with controls in it is somewhere to go rather than something to
-    // glance at. `popupItem` is the live instance, for modules that need to
-    // drive it (scrolling the calendar through months).
+    // a popup is somewhere to go rather than something to glance at.
+    // `popupItem` is the live instance, for modules that need to drive it
+    // (scrolling the calendar through months).
     property string tooltip: ""
     property Component popup: null
-    readonly property var popupItem: clickOpens ? clicked.item : hover.item
+    readonly property var popupItem: clicked.item
 
     // The button that opens the popup. It takes that button from the module's
-    // own `actions`. Qt.NoButton leaves the popup on hover, for one that only
-    // reports and has nothing in it to click.
+    // own `actions`. Qt.NoButton for a module that opens it from somewhere of
+    // its own with togglePopup() (Music's title).
     property int popupButton: Qt.LeftButton
-    readonly property bool clickOpens: popup !== null && popupButton !== Qt.NoButton
     readonly property bool popupOpen: OpenPopup.owner === root
+
+    function togglePopup(): void {
+        OpenPopup.toggle(root);
+    }
 
     // Fitts's law: the modules at the ends of the bar back onto a screen edge,
     // which makes them the cheapest targets on screen — but only if their hit
@@ -206,11 +209,11 @@ ClickArea {
     ClickArea {
         id: opener
         anchors.fill: parent
-        enabled: root.clickOpens
+        enabled: root.popup !== null && root.popupButton !== Qt.NoButton
         acceptedButtons: root.popupButton
         cursorShape: Qt.ArrowCursor
         actions: ({
-                [root.popupButton]: () => OpenPopup.toggle(root)
+                [root.popupButton]: root.togglePopup
             })
     }
 
@@ -234,14 +237,13 @@ ClickArea {
         anchorItem: root
         hovered: root.containsMouse && !root.popupOpen
         text: root.popupOpen ? "" : root.tooltip
-        popup: root.clickOpens ? null : root.popup
     }
 
     HoverPopup {
         id: clicked
         anchorItem: root
         open: root.popupOpen
-        popup: root.clickOpens ? root.popup : null
+        popup: root.popup
     }
 
     // A click in another window or on the wallpaper closes the popup. Layer

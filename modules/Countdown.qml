@@ -99,12 +99,20 @@ BarItem {
         }
     }
 
-    // Left is the popup (BarItem.popupButton). Right sets another. Middle
-    // shuts it up if it is shouting and otherwise throws away, which is the
-    // one action here that cannot be undone and so is the one nothing lands
-    // on by accident.
+    // Left is the popup (BarItem.popupButton). Right is the thing you came to
+    // do: shut it up if it is shouting, hold it if it is running, and
+    // otherwise set one. Middle shuts it up too and otherwise throws away,
+    // which is the one action here that cannot be undone and so is the one
+    // nothing lands on by accident.
     actions: ({
-            [Qt.RightButton]: () => Launcher.openWith(Launcher.timerPrefix),
+            [Qt.RightButton]: () => {
+                if (root.ringing)
+                    Timers.hush();
+                else if (Timers.focus)
+                    Timers.toggle(Timers.focus.id);
+                else
+                    Launcher.openWith(Launcher.timerPrefix);
+            },
             // Nothing to throw away with no timer running or ringing.
             [Qt.MiddleButton]: root.ringing || Timers.focus ? () => {
                 if (root.ringing)

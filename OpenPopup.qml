@@ -20,4 +20,9 @@ Singleton {
         if (root.owner === item)
             root.owner = null;
     }
+
+    // Whichever is up: for a button in a popup that sends you somewhere else.
+    function dismiss(): void {
+        root.owner = null;
+    }
 }

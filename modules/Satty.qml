@@ -19,7 +19,7 @@ BarItem {
     }
 
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([script]),
-            [Qt.RightButton]: () => Quickshell.execDetached([script, "fast"])
+            [Qt.LeftButton]: () => Quickshell.execDetached([script, "fast"]),
+            [Qt.RightButton]: () => Quickshell.execDetached([script])
         })
 }

@@ -128,4 +128,34 @@ Popup {
             }
         }
     }
+
+    // The foot, the way the updates popup has one: the way on to the rest.
+    Item {
+        width: 1
+        height: 4
+    }
+
+    Rectangle {
+        width: root.bodyWidth
+        height: Theme.pillBorder
+        color: Theme.stroke
+    }
+
+    Item {
+        width: 1
+        height: 4
+    }
+
+    PopupButton {
+        height: 20
+        framed: true
+        glyph: Theme.glyph.openApp
+        label: "notification centre"
+        glyphSize: Theme.captionSize
+        textSize: Theme.captionSize
+        onTapped: {
+            OpenPopup.dismiss();
+            Notifications.toggleCentre();
+        }
+    }
 }
