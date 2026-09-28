@@ -409,9 +409,10 @@ Singleton {
     readonly property real springStiffness: 2.5
     readonly property real springDamping: 0.26
 
-    // Figures rolling to their next value (RollingText): the timer's seconds,
-    // once a second, so well under a second.
-    readonly property int rollMs: 320
+    // Figures rolling to their next value (RollingText): SwiftUI's default
+    // duration, which the roll runs 1.45 times over while its spring settles
+    // — 725 ms, inside the second before the timer's next figure.
+    readonly property int rollMs: 500
 
     // How long the launcher and the power menu take to open out from their
     // centre line, and to fold back into it. Shorter than fadeMs on purpose:
