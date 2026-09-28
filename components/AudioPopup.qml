@@ -46,48 +46,29 @@ Popup {
             id: content
             spacing: 6
 
-            // One output is only a name. Several are a choice, and the one
-            // in use carries the tick.
+            // The outputs, the one in use ticked, as the Bluetooth and
+            // network popups list theirs.
             PopupText {
-                visible: Audio.sinks.length < 2
-                text: Audio.tooltip
+                visible: Audio.sinks.length === 0
+                text: "No audio output"
+                color: Theme.label2
             }
 
             Column {
-                visible: Audio.sinks.length > 1
-
                 Repeater {
                     model: ScriptModel {
                         values: Audio.sinks
                     }
 
-                    delegate: PopupRow {
+                    delegate: ChoiceRow {
                         id: output
 
                         required property var modelData
-                        readonly property bool current: modelData === Audio.sink
 
                         width: master.width
-                        height: 22
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        text: modelData.description || modelData.name
+                        current: modelData === Audio.sink
                         onTapped: Audio.setDefault(output.modelData)
-
-                        Glyph {
-                            x: 1
-                            height: parent.height
-                            visible: output.current
-                            text: Theme.glyph.check
-                            fontSize: Theme.popupTextSize
-                        }
-
-                        PopupText {
-                            x: master.lead
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width - x - 4
-                            elide: Text.ElideRight
-                            text: output.modelData.description || output.modelData.name
-                            opacity: output.current ? 1 : 0.7
-                        }
                     }
                 }
             }
@@ -123,6 +104,7 @@ Popup {
 
                     PopupText {
                         width: master.width
+                        leftPadding: 32
                         elide: Text.ElideRight
                         text: Audio.appName(app.modelData)
                         color: Theme.label2
@@ -157,10 +139,10 @@ Popup {
         signal moved(real value)
         signal iconTapped
 
-        // Where the text starts on a row above that lines up with the track.
-        readonly property int lead: speaker.width + spacing
-
-        spacing: 8
+        // On the lists' grid (ChoiceRow): the speaker in the tick's column,
+        // the track starting where the names do.
+        leftPadding: 8
+        spacing: 10
 
         // A fixed box, with the speaker against its left edge: the waves
         // come and go with the level, and a glyph sized to its own ink

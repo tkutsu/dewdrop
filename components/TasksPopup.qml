@@ -61,7 +61,7 @@ Popup {
         width: root.bodyWidth
         visible: !Tasks.loaded || root.rows.length === 0
         text: !Tasks.loaded ? (Tasks.trouble !== "" ? Tasks.trouble : "Connecting…") : "Nothing on the list"
-        opacity: 0.6
+        color: Theme.label2
         wrapMode: Text.WordWrap
     }
 

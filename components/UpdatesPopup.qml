@@ -71,6 +71,7 @@ Popup {
             // The same check as a right-click on the bar, where it can be
             // found. Faint while one is out, rather than queueing another.
             PopupButton {
+                height: 20
                 framed: true
                 live: !Updates.loading
 
@@ -85,6 +86,7 @@ Popup {
             // button you have to open the popup to reach rather than a click
             // on the bar, because it removes packages without asking.
             PopupButton {
+                height: 20
                 framed: true
 
                 glyph: Theme.glyph.cleanup

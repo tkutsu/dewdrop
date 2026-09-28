@@ -14,6 +14,11 @@ BarItem {
     readonly property var entries: SystemTray.items.values
         // Passive is the SNI way of saying "nothing worth showing right now".
         .filter(item => item.status !== Status.Passive)
+        // The bar's own Bluetooth and Network modules say what these would.
+        // blueman's applet comes back whenever its manager is opened (D-Bus
+        // starts it as the pairing agent), and its icon would be a second
+        // Bluetooth rune in the row.
+        .filter(item => !/^(blueman|nm-applet)/.test(item.id))
         // Registration order is whatever the race at login happened to produce;
         // sorting by service id keeps the bar stable across restarts.
         .sort((a, b) => a.id.localeCompare(b.id))
