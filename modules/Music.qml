@@ -6,8 +6,8 @@ import qs.components
 import qs.services
 
 // The music pill: what is playing, with a hand either side of it. The title is
-// the play/pause button — it is the widest thing in the pill and the one you
-// are already looking at, so it is also the cheapest thing to hit.
+// the play/pause button, sleeve included — it is the widest thing in the pill
+// and the one you are already looking at, so it is also the cheapest to hit.
 //
 // The three are TapHandlers rather than the BarItem's own click, which stays
 // unused here: one module, three targets, and a handler on the item that draws
@@ -50,67 +50,74 @@ BarItem {
         }
     }
 
-    // The sleeve, as the title's own icon. It is the one spot of colour on a
-    // bar that is otherwise white on dark, and it changes with every record —
-    // the thing that says which album this is before the title has been read.
-    // The popup already had the picture; this is a thumbnail of the same file.
-    //
-    // Icon-sized and only just rounded, so it reads as part of the row rather
-    // than as a second pill inside this one. Only there once the picture is: a
-    // folder with no sleeve gives the pill no empty square, just the controls
-    // it always had.
-    Item {
-        readonly property int size: 14
-        readonly property int air: (Theme.barHeight - size) / 2
-
+    // The play/pause button: the sleeve and the title, and the gap between
+    // them, as one target that presses in together.
+    RowLayout {
         Layout.fillHeight: true
-        implicitWidth: size
-        visible: sleeve.status === Image.Ready
-
-        ClippingRectangle {
-            y: Theme.pillTop(parent.height) + parent.air
-            width: parent.size
-            height: parent.size
-            radius: 3
-            color: "transparent"
-
-            Image {
-                id: sleeve
-
-                anchors.fill: parent
-                source: Mpd.cover
-                fillMode: Image.PreserveAspectCrop
-                // Decoded at twice the size it is drawn, not at the size of
-                // the scan: some of these are 1400px across.
-                sourceSize.width: parent.width * 2
-                sourceSize.height: parent.height * 2
-                asynchronous: true
-                smooth: true
-                mipmap: true
-            }
-        }
-    }
-
-    BarText {
-        Layout.fillHeight: true
-        text: root.shownLabel
-        maxWidth: Theme.mediaTitleWidth
-        // Paused is the title gone quiet rather than a second icon saying so.
-        // The pill is two glyphs and a line of text; a third glyph in it would
-        // be the one thing there that cannot be pressed.
-        opacity: Mpd.state === "play" ? 1 : Theme.dimOpacity
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.fadeMs
-            }
-        }
-
+        spacing: root.spacing
         transform: Translate { y: toggleTap.pressed ? Theme.pressDip : 0 }
 
         TapHandler {
             id: toggleTap
             onTapped: Mpd.send(["toggle"])
+        }
+
+        // The sleeve, as the title's own icon. It is the one spot of colour on
+        // a bar that is otherwise white on dark, and it changes with every
+        // record — the thing that says which album this is before the title
+        // has been read. The popup already had the picture; this is a
+        // thumbnail of the same file.
+        //
+        // Icon-sized and only just rounded, so it reads as part of the row
+        // rather than as a second pill inside this one. Only there once the
+        // picture is: a folder with no sleeve gives the pill no empty square,
+        // just the controls it always had.
+        Item {
+            readonly property int size: 14
+            readonly property int air: (Theme.barHeight - size) / 2
+
+            Layout.fillHeight: true
+            implicitWidth: size
+            visible: sleeve.status === Image.Ready
+
+            ClippingRectangle {
+                y: Theme.pillTop(parent.height) + parent.air
+                width: parent.size
+                height: parent.size
+                radius: 3
+                color: "transparent"
+
+                Image {
+                    id: sleeve
+
+                    anchors.fill: parent
+                    source: Mpd.cover
+                    fillMode: Image.PreserveAspectCrop
+                    // Decoded at twice the size it is drawn, not at the size of
+                    // the scan: some of these are 1400px across.
+                    sourceSize.width: parent.width * 2
+                    sourceSize.height: parent.height * 2
+                    asynchronous: true
+                    smooth: true
+                    mipmap: true
+                }
+            }
+        }
+
+        BarText {
+            Layout.fillHeight: true
+            text: root.shownLabel
+            maxWidth: Theme.mediaTitleWidth
+            // Paused is the title gone quiet rather than a second icon saying
+            // so. The pill is two glyphs and a line of text; a third glyph in
+            // it would be the one thing there that cannot be pressed.
+            opacity: Mpd.state === "play" ? 1 : Theme.dimOpacity
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
         }
     }
 
