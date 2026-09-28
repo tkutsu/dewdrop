@@ -40,12 +40,10 @@ Singleton {
     // looksLikeMath. The underscore it used to be went to the windows below.
     //
     // One letter each, and Google has none at all — it is what a bare "@"
-    // does, so the search run most often costs the fewest keys. That is also
-    // why "@g" is GitHub: the initial was free, because the engine that would
-    // have wanted it does not need one. Claude is "@l" for the same reason
-    // read the other way — ChatGPT holds the "c", so the key moved to the
-    // next free letter of the word, which costs nothing to remember because
-    // the hint line marks the key where it falls: "@c[l]aude".
+    // does, so the search run most often costs the fewest keys. Claude is
+    // "@l" because ChatGPT holds the "c", so the key moved to the next free
+    // letter of the word, which costs nothing to remember because the hint
+    // line marks the key where it falls: "@c[l]aude".
     //
     // %s is replaced with the URL-encoded query. Every engine here has a place
     // to put one, which is why there is no Gemini: neither gemini.google.com
@@ -100,24 +98,6 @@ Singleton {
                         hint: "claude"
                     },
                     {
-                        key: "g",
-                        name: "GitHub",
-                        hint: "github",
-                        url: "https://github.com/search?q=%s"
-                    },
-                    {
-                        key: "w",
-                        name: "Wikipedia",
-                        hint: "wikipedia",
-                        url: "https://en.wikipedia.org/w/index.php?search=%s"
-                    },
-                    {
-                        key: "a",
-                        name: "Arch Wiki",
-                        hint: "archwiki",
-                        url: "https://wiki.archlinux.org/index.php?search=%s"
-                    },
-                    {
                         key: "x",
                         name: "1337x",
                         hint: "1337x",
@@ -137,7 +117,7 @@ Singleton {
                     {
                         key: "m",
                         name: "Maps",
-                        hint: "map",
+                        hint: "maps",
                         url: "https://www.google.com/maps/search/%s"
                     }
                 ]
@@ -160,11 +140,12 @@ Singleton {
     // sum, not a command, not a quoted line.
     readonly property string windowPrefix: "_"
     // The library: artists, their records, the songs on them, and the stored
-    // playlists. The sharp, which is the one piece of music notation that is
-    // also a key on the keyboard, and the last of the punctuation here that
-    // starts nothing else — it is not a path, a sum, a prompt, a quoted line
-    // or a window.
-    readonly property string musicPrefix: "#"
+    // playlists. An ampersand, which starts nothing else here — it is not a
+    // path, a sum, a prompt, a quoted line or a window.
+    readonly property string musicPrefix: "&"
+    // Mail: the unread on its own, a search of the whole mailbox past it. The
+    // hash, which is what a mail client's tag and a search box both read as.
+    readonly property string mailPrefix: "#"
     // Writing something down, and setting something going. These two replace a
     // quick-entry overlay of their own: it was a second box on the same screen
     // doing the same job as this one — a line of text, a note underneath saying
@@ -187,9 +168,9 @@ Singleton {
     // list of the things you have to ask for.
     //
     // In search mode it turns into the engines, because by then the mode is
-    // not the question any more — which of the ten answers it is, and the
+    // not the question any more — which of them answers it is, and the
     // letter that picks each one is the thing worth having in front of you.
-    readonly property string prefixHint: [root.calcPrefix + "calc", root.cmdPrefix + "run", root.windowPrefix + "windows", root.enginePrefix + "web", root.pathPrefix + "files", root.clipPrefix + "clip", root.musicPrefix + "music", root.taskPrefix + "task", root.timerPrefix + "timer"].join("   ")
+    readonly property string prefixHint: [root.calcPrefix + "calc", root.cmdPrefix + "run", root.windowPrefix + "windows", root.enginePrefix + "web", root.pathPrefix + "files", root.clipPrefix + "clip", root.musicPrefix + "music", root.mailPrefix + "mail", root.taskPrefix + "task", root.timerPrefix + "timer"].join("   ")
 
     // Each engine written as one word with its key bracketed inside it:
     // "@[y]outube". The brackets are the whole instruction — which letter to
@@ -225,6 +206,9 @@ Singleton {
         // the reminder away.
         if (root.timerMode)
             return Timers.syntax;
+        // Gmail's own search operators, which nothing on a mail row hints at.
+        if (root.mailMode)
+            return "from:   to:   subject:   has:attachment   is:unread   older_than:1y";
         if (root.taskMode)
             return Tasks.syntax;
         if (!root.query.length)
@@ -263,6 +247,7 @@ Singleton {
     readonly property var selected: root.results[root.index] ?? null
     readonly property bool pathMode: root.query.charAt(0) === root.pathPrefix
     readonly property bool musicMode: root.query.charAt(0) === root.musicPrefix
+    readonly property bool mailMode: root.query.charAt(0) === root.mailPrefix
     readonly property bool taskMode: root.query.charAt(0) === root.taskPrefix
     readonly property bool timerMode: root.query.charAt(0) === root.timerPrefix
     // { appId: { count, last } }
@@ -345,6 +330,8 @@ Singleton {
         qalc.cancel();
         fd.cancel();
         LauncherMusic.cancel();
+        mailSearch.stop();
+        mailSearch.want = "";
     }
 
     // --- matching ------------------------------------------------------------
@@ -412,6 +399,7 @@ Singleton {
             [root.clipPrefix]: rest => root.clipResults(rest.trim()),
             [root.windowPrefix]: rest => root.windowResults(rest.trim()),
             [root.musicPrefix]: rest => LauncherMusic.results(rest.trim()),
+            [root.mailPrefix]: rest => root.mailResults(rest.trim()),
             [root.taskPrefix]: rest => root.taskResults(rest),
             [root.timerPrefix]: rest => root.timerResults(rest)
         })
@@ -888,6 +876,62 @@ Singleton {
         return rows;
     }
 
+    // --- mail ----------------------------------------------------------------
+
+    // "#" on its own is the unread the bar already has, so it is on screen at
+    // once. Anything past it is a Gmail search, which is a round trip to
+    // Google — debounced harder than the disk walk for it, and shown only
+    // once the answer for this exact query is back (see Email.found).
+    function mailResults(query) {
+        const note = title => [
+                {
+                    kind: "note",
+                    glyph: Theme.glyph.mailRead,
+                    title: title,
+                    raw: true,
+                    subtitle: ""
+                }
+            ];
+        if (!Email.configured)
+            return note(`Gmail not connected — run ${Google.setup}`);
+
+        if (!query) {
+            if (!Email.loaded)
+                return note(Email.trouble || "reading mail…");
+            return Email.threads.length ? Email.threads.map(root.mailRow) : note("no unread mail");
+        }
+
+        const found = Email.found;
+        if (!found || found.q !== query)
+            return note("searching…");
+        if (found.trouble)
+            return note(found.trouble);
+        return found.rows.length ? found.rows.map(root.mailRow) : note("no mail matches");
+    }
+
+    // Subject first, since it is what the mail is; who and when to the right.
+    // A read thread, which only a search turns up, sits a shade back.
+    function mailRow(t) {
+        return {
+            kind: "mail",
+            thread: t,
+            glyph: t.unread ? Theme.glyph.mailUnread : Theme.glyph.mailRead,
+            title: t.subject,
+            subtitle: [t.from, Email.sayWhen(t.at)].filter(x => x).join("  ·  "),
+            raw: true,
+            dim: !t.unread
+        };
+    }
+
+    Timer {
+        id: mailSearch
+
+        property string want: ""
+
+        interval: 300
+        onTriggered: Email.search(mailSearch.want)
+    }
+
     // --- windows -------------------------------------------------------------
 
     // Every window, grouped by the workspace it is on in the order the bar
@@ -977,6 +1021,15 @@ Singleton {
         fd.want = sym === root.pathPrefix && rest.length >= 3 ? rest : "";
 
         LauncherMusic.route(sym === root.musicPrefix, rest);
+
+        const mail = sym === root.mailPrefix ? rest : "";
+        if (mail !== mailSearch.want) {
+            mailSearch.want = mail;
+            if (mail)
+                mailSearch.restart();
+            else
+                mailSearch.stop();
+        }
 
         // Asked once per open, on the keystroke that first names the mode.
         // `asked` rather than "arrived": the second character typed must not
@@ -1359,6 +1412,10 @@ Singleton {
             url: (r, i) => {
                 root.leave(i);
                 Quickshell.execDetached(["xdg-open", r.url]);
+            },
+            mail: (r, i) => {
+                root.leave(i);
+                Email.open(r.thread);
             },
             window: (r, i) => {
                 root.leave(i);

@@ -5,7 +5,7 @@ import Quickshell
 import qs
 import qs.services
 
-// The launcher's # mode: the library laid out as rows, walked, and acted on.
+// The launcher's & mode: the library laid out as rows, walked, and acted on.
 //
 // The one mode whose rows are a tree rather than a list, which is why it is a
 // file of its own beside services/Library.qml rather than a section of
@@ -144,7 +144,7 @@ Singleton {
     // --- rows ----------------------------------------------------------------
 
     function results(query) {
-        // "#" on its own with mpd down is one row: start it. That is what the
+        // "&" on its own with mpd down is one row: start it. That is what the
         // mode is being opened for, and it is gone the moment anything is
         // typed, which is a search rather than a wish to hear something.
         const start = !Mpd.connected && !query ? [
@@ -170,7 +170,7 @@ Singleton {
             return [root.note(Library.failed ? "could not read the library" : "reading the library")];
         }
 
-        // "#" on its own is the stored playlists. Ten thousand tracks in no
+        // "&" on its own is the stored playlists. Ten thousand tracks in no
         // particular order is not a list anybody reads — and the playlists are
         // the one thing in this mode the search below cannot reach, a saved
         // queue having no artist and no album to be found under.

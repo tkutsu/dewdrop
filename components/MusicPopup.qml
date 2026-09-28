@@ -669,7 +669,7 @@ Popup {
         color: Theme.stroke
     }
 
-    // The way to put something else on: the launcher's # mode, which has the
+    // The way to put something else on: the launcher's & mode, which has the
     // whole library. At the right end of the foot, where every popup under
     // the bar keeps its plus.
     Item {

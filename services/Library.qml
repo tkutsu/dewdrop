@@ -6,7 +6,7 @@ import Quickshell.Io
 import qs.services
 import "../Fuzzy.js" as Fuzzy
 
-// MPD's database as the launcher's # mode has to see it: artists holding
+// MPD's database as the launcher's & mode has to see it: artists holding
 // albums holding tracks, with all three ranked against one query at once.
 //
 // A copy, and deliberately so. MPD can answer `search title "..."` itself, but
@@ -37,7 +37,7 @@ Singleton {
     // here rather than ten thousand times per keystroke. That split is the
     // whole reason the mode is usable — see the note in Fuzzy.js.
 
-    // Read on the first "#", not at startup. A tenth of a second of mpc and a
+    // Read on the first "&", not at startup. A tenth of a second of mpc and a
     // parse is not worth paying at every login for a mode that may never be
     // opened, and the one time it is paid there is a row on screen saying so.
     function ensure(): void {
@@ -45,7 +45,7 @@ Singleton {
             return;
         // Not straight back at a read that has just failed. Whoever asked
         // hears `loading` drop and would ask again at once, and that was mpc
-        // spawned in a loop for as long as the # mode stayed open.
+        // spawned in a loop for as long as the & mode stayed open.
         if (root.failed && Date.now() - root.triedAt < 5000)
             return;
         root.triedAt = Date.now();
@@ -62,7 +62,7 @@ Singleton {
         target: Mpd
 
         // Not reloaded from here: the launcher is usually not open when mpd
-        // finishes a rescan, and the next "#" will ask. When it is open in
+        // finishes a rescan, and the next "&" will ask. When it is open in
         // music mode, LauncherMusic sees `loaded` drop and asks at once.
         function onDatabaseChanged() {
             root.loaded = false;
@@ -236,7 +236,7 @@ Singleton {
         // that answered and had nothing to say. Latching `loaded` on that
         // empty answer left the mode dead for the rest of the session --
         // `ensure()` never asks twice. A library that really is empty costs
-        // a re-dump per "#", which is a tenth of a second nobody with no
+        // a re-dump per "&", which is a tenth of a second nobody with no
         // music will notice.
         root.loaded = tracks.length > 0;
         root.failed = !root.loaded;

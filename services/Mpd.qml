@@ -160,7 +160,7 @@ Singleton {
         Quickshell.execDetached(["systemctl", "--user", "stop", "mpd.service"]);
     }
 
-    // And back up, from the launcher's # mode. A process rather than a detached
+    // And back up, from the launcher's & mode. A process rather than a detached
     // call, because the moment it exits is the moment to dial: mpd.service is
     // Type=notify, so systemctl returns once mpd says it is ready — and the
     // links may by then have backed off to a retry most of a minute away.
@@ -518,7 +518,7 @@ Singleton {
     function idle() {
         idling = true;
         // Only the subsystems the bar renders; anything else stays silent.
-        // The last two are not the bar's: they are the launcher's # mode,
+        // The last two are not the bar's: they are the launcher's & mode,
         // whose library is a copy of the database and whose first screen is
         // the stored playlists. Both move rarely enough to cost nothing —
         // `database` only when mpd rescans the disk.

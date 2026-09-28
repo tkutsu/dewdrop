@@ -996,7 +996,7 @@ OverlayWindow {
             // can be any kind of file at all — where this is always a picture
             // already sitting in the folder with the music.
             //
-            // Built only in # mode. It has always blinked out on leaving it
+            // Built only in & mode. It has always blinked out on leaving it
             // rather than being clipped away, so there is no fold-away to
             // keep it for.
             Loader {

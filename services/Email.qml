@@ -112,7 +112,7 @@ GoogleService {
                     root.publish(unread, wanted);
             };
             for (const t of stale)
-                root.send("GET", `${root.api}/threads/${t.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,payload/headers)`, null, function (thread) {
+                root.send("GET", root.headersUrl(t.id), null, function (thread) {
                     root.cache[t.id] = {
                         historyId: t.historyId,
                         row: root.rowOf(t, thread)
@@ -123,6 +123,12 @@ GoogleService {
                     landed();
                 });
         });
+    }
+
+    // A thread's messages with only what a row needs: who, what, when, and
+    // which of them are unread.
+    function headersUrl(id: string): string {
+        return `${root.api}/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,payload/headers)`;
     }
 
     function publish(unread: var, wanted: var): void {
@@ -161,7 +167,8 @@ GoogleService {
             from: root.sayFrom(header("from")),
             subject: header("subject").trim() || "(no subject)",
             snippet: root.unentity(listed.snippet ?? ""),
-            at: Number(m?.internalDate ?? 0)
+            at: Number(m?.internalDate ?? 0),
+            unread: unread.length > 0
         };
     }
 
@@ -207,6 +214,63 @@ GoogleService {
         if (day >= weekAgo)
             return Qt.locale().dayName(at.getDay(), Locale.ShortFormat).toLowerCase();
         return Qt.formatDate(at, "d MMM");
+    }
+
+    // --- searching -----------------------------------------------------------
+    // The launcher's # mode past the prefix: the whole mailbox, read or not,
+    // in Gmail's own search syntax ("from:ann has:attachment"), because the
+    // API takes the same q= the search box does. The answer is tagged with
+    // the query it was for, {q, rows, trouble}, the way the calculator's is,
+    // so it only ever shows against that query.
+    property var found: null
+    property int searches: 0
+    readonly property int searchMax: 10
+
+    function search(q: string): void {
+        root.searches += 1;
+        const gen = root.searches;
+        const answer = (rows, trouble) => {
+            if (gen === root.searches)
+                root.found = {
+                    q: q,
+                    rows: rows,
+                    trouble: trouble
+                };
+        };
+        root.authorised(function () {
+            root.send("GET", `${root.api}/threads?maxResults=${root.searchMax}&q=${encodeURIComponent(q)}&fields=threads(id,historyId,snippet)`, null, function (body) {
+                if (gen !== root.searches)
+                    return;
+                const listed = body?.threads ?? [];
+                // Gmail's order, which is its relevance, kept by slot rather
+                // than by arrival. A thread the poll has already read costs
+                // nothing.
+                const rows = listed.map(t => root.cache[t.id]?.historyId === t.historyId ? root.cache[t.id].row : null);
+                let outstanding = rows.filter(r => r === null).length;
+                if (outstanding === 0) {
+                    answer(rows, "");
+                    return;
+                }
+                const landed = function () {
+                    outstanding--;
+                    if (outstanding === 0)
+                        answer(rows.filter(r => r), "");
+                };
+                listed.forEach((t, i) => {
+                    if (rows[i] === null)
+                        root.send("GET", root.headersUrl(t.id), null, function (thread) {
+                            rows[i] = root.rowOf(t, thread);
+                            landed();
+                        }, function (why, status) {
+                            root.fail(why, status);
+                            landed();
+                        });
+                });
+            }, function (why, status) {
+                root.fail(why, status);
+                answer([], root.trouble);
+            });
+        });
     }
 
     // --- reading one ---------------------------------------------------------
@@ -331,10 +395,13 @@ GoogleService {
     }
 
     // --- opening -------------------------------------------------------------
-    // The PWA on the thread itself, and the row gone at once: Gmail marks it
-    // read on open, and the poll that confirms that is up to 30s away.
+    // The PWA on the thread itself, and an unread row gone at once: Gmail
+    // marks it read on open, and the poll that confirms that is up to 30s
+    // away. A read one, which only a search turns up, was never counted;
+    // the cache is the poll's unread, whatever its labels say.
     function open(thread: var): void {
-        root.drop(thread);
+        if (thread.unread || root.cache[thread.id])
+            root.drop(thread);
         Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}#inbox/${thread.id}`]);
     }
 
