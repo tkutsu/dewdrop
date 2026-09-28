@@ -4,9 +4,11 @@ import qs
 import qs.components
 import qs.services
 
-// custom/nightmode: click toggles the mode, scroll steps the backlight.
+// custom/nightmode: left click opens the brightness popup, right click
+// toggles the mode, scroll steps the backlight.
 BarItem {
     tooltip: NightMode.tooltip
+    popup: DisplayPopup {}
     // On is a state worth seeing; off is the screen as it always is.
     quiet: !NightMode.on
 
@@ -16,7 +18,7 @@ BarItem {
     }
 
     actions: ({
-            [Qt.LeftButton]: () => NightMode.toggle()
+            [Qt.RightButton]: () => NightMode.toggle()
         })
 
     onScrollUp: NightMode.nudge(true)
