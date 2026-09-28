@@ -106,9 +106,23 @@ Singleton {
         }
     }
 
-    // Both read synchronously the first time they are asked for, so the bar
-    // is built on the real values rather than drawn once on none and again a
-    // moment later — and the wallpaper is never looked for in the wrong place.
+    // Both read here, before anything that asked for a setting has finished
+    // being built, so the bar starts on the real values rather than on none
+    // and again a moment later. `loaded` is too late for that: it comes after
+    // the first reader has already been handed "" — the wallpaper service
+    // scanned `find ""` at boot, found nothing, and restored nothing. text()
+    // on a blocking view reads the file on the spot instead. A missing
+    // settings.json is left to onLoadFailed below rather than reported as
+    // one that did not parse.
+    Component.onCompleted: {
+        root.defaults = root.load(defaultFile, "settings.default.json") ?? root.defaults;
+        userFile.text();
+        if (userFile.loaded)
+            root.user = root.load(userFile, "settings.json") ?? root.user;
+    }
+
+    // After startup these keep the values current: an edit to settings.json
+    // lands here.
     FileView {
         id: defaultFile
 
