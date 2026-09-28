@@ -14,7 +14,7 @@ Popup {
     // service only tracks the default output. These are only worth keeping
     // bound while there is a popup to show them.
     PwObjectTracker {
-        objects: Audio.sinks.concat(Audio.streams)
+        objects: Audio.sinks.concat(Audio.outStreams)
     }
 
     spacing: 6

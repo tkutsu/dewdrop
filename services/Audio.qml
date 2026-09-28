@@ -64,7 +64,14 @@ Singleton {
     // empty until a node is tracked. A playing app counts as a sink here
     // (it is Audio | Stream | Sink), so `isSink` does not tell playback
     // from capture; the type does.
-    readonly property var streams: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioOutStream && n.audio)
+    readonly property var outStreams: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioOutStream && n.audio)
+
+    // The ones not paused. A browser keeps a stream open for every tab that
+    // has made a sound, playing or not, and pipewire-pulse marks the idle
+    // ones corked. Only these get a row; the popup still tracks all of
+    // `outStreams`, or a stream's properties would empty out the moment it
+    // was hidden and it could never read as playing again.
+    readonly property var streams: outStreams.filter(n => String(n.properties?.["pulse.corked"]) !== "true")
 
     function appName(node): string {
         const props = node.properties ?? {};
