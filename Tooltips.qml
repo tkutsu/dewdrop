@@ -25,8 +25,8 @@ Singleton {
 
     Timer {
         id: cooling
-        // Enough to cross the gap between two modules, or a pill's end to
-        // the next pill; not enough to leave the bar and come back.
-        interval: 500
+        // Enough to cross from one pill to the next, or to glance away and
+        // come back; not enough to wander off and return cold.
+        interval: 1000
     }
 }
