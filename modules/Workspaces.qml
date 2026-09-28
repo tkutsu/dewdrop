@@ -144,7 +144,9 @@ BarItem {
             // part.
             reach: Theme.pillSpread * Math.min(1, apart / thickness)
             lineWidth: 0
-            fill: Qt.vector4d(Theme.selection.r, Theme.selection.g, Theme.selection.b, Theme.selection.a)
+            // The strong step, not a popup row's hover: on a pill this thin
+            // over a bright wallpaper, the row fill was barely there.
+            fill: Qt.vector4d(Theme.selectionStrong.r, Theme.selectionStrong.g, Theme.selectionStrong.b, Theme.selectionStrong.a)
             rimFrom: slabTop
             rimTo: slabTop + thickness
 

@@ -65,9 +65,11 @@ Singleton {
     readonly property int selectionRadius: 4
     readonly property int selectionInset: 5
     // The rounded fill inside a pill that says "this one": the workspace you
-    // are on, and whichever module has its popup open. How far it keeps off
-    // the pill's top and bottom edges, and — through pillPad — its ends.
-    readonly property int markInset: 3
+    // are on. How far it keeps off the pill's top and bottom edges, and —
+    // through pillPad — its ends. Two, the way a segmented control's thumb
+    // sits in its track: at three the mark was a chip floating in the pill,
+    // and exactly as tall as the app icons it holds.
+    readonly property int markInset: 2
 
     // One gap between things that stand on their own: modules, tray icons, one
     // workspace and the next. Measured icon to icon — a badge floats in the gap
