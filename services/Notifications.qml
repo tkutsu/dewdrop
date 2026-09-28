@@ -199,10 +199,16 @@ Singleton {
     // Senders that only ever have something to say in the moment: shown as
     // they arrive and then gone, never kept in the centre. Carried over from
     // swaync's notification-visibility rules, where these were "transient".
+    //
+    // Claude Code names itself in the summary through whichever terminal it
+    // runs in; inside herdr it is herdr that speaks (`notify-send --app-name
+    // Herdr`), for its own agents' turns as much as for Claude's.
     readonly property var fleeting: [
         {
-            app: /^kitty$/,
             summary: /Claude Code/
+        },
+        {
+            app: /^Herdr$/
         },
         {
             app: /^Email$/
