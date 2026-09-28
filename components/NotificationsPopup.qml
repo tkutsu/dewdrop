@@ -10,8 +10,8 @@ import qs.services
 // The newest few; the rest are in the centre, and the count line says so.
 //
 // A row is the notification, so clicking it does what clicking one does in
-// the centre (Notifications.activate). The ✕ at its end, while the pointer is
-// on it, puts it away without following it.
+// the centre (Notifications.activate). While the pointer is on it, a ✕ stands
+// where the sender's icon was and puts it away without following it.
 Popup {
     id: root
 
@@ -20,7 +20,6 @@ Popup {
     readonly property int rowPad: 4
     // The text's inset from the edge of the row's highlight.
     readonly property int inset: 6
-    readonly property int closeBox: 20
     readonly property var shown: Notifications.list.slice(0, 5)
 
     spacing: 2
@@ -60,6 +59,10 @@ Popup {
 
             required property var modelData
 
+            // Icon and ✕ stand on the title line, centred on it the way they
+            // are on a row that is only a title; further lines hang below.
+            readonly property int markY: Math.round(lines.y + title.height / 2 - root.iconBox / 2)
+
             width: root.bodyWidth
             height: lines.implicitHeight + root.rowPad * 2
 
@@ -73,25 +76,40 @@ Popup {
 
             AppIcon {
                 x: root.inset
-                y: root.rowPad
+                y: row.markY
                 width: root.iconBox
                 height: root.iconBox
                 implicitHeight: root.iconBox
+                visible: !row.hovered
                 windowClass: Notifications.keyOf(row.modelData)
                 fallbackGlyph: Theme.glyph.notif
             }
 
-            // Leaves room for the ✕ whether or not it is showing, so the text
-            // does not rewrap as the pointer goes down the list.
+            PopupButton {
+                x: root.inset
+                y: row.markY
+                width: root.iconBox
+                height: root.iconBox
+                visible: row.hovered
+                glyph: Theme.glyph.close
+                glyphSize: Theme.captionSize
+                onTapped: {
+                    root.hold(1500);
+                    row.modelData.dismiss();
+                }
+            }
+
             Column {
                 id: lines
 
                 x: root.inset + root.iconBox + 8
                 y: root.rowPad
-                width: row.width - x - root.closeBox - root.inset
+                width: row.width - x - root.inset
                 spacing: 1
 
                 PopupText {
+                    id: title
+
                     width: parent.width
                     text: Notifications.plain(row.modelData.summary) || row.modelData.appName
                     font.weight: Font.DemiBold
@@ -106,20 +124,6 @@ Popup {
                     wrapMode: Text.WordWrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
-                }
-            }
-
-            PopupButton {
-                anchors.right: parent.right
-                y: root.rowPad
-                width: root.closeBox
-                height: root.iconBox
-                visible: row.hovered
-                glyph: Theme.glyph.close
-                glyphSize: Theme.captionSize
-                onTapped: {
-                    root.hold(1500);
-                    row.modelData.dismiss();
                 }
             }
         }
