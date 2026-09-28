@@ -307,6 +307,18 @@ Singleton {
     // One step past it: a toggle that is on, or the pointer on a button that
     // already sits on a selection fill (the notification centre's).
     readonly property color selectionStrong: Qt.rgba(1, 1, 1, 0.2)
+    // The workspace mark as it lands on screen — the strong step laid over
+    // the pill's fill — flattened into one colour for anything that has to
+    // look like the mark from a single layer of its own (a workspace's badges).
+    readonly property color markBg: over(selectionStrong, barBg)
+
+    // One translucent colour laid over another, the way the compositor stacks
+    // them.
+    function over(top, bottom) {
+        const a = top.a + bottom.a * (1 - top.a);
+        const mix = (t, b) => (t * top.a + b * bottom.a * (1 - top.a)) / a;
+        return Qt.rgba(mix(top.r, bottom.r), mix(top.g, bottom.g), mix(top.b, bottom.b), a);
+    }
 
     // Outlines round a thing you can pick — the wallpaper popup's thumbnails
     // and swatch: none, or `outline`, at rest, `outlineHover` under the

@@ -5,13 +5,14 @@ import qs
 // number. It grows into a pill rather than staying round, because "20" and "99"
 // have to fit the same badge a "2" does.
 //
-// The disc is opaque. It spends half its area over the icon's own white
-// strokes, and anything it let through came up under the digit and ate into
-// its contrast.
+// The disc is opaque unless its owner says otherwise. It spends half its area
+// over the icon's own white strokes, and anything it let through came up under
+// the digit and ate into its contrast.
 Item {
     id: root
 
     property alias text: label.text
+    property color fill: Theme.badgeBg
     // A single digit fills the disc. Past that the badge becomes a capsule,
     // and a capsule wants more air at its ends than a disc does round its
     // middle: at the disc's 3px a "20" sat with its digits touching the
@@ -24,7 +25,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: height / 2
-        color: Theme.badgeBg
+        color: root.fill
     }
 
     Text {

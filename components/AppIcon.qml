@@ -22,6 +22,7 @@ Item {
     // What to draw when nothing resolves. A window, on the taskbar; the
     // notifications draw their own mark for a sender with no icon.
     property string fallbackGlyph: Theme.glyph.window
+    property alias badgeFill: badge.fill
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -115,6 +116,7 @@ Item {
     // badge does land on the next icon along; z lifts a badged icon above the
     // siblings painted after it rather than letting them cover the count.
     Badge {
+        id: badge
         visible: root.badged
         text: Math.min(root.count, 99)
         x: root.implicitWidth - Theme.badgeSize / 2

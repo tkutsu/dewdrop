@@ -238,6 +238,25 @@ BarItem {
                         return order.map(cls => byClass[cls]);
                     }
 
+                    // The count badges are made of what they sit on: the pill's
+                    // fill on a workspace you are not on, the mark's on the one
+                    // you are, and the compositor blurs behind either. They turn
+                    // with the mark — in as its head arrives, back out as its
+                    // tail lets go.
+                    property real lit: button.active ? 1 : 0
+
+                    Behavior on lit {
+                        NumberAnimation {
+                            duration: button.active ? Theme.markMs * 0.6 : Theme.markMs
+                            easing.type: button.active ? Easing.OutCubic : Easing.InOutCubic
+                        }
+                    }
+
+                    readonly property color badgeFill: {
+                        const from = Theme.barBg, to = Theme.markBg, t = button.lit;
+                        return Qt.rgba(from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t, from.b + (to.b - from.b) * t, from.a + (to.a - from.a) * t);
+                    }
+
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
 
@@ -306,6 +325,7 @@ BarItem {
                                 count: modelData.addresses.length
                                 urgent: root.anyUrgent(modelData.addresses)
                                 pressed: tap.pressed
+                                badgeFill: button.badgeFill
 
                                 MouseArea {
                                     id: tap
