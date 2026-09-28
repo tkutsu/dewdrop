@@ -17,6 +17,10 @@ Popup {
     // A menu drops whole, as the Mac's do; only a popover grows.
     grows: false
 
+    // The row that was clicked, for the moment it blinks before the menu
+    // acts and closes; null the rest of the time.
+    property Item chosen: null
+
     // Whether the pointer is anywhere in this tree, rather than on this
     // surface alone. A row keeps its submenu open while the pointer is
     // "near", and near has to reach all the way down: reading only the
@@ -107,6 +111,12 @@ Popup {
                 // are inside should stay marked as the way you came.
                 readonly property bool pointerNear: hover.hovered || row.submenuHovered
 
+                // Whether the row is drawn selected. Once a row has been
+                // chosen it alone is, through its blink, wherever the pointer
+                // has gone since: the menu is saying which row it took.
+                property bool blinkOn: true
+                readonly property bool lit: root.chosen !== null ? root.chosen === row && row.blinkOn : row.pointerNear
+
                 // Held open by a handler rather than bound, so that reading
                 // the submenu's own hover to decide whether the submenu exists
                 // is a sequence of events rather than a binding on itself.
@@ -146,7 +156,7 @@ Popup {
                     anchors.fill: parent
                     visible: !row.modelData.isSeparator
                     radius: Theme.selectionRadius
-                    color: row.pointerNear ? Theme.selection : "transparent"
+                    color: row.lit ? Theme.selection : "transparent"
                 }
 
                 // Full width, the same way the launcher's rule under the query
@@ -180,7 +190,7 @@ Popup {
                         const mark = row.modelData.buttonType === QsMenuButtonType.None ? "" : (row.modelData.checkState === Qt.Checked ? "● " : "○ ");
                         return mark + row.modelData.text;
                     }
-                    color: row.pointerNear ? Theme.menuSelectionText : Theme.menuText
+                    color: row.lit ? Theme.menuSelectionText : Theme.menuText
                     opacity: row.modelData.enabled ? 1 : 0.4
                 }
 
@@ -198,7 +208,7 @@ Popup {
                 }
 
                 TapHandler {
-                    enabled: !row.modelData.isSeparator && row.modelData.enabled
+                    enabled: !row.modelData.isSeparator && row.modelData.enabled && root.chosen === null
                     onTapped: {
                         // A row with a submenu opens it, as it does on hover;
                         // a click is how you ask for it when the hover did not
@@ -207,8 +217,39 @@ Popup {
                             row.submenuOpen = true;
                             return;
                         }
-                        row.modelData.triggered();
-                        root.dismissed();
+                        root.chosen = row;
+                        blink.start();
+                    }
+                }
+
+                // The Mac's acknowledgement of a choice: the row's highlight
+                // goes out and comes back once, and only then does the menu
+                // act and fade. Without it a menu that vanished on the click
+                // left you to work out from the result which row you hit.
+                SequentialAnimation {
+                    id: blink
+
+                    PropertyAction {
+                        target: row
+                        property: "blinkOn"
+                        value: false
+                    }
+                    PauseAnimation {
+                        duration: Theme.blinkMs
+                    }
+                    PropertyAction {
+                        target: row
+                        property: "blinkOn"
+                        value: true
+                    }
+                    PauseAnimation {
+                        duration: Theme.blinkMs
+                    }
+                    ScriptAction {
+                        script: {
+                            row.modelData.triggered();
+                            root.dismissed();
+                        }
                     }
                 }
 

@@ -49,10 +49,10 @@ Singleton {
     readonly property int pillPad: 10
 
     // A popup is a slab hung off a pill rather than a pill itself, so it gets a
-    // corner rather than a round end. Two sizes, the way macOS draws them: a
-    // popover (the calendar, the sliders, the launcher), and a menu — rows of
-    // text and nothing else — one step tighter. The selection inside either is
-    // a rounded fill inset from the edge, and its radius follows.
+    // corner rather than a round end. Three sizes: a popover (the calendar,
+    // the sliders, the launcher), a menu (menuRadius below) and a tooltip
+    // (tagRadius). The selection inside a popover or a menu is a rounded fill
+    // inset from the edge.
     readonly property int popupRadius: 8
     // How far below the slab a popup hangs. The system drops a menu bar's
     // menus flush under the item they came from; this leaves a hairline of
@@ -61,9 +61,18 @@ Singleton {
     // module's box and the box reaches into the margin the pill claims for
     // clicks — which put every menu a click's width away from the click.
     readonly property int popupGap: 2
-    readonly property int menuRadius: 5
     readonly property int selectionRadius: 4
     readonly property int selectionInset: 5
+    // A menu's corner runs parallel to the highlight inside it: the
+    // highlight's radius plus the inset between them, so the two curves share
+    // a centre, the way Apple nests its corners. At 5 the box was no rounder
+    // than the fill 5px inside it, and the fill's corners looked too round
+    // for the box they sat in.
+    readonly property int menuRadius: selectionRadius + selectionInset
+    // A tooltip's corner. Nothing sits inside a tag for it to run parallel
+    // to, and a menu's corner on a box one line high all but makes it a
+    // capsule; this is the small corner the Mac gives its help tags.
+    readonly property int tagRadius: 5
     // The rounded fill inside a pill that says "this one": the workspace you
     // are on. How far it keeps off the pill's top and bottom edges, and —
     // through pillPad — its ends. Two, the way a segmented control's thumb
@@ -428,6 +437,9 @@ Singleton {
     // the reveal: that one is a box opening and this one is a 28px step, and
     // a step drawn over a tenth of a second is already a long step.
     readonly property int selectMs: 110
+    // Each beat of a menu row's blink when it is chosen: out for this long,
+    // back for this long, then the menu acts (components/MenuPopup.qml).
+    readonly property int blinkMs: 60
 
     // The attention bounce (components/Bounce.qml). The numbers below are the
     // only ones chosen by hand; every later hop is derived from them, so the

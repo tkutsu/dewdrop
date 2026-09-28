@@ -13,7 +13,7 @@ Popup {
 
     hPadding: 7
     vPadding: 3
-    radius: Theme.menuRadius
+    radius: Theme.tagRadius
     shadowBlur: 8
     shadowY: 2
     // A tag fades in where it is; only a popover grows out of its pill.
