@@ -93,6 +93,19 @@ Singleton {
         Quickshell.execDetached([Paths.script("volumecontrol.sh"), up ? "--inc" : "--dec"]);
     }
 
+    // The same step for one app's stream, which the script cannot reach (it
+    // only speaks to the default sink): up or down to the next multiple of
+    // ten, unmuting on the way as the script does.
+    function stepNode(node, up: bool): void {
+        const audio = node?.audio;
+        if (!audio)
+            return;
+        const percent = Math.round(audio.volume * 100);
+        const next = up ? (Math.floor(percent / 10) + 1) * 10 : Math.floor((percent - 1) / 10) * 10;
+        audio.muted = false;
+        audio.volume = Math.max(0, Math.min(100, next)) / 100;
+    }
+
     function setVolume(fraction) {
         if (sink?.audio)
             sink.audio.volume = Math.max(0, Math.min(1, fraction));

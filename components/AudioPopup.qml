@@ -17,12 +17,14 @@ Popup {
         objects: Audio.sinks.concat(Audio.streams)
     }
 
-    // The wheel anywhere on the popup moves the volume, in the same steps as
-    // the wheel on the bar icon. Accumulated the same way BarItem does it, so
-    // a touchpad's fractions add up to notches instead of each one being a
-    // step. A MouseArea under the contents rather than a WheelHandler, which
-    // never saw a wheel event in here; taking no buttons leaves clicks and
-    // drags to the slider on top of it.
+    // The wheel moves whichever volume is under the pointer: an app's over
+    // its row, the output's anywhere else, in the same steps as the wheel on
+    // the bar icon. A gap between sections counts as the one below it, so
+    // the rule under the master row is the border between the two. Accumulated
+    // the same way BarItem does it, so a touchpad's fractions add up to notches
+    // instead of each one being a step. A MouseArea under the contents rather
+    // than a WheelHandler, which never saw a wheel event in here; taking no
+    // buttons leaves clicks and drags to the slider on top of it.
     MouseArea {
         property real acc: 0
 
@@ -31,14 +33,18 @@ Popup {
         acceptedButtons: Qt.NoButton
 
         onWheel: function (wheel) {
+            // Only the app rows carry a node; the outputs and master don't.
+            const row = content.childAt(0, wheel.y) ?? content.childAt(0, wheel.y + content.spacing);
+            const node = row?.modelData ?? null;
+            const step = up => node ? Audio.stepNode(node, up) : Audio.step(up);
             acc += wheel.angleDelta.y;
             while (acc >= 120) {
                 acc -= 120;
-                Audio.step(true);
+                step(true);
             }
             while (acc <= -120) {
                 acc += 120;
-                Audio.step(false);
+                step(false);
             }
         }
 
