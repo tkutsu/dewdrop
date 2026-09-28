@@ -378,9 +378,13 @@ Singleton {
     readonly property color calTodayText: "black"
 
     // --- opacity -------------------------------------------------------------
-    readonly property real idleOpacity: 0.55  // a workspace you are not on
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
+
+    // The workspace mark flowing from one workspace to the next: its front
+    // end arrives in the first 60% of this, about when a fade would have, and
+    // the back end is still being drawn in after it.
+    readonly property int markMs: 420
 
     // Something folding into or out of a pill (the right pill's drawer).
     // Longer than a fade, because this one moves

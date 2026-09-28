@@ -25,15 +25,18 @@ ShaderEffect {
     property real lineWidth: Theme.pillBorder
 
     // The colours a Pill's own slab and Rim would have used, straight alpha.
-    readonly property vector4d fill: Qt.vector4d(Theme.barBg.r, Theme.barBg.g, Theme.barBg.b, Theme.barBg.a)
-    readonly property vector4d rimTop: Qt.vector4d(Theme.pillRimTop.r, Theme.pillRimTop.g, Theme.pillRimTop.b, Theme.pillRimTop.a)
-    readonly property vector4d rimBottom: Qt.vector4d(Theme.rimBottom.r, Theme.rimBottom.g, Theme.rimBottom.b, Theme.rimBottom.a)
+    // Settable for glass that is not a pill: the workspace mark is a lighter
+    // fill with no rim.
+    property vector4d fill: Qt.vector4d(Theme.barBg.r, Theme.barBg.g, Theme.barBg.b, Theme.barBg.a)
+    property vector4d rimTop: Qt.vector4d(Theme.pillRimTop.r, Theme.pillRimTop.g, Theme.pillRimTop.b, Theme.pillRimTop.a)
+    property vector4d rimBottom: Qt.vector4d(Theme.rimBottom.r, Theme.rimBottom.g, Theme.rimBottom.b, Theme.rimBottom.a)
 
     // The rim is lit over the slab's own height, not over the height of a drop
     // that has shrunk inside it, so a drop on its way in stays lit like the
-    // pill it came from.
-    readonly property real rimFrom: Theme.barMargin
-    readonly property real rimTo: Theme.barMargin + Theme.barHeight
+    // pill it came from. Nothing is drawn above or below these either, so
+    // glass inset inside a pill moves them in with it.
+    property real rimFrom: Theme.barMargin
+    property real rimTo: Theme.barMargin + Theme.barHeight
 
     readonly property size size: Qt.size(width, height)
 

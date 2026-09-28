@@ -44,8 +44,12 @@ float box(vec2 p, vec4 b) {
 }
 
 // Polynomial smooth minimum: exactly min() wherever the two distances differ by
-// more than k, so shapes further apart than `reach` are drawn untouched.
+// more than k, so shapes further apart than `reach` are drawn untouched. A reach
+// of zero is a plain union: the workspace mark lets it fall to that at rest,
+// where its two ends lie on top of each other and any reach would swell them.
 float smin(float a, float b, float k) {
+    if (k <= 0.0)
+        return min(a, b);
     float h = max(k - abs(a - b), 0.0) / k;
     return min(a, b) - h * h * k * 0.25;
 }

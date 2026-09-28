@@ -60,33 +60,119 @@ BarItem {
         // Theme.pillTop). Sideways it takes the pill's own padding back, less
         // the inset, so its ends sit inside the pill's ends by the same air
         // it keeps off the top and bottom.
-        Rectangle {
+        //
+        // The move is the state change, and it moves the way a drop does along
+        // a surface: the mark's front end runs ahead to the workspace you are
+        // on, stretching it out of the one you left, then its back end lets go
+        // and is drawn along after it. Two slabs of glass, the head and the
+        // tail, joined by a neck that thins the further apart they are, all
+        // one surface (Liquid, the same glass the pills beside the clock are).
+        // The glass reaches a pad past either end of the strip, because the
+        // mark does.
+        Liquid {
             id: mark
 
             readonly property int inset: Theme.markInset
+            readonly property real slabTop: Theme.pillTop(strip.height) + inset
+            readonly property real thickness: Theme.barHeight - inset * 2
 
-            visible: strip.selected !== null
-            x: strip.selected ? strip.selected.x - Theme.pillPad + mark.inset : 0
-            width: strip.selected ? strip.selected.width + (Theme.pillPad - mark.inset) * 2 : 0
-            y: Theme.pillTop(strip.height) + mark.inset
-            height: Theme.barHeight - mark.inset * 2
-            radius: height / 2
-            color: Theme.selection
+            // Where the mark belongs, in this item's pixels.
+            readonly property real wantLeft: strip.selected ? strip.selected.x + inset : 0
+            readonly property real wantRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : 0
 
-            // The move is the state change: it slides from the workspace you
-            // left to the one you are on, at the same pace everything else on
-            // the bar fades.
-            Behavior on x {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                    easing.type: Easing.InOutQuad
+            // Each end runs from wherever it was to where the mark belongs,
+            // on a clock of its own, so a switch made mid-run picks up both
+            // ends where they are rather than snapping them together first.
+            property bool placed: false
+            property real toLeft
+            property real toRight
+            property real headFromLeft
+            property real headFromRight
+            property real tailFromLeft
+            property real tailFromRight
+            property real head: 1
+            property real tail: 1
+
+            readonly property real headLeft: headFromLeft + (toLeft - headFromLeft) * head
+            readonly property real headRight: headFromRight + (toRight - headFromRight) * head
+            readonly property real tailLeft: tailFromLeft + (toLeft - tailFromLeft) * tail
+            readonly property real tailRight: tailFromRight + (toRight - tailFromRight) * tail
+
+            readonly property real headMid: (headLeft + headRight) / 2
+            readonly property real tailMid: (tailLeft + tailRight) / 2
+            readonly property real apart: Math.abs(headMid - tailMid)
+            // Full thickness while the ends overlap, down to 40% of it once
+            // they are three thicknesses apart: a neighbour's mark only
+            // stretches, a long way off it pours through a thread.
+            readonly property real neck: thickness * (1 - 0.6 * Math.min(1, apart / (thickness * 3)))
+
+            function follow() {
+                if (!strip.selected)
+                    return;
+                if (!placed) {
+                    placed = true;
+                    headFromLeft = tailFromLeft = toLeft = wantLeft;
+                    headFromRight = tailFromRight = toRight = wantRight;
+                    return;
                 }
+                const hl = headLeft, hr = headRight, tl = tailLeft, tr = tailRight;
+                headFromLeft = hl;
+                headFromRight = hr;
+                tailFromLeft = tl;
+                tailFromRight = tr;
+                toLeft = wantLeft;
+                toRight = wantRight;
+                head = 0;
+                tail = 0;
+                flow.restart();
             }
 
-            Behavior on width {
+            onWantLeftChanged: follow()
+            onWantRightChanged: follow()
+
+            visible: strip.selected !== null
+            x: -Theme.pillPad
+            width: strip.width + Theme.pillPad * 2
+            height: strip.height
+
+            box0: Qt.vector4d(tailLeft, slabTop, tailRight - tailLeft, thickness)
+            box1: Qt.vector4d(headLeft, slabTop, headRight - headLeft, thickness)
+            box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
+
+            // At rest the head lies on the tail, and a reach would swell the
+            // two into something fatter than either; it comes up only as they
+            // part.
+            reach: Theme.pillSpread * Math.min(1, apart / thickness)
+            lineWidth: 0
+            fill: Qt.vector4d(Theme.selection.r, Theme.selection.g, Theme.selection.b, Theme.selection.a)
+            rimFrom: slabTop
+            rimTo: slabTop + thickness
+
+            ParallelAnimation {
+                id: flow
+
                 NumberAnimation {
-                    duration: Theme.fadeMs
-                    easing.type: Easing.InOutQuad
+                    target: mark
+                    property: "head"
+                    from: 0
+                    to: 1
+                    duration: Theme.markMs * 0.6
+                    easing.type: Easing.OutCubic
+                }
+
+                SequentialAnimation {
+                    PauseAnimation {
+                        duration: Theme.markMs * 0.2
+                    }
+
+                    NumberAnimation {
+                        target: mark
+                        property: "tail"
+                        from: 0
+                        to: 1
+                        duration: Theme.markMs * 0.8
+                        easing.type: Easing.InOutCubic
+                    }
                 }
             }
         }
@@ -150,21 +236,8 @@ BarItem {
                         return order.map(cls => byClass[cls]);
                     }
 
-                    // The fade a workspace goes under when it is not the one you
-                    // are on: the whole button, count badges and all, so a
-                    // workspace you are not on reads as one quieter thing.
-                    property real dim: button.active ? 1 : Theme.idleOpacity
-
-                    Behavior on dim {
-                        NumberAnimation {
-                            duration: Theme.fadeMs
-                            easing.type: Easing.InOutQuad
-                        }
-                    }
-
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
-                    opacity: button.dim
 
                     MouseArea {
                         id: press
@@ -186,7 +259,7 @@ BarItem {
                         BarText {
                             Layout.fillHeight: true
                             text: button.letter || button.modelData.name
-                            // A letter stays at one weight: the fade says which
+                            // A letter stays at one weight: the mark says which
                             // workspace is yours, and a letter that went bold
                             // would widen the mark as it arrived.
                             fontSize: Theme.workspaceTextSize
