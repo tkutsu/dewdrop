@@ -61,30 +61,16 @@ Singleton {
     }
 
     // --- the centre -----------------------------------------------------------
-    property bool centreShown: false
-    // Outlives `centreShown` by the length of the centre's slide out.
-    readonly property bool centreActive: linger.active
-
-    Linger {
-        id: linger
-        shown: root.centreShown
-    }
-
-    // An action picked in the centre, run once it has gone (see run).
-    property NotificationAction afterCentre: null
-
-    onCentreActiveChanged: if (!centreActive && afterCentre) {
-        root.afterCentre.invoke();
-        root.afterCentre = null;
-    }
+    // The centre is the bell's popup, and the bell is a bar item with one
+    // copy per screen, so asking for it is a request the bell on the focused
+    // screen answers (NotificationBell) rather than a window opened from here.
+    // `toggle` for the IPC's toggle; otherwise it opens, or stays open.
+    signal centreRequested(bool toggle)
 
     // The notification the centre opens on: picked from the notice beside the
     // clock, so the centre scrolls to it and marks it rather than opening at
-    // the top as if nothing had been asked for.
+    // the top as if nothing had been asked for. Cleared as the popup closes.
     property Notification centreFocus: null
-
-    onCentreShownChanged: if (!centreShown)
-        root.centreFocus = null
 
     // Opening a notice in the centre. Also what keeps it there: a fleeting
     // one would otherwise be let go as its notice folds, which is the moment
@@ -95,11 +81,11 @@ Singleton {
             return;
         delete root.passing[n.id];
         root.centreFocus = n;
-        root.centreShown = true;
+        root.centreRequested(false);
     }
 
     function toggleCentre() {
-        root.centreShown = !root.centreShown;
+        root.centreRequested(true);
     }
 
     function clearAll() {
@@ -117,16 +103,11 @@ Singleton {
             n.dismiss();
     }
 
-    // An action picked in the centre waits for the centre to fold away: while
-    // it holds the keyboard, Hyprland refuses focus to the window the action
-    // raises, and letting go only reaches Hyprland with a later frame than the
-    // sender's request for focus.
+    // An action is somewhere else to go, so whichever popup it was picked in
+    // puts itself away, the way the popups' own foot buttons do.
     function run(action) {
-        if (root.centreActive) {
-            root.afterCentre = action;
-            root.centreShown = false;
-        } else
-            action.invoke();
+        OpenPopup.dismiss();
+        action.invoke();
     }
 
     // The actions worth a button: everything but the default one, which is

@@ -24,6 +24,9 @@ Item {
     // Outlined, for the ones that stand on their own in a popup's foot rather
     // than in a run of controls at the end of a row.
     property bool framed: false
+    // On, for a toggle (do not disturb): held at the hovered fill and full
+    // strength, and one step past it under the pointer.
+    property bool lit: false
     property int glyphSize: Theme.popupTextSize
     property int textSize: Theme.captionSize
 
@@ -38,9 +41,9 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        visible: root.framed
+        visible: root.framed || root.lit
         radius: Theme.selectionRadius
-        color: root.hovered ? Theme.selection : "transparent"
+        color: root.lit ? (root.hovered ? Theme.selectionStrong : Theme.selection) : root.hovered ? Theme.selection : "transparent"
         border.width: Theme.pillBorder
         border.color: Theme.stroke
     }
@@ -50,7 +53,7 @@ Item {
 
         anchors.centerIn: parent
         spacing: 3
-        opacity: !root.live ? 0.15 : root.hovered ? 1 : (root.framed ? 0.7 : 0.6)
+        opacity: !root.live ? 0.15 : root.hovered || root.lit ? 1 : (root.framed ? 0.7 : 0.6)
 
         Glyph {
             visible: root.glyph !== ""

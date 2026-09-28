@@ -66,12 +66,4 @@ ShellRoot {
         LauncherMenu {}
     }
 
-    // The notification centre, the same way again: a full-screen surface that
-    // holds the keyboard for Escape, so it only exists while it is open.
-    LazyLoader {
-        active: Notifications.centreActive
-
-        NotificationCentre {}
-    }
-
 }
