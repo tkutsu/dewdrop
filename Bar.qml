@@ -288,7 +288,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [email, tasks, updater, bell, satty, idle, wallpaper, night, sys, audio]
+        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys]
 
         Drawer {
             id: drawer
@@ -296,6 +296,16 @@ PanelWindow {
             pointerNear: barHover.hovered || PopupPointer.hovered > 0
         }
 
+        // A pixel less air on its right than the row gives: the speaker's
+        // waves thin out to nothing at the edge of its box, and at the full
+        // gap the icon beside it read as set apart from it.
+        Audio {
+            id: audio
+            pinKey: "audio"
+            stowed: !showsClosed && !drawer.open
+            marksPin: drawer.open
+            Layout.rightMargin: -1
+        }
         Email {
             id: email
             pinKey: "email"
@@ -350,20 +360,12 @@ PanelWindow {
             stowed: !showsClosed && !drawer.open
             marksPin: drawer.open
         }
-        Tray {
-            settingsKey: "tray"
-        }
+        // Everything from here on is always shown, so the right end of the
+        // pill stays put however much of the drawer is folded away.
         Bluetooth {}
         Network {}
-        // A pixel less air on its right than the row gives: the speaker's
-        // waves thin out to nothing at the edge of its box, and at the full
-        // gap the language label read as set apart from it.
-        Audio {
-            id: audio
-            pinKey: "audio"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
-            Layout.rightMargin: -1
+        Tray {
+            settingsKey: "tray"
         }
         // Every Glyph on the bar is laid out on its ink, but the language
         // label is text and keeps its advance, which leaves about a pixel
