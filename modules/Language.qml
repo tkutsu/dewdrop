@@ -4,9 +4,11 @@ import qs
 import qs.components
 import qs.services
 
-// custom/language
+// custom/language: left click lists the layouts, right click and the wheel
+// step through them.
 BarItem {
     tooltip: Keyboard.layout
+    popup: LanguagePopup {}
 
     BarText {
         Layout.fillHeight: true
@@ -18,7 +20,7 @@ BarItem {
     }
 
     actions: ({
-            [Qt.LeftButton]: () => Keyboard.next()
+            [Qt.RightButton]: () => Keyboard.next()
         })
 
     onScrollUp: Keyboard.prev()
