@@ -37,6 +37,41 @@ Singleton {
         Quickshell.execDetached([Paths.script("display.sh"), up ? "up" : "down"]);
     }
 
+    // The popup's slider. display.sh only steps, so a level goes to it as the
+    // step from wherever the last one left the panel. A drag asks for far
+    // more levels than DDC can take — each setvcp is a good fraction of a
+    // second — so one run at a time, and whatever was asked for last goes
+    // next. The ones in between were never going to be seen anyway.
+    //
+    // `brightness` follows the drag rather than the cache while that is going
+    // on: read mid-drag, the cache holds a level the slider has already left,
+    // and the knob would jump back to it.
+    property int wanted: -1
+    property int committed: 100
+
+    function setBrightness(value) {
+        root.wanted = Math.round(Math.max(0, Math.min(100, value)));
+        root.brightness = root.wanted;
+        root.push();
+    }
+
+    function push() {
+        if (setter.running || root.wanted < 0)
+            return;
+        const step = root.wanted - root.committed;
+        root.committed = root.wanted;
+        root.wanted = -1;
+        if (step === 0)
+            return;
+        setter.command = [Paths.script("display.sh"), step > 0 ? "up" : "down", String(Math.abs(step))];
+        setter.running = true;
+    }
+
+    Process {
+        id: setter
+        onExited: root.push()
+    }
+
     // watchChanges only reports that the file moved; it does not re-read it, so
     // without the reload() the view keeps serving whatever it held at startup
     // and loaded/loadFailed never fire again.
@@ -58,8 +93,10 @@ Singleton {
         onFileChanged: level.reload()
         onLoaded: {
             const value = parseInt(level.text());
-            if (!isNaN(value))
-                root.brightness = value;
+            if (isNaN(value) || setter.running || root.wanted >= 0)
+                return;
+            root.brightness = value;
+            root.committed = value;
         }
     }
 }
