@@ -427,6 +427,20 @@ Singleton {
     // each of them needs time enough to read as a move of its own.
     readonly property int dropMs: 620
 
+    // A pill changing size in place — the music pill to a new title — on a
+    // spring rather than a curve, so it overshoots a touch and settles the way
+    // the Dynamic Island does. Fitted to SwiftUI's .bouncy (0.5 s response,
+    // 0.3 bounce, which overshoots 4.6%) by measuring Qt's SpringAnimation,
+    // whose units are its own: 2.5 / 0.26 overshoots 4.7% and is there in
+    // about a quarter of a second.
+    readonly property real springStiffness: 2.5
+    readonly property real springDamping: 0.26
+
+    // Figures rolling to their next value (RollingText): SwiftUI's default
+    // duration, which the roll runs 1.45 times over while its spring settles
+    // — 725 ms, inside the second before the timer's next figure.
+    readonly property int rollMs: 500
+
     // How long the launcher and the power menu take to open out from their
     // centre line, and to fold back into it. Shorter than fadeMs on purpose:
     // this animation is in the way of the thing that was asked for, and a fifth

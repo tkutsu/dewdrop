@@ -266,6 +266,7 @@ PanelWindow {
         // would latch shut the first time mpd was quiet.
         visible: music.reveal > 0
         progress: music.progress
+        rate: music.rate
         trackOpacity: contentOpacity
 
         Music {
@@ -292,6 +293,7 @@ PanelWindow {
         mergeProgress: bar.mergeProgress
         visible: countdown.reveal > 0
         progress: countdown.progress
+        rate: countdown.rate
         trackOpacity: contentOpacity
 
         Countdown {
