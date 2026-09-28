@@ -28,9 +28,11 @@ BarItem {
     // A chevron is a few pixels of ink, and its box ended at the ink: a click
     // a pixel to its right fell into the gap before the next module and did
     // nothing. The box reaches halfway across that gap instead, and gives the
-    // same back as margin so nothing on the bar moves.
+    // same back as margin so nothing on the bar moves. One pixel more comes
+    // back than it takes: at the full gap the chevron read as set apart from
+    // the icon beside it.
     padRight: Math.round(Theme.gap / 2)
-    Layout.rightMargin: -Math.round(Theme.gap / 2)
+    Layout.rightMargin: -Math.round(Theme.gap / 2) - 1
     onHoldingChanged: if (!holding)
         open = false
 
