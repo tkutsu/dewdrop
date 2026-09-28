@@ -206,9 +206,10 @@ Singleton {
         // the reminder away.
         if (root.timerMode)
             return Timers.syntax;
-        // Gmail's own search operators, which nothing on a mail row hints at.
+        // The keys, and Gmail's own search operators, which nothing on a mail
+        // row hints at.
         if (root.mailMode)
-            return "from:   to:   subject:   has:attachment   is:unread   older_than:1y";
+            return "tab read  ·  ctrl+enter new mail  ·  from:  subject:  has:attachment";
         if (root.taskMode)
             return Tasks.syntax;
         if (!root.query.length)
@@ -256,6 +257,7 @@ Singleton {
     // A new query is a new list, and the old cursor position means nothing in it.
     onQueryChanged: {
         root.index = 0;
+        root.mailOpen = "";
         root.route();
     }
 
@@ -898,7 +900,7 @@ Singleton {
         if (!query) {
             if (!Email.loaded)
                 return note(Email.trouble || "reading mail…");
-            return Email.threads.length ? Email.threads.map(root.mailRow) : note("no unread mail");
+            return Email.threads.length ? root.mailRows(Email.threads) : note("no unread mail");
         }
 
         const found = Email.found;
@@ -906,7 +908,100 @@ Singleton {
             return note("searching…");
         if (found.trouble)
             return note(found.trouble);
-        return found.rows.length ? found.rows.map(root.mailRow) : note("no mail matches");
+        return found.rows.length ? root.mailRows(found.rows) : note("no mail matches");
+    }
+
+    // The thread Tab has unfolded under its row, by id. One at a time, the
+    // way the music tree opens one record: two mails' lines in one list would
+    // read as one mail.
+    property string mailOpen: ""
+
+    function mailRows(threads) {
+        const rows = [];
+        for (const t of threads) {
+            rows.push(root.mailRow(t));
+            if (t.id === root.mailOpen)
+                rows.push(...root.mailBody(t));
+        }
+        return rows;
+    }
+
+    // The text as rows of their own, since a row is one line high and the
+    // list's scrolling counts in rows. Enough of it to read in the box; the
+    // "…" at the end, like every line here, opens the thread for the rest.
+    readonly property int mailLines: 60
+
+    function mailBody(t) {
+        const text = Email.bodies[t.message];
+        const lines = text === undefined ? ["reading…"] : root.wrap(text || "(no text)", root.mailLines + 1);
+        if (lines.length > root.mailLines)
+            lines.splice(root.mailLines, lines.length, "…");
+        return lines.map(line => ({
+                    kind: "mail-body",
+                    thread: t,
+                    title: line,
+                    raw: true,
+                    subtitle: "",
+                    indent: 1
+                }));
+    }
+
+    // Wrapped by width rather than by count, with the font the rows are set
+    // in, so a line runs to the edge instead of stopping at a guess. The width
+    // is a row's title share (LauncherMenu: 0.88 of a 680 box, less one step
+    // of indent). A word too long for a line — a link — is left to elide.
+    // Stops once it has `max` lines, since the rest is not drawn.
+    readonly property int mailWrapWidth: 570
+
+    FontMetrics {
+        id: bodyMetrics
+
+        font.family: Theme.bodyFont
+        font.pixelSize: Theme.labelSize
+        font.weight: Theme.bodyWeight
+    }
+
+    function wrap(text, max) {
+        const out = [];
+        for (const para of text.split("\n")) {
+            // Paragraphs keep one blank line between them, never a run.
+            if (!para.trim()) {
+                if (out.length && out[out.length - 1] !== "")
+                    out.push("");
+                continue;
+            }
+            let line = "";
+            for (const word of para.trim().split(/\s+/)) {
+                const next = line ? line + " " + word : word;
+                if (line && bodyMetrics.advanceWidth(next) > root.mailWrapWidth) {
+                    out.push(line);
+                    line = word;
+                } else {
+                    line = next;
+                }
+            }
+            out.push(line);
+            if (out.length >= max)
+                break;
+        }
+        return out;
+    }
+
+    // Tab in mail mode: open the selected mail under its row, or shut it from
+    // the mail or any of its lines, which puts the selection back on the mail.
+    // Reading it here does not mark it read; opening it does.
+    function mailFold(): void {
+        const r = root.selected;
+        if (!r || (r.kind !== "mail" && r.kind !== "mail-body"))
+            return;
+        const id = r.thread.id;
+        if (root.mailOpen === id) {
+            root.mailOpen = "";
+            root.index = root.results.findIndex(x => x.kind === "mail" && x.thread.id === id);
+            return;
+        }
+        root.mailOpen = id;
+        Email.read(r.thread);
     }
 
     // Subject first, since it is what the mail is; who and when to the right.
@@ -1417,6 +1512,10 @@ Singleton {
                 root.leave(i);
                 Email.open(r.thread);
             },
+            "mail-body": (r, i) => {
+                root.leave(i);
+                Email.open(r.thread);
+            },
             window: (r, i) => {
                 root.leave(i);
                 Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${r.address}" })`);
@@ -1441,6 +1540,16 @@ Singleton {
     // which modifier was held with Enter.
     function activate(i, mode): void {
         const r = root.results[i];
+        // Ctrl+Enter in mail mode writes a new one, whatever row is selected
+        // and whether or not there is one: what was typed is the subject.
+        if (root.mailMode && mode === "play") {
+            if (r)
+                root.leave(i);
+            else
+                root.hide();
+            Email.compose(root.query.slice(1).trim());
+            return;
+        }
         if (!r)
             return;
         // A row that is only telling you something has nothing to activate,

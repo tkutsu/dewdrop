@@ -274,7 +274,7 @@ Popup {
                 framed: true
                 glyph: Theme.glyph.plus
                 glyphSize: Theme.captionSize
-                onTapped: Email.compose()
+                onTapped: Email.compose("")
             }
         }
     }

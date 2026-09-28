@@ -433,9 +433,11 @@ GoogleService {
         Quickshell.execDetached([Paths.script("pwa-gmail.sh")]);
     }
 
-    // A new mail, in its own Gmail app window.
-    function compose(): void {
-        Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}?view=cm&fs=1`]);
+    // A new mail, in its own Gmail app window, with the subject filled in
+    // when there is one (the launcher's ctrl+enter).
+    function compose(subject: string): void {
+        const su = subject ? `&su=${encodeURIComponent(subject)}` : "";
+        Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}?view=cm&fs=1${su}`]);
     }
 
     // qs ipc call email …

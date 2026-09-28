@@ -236,8 +236,9 @@ OverlayWindow {
     }
 
     // What a step does depends on the key and the mode. Tab opens and shuts
-    // the tree in music mode and moves the selection everywhere else; nothing
-    // is lost to the swap, since the arrows and both Ctrl pairs still move it.
+    // the tree in music mode, and a mail's text in mail mode, and moves the
+    // selection everywhere else; nothing is lost to the swap, since the arrows
+    // and both Ctrl pairs still move it.
     // Page keys page the file under the / list, and in music mode, where
     // there is none, step a level of the tree instead.
     function step(key, dir) {
@@ -245,6 +246,10 @@ OverlayWindow {
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
         if (Launcher.musicMode && tab) {
             LauncherMusic.fold();
+            return;
+        }
+        if (Launcher.mailMode && tab) {
+            Launcher.mailFold();
             return;
         }
         if (Launcher.musicMode && page) {
@@ -568,8 +573,8 @@ OverlayWindow {
                         break;
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
-                        // Only the music rows read the modifier; see
-                        // Launcher.hint for what each one means.
+                        // Only the music rows and mail's ctrl+enter read the
+                        // modifier; see Launcher.hint for what each one means.
                         Launcher.activate(Launcher.index, ctrl ? "play" : (event.modifiers & Qt.AltModifier) ? "next" : "queue");
                         break;
                     // Drop the row rather than act on it. Only the clipboard
