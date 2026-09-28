@@ -17,6 +17,14 @@ Popup {
         objects: Audio.sinks.concat(Audio.streams)
     }
 
+    spacing: 6
+
+    PopupHeader {
+        width: content.width
+        inset: 0
+        title: "Sound"
+    }
+
     // The wheel moves whichever volume is under the pointer: an app's over
     // its row, the output's anywhere else, in the same steps as the wheel on
     // the bar icon. A gap between sections counts as the one below it, so

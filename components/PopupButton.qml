@@ -27,7 +27,9 @@ Item {
     // On, for a toggle (do not disturb): held at the hovered fill and full
     // strength, and one step past it under the pointer.
     property bool lit: false
-    property int glyphSize: Theme.popupTextSize
+    // A framed one is a popup header's (PopupHeader), a size down from the
+    // controls on a row.
+    property int glyphSize: framed ? Theme.captionSize : Theme.popupTextSize
     property int textSize: Theme.captionSize
 
     readonly property bool hovered: hover.hovered
@@ -35,9 +37,10 @@ Item {
     signal tapped
 
     // A run of plain controls is laid out on a fixed pitch so the columns line
-    // up down a list; a framed one is as wide as what it says.
-    implicitWidth: framed ? content.implicitWidth + 14 : 20
-    implicitHeight: 22
+    // up down a list; a framed one is as wide as what it says, and square
+    // when that is only a glyph (the plus).
+    implicitWidth: !framed ? 20 : label === "" ? implicitHeight : content.implicitWidth + 14
+    implicitHeight: framed ? 20 : 22
 
     Rectangle {
         anchors.fill: parent

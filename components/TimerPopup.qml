@@ -124,6 +124,21 @@ Popup {
         return out;
     }
 
+    PopupHeader {
+        width: root.bodyWidth
+        // Level with the rows' glyphs.
+        inset: 2
+        title: "Timers"
+
+        // The way in to setting another: the launcher, which takes any
+        // duration or time of day.
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.plus
+            onTapped: Launcher.openWith(Launcher.timerPrefix)
+        }
+    }
+
     PopupText {
         visible: root.rows.length === 0
         width: root.bodyWidth
@@ -212,30 +227,6 @@ Popup {
                     }
                 }
             }
-        }
-    }
-
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-    }
-
-    // The way in to setting another: the launcher, which takes any duration
-    // or time of day.
-    Item {
-        width: root.bodyWidth
-        height: root.rowHeight + 2
-
-        PopupButton {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.rowHeight - 2
-            height: root.rowHeight - 2
-            framed: true
-            glyph: Theme.glyph.plus
-            glyphSize: Theme.captionSize
-            onTapped: Launcher.openWith(Launcher.timerPrefix)
         }
     }
 }

@@ -169,6 +169,12 @@ Popup {
         }
     }
 
+    PopupHeader {
+        width: root.gridWidth
+        inset: 0
+        title: "Wallpaper"
+    }
+
     PopupText {
         visible: Wallpaper.files.length === 0
         text: Wallpaper.tooltip

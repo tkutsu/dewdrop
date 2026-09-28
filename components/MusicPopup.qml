@@ -161,13 +161,29 @@ Popup {
 
                     anchors {
                         left: parent.left
-                        right: quit.left
+                        right: add.left
                         rightMargin: 6
                         verticalCenter: parent.verticalCenter
                     }
                     text: Mpd.title
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
+                }
+
+                // The way to put something else on: the launcher's & mode,
+                // which has the whole library. Beside the power button, as
+                // every popup under the bar keeps its plus at the right end of
+                // its top line; the power button asks twice, so a plus that
+                // misses does not end anything.
+                PopupButton {
+                    id: add
+
+                    anchors.right: quit.left
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    framed: true
+                    glyph: Theme.glyph.plus
+                    onTapped: Launcher.openWith(Launcher.musicPrefix)
                 }
 
                 // Asked twice. Everything else in this popup can be undone
@@ -660,31 +676,6 @@ Popup {
                     }
                 }
             }
-        }
-    }
-
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-    }
-
-    // The way to put something else on: the launcher's & mode, which has the
-    // whole library. At the right end of the foot, where every popup under
-    // the bar keeps its plus.
-    Item {
-        width: root.bodyWidth
-        height: root.rowHeight
-
-        PopupButton {
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.rowHeight - 2
-            height: root.rowHeight - 2
-            framed: true
-            glyph: Theme.glyph.plus
-            glyphSize: Theme.captionSize
-            onTapped: Launcher.openWith(Launcher.musicPrefix)
         }
     }
 }

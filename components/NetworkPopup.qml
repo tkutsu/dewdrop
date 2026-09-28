@@ -13,13 +13,25 @@ Popup {
     id: root
 
     readonly property int bodyWidth: 240
-    readonly property int footHeight: 20
 
     spacing: 6
 
     // Scanning runs while the list is on screen and not otherwise.
     Component.onCompleted: Network.watchers++
     Component.onDestruction: Network.watchers--
+
+    PopupHeader {
+        width: root.bodyWidth
+        title: "Network"
+
+        PopupButton {
+            visible: !!Network.wifi
+            framed: true
+            glyph: Network.wifiOn ? Theme.glyph.wifiOff : Theme.glyph.wifiStrength[4]
+            label: Network.wifiOn ? "turn Wi-Fi off" : "turn Wi-Fi on"
+            onTapped: Network.toggleWifi()
+        }
+    }
 
     // The cable, when one is plugged in. Not a thing to press: it is up
     // whenever it has a link, and the Wi-Fi list below is what changes.
@@ -92,23 +104,5 @@ Popup {
                 }
             }
         }
-    }
-
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-        visible: !!Network.wifi
-    }
-
-    PopupButton {
-        height: root.footHeight
-        visible: !!Network.wifi
-        framed: true
-        glyph: Network.wifiOn ? Theme.glyph.wifiOff : Theme.glyph.wifiStrength[4]
-        label: Network.wifiOn ? "turn Wi-Fi off" : "turn Wi-Fi on"
-        glyphSize: Theme.captionSize
-        textSize: Theme.captionSize
-        onTapped: Network.toggleWifi()
     }
 }
