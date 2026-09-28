@@ -66,9 +66,10 @@ BarItem {
         }
     }
 
+    // Left used to open pavucontrol. Everything it was opened for, the
+    // outputs and each app's volume, is in the popup now.
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached(["pavucontrol"]),
-            [Qt.RightButton]: () => Quickshell.execDetached(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
+            [Qt.RightButton]: () => Audio.toggleMute()
         })
 
     onScrollUp: Audio.step(true)

@@ -41,16 +41,43 @@ Singleton {
     // the same speaker whatever it is playing through: which output is on is
     // the popup's to say. It used to be a headphones or a loudspeaker glyph
     // for those ports, which named the device and threw the level away.
-    readonly property string icon: {
-        if (!connected)
-            return Theme.glyph.audioOff;
-        if (silent)
+    readonly property string icon: connected ? level(volume, muted) : Theme.glyph.audioOff
+
+    // The same speaker for anything with a volume: the popup's rows for each
+    // app draw theirs with it too.
+    function level(percent: int, isMuted: bool): string {
+        if (isMuted || percent <= 0)
             return Theme.glyph.muted;
-        if (volume < 34)
+        if (percent < 34)
             return Theme.glyph.volLow;
-        if (volume < 67)
+        if (percent < 67)
             return Theme.glyph.volMed;
         return Theme.glyph.volHigh;
+    }
+
+    // Everything the machine could play through, for the popup to choose
+    // between: what pavucontrol's output tab was opened for.
+    readonly property var sinks: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioSink).sort((a, b) => (a.description || a.name).localeCompare(b.description || b.name))
+
+    // Every app playing right now, each with its own volume. Picked by type
+    // rather than by media.class, which like the rest of `properties` stays
+    // empty until a node is tracked. A playing app counts as a sink here
+    // (it is Audio | Stream | Sink), so `isSink` does not tell playback
+    // from capture; the type does.
+    readonly property var streams: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioOutStream && n.audio)
+
+    function appName(node): string {
+        const props = node.properties ?? {};
+        return props["application.name"] || node.description || node.name;
+    }
+
+    function toggleMute(): void {
+        if (sink?.audio)
+            sink.audio.muted = !sink.audio.muted;
+    }
+
+    function setDefault(node): void {
+        Pipewire.preferredDefaultAudioSink = node;
     }
 
     // The name of the sink when there is one, whether or not anything is

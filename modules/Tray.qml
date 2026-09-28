@@ -18,47 +18,23 @@ BarItem {
         // sorting by service id keeps the bar stable across restarts.
         .sort((a, b) => a.id.localeCompare(b.id))
 
+    // Nothing in the tray is no module at all, rather than an empty one still
+    // holding its gap in the row. It used to always have nm-applet and
+    // blueman in it; now it can be empty.
+    present: entries.length > 0
+
     // Where the theme's artwork is at odds with the bar, the bar draws its own
-    // glyph in its place. nm-applet is where it started: its wireless
-    // icons are filled cones with a padlock welded onto them, which at this
-    // size is a blob in a row of outlined Material glyphs. Keyed by the icon
-    // name rather than the item id, because the state lives in the name — the
-    // item is "nm-applet" whether it is on wifi, on a cable or on nothing.
-    // Anything unmatched keeps its artwork; this is a correction, not a
-    // reimplementation of somebody else's tray icon.
+    // glyph in its place. (nm-applet and blueman were the first two; the bar
+    // has its own Network and Bluetooth modules now.) Anything unmatched
+    // keeps its artwork; this is a correction, not a reimplementation of
+    // somebody else's tray icon.
     function glyphFor(item) {
-        // Mullvad is the exception to reading the name: it is an Electron app
-        // and hands over a bare pixmap with no name at all. Its tooltip is
-        // where the state lives: "Connected. Athens, Greece" while the tunnel
-        // is up, and something else while it is coming up or down.
+        // Mullvad is an Electron app and hands over a bare pixmap with no
+        // name at all, a solid padlock at that. Its tooltip is where the
+        // state lives: "Connected. Athens, Greece" while the tunnel is up,
+        // and something else while it is coming up or down.
         if (item.id.startsWith("Mullvad VPN"))
             return item.tooltipTitle.startsWith("Connected") ? Theme.glyph.vpn : Theme.glyph.vpnOff;
-        const name = String(item.icon);
-        // nm-applet carries the signal in the name, quantised to five buckets,
-        // with "-secure" after it on an encrypted network — which is dropped,
-        // because every network worth joining is encrypted and a padlock
-        // welded to every wireless icon says nothing for the pixels it costs.
-        const signal = name.match(/nm-signal-(\d+)/);
-        if (signal) {
-            const step = [0, 25, 50, 75, 100].indexOf(parseInt(signal[1], 10));
-            return Theme.glyph.wifiStrength[step] ?? Theme.glyph.wifiStrength[0];
-        }
-        // The frames nm-applet cycles while a connection comes up. The empty
-        // cone is the honest picture of it: there is no signal yet, and it is
-        // the same glyph the first bucket uses, so the icon fills rather than
-        // being replaced once there is.
-        if (name.includes("nm-stage"))
-            return Theme.glyph.wifiStrength[0];
-        if (name.includes("nm-no-connection"))
-            return Theme.glyph.wifiOff;
-        if (name.includes("nm-device-wired"))
-            return name.includes("offline") ? Theme.glyph.wiredOff : Theme.glyph.wired;
-        // blueman renames its icon with its state — blueman-tray,
-        // blueman-active once something is connected, blueman-disabled with
-        // the radio off. Connected is not told apart from on: the tooltip and
-        // the menu say which device, where it is read rather than glimpsed.
-        if (name.includes("blueman"))
-            return name.includes("disabled") ? Theme.glyph.bluetoothOff : Theme.glyph.bluetooth;
         return "";
     }
 
@@ -114,13 +90,6 @@ BarItem {
             Layout.fillHeight: true
             implicitWidth: entry.glyph ? substitute.implicitWidth : icon.inkWidth
 
-            // A pixel less air either side of the wifi cone: it is widest at
-            // its top edge and a point at the bottom, so most of its height
-            // stands well in from the ink box, and at the row's gap it read
-            // as set apart from both neighbours.
-            readonly property bool cone: Theme.glyph.wifiStrength.includes(entry.glyph) || entry.glyph === Theme.glyph.wifiOff
-            Layout.leftMargin: entry.cone ? -1 : 0
-            Layout.rightMargin: entry.cone ? -1 : 0
             ShadowedIcon {
                 id: icon
                 x: -inkX

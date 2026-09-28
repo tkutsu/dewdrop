@@ -33,6 +33,8 @@
         "night": true,     // night mode and brightness
         "sys": true,       // CPU, memory and temperatures
         "tray": true,      // apps' status icons
+        "bluetooth": true, // the radio and its devices (bluez)
+        "network": true,   // Wi-Fi and the cable (NetworkManager)
         "audio": true,     // output volume
         "language": true,  // the keyboard layout (see layoutNames)
     },

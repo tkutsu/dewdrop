@@ -353,6 +353,8 @@ PanelWindow {
         Tray {
             settingsKey: "tray"
         }
+        Bluetooth {}
+        Network {}
         // A pixel less air on its right than the row gives: the speaker's
         // waves thin out to nothing at the edge of its box, and at the full
         // gap the language label read as set apart from it.

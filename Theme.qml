@@ -138,7 +138,8 @@ Singleton {
     // Glyphs inside a popup, beside its 12px text rather than the bar's.
     readonly property int popupGlyphSize: 14
     readonly property int glyphSizeLarge: 16
-    // The glyphs the tray draws in place of nm-applet's artwork. A step under
+    // The Wi-Fi and Bluetooth glyphs, and anything the tray draws in place of
+    // an app's artwork (they began as stand-ins for nm-applet's). A step under
     // glyphSize: at 16 the wifi cone was 12px of solid ink with its tip a row
     // below the Bluetooth and launcher drawings either side of it, and read a
     // size up from them. At 15 it is 11px and ends on their bottom row.
@@ -521,17 +522,17 @@ Singleton {
         refresh: "\u{f0450}",        // nf-md-refresh
         cleanup: "\u{f00e2}",        // nf-md-broom
 
-        // The tray, for nm-applet. The theme draws wireless as a filled cone
-        // with a padlock welded onto it, which at bar size is a blob beside the
-        // outlined glyphs every other module carries — so the bar draws its own
-        // instead, and the cable in the same hand. See modules/Tray.qml.
+        // The network module (it began as the tray's stand-in for nm-applet,
+        // whose theme art is a filled cone with a padlock welded onto it, a
+        // blob beside the outlined glyphs every other module carries). The
+        // cable is in the same hand. See services/Network.qml.
         //
         // One outlined cone filling from the bottom, empty to full
         // (nf-md-wifi_strength_outline, then _1 .. _4), so the weak end stays
         // as light as the glyphs beside it. Five of them because nm-applet
-        // quantises the signal to five buckets — the bar has the steps it has,
-        // not the ones a percentage would suggest. Indexed from zero, so
-        // wifiStrength[0] is no signal at all.
+        // quantised the signal to five buckets, and Network.bars still does —
+        // the bar has the steps it has, not the ones a percentage would
+        // suggest. Indexed from zero, so wifiStrength[0] is no signal at all.
         wifiStrength: ["\u{f092f}", "\u{f091f}", "\u{f0922}", "\u{f0925}", "\u{f0928}"],
         // The same cone struck through, outlined rather than filled so that
         // losing the network does not make the icon the loudest thing on the
@@ -545,10 +546,10 @@ Singleton {
         // nf-md-lock_open_variant_outline).
         vpn: "\u{f0341}",
         vpnOff: "\u{f0fc7}",
-        // blueman, whose theme drawing is a thin rune in the theme's own blue
-        // and narrow enough to read a size down once scaled to the row. On or
-        // off only, struck through like the cone (nf-md-bluetooth,
-        // nf-md-bluetooth_off).
+        // The Bluetooth module, in place of blueman's theme drawing: a thin
+        // rune in the theme's own blue, narrow enough to read a size down once
+        // scaled to the row. On or off only, struck through like the cone
+        // (nf-md-bluetooth, nf-md-bluetooth_off).
         bluetooth: "\u{f00af}",
         bluetoothOff: "\u{f00b2}",
 
@@ -590,6 +591,7 @@ Singleton {
         // Do not disturb, in the centre's header: the moon the system uses.
         dnd: "\u{f0904}",            // nf-md-power_sleep
         close: "\u{f0156}",          // nf-md-close
+        check: "\u{f012c}",          // nf-md-check, the one in use in a list
 
         // One speaker for every output (see services/Audio.qml): the level is
         // its wave count, and muted is the same speaker struck through.
