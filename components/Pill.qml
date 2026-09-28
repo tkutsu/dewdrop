@@ -241,7 +241,9 @@ Item {
             strokeWidth: Theme.pillTrack
             fillColor: "transparent"
             // Square ends, so the lit part stops exactly where the track has
-            // got to rather than half a stroke past it.
+            // got to rather than half a stroke past it. Round ones were tried
+            // (2026-09-28): at 1.5px a round cap is a 0.75px half-disc, and
+            // antialiased it draws the same pixels as a square one.
             capStyle: ShapePath.FlatCap
             strokeStyle: root.lit >= root.trackLength ? ShapePath.SolidLine : ShapePath.DashLine
             // In multiples of the stroke width, which is what a dash pattern

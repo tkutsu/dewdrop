@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell.Widgets
 import qs
@@ -152,12 +153,25 @@ BarItem {
 
     // The play/pause button: the sleeve and the title, and the gap between
     // them, as one target that presses in together.
+    //
+    // The swap is a blur-replace, the way the Dynamic Island changes what it
+    // shows: going, they soften, shrink a touch and fade; coming, the reverse.
+    // Blurred through a layer only while it runs, so the pill at rest is
+    // drawn as it always was.
     RowLayout {
         Layout.fillHeight: true
         // The sleeve brings the gap after it, so the two come and go together.
         spacing: 0
         opacity: root.swapOpacity
+        scale: 0.92 + 0.08 * root.swapOpacity
         transform: Translate { y: toggleTap.pressed ? Theme.pressDip : 0 }
+
+        layer.enabled: root.swapOpacity < 1
+        layer.effect: MultiEffect {
+            blurEnabled: true
+            blurMax: 12
+            blur: 1 - root.swapOpacity
+        }
 
         TapHandler {
             id: toggleTap
@@ -186,9 +200,10 @@ BarItem {
 
             Behavior on implicitWidth {
                 enabled: root.settled
-                NumberAnimation {
-                    duration: Theme.foldMs
-                    easing.type: Easing.InOutCubic
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.springDamping
+                    epsilon: 0.25
                 }
             }
 
@@ -223,9 +238,9 @@ BarItem {
             }
         }
 
-        // The title's room, which is what sizes the pill: it runs to the new
-        // title's width rather than jumping there, and the glass drawn off the
-        // pill runs with it. Clipped only on the way.
+        // The title's room, which is what sizes the pill: it springs to the
+        // new title's width rather than jumping there, and the glass drawn off
+        // the pill goes with it. Clipped only on the way.
         Item {
             Layout.fillHeight: true
             implicitWidth: title.implicitWidth
@@ -233,9 +248,10 @@ BarItem {
 
             Behavior on implicitWidth {
                 enabled: root.settled
-                NumberAnimation {
-                    duration: Theme.foldMs
-                    easing.type: Easing.InOutCubic
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.springDamping
+                    epsilon: 0.25
                 }
             }
 

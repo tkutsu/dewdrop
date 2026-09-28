@@ -87,9 +87,14 @@ BarItem {
         periodMs: Timers.beatMs
     }
 
-    BarText {
+    // The time left rolls from one second to the next (RollingText); a timer
+    // that has gone off shows its name instead, which is words and is drawn
+    // whole.
+    Item {
+        readonly property bool figures: /^[0-9:]+$/.test(root.shownLabel)
+
         Layout.fillHeight: true
-        text: root.shownLabel
+        implicitWidth: figures ? rolling.implicitWidth : words.implicitWidth
         // A paused timer is the label gone quiet, the same way a paused song
         // is — the glyph beside it already says which of the two it is, and a
         // second mark saying so again would be the loudest thing in the pill.
@@ -99,6 +104,21 @@ BarItem {
             NumberAnimation {
                 duration: Theme.fadeMs
             }
+        }
+
+        BarText {
+            id: words
+            height: parent.height
+            visible: !parent.figures
+            text: root.shownLabel
+        }
+
+        RollingText {
+            id: rolling
+            height: parent.height
+            visible: parent.figures
+            text: parent.figures ? root.shownLabel : ""
+            countsDown: true
         }
     }
 
