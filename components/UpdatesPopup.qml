@@ -8,9 +8,9 @@ import qs.services
 Popup {
     id: root
 
+    // Lines of packages across both sections. The AUR goes first and is
+    // usually a handful, so it takes what it needs and official the rest.
     readonly property int shown: 14
-
-    readonly property var entries: Updates.officialList.concat(Updates.aurList)
 
     spacing: 6
 
@@ -53,24 +53,28 @@ Popup {
         }
     }
 
-    Column {
-        id: list
+    // One source: its count against what is installed from it, then its
+    // packages. Not there at all while it has nothing waiting.
+    component Section: Column {
+        id: section
 
+        property string title
+        property var entries: []
+        property int total
+        property int limit
+
+        visible: entries.length > 0
         spacing: 3
 
         PopupText {
-            text: Updates.pending > 0 ? `Official ${Updates.official}/${Updates.officialTotal}    AUR ${Updates.aur}/${Updates.aurTotal}` : "System up to date"
-            color: Theme.label2
-        }
-
-        Item {
-            width: 1
-            height: 2
-            visible: root.entries.length > 0
+            text: `${section.title}  <font color="${Theme.label2}">${section.entries.length}/${section.total}</font>`
+            textFormat: Text.StyledText
+            font.weight: Font.DemiBold
+            bottomPadding: 2
         }
 
         Repeater {
-            model: root.entries.slice(0, root.shown)
+            model: section.entries.slice(0, section.limit)
 
             delegate: PopupText {
                 required property string modelData
@@ -88,10 +92,37 @@ Popup {
         }
 
         PopupText {
-            visible: root.entries.length > root.shown
-            text: `… and ${root.entries.length - root.shown} more`
+            visible: section.entries.length > section.limit
+            text: `… and ${section.entries.length - section.limit} more`
             opacity: 0.6
             font.pixelSize: Theme.captionSize
+        }
+    }
+
+    Column {
+        id: list
+
+        spacing: 9
+
+        PopupText {
+            visible: Updates.pending === 0
+            text: "System up to date"
+            color: Theme.label2
+        }
+
+        Section {
+            id: aur
+            title: "AUR"
+            entries: Updates.aurList
+            total: Updates.aurTotal
+            limit: root.shown
+        }
+
+        Section {
+            title: "Official"
+            entries: Updates.officialList
+            total: Updates.officialTotal
+            limit: root.shown - Math.min(aur.entries.length, aur.limit)
         }
     }
 }
