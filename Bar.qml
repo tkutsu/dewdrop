@@ -135,6 +135,8 @@ PanelWindow {
     // one places itself from its `side`, which is the same thing that tells it
     // whether it backs onto a screen edge and owes the margin a hit area.
     Pill {
+        id: leftPill
+
         side: Pill.Side.Left
         mergeProgress: bar.mergeProgress
 
@@ -191,26 +193,61 @@ PanelWindow {
         width: clockPill.x
         clip: true
 
+        // A notification as it comes in, one spread to the left of the clock.
+        // Anchored by its right edge, so it grows away from the clock, and it
+        // may run as far as a spread short of the workspaces: someone else's
+        // text, but read once and then gone, so it gets all the room there is
+        // rather than a fixed ceiling.
+        Pill {
+            id: noticePill
+
+            edges: false
+
+            side: Pill.Side.Right
+            edgeOffset: bar.under(noticePill, Theme.pillSpread, notice.reveal)
+            mergeProgress: bar.mergeProgress
+            // Off the module's `reveal`, never its visibility (see the music
+            // pill below).
+            visible: notice.reveal > 0
+
+            Notice {
+                id: notice
+                room: clockPill.x - Theme.pillSpread - (leftPill.x + leftPill.width + Theme.pillSpread)
+            }
+        }
+    }
+
+    Item {
+        id: rightStage
+
+        anchors {
+            top: parent.top
+            bottom: parent.bottom
+        }
+        x: clockPill.x + clockPill.width
+        width: parent.width - x
+        clip: true
+
         // The player goes under its nearest neighbour, not all the way to the
-        // clock: a stage of its own, ending at the timer's outer edge. That
+        // clock: a stage of its own, starting at the timer's outer edge. That
         // edge is the clock's once the timer has gone under, so with no timer
-        // set the player goes under the clock as before, and while one is set
-        // it goes under the timer and leaves the timer where it was.
+        // set the player goes under the clock, and while one is set it goes
+        // under the timer and leaves the timer where it was.
         Item {
             id: musicStage
 
             anchors {
                 top: parent.top
                 bottom: parent.bottom
-                left: parent.left
             }
-            width: countdownPill.x
+            x: countdownPill.x + countdownPill.width
+            width: parent.width - x
             clip: true
 
             // The player, outermost on this side. What it carries is a song
             // title — text from somewhere else, as long as whoever named the
             // track made it — and nothing else should have to move along every
-            // time a new one starts: it is anchored by its right edge, so a
+            // time a new one starts: it is anchored by its left edge, so a
             // longer title only grows it outwards. Its stage follows the timer,
             // so the two arrive and leave in step.
             Pill {
@@ -218,7 +255,7 @@ PanelWindow {
 
                 edges: false
 
-                side: Pill.Side.Right
+                side: Pill.Side.Left
                 edgeOffset: bar.under(musicPill, Theme.pillSpread, music.reveal)
                 mergeProgress: bar.mergeProgress
                 // With nothing to play there is no pill, rather than an empty
@@ -235,9 +272,9 @@ PanelWindow {
             }
         }
 
-        // The timer, immediately left of the clock. It is a clock of another
+        // The timer, immediately right of the clock. It is a clock of another
         // kind and reads as one while the two are neighbours. Anchored by its
-        // right edge, so it grows away from the clock. Its label only changes
+        // left edge, so it grows away from the clock. Its label only changes
         // width when its format does — the figures are tabular — so the player
         // beside it is not shoved along once a second.
         Pill {
@@ -245,7 +282,7 @@ PanelWindow {
 
             edges: false
 
-            side: Pill.Side.Right
+            side: Pill.Side.Left
             edgeOffset: bar.under(countdownPill, Theme.pillSpread, countdown.reveal)
             mergeProgress: bar.mergeProgress
             visible: countdown.reveal > 0
@@ -253,41 +290,6 @@ PanelWindow {
 
             Countdown {
                 id: countdown
-            }
-        }
-    }
-
-    Item {
-        id: rightStage
-
-        anchors {
-            top: parent.top
-            bottom: parent.bottom
-        }
-        x: clockPill.x + clockPill.width
-        width: parent.width - x
-        clip: true
-
-        // A notification as it comes in, one spread to the right of the clock.
-        // Anchored by its left edge, so it grows away from the clock, and it
-        // may run as far as a spread short of the right pill: someone else's
-        // text, but read once and then gone, so it gets all the room there is
-        // rather than a fixed ceiling. The mirror of `under`, for this side.
-        Pill {
-            id: noticePill
-
-            edges: false
-
-            side: Pill.Side.Left
-            edgeOffset: Theme.pillSpread - Math.round((width + Theme.pillSpread) * (1 - notice.reveal))
-            mergeProgress: bar.mergeProgress
-            // Off the module's `reveal`, never its visibility (see the music
-            // pill above).
-            visible: notice.reveal > 0
-
-            Notice {
-                id: notice
-                room: rightPill.x - Theme.pillSpread - (clockPill.x + clockPill.width + Theme.pillSpread)
             }
         }
     }
