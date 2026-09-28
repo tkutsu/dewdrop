@@ -19,9 +19,9 @@ BarItem {
     readonly property var entry: Notifications.latest
 
     // What the notice says (its line, icon and count), kept as it was while
-    // it slides back under the clock. Letting go of a notice can close its
+    // it is drawn back into the clock. Letting go of a notice can close its
     // notification (a fleeting one expires on the spot), which empties the
-    // entry and zeroes the count the moment the slide begins.
+    // entry and zeroes the count the moment it starts to go.
     //
     // `current` is null unless there is a notice up to read, and `kept` only
     // ever takes it when it is not. A Binding with a `when` did this before
@@ -50,12 +50,12 @@ BarItem {
     }
 
     // How wide the whole notice may get, which the bar sets from the room
-    // between the clock and the right pill. The line takes whatever the icon,
+    // between the workspaces and the clock. The line takes whatever the icon,
     // the count and the padding leave of it, and elides past that.
     property int room: 0
 
-    // Slides out from under the clock and back under it; the bar places the
-    // pill off `reveal` (see Bar.qml), and nothing folds.
+    // Comes out of the clock and is drawn back into it; the bar draws the
+    // pill off `reveal` (see Bar.drop), and nothing folds.
     stowed: !Notifications.showing
     folds: false
     spacing: Theme.appIconGap + 4

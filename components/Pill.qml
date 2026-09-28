@@ -65,6 +65,13 @@ Item {
     // clock at full strength read as the last of the pill to leave.
     property real trackOpacity: 1
 
+    // Whether the pill draws its own slab. Not for the ones around the clock,
+    // whose glass is drawn for all of them at once by the bar (Liquid.qml) so
+    // that they can flow into each other; those keep only their contents, and
+    // fade them by `contentOpacity` as the glass under them runs away.
+    property bool drawsSlab: true
+    property real contentOpacity: 1
+
     // The outline as a single line around the pill, starting from the left and
     // going clockwise. Its measurements, in the slab's own coordinates: the
     // stroke is centred on the path it follows, so the path is half a stroke
@@ -99,10 +106,11 @@ Item {
     property real lit: root.trackLength * Math.max(0, Math.min(1, root.progress))
 
     // Whether a pill at offset zero is against the screen edge. Not for one
-    // placed on a stage beside the clock (see Bar.qml): its offset passes
-    // through zero on the way under the clock, and claiming the margin for
-    // that one frame put its width into its offset and its offset into its
-    // width — a loop that held the bar for half a second at every arrival.
+    // placed beside the clock (see Bar.qml): those are never against an
+    // edge, and when they used to slide under the clock their offset passed
+    // through zero on the way, and claiming the margin for that one frame put
+    // its width into its offset and its offset into its width — a loop that
+    // held the bar for half a second at every arrival.
     property bool edges: true
     readonly property bool atLeftEdge: edges && side === Pill.Side.Left && edgeOffset === 0
     readonly property bool atRightEdge: edges && side === Pill.Side.Right && edgeOffset === 0
@@ -155,6 +163,7 @@ Item {
             leftMargin: root.atLeftEdge ? Theme.barMargin : 0
             rightMargin: root.atRightEdge ? Theme.barMargin : 0
         }
+        visible: root.drawsSlab
         radius: Theme.pillRadius
         color: Qt.rgba(Theme.barBg.r, Theme.barBg.g, Theme.barBg.b, Theme.barBg.a * (1 - root.mergeProgress))
 
@@ -275,6 +284,7 @@ Item {
         id: row
         anchors.fill: parent
         spacing: 0
+        opacity: root.contentOpacity
     }
 
     // The first module has nothing in front of it to keep a gap from.

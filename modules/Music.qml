@@ -16,8 +16,8 @@ BarItem {
     id: root
 
     // For the pill around it, which is this module and nothing else and so
-    // slides under the clock with it when there is nothing to play: the bar
-    // places the pill off `reveal` (see Bar.qml), and nothing folds.
+    // is drawn into its neighbour with it when there is nothing to play: the
+    // bar draws the pill off `reveal` (see Bar.drop), and nothing folds.
     stowed: !Mpd.loaded || !Settings.moduleOn("music")
     folds: false
     // And for the outline it draws: how far through the track we are. Held
@@ -32,7 +32,7 @@ BarItem {
     }
 
     // The title, kept while the pill goes: the queue is empty before the pill
-    // is under the clock, and the line should not blank on the way. Bound only
+    // has gone, and the line should not blank on the way. Bound only
     // while there is something to show and left holding the last value after.
     property string shownLabel: ""
 

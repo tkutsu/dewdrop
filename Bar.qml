@@ -147,9 +147,25 @@ PanelWindow {
     // pill around it: the date either side of the dot changes width through the
     // week and the month, and centring the pill would have all of it shuffling
     // sideways under a fixed bar.
+    // The glass of the clock and of everything that comes and goes beside it,
+    // as one surface (see `drop` below). Declared before those pills so it
+    // goes under their contents. Fades with the pills' own slabs once the bar
+    // is one strip.
+    Liquid {
+        anchors.fill: parent
+        opacity: 1 - bar.mergeProgress
+        visible: opacity > 0
+
+        box0: Qt.vector4d(clockPill.x, Theme.barMargin, clockPill.width, Theme.barHeight)
+        box1: bar.noticeDrop
+        box2: bar.countdownDrop
+        box3: bar.musicDrop
+    }
+
     Pill {
         id: clockPill
 
+        drawsSlab: false
         side: Pill.Side.Centre
         mergeProgress: bar.mergeProgress
         centreOn: clock.centreItem
@@ -167,131 +183,140 @@ PanelWindow {
     // beside something that has moved is to read where it ended up. A spread
     // between each pair of neighbours, the same air all the way along.
 
-    // The pills that come and go beside the clock do so by sliding under it —
-    // the clock is the one island that is always there, and a thing that is
-    // not being shown is put away behind it rather than blinked off. Each side
-    // of the clock is a stage reaching from the screen edge to the clock's
-    // near edge and clipped there. Clipped rather than merely drawn under: the
-    // clock is glass, and a pill behind glass is a pill still on show.
+    // The pills that come and go beside the clock are drawn into their
+    // neighbour the way a drop is — the clock is the one island that is always
+    // there, and a thing that is not being shown is taken back into it rather
+    // than blinked off. The glass for all of them is one surface (Liquid, under
+    // the clock), and each pill's share of it is a box worked out by `drop`
+    // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
-    // A pill is placed by `under`: at its resting offset from the stage's
-    // clock end while shown, and its own width past that end when put away,
-    // with the module's own `reveal` — the same eased 0..1 the drawer folds
-    // on — taking it between the two.
-    function under(pill, rest, reveal) {
-        return rest - Math.round((rest + pill.width) * (1 - reveal));
+    // Going away, a pill first lets its contents go, then pulls its far end in
+    // until it is round, then travels into the neighbour on its inner side and
+    // shrinks inside it; the neck between the two is the glass itself, joining
+    // as they come within a spread of each other. Arriving is the same run
+    // backwards. `edge` is the neighbour's facing edge, `dir` which way the
+    // pill lies from it (1 right, -1 left), `width` the pill at rest.
+    function drop(edge, dir, width, reveal) {
+        if (reveal <= 0)
+            return Qt.vector4d(0, 0, 0, 0);
+        const t = 1 - reveal;
+        const height = Theme.barHeight;
+        const round = bar.ease(t / 0.55);
+        const travel = bar.ease((t - 0.35) / 0.65);
+        const shrink = 1 - 0.3 * travel;
+        const w = Math.max(height, width - (width - height) * round) * shrink;
+        const h = height * shrink;
+        const inner = edge + dir * (Theme.pillSpread - (Theme.pillSpread + height * 0.8) * travel);
+        return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barMargin + (height - h) / 2, w, h);
     }
 
-    Item {
-        id: leftStage
+    // How much of a pill's contents show at a given `reveal`: gone in the first
+    // stretch of leaving, before the glass under them starts to run away.
+    function contents(reveal) {
+        return bar.ease((reveal - 0.7) / 0.3);
+    }
 
-        anchors {
-            top: parent.top
-            bottom: parent.bottom
-            left: parent.left
-        }
-        width: clockPill.x
-        clip: true
+    function ease(x) {
+        const c = Math.max(0, Math.min(1, x));
+        return c * c * (3 - 2 * c);
+    }
 
-        // A notification as it comes in, one spread to the left of the clock.
-        // Anchored by its right edge, so it grows away from the clock, and it
-        // may run as far as a spread short of the workspaces: someone else's
-        // text, but read once and then gone, so it gets all the room there is
-        // rather than a fixed ceiling.
-        Pill {
-            id: noticePill
+    readonly property real clockLeft: clockPill.x
+    readonly property real clockRight: clockPill.x + clockPill.width
 
-            edges: false
+    readonly property vector4d noticeDrop: bar.drop(bar.clockLeft, -1, noticePill.width, notice.reveal)
+    readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal)
+    // The player is placed off the timer's glass rather than the clock's, so
+    // it goes into the timer while one is set and follows it in as it goes.
+    // Once the timer is inside the clock its far edge is too, and the clock's
+    // edge is the one to go by.
+    readonly property real musicEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
+    readonly property vector4d musicDrop: bar.drop(bar.musicEdge, 1, musicPill.width, music.reveal)
 
-            side: Pill.Side.Right
-            edgeOffset: bar.under(noticePill, Theme.pillSpread, notice.reveal)
-            mergeProgress: bar.mergeProgress
-            // Off the module's `reveal`, never its visibility (see the music
-            // pill below).
-            visible: notice.reveal > 0
+    // A notification as it comes in, one spread to the left of the clock.
+    // Anchored by its right edge, so it grows away from the clock, and it may
+    // run as far as a spread short of the workspaces: someone else's text, but
+    // read once and then gone, so it gets all the room there is rather than a
+    // fixed ceiling.
+    //
+    // The pills stay where they rest while their glass runs off from under
+    // them; their contents have gone by then (bar.contents).
+    Pill {
+        id: noticePill
 
-            Notice {
-                id: notice
-                room: clockPill.x - Theme.pillSpread - (leftPill.x + leftPill.width + Theme.pillSpread)
-            }
+        edges: false
+        drawsSlab: false
+        contentOpacity: bar.contents(notice.reveal)
+
+        side: Pill.Side.Right
+        edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
+        mergeProgress: bar.mergeProgress
+        // Off the module's `reveal`, never its visibility (see the music pill
+        // below).
+        visible: notice.reveal > 0
+
+        Notice {
+            id: notice
+            foldDuration: Theme.dropMs
+            foldEasing: Easing.Linear
+            room: clockPill.x - Theme.pillSpread - (leftPill.x + leftPill.width + Theme.pillSpread)
         }
     }
 
-    Item {
-        id: rightStage
+    // The timer, immediately right of the clock. It is a clock of another kind
+    // and reads as one while the two are neighbours. Anchored by its left edge,
+    // so it grows away from the clock. Its label only changes width when its
+    // format does — the figures are tabular — so the player beside it is not
+    // shoved along once a second.
+    Pill {
+        id: countdownPill
 
-        anchors {
-            top: parent.top
-            bottom: parent.bottom
+        edges: false
+        drawsSlab: false
+        contentOpacity: bar.contents(countdown.reveal)
+
+        side: Pill.Side.Left
+        edgeOffset: bar.clockRight + Theme.pillSpread
+        mergeProgress: bar.mergeProgress
+        visible: countdown.reveal > 0
+        progress: countdown.progress
+        trackOpacity: contentOpacity
+
+        Countdown {
+            id: countdown
+            foldDuration: Theme.dropMs
+            foldEasing: Easing.Linear
         }
-        x: clockPill.x + clockPill.width
-        width: parent.width - x
-        clip: true
+    }
 
-        // The player goes under its nearest neighbour, not all the way to the
-        // clock: a stage of its own, starting at the timer's outer edge. That
-        // edge is the clock's once the timer has gone under, so with no timer
-        // set the player goes under the clock, and while one is set it goes
-        // under the timer and leaves the timer where it was.
-        Item {
-            id: musicStage
+    // The player, outermost on this side. What it carries is a song title —
+    // text from somewhere else, as long as whoever named the track made it —
+    // and nothing else should have to move along every time a new one starts:
+    // it is anchored by its left edge, so a longer title only grows it
+    // outwards. Placed off the timer's glass (bar.musicEdge), so the two
+    // arrive and leave in step.
+    Pill {
+        id: musicPill
 
-            anchors {
-                top: parent.top
-                bottom: parent.bottom
-            }
-            x: countdownPill.x + countdownPill.width
-            width: parent.width - x
-            clip: true
+        edges: false
+        drawsSlab: false
+        contentOpacity: bar.contents(music.reveal)
 
-            // The player, outermost on this side. What it carries is a song
-            // title — text from somewhere else, as long as whoever named the
-            // track made it — and nothing else should have to move along every
-            // time a new one starts: it is anchored by its left edge, so a
-            // longer title only grows it outwards. Its stage follows the timer,
-            // so the two arrive and leave in step.
-            Pill {
-                id: musicPill
+        side: Pill.Side.Left
+        edgeOffset: bar.musicEdge + Theme.pillSpread
+        mergeProgress: bar.mergeProgress
+        // With nothing to play there is no pill, rather than an empty one. Off
+        // the module's `reveal` rather than its visibility: hiding an item
+        // hides its children with it, so a pill reading its child's `visible`
+        // would latch shut the first time mpd was quiet.
+        visible: music.reveal > 0
+        progress: music.progress
+        trackOpacity: contentOpacity
 
-                edges: false
-
-                side: Pill.Side.Left
-                edgeOffset: bar.under(musicPill, Theme.pillSpread, music.reveal)
-                mergeProgress: bar.mergeProgress
-                // With nothing to play there is no pill, rather than an empty
-                // one. Off the module's `reveal` rather than its visibility:
-                // hiding an item hides its children with it, so a pill reading
-                // its child's `visible` would latch shut the first time mpd was
-                // quiet.
-                visible: music.reveal > 0
-                progress: music.progress
-                trackOpacity: music.reveal
-
-                Music {
-                    id: music
-                }
-            }
-        }
-
-        // The timer, immediately right of the clock. It is a clock of another
-        // kind and reads as one while the two are neighbours. Anchored by its
-        // left edge, so it grows away from the clock. Its label only changes
-        // width when its format does — the figures are tabular — so the player
-        // beside it is not shoved along once a second.
-        Pill {
-            id: countdownPill
-
-            edges: false
-
-            side: Pill.Side.Left
-            edgeOffset: bar.under(countdownPill, Theme.pillSpread, countdown.reveal)
-            mergeProgress: bar.mergeProgress
-            visible: countdown.reveal > 0
-            progress: countdown.progress
-
-            Countdown {
-                id: countdown
-            }
+        Music {
+            id: music
+            foldDuration: Theme.dropMs
+            foldEasing: Easing.Linear
         }
     }
 

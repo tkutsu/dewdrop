@@ -1,0 +1,41 @@
+import QtQuick
+import qs
+
+// The glass under the clock and the pills that come and go beside it, drawn as
+// one surface so that a pill arriving or leaving does it the way a drop does:
+// it pulls itself round, reaches its neighbour, a neck forms between the two,
+// and it is drawn into it. The pills themselves draw no slab while this is
+// under them (Pill.drawsSlab), only their contents.
+//
+// Up to four boxes, in this item's own pixels, as Qt.vector4d(x, y, width,
+// height); a box of no width is not there. Each is drawn fully round at the
+// ends, the way a pill is.
+ShaderEffect {
+    id: root
+
+    property vector4d box0
+    property vector4d box1
+    property vector4d box2
+    property vector4d box3
+
+    // How close two boxes come before they start to pull towards each other.
+    // The air between islands, so pills at rest are drawn exactly as they are
+    // and only one on the move ever reaches its neighbour.
+    property real reach: Theme.pillSpread
+    property real lineWidth: Theme.pillBorder
+
+    // The colours a Pill's own slab and Rim would have used, straight alpha.
+    readonly property vector4d fill: Qt.vector4d(Theme.barBg.r, Theme.barBg.g, Theme.barBg.b, Theme.barBg.a)
+    readonly property vector4d rimTop: Qt.vector4d(Theme.pillRimTop.r, Theme.pillRimTop.g, Theme.pillRimTop.b, Theme.pillRimTop.a)
+    readonly property vector4d rimBottom: Qt.vector4d(Theme.rimBottom.r, Theme.rimBottom.g, Theme.rimBottom.b, Theme.rimBottom.a)
+
+    // The rim is lit over the slab's own height, not over the height of a drop
+    // that has shrunk inside it, so a drop on its way in stays lit like the
+    // pill it came from.
+    readonly property real rimFrom: Theme.barMargin
+    readonly property real rimTo: Theme.barMargin + Theme.barHeight
+
+    readonly property size size: Qt.size(width, height)
+
+    fragmentShader: Qt.resolvedUrl("../shaders/liquid.frag.qsb")
+}

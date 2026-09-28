@@ -85,16 +85,22 @@ ClickArea {
     // rather than as squashed.
     property real reveal: stowed ? 0 : 1
 
+    // How `reveal` runs. The pills beside the clock take longer and run it
+    // evenly, because the bar lays its own easing over each stage of the drop
+    // it draws off it (Bar.drop).
+    property int foldDuration: Theme.foldMs
+    property int foldEasing: Easing.InOutCubic
+
     Behavior on reveal {
         NumberAnimation {
-            duration: Theme.foldMs
-            easing.type: Easing.InOutCubic
+            duration: root.foldDuration
+            easing.type: root.foldEasing
         }
     }
 
     // Whether `reveal` takes the width with it. A module in the right pill's
-    // drawer folds; a pill that goes away by sliding under the clock keeps its
-    // width and lets the bar place it off `reveal` instead (see Bar.qml).
+    // drawer folds; a pill beside the clock keeps its width and lets the bar
+    // draw it off `reveal` instead (see Bar.drop).
     property bool folds: true
     readonly property real _fold: folds ? reveal : 1
 

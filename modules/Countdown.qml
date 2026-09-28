@@ -18,8 +18,8 @@ BarItem {
     id: root
 
     // For the pill around it, which is this module and nothing else and so
-    // slides under the clock with it once nothing is set: the bar places the
-    // pill off `reveal` (see Bar.qml), and nothing folds.
+    // is drawn into the clock with it once nothing is set: the bar draws the
+    // pill off `reveal` (see Bar.drop), and nothing folds.
     stowed: !Timers.loaded
     folds: false
     readonly property real progress: Timers.progress
@@ -27,18 +27,40 @@ BarItem {
     readonly property bool ringing: Timers.ringing.length > 0
 
     // What the pill shows, kept while the pill goes: the timer is gone before
-    // its pill is under the clock, and the glyph and figures would otherwise
-    // swap to "nothing set" halfway there. Bound only while something is set
+    // its pill is, and the glyph and figures would otherwise swap to "nothing
+    // set" halfway there. Bound only while something is set
     // and left holding the last value after (same as Music and Notice).
+    //
+    // Copied a tick after any of them changes rather than bound: all three
+    // come off the same timer going, and a Binding gated on `loaded` could
+    // hear the glyph and label go to "nothing set" before `loaded` did, which
+    // snapped the pill to a bare glyph as it started to leave. By the next
+    // tick they agree.
     property string shownGlyph: ""
     property string shownLabel: ""
 
-    Binding {
-        root.shownGlyph: Timers.glyph
-        root.shownLabel: Timers.label
-        when: Timers.loaded
-        restoreMode: Binding.RestoreNone
+    function sync() {
+        if (!Timers.loaded)
+            return;
+        root.shownGlyph = Timers.glyph;
+        root.shownLabel = Timers.label;
     }
+
+    Connections {
+        target: Timers
+
+        function onGlyphChanged() {
+            Qt.callLater(root.sync);
+        }
+        function onLabelChanged() {
+            Qt.callLater(root.sync);
+        }
+        function onLoadedChanged() {
+            Qt.callLater(root.sync);
+        }
+    }
+
+    Component.onCompleted: root.sync()
 
     spacing: Theme.mediaGap
     popup: TimerPopup {}

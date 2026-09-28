@@ -382,9 +382,8 @@ Singleton {
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
-    // Something folding into or out of a pill (the right pill's drawer), or a
-    // pill sliding out from under the clock and back (the timer, the player,
-    // the notice — see Bar.qml). Longer than a fade, because this one moves
+    // Something folding into or out of a pill (the right pill's drawer).
+    // Longer than a fade, because this one moves
     // everything beside it across the bar, and a fifth of a second of that
     // read as a jump rather than as a pill growing.
     //
@@ -394,6 +393,12 @@ Singleton {
     // first few frames — which, with the icons fading over the same frames,
     // read as the icons going and then the pill snapping shut after them.
     readonly property int foldMs: 360
+
+    // A pill beside the clock being drawn into its neighbour, or coming back
+    // out (Bar.drop). Longer than a fold: it is three moves in a row, the
+    // contents going, the pill rounding up and the drop travelling in, and
+    // each of them needs time enough to read as a move of its own.
+    readonly property int dropMs: 620
 
     // How long the launcher and the power menu take to open out from their
     // centre line, and to fold back into it. Shorter than fadeMs on purpose:
