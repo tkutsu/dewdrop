@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 import qs
@@ -29,25 +30,13 @@ OverlayWindow {
     // a result arriving, so it animates both and the box bounces under each
     // letter typed. Here the two are separate things — the reveal is this
     // number moving, and the list resizing the box is not a reveal at all.
-    //
-    // A plain clock, linear, with each stage of the pour eased on its own
-    // (see "the pour" below). Run from wherever it has got to, so a box
-    // reopened on its way out pours back from there, and faster going than
-    // coming: pourMs for the whole of an opening, drainMs for a closing.
-    property real reveal: 0
+    property real reveal: root.opened ? 1 : 0
 
-    NumberAnimation {
-        id: pouring
-
-        target: root
-        property: "reveal"
-    }
-
-    onOpenedChanged: {
-        pouring.stop();
-        pouring.to = root.opened ? 1 : 0;
-        pouring.duration = Math.abs(pouring.to - root.reveal) * (root.opened ? Theme.pourMs : Theme.drainMs);
-        pouring.start();
+    Behavior on reveal {
+        NumberAnimation {
+            duration: Theme.revealMs
+            easing.type: Easing.OutCubic
+        }
     }
 
     // --- the exit ------------------------------------------------------------
@@ -222,73 +211,6 @@ OverlayWindow {
     // one used to, and every shorter one keeps its query line on that same line.
     readonly property int fullHeight: boxPad * 2 + inputHeight + contentGap * 2 + Theme.pillBorder + visibleRows * rowHeight
 
-    // --- the pour ------------------------------------------------------------
-    // How the glass comes out of nothing, as two shapes on one liquid surface
-    // (components/Liquid.qml), in the settled box's own pixels.
-    //
-    // The head is a drop that swells on the middle of the query line and is
-    // drawn out sideways into a capsule round it. The body runs down out of
-    // the head as a drip no wider than the drop was, joined to it by a neck
-    // that is the glass's own, then widens and squares its corners off until
-    // it is the box. By then the head is inside it, and the reach falls to
-    // nothing with it, so the box at rest is a rounded rectangle and nothing
-    // else. Closing is the same run backwards.
-    //
-    // One clock and a stage on each part of it, the way the bar's drops are
-    // (Bar.drop): each move starts before the last has finished, which is what
-    // keeps three moves reading as one.
-    function stage(from, span) {
-        const c = Math.max(0, Math.min(1, (root.reveal - from) / span));
-        return c * c * (3 - 2 * c);
-    }
-
-    function towards(from, to, t) {
-        return from + (to - from) * t;
-    }
-
-    readonly property real swell: stage(0, 0.2)
-    readonly property real stretch: stage(0.08, 0.35)
-    readonly property real fall: stage(0.3, 0.45)
-    readonly property real spread: stage(0.4, 0.4)
-    readonly property real settle: stage(0.6, 0.4)
-
-    // The query line with the box's padding round it: the capsule the drop
-    // becomes, which is the strip of the box the query line is centred in.
-    readonly property real headHeight: boxPad * 2 + inputHeight
-    readonly property real dropMid: boxWidth / 2
-    readonly property real dropSize: headHeight * (0.3 + 0.7 * swell)
-
-    readonly property vector4d headBox: reveal <= 0 ? Qt.vector4d(0, 0, 0, 0) : Qt.vector4d(towards(dropMid - dropSize / 2, 0, stretch), (headHeight - dropSize) / 2, towards(dropSize, box.bodyWidth, stretch), dropSize)
-
-    readonly property real dripTop: towards(headHeight / 2, 0, spread)
-    readonly property real dripBottom: towards(headHeight, box.bodyHeight, fall)
-    readonly property real dripLeft: towards(dropMid - headHeight / 2, 0, spread)
-    readonly property real dripRight: towards(dropMid + headHeight / 2, box.bodyWidth, spread)
-    readonly property vector4d dripBox: fall <= 0 ? Qt.vector4d(0, 0, 0, 0) : Qt.vector4d(dripLeft, dripTop, dripRight - dripLeft, dripBottom - dripTop)
-    // Round as the drop while it is a drip, the box's own corners once it is
-    // the box. Liquid holds a radius to half the shorter side.
-    readonly property real dripRadius: towards(headHeight / 2, Theme.popupRadius, spread)
-    // How far apart the two can be and still pull together. Wide while the
-    // drip is leaving the capsule, none once the box is whole: two shapes
-    // lying on top of each other swell wherever their edges meet.
-    readonly property real pourReach: towards(28, 0, settle)
-
-    // What the two cover between them, which is where the box's contents are
-    // cut off while the glass is still arriving.
-    readonly property real glassTop: dripBox.z > 0 ? Math.min(headBox.y, dripBox.y) : headBox.y
-    readonly property real glassBottom: dripBox.z > 0 ? Math.max(headBox.y + headBox.w, dripBox.y + dripBox.w) : headBox.y + headBox.w
-    readonly property real glassLeft: dripBox.z > 0 ? Math.min(headBox.x, dripBox.x) : headBox.x
-    readonly property real glassRight: dripBox.z > 0 ? Math.max(headBox.x + headBox.z, dripBox.x + dripBox.z) : headBox.x + headBox.z
-
-    // And the contents, which follow the glass rather than arrive with it.
-    // The query line comes up once its capsule has been drawn out, so what is
-    // typed in the first instant still shows early; the list only once the
-    // glass has spread to the box's width, or its rows would hang out past
-    // the sides of the drip. Leaving, both go before the glass moves. A
-    // choice leaves by the zip instead, over contents that stay put.
-    readonly property real queryShows: zipping ? 1 : stage(0.3, 0.2)
-    readonly property real listShows: zipping ? 1 : stage(0.75, 0.25)
-
     // +1 for the keys that go down, -1 for the ones that go up, 0 for the
     // rest. Readline's pair and vim's are in here, since both are muscle
     // memory somewhere on this machine — with Ctrl only, because bare they
@@ -396,52 +318,21 @@ OverlayWindow {
         easing.type: Easing.OutCubic
     }
 
-    // --- the glass -----------------------------------------------------------
-    // Where the settled box's top left is on screen. The box is hung from
-    // these (see its y and x below), and so is the glass.
-    readonly property int bodyX: Math.round((root.width - root.boxWidth) / 2)
-    readonly property int bodyY: Math.round((root.height - root.fullHeight) / 2)
-
-    // What the glass draws, in its own pixels: the pour's two shapes, or,
-    // leaving on a choice, the box that the zip is closing, with the corners
-    // it is closing them to. The glass reaches a shadow's room past the box
-    // on every side.
-    readonly property int glassPad: Theme.shadowPad
-
-    function inGlass(b) {
-        return b.z > 0 ? Qt.vector4d(b.x + root.glassPad, b.y + root.glassPad, b.z, b.w) : b;
+    // The box's shadow, as a sibling rather than a child: the box clips its
+    // children to itself, and a shadow is everything outside the box.
+    RectangularShadow {
+        x: box.x
+        y: box.y
+        width: box.width
+        height: box.height
+        visible: box.height > 0
+        offset.y: Theme.shadowY
+        radius: box.radius
+        blur: Theme.shadowBlur
+        color: Theme.shadow
     }
 
-    readonly property vector4d glass0: inGlass(root.zipping ? Qt.vector4d(box.leftEdge, box.topEdge, box.width, box.height) : root.headBox)
-    readonly property vector4d glass1: root.zipping ? Qt.vector4d(0, 0, 0, 0) : inGlass(root.dripBox)
-    readonly property vector4d glassRadii: Qt.vector4d(root.zipping ? box.radius : -1, root.dripRadius, -1, -1)
-
-    // The glass itself: the fill, and the shadow under it, which is the same
-    // shape and so follows it through the pour rather than being a rectangle
-    // under a drop. A sibling of the box rather than a child, because the box
-    // clips its children to itself and a shadow is everything outside it.
-    Liquid {
-        x: root.bodyX - root.glassPad
-        y: root.bodyY - root.glassPad
-        width: box.bodyWidth + root.glassPad * 2
-        height: box.bodyHeight + root.glassPad * 2
-        visible: root.glass0.z > 0
-
-        box0: root.glass0
-        box1: root.glass1
-        radii: root.glassRadii
-        reach: root.zipping ? 0 : root.pourReach
-        rimFrom: root.glassPad + box.topEdge
-        rimTo: root.glassPad + box.bottomEdge
-        // Same fill as a bar pill, and for the same reason: the alpha is what
-        // keeps the compositor blurring behind it. Never faded, see the box.
-        fill: Qt.vector4d(Theme.popupBg.r, Theme.popupBg.g, Theme.popupBg.b, Theme.popupBg.a)
-        shadow: Qt.vector4d(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b, Theme.shadow.a)
-        // Its rim is the pass above the box's contents instead.
-        lineWidth: 0
-    }
-
-    Item {
+    Rectangle {
         id: box
 
         // What the box would be if it were open and settled: exactly its
@@ -482,11 +373,13 @@ OverlayWindow {
         // How far each edge has come in from where a settled box would have
         // had it, which is the one place the two ways of closing differ.
         //
-        // Opening and being dismissed, they are whatever the pour's glass
-        // covers (see "the pour" at the top), so the contents are cut off
-        // where the glass has not reached yet. Open, that is the settled box
-        // exactly, so the top is the pinned line and a list that grows can
-        // only grow downwards.
+        // Opening and being dismissed, both are the reveal and nothing else:
+        // half the height the box has yet to gain, off each end, which puts a
+        // closed box on the centre line of where it is about to be and walks
+        // its edges out to the settled ones as it opens. Open, `reveal` is 1
+        // and both terms are zero, so the top is the pinned line exactly and a
+        // list that grows can only grow downwards — the reveal borrows the
+        // box's position and gives it back.
         //
         // Leaving on a choice, they are the zip and then the fold: the top edge
         // falls by everything above the chosen row and the bottom edge climbs
@@ -501,20 +394,19 @@ OverlayWindow {
         // time the rounding falls either side of a half. That pixel appears
         // and disappears as the animation runs, which reads as the whole list
         // jittering up and down inside a box that is moving smoothly.
-        readonly property int topEdge: Math.round(root.zipping ? root.focus * (1 - root.zip) + root.rowHeight * (1 - root.fold) / 2 : root.glassTop)
-        readonly property int bottomEdge: Math.round(root.zipping ? box.bodyHeight - (box.bodyHeight - root.focus - root.rowHeight) * (1 - root.zip) - root.rowHeight * (1 - root.fold) / 2 : root.glassBottom)
+        readonly property int topEdge: Math.round(root.zipping ? root.focus * (1 - root.zip) + root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight * (1 - root.reveal) / 2)
+        readonly property int bottomEdge: Math.round(root.zipping ? box.bodyHeight - (box.bodyHeight - root.focus - root.rowHeight) * (1 - root.zip) - root.rowHeight * (1 - root.fold) / 2 : box.bodyHeight - box.bodyHeight * (1 - root.reveal) / 2)
 
-        // The sides. The zip takes them in to where the selection's fill is
-        // drawn, held in from the list's ends (see the list's `highlight`), so
-        // the box arrives on the selection itself rather than on a row-shaped
-        // strip of the whole width. The right one has the panel to cross as
-        // well, in the two modes that open one. The pour draws them out from
-        // the drop. Same rounding rule as the top and bottom, for the same
-        // reason.
-        readonly property int leftEdge: Math.round(root.zipping ? Theme.selectionInset * (1 - root.zip) : root.glassLeft)
-        readonly property int rightEdge: Math.round(root.zipping ? box.bodyWidth - (box.bodyWidth - root.boxWidth + Theme.pillBorder + Theme.selectionInset) * (1 - root.zip) : root.glassRight)
+        // The sides, which only the zip moves: in to where the selection's
+        // fill is drawn, held in from the list's ends (see the list's
+        // `highlight`), so the box arrives on the selection itself rather
+        // than on a row-shaped strip of the whole width. The right one has
+        // the panel to cross as well, in the two modes that open one. Same
+        // rounding rule as the top and bottom, for the same reason.
+        readonly property int leftEdge: Math.round(root.zipping ? Theme.selectionInset * (1 - root.zip) : 0)
+        readonly property int rightEdge: Math.round(root.zipping ? box.bodyWidth - (box.bodyWidth - root.boxWidth + Theme.pillBorder + Theme.selectionInset) * (1 - root.zip) : box.bodyWidth)
 
-        y: root.bodyY + box.topEdge
+        y: Math.round((root.height - root.fullHeight) / 2) + box.topEdge
         // Placed rather than centred, for the same reason the y is placed
         // rather than centred. In / mode the box grows a preview panel on its
         // right, and a centred box would answer that by walking the query
@@ -537,27 +429,37 @@ OverlayWindow {
             }
         }
 
-        x: root.bodyX + box.leftEdge
+        x: Math.round((root.width - root.boxWidth) / 2) + box.leftEdge
         width: box.rightEdge - box.leftEdge
         // Whatever is left between the two edges. Zero while closed, the full
-        // body while open, and on the way through either animation the part
-        // of it the glass has reached.
+        // body while open, and on the way through either animation a band that
+        // Rectangle draws as a thinning bar — it caps its radius at half the
+        // shorter side rather than keeping corners too big for the shape.
         height: box.bottomEdge - box.topEdge
         // The query line and the rows keep their own size through all of that
-        // and get cut off by the box's edges rather than squashed into the gap.
+        // and get cut off by the box's edges, so the list is wiped in from the
+        // middle rather than squashed into the gap.
         clip: true
-        // The box draws nothing of its own: the glass under it and the rim
-        // over it are Liquid passes (see "the glass"). Its corners are still
-        // its to say, since the zip's glass is the box: they go from the box's
-        // to the selection's on the way in, so what the edges close on is the
-        // same shape the fill was.
-        readonly property real radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)
+        // Same fill as a bar pill, and for the same reason: the 0.5 alpha is
+        // what keeps the compositor blurring behind it.
+        color: Theme.popupBg
+        // And the corners go from the box's to the selection's on the way in,
+        // so what the edges close on is the same shape the fill was.
+        radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)
 
-        // Deliberately no fade on the glass: the alpha of its fill is only
+        // Its edge, above everything drawn inside it so that no row's fill
+        // can paint over it.
+        Rim {
+            anchors.fill: parent
+            radius: box.radius
+            z: 10
+        }
+
+        // Deliberately no fade over any of this: the 0.5 alpha above is only
         // just over the 0.3 the compositor's blur rule ignores, so anything
-        // that takes it down drops the blur out from behind it partway
-        // through, which is a far louder event than the fade it was meant to
-        // soften. What fades is what is drawn on it (queryShows, listShows).
+        // that takes the box's opacity down drops the blur out from behind it
+        // partway through, which is a far louder event than the fade it was
+        // meant to soften.
 
         // The box is not "off the launcher": clicking its padding should do
         // nothing, not dismiss. Only the screen around it closes.
@@ -594,7 +496,6 @@ OverlayWindow {
             TextInput {
                 id: input
 
-                opacity: root.queryShows
                 width: parent.width
                 height: root.inputHeight
                 color: Theme.fg
@@ -714,7 +615,6 @@ OverlayWindow {
             // nothing. A Column gives an invisible child neither height nor
             // spacing, so this takes the gap it was sitting in with it.
             Rectangle {
-                opacity: root.listShows
                 // Out past the padding to both edges of the box: a rule is a
                 // line drawn across something, and one that stops short of the
                 // sides reads as another item in the column rather than as the
@@ -731,7 +631,6 @@ OverlayWindow {
             ListView {
                 id: list
 
-                opacity: root.listShows
                 // Out to both edges of the box, less the hairline of border
                 // on the right. The white rule down the selected row is the
                 // row's own left edge and sits on the box's; the far end has
@@ -1084,7 +983,6 @@ OverlayWindow {
             Flickable {
                 id: reader
 
-                opacity: root.listShows
                 function scroll(by) {
                     reader.contentY = Math.max(0, Math.min(reader.contentHeight - reader.height, reader.contentY + by));
                 }
@@ -1122,7 +1020,6 @@ OverlayWindow {
         //
         // Its y is the Column's, so the reveal wipes the two in together.
         Item {
-            opacity: root.listShows
             x: root.boxWidth - root.boxPad + root.panelGap - box.leftEdge
             y: content.y
             width: root.panelWidth
@@ -1168,24 +1065,5 @@ OverlayWindow {
                 }
             }
         }
-    }
-
-    // The glass's edge, the same shape again with nothing but the rim, above
-    // everything drawn in the box so that no row's fill can paint over it.
-    Liquid {
-        x: root.bodyX - root.glassPad
-        y: root.bodyY - root.glassPad
-        width: box.bodyWidth + root.glassPad * 2
-        height: box.bodyHeight + root.glassPad * 2
-        visible: root.glass0.z > 0
-
-        box0: root.glass0
-        box1: root.glass1
-        radii: root.glassRadii
-        reach: root.zipping ? 0 : root.pourReach
-        rimFrom: root.glassPad + box.topEdge
-        rimTo: root.glassPad + box.bottomEdge
-        fill: Qt.vector4d(0, 0, 0, 0)
-        rimTop: Qt.vector4d(Theme.rimTop.r, Theme.rimTop.g, Theme.rimTop.b, Theme.rimTop.a)
     }
 }
