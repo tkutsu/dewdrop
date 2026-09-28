@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
 import qs
 import qs.components
 import qs.services
@@ -29,9 +28,9 @@ BarItem {
         badge: Updates.label
     }
 
-    // Cleaning up is the button at the foot of the popup, not a click.
+    // Left is the popup (BarItem.popupButton). Cleaning up is the button at
+    // the foot of it, not a click.
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([Paths.script("taskbar-update.sh")]),
             [Qt.RightButton]: () => Updates.refresh()
         })
 }

@@ -5,13 +5,15 @@ import qs
 import qs.components
 import qs.services
 
-// The music pill: what is playing, with a hand either side of it. The title is
-// the play/pause button, sleeve included — it is the widest thing in the pill
-// and the one you are already looking at, so it is also the cheapest to hit.
+// The music pill: what is playing, with a hand either side of it. The title
+// opens the popup, sleeve included — it is the widest thing in the pill and
+// the one you are already looking at, so it is also the cheapest to hit. Right
+// click anywhere on the pill is play/pause.
 //
-// The three are TapHandlers rather than the BarItem's own click, which stays
-// unused here: one module, three targets, and a handler on the item that draws
-// each one is what keeps them from having to be told apart by pointer position.
+// The three left targets are TapHandlers rather than the BarItem's own click,
+// which only has the right button here: one module, three targets, and a
+// handler on the item that draws each one is what keeps them from having to be
+// told apart by pointer position.
 BarItem {
     id: root
 
@@ -44,8 +46,14 @@ BarItem {
 
     spacing: Theme.mediaGap
     popup: MusicPopup {}
+    // The title opens it (below), not the whole pill.
+    popupButton: Qt.NoButton
     // Each target presses in by itself; the pill as a whole does not.
     dips: false
+
+    actions: ({
+            [Qt.RightButton]: () => Mpd.send(["toggle"])
+        })
 
     Glyph {
         Layout.fillHeight: true
@@ -58,16 +66,16 @@ BarItem {
         }
     }
 
-    // The play/pause button: the sleeve and the title, and the gap between
+    // The popup's button: the sleeve and the title, and the gap between
     // them, as one target that presses in together.
     RowLayout {
         Layout.fillHeight: true
         spacing: root.spacing
-        transform: Translate { y: toggleTap.pressed ? Theme.pressDip : 0 }
+        transform: Translate { y: popupTap.pressed ? Theme.pressDip : 0 }
 
         TapHandler {
-            id: toggleTap
-            onTapped: Mpd.send(["toggle"])
+            id: popupTap
+            onTapped: root.togglePopup()
         }
 
         // The sleeve, as the title's own icon. It is the one spot of colour on

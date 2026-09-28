@@ -6,12 +6,11 @@ import qs.components
 import qs.services
 
 // Bluetooth, where blueman-applet's tray icon was: the rune, struck through
-// and dimmed while the radio is off, with the devices in the popup. Left click
-// is blueman's manager, for what the popup cannot do (a PIN, a device's own
-// settings) and for when it gets something wrong; opening it brings blueman's
-// agent back over D-Bus, and the tray keeps that one's icon out of the row.
-// Right click is the radio, the way a right click on the bell is do not
-// disturb.
+// and dimmed while the radio is off, with the devices and the radio in the
+// popup. Right click is blueman's manager, for what the popup cannot do (a
+// PIN, a device's own settings) and for when it gets something wrong; opening
+// it brings blueman's agent back over D-Bus, and the tray keeps that one's
+// icon out of the row.
 BarItem {
     id: root
 
@@ -35,8 +34,8 @@ BarItem {
         fontSize: Theme.trayGlyphSize
     }
 
+    // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached(["blueman-manager"]),
-            [Qt.RightButton]: () => Bluetooth.toggle()
+            [Qt.RightButton]: () => Quickshell.execDetached(["blueman-manager"])
         })
 }

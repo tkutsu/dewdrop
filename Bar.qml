@@ -342,7 +342,9 @@ PanelWindow {
         Drawer {
             id: drawer
             holding: rightPill.drawable.some(m => m.here && !m.showsClosed)
-            pointerNear: barHover.hovered || PopupPointer.hovered > 0
+            // Or a popup is open: one of the drawer's own modules would fold
+            // away from under it.
+            pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null
         }
 
         // A pixel less air on its right than the row gives: the speaker's
@@ -444,16 +446,23 @@ PanelWindow {
     // to the module underneath as if this were not here. Not a TapHandler: a
     // handler takes the press even when its grab is only passive, and every
     // module in the open drawer stopped answering clicks.
+    //
+    // A popup a click opened goes the same way, on a click anywhere but its
+    // own module. That click still reaches whatever it landed on, so a click
+    // on another module's icon goes straight from one popup to the next.
     MouseArea {
         anchors.fill: parent
         z: 1
-        enabled: drawer.open
+        enabled: drawer.open || OpenPopup.owner !== null
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         onPressed: function (mouse) {
             mouse.accepted = false;
-            if (!rightPill.contains(mapToItem(rightPill, mouse.x, mouse.y)))
+            if (drawer.open && !rightPill.contains(mapToItem(rightPill, mouse.x, mouse.y)))
                 drawer.open = false;
+            const owner = OpenPopup.owner;
+            if (owner && !owner.contains(mapToItem(owner, mouse.x, mouse.y)))
+                OpenPopup.close(owner);
         }
     }
 }

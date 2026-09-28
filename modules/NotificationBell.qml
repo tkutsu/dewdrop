@@ -18,11 +18,10 @@ BarItem {
         badge: Notifications.label
     }
 
-    // Left opens the centre, the way the system's clock does, and right clears
-    // everything in it. Do not disturb is the centre's header, beside its own
-    // clear; middle pins the bell (BarItem.pinKey).
+    // Left is the popup (BarItem.popupButton), and right clears everything.
+    // Do not disturb is the centre's header, beside its own clear; middle pins
+    // the bell (BarItem.pinKey).
     actions: ({
-            [Qt.LeftButton]: () => Notifications.toggleCentre(),
             [Qt.RightButton]: () => Notifications.clearAll()
         })
 }

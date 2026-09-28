@@ -6,9 +6,9 @@ import qs.components
 import qs.services
 
 // The connection, where nm-applet's tray icon was: the cone filling with the
-// signal, or the cable, dimmed with neither. The networks are in the popup.
-// Left click is NetworkManager's connection editor, for what the popup cannot
-// do (enterprise Wi-Fi, static addresses, VPNs); right click is the radio.
+// signal, or the cable, dimmed with neither. The networks and the radio are in
+// the popup. Right click is NetworkManager's connection editor, for what the
+// popup cannot do (enterprise Wi-Fi, static addresses, VPNs).
 BarItem {
     id: root
 
@@ -37,8 +37,8 @@ BarItem {
         fontSize: Theme.trayGlyphSize
     }
 
+    // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached(["nm-connection-editor"]),
-            [Qt.RightButton]: () => Network.toggleWifi()
+            [Qt.RightButton]: () => Quickshell.execDetached(["nm-connection-editor"])
         })
 }

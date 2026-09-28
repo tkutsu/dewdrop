@@ -68,6 +68,22 @@ Popup {
 
             spacing: 4
 
+            // The upgrade itself, in a terminal. Faint with nothing to take.
+            PopupButton {
+                height: 20
+                framed: true
+                live: Updates.pending > 0
+
+                glyph: Theme.glyph.update
+                label: "upgrade"
+                glyphSize: Theme.captionSize
+                textSize: Theme.captionSize
+                onTapped: {
+                    OpenPopup.dismiss();
+                    Quickshell.execDetached([Paths.script("taskbar-update.sh")]);
+                }
+            }
+
             // The same check as a right-click on the bar, where it can be
             // found. Faint while one is out, rather than queueing another.
             PopupButton {

@@ -269,6 +269,19 @@ Popup {
             }
 
             PopupButton {
+                height: root.footHeight
+                framed: true
+                glyph: Theme.glyph.openApp
+                label: "inbox"
+                glyphSize: Theme.captionSize
+                textSize: Theme.footnoteSize
+                onTapped: {
+                    OpenPopup.dismiss();
+                    Email.openInbox();
+                }
+            }
+
+            PopupButton {
                 width: root.footHeight
                 height: root.footHeight
                 framed: true

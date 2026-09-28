@@ -22,8 +22,8 @@ BarItem {
         badge: Email.label
     }
 
+    // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.LeftButton]: () => Email.openInbox(),
             [Qt.RightButton]: () => Email.refresh()
         })
 }

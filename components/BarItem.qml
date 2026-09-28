@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Hyprland
 import qs
 
 // The per-module shell: pointer handling, scroll accumulation and the hover
@@ -16,12 +18,24 @@ ClickArea {
     property alias spacing: layout.spacing
 
     // Text for a plain hover tooltip, or a Component for something richer — a
-    // calendar, a volume slider. Both appear on hover, because that is what
-    // these were in waybar: tooltips. `popupItem` is the live instance, for
-    // modules that need to drive it (scrolling the calendar through months).
+    // calendar, a volume slider. The tooltip appears on hover; the popup on a
+    // click of `popupButton`, and stays until a click anywhere else, because
+    // a popup is somewhere to go rather than something to glance at.
+    // `popupItem` is the live instance, for modules that need to drive it
+    // (scrolling the calendar through months).
     property string tooltip: ""
     property Component popup: null
-    readonly property var popupItem: hover.item
+    readonly property var popupItem: clicked.item
+
+    // The button that opens the popup. It takes that button from the module's
+    // own `actions`. Qt.NoButton for a module that opens it from somewhere of
+    // its own with togglePopup() (Music's title).
+    property int popupButton: Qt.LeftButton
+    readonly property bool popupOpen: OpenPopup.owner === root
+
+    function togglePopup(): void {
+        OpenPopup.toggle(root);
+    }
 
     // Fitts's law: the modules at the ends of the bar back onto a screen edge,
     // which makes them the cheapest targets on screen — but only if their hit
@@ -143,7 +157,7 @@ ClickArea {
         opacity: root._fold
         spacing: Theme.gap
         transform: Translate {
-            y: root.dips && (root.acting || pin.acting) ? Theme.pressDip : 0
+            y: root.dips && (root.acting || pin.acting || opener.acting) ? Theme.pressDip : 0
         }
     }
 
@@ -191,6 +205,18 @@ ClickArea {
             })
     }
 
+    // The popup's button, taken the same way as the pin's above.
+    ClickArea {
+        id: opener
+        anchors.fill: parent
+        enabled: root.popup !== null && root.popupButton !== Qt.NoButton
+        acceptedButtons: root.popupButton
+        cursorShape: Qt.ArrowCursor
+        actions: ({
+                [root.popupButton]: root.togglePopup
+            })
+    }
+
     onWheel: function (wheel) {
         root._scrollAcc += wheel.angleDelta.y;
         while (root._scrollAcc >= root.scrollThreshold) {
@@ -203,14 +229,32 @@ ClickArea {
         }
     }
 
-    // --- hover tooltip -------------------------------------------------------
-    onEntered: hover.hovered = true
-    onExited: hover.hovered = false
-
+    // --- tooltip and popup ---------------------------------------------------
+    // The tooltip stands aside while the popup is up: both hang from the same
+    // spot.
     HoverPopup {
         id: hover
         anchorItem: root
-        text: root.tooltip
+        hovered: root.containsMouse && !root.popupOpen
+        text: root.popupOpen ? "" : root.tooltip
+    }
+
+    HoverPopup {
+        id: clicked
+        anchorItem: root
+        open: root.popupOpen
         popup: root.popup
+    }
+
+    // A click in another window or on the wallpaper closes the popup. Layer
+    // surfaces hear nothing of those on their own, so it takes a grab. The
+    // bar is on its list, because a click on the bar is Bar.qml's to sort
+    // out: one on another module should go on to that module as well. The
+    // popup is on it because Hyprland keeps the pointer on the listed
+    // surfaces while a grab is up, and a popup left off could not be used.
+    HyprlandFocusGrab {
+        active: clicked.item !== null
+        windows: clicked.item ? [clicked.item, QsWindow.window] : []
+        onCleared: OpenPopup.close(root)
     }
 }

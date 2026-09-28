@@ -31,10 +31,8 @@ BarItem {
     // too, so it is no longer the only touch, but it is the one that says so.)
     Component.onCompleted: Wallpaper.rescan()
 
-    // Left cycles to a wallpaper the scroll wheel would not have reached;
-    // the folder moves to right click.
+    // Left is the popup (BarItem.popupButton); right is the folder.
     actions: ({
-            [Qt.LeftButton]: () => Wallpaper.random(),
             [Qt.RightButton]: () => Wallpaper.openFolder()
         })
 

@@ -6,7 +6,7 @@ import qs.components
 import qs.services
 
 // clock#time. The calendar the Pango tooltip used to draw as a <tt> block is a
-// real grid now; the click actions carry over unchanged.
+// real grid now, opened by a click.
 BarItem {
     id: root
 
@@ -33,7 +33,7 @@ BarItem {
         popupItem.offset++
 
     // Singletons are lazy, and nothing reads Agenda until the popup opens —
-    // so without this the calendar would not be fetched until the first hover,
+    // so without this the calendar would not be fetched until the first click,
     // and would open on "Connecting…" every time the shell started.
     Component.onCompleted: Agenda.ensure(new Date())
 
@@ -76,8 +76,9 @@ BarItem {
         text: Qt.formatDateTime(clock.date, Settings.timeFormat)
     }
 
+    // Left is the calendar (BarItem.popupButton); right is the app.
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([Paths.script("pwa-gcalendar.sh")]),
+            [Qt.RightButton]: () => Quickshell.execDetached([Paths.script("pwa-gcalendar.sh")]),
             [Qt.MiddleButton]: () => {
                 // was: t=$(date '+%F %T'); wl-copy; notify-send
                 // Not clock.date: that one only moves on the minute now, and a
