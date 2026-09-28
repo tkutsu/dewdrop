@@ -8,4 +8,6 @@ import Quickshell
 // difference. Kept by components/Popup.qml.
 Singleton {
     property int hovered: 0
+    // And how many bars do, one per screen: kept by Bar.qml.
+    property int bars: 0
 }

@@ -127,6 +127,10 @@ PanelWindow {
     // open while the pointer is here or down in one of the bar's popups.
     HoverHandler {
         id: barHover
+
+        onHoveredChanged: PopupPointer.bars += hovered ? 1 : -1
+        Component.onDestruction: if (hovered)
+            PopupPointer.bars--
     }
 
     // "fixed-center": true — the centre pill is centred on the bar, not on

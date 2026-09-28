@@ -1,7 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Hyprland
 import qs
 
 // The per-module shell: pointer handling, scroll accumulation and the hover
@@ -244,17 +242,5 @@ ClickArea {
         anchorItem: root
         open: root.popupOpen
         popup: root.popup
-    }
-
-    // A click in another window or on the wallpaper closes the popup. Layer
-    // surfaces hear nothing of those on their own, so it takes a grab. The
-    // bar is on its list, because a click on the bar is Bar.qml's to sort
-    // out: one on another module should go on to that module as well. The
-    // popup is on it because Hyprland keeps the pointer on the listed
-    // surfaces while a grab is up, and a popup left off could not be used.
-    HyprlandFocusGrab {
-        active: clicked.item !== null
-        windows: clicked.item ? [clicked.item, QsWindow.window] : []
-        onCleared: OpenPopup.close(root)
     }
 }
