@@ -78,7 +78,7 @@ PopupWindow {
     // and let through by the mask below.
     property real reserveHeight: 0
     mask: Region {
-        item: chrome
+        item: reach
     }
 
     // A popup that can be clicked has to outlive the pointer leaving the bar
@@ -102,43 +102,57 @@ PopupWindow {
     Component.onDestruction: if (hovered)
         PopupPointer.hovered--
 
-    // Under the box rather than round it: the fill is translucent, so the
-    // middle of the shadow shows through it too, and darkens it by about the
-    // same amount the blur behind it lightens it.
-    RectangularShadow {
-        anchors.fill: chrome
-        offset.y: Theme.shadowY
-        radius: chrome.radius
-        blur: Theme.shadowBlur
-        color: Theme.shadow
-    }
-
-    Rectangle {
-        id: chrome
+    // Where the popup takes the pointer: the box, and the strip of air above
+    // it up to the window's top edge. The bar's surface ends at the pill, and
+    // that edge is where the module lets go of the pointer, so the strip is
+    // the seam between the two. Counted from the box alone, a pointer crossing
+    // it slowly belonged to neither, and HoverPopup's leave timer closed the
+    // popup before it arrived. The box and its shadow sit inside, so the
+    // handler hears the pointer over anything a popup puts in its body.
+    Item {
+        id: reach
 
         x: root.shadowSide
-        y: root.shadowTop
         width: parent.width - root.shadowSide * 2
-        height: root.chromeHeight
-        color: Theme.popupBg
-        radius: root.radius
-
-        Rim {
-            anchors.fill: parent
-            radius: chrome.radius
-            // Above the rows, which run edge to edge in a menu and would
-            // otherwise paint over it where the pointer is.
-            z: 1
-        }
+        height: root.shadowTop + root.chromeHeight
 
         HoverHandler {
             id: pointer
         }
 
-        Column {
-            id: body
-            x: root.hPadding
-            y: root.vPadding
+        // Under the box rather than round it: the fill is translucent, so the
+        // middle of the shadow shows through it too, and darkens it by about
+        // the same amount the blur behind it lightens it.
+        RectangularShadow {
+            anchors.fill: chrome
+            offset.y: Theme.shadowY
+            radius: chrome.radius
+            blur: Theme.shadowBlur
+            color: Theme.shadow
+        }
+
+        Rectangle {
+            id: chrome
+
+            y: root.shadowTop
+            width: parent.width
+            height: root.chromeHeight
+            color: Theme.popupBg
+            radius: root.radius
+
+            Rim {
+                anchors.fill: parent
+                radius: chrome.radius
+                // Above the rows, which run edge to edge in a menu and would
+                // otherwise paint over it where the pointer is.
+                z: 1
+            }
+
+            Column {
+                id: body
+                x: root.hPadding
+                y: root.vPadding
+            }
         }
     }
 }
