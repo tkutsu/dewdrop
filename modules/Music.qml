@@ -31,6 +31,9 @@ BarItem {
     // dropping out the moment the queue empties.
     property real progress: 0
     readonly property real position: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
+    // How fast that runs while playing, for the pill to carry the line on
+    // between mpd's seconds (Pill.rate).
+    readonly property real rate: Mpd.state === "play" && Mpd.duration > 0 ? 1 / Mpd.duration : 0
 
     // Forward a second at a time is set, not run (Pill.lit says why). Back —
     // a new track, prev, a seek — the line winds back round to where it now

@@ -23,6 +23,9 @@ BarItem {
     stowed: !Timers.loaded
     folds: false
     readonly property real progress: Timers.progress
+    // How fast that runs while the timer does, for the pill to carry the line
+    // on between the ticks (Pill.rate). `total` is in milliseconds.
+    readonly property real rate: !ringing && Timers.focus?.running && Timers.focus.total > 0 ? 1000 / Timers.focus.total : 0
 
     readonly property bool ringing: Timers.ringing.length > 0
 

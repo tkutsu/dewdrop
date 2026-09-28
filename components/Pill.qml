@@ -97,13 +97,46 @@ Item {
     // leave a line up each side of length zero.
     readonly property real trackLength: 2 * (slab.width - 2 * trackInset - 2 * trackRadius) + 2 * (slab.height - 2 * trackInset - 2 * trackRadius) + 2 * Math.PI * trackRadius
 
-    // How much of that line is lit. Set rather than animated: the elapsed time
-    // arrives once a second with about a pixel to cross, and a one-second
-    // Behavior restarted every second never finishes — the bar redrew at the
-    // monitor's refresh rate for as long as anything played (4.6% CPU against
-    // 0.2%, measured), re-stroking the dash pattern every frame. A pixel a
-    // second reads as moving either way.
-    property real lit: root.trackLength * Math.max(0, Math.min(1, root.progress))
+    // How fast `progress` runs on its own, per second, while whatever it
+    // measures is running; 0 while it stands still. The owner only says where
+    // it is once a second, and the pill carries the line on in between, so it
+    // creeps round rather than stepping a pixel at a time.
+    property real rate: 0
+
+    // How much of that line is lit. Not a Behavior: the elapsed time arrives
+    // once a second, and a one-second Behavior restarted every second never
+    // finishes — the bar redrew at the monitor's refresh rate for as long as
+    // anything played (4.6% CPU against 0.2%, measured), re-stroking the dash
+    // pattern every frame. Moved on by `creep` instead, a quarter of a pixel
+    // at a time: under what the eye can call a step, and a few redraws a
+    // second rather than a hundred and twenty.
+    property real lit: root.trackLength * Math.max(0, Math.min(1, root.progress + root.drift))
+
+    // How far the line has been carried past the last `progress`, capped at a
+    // second's worth so that a late update stalls it rather than overshoots.
+    property real drift: 0
+    property real since: 0
+
+    function settle() {
+        root.since = Date.now();
+        root.drift = 0;
+    }
+
+    onProgressChanged: settle()
+    // And from a pause, which would otherwise count the whole of it as time
+    // the line should have been moving.
+    onRateChanged: settle()
+
+    Timer {
+        id: creep
+
+        readonly property real pxPerSecond: Math.abs(root.rate) * root.trackLength
+
+        interval: pxPerSecond > 0 ? Math.max(16, Math.min(1000, 250 / pxPerSecond)) : 1000
+        repeat: true
+        running: root.visible && root.rate !== 0 && root.progress >= 0 && track.opacity > 0
+        onTriggered: root.drift = root.rate * Math.min(1, (Date.now() - root.since) / 1000)
+    }
 
     // Whether a pill at offset zero is against the screen edge. Not for one
     // placed beside the clock (see Bar.qml): those are never against an
@@ -189,6 +222,8 @@ Item {
     // shape revealed by a clip, so it goes round the ends the way a line
     // around a pill has to, instead of filling in from both edges at once.
     Shape {
+        id: track
+
         x: slab.x
         y: slab.y
         width: slab.width
