@@ -201,8 +201,8 @@ PanelWindow {
             return Qt.vector4d(0, 0, 0, 0);
         const t = 1 - reveal;
         const height = Theme.barHeight;
-        const round = bar.ease(t / 0.55);
-        const travel = bar.ease((t - 0.35) / 0.65);
+        const round = bar.ease((t - bar.settle) / 0.45);
+        const travel = bar.ease((t - 0.5) / 0.5);
         const shrink = 1 - 0.3 * travel;
         const w = Math.max(height, width - (width - height) * round) * shrink;
         const h = height * shrink;
@@ -210,10 +210,15 @@ PanelWindow {
         return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barMargin + (height - h) / 2, w, h);
     }
 
-    // How much of a pill's contents show at a given `reveal`: gone in the first
-    // stretch of leaving, before the glass under them starts to run away.
+    // How much of a pill's contents show at a given `reveal`, and its outline
+    // with them. The first `settle` of leaving is theirs alone: they are gone
+    // before the glass under them moves, and arriving, they come in only once
+    // it has come to rest. Anything sooner and the outline, drawn round the
+    // pill at rest, hung in the air outside glass that was not there yet.
+    readonly property real settle: 0.2
+
     function contents(reveal) {
-        return bar.ease((reveal - 0.7) / 0.3);
+        return bar.ease((reveal - (1 - bar.settle)) / bar.settle);
     }
 
     function ease(x) {

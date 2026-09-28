@@ -26,7 +26,8 @@ layout(std140, binding = 0) uniform buf {
     vec4 fill;
     vec4 rimTop;
     vec4 rimBottom;
-    // The rim's gradient runs from rimFrom to rimTo, top to bottom.
+    // The slab's top and bottom: the rim's gradient runs between them, and
+    // nothing is drawn above or below them.
     float rimFrom;
     float rimTo;
 };
@@ -54,6 +55,12 @@ void main() {
     d = smin(d, box(p, box1), reach);
     d = smin(d, box(p, box2), reach);
     d = smin(d, box(p, box3), reach);
+
+    // The smooth minimum swells a join out in every direction, which made
+    // the glass taller than a pill wherever two met, and only on top: the
+    // bar's window ends at the slabs' bottom edge. Held to the slab's height,
+    // so a join only ever fills out sideways.
+    d = max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
