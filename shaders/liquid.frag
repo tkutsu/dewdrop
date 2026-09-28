@@ -32,13 +32,20 @@ layout(std140, binding = 0) uniform buf {
     // nothing is drawn above or below them.
     float rimFrom;
     float rimTo;
+    // Each box's corner radius. Negative is fully round at the ends, the way a
+    // pill is; the launcher's box has corners.
+    vec4 radii;
+    // A soft shadow under the whole shape, straight alpha. None at zero alpha.
+    vec4 shadow;
+    float shadowBlur;
+    float shadowY;
 };
 
-float box(vec2 p, vec4 b) {
+float box(vec2 p, vec4 b, float radius) {
     if (b.z <= 0.0 || b.w <= 0.0)
         return 1e5;
     vec2 half_ = b.zw * 0.5;
-    float r = min(half_.x, half_.y);
+    float r = radius < 0.0 ? min(half_.x, half_.y) : min(radius, min(half_.x, half_.y));
     vec2 q = abs(p - (b.xy + half_)) - half_ + r;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
@@ -54,19 +61,22 @@ float smin(float a, float b, float k) {
     return min(a, b) - h * h * k * 0.25;
 }
 
-void main() {
-    vec2 p = qt_TexCoord0 * size;
-
-    float d = box(p, box0);
-    d = smin(d, box(p, box1), reach);
-    d = smin(d, box(p, box2), reach);
-    d = smin(d, box(p, box3), reach);
+float glass(vec2 p) {
+    float d = box(p, box0, radii.x);
+    d = smin(d, box(p, box1, radii.y), reach);
+    d = smin(d, box(p, box2, radii.z), reach);
+    d = smin(d, box(p, box3, radii.w), reach);
 
     // The smooth minimum swells a join out in every direction, which made
     // the glass taller than a pill wherever two met, and only on top: the
     // bar's window ends at the slabs' bottom edge. Held to the slab's height,
     // so a join only ever fills out sideways.
-    d = max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5);
+    return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5);
+}
+
+void main() {
+    vec2 p = qt_TexCoord0 * size;
+    float d = glass(p);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
@@ -81,6 +91,17 @@ void main() {
     float rimA = rim.a * band;
     vec3 rgb = rim.rgb * rimA + fill.rgb * fillA * (1.0 - rimA);
     float a = rimA + fillA * (1.0 - rimA);
+
+    // The shadow is the same shape dropped and softened, so it follows the
+    // glass through every stage of a pour rather than being a rectangle under
+    // it. Under the glass as well as round it, the way a shadow drawn behind a
+    // translucent box shows through it.
+    if (shadow.a > 0.0) {
+        float s = glass(p - vec2(0.0, shadowY));
+        float shadeA = shadow.a * (1.0 - smoothstep(-shadowBlur * 0.5, shadowBlur, s));
+        rgb += shadow.rgb * shadeA * (1.0 - a);
+        a += shadeA * (1.0 - a);
+    }
 
     fragColor = vec4(rgb, a) * qt_Opacity;
 }

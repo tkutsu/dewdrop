@@ -17,6 +17,10 @@ ShaderEffect {
     property vector4d box1
     property vector4d box2
     property vector4d box3
+    // Each box's corner radius, in the same order. Negative is round at the
+    // ends, which is what a pill is and what every box is unless told
+    // otherwise; the launcher's box has corners of its own.
+    property vector4d radii: Qt.vector4d(-1, -1, -1, -1)
 
     // How close two boxes come before they start to pull towards each other.
     // The air between islands, so pills at rest are drawn exactly as they are
@@ -37,6 +41,13 @@ ShaderEffect {
     // glass inset inside a pill moves them in with it.
     property real rimFrom: Theme.barMargin
     property real rimTo: Theme.barMargin + Theme.barHeight
+
+    // A shadow under the whole shape, for glass that floats over a window.
+    // None by default: the pills sit on the wallpaper. Give the item room
+    // round the boxes for it to fall into (Theme.shadowPad).
+    property vector4d shadow: Qt.vector4d(0, 0, 0, 0)
+    property real shadowBlur: Theme.shadowBlur
+    property real shadowY: Theme.shadowY
 
     readonly property size size: Qt.size(width, height)
 

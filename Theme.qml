@@ -424,6 +424,15 @@ Singleton {
     // of a second of shutter before the first keystroke can land reads as the
     // launcher being slow to come up rather than as it arriving.
     readonly property int revealMs: 160
+    // The launcher's own reveal, which is a pour rather than a shutter: a drop
+    // at the query line, drawn out into the query line's capsule, and the list
+    // running down out of that (modules/LauncherMenu.qml). Three moves want
+    // more than a shutter's time to read as moves; the keyboard is live from
+    // the first frame, so none of it is in the way of typing. Leaving is the
+    // same run backwards and shorter, since nothing is being read on the way
+    // out.
+    readonly property int pourMs: 340
+    readonly property int drainMs: 220
     // The launcher's selection sliding from one row to the next. Shorter than
     // the reveal: that one is a box opening and this one is a 28px step, and
     // a step drawn over a tenth of a second is already a long step.

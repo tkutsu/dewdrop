@@ -268,7 +268,7 @@ Singleton {
 
         shown: root.shown
         // A choice takes longer to leave than a dismissal does.
-        hold: root.chosen >= 0 ? Theme.zipTotalMs : Theme.revealMs
+        hold: root.chosen >= 0 ? Theme.zipTotalMs : Theme.drainMs
     }
 
     function toggle(): void {
