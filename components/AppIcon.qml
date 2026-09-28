@@ -164,6 +164,25 @@ Item {
         }
     }
 
+    // A cutout badge still rides the pill's edge, and above the edge there is
+    // nothing to cut: that part is made of the pill's own glass instead, so
+    // the count reads as a bump on the pill with a hole where it meets the icon.
+    Item {
+        visible: root.cutout && root.badged
+        x: badge.x
+        y: badge.y
+        width: badge.width
+        height: Math.max(0, Theme.pillTop(root.height) - badge.y)
+        clip: true
+
+        Rectangle {
+            width: badge.width
+            height: badge.height
+            radius: height / 2
+            color: Theme.barBg
+        }
+    }
+
     // Sits on the icon's top right corner, mostly outside it, so the app stays
     // recognisable underneath. appIconGap is narrower than the overhang, so the
     // badge does land on the next icon along; z lifts a badged icon above the
@@ -176,10 +195,8 @@ Item {
         x: root.implicitWidth - Theme.badgeSize / 2
         // A fixed line, so every badge on the bar sits at the same height
         // whatever size the icon beneath it is — measured from the top of the
-        // pill rather than of this box (see Theme.pillTop). A disc rides the
-        // pill's edge the same way a module's own count does; a hole stays
-        // inside the pill, since above its edge there is nothing to cut and
-        // the count would hang off the glass.
-        y: Theme.pillTop(root.height) + Theme.badgeLine - (root.cutout ? 0 : Theme.badgeRise) - height / 2
+        // pill rather than of this box (see Theme.pillTop), and riding its
+        // edge the same way a module's own count does.
+        y: Theme.pillTop(root.height) + Theme.badgeLine - Theme.badgeRise - height / 2
     }
 }
