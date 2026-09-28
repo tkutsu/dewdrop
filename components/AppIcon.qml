@@ -24,9 +24,10 @@ Item {
     // notifications draw their own mark for a sender with no icon.
     property string fallbackGlyph: Theme.glyph.window
 
-    // The badge as a hole rather than a disc: no fill of its own, cut out of
-    // the icon instead, so what shows round the count is whatever the icon
-    // sits on — the pill, or the workspace mark as it flows in under it.
+    // The badge as a disc of glass rather than of ink: the icon is cut out
+    // from under it, so nothing of the app comes up under the count, and the
+    // disc is the pill's own tint laid once more over whatever the icon sits
+    // on — the pill, or the workspace mark as it flows in under it.
     property bool cutout: false
     // Where the icon before this one cuts its own badge, in this icon's
     // pixels. Its owner says: a badge overhangs the gap to the next icon, and
@@ -165,8 +166,11 @@ Item {
     }
 
     // A cutout badge still rides the pill's edge, and above the edge there is
-    // nothing to cut: that part is made of the pill's own glass instead, so
-    // the count reads as a bump on the pill with a hole where it meets the icon.
+    // no pill under the disc to lay its tint over. This puts one there, so the
+    // disc is the same depth of glass on both sides of the edge: over the pill
+    // it is two coats of tint, and above it a coat from here and one from the
+    // disc itself. Without it, that sliver was a single coat — the pill's own
+    // colour — and read as a smudge on the pill's edge rather than as a disc.
     Item {
         visible: root.cutout && root.badged
         x: badge.x
@@ -191,7 +195,7 @@ Item {
         id: badge
         visible: root.badged
         text: Math.min(root.count, 99)
-        fill: root.cutout ? "transparent" : Theme.badgeBg
+        fill: root.cutout ? Theme.barBg : Theme.badgeBg
         x: root.implicitWidth - Theme.badgeSize / 2
         // A fixed line, so every badge on the bar sits at the same height
         // whatever size the icon beneath it is — measured from the top of the

@@ -309,9 +309,9 @@ BarItem {
                                 urgent: root.anyUrgent(modelData.addresses)
                                 pressed: tap.pressed
 
-                                // The count is a hole through the icons rather
-                                // than a disc on them, so it sits on the pill
-                                // or on the mark exactly as they are.
+                                // The count sits on a disc of the pill's glass
+                                // with the icons cut out from under it, so it
+                                // reads the same on the pill and on the mark.
                                 cutout: true
 
                                 // The icon before this one. Its badge reaches
