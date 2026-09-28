@@ -584,6 +584,8 @@ Singleton {
 
         mailRead: "\u{f05ef}",         // nf-md-email_open_outline
         mailUnread: "\u{f01f0}",       // nf-md-email_outline
+        // A starred mail in the launcher's search, which is why it is on top.
+        mailStarred: "\u{f04d2}",      // nf-md-star_outline
 
         // One bell whatever the count: the badge carries the number.
         notif: "\u{f009c}",

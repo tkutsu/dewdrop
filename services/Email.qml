@@ -168,7 +168,8 @@ GoogleService {
             subject: header("subject").trim() || "(no subject)",
             snippet: root.unentity(listed.snippet ?? ""),
             at: Number(m?.internalDate ?? 0),
-            unread: unread.length > 0
+            unread: unread.length > 0,
+            starred: messages.some(m => (m.labelIds ?? []).includes("STARRED"))
         };
     }
 
@@ -213,7 +214,9 @@ GoogleService {
         const weekAgo = root.dayString(new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() - 6));
         if (day >= weekAgo)
             return Qt.locale().dayName(at.getDay(), Locale.ShortFormat).toLowerCase();
-        return Qt.formatDate(at, "d MMM");
+        // And the year once it is not this one, or last December would read
+        // as coming after this July.
+        return Qt.formatDate(at, at.getFullYear() === Google.now.getFullYear() ? "d MMM" : "d MMM yyyy");
     }
 
     // --- searching -----------------------------------------------------------
@@ -222,54 +225,92 @@ GoogleService {
     // API takes the same q= the search box does. The answer is tagged with
     // the query it was for, {q, rows, trouble}, the way the calculator's is,
     // so it only ever shows against that query.
+    //
+    // `starredFirst` puts the starred matches on top — asked for separately,
+    // so a starred mail that is not among the newest few still makes the
+    // list. The launcher's "recent" view (a bare "#" with nothing unread) is
+    // the same search without it.
     property var found: null
     property int searches: 0
     readonly property int searchMax: 10
 
-    function search(q: string): void {
+    function search(q: string, starredFirst: bool): void {
         root.searches += 1;
         const gen = root.searches;
+        const current = () => gen === root.searches;
+        // Newest first by the date each row shows, starred ones on top when
+        // asked. Gmail's own order goes by the message that matched, which a
+        // row showing the thread's newest one makes look shuffled.
         const answer = (rows, trouble) => {
-            if (gen === root.searches)
+            if (current())
                 root.found = {
                     q: q,
-                    rows: rows,
+                    rows: rows.sort((a, b) => (starredFirst ? b.starred - a.starred : 0) || b.at - a.at),
                     trouble: trouble
                 };
         };
+        const failed = function (why, status) {
+            root.fail(why, status);
+            answer([], root.trouble);
+        };
+        // Gmail lists newest first.
+        const list = (query, then) => root.send("GET", `${root.api}/threads?maxResults=${root.searchMax}&q=${encodeURIComponent(query)}&fields=threads(id,historyId,snippet)`, null, body => {
+            if (current())
+                then(body?.threads ?? []);
+        }, failed);
+
         root.authorised(function () {
-            root.send("GET", `${root.api}/threads?maxResults=${root.searchMax}&q=${encodeURIComponent(q)}&fields=threads(id,historyId,snippet)`, null, function (body) {
-                if (gen !== root.searches)
+            if (!starredFirst) {
+                list(q, listed => root.detail(listed, rows => answer(rows, "")));
+                return;
+            }
+            // Bracketed, so "a OR b" gains the star as a whole rather than
+            // on its last word.
+            let starred = null;
+            let all = null;
+            const merge = function () {
+                if (starred === null || all === null)
                     return;
-                const listed = body?.threads ?? [];
-                // Gmail's order, which is its relevance, kept by slot rather
-                // than by arrival. A thread the poll has already read costs
-                // nothing.
-                const rows = listed.map(t => root.cache[t.id]?.historyId === t.historyId ? root.cache[t.id].row : null);
-                let outstanding = rows.filter(r => r === null).length;
-                if (outstanding === 0) {
-                    answer(rows, "");
-                    return;
-                }
-                const landed = function () {
-                    outstanding--;
-                    if (outstanding === 0)
-                        answer(rows.filter(r => r), "");
-                };
-                listed.forEach((t, i) => {
-                    if (rows[i] === null)
-                        root.send("GET", root.headersUrl(t.id), null, function (thread) {
-                            rows[i] = root.rowOf(t, thread);
-                            landed();
-                        }, function (why, status) {
-                            root.fail(why, status);
-                            landed();
-                        });
-                });
-            }, function (why, status) {
-                root.fail(why, status);
-                answer([], root.trouble);
+                const seen = ({});
+                for (const t of starred)
+                    seen[t.id] = true;
+                const listed = starred.concat(all.filter(t => !seen[t.id])).slice(0, root.searchMax);
+                root.detail(listed, rows => answer(rows, ""));
+            };
+            list(`(${q}) is:starred`, l => {
+                starred = l;
+                merge();
             });
+            list(q, l => {
+                all = l;
+                merge();
+            });
+        });
+    }
+
+    // Listed threads to rows, in the order given, kept by slot rather than
+    // by arrival. A thread the poll has already read costs nothing.
+    function detail(listed: var, then: var): void {
+        const rows = listed.map(t => root.cache[t.id]?.historyId === t.historyId ? root.cache[t.id].row : null);
+        let outstanding = rows.filter(r => r === null).length;
+        if (outstanding === 0) {
+            then(rows);
+            return;
+        }
+        const landed = function () {
+            outstanding--;
+            if (outstanding === 0)
+                then(rows.filter(r => r));
+        };
+        listed.forEach((t, i) => {
+            if (rows[i] === null)
+                root.send("GET", root.headersUrl(t.id), null, function (thread) {
+                    rows[i] = root.rowOf(t, thread);
+                    landed();
+                }, function (why, status) {
+                    root.fail(why, status);
+                    landed();
+                });
         });
     }
 
