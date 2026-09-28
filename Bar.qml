@@ -213,6 +213,7 @@ PanelWindow {
             // `visible` would latch shut the first time mpd was quiet.
             visible: music.reveal > 0
             progress: music.progress
+            trackOpacity: music.reveal
 
             Music {
                 id: music

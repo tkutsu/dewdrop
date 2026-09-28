@@ -20,8 +20,16 @@ BarItem {
     // places the pill off `reveal` (see Bar.qml), and nothing folds.
     stowed: !Mpd.loaded || !Settings.moduleOn("music")
     folds: false
-    // And for the outline it draws: how far through the track we are.
-    readonly property real progress: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
+    // And for the outline it draws: how far through the track we are. Held
+    // like the title below, so the line fades with the pill rather than
+    // dropping out the moment the queue empties.
+    property real progress: 0
+
+    Binding {
+        root.progress: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
+        when: Mpd.loaded
+        restoreMode: Binding.RestoreNone
+    }
 
     // The title, kept while the pill goes: the queue is empty before the pill
     // is under the clock, and the line should not blank on the way. Bound only
