@@ -180,7 +180,7 @@ OverlayWindow {
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
     readonly property int boxPad: 12
-    // The right-hand slot every row ends in: an app icon, or the "@yt" badge
+    // The right-hand slot every row ends in: an app icon, or the "#yt" badge
     // that says which engine Enter would use.
     readonly property int slotWidth: 24
     // How far a row is set in per level of the music mode's tree. Wide enough

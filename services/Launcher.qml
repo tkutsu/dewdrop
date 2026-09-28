@@ -24,26 +24,26 @@ Singleton {
 
     // --- modes ---------------------------------------------------------------
 
-    // The first character of the query picks a mode. "@" is search: the word
-    // after it can name an engine ("@y lofi"), and without one the query goes
-    // to the fallback ("@lofi" is a Google search).
+    // The first character of the query picks a mode. "#" is search: the word
+    // after it can name an engine ("#y lofi"), and without one the query goes
+    // to the fallback ("#lofi" is a Google search).
     //
     // One search prefix rather than one per family, because the split between
     // "web" and "AI" was a distinction about the destination, not about what
     // you are doing — in both cases you are typing a question and picking who
     // answers it.
     //
-    // An at-sign, which is what addressing something reads as, and not the
-    // full stop this would rather have been: a leading dot would take the
-    // decimals off the calculator, since the mode is picked before anything
-    // looks at what follows and ".5*2" would be a web search for "5*2". See
-    // looksLikeMath. The underscore it used to be went to the windows below.
+    // A hash, which is what a search tag reads as, and not the full stop this
+    // would rather have been: a leading dot would take the decimals off the
+    // calculator, since the mode is picked before anything looks at what
+    // follows and ".5*2" would be a web search for "5*2". See looksLikeMath.
+    // The underscore it used to be went to the windows below.
     //
-    // One letter each, and Google has none at all — it is what a bare "@"
+    // One letter each, and Google has none at all — it is what a bare "#"
     // does, so the search run most often costs the fewest keys. Claude is
-    // "@l" because ChatGPT holds the "c", so the key moved to the next free
+    // "#l" because ChatGPT holds the "c", so the key moved to the next free
     // letter of the word, which costs nothing to remember because the hint
-    // line marks the key where it falls: "@c[l]aude".
+    // line marks the key where it falls: "#c[l]aude".
     //
     // %s is replaced with the URL-encoded query. Every engine here has a place
     // to put one, which is why there is no Gemini: neither gemini.google.com
@@ -58,12 +58,12 @@ Singleton {
     // and `key` has to be one of its letters: the line brackets the key inside
     // the word rather than spelling it out beside it, so the word is the name
     // itself rather than an abbreviation making room for a repeat of the key.
-    readonly property string enginePrefix: "@"
+    readonly property string enginePrefix: "#"
 
     readonly property var prefixes: ({
             // Keyed by the prefix, which has to be `enginePrefix` written out:
             // an object literal cannot name one of its own properties.
-            "@": {
+            "#": {
                 // No key at all, rather than a key nothing types.
                 fallback: "",
                 // A list, not a map keyed by the letters: the rows below the
@@ -144,8 +144,8 @@ Singleton {
     // path, a sum, a prompt, a quoted line or a window.
     readonly property string musicPrefix: "&"
     // Mail: the unread on its own, a search of the whole mailbox past it. The
-    // hash, which is what a mail client's tag and a search box both read as.
-    readonly property string mailPrefix: "#"
+    // at-sign, which is what an address reads as.
+    readonly property string mailPrefix: "@"
     // Writing something down, and setting something going. These two replace a
     // quick-entry overlay of their own: it was a second box on the same screen
     // doing the same job as this one — a line of text, a note underneath saying
@@ -170,14 +170,14 @@ Singleton {
     // In search mode it turns into the engines, because by then the mode is
     // not the question any more — which of them answers it is, and the
     // letter that picks each one is the thing worth having in front of you.
-    readonly property string prefixHint: [root.calcPrefix + "calc", root.cmdPrefix + "run", root.windowPrefix + "windows", root.enginePrefix + "web", root.pathPrefix + "files", root.clipPrefix + "clip", root.musicPrefix + "music", root.mailPrefix + "mail", root.taskPrefix + "task", root.timerPrefix + "timer"].join("   ")
+    readonly property string prefixHint: [root.pathPrefix + "files", root.windowPrefix + "windows", root.clipPrefix + "clipboard", root.enginePrefix + "web", root.mailPrefix + "email", root.cmdPrefix + "run", root.taskPrefix + "task", root.timerPrefix + "timer", root.musicPrefix + "music", root.calcPrefix + "calc"].join("   ")
 
     // Each engine written as one word with its key bracketed inside it:
-    // "@[y]outube". The brackets are the whole instruction — which letter to
+    // "#[y]outube". The brackets are the whole instruction — which letter to
     // type and where it sits in the name — in the space the name was taking
-    // anyway, where "@y youtube" spent a word saying the key twice.
+    // anyway, where "#y youtube" spent a word saying the key twice.
     //
-    // Google gets no brackets because it has no key, which is what "a bare @
+    // Google gets no brackets because it has no key, which is what "a bare #
     // is a Google search" looks like written down.
     readonly property string engineHint: root.prefixes[root.enginePrefix].engines.map(e => {
             const at = e.hint.indexOf(e.key);
@@ -189,8 +189,8 @@ Singleton {
     // Only while the box is still a menu of what it can do. The moment there
     // is a query, the line has been answered — there are rows underneath
     // saying what this particular query does, and the reminder is in the way
-    // of them. Same again one level down: "@" on its own is someone looking
-    // for the engine they want, and "@y" is someone who has found it.
+    // of them. Same again one level down: "#" on its own is someone looking
+    // for the engine they want, and "#y" is someone who has found it.
     readonly property string hint: {
         // In music mode the keys stay up for as long as the mode does: there
         // are four of them and nothing on the rows says which is which.
@@ -882,7 +882,7 @@ Singleton {
 
     // --- mail ----------------------------------------------------------------
 
-    // "#" on its own is the unread the bar already has, so it is on screen at
+    // "@" on its own is the unread the bar already has, so it is on screen at
     // once. Anything past it is a Gmail search, which is a round trip to
     // Google — debounced harder than the disk walk for it, and shown only
     // once the answer for this exact query is back (see Email.found).
@@ -1352,7 +1352,7 @@ Singleton {
         let key = group.fallback;
         let q = rest.trim();
         // The first word is an engine key only if it actually names one, so
-        // "@lofi" searches for lofi rather than looking for an engine "lofi".
+        // "#lofi" searches for lofi rather than looking for an engine "lofi".
         if (m && group.engines.some(e => e.key === m[1])) {
             key = m[1];
             q = (m[2] || "").trim();
