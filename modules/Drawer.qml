@@ -44,9 +44,11 @@ BarItem {
     // Eased in and out, like the fold: a thing turned by hand gathers speed
     // and brakes into place, where an ease-out set off at full speed and read
     // as a flick. Its first frames are then hardly any turn at all, so it
-    // starts well before the fold's last frame — while the modules are
+    // starts a little before the fold's last frame — while the modules are
     // braking into place, the chevron is gathering speed, and the turn shows
-    // just as they come to rest, one gesture handed on without a pause.
+    // just as they come to rest, one gesture handed on without a pause. Any
+    // earlier (70% was tried) and most of the turn happened while the eye
+    // was still on the modules, and it went by unseen.
     property real turned: 0
 
     onOpenChanged: turn.restart()
@@ -55,7 +57,7 @@ BarItem {
         id: turn
 
         PauseAnimation {
-            duration: Math.round(Theme.foldMs * 0.7)
+            duration: Math.round(Theme.foldMs * 0.8)
         }
         NumberAnimation {
             target: root
