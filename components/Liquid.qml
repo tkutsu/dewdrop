@@ -49,5 +49,22 @@ ShaderEffect {
 
     readonly property size size: Qt.size(width, height)
 
+    // The wallpaper, for glass that sits on it: an Image of it, which the
+    // glass draws bent at its edges instead of letting Hyprland's blur show
+    // through a tint. Null (the default) for glass laid on other glass, like
+    // the workspace mark, and the glass is the plain fill until it has loaded.
+    property Image backdrop: null
+    // Where this item's top left is on the screen, and the screen's size.
+    property point origin: Qt.point(0, 0)
+    property size screenSize: Qt.size(1, 1)
+
+    readonly property real glass: backdrop?.status === Image.Ready ? 1 : 0
+    readonly property size backdropSize: backdrop ? Qt.size(backdrop.implicitWidth, backdrop.implicitHeight) : Qt.size(1, 1)
+    property real bend: Theme.glassBend
+    property real bendDepth: Theme.glassBendDepth
+    property real soften: Theme.glassSoften
+    property real saturation: Theme.glassSaturation
+    property real tint: Theme.glassTint
+
     fragmentShader: Qt.resolvedUrl("../shaders/liquid.frag.qsb")
 }

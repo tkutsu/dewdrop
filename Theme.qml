@@ -335,6 +335,18 @@ Singleton {
     // over a window, and needs less edge to read as one.
     readonly property color pillRimTop: Qt.rgba(1, 1, 1, 0.15)
 
+    // The clock's glass over an image wallpaper: clear rather than frosted,
+    // drawing the wallpaper itself (Liquid.backdrop, shaders/liquid.frag).
+    // Near the edge it looks glassBend pixels further in, easing off to
+    // nothing by glassBendDepth, the way the rim of a lens pulls what is under
+    // it towards the middle. A touch of blur and a lift in colour, then
+    // barBg's near-black laid over it at glassTint so labels still read.
+    readonly property real glassBend: 6
+    readonly property real glassBendDepth: 10
+    readonly property real glassSoften: 1.5
+    readonly property real glassSaturation: 1.5
+    readonly property real glassTint: 0.3
+
     // The soft shadow under everything that floats over a window: popups, the
     // launcher, the power menu. Not the pills, which sit on the wallpaper
     // rather than over anything. Kept under the 0.2 alpha the compositor's

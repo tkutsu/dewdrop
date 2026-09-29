@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs
 import qs.components
 import qs.modules
+import qs.services as Services
 
 PanelWindow {
     id: bar
@@ -162,6 +163,21 @@ PanelWindow {
         Workspaces {}
     }
 
+    // The wallpaper under the glass, for it to draw bent (Liquid.backdrop).
+    // Only an image: a flat colour has nothing in it to bend, and it fades
+    // from one colour to the next (modules/Backdrop.qml), which the plain
+    // tint and Hyprland's blur follow for free. Loaded at the screen's size
+    // and cropped to cover it, the way hyprpaper shows it.
+    Image {
+        id: wallpaperImage
+
+        visible: false
+        asynchronous: true
+        source: Services.Wallpaper.current ? "file://" + Services.Wallpaper.current : ""
+        fillMode: Image.PreserveAspectCrop
+        sourceSize: Qt.size(bar.screen.width, bar.screen.height)
+    }
+
     // The clock's own separating dot is what sits on the centre line, not the
     // pill around it: the date either side of the dot changes width through the
     // week and the month, and centring the pill would have all of it shuffling
@@ -174,6 +190,12 @@ PanelWindow {
         anchors.fill: parent
         opacity: 1 - bar.mergeProgress
         visible: opacity > 0
+
+        backdrop: wallpaperImage
+        // The bar is the width of the screen, so only its height says where
+        // it is: at the top, or (a bar anchored to the bottom) at the foot.
+        origin: Qt.point(0, bar.anchors.top ? 0 : bar.screen.height - bar.height)
+        screenSize: Qt.size(bar.screen.width, bar.screen.height)
 
         // The clock's ends give as a drop goes into them or lets go of them
         // (bar.lip). The notice only touches the clock with no timer set.
