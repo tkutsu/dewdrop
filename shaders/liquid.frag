@@ -37,9 +37,6 @@ layout(std140, binding = 0) uniform buf {
     // nothing is drawn above or below them.
     float rimFrom;
     float rimTo;
-    // How much of a lip the glass has, 0..1 (see main). None is the plain
-    // rim, lit top to bottom, that a Pill's Rim draws.
-    float lip;
 };
 
 float box(vec2 p, vec4 b) {
@@ -67,8 +64,9 @@ float swell(vec4 b) {
     return b.z > 0.0 ? max((b.w - (rimTo - rimFrom)) * 0.5, 0.0) : 0.0;
 }
 
-// The glass's edge, as a distance: negative inside, positive outside.
-float glass(vec2 p) {
+void main() {
+    vec2 p = qt_TexCoord0 * size;
+
     // A bulge is blended in by as much as it stands out, so it grows out of
     // the slab from nothing and goes back into it without a jump.
     float s0 = swell(bulge0);
@@ -89,29 +87,7 @@ float glass(vec2 p) {
     // so a join only ever fills out sideways. A bulge is let through, and
     // what its blend rounds it out by.
     float proud = max(s0 + k0 * 0.25, s1 + k1 * 0.25);
-    return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
-}
-
-void main() {
-    vec2 p = qt_TexCoord0 * size;
-    float d = glass(p);
-
-    // Which way the edge faces, from the distance's slope. Worked out by
-    // hand rather than with dFdx/dFdy, whose y runs whichever way the
-    // target does.
-    vec2 n = vec2(glass(p + vec2(0.5, 0.0)) - glass(p - vec2(0.5, 0.0)),
-                  glass(p + vec2(0.0, 0.5)) - glass(p - vec2(0.0, 0.5)));
-    n = length(n) > 0.0 ? normalize(n) : vec2(0.0, -1.0);
-
-    // The plain rim is lit by height, bright along the top and fading by the
-    // bottom, the way Rim.qml draws it. Glass with a lip is lit from straight
-    // above instead (y runs down): an edge takes the light by as much as it
-    // faces up, the top in full and the round ends by how far they turn
-    // towards it. Wide enough that an end facing sideways keeps about the
-    // light the plain rim gave it, so the outline holds on a dark wallpaper.
-    vec4 plain = mix(rimTop, rimBottom, clamp((p.y - rimFrom) / (rimTo - rimFrom), 0.0, 1.0));
-    vec4 lit = mix(rimBottom, rimTop, smoothstep(-0.6, 0.9, -n.y));
-    vec4 rim = mix(plain, lit, lip);
+    d = max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
@@ -119,19 +95,13 @@ void main() {
     float inner = clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     float band = shape - inner;
 
-    // The lip: the rim's light carried a few pixels in and dying away, so
-    // the edge reads as a rounded piece of glass and not a drawn line.
-    float depth = max(-d - lineWidth, 0.0);
-    float glowA = lip * rim.a * inner * exp(-depth / 3.5);
+    vec4 rim = mix(rimTop, rimBottom, clamp((p.y - rimFrom) / (rimTo - rimFrom), 0.0, 1.0));
 
-    // Fill, then the glow over it, then the rim over both, premultiplied.
-    float a = fill.a * shape;
-    vec3 rgb = fill.rgb * a;
-    rgb = rim.rgb * glowA + rgb * (1.0 - glowA);
-    a = glowA + a * (1.0 - glowA);
+    // Rim over fill, premultiplied.
+    float fillA = fill.a * shape;
     float rimA = rim.a * band;
-    rgb = rim.rgb * rimA + rgb * (1.0 - rimA);
-    a = rimA + a * (1.0 - rimA);
+    vec3 rgb = rim.rgb * rimA + fill.rgb * fillA * (1.0 - rimA);
+    float a = rimA + fillA * (1.0 - rimA);
 
     fragColor = vec4(rgb, a) * qt_Opacity;
 }
