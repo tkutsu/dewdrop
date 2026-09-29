@@ -7,12 +7,12 @@ import qs.components
 import qs.services
 
 // The music pill: what is playing, with a hand either side of it. The title
-// opens the popup, sleeve included — it is the widest thing in the pill and
-// the one you are already looking at, so it is also the cheapest to hit. Right
-// click anywhere on the pill is play/pause.
+// opens the popup — it is the widest thing in the pill and the one you are
+// already looking at, so it is also the cheapest to hit. The sleeve is
+// play/pause, and so is a right click anywhere on the pill.
 //
-// The three left targets are TapHandlers rather than the BarItem's own click,
-// which only has the right button here: one module, three targets, and a
+// The four left targets are TapHandlers rather than the BarItem's own click,
+// which only has the right button here: one module, four targets, and a
 // handler on the item that draws each one is what keeps them from having to be
 // told apart by pointer position.
 BarItem {
@@ -166,8 +166,7 @@ BarItem {
         }
     }
 
-    // The popup's button: the sleeve and the title, and the gap between
-    // them, as one target that presses in together.
+    // The sleeve and the title, which change together with the track.
     //
     // The swap is a blur-replace, the way the Dynamic Island changes what it
     // shows: going, they soften, shrink a touch and fade; coming, the reverse.
@@ -179,19 +178,12 @@ BarItem {
         spacing: 0
         opacity: root.swapOpacity
         scale: 0.92 + 0.08 * root.swapOpacity
-        transform: Translate { y: popupTap.pressed ? Theme.pressDip : 0 }
 
         layer.enabled: root.swapOpacity < 1
         layer.effect: MultiEffect {
             blurEnabled: true
             blurMax: 12
             blur: 1 - root.swapOpacity
-        }
-
-        TapHandler {
-            id: popupTap
-            margin: Theme.pressDip
-            onTapped: root.togglePopup()
         }
 
         // With another module's popup up, arriving on the title opens this
@@ -202,33 +194,39 @@ BarItem {
                 OpenPopup.browse(root)
         }
 
-        // The sleeve, as the title's own icon. It is the one spot of colour on
-        // a bar that is otherwise white on dark, and it changes with every
-        // record — the thing that says which album this is before the title
-        // has been read. The popup already had the picture; this is a
-        // thumbnail of the same file.
+        // The sleeve, as the title's own icon and the pill's play button. It
+        // is the one spot of colour on a bar that is otherwise white on dark,
+        // and it changes with every record — the thing that says which album
+        // this is before the title has been read. The popup already had the
+        // picture; this is a thumbnail of the same file.
         //
         // Icon-sized and only just rounded, so it reads as part of the row
-        // rather than as a second pill inside this one. A folder with no
-        // sleeve gives the pill no empty square, just the controls it always
-        // had: the slot closes, and opens again for the next record that has
-        // one. Held open while a picture decodes, which it then fades into.
+        // rather than as a second pill inside this one. Pointed at, it darkens
+        // under a play or pause mark, the way a mini player's artwork does:
+        // the button is there when reached for and costs the pill nothing at
+        // rest. A folder with no sleeve shows the mark on its own, so the
+        // button is never missing. The gap after it presses with it.
         Item {
+            id: slot
+
             readonly property int size: 14
             readonly property int air: (Theme.barHeight - size) / 2
-            readonly property bool has: sleeve.status === Image.Loading || sleeve.status === Image.Ready
+            // Nothing to show rather than something still decoding: a record
+            // whose picture is on its way fades straight into it.
+            readonly property bool bare: sleeve.status === Image.Null || sleeve.status === Image.Error
 
             Layout.fillHeight: true
-            implicitWidth: has ? size + root.spacing : 0
-            clip: true
+            implicitWidth: size + root.spacing
+            transform: Translate { y: playTap.pressed ? Theme.pressDip : 0 }
 
-            Behavior on implicitWidth {
-                enabled: root.settled
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.springDamping
-                    epsilon: 0.25
-                }
+            TapHandler {
+                id: playTap
+                margin: Theme.pressDip
+                onTapped: Mpd.send(["toggle"])
+            }
+
+            HoverHandler {
+                id: playHover
             }
 
             ClippingRectangle {
@@ -259,16 +257,51 @@ BarItem {
                         }
                     }
                 }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.scrim
+                    opacity: playHover.hovered && !slot.bare ? 1 : 0
+
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.fadeMs
+                        }
+                    }
+                }
+            }
+
+            // What pressing it will do, as the popup's own button shows it.
+            Glyph {
+                x: Math.round((slot.size - width) / 2)
+                height: parent.height
+                text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
+                opacity: playHover.hovered || slot.bare ? 1 : 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.fadeMs
+                    }
+                }
             }
         }
 
         // The title's room, which is what sizes the pill: it springs to the
         // new title's width rather than jumping there, and the glass drawn off
         // the pill goes with it. Clipped only on the way.
+        //
+        // And the popup's button, which presses in by itself.
         Item {
             Layout.fillHeight: true
             implicitWidth: title.implicitWidth
             clip: width !== title.implicitWidth
+            transform: Translate { y: popupTap.pressed ? Theme.pressDip : 0 }
+
+            TapHandler {
+                id: popupTap
+                margin: Theme.pressDip
+                onTapped: root.togglePopup()
+            }
 
             Behavior on implicitWidth {
                 enabled: root.settled
@@ -286,9 +319,8 @@ BarItem {
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
                 // Paused is the title gone quiet rather than a second icon
-                // saying so. The pill is two glyphs and a line of text; a
-                // third glyph in it would be the one thing there that cannot
-                // be pressed.
+                // saying so: an icon that only reports would be the one thing
+                // in the pill that cannot be pressed.
                 opacity: Mpd.state === "play" ? 1 : Theme.dimOpacity
 
                 Behavior on opacity {
