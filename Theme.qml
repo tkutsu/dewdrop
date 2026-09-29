@@ -421,6 +421,11 @@ Singleton {
     // read as the icons going and then the pill snapping shut after them.
     readonly property int foldMs: 360
 
+    // The drawer's chevron turning over once the fold has come to rest: a
+    // half turn of a few pixels of ink, which wants to be quick to read as the
+    // handle answering rather than as a second thing moving.
+    readonly property int turnMs: 240
+
     // A pill beside the clock being drawn into its neighbour, or coming back
     // out (Bar.drop). Longer than a fold: it is three moves in a row, the
     // contents going, the pill rounding up and the drop travelling in, and
@@ -699,10 +704,8 @@ Singleton {
         sectionOpen: "\u{f0140}",
         sectionShut: "\u{f0142}",
 
-        // The right pill's drawer, which opens to the left: the chevron
-        // points the way it will grow, and turns round once it has.
-        drawer: "\u{f0141}",         // nf-md-chevron_left
-        // The mark on a module pinned out of the drawer (nf-md-pin).
+        // The mark on a module pinned out of the drawer (nf-md-pin). The
+        // drawer's own chevron is drawn rather than a glyph (Drawer.qml).
         pin: "\u{f0403}"
     })
 }

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Shapes
 import Quickshell.Hyprland
 import qs
 import qs.components
@@ -36,33 +37,84 @@ BarItem {
     onHoldingChanged: if (!holding)
         open = false
 
-    // One chevron that turns over, on the drawer's own clock, rather than
-    // two glyphs swapped at the start of the fold: the handle moves with the
-    // modules it is handing out, and ends pointing the way they will go back.
-    //
-    // Mirrored rather than rotated. A half turn about the box's centre lands
-    // the ink a pixel higher than it started (the box is an odd height), so
-    // the open chevron sat above the icons beside it; a mirror only ever
-    // moves it sideways, about its own middle, onto the same columns.
-    property real turned: root.open ? 1 : 0
+    // One chevron that turns over rather than two glyphs swapped, and turns
+    // as the fold comes to rest rather than alongside it: the modules move,
+    // then the handle answers, pointing the way they will go back. Started a
+    // little before the fold's last frame, while its ease-out is only a few
+    // pixels from home, so the two read as one gesture handed on rather than
+    // as a pause between them.
+    property real turned: 0
 
-    Behavior on turned {
+    onOpenChanged: turn.restart()
+
+    SequentialAnimation {
+        id: turn
+
+        PauseAnimation {
+            duration: Math.round(Theme.foldMs * 0.8)
+        }
         NumberAnimation {
-            duration: Theme.foldMs
+            target: root
+            property: "turned"
+            to: root.open ? 1 : 0
+            duration: Theme.turnMs
             easing.type: Easing.OutCubic
         }
     }
 
-    Glyph {
+    // Drawn rather than taken from the symbol font, the way SF Symbols draws
+    // it: two strokes meeting at a point, round at the ends and at the join.
+    // The font's chevron is a filled outline eight pixels tall and a pixel and
+    // a third thick, and the only smaller one it has is thinner still. This
+    // one is a pixel shorter and narrower and half as thick again, and opens
+    // wider than a right angle, as Apple's does.
+    //
+    // Symmetric about its own middle, so the half turn lands the ink on the
+    // rows and columns it started on (the font's glyph, turned about its box,
+    // came to rest a pixel high).
+    Item {
         id: chevron
 
+        readonly property real stroke: 2
+        // From the point to the end of either arm: up or down, and across.
+        readonly property real reach: 2.5
+        readonly property real depth: 2
+
         Layout.fillHeight: true
-        text: Theme.glyph.drawer
-        transform: Scale {
-            origin.x: chevron.width / 2
-            xScale: 1 - 2 * root.turned
+        implicitWidth: depth + stroke
+
+        Shape {
+            id: mark
+
+            width: chevron.depth + chevron.stroke
+            height: 2 * chevron.reach + chevron.stroke
+            y: (chevron.height - height) / 2
+            preferredRendererType: Shape.CurveRenderer
+            transform: Rotation {
+                origin.x: mark.width / 2
+                origin.y: mark.height / 2
+                angle: 180 * root.turned
+            }
+
+            ShapePath {
+                strokeColor: Theme.handle
+                strokeWidth: chevron.stroke
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap
+                joinStyle: ShapePath.RoundJoin
+                startX: chevron.stroke / 2 + chevron.depth
+                startY: chevron.stroke / 2
+
+                PathLine {
+                    x: chevron.stroke / 2
+                    y: chevron.stroke / 2 + chevron.reach
+                }
+                PathLine {
+                    x: chevron.stroke / 2 + chevron.depth
+                    y: chevron.stroke / 2 + 2 * chevron.reach
+                }
+            }
         }
-        color: Theme.handle
     }
 
     actions: ({
