@@ -161,9 +161,11 @@ PanelWindow {
         visible: opacity > 0
 
         box0: Qt.vector4d(clockPill.x, Theme.barMargin, clockPill.width, Theme.barHeight)
-        box1: bar.noticeDrop
-        box2: bar.countdownDrop
+        // The notice after the timer, since that is what it joins.
+        box1: bar.countdownDrop
+        box2: bar.noticeDrop
         box3: bar.musicDrop
+        reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal), bar.dropReach(notice.reveal), bar.dropReach(music.reveal))
     }
 
     Pill {
@@ -195,25 +197,36 @@ PanelWindow {
     // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
     // Going away, a pill first lets its contents go, then pulls its far end in
-    // until it is round, and travels into the neighbour on its inner side and
-    // shrinks inside it; the neck between the two is the glass itself, joining
-    // as they come within half a spread of each other. The travel starts while
-    // the pill is still pulling in, so the neck catches it still a short
-    // capsule rather than already a ball. Arriving is the same run backwards.
-    // `edge` is the neighbour's facing edge, `dir` which way the pill lies
-    // from it (1 right, -1 left), `width` the pill at rest.
+    // until it is round. Meanwhile it closes the gap to the neighbour on its
+    // inner side, slowly, so the neck between the two — the glass itself —
+    // stays a waist for a while before it fills out; only then does the pill
+    // run into the neighbour and shrink inside it. Arriving is the same run
+    // backwards: the neck stretches out before it lets go. `edge` is the
+    // neighbour's facing edge, `dir` which way the pill lies from it (1 right,
+    // -1 left), `width` the pill at rest.
     function drop(edge, dir, width, reveal) {
         if (reveal <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const t = 1 - reveal;
         const height = Theme.barHeight;
         const round = bar.ease((t - bar.settle) / 0.45);
-        const travel = bar.ease((t - 0.3) / 0.7);
-        const shrink = 1 - 0.3 * travel;
+        const close = bar.ease((t - 0.25) / 0.5);
+        const plunge = bar.ease((t - 0.65) / 0.35);
+        const shrink = 1 - 0.3 * plunge;
         const w = Math.max(height, width - (width - height) * round) * shrink;
         const h = height * shrink;
-        const inner = edge + dir * (Theme.pillSpread - (Theme.pillSpread + height * 0.8) * travel);
+        const inner = edge + dir * (Theme.pillSpread * (1 - close) - height * 0.8 * plunge);
         return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barMargin + (height - h) / 2, w, h);
+    }
+
+    // How far a drop reaches for its neighbour. At rest, the air between
+    // them, so the two are drawn exactly as they are. Half again as far while
+    // it is on the move, so the neck takes hold while the pill is still a
+    // capsule, and back to the air by the time it is inside, so nothing jumps
+    // when it goes.
+    function dropReach(reveal) {
+        const t = 1 - reveal;
+        return Theme.pillSpread * (1 + 0.5 * bar.ease((t - 0.25) / 0.3) * (1 - bar.ease((t - 0.8) / 0.2)));
     }
 
     // How much of a pill's contents show at a given `reveal`, and its outline

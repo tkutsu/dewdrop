@@ -2,7 +2,7 @@
 
 // The pills around the clock as one piece of glass (see components/Liquid.qml).
 // Each pill is a rounded box; the boxes are joined with a smooth minimum, so two
-// that come within `reach` of each other grow a neck between them and one that
+// that come within reach of each other grow a neck between them and one that
 // moves inside another is absorbed rather than overlapped. Drawn as one shape,
 // so the translucent fill never doubles up where two of them meet.
 //
@@ -22,7 +22,8 @@ layout(std140, binding = 0) uniform buf {
     vec4 box1;
     vec4 box2;
     vec4 box3;
-    float reach;
+    // How far each of box1..box3 reaches for the boxes before it (x unused).
+    vec4 reaches;
     float lineWidth;
     // Straight (not premultiplied) alpha.
     vec4 fill;
@@ -44,7 +45,7 @@ float box(vec2 p, vec4 b) {
 }
 
 // Polynomial smooth minimum: exactly min() wherever the two distances differ by
-// more than k, so shapes further apart than `reach` are drawn untouched. A reach
+// more than k, so shapes further apart than their reach are drawn untouched. A reach
 // of zero is a plain union: the workspace mark lets it fall to that at rest,
 // where its two ends lie on top of each other and any reach would swell them.
 float smin(float a, float b, float k) {
@@ -58,9 +59,9 @@ void main() {
     vec2 p = qt_TexCoord0 * size;
 
     float d = box(p, box0);
-    d = smin(d, box(p, box1), reach);
-    d = smin(d, box(p, box2), reach);
-    d = smin(d, box(p, box3), reach);
+    d = smin(d, box(p, box1), reaches.y);
+    d = smin(d, box(p, box2), reaches.z);
+    d = smin(d, box(p, box3), reaches.w);
 
     // The smooth minimum swells a join out in every direction, which made
     // the glass taller than a pill wherever two met, and only on top: the

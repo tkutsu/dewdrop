@@ -22,6 +22,10 @@ ShaderEffect {
     // The air between islands, so pills at rest are drawn exactly as they are
     // and only one on the move ever reaches its neighbour.
     property real reach: Theme.pillSpread
+    // Or one reach per box, for glass whose boxes move on their own: each
+    // box reaches for the ones before it, so a box goes after the one it
+    // joins. The first number is unused.
+    property vector4d reaches: Qt.vector4d(reach, reach, reach, reach)
     property real lineWidth: Theme.pillBorder
 
     // The colours a Pill's own slab and Rim would have used, straight alpha.
