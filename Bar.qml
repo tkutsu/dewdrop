@@ -195,18 +195,20 @@ PanelWindow {
     // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
     // Going away, a pill first lets its contents go, then pulls its far end in
-    // until it is round, then travels into the neighbour on its inner side and
+    // until it is round, and travels into the neighbour on its inner side and
     // shrinks inside it; the neck between the two is the glass itself, joining
-    // as they come within a spread of each other. Arriving is the same run
-    // backwards. `edge` is the neighbour's facing edge, `dir` which way the
-    // pill lies from it (1 right, -1 left), `width` the pill at rest.
+    // as they come within half a spread of each other. The travel starts while
+    // the pill is still pulling in, so the neck catches it still a short
+    // capsule rather than already a ball. Arriving is the same run backwards.
+    // `edge` is the neighbour's facing edge, `dir` which way the pill lies
+    // from it (1 right, -1 left), `width` the pill at rest.
     function drop(edge, dir, width, reveal) {
         if (reveal <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const t = 1 - reveal;
         const height = Theme.barHeight;
         const round = bar.ease((t - bar.settle) / 0.45);
-        const travel = bar.ease((t - 0.5) / 0.5);
+        const travel = bar.ease((t - 0.3) / 0.7);
         const shrink = 1 - 0.3 * travel;
         const w = Math.max(height, width - (width - height) * round) * shrink;
         const h = height * shrink;
