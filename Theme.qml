@@ -437,6 +437,12 @@ Singleton {
     // at 16% a jump across the strip would carry the mark most of a
     // workspace past the one it is going to.
     readonly property real markDamping: 0.26
+    // The mark running into an end of the pill: how far past the wall the
+    // spring has to carry it to press it flat, and how much taller the glass
+    // piled against the wall stands, each side, once it is. Held to what
+    // keeps that bulb inside the pill's round end, rim and all.
+    readonly property real markPress: 6
+    readonly property real markBulge: 1.5
 
     // The workspaces you are not on, a little under the one you are: their
     // letters and icons, not their counts, so a number stays as legible as
