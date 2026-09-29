@@ -37,6 +37,9 @@ layout(std140, binding = 0) uniform buf {
     // nothing is drawn above or below them.
     float rimFrom;
     float rimTo;
+    // How much of a lip the glass has, 0..1 (see main). None is the plain
+    // rim, lit top to bottom, that a Pill's Rim draws.
+    float lip;
 };
 
 float box(vec2 p, vec4 b) {
@@ -100,13 +103,15 @@ void main() {
                   glass(p + vec2(0.0, 0.5)) - glass(p - vec2(0.0, 0.5)));
     n = length(n) > 0.0 ? normalize(n) : vec2(0.0, -1.0);
 
-    // Lit from straight above (y runs down): an edge takes the light by as
-    // much as it faces up, the top in full and the round ends by how far
-    // they turn towards it, the same on both sides. Wide enough that an end
-    // facing sideways keeps about the light it had from the old top-to-bottom
-    // gradient, so the pill's outline holds on a dark wallpaper.
-    float key = smoothstep(-0.6, 0.9, -n.y);
-    vec4 rim = mix(rimBottom, rimTop, key);
+    // The plain rim is lit by height, bright along the top and fading by the
+    // bottom, the way Rim.qml draws it. Glass with a lip is lit from straight
+    // above instead (y runs down): an edge takes the light by as much as it
+    // faces up, the top in full and the round ends by how far they turn
+    // towards it. Wide enough that an end facing sideways keeps about the
+    // light the plain rim gave it, so the outline holds on a dark wallpaper.
+    vec4 plain = mix(rimTop, rimBottom, clamp((p.y - rimFrom) / (rimTo - rimFrom), 0.0, 1.0));
+    vec4 lit = mix(rimBottom, rimTop, smoothstep(-0.6, 0.9, -n.y));
+    vec4 rim = mix(plain, lit, lip);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
@@ -114,10 +119,10 @@ void main() {
     float inner = clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     float band = shape - inner;
 
-    // The glass's thickness: the rim's light carried a few pixels in and
-    // dying away, so the edge reads as a rounded lip and not a drawn line.
+    // The lip: the rim's light carried a few pixels in and dying away, so
+    // the edge reads as a rounded piece of glass and not a drawn line.
     float depth = max(-d - lineWidth, 0.0);
-    float glowA = rim.a * inner * exp(-depth / 3.5);
+    float glowA = lip * rim.a * inner * exp(-depth / 3.5);
 
     // Fill, then the glow over it, then the rim over both, premultiplied.
     float a = fill.a * shape;

@@ -192,15 +192,13 @@ ClickArea {
     // The pin mark: the badge's disc on the lower right corner, where the
     // badge takes the upper. It stays inside the pill, because the bar's
     // surface ends at the pill's bottom edge and anything past it is cut off.
-    Rectangle {
+    Item {
         readonly property int size: Theme.pinMarkSize
 
         x: Math.round(layout.x + layout.width - size / 2)
         y: Theme.pillTop(root.height) + Theme.barHeight - size - 1
         width: size
         height: size
-        radius: size / 2
-        color: Theme.badgeBg
         opacity: root.pinKey !== "" && root.marksPin && DrawerPins.pinned(root.pinKey) ? 1 : 0
         visible: opacity > 0
 
@@ -210,10 +208,14 @@ ClickArea {
             }
         }
 
-        Rim {
+        Liquid {
             anchors.fill: parent
-            radius: parent.radius
-            topColor: Theme.markRimTop
+            box0: Qt.vector4d(0, 0, width, height)
+            fill: Qt.vector4d(Theme.badgeBg.r, Theme.badgeBg.g, Theme.badgeBg.b, Theme.badgeBg.a)
+            rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
+            rimFrom: 0
+            rimTo: height
+            lip: 1
         }
 
         Glyph {

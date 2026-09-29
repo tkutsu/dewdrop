@@ -33,16 +33,15 @@ Item {
     implicitWidth: Math.max(Theme.badgeSize, Math.ceil(label.implicitWidth) + pad * 2)
     implicitHeight: Theme.badgeSize
 
-    Rectangle {
+    // The mark's glass, lip and all.
+    Liquid {
         anchors.fill: parent
-        radius: height / 2
-        color: root.fill
-
-        Rim {
-            anchors.fill: parent
-            radius: parent.radius
-            topColor: Theme.markRimTop
-        }
+        box0: Qt.vector4d(0, 0, width, height)
+        fill: Qt.vector4d(root.fill.r, root.fill.g, root.fill.b, root.fill.a)
+        rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
+        rimFrom: 0
+        rimTo: height
+        lip: 1
     }
 
     RollingText {
