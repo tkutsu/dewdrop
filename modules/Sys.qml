@@ -62,6 +62,11 @@ BarItem {
         // longer than the tube, because it runs on through the ring's missing
         // top row to reach the ball.
         readonly property int bore: join + 2 - wall
+        // The glass is a step dimmer than the glyphs' Theme.fg. The font's
+        // strokes reach fg only in their core, with a quarter-strength pixel
+        // softening each edge; a wall drawn without antialiasing is all hard
+        // edge, and at the same alpha it read as the whitest icon on the bar.
+        readonly property color glass: Qt.rgba(1, 1, 1, 0.75)
 
         implicitWidth: bulb
         implicitHeight: join + bulb
@@ -81,7 +86,7 @@ BarItem {
                 height: tube.join + 6
                 color: "transparent"
                 border.width: tube.wall
-                border.color: Theme.fg
+                border.color: tube.glass
                 topLeftRadius: tube.stem / 2
                 topRightRadius: tube.stem / 2
                 antialiasing: false
@@ -105,7 +110,7 @@ BarItem {
                 radius: tube.bulb / 2
                 color: "transparent"
                 border.width: tube.wall
-                border.color: Theme.fg
+                border.color: tube.glass
                 antialiasing: false
 
                 // The ball is the first steps of the reading rather than part
