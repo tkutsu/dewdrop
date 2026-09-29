@@ -176,7 +176,7 @@ ClickArea {
     Rectangle {
         readonly property int size: Theme.pinMarkSize
 
-        x: layout.x + layout.width - size / 2
+        x: Math.round(layout.x + layout.width - size / 2)
         y: Theme.pillTop(root.height) + Theme.barHeight - size - 1
         width: size
         height: size
