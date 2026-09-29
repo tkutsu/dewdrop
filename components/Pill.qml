@@ -88,18 +88,25 @@ Item {
     // height — it is inside the margin the pill already claims.
     readonly property real trackBleed: 0.5
     readonly property real trackInset: Theme.pillTrack / 2 - trackBleed
-    // The slab's own corner, brought in by the same inset as the rest of the
-    // path so the line stays concentric with the edge it stands inside. Read
-    // from the constant rather than from the height: the two agree only while
-    // the pills are fully round, and the ends are where they would come apart
-    // — a squarer slab with a lozenge drawn round it. Clamped to the half
-    // height Qt clamps the slab's own radius to, so neither can outrun it.
-    readonly property real trackRadius: Math.min(Theme.pillRadius, slab.height / 2) - trackInset
-    readonly property real trackMiddle: slab.height / 2
+    // Except along the foot, where the bar's surface ends on the slab's edge
+    // and anything past it is cut: the bleed there was cut with it, and left
+    // the line a pixel wide along the bottom and half again that along the
+    // top. There is no fringe for it to cover at a cut edge, so the line
+    // stands wholly inside instead.
+    readonly property real trackFootInset: Theme.pillTrack / 2
+    // The slab's own corner, brought in by the path's insets so the line
+    // stays concentric with the edge it stands inside: by the mean of the two,
+    // top and foot, which on fully round ends is the circle through both.
+    // Read from the constant rather than from the height: the two agree only
+    // while the pills are fully round, and the ends are where they would come
+    // apart — a squarer slab with a lozenge drawn round it. Clamped to the
+    // half height Qt clamps the slab's own radius to, so neither can outrun it.
+    readonly property real trackRadius: Math.min(Theme.pillRadius, slab.height / 2) - (trackInset + trackFootInset) / 2
+    readonly property real trackMiddle: (trackInset + slab.height - trackFootInset) / 2
     // The four straight edges and the four corners, which between them are one
     // circle. Fully round ends take the two vertical edges to nothing and
     // leave a line up each side of length zero.
-    readonly property real trackLength: 2 * (slab.width - 2 * trackInset - 2 * trackRadius) + 2 * (slab.height - 2 * trackInset - 2 * trackRadius) + 2 * Math.PI * trackRadius
+    readonly property real trackLength: 2 * (slab.width - 2 * trackInset - 2 * trackRadius) + 2 * (slab.height - trackInset - trackFootInset - 2 * trackRadius) + 2 * Math.PI * trackRadius
 
     // How fast `progress` runs on its own, per second, while whatever it
     // measures is running; 0 while it stands still. The owner only says where
@@ -257,13 +264,13 @@ Item {
         // that has played. The light goes on after the two are laid together,
         // so where they overlap the played line covers this one rather than
         // adding to it. A ring on the same edges as the stroke: out by the
-        // bleed, and as wide as the line.
+        // bleed but for the foot, and as wide as the line.
         Rim {
             x: track.room - root.trackBleed
             y: track.room - root.trackBleed
             width: slab.width + 2 * root.trackBleed
-            height: slab.height + 2 * root.trackBleed
-            radius: Math.min(Theme.pillRadius, slab.height / 2) + root.trackBleed
+            height: slab.height + root.trackBleed
+            radius: root.trackRadius + Theme.pillTrack / 2
             lineWidth: Theme.pillTrack
             topColor: Qt.rgba(root.trackColor.r, root.trackColor.g, root.trackColor.b, Theme.pillTrackRest)
             bottomColor: topColor
@@ -326,22 +333,22 @@ Item {
                 }
                 PathLine {
                     x: slab.width - root.trackInset
-                    y: slab.height - root.trackInset - root.trackRadius
+                    y: slab.height - root.trackFootInset - root.trackRadius
                 }
                 PathArc {
                     x: slab.width - root.trackInset - root.trackRadius
-                    y: slab.height - root.trackInset
+                    y: slab.height - root.trackFootInset
                     radiusX: root.trackRadius
                     radiusY: root.trackRadius
                     direction: PathArc.Clockwise
                 }
                 PathLine {
                     x: root.trackInset + root.trackRadius
-                    y: slab.height - root.trackInset
+                    y: slab.height - root.trackFootInset
                 }
                 PathArc {
                     x: root.trackInset
-                    y: slab.height - root.trackInset - root.trackRadius
+                    y: slab.height - root.trackFootInset - root.trackRadius
                     radiusX: root.trackRadius
                     radiusY: root.trackRadius
                     direction: PathArc.Clockwise
