@@ -82,16 +82,25 @@ Singleton {
     // and exactly as tall as the app icons it holds.
     readonly property int markInset: 2
 
-    // One gap between things that stand on their own: modules, tray icons, one
-    // workspace and the next. Measured icon to icon — a badge floats in the gap
-    // rather than claiming layout width, so a counted module sits exactly as far
-    // from its neighbour as an uncounted one does. On the 4pt grid with
-    // everything else.
+    // One gap between things that stand on their own: modules and tray icons.
+    // Measured icon to icon — a badge floats in the gap rather than claiming
+    // layout width, so a counted module sits exactly as far from its neighbour
+    // as an uncounted one does. On the 4pt grid with everything else.
     readonly property int gap: 16
+
+    // One workspace and the next, which are not loose modules but the items
+    // of a menu bar: the mark reaches past its workspace by the pill's pad
+    // less its inset, and the gap is twice that, so the mark's edge falls
+    // halfway to the neighbour and the marks of two neighbours would meet
+    // edge to edge. At `gap` the mark stood closer to the next workspace
+    // than to its own.
+    readonly property int workspaceGap: (pillPad - markInset) * 2
 
     // Inside a workspace, its number and window icons sit tighter than that, so
     // the workspace reads as one thing rather than as a run of loose icons.
-    readonly property int appIconGap: 3
+    // Ink to ink: the icons' boxes follow their artwork and the number is laid
+    // out on its ink, so every digit sits as far from its icons as any other.
+    readonly property int appIconGap: 4
 
     // The music pill's three controls are one instrument rather than three
     // modules that happen to be neighbours, so they sit closer than `gap` —
@@ -155,7 +164,7 @@ Singleton {
     // label beside an icon doesn't outweigh the icon; kept as its own name
     // because it is a different question from the bar's text.
     readonly property int labelSize: 12
-    // The workspace letters: a step under the clock, so they read as marks
+    // The workspace numbers: a step under the clock, so they read as marks
     // on the taskbar rather than as words beside its icons.
     readonly property int workspaceTextSize: 11
     readonly property int glyphSize: 16
@@ -203,6 +212,16 @@ Singleton {
     // (see pillTop), so badges line up across the bar whatever size the icon
     // beneath them is.
     readonly property int badgeLine: 8
+
+    // The dot under the taskbar icon holding the focused window, the way the
+    // Dock marks a running app: small enough to read as a mark rather than a
+    // shape, and hung on a line of its own from the top of the pill, below
+    // the icons' ink and inside the workspace mark.
+    readonly property int focusDotSize: 3
+    readonly property real focusDotLine: 19.5
+    // The gap cut out of the icon's artwork round the dot, so the two never
+    // touch.
+    readonly property real focusDotClearance: 1.5
 
     // The pin mark on a pinned module's lower right corner, shown while the
     // drawer is open: the badge's dark disc a size down, since it answers a
@@ -329,10 +348,14 @@ Singleton {
     // One step past it: a toggle that is on, or the pointer on a button that
     // already sits on a selection fill (the notification centre's).
     readonly property color selectionStrong: Qt.rgba(1, 1, 1, 0.2)
-    // The workspace mark as it lands on screen — the strong step laid over
-    // the pill's fill — flattened into one colour for anything that has to
-    // look like the mark from a single layer of its own (a workspace's badges).
-    readonly property color markBg: over(selectionStrong, barBg)
+    // The workspace mark while a press is held on the strip: the glass lifts
+    // towards the pointer, and a lifted piece of glass catches more light.
+    readonly property color markLifted: Qt.rgba(1, 1, 1, 0.28)
+    // The mark's own edge. It is glass laid on the pill's glass, and without
+    // a rim of its own it read as a stain in the pill rather than a piece on
+    // it. A step brighter along the top than the pill's rim, so the two lines
+    // read as two surfaces rather than one line drawn twice.
+    readonly property color markRimTop: Qt.rgba(1, 1, 1, 0.25)
 
     // One translucent colour laid over another, the way the compositor stacks
     // them.
@@ -340,6 +363,11 @@ Singleton {
         const a = top.a + bottom.a * (1 - top.a);
         const mix = (t, b) => (t * top.a + b * bottom.a * (1 - top.a)) / a;
         return Qt.rgba(mix(top.r, bottom.r), mix(top.g, bottom.g), mix(top.b, bottom.b), a);
+    }
+
+    // The way from one colour to another, `t` of it along.
+    function mix(from, to, t) {
+        return Qt.rgba(from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t, from.b + (to.b - from.b) * t, from.a + (to.a - from.a) * t);
     }
 
     // Outlines round a thing you can pick — the wallpaper popup's thumbnails
@@ -417,10 +445,28 @@ Singleton {
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
-    // The workspace mark flowing from one workspace to the next: its front
-    // end arrives in the first 60% of this, about when a fade would have, and
-    // the back end is still being drawn in after it.
+    // The workspace mark flowing from one workspace to the next: its back end
+    // lets go a fifth of the way into this and is drawn in over the rest,
+    // behind a front end that runs on a spring (markDamping).
     readonly property int markMs: 420
+    // That spring: springStiffness with SwiftUI's plain .bouncy damping,
+    // which arrives in about 250 ms — when the front end used to — and
+    // overshoots 4.7% before it settles (measured, 2026-09-29). Not the music
+    // pill's extra bounce: the overshoot is a share of the distance run, and
+    // at 16% a jump across the strip would carry the mark most of a
+    // workspace past the one it is going to.
+    readonly property real markDamping: 0.26
+    // The mark running into an end of the pill: how far past the wall the
+    // spring has to carry it to press it flat, and how much taller the glass
+    // piled against the wall stands, each side, once it is. Held to what
+    // keeps that bulb inside the pill's round end, rim and all.
+    readonly property real markPress: 6
+    readonly property real markBulge: 1.5
+
+    // The workspaces you are not on, a little under the one you are: their
+    // letters and icons, not their counts, so a number stays as legible as
+    // it was.
+    readonly property real restOpacity: 0.75
 
     // Something folding into or out of a pill (the right pill's drawer).
     // Longer than a fade, because this one moves
@@ -523,10 +569,6 @@ Singleton {
     // --- glyphs --------------------------------------------------------------
     // Lifted verbatim from config.jsonc and the scripts it called, by codepoint
     // so nothing is lost to a copy/paste through a non-symbol font.
-    // The workspace labels: the alphabet in order, α for the first key on
-    // the number row and κ for the tenth. The alphabet rather than the Greek
-    // numerals, which would put ϛ at six, and Inter has no ϛ.
-    readonly property var workspaceLetters: ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ"]
 
     // A drawing, by file rather than by name, from the copies in icons/ beside
     // this file (its README says where each came from), so the config does not

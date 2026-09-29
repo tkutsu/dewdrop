@@ -25,6 +25,12 @@ BarItem {
     stowed: !Mpd.loaded || !Settings.moduleOn("music")
     folds: false
 
+    // And the popup goes with it: mpd put down from the popup's own quit
+    // button, or the queue emptied, would otherwise leave it hanging from a
+    // pill that is no longer there.
+    onStowedChanged: if (stowed)
+        OpenPopup.close(root)
+
     // Whether a change is run rather than set: only for a pill at rest. One
     // arriving or leaving is drawn off its width at rest (see Bar.drop), and
     // its contents are hidden anyway.
@@ -179,7 +185,9 @@ BarItem {
     // Each part brings its own gap, so that the hands can take theirs with
     // them as they fold.
     spacing: 0
-    popup: MusicPopup {}
+    popup: MusicPopup {
+        accent: root.accent
+    }
     // The title opens it (below), not the whole pill.
     popupButton: Qt.NoButton
     // Each target presses in by itself; the pill as a whole does not.

@@ -1025,13 +1025,10 @@ Singleton {
         return rows.slice(0, root.maxResults);
     }
 
-    // What the bar calls a workspace: its letter, for the ten on the number
-    // row (see modules/Workspaces.qml), and its name for anything else.
+    // What the bar calls a workspace: its name, which for the ten on the
+    // number row is the key that reaches it (see modules/Workspaces.qml).
     function workspaceLabel(ws) {
-        const name = ws.name ?? "";
-        if (/^[0-9]$/.test(name))
-            return Theme.workspaceLetters[name === "0" ? 9 : Number(name) - 1];
-        return name.replace(/^special:/, "");
+        return (ws.name ?? "").replace(/^special:/, "");
     }
 
     // The same search the taskbar makes (components/AppIcon.qml): the desktop

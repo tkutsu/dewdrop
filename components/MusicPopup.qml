@@ -16,6 +16,9 @@ Popup {
     // to put in the gutter and the position has not, which is not a reason for
     // the two of them to start in different places.
     readonly property int gutter: 16
+    // The pill's colour for the track, taken off the sleeve (Music.accent),
+    // so the position here is the same line as the one round the pill.
+    property color accent: Theme.fg
     // Wide enough for both figures of the longest track anyone is likely to
     // queue, so the track beside it does not shorten as the numbers grow.
     readonly property int readoutWidth: 84
@@ -47,7 +50,7 @@ Popup {
     // instead. There is nothing left to miss into now.
     readonly property int buttonWidth: 20
 
-    // Whether the power button in the header has been pressed once. See the
+    // Whether the quit button in the header has been pressed once. See the
     // button itself for why it takes two.
     property bool quitArmed: false
 
@@ -171,9 +174,9 @@ Popup {
                 }
 
                 // The way to put something else on: the launcher's & mode,
-                // which has the whole library. Beside the power button, as
+                // which has the whole library. Beside the quit button, as
                 // every popup under the bar keeps its plus at the right end of
-                // its top line; the power button asks twice, so a plus that
+                // its top line; the quit button asks twice, so a plus that
                 // misses does not end anything.
                 PopupButton {
                     id: add
@@ -198,9 +201,8 @@ Popup {
 
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    width: root.buttonWidth
-                    height: root.rowHeight
-                    glyph: root.quitArmed ? Theme.glyph.powerConfirm : Theme.glyph.powerShutdown
+                    framed: true
+                    glyph: root.quitArmed ? Theme.glyph.check : Theme.glyph.close
                     warn: root.quitArmed
                     onTapped: {
                         if (root.quitArmed)
@@ -257,6 +259,10 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
+                    knob: false
+                    fill: root.accent
+                    // Ten seconds a notch, down going on, the same as the pill.
+                    wheelStep: Mpd.duration > 0 ? -10 / Mpd.duration : 0
                     onMoved: value => Mpd.seekTo(value)
                 }
 
@@ -301,6 +307,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     value: Math.max(0, Mpd.volume) / 100
+                    wheelStep: 0.05
                     onMoved: value => Mpd.setVolume(value)
                 }
 
