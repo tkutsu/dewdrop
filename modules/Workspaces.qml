@@ -87,13 +87,12 @@ BarItem {
         // The glass reaches a pad past either end of the strip, because the
         // mark does.
         //
-        // The head runs on a spring, so it carries a little past where it is
-        // going and comes back. At either end of the strip that runs it into
-        // the pill's own end, which cuts it off, and the glass reads as
-        // pressing against a wall and bulging there. In the middle there is
-        // no wall, and the same overshoot spilled into the next workspace,
-        // so there the workspace's far edge stands in for one (frontLeft,
-        // frontRight).
+        // The head runs on a spring, so it carries a little past the
+        // workspace and comes back, and the mark stands a touch long for a
+        // moment before it settles, the way a drop's momentum does. At the
+        // ends of the strip that would carry it out through the pill's own
+        // end, so there the end is a wall: the head stops against it and the
+        // rest of the run piles up against it as a bulb (see press).
         Liquid {
             id: mark
 
@@ -174,29 +173,37 @@ BarItem {
                 }
             }
 
-            // Where each end of the head set off from, which says which side
-            // of its workspace it is coming from and so which side is past it.
-            // Read before the spring has taken a step: a Behavior only
-            // starts its animation on a change, it does not move the value.
-            property real headFromLeft
-            property real headFromRight
-            onWantLeftChanged: headFromLeft = headLeft
-            onWantRightChanged: headFromRight = headRight
+            // The pill's ends, as walls for the head. A pixel short of the
+            // slab's edge, so the pill's rim stays in view outside the glass
+            // pressed against it. Only at the first and last workspace: in
+            // the middle of the strip the overshoot has room to run.
+            readonly property bool atFirst: strip.selected !== null && strip.selected.index === 0
+            readonly property bool atLast: strip.selected !== null && strip.selected.index === workspaces.count - 1
+            readonly property real wallLeft: wantLeft - inset + Theme.pillBorder
+            readonly property real wallRight: wantRight + inset - Theme.pillBorder
 
-            // Whether the workspace the mark is going to backs onto an end
-            // of the strip, where the pill's end is the wall.
-            readonly property bool walled: strip.selected !== null && (strip.selected.index === 0 || strip.selected.index === workspaces.count - 1)
+            readonly property real frontLeft: atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift
+            readonly property real frontRight: atLast ? Math.min(headRight + lift, wallRight) : headRight + lift
 
-            // An end of the head, held at its workspace's edge rather than
-            // carried past it, unless the pill's end is doing that already.
-            function front(value, want, from) {
-                if (walled)
-                    return value;
-                return from <= want ? Math.min(value, want) : Math.max(value, want);
+            // How far past a wall the spring would have carried the head, on
+            // whichever side it is pressing.
+            readonly property real pastLeft: atFirst ? wallLeft - (headLeft - lift) : 0
+            readonly property real pastRight: atLast ? headRight + lift - wallRight : 0
+
+            // How hard the head is pressed into the wall, 0..1, eased out so
+            // the glass gives quickly at first and then stiffens. It comes
+            // out as a bulb of glass against the wall, taller than the rest
+            // of the mark, the way a drop run into something piles up where
+            // it hit rather than swelling all along.
+            readonly property real press: {
+                const t = Math.min(1, Math.max(pastLeft, pastRight, 0) / Theme.markPress);
+                return 1 - (1 - t) * (1 - t);
             }
-
-            readonly property real frontLeft: front(headLeft, wantLeft, headFromLeft)
-            readonly property real frontRight: front(headRight, wantRight, headFromRight)
+            readonly property real bulbEdge: Math.max(0, edge - Theme.markBulge * press)
+            readonly property real bulbTop: Theme.pillTop(strip.height) + Theme.pillBorder + bulbEdge
+            readonly property real bulbThickness: Theme.barHeight - Theme.pillBorder - bulbEdge * 2
+            readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
+            readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
 
             readonly property real headMid: (frontLeft + frontRight) / 2
             readonly property real tailMid: (tailLeft + tailRight) / 2
@@ -212,19 +219,27 @@ BarItem {
             height: strip.height
 
             box0: Qt.vector4d(tailLeft - lift, slabTop, tailRight - tailLeft + lift * 2, thickness)
-            box1: Qt.vector4d(frontLeft - lift, slabTop, frontRight - frontLeft + lift * 2, thickness)
+            box1: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
             box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
 
             // At rest the head lies on the tail, and a reach would swell the
             // two into something fatter than either; it comes up only as they
             // part.
             reach: Theme.pillSpread * Math.min(1, apart / thickness)
+            box3: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
+            // The bulb joins the head with a small reach of its own: enough
+            // to round the step between the two, and short enough that the
+            // swell a join adds (a quarter of the reach) stays inside the
+            // pixel between the wall and the pill's edge.
+            reaches: Qt.vector4d(reach, reach, reach, 3 * press)
             // The strong step, not a popup row's hover: on a pill this thin
             // over a bright wallpaper, the row fill was barely there.
             fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
             rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
-            rimFrom: slabTop
-            rimTo: slabTop + thickness
+            // The bulb's band, which is the rest of the mark's or taller when
+            // it bulges.
+            rimFrom: bulbTop
+            rimTo: bulbTop + bulbThickness
         }
 
         RowLayout {
