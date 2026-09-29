@@ -170,7 +170,7 @@ PanelWindow {
         box1: bar.countdownDrop
         box2: bar.noticeDrop
         box3: bar.musicDrop
-        reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal), bar.dropReach(notice.reveal), bar.dropReach(music.reveal))
+        reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal, countdown.stowed), bar.dropReach(notice.reveal, notice.stowed), bar.dropReach(music.reveal, music.stowed))
     }
 
     Pill {
@@ -201,12 +201,11 @@ PanelWindow {
     // the clock), and each pill's share of it is a box worked out by `drop`
     // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
-    // Going away, a pill first lets its contents go, then pulls its far end in
-    // until it is round. Meanwhile it is drawn to the neighbour on its inner
-    // side, faster the closer it gets, the way a drop is; the neck between the
-    // two — the glass itself — holds as a waist for a moment, then the pill
-    // runs into the neighbour and shrinks inside it, and the neighbour's end
-    // swells with it and settles (bar.lip).
+    // Going away, a pill first lets its contents go, then rushes at the
+    // neighbour on its inner side while it pulls its far end in, and takes
+    // hold of it early, still a capsule: the neck between the two is the glass
+    // itself. Then it sinks in slowly, shrinking as it goes, and once it is
+    // under the neighbour's end that end swells with it and settles (bar.lip).
     //
     // Arriving is not the same run backwards: liquid joins in a hurry and
     // parts reluctantly. The pill comes out of its neighbour round, the neck
@@ -219,10 +218,17 @@ PanelWindow {
             return Qt.vector4d(0, 0, 0, 0);
         const t = 1 - reveal;
         const height = Theme.barHeight;
-        const c = Math.max(0, Math.min(1, (t - 0.25) / 0.4));
-        const close = leaving ? c * c : bar.ease((t - 0.25) / 0.5);
-        const plunge = bar.ease((t - (leaving ? 0.6 : 0.65)) / 0.35);
-        const out = leaving ? 1 - bar.ease((t - bar.settle) / 0.4) : bar.spring((0.5 - t) / 0.3);
+        let close, plunge, out;
+        if (leaving) {
+            const c = Math.max(0, Math.min(1, (t - bar.settle) / 0.3));
+            close = 1 - (1 - c) * (1 - c);
+            plunge = bar.ease((t - 0.45) / 0.55);
+            out = 1 - bar.ease((t - bar.settle) / 0.45);
+        } else {
+            close = bar.ease((t - 0.25) / 0.5);
+            plunge = bar.ease((t - 0.65) / 0.35);
+            out = bar.spring((0.5 - t) / 0.3);
+        }
         const shrink = 1 - 0.3 * plunge;
         const w = (height + (width - height) * out) * shrink;
         const h = height * shrink;
@@ -231,21 +237,23 @@ PanelWindow {
     }
 
     // How far the neighbour's end is pushed out by a drop at a given
-    // `reveal`: swelling as a drop goes in and wobbling back, or giving a
-    // little the other way as one lets go of it.
+    // `reveal`. Going in, the drop is under the end by 0.75, and the end
+    // swells a few pixels after it and wobbles back; any sooner and the drop
+    // still covers it. Letting go, the end gives a little the other way.
     function lip(reveal, leaving) {
         const t = 1 - reveal;
-        return leaving ? bar.wobble((t - 0.6) / 0.4, 6) : bar.wobble((0.45 - t) / 0.3, -3);
+        return leaving ? bar.wobble((t - 0.8) / 0.2, 7) : bar.wobble((0.45 - t) / 0.3, -3);
     }
 
     // How far a drop reaches for its neighbour. At rest, the air between
     // them, so the two are drawn exactly as they are. Half again as far while
     // it is on the move, so the neck takes hold while the pill is still a
-    // capsule, and back to the air by the time it is inside, so nothing jumps
-    // when it goes.
-    function dropReach(reveal) {
+    // capsule — as soon as it sets off, going in — and back to the air by the
+    // time it is inside, so nothing jumps when it goes.
+    function dropReach(reveal, leaving) {
         const t = 1 - reveal;
-        return Theme.pillSpread * (1 + 0.5 * bar.ease((t - 0.25) / 0.3) * (1 - bar.ease((t - 0.8) / 0.2)));
+        const reaching = leaving ? bar.ease((t - bar.settle) / 0.2) : bar.ease((t - 0.25) / 0.3);
+        return Theme.pillSpread * (1 + 0.5 * reaching * (1 - bar.ease((t - 0.8) / 0.2)));
     }
 
     // How much of a pill's contents show at a given `reveal`, and its outline
