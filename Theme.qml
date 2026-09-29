@@ -45,8 +45,10 @@ Singleton {
 
     // How far inside a pill its contents start. It has to clear the rounded end
     // — anything less and the first numeral sits in the curve — and it is what
-    // separates two pills' contents on top of the gap between the pills.
-    readonly property int pillPad: 10
+    // separates two pills' contents on top of the gap between the pills. The
+    // radius exactly, so contents start where the curve ends and the straight
+    // run begins, the way Apple insets a capsule button's label.
+    readonly property int pillPad: pillRadius
 
     // A popup is a slab hung off a pill rather than a pill itself, so it gets a
     // corner rather than a round end. Three sizes: a popover (the calendar,
@@ -83,8 +85,9 @@ Singleton {
     // One gap between things that stand on their own: modules, tray icons, one
     // workspace and the next. Measured icon to icon — a badge floats in the gap
     // rather than claiming layout width, so a counted module sits exactly as far
-    // from its neighbour as an uncounted one does.
-    readonly property int gap: 15
+    // from its neighbour as an uncounted one does. On the 4pt grid with
+    // everything else.
+    readonly property int gap: 16
 
     // Inside a workspace, its number and window icons sit tighter than that, so
     // the workspace reads as one thing rather than as a run of loose icons.
@@ -127,7 +130,10 @@ Singleton {
     // cleanly at some pixel sizes — 11 and 13 come out thin and fuzzy, 12 and 14
     // land on the grid — so the 90%/110%/120% spans in config.jsonc are
     // resolved here once instead of rounding into a blurry 13 at each call site.
-    readonly property int textSize: 12
+    //
+    // The bar's text is SF, not the symbol font, so none of that applies to
+    // it: 13 is the size macOS sets its menu bar in.
+    readonly property int textSize: 13
     // The popups' secondary lines — a notification's app and age, the
     // launcher's right-hand hint, a list's rows — one step under their body
     // text (popupTextSize), and moving with it.
@@ -139,9 +145,9 @@ Singleton {
     // enough to show a file's shape rather than to be read line by line.
     readonly property int previewTextSize: 9
     // Text that has to hold its own in a row of icons rather than stand alone
-    // (the language label, the launcher's rows). The same 12 as textSize now
-    // that the bar's text came down to 12 too; kept as its own name because
-    // it is a different question, and the two have differed before.
+    // (the language label, the launcher's rows). A step under textSize, so a
+    // label beside an icon doesn't outweigh the icon; kept as its own name
+    // because it is a different question from the bar's text.
     readonly property int labelSize: 12
     // The workspace letters: a step under the clock, so they read as marks
     // on the taskbar rather than as words beside its icons.
