@@ -196,8 +196,9 @@ BarItem {
     readonly property bool handsOut: root.containsMouse || root.popupOpen
 
     // A hand either side, folding the way a module goes into the drawer: its
-    // room springs shut and the pill's edge passes over the glyph, which stays
-    // put beside the title. Its tap is off while folded, where the glyph sits
+    // room closes on the fold's own curve, with no bounce — the pill opening
+    // to a hover is the pill answering, not a new title arriving — and the
+    // pill's edge passes over the glyph, which stays put beside the title. Its tap is off while folded, where the glyph sits
     // out past the pill's edge.
     Item {
         readonly property real full: prev.implicitWidth + Theme.mediaGap
@@ -205,14 +206,13 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: root.handsOut ? full : 0
         clip: width < full
-        opacity: Math.min(1, width / full)
+        opacity: width / full
 
         Behavior on implicitWidth {
             enabled: root.settled
-            SpringAnimation {
-                spring: Theme.springStiffness
-                damping: Theme.springDamping
-                epsilon: 0.25
+            NumberAnimation {
+                duration: Theme.foldMs
+                easing.type: Easing.InOutCubic
             }
         }
 
@@ -397,14 +397,13 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: root.handsOut ? full : 0
         clip: width < full
-        opacity: Math.min(1, width / full)
+        opacity: width / full
 
         Behavior on implicitWidth {
             enabled: root.settled
-            SpringAnimation {
-                spring: Theme.springStiffness
-                damping: Theme.springDamping
-                epsilon: 0.25
+            NumberAnimation {
+                duration: Theme.foldMs
+                easing.type: Easing.InOutCubic
             }
         }
 
