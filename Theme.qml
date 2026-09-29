@@ -210,6 +210,9 @@ Singleton {
     // the icons' ink and inside the workspace mark.
     readonly property int focusDotSize: 3
     readonly property real focusDotLine: 19.5
+    // The gap cut out of the icon's artwork round the dot, so the two never
+    // touch.
+    readonly property real focusDotClearance: 1.5
 
     // The pin mark on a pinned module's lower right corner, shown while the
     // drawer is open: the badge's dark disc a size down, since it answers a
