@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import qs
 
 // Wallpaper cycling.
@@ -174,6 +175,29 @@ Singleton {
         target: Theme
         property: "tint"
         value: root.tint
+    }
+
+    // --- the window border ------------------------------------------------------
+    // Hyprland's focused border is the same tinted glass, lifted out of the
+    // near black so it still reads as an edge against a dark window.
+    // decoration.lua keeps a neutral grey for while the shell is down, and a
+    // config reload puts that grey back, so the border is sent again after one.
+    readonly property color border: Qt.hsla(Math.max(0, root.tint.hslHue), root.tint.hslSaturation, 0.3, 1)
+
+    function paintBorder() {
+        const rgba = "rgba(" + String(root.border).slice(1) + "ff)";
+        Quickshell.execDetached(["hyprctl", "eval", `hl.config({ general = { col = { active_border = "${rgba}" } } })`]);
+    }
+
+    onBorderChanged: root.paintBorder()
+
+    Connections {
+        target: Hyprland
+
+        function onRawEvent(event) {
+            if (event.name === "configreloaded")
+                root.paintBorder();
+        }
     }
 
     onCurrentChanged: {
@@ -391,5 +415,8 @@ Singleton {
             _random();
     }
 
-    Component.onCompleted: root.rescan()
+    Component.onCompleted: {
+        root.rescan();
+        root.paintBorder();
+    }
 }
