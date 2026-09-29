@@ -224,10 +224,19 @@ Singleton {
     readonly property real focusDotClearance: 1.5
 
     // The pin mark on a pinned module's lower right corner, shown while the
-    // drawer is open: the badge's dark disc a touch larger than the count
-    // badge's, since a pin has no digits to read and needs the ink to show.
-    readonly property int pinMarkSize: 14
-    readonly property int pinGlyphSize: 10
+    // drawer is open: a disc of the workspace mark's glass (selectionStrong,
+    // markRimTop), larger than the count badge since a pin has no digits to
+    // read and needs the ink to show, and lifted off the icon by a shadow.
+    readonly property int pinMarkSize: 16
+    readonly property int pinGlyphSize: 11
+    // How far the disc reaches back over the icon. The count badge can sit
+    // centred on the icon's edge because half of it rides above the pill;
+    // this one has nowhere to go below, so at this size it hangs out into the
+    // gap instead and takes only the icon's corner.
+    readonly property int pinMarkOverlap: 3
+    readonly property color pinShadow: Qt.rgba(0, 0, 0, 0.45)
+    readonly property int pinShadowBlur: 4
+    readonly property int pinShadowY: 1
 
     // Every count on the bar rides the top edge of the pill instead of sitting
     // inside it: half on the slab, half on the margin above, which gives the
