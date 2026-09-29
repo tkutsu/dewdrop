@@ -257,6 +257,8 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
+                    // Ten seconds a notch, the same jump as the wheel on the pill.
+                    wheelStep: Mpd.duration > 0 ? 10 / Mpd.duration : 0
                     onMoved: value => Mpd.seekTo(value)
                 }
 
@@ -301,6 +303,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     value: Math.max(0, Mpd.volume) / 100
+                    wheelStep: 0.05
                     onMoved: value => Mpd.setVolume(value)
                 }
 
