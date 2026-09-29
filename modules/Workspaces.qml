@@ -47,10 +47,9 @@ BarItem {
             return null;
         }
 
-        // A press held anywhere on the strip, on a letter or on an icon.
-        // Read off the buttons, the way `selected` is, rather than off a
-        // handler of the strip's own, which would have to share the press
-        // with the areas that act on it.
+        // A press held on one of the strip's icons. Read off the buttons, the
+        // way `selected` is, rather than off a handler of the strip's own,
+        // which would have to share the press with the areas that act on it.
         readonly property bool held: {
             for (const child of buttons.children)
                 if (child.held === true)
@@ -60,7 +59,7 @@ BarItem {
 
         // The focused workspace sits on a rounded fill, the way the open item
         // on the system's menu bar does: a lighter slab inside the pill,
-        // holding the letter and its icons. It was a rule under the group
+        // holding the number and its icons. It was a rule under the group
         // before that, which is a tab's idiom rather than a menu bar's.
         // Urgency is not its business — the icon of the app that wants you
         // bounces for that, wherever on the strip it is, rather than only on
@@ -99,7 +98,7 @@ BarItem {
             readonly property int inset: Theme.markInset
 
             // How far the glass has come up off the pill, 0..1: a press held
-            // on the strip lifts it a pixel towards the pill's edges and
+            // on an icon lifts it a pixel towards the pill's edges and
             // lights it a step, and letting go drops it back on the spring.
             // A pixel, because the bar's surface ends at the pill's foot and
             // the mark cannot swell past it the way a lens on a phone does.
@@ -263,17 +262,6 @@ BarItem {
                     required property int index
                     readonly property bool active: Hyprland.focusedWorkspace?.id === modelData.id
 
-                    // Greek letters for the ten workspaces of a number row. The
-                    // tenth is named "0" here, which is where κ goes; anything
-                    // named something else keeps its name.
-                    readonly property string letter: {
-                        const name = modelData.name;
-                        if (!/^[0-9]$/.test(name))
-                            return "";
-                        const index = name === "0" ? 9 : Number(name) - 1;
-                        return Theme.workspaceLetters[index];
-                    }
-
                     // One entry per window class, in the order the classes first appear,
                     // so an app does not jump along the row as its windows come and go.
                     readonly property var apps: {
@@ -321,14 +309,13 @@ BarItem {
                     // fill and flattened into the one colour a badge can be.
                     readonly property color badgeFill: Theme.mix(Theme.barBg, Theme.over(mark.tone, Theme.barBg), button.lit)
 
-                    // The letter and icons of a workspace you are not on stand
+                    // The number and icons of a workspace you are not on stand
                     // a little back, and come forward with the mark.
                     readonly property real ink: Theme.restOpacity + (1 - Theme.restOpacity) * button.lit
 
-                    // Held down, on the letter or on one of the icons.
+                    // Held down on one of the icons. A press on the number
+                    // gives no answer of its own: the mark moving over is it.
                     readonly property bool held: {
-                        if (press.pressed)
-                            return true;
                         for (const child of row.children)
                             if (child.pressed === true)
                                 return true;
@@ -346,7 +333,12 @@ BarItem {
                         // nothing in the chain clips, and that is what turns the corner
                         // of the screen into a click on workspace one.
                         anchors.leftMargin: button.index === 0 ? -root.padLeft : 0
-                        onClicked: Hyprland.dispatch(`hl.dsp.focus({ workspace = "${button.modelData.name}" })`)
+                        // By id, the way the number row's keys reach it. The tenth
+                        // is named "0", and focusing it by name asked for a
+                        // workspace 0 that does not exist; back-and-forth then
+                        // took that as a second visit and flipped between the
+                        // last two.
+                        onClicked: Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`)
                     }
 
                     RowLayout {
@@ -355,28 +347,29 @@ BarItem {
                         height: parent.height
                         spacing: Theme.appIconGap
 
+                        // The workspace's name, which for the ten on the number row
+                        // is the key that reaches it: 0 for the tenth, as on the
+                        // keyboard. It stays at one weight, since the mark says
+                        // which workspace is yours and a number that went bold
+                        // would widen the mark as it arrived.
                         BarText {
                             Layout.fillHeight: true
-                            text: button.letter || button.modelData.name
-                            // A letter stays at one weight: the mark says which
-                            // workspace is yours, and a letter that went bold
-                            // would widen the mark as it arrived.
+                            text: button.modelData.name.replace(/^special:/, "")
                             fontSize: Theme.workspaceTextSize
-                            weight: button.letter ? Theme.bodyWeight : (button.active ? Font.DemiBold : Theme.bodyWeight)
                             color: Theme.fg
-                            opacity: letterBounce.running ? 1 : button.ink
+                            opacity: numberBounce.running ? 1 : button.ink
 
-                            transform: Translate { y: letterBounce.offset + (press.pressed ? Theme.pressDip : 0) }
+                            transform: Translate { y: numberBounce.offset }
                         }
 
                         // The fallback, and only that. Urgency belongs on the
-                        // icon of the app that wants you, so the letter moves
+                        // icon of the app that wants you, so the number moves
                         // just when the workspace is shouting and no icon on it
                         // has owned up — an ignored window, or one Hyprland
                         // flagged by workspace without flagging the window.
                         // Otherwise a shouting app would move twice over.
                         Bounce {
-                            id: letterBounce
+                            id: numberBounce
                             running: button.modelData.urgent && !button.apps.some(a => root.anyUrgent(a.addresses))
                         }
 

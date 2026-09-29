@@ -155,7 +155,7 @@ Singleton {
     // label beside an icon doesn't outweigh the icon; kept as its own name
     // because it is a different question from the bar's text.
     readonly property int labelSize: 12
-    // The workspace letters: a step under the clock, so they read as marks
+    // The workspace numbers: a step under the clock, so they read as marks
     // on the taskbar rather than as words beside its icons.
     readonly property int workspaceTextSize: 11
     readonly property int glyphSize: 16
@@ -550,10 +550,6 @@ Singleton {
     // --- glyphs --------------------------------------------------------------
     // Lifted verbatim from config.jsonc and the scripts it called, by codepoint
     // so nothing is lost to a copy/paste through a non-symbol font.
-    // The workspace labels: the alphabet in order, α for the first key on
-    // the number row and κ for the tenth. The alphabet rather than the Greek
-    // numerals, which would put ϛ at six, and Inter has no ϛ.
-    readonly property var workspaceLetters: ["α", "β", "γ", "δ", "ε", "ζ", "η", "θ", "ι", "κ"]
 
     // A drawing, by file rather than by name, from the copies in icons/ beside
     // this file (its README says where each came from), so the config does not
