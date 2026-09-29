@@ -224,10 +224,10 @@ Singleton {
     readonly property real focusDotClearance: 1.5
 
     // The pin mark on a pinned module's lower right corner, shown while the
-    // drawer is open: the badge's dark disc a size down, since it answers a
-    // question you only ask with the drawer out.
-    readonly property int pinMarkSize: 10
-    readonly property int pinGlyphSize: 7
+    // drawer is open: the badge's dark disc a touch larger than the count
+    // badge's, since a pin has no digits to read and needs the ink to show.
+    readonly property int pinMarkSize: 14
+    readonly property int pinGlyphSize: 10
 
     // Every count on the bar rides the top edge of the pill instead of sitting
     // inside it: half on the slab, half on the margin above, which gives the
