@@ -124,6 +124,12 @@ Singleton {
     // half-pixel bleed, 1.5 is one whole pixel inside the edge plus the bleed,
     // so the inner edge lands on the grid (2 left it straddling a pixel).
     readonly property real pillTrack: 1.5
+    // Lit from above, like the rims: what is left of its light along the
+    // pill's foot (shaders/track.frag).
+    readonly property real pillTrackFoot: 0.3
+    // The part still to play, as a trace of the same line, the way Apple's
+    // scrubbers keep the rest of the bar in view.
+    readonly property real pillTrackRest: 0.2
 
     // --- type and icon sizes -------------------------------------------------
     // Named rather than scaled off a base size: Symbols Nerd Font only hints

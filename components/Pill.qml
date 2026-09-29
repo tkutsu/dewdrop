@@ -65,6 +65,10 @@ Item {
     // clock at full strength read as the last of the pill to leave.
     property real trackOpacity: 1
 
+    // The colour of that line: white, or whatever colour the thing it
+    // measures has of its own (the music pill's sleeve).
+    property color trackColor: Theme.fg
+
     // Whether the pill draws its own slab. Not for the ones around the clock,
     // whose glass is drawn for all of them at once by the bar (Liquid.qml) so
     // that they can flow into each other; those keep only their contents, and
@@ -221,91 +225,131 @@ Item {
     // played and the gap is everything left. Drawn as a line rather than as a
     // shape revealed by a clip, so it goes round the ends the way a line
     // around a pill has to, instead of filling in from both edges at once.
-    Shape {
+    //
+    // And shaded as the rims are, with the light from above: bright along the
+    // top and faint along the foot. A stroke cannot take a gradient, so the
+    // line is drawn into a layer and the shading is laid over that
+    // (shaders/track.frag). A pixel of
+    // room all round, because the line bleeds half a pixel past the slab and a
+    // layer keeps only what is inside its item.
+    Item {
         id: track
 
-        x: slab.x
-        y: slab.y
-        width: slab.width
-        height: slab.height
-        visible: root.progress >= 0 && root.lit > 0 && opacity > 0
+        readonly property int room: 1
+
+        x: slab.x - room
+        y: slab.y - room
+        width: slab.width + 2 * room
+        height: slab.height + 2 * room
+        visible: root.progress >= 0 && opacity > 0
         // Goes with the outline it stands in for: once the pills have merged
         // into one strip there are no ends for a line to run between.
         opacity: (1 - root.mergeProgress) * root.trackOpacity
-        // The curve renderer, because this is a line on a curve and the
-        // triangulated one leaves steps on the ends.
-        preferredRendererType: Shape.CurveRenderer
 
-        ShapePath {
-            strokeColor: Theme.fg
-            strokeWidth: Theme.pillTrack
-            fillColor: "transparent"
-            // Square ends, so the lit part stops exactly where the track has
-            // got to rather than half a stroke past it. Round ones were tried
-            // (2026-09-28): at 1.5px a round cap is a 0.75px half-disc, and
-            // antialiased it draws the same pixels as a square one.
-            capStyle: ShapePath.FlatCap
-            strokeStyle: root.lit >= root.trackLength ? ShapePath.SolidLine : ShapePath.DashLine
-            // In multiples of the stroke width, which is what a dash pattern
-            // is measured in. Never zero: a zero-length gap is not a dash
-            // pattern Qt will draw.
-            dashPattern: [Math.max(0.001, root.lit / Theme.pillTrack), Math.max(0.001, (root.trackLength - root.lit) / Theme.pillTrack)]
+        layer.enabled: visible
+        layer.effect: ShaderEffect {
+            property real foot: Theme.pillTrackFoot
 
-            // Nine o'clock, and clockwise from there: up the left edge and
-            // round its corner, along the top, down the right edge, back along
-            // the bottom and up to where it started. Four corners with a
-            // straight between each pair, which at a fully round end is a
-            // straight of no length and the same two semicircles as before.
-            startX: root.trackInset
-            startY: root.trackMiddle
+            fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
+        }
 
-            PathLine {
-                x: root.trackInset
-                y: root.trackInset + root.trackRadius
-            }
-            PathArc {
-                x: root.trackInset + root.trackRadius
-                y: root.trackInset
-                radiusX: root.trackRadius
-                radiusY: root.trackRadius
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: slab.width - root.trackInset - root.trackRadius
-                y: root.trackInset
-            }
-            PathArc {
-                x: slab.width - root.trackInset
-                y: root.trackInset + root.trackRadius
-                radiusX: root.trackRadius
-                radiusY: root.trackRadius
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: slab.width - root.trackInset
-                y: slab.height - root.trackInset - root.trackRadius
-            }
-            PathArc {
-                x: slab.width - root.trackInset - root.trackRadius
-                y: slab.height - root.trackInset
-                radiusX: root.trackRadius
-                radiusY: root.trackRadius
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.trackInset + root.trackRadius
-                y: slab.height - root.trackInset
-            }
-            PathArc {
-                x: root.trackInset
-                y: slab.height - root.trackInset - root.trackRadius
-                radiusX: root.trackRadius
-                radiusY: root.trackRadius
-                direction: PathArc.Clockwise
-            }
-            PathLine {
-                x: root.trackInset
-                y: root.trackMiddle
+        // What is still to play: the whole line again, faint, under the part
+        // that has played. The light goes on after the two are laid together,
+        // so where they overlap the played line covers this one rather than
+        // adding to it. A ring on the same edges as the stroke: out by the
+        // bleed, and as wide as the line.
+        Rim {
+            x: track.room - root.trackBleed
+            y: track.room - root.trackBleed
+            width: slab.width + 2 * root.trackBleed
+            height: slab.height + 2 * root.trackBleed
+            radius: Math.min(Theme.pillRadius, slab.height / 2) + root.trackBleed
+            lineWidth: Theme.pillTrack
+            topColor: Qt.rgba(root.trackColor.r, root.trackColor.g, root.trackColor.b, Theme.pillTrackRest)
+            bottomColor: topColor
+        }
+
+        Shape {
+            x: track.room
+            y: track.room
+            width: slab.width
+            height: slab.height
+            visible: root.lit > 0
+            // The curve renderer, because this is a line on a curve and the
+            // triangulated one leaves steps on the ends.
+            preferredRendererType: Shape.CurveRenderer
+
+            ShapePath {
+                strokeColor: root.trackColor
+                strokeWidth: Theme.pillTrack
+                fillColor: "transparent"
+                // Square ends, so the lit part stops exactly where the track has
+                // got to rather than half a stroke past it. Round ones were tried
+                // (2026-09-28): at 1.5px a round cap is a 0.75px half-disc, and
+                // antialiased it draws the same pixels as a square one.
+                capStyle: ShapePath.FlatCap
+                strokeStyle: root.lit >= root.trackLength ? ShapePath.SolidLine : ShapePath.DashLine
+                // In multiples of the stroke width, which is what a dash pattern
+                // is measured in. Never zero: a zero-length gap is not a dash
+                // pattern Qt will draw.
+                dashPattern: [Math.max(0.001, root.lit / Theme.pillTrack), Math.max(0.001, (root.trackLength - root.lit) / Theme.pillTrack)]
+
+                // Nine o'clock, and clockwise from there: up the left edge and
+                // round its corner, along the top, down the right edge, back along
+                // the bottom and up to where it started. Four corners with a
+                // straight between each pair, which at a fully round end is a
+                // straight of no length and the same two semicircles as before.
+                startX: root.trackInset
+                startY: root.trackMiddle
+
+                PathLine {
+                    x: root.trackInset
+                    y: root.trackInset + root.trackRadius
+                }
+                PathArc {
+                    x: root.trackInset + root.trackRadius
+                    y: root.trackInset
+                    radiusX: root.trackRadius
+                    radiusY: root.trackRadius
+                    direction: PathArc.Clockwise
+                }
+                PathLine {
+                    x: slab.width - root.trackInset - root.trackRadius
+                    y: root.trackInset
+                }
+                PathArc {
+                    x: slab.width - root.trackInset
+                    y: root.trackInset + root.trackRadius
+                    radiusX: root.trackRadius
+                    radiusY: root.trackRadius
+                    direction: PathArc.Clockwise
+                }
+                PathLine {
+                    x: slab.width - root.trackInset
+                    y: slab.height - root.trackInset - root.trackRadius
+                }
+                PathArc {
+                    x: slab.width - root.trackInset - root.trackRadius
+                    y: slab.height - root.trackInset
+                    radiusX: root.trackRadius
+                    radiusY: root.trackRadius
+                    direction: PathArc.Clockwise
+                }
+                PathLine {
+                    x: root.trackInset + root.trackRadius
+                    y: slab.height - root.trackInset
+                }
+                PathArc {
+                    x: root.trackInset
+                    y: slab.height - root.trackInset - root.trackRadius
+                    radiusX: root.trackRadius
+                    radiusY: root.trackRadius
+                    direction: PathArc.Clockwise
+                }
+                PathLine {
+                    x: root.trackInset
+                    y: root.trackMiddle
+                }
             }
         }
     }
