@@ -13,6 +13,11 @@ Item {
     // ramp. There is no "how much" on one of those, only "which", so the grown
     // fill gives way to a marker and the track takes the full height.
     property Gradient trackGradient: null
+    // How far one notch of the wheel moves the value. Zero leaves the wheel
+    // to whatever is underneath — the sound popup has one handler for all
+    // its rows, which a slider taking the wheel for itself would cut short.
+    property real wheelStep: 0
+    property real _wheelAcc: 0
     signal moved(real value)
 
     implicitWidth: 140
@@ -77,6 +82,20 @@ Item {
         onPositionChanged: function (mouse) {
             if (pressed)
                 seek(mouse.x);
+        }
+        // Accumulated the way BarItem does it, so a touchpad's fractions add
+        // up to notches instead of each one being a step.
+        onWheel: function (wheel) {
+            if (root.wheelStep <= 0) {
+                wheel.accepted = false;
+                return;
+            }
+            root._wheelAcc += wheel.angleDelta.y;
+            const notches = Math.trunc(root._wheelAcc / 120);
+            if (notches === 0)
+                return;
+            root._wheelAcc -= notches * 120;
+            root.moved(Math.max(0, Math.min(1, root.value + notches * root.wheelStep)));
         }
     }
 }

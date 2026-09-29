@@ -87,9 +87,13 @@ BarItem {
         // The glass reaches a pad past either end of the strip, because the
         // mark does.
         //
-        // The head runs on a spring, so it carries a little past the
-        // workspace and comes back, and the mark stands a touch long for a
-        // moment before it settles, the way a drop's momentum does.
+        // The head runs on a spring, so it carries a little past where it is
+        // going and comes back. At either end of the strip that runs it into
+        // the pill's own end, which cuts it off, and the glass reads as
+        // pressing against a wall and bulging there. In the middle there is
+        // no wall, and the same overshoot spilled into the next workspace,
+        // so there the workspace's far edge stands in for one (frontLeft,
+        // frontRight).
         Liquid {
             id: mark
 
@@ -170,7 +174,31 @@ BarItem {
                 }
             }
 
-            readonly property real headMid: (headLeft + headRight) / 2
+            // Where each end of the head set off from, which says which side
+            // of its workspace it is coming from and so which side is past it.
+            // Read before the spring has taken a step: a Behavior only
+            // starts its animation on a change, it does not move the value.
+            property real headFromLeft
+            property real headFromRight
+            onWantLeftChanged: headFromLeft = headLeft
+            onWantRightChanged: headFromRight = headRight
+
+            // Whether the workspace the mark is going to backs onto an end
+            // of the strip, where the pill's end is the wall.
+            readonly property bool walled: strip.selected !== null && (strip.selected.index === 0 || strip.selected.index === workspaces.count - 1)
+
+            // An end of the head, held at its workspace's edge rather than
+            // carried past it, unless the pill's end is doing that already.
+            function front(value, want, from) {
+                if (walled)
+                    return value;
+                return from <= want ? Math.min(value, want) : Math.max(value, want);
+            }
+
+            readonly property real frontLeft: front(headLeft, wantLeft, headFromLeft)
+            readonly property real frontRight: front(headRight, wantRight, headFromRight)
+
+            readonly property real headMid: (frontLeft + frontRight) / 2
             readonly property real tailMid: (tailLeft + tailRight) / 2
             readonly property real apart: Math.abs(headMid - tailMid)
             // Full thickness while the ends overlap, down to 40% of it once
@@ -184,7 +212,7 @@ BarItem {
             height: strip.height
 
             box0: Qt.vector4d(tailLeft - lift, slabTop, tailRight - tailLeft + lift * 2, thickness)
-            box1: Qt.vector4d(headLeft - lift, slabTop, headRight - headLeft + lift * 2, thickness)
+            box1: Qt.vector4d(frontLeft - lift, slabTop, frontRight - frontLeft + lift * 2, thickness)
             box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
 
             // At rest the head lies on the tail, and a reach would swell the
@@ -206,6 +234,8 @@ BarItem {
             spacing: Theme.gap
 
             Repeater {
+                id: workspaces
+
                 model: ScriptModel {
                     // "sort-by-number": true
                     values: [...Hyprland.workspaces.values].sort((a, b) => a.id - b.id)
