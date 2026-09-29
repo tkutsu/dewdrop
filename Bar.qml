@@ -167,24 +167,38 @@ PanelWindow {
     // The wallpaper under the glass, for it to draw bent (Liquid.backdrop).
     // Only an image: a flat colour has nothing in it to bend, and it fades
     // from one colour to the next (modules/Backdrop.qml), which the plain
-    // tint and Hyprland's blur follow for free. Loaded at the screen's size
-    // and cropped to cover it, the way hyprpaper shows it.
+    // tint and Hyprland's blur follow for free.
     //
-    // Laid out where the screen is, in the bar's own coordinates, which is
-    // how each piece of glass finds the part of it that is behind it. The bar
-    // is the width of the screen, so only its height says where it is: at the
-    // top, or (a bar anchored to the bottom) at the foot.
+    // Only the rows behind the bar are kept: scaled to cover the screen and
+    // centred, the way hyprpaper shows it, then cut down to the bar's own
+    // strip. The whole screen's worth, for the sake of thirty-six rows, was
+    // 16 MB of video memory and about 29 MB more in Qt's image cache
+    // (measured, 2026-09-30); the strip is a few hundred kilobytes and
+    // skips the cache. Where the strip falls in the image depends on the
+    // image's shape, so it waits for the service to have read its size.
+    // Laid out over the bar, which is how each piece of glass finds its part
+    // of it.
+    //
+    // The cut is on whole pixels, so the strip can sit up to half a pixel off
+    // where hyprpaper draws the same rows. Rounded here, where it can be seen,
+    // rather than by Qt.
     Image {
         id: wallpaperImage
 
+        // The bar is the width of the screen, so only its height says where
+        // it is: at the top, or (a bar anchored to the bottom) at the foot.
+        readonly property real stripTop: bar.anchors.top ? 0 : bar.screen.height - bar.height
+        readonly property size natural: Services.Wallpaper.currentSize
+        readonly property real cover: Math.max(bar.screen.width / natural.width, bar.screen.height / natural.height)
+
+        anchors.fill: parent
         visible: false
-        y: bar.anchors.top ? 0 : bar.height - bar.screen.height
-        width: bar.screen.width
-        height: bar.screen.height
         asynchronous: true
-        source: Services.Wallpaper.current ? "file://" + Services.Wallpaper.current : ""
+        cache: false
+        source: natural.width > 0 ? "file://" + Services.Wallpaper.current : ""
         fillMode: Image.PreserveAspectCrop
         sourceSize: Qt.size(bar.screen.width, bar.screen.height)
+        sourceClipRect: Qt.rect(Math.round((natural.width * cover - bar.screen.width) / 2), Math.round((natural.height * cover - bar.screen.height) / 2 + stripTop), bar.width, bar.height)
     }
 
     // The clock's own separating dot is what sits on the centre line, not the

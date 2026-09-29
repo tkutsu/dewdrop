@@ -208,10 +208,33 @@ Singleton {
         }
     }
 
+    // The image's own size, for the bar to cut out just the rows of it that
+    // are behind the bar (Bar.qml). Empty until known: read from the file's
+    // header (-ping), which takes no time, but the bar holds off until it has
+    // it rather than load the whole image first.
+    property size currentSize: Qt.size(0, 0)
+
     onCurrentChanged: {
         root.sampled = "";
-        if (root.current)
+        root.currentSize = Qt.size(0, 0);
+        if (root.current) {
             sample.exec(["magick", "-define", "jpeg:size=256x256", root.current, "-resize", "64x64!", "-scale", "1x1!", "-format", "#%[hex:p{0,0}]", "info:"]);
+            measure.exec(["magick", "identify", "-ping", "-format", "%w %h %i", root.current + "[0]"]);
+        }
+    }
+
+    Process {
+        id: measure
+
+        // The path comes back with the size, so an answer that lands after the
+        // next wallpaper has gone up is recognised as the last one's.
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const [w, h, ...path] = text.trim().split(" ");
+                if (path.join(" ") === root.current && Number(w) > 0 && Number(h) > 0)
+                    root.currentSize = Qt.size(Number(w), Number(h));
+            }
+        }
     }
 
     Process {

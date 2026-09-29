@@ -54,9 +54,9 @@ ShaderEffect {
     // through a tint. Null (the default) for glass laid on other glass, like
     // the workspace mark, and the glass is the plain fill until it has loaded.
     //
-    // The Image is laid out in the window where the screen is, so its x and
-    // y are the screen's top left in window coordinates and its size is the
-    // screen's; it is a direct child of the window's content.
+    // The Image holds just the part of the wallpaper that is behind it, and is
+    // laid out in the window over that part, as a direct child of the
+    // window's content.
     property Image backdrop: null
 
     // Where this item is in its window. Walked up the parent chain rather than
@@ -70,12 +70,11 @@ ShaderEffect {
         }
         return Qt.point(x, y);
     }
-    // This item's top left on the screen, and the screen's size.
+    // This item's top left on the backdrop, and the backdrop's size.
     readonly property point origin: backdrop ? Qt.point(windowPos.x - backdrop.x, windowPos.y - backdrop.y) : Qt.point(0, 0)
-    readonly property size screenSize: backdrop ? Qt.size(backdrop.width, backdrop.height) : Qt.size(1, 1)
+    readonly property size backdropSize: backdrop ? Qt.size(backdrop.width, backdrop.height) : Qt.size(1, 1)
 
     readonly property real glass: backdrop?.status === Image.Ready ? 1 : 0
-    readonly property size backdropSize: backdrop ? Qt.size(backdrop.implicitWidth, backdrop.implicitHeight) : Qt.size(1, 1)
     property real bend: Theme.glassBend
     property real bendDepth: Theme.glassBendDepth
     property real soften: Theme.glassSoften

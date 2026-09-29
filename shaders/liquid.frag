@@ -45,11 +45,9 @@ layout(std140, binding = 0) uniform buf {
     // Whether the backdrop is there to be drawn. Zero is the plain translucent
     // fill, with Hyprland's blur doing the rest.
     float glass;
-    // This item's top left on the screen, and the screen's size: where each
-    // of its pixels falls on the wallpaper.
+    // This item's top left on the backdrop, and the backdrop's size: the
+    // backdrop is the strip of wallpaper behind the bar, laid out over it.
     vec2 origin;
-    vec2 screenSize;
-    // The backdrop image's own size, in pixels.
     vec2 backdropSize;
     // How far in the glass looks at the very edge, and how far in from the
     // edge it bends at all.
@@ -114,11 +112,9 @@ float field(vec2 p) {
     return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
 }
 
-// The wallpaper under p, laid out the way hyprpaper lays it: scaled to cover
-// the screen and centred.
+// The wallpaper under p.
 vec3 behind(vec2 p) {
-    vec2 shown = backdropSize * max(screenSize.x / backdropSize.x, screenSize.y / backdropSize.y);
-    return texture(backdrop, (origin + p - (screenSize - shown) * 0.5) / shown).rgb;
+    return texture(backdrop, (origin + p) / backdropSize).rgb;
 }
 
 // The same, averaged over a small ring round p.
