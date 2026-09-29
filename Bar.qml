@@ -267,6 +267,7 @@ PanelWindow {
         visible: music.reveal > 0
         progress: music.progress
         rate: music.rate
+        trackColor: music.accent
         trackOpacity: contentOpacity
 
         Music {
