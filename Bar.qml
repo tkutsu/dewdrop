@@ -160,7 +160,12 @@ PanelWindow {
         opacity: 1 - bar.mergeProgress
         visible: opacity > 0
 
-        box0: Qt.vector4d(clockPill.x, Theme.barMargin, clockPill.width, Theme.barHeight)
+        // The clock's ends give as a drop goes into them or lets go of them
+        // (bar.lip). The notice only touches the clock with no timer set.
+        readonly property real leftLip: bar.lip(music.reveal, music.stowed)
+        readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
+
+        box0: Qt.vector4d(clockPill.x - leftLip, Theme.barMargin, clockPill.width + leftLip + rightLip, Theme.barHeight)
         // The notice after the timer, since that is what it joins.
         box1: bar.countdownDrop
         box2: bar.noticeDrop
@@ -197,26 +202,40 @@ PanelWindow {
     // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
     // Going away, a pill first lets its contents go, then pulls its far end in
-    // until it is round. Meanwhile it closes the gap to the neighbour on its
-    // inner side, slowly, so the neck between the two — the glass itself —
-    // stays a waist for a while before it fills out; only then does the pill
-    // run into the neighbour and shrink inside it. Arriving is the same run
-    // backwards: the neck stretches out before it lets go. `edge` is the
-    // neighbour's facing edge, `dir` which way the pill lies from it (1 right,
-    // -1 left), `width` the pill at rest.
-    function drop(edge, dir, width, reveal) {
+    // until it is round. Meanwhile it is drawn to the neighbour on its inner
+    // side, faster the closer it gets, the way a drop is; the neck between the
+    // two — the glass itself — holds as a waist for a moment, then the pill
+    // runs into the neighbour and shrinks inside it, and the neighbour's end
+    // swells with it and settles (bar.lip).
+    //
+    // Arriving is not the same run backwards: liquid joins in a hurry and
+    // parts reluctantly. The pill comes out of its neighbour round, the neck
+    // stretches out before it lets go, and only once it is free does it spring
+    // out to its width, past it, and back. `edge` is the neighbour's facing
+    // edge, `dir` which way the pill lies from it (1 right, -1 left), `width`
+    // the pill at rest, `leaving` whether it is on its way in.
+    function drop(edge, dir, width, reveal, leaving) {
         if (reveal <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const t = 1 - reveal;
         const height = Theme.barHeight;
-        const round = bar.ease((t - bar.settle) / 0.45);
-        const close = bar.ease((t - 0.25) / 0.5);
-        const plunge = bar.ease((t - 0.65) / 0.35);
+        const c = Math.max(0, Math.min(1, (t - 0.25) / 0.4));
+        const close = leaving ? c * c : bar.ease((t - 0.25) / 0.5);
+        const plunge = bar.ease((t - (leaving ? 0.6 : 0.65)) / 0.35);
+        const out = leaving ? 1 - bar.ease((t - bar.settle) / 0.4) : bar.spring((0.5 - t) / 0.3);
         const shrink = 1 - 0.3 * plunge;
-        const w = Math.max(height, width - (width - height) * round) * shrink;
+        const w = (height + (width - height) * out) * shrink;
         const h = height * shrink;
-        const inner = edge + dir * (Theme.pillSpread * (1 - close) - height * 0.8 * plunge);
+        const inner = edge + dir * (Theme.pillSpread * (1 - close) - height * 1.6 * plunge);
         return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barMargin + (height - h) / 2, w, h);
+    }
+
+    // How far the neighbour's end is pushed out by a drop at a given
+    // `reveal`: swelling as a drop goes in and wobbling back, or giving a
+    // little the other way as one lets go of it.
+    function lip(reveal, leaving) {
+        const t = 1 - reveal;
+        return leaving ? bar.wobble((t - 0.6) / 0.4, 6) : bar.wobble((0.45 - t) / 0.3, -3);
     }
 
     // How far a drop reaches for its neighbour. At rest, the air between
@@ -245,17 +264,33 @@ PanelWindow {
         return c * c * (3 - 2 * c);
     }
 
+    // 0 to 1 the way a spring gets there: past it by about 13%, back a touch
+    // short, and on it. Near the pill width spring (Theme.springDamping).
+    function spring(x) {
+        if (x >= 1)
+            return 1;
+        const c = Math.max(0, x);
+        return 1 - Math.exp(-6 * c) * Math.cos(3 * Math.PI * c);
+    }
+
+    // A wobble of `size` over 0..1, at rest at both ends: out, back past
+    // rest, and out a little again.
+    function wobble(x, size) {
+        const c = Math.max(0, Math.min(1, x));
+        return size * Math.exp(-3 * c) * Math.sin(3 * Math.PI * c);
+    }
+
     readonly property real clockLeft: clockPill.x
     readonly property real clockRight: clockPill.x + clockPill.width
 
-    readonly property vector4d musicDrop: bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal)
-    readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal)
+    readonly property vector4d musicDrop: bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed)
+    readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed)
     // The notice is placed off the timer's glass rather than the clock's, so
     // it goes into the timer while one is set and follows it in as it goes.
     // Once the timer is inside the clock its far edge is too, and the clock's
     // edge is the one to go by.
     readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
-    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal)
+    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal, notice.stowed)
 
     // The player, alone on the clock's left. What it carries is a song title —
     // text from somewhere else, as long as whoever named the track made it —
