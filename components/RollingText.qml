@@ -17,6 +17,10 @@ import qs
 // what reads is a figure falling away small and blurred, never two figures
 // dissolving through each other.
 //
+// The blur is half SwiftUI's. At bar sizes its full blur smeared a figure
+// across most of its own width, and the roll read as out of focus rather than
+// as moving.
+//
 // For figures only. The colon just changes, and a string that is words is
 // better drawn by BarText, which keeps the kerning a column per letter loses.
 Row {
@@ -26,12 +30,14 @@ Row {
     // Counting down, the figures drop: the next one comes in from above.
     property bool countsDown: false
     property color color: Theme.fg
+    property int fontSize: Theme.textSize
+    property int weight: Theme.bodyWeight
 
     // SwiftUI's transition, in line heights and in multiples of its duration
     // (Theme.rollMs).
     readonly property real offset: 0.34
     readonly property real smallest: 0.4
-    readonly property real blurLines: 0.08
+    readonly property real blurLines: 0.04
     // The travel's spring rings past 2% at one duration; SwiftUI lets it
     // settle, and so does this.
     readonly property real tail: 1.45
@@ -41,7 +47,8 @@ Row {
     FontMetrics {
         id: metrics
         font.family: Theme.bodyFont
-        font.pixelSize: Theme.textSize
+        font.pixelSize: root.fontSize
+        font.weight: root.weight
     }
 
     // A damped spring's step response at time t, with damping ratio zeta,
@@ -134,13 +141,21 @@ Row {
                 readonly property real blur: 1 - column.f
 
                 height: parent.height
+                fontSize: root.fontSize
+                weight: root.weight
                 text: column.shown
                 color: root.color
                 y: -column.travel * (1 - column.b)
                 scale: root.smallest + (1 - root.smallest) * column.g
                 opacity: column.g
 
+                // Only while the blur shows: MultiEffect left on at no blur
+                // lays a grey veil over the figure and everything under it.
+                // Smooth, because the figure moves by fractions of a pixel and
+                // shrinks, and a texture sampled to the nearest pixel moves in
+                // whole pixels and sheds rows as it goes.
                 layer.enabled: blur > 0.02
+                layer.smooth: true
                 layer.effect: MultiEffect {
                     blurEnabled: true
                     blurMax: Math.ceil(root.blurLines * root.line * 2)
@@ -155,6 +170,8 @@ Row {
 
                 height: parent.height
                 visible: column.rolling
+                fontSize: root.fontSize
+                weight: root.weight
                 text: column.was
                 color: root.color
                 y: column.travel * column.b
@@ -162,6 +179,7 @@ Row {
                 opacity: 1 - column.g
 
                 layer.enabled: visible && blur > 0.02
+                layer.smooth: true
                 layer.effect: MultiEffect {
                     blurEnabled: true
                     blurMax: Math.ceil(root.blurLines * root.line * 2)

@@ -70,7 +70,9 @@ BarItem {
         text: "\u00b7"
     }
 
-    BarText {
+    // The time rolls to its next minute the way a timer's figures do
+    // (RollingText), and only the figures that change move.
+    RollingText {
         Layout.fillHeight: true
         Layout.leftMargin: root.dotGap
         text: Qt.formatDateTime(clock.date, Settings.timeFormat)

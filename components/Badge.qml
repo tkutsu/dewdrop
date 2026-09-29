@@ -8,6 +8,9 @@ import qs
 // The disc is opaque unless its owner says otherwise. It spends half its area
 // over the icon's own white strokes, and anything it let through came up under
 // the digit and ate into its contrast.
+//
+// The count rolls to its next value the way the timer's figures do
+// (RollingText): up when it grows, down when it shrinks.
 Item {
     id: root
 
@@ -19,6 +22,14 @@ Item {
     // rounded ends and read as cramped.
     readonly property int pad: label.text.length > 1 ? 4 : 3
 
+    // What the count last was, for which way the next one rolls.
+    property real was: 0
+    onTextChanged: {
+        const now = Number(text);
+        label.countsDown = now < was;
+        was = now;
+    }
+
     implicitWidth: Math.max(Theme.badgeSize, Math.ceil(label.implicitWidth) + pad * 2)
     implicitHeight: Theme.badgeSize
 
@@ -28,13 +39,16 @@ Item {
         color: root.fill
     }
 
-    Text {
+    RollingText {
         id: label
-        anchors.centerIn: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        // A seven-row figure in a twelve-row disc is half a row off either
+        // way, and centred on its cap height it lands low. A figure wants to
+        // sit high of centre, where the plain Text it replaced had it.
+        y: -1
+        height: parent.height
         color: Theme.badgeFg
-        font.family: Theme.bodyFont
-        font.features: Theme.figures
-        font.pixelSize: Theme.badgeTextSize
-        font.bold: true
+        fontSize: Theme.badgeTextSize
+        weight: Font.Bold
     }
 }
