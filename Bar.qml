@@ -160,12 +160,7 @@ PanelWindow {
         opacity: 1 - bar.mergeProgress
         visible: opacity > 0
 
-        // The clock's ends give as a drop goes into them or lets go of them
-        // (bar.lip). The notice only touches the clock with no timer set.
-        readonly property real leftLip: bar.lip(music.reveal, music.stowed)
-        readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
-
-        box0: Qt.vector4d(clockPill.x - leftLip, Theme.barMargin, clockPill.width + leftLip + rightLip, Theme.barHeight)
+        box0: Qt.vector4d(bar.clockLeft - bar.leftLip, Theme.barMargin, clockPill.width + bar.leftLip + bar.rightLip, Theme.barHeight)
         // The notice after the timer, since that is what it joins.
         box1: bar.countdownDrop
         box2: bar.noticeDrop
@@ -264,7 +259,7 @@ PanelWindow {
     // gives a little the other way.
     function lip(reveal, leaving) {
         const t = 1 - reveal;
-        return leaving ? 7 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : bar.wobble((0.45 - t) / 0.3, -3);
+        return leaving ? 6 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : bar.wobble((0.45 - t) / 0.3, -3);
     }
 
     // How far a drop reaches for its neighbour. At rest, the air between
@@ -313,14 +308,22 @@ PanelWindow {
     readonly property real clockLeft: clockPill.x
     readonly property real clockRight: clockPill.x + clockPill.width
 
-    readonly property vector4d musicDrop: bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed)
-    readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed)
+    // The clock's glass gives at either end as a drop pours into it or lets
+    // go of it (bar.lip), and a drop keeps its distance from the glass rather
+    // than from the clock, so the swelling pushes the neck out ahead of it
+    // instead of filling it in. The notice only touches the clock with no
+    // timer set.
+    readonly property real leftLip: bar.lip(music.reveal, music.stowed)
+    readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
+
+    readonly property vector4d musicDrop: bar.drop(bar.clockLeft - bar.leftLip, -1, musicPill.width, music.reveal, music.stowed)
+    readonly property vector4d countdownDrop: bar.drop(bar.clockRight + bar.rightLip, 1, countdownPill.width, countdown.reveal, countdown.stowed)
     // The notice is placed off the timer's glass rather than the clock's, so
     // it goes into the timer while one is set and follows it in as it goes.
     // Once the timer is inside the clock its far edge is too, and the clock's
     // edge is the one to go by.
     readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
-    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal, notice.stowed)
+    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge + (countdown.reveal > 0 ? 0 : bar.rightLip), 1, noticePill.width, notice.reveal, notice.stowed)
 
     // The player, alone on the clock's left. What it carries is a song title —
     // text from somewhere else, as long as whoever named the track made it —
