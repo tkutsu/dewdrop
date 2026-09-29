@@ -39,10 +39,16 @@ BarItem {
 
     // One chevron that turns over rather than two glyphs swapped, and turns
     // as the fold comes to rest rather than alongside it: the modules move,
-    // then the handle answers, pointing the way they will go back. Started a
-    // little before the fold's last frame, while its ease-out is only a few
-    // pixels from home, so the two read as one gesture handed on rather than
-    // as a pause between them.
+    // then the handle answers, pointing the way they will go back.
+    //
+    // Eased in and out, like the fold: a thing turned by hand gathers speed
+    // and brakes into place, where an ease-out set off at full speed and read
+    // as a flick. Its first frames are then hardly any turn at all, so it
+    // starts a little before the fold's last frame — while the modules are
+    // braking into place, the chevron is gathering speed, and the turn shows
+    // just as they come to rest, one gesture handed on without a pause. Any
+    // earlier (70% was tried) and most of the turn happened while the eye
+    // was still on the modules, and it went by unseen.
     property real turned: 0
 
     onOpenChanged: turn.restart()
@@ -58,7 +64,7 @@ BarItem {
             property: "turned"
             to: root.open ? 1 : 0
             duration: Theme.turnMs
-            easing.type: Easing.OutCubic
+            easing.type: Easing.InOutCubic
         }
     }
 

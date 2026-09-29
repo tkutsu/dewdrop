@@ -30,7 +30,9 @@ GoogleService {
 
     // --- state ---------------------------------------------------------------
     // The rows the popup draws, newest first, each {id, message, from,
-    // subject, snippet, at}.
+    // subject, snippet, at, messages}. `messages` is the chain waiting in the
+    // thread, oldest first, each {id, from, at, snippet}; the row's own
+    // message, from and at are its last.
     property var threads: []
     // Every unread thread in the inbox, read in full or not. What the badge
     // counts.
@@ -128,7 +130,7 @@ GoogleService {
     // A thread's messages with only what a row needs: who, what, when, and
     // which of them are unread.
     function headersUrl(id: string): string {
-        return `${root.api}/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,payload/headers)`;
+        return `${root.api}/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,snippet,payload/headers)`;
     }
 
     function publish(unread: var, wanted: var): void {
@@ -155,21 +157,30 @@ GoogleService {
     // A thread as a row: who wrote the newest unread message in it, what it
     // is about, and when. The newest unread rather than the first, because
     // that is the one waiting; the last message if none is marked, which is
-    // a thread Gmail lists as unread for a message it has since hidden.
+    // a thread Gmail lists as unread for a message it has since hidden. The
+    // unread ones before it come along as the chain, so a row opened reads
+    // them all and not just the last word.
     function rowOf(listed: var, thread: var): var {
         const messages = thread?.messages ?? [];
         const unread = messages.filter(m => (m.labelIds ?? []).includes("UNREAD"));
-        const m = unread.length > 0 ? unread[unread.length - 1] : messages[messages.length - 1];
-        const header = name => (m?.payload?.headers ?? []).find(h => h.name.toLowerCase() === name)?.value ?? "";
+        const chain = unread.length > 0 ? unread : messages.slice(-1);
+        const m = chain[chain.length - 1];
+        const header = (msg, name) => (msg?.payload?.headers ?? []).find(h => h.name.toLowerCase() === name)?.value ?? "";
         return {
             id: listed.id,
             message: m?.id ?? "",
-            from: root.sayFrom(header("from")),
-            subject: header("subject").trim() || "(no subject)",
+            from: root.sayFrom(header(m, "from")),
+            subject: header(m, "subject").trim() || "(no subject)",
             snippet: root.unentity(listed.snippet ?? ""),
             at: Number(m?.internalDate ?? 0),
             unread: unread.length > 0,
-            starred: messages.some(m => (m.labelIds ?? []).includes("STARRED"))
+            starred: messages.some(m => (m.labelIds ?? []).includes("STARRED")),
+            messages: chain.map(c => ({
+                        id: c.id,
+                        from: root.sayFrom(header(c, "from")),
+                        at: Number(c.internalDate ?? 0),
+                        snippet: root.unentity(c.snippet ?? "")
+                    }))
         };
     }
 
@@ -315,20 +326,20 @@ GoogleService {
     }
 
     // --- reading one ---------------------------------------------------------
-    // The text of a row's message, into `bodies` once it lands. The plain
-    // part when the mail has one, and the HTML one with its tags taken off
-    // when it does not; either way without the quoted history under it,
-    // which is the thread the popup is not showing.
+    // The text of each message in a row's chain, into `bodies` as it lands.
+    // The plain part when the mail has one, and the HTML one with its tags
+    // taken off when it does not; either way without the quoted history
+    // under it, which is the chain the popup already shows above it.
     function read(row: var): void {
-        if (row.message === "" || root.bodies[row.message] !== undefined)
-            return;
-        root.authorised(function () {
-            root.send("GET", `${root.api}/messages/${row.message}?format=full&fields=payload`, null, function (body) {
-                const next = Object.assign({}, root.bodies);
-                next[row.message] = root.textOf(body?.payload) || row.snippet;
-                root.bodies = next;
-            });
-        });
+        for (const m of row.messages ?? [])
+            if (m.id !== "" && root.bodies[m.id] === undefined)
+                root.authorised(function () {
+                    root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
+                        const next = Object.assign({}, root.bodies);
+                        next[m.id] = root.textOf(body?.payload) || m.snippet;
+                        root.bodies = next;
+                    });
+                });
     }
 
     function textOf(payload: var): string {
