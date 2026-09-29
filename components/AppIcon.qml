@@ -7,14 +7,12 @@ import qs
 // are: the window class's desktop entry, an icon theme entry named after the
 // class, and finally the generic glyph waybar used as window-rewrite-default.
 //
-// One icon stands for every window of that app on the workspace, with a count
-// badge once there is more than one, and a dot under it while it holds the
-// focused window.
+// One icon stands for every window of that app on the workspace, with a dot
+// under it while it holds the focused window.
 Item {
     id: root
 
     property string windowClass
-    property int count: 1
     // Hyprland says this window wants you. The icon bounces rather than
     // recolouring: it is the same thing a tray icon asking for attention says,
     // and the two should not say it differently.
@@ -26,14 +24,11 @@ Item {
     // What to draw when nothing resolves. A window, on the taskbar; the
     // notifications draw their own mark for a sender with no icon.
     property string fallbackGlyph: Theme.glyph.window
-    property alias badgeFill: badge.fill
-    // The artwork's opacity, not the badge's: a dimmed icon keeps its count
-    // as legible as a lit one.
+    // The artwork's opacity, not the dot's: a dimmed icon keeps its dot as
+    // legible as a lit one.
     property real inkOpacity: 1
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
-
-    readonly property bool badged: count > 1
 
     // How far the focus dot has come in, 0..1. The dot fades with it and the
     // hole it cuts in the artwork opens with it.
@@ -46,10 +41,8 @@ Item {
         }
     }
 
-    z: badged ? 1 : 0
-
-    // The artwork moves and the badge does not. Every badge on this bar sits on
-    // one line whatever icon it is pinned to, and one that rode the bounce up
+    // The artwork moves and the dot does not. Every dot on this bar sits on
+    // one line whatever icon it is under, and one that rode the bounce up
     // would break that line for as long as the app is shouting.
     Bounce {
         id: bounce
@@ -81,12 +74,8 @@ Item {
     // rather than erroring, which would hide the fallback.
     readonly property bool hasIcon: art.status === Image.Ready
 
-    // The badge floats off the top right corner instead of widening the icon,
-    // the way BadgedGlyph does for the bar's own modules. Claiming the width
-    // would shunt every icon after it — and every workspace after that — along
-    // the bar, so a window opening somewhere off to the left moves everything.
     implicitWidth: hasIcon ? art.implicitWidth : fallback.implicitWidth
-    // Full bar height, so the badge can be placed against the bar's badge line
+    // Full bar height, so the dot can be placed against the bar's dot line
     // rather than against a box that is itself floating in the middle of the row.
     implicitHeight: Theme.barHeight
 
@@ -174,7 +163,7 @@ Item {
     }
 
     // Under the icon, centred on its ink rather than its box, and still while
-    // the artwork bounces, for the same reason the badge is.
+    // the artwork bounces.
     Rectangle {
         id: dot
 
@@ -187,21 +176,5 @@ Item {
         y: Math.round(Theme.pillTop(root.height) + Theme.focusDotLine - height / 2)
         color: Theme.fg
         opacity: root.dotShown
-    }
-
-    // Sits on the icon's top right corner, mostly outside it, so the app stays
-    // recognisable underneath. appIconGap is narrower than the overhang, so the
-    // badge does land on the next icon along; z lifts a badged icon above the
-    // siblings painted after it rather than letting them cover the count.
-    Badge {
-        id: badge
-        visible: root.badged
-        text: Math.min(root.count, 99)
-        x: root.implicitWidth - Theme.badgeSize / 2
-        // A fixed line, so every badge on the bar sits at the same height
-        // whatever size the icon beneath it is — measured from the top of the
-        // pill rather than of this box (see Theme.pillTop), and riding its
-        // edge the same way a module's own count does.
-        y: Theme.pillTop(root.height) + Theme.badgeLine - Theme.badgeRise - height / 2
     }
 }

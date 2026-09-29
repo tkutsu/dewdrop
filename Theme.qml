@@ -205,7 +205,7 @@ Singleton {
     // row that mixes the two reads as one hand rather than two sizes.
     readonly property real glyphInk: 0.75
 
-    // The count badge on a taskbar icon standing for several windows of one app.
+    // The count badge on a module's glyph (BadgedGlyph): unread mail, updates.
     readonly property int badgeSize: 12
     readonly property int badgeTextSize: 9
     // Where every badge's centre line sits, measured from the top of the pill
@@ -356,14 +356,6 @@ Singleton {
     // it. A step brighter along the top than the pill's rim, so the two lines
     // read as two surfaces rather than one line drawn twice.
     readonly property color markRimTop: Qt.rgba(1, 1, 1, 0.25)
-
-    // One translucent colour laid over another, the way the compositor stacks
-    // them.
-    function over(top, bottom) {
-        const a = top.a + bottom.a * (1 - top.a);
-        const mix = (t, b) => (t * top.a + b * bottom.a * (1 - top.a)) / a;
-        return Qt.rgba(mix(top.r, bottom.r), mix(top.g, bottom.g), mix(top.b, bottom.b), a);
-    }
 
     // The way from one colour to another, `t` of it along.
     function mix(from, to, t) {
