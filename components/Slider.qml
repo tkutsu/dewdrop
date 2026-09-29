@@ -16,8 +16,8 @@ Item {
     // A scrubber rather than a slider, the way Apple draws a position: it is
     // read far more often than it is set, so it goes without a knob and only
     // says it can be taken hold of once the pointer is on it, by swelling.
-    // Drawn as the music pill draws its line — the rest of the track a trace
-    // of the fill's colour, and the whole of it lit from above.
+    // Flat, as Apple draws them: the fill in its colour, the rest of the track
+    // the same grey every slider's is.
     property bool knob: true
     property color fill: Theme.fg
     // How far one notch of the wheel moves the value. Zero leaves the wheel
@@ -41,7 +41,7 @@ Item {
         width: parent.width
         height: root.trackGradient ? root.height : swollen ? 2 * root.trackHeight : root.trackHeight
         radius: height / 2
-        color: root.trackGradient ? "transparent" : root.knob ? Theme.sliderTrack : Qt.rgba(root.fill.r, root.fill.g, root.fill.b, Theme.pillTrackRest)
+        color: root.trackGradient ? "transparent" : Theme.sliderTrack
         gradient: root.trackGradient
 
         Behavior on height {
@@ -49,13 +49,6 @@ Item {
                 duration: Theme.fadeMs
                 easing.type: Easing.InOutQuad
             }
-        }
-
-        layer.enabled: !root.knob
-        layer.effect: ShaderEffect {
-            property real foot: Theme.pillTrackFoot
-
-            fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
         }
 
         // Cut off square where the value is rather than rounded there, so

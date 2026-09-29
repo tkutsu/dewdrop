@@ -50,7 +50,7 @@ Popup {
     // instead. There is nothing left to miss into now.
     readonly property int buttonWidth: 20
 
-    // Whether the power button in the header has been pressed once. See the
+    // Whether the quit button in the header has been pressed once. See the
     // button itself for why it takes two.
     property bool quitArmed: false
 
@@ -174,9 +174,9 @@ Popup {
                 }
 
                 // The way to put something else on: the launcher's & mode,
-                // which has the whole library. Beside the power button, as
+                // which has the whole library. Beside the quit button, as
                 // every popup under the bar keeps its plus at the right end of
-                // its top line; the power button asks twice, so a plus that
+                // its top line; the quit button asks twice, so a plus that
                 // misses does not end anything.
                 PopupButton {
                     id: add
@@ -201,9 +201,8 @@ Popup {
 
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    width: root.buttonWidth
-                    height: root.rowHeight
-                    glyph: root.quitArmed ? Theme.glyph.powerConfirm : Theme.glyph.powerShutdown
+                    framed: true
+                    glyph: root.quitArmed ? Theme.glyph.check : Theme.glyph.close
                     warn: root.quitArmed
                     onTapped: {
                         if (root.quitArmed)
