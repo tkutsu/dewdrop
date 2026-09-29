@@ -47,6 +47,17 @@ BarItem {
             return null;
         }
 
+        // A press held anywhere on the strip, on a letter or on an icon.
+        // Read off the buttons, the way `selected` is, rather than off a
+        // handler of the strip's own, which would have to share the press
+        // with the areas that act on it.
+        readonly property bool held: {
+            for (const child of buttons.children)
+                if (child.held === true)
+                    return true;
+            return false;
+        }
+
         // The focused workspace sits on a rounded fill, the way the open item
         // on the system's menu bar does: a lighter slab inside the pill,
         // holding the letter and its icons. It was a rule under the group
@@ -75,34 +86,89 @@ BarItem {
         // one surface (Liquid, the same glass the pills beside the clock are).
         // The glass reaches a pad past either end of the strip, because the
         // mark does.
+        //
+        // The head runs on a spring, so it carries a little past the
+        // workspace and comes back, and the mark stands a touch long for a
+        // moment before it settles, the way a drop's momentum does.
         Liquid {
             id: mark
 
             readonly property int inset: Theme.markInset
-            readonly property real slabTop: Theme.pillTop(strip.height) + Theme.pillBorder + inset
-            readonly property real thickness: Theme.barHeight - Theme.pillBorder - inset * 2
+
+            // How far the glass has come up off the pill, 0..1: a press held
+            // on the strip lifts it a pixel towards the pill's edges and
+            // lights it a step, and letting go drops it back on the spring.
+            // A pixel, because the bar's surface ends at the pill's foot and
+            // the mark cannot swell past it the way a lens on a phone does.
+            property real lift: strip.held ? 1 : 0
+
+            Behavior on lift {
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.markDamping
+                }
+            }
+
+            readonly property real edge: inset - lift
+            readonly property real slabTop: Theme.pillTop(strip.height) + Theme.pillBorder + edge
+            readonly property real thickness: Theme.barHeight - Theme.pillBorder - edge * 2
+            readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
 
             // Where the mark belongs, in this item's pixels.
             readonly property real wantLeft: strip.selected ? strip.selected.x + inset : 0
             readonly property real wantRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : 0
 
-            // Each end runs from wherever it was to where the mark belongs,
-            // on a clock of its own, so a switch made mid-run picks up both
-            // ends where they are rather than snapping them together first.
+            // Each end runs from wherever it is to where the mark belongs, so
+            // a switch made mid-run picks both ends up where they are rather
+            // than snapping them together first. Not until the mark has been
+            // placed once, or it would flow in from the screen's edge.
             property bool placed: false
-            property real toLeft
-            property real toRight
-            property real headFromLeft
-            property real headFromRight
-            property real tailFromLeft
-            property real tailFromRight
-            property real head: 1
-            property real tail: 1
+            onVisibleChanged: if (visible)
+                Qt.callLater(() => placed = true)
 
-            readonly property real headLeft: headFromLeft + (toLeft - headFromLeft) * head
-            readonly property real headRight: headFromRight + (toRight - headFromRight) * head
-            readonly property real tailLeft: tailFromLeft + (toLeft - tailFromLeft) * tail
-            readonly property real tailRight: tailFromRight + (toRight - tailFromRight) * tail
+            property real headLeft: wantLeft
+            property real headRight: wantRight
+            property real tailLeft: wantLeft
+            property real tailRight: wantRight
+
+            Behavior on headLeft {
+                enabled: mark.placed
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.markDamping
+                }
+            }
+            Behavior on headRight {
+                enabled: mark.placed
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.markDamping
+                }
+            }
+            Behavior on tailLeft {
+                enabled: mark.placed
+                SequentialAnimation {
+                    PauseAnimation {
+                        duration: Theme.markMs * 0.2
+                    }
+                    NumberAnimation {
+                        duration: Theme.markMs * 0.8
+                        easing.type: Easing.InOutCubic
+                    }
+                }
+            }
+            Behavior on tailRight {
+                enabled: mark.placed
+                SequentialAnimation {
+                    PauseAnimation {
+                        duration: Theme.markMs * 0.2
+                    }
+                    NumberAnimation {
+                        duration: Theme.markMs * 0.8
+                        easing.type: Easing.InOutCubic
+                    }
+                }
+            }
 
             readonly property real headMid: (headLeft + headRight) / 2
             readonly property real tailMid: (tailLeft + tailRight) / 2
@@ -112,77 +178,25 @@ BarItem {
             // stretches, a long way off it pours through a thread.
             readonly property real neck: thickness * (1 - 0.6 * Math.min(1, apart / (thickness * 3)))
 
-            function follow() {
-                if (!strip.selected)
-                    return;
-                if (!placed) {
-                    placed = true;
-                    headFromLeft = tailFromLeft = toLeft = wantLeft;
-                    headFromRight = tailFromRight = toRight = wantRight;
-                    return;
-                }
-                const hl = headLeft, hr = headRight, tl = tailLeft, tr = tailRight;
-                headFromLeft = hl;
-                headFromRight = hr;
-                tailFromLeft = tl;
-                tailFromRight = tr;
-                toLeft = wantLeft;
-                toRight = wantRight;
-                head = 0;
-                tail = 0;
-                flow.restart();
-            }
-
-            onWantLeftChanged: follow()
-            onWantRightChanged: follow()
-
             visible: strip.selected !== null
             x: -Theme.pillPad
             width: strip.width + Theme.pillPad * 2
             height: strip.height
 
-            box0: Qt.vector4d(tailLeft, slabTop, tailRight - tailLeft, thickness)
-            box1: Qt.vector4d(headLeft, slabTop, headRight - headLeft, thickness)
+            box0: Qt.vector4d(tailLeft - lift, slabTop, tailRight - tailLeft + lift * 2, thickness)
+            box1: Qt.vector4d(headLeft - lift, slabTop, headRight - headLeft + lift * 2, thickness)
             box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
 
             // At rest the head lies on the tail, and a reach would swell the
             // two into something fatter than either; it comes up only as they
             // part.
             reach: Theme.pillSpread * Math.min(1, apart / thickness)
-            lineWidth: 0
             // The strong step, not a popup row's hover: on a pill this thin
             // over a bright wallpaper, the row fill was barely there.
-            fill: Qt.vector4d(Theme.selectionStrong.r, Theme.selectionStrong.g, Theme.selectionStrong.b, Theme.selectionStrong.a)
+            fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
+            rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
             rimFrom: slabTop
             rimTo: slabTop + thickness
-
-            ParallelAnimation {
-                id: flow
-
-                NumberAnimation {
-                    target: mark
-                    property: "head"
-                    from: 0
-                    to: 1
-                    duration: Theme.markMs * 0.6
-                    easing.type: Easing.OutCubic
-                }
-
-                SequentialAnimation {
-                    PauseAnimation {
-                        duration: Theme.markMs * 0.2
-                    }
-
-                    NumberAnimation {
-                        target: mark
-                        property: "tail"
-                        from: 0
-                        to: 1
-                        duration: Theme.markMs * 0.8
-                        easing.type: Easing.InOutCubic
-                    }
-                }
-            }
         }
 
         RowLayout {
@@ -258,9 +272,22 @@ BarItem {
                         }
                     }
 
-                    readonly property color badgeFill: {
-                        const from = Theme.barBg, to = Theme.markBg, t = button.lit;
-                        return Qt.rgba(from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t, from.b + (to.b - from.b) * t, from.a + (to.a - from.a) * t);
+                    // The mark as it lands on screen, laid over the pill's
+                    // fill and flattened into the one colour a badge can be.
+                    readonly property color badgeFill: Theme.mix(Theme.barBg, Theme.over(mark.tone, Theme.barBg), button.lit)
+
+                    // The letter and icons of a workspace you are not on stand
+                    // a little back, and come forward with the mark.
+                    readonly property real ink: Theme.restOpacity + (1 - Theme.restOpacity) * button.lit
+
+                    // Held down, on the letter or on one of the icons.
+                    readonly property bool held: {
+                        if (press.pressed)
+                            return true;
+                        for (const child of row.children)
+                            if (child.pressed === true)
+                                return true;
+                        return false;
                     }
 
                     Layout.fillHeight: true
@@ -292,6 +319,7 @@ BarItem {
                             fontSize: Theme.workspaceTextSize
                             weight: button.letter ? Theme.bodyWeight : (button.active ? Font.DemiBold : Theme.bodyWeight)
                             color: Theme.fg
+                            opacity: letterBounce.running ? 1 : button.ink
 
                             transform: Translate { y: letterBounce.offset + (press.pressed ? Theme.pressDip : 0) }
                         }
@@ -332,6 +360,8 @@ BarItem {
                                 urgent: root.anyUrgent(modelData.addresses)
                                 pressed: tap.pressed
                                 badgeFill: button.badgeFill
+                                // An app that wants you is not one to stand back.
+                                inkOpacity: app.urgent ? 1 : button.ink
 
                                 // The app's name, the way the Dock labels its
                                 // icons; the badge already says how many.
