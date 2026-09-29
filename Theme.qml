@@ -204,6 +204,13 @@ Singleton {
     // beneath them is.
     readonly property int badgeLine: 8
 
+    // The dot under the taskbar icon holding the focused window, the way the
+    // Dock marks a running app: small enough to read as a mark rather than a
+    // shape, and hung on a line of its own from the top of the pill, below
+    // the icons' ink and inside the workspace mark.
+    readonly property int focusDotSize: 3
+    readonly property real focusDotLine: 19.5
+
     // The pin mark on a pinned module's lower right corner, shown while the
     // drawer is open: the badge's dark disc a size down, since it answers a
     // question you only ask with the drawer out.

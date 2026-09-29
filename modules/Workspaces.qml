@@ -7,7 +7,8 @@ import qs.components
 
 // hyprland/workspaces with a taskbar: the workspace number followed by one icon
 // per *app* on it, badged with a count when that app has more than one window
-// there. Clicking a badged icon walks through that app's windows.
+// there, and dotted underneath when it holds the focused window. Clicking a
+// badged icon walks through that app's windows.
 BarItem {
     id: root
 
@@ -396,6 +397,11 @@ BarItem {
                                 windowClass: modelData.windowClass
                                 count: modelData.addresses.length
                                 urgent: root.anyUrgent(modelData.addresses)
+                                // Only on the workspace in front of you: Hyprland
+                                // keeps the last window as active after you move
+                                // to an empty one, and a dot left behind there
+                                // would point at a window you are not in.
+                                focused: button.active && modelData.addresses.includes(Hyprland.activeToplevel?.address)
                                 pressed: tap.pressed
                                 badgeFill: button.badgeFill
                                 // An app that wants you is not one to stand back.

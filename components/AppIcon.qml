@@ -17,6 +17,8 @@ Item {
     // recolouring: it is the same thing a tray icon asking for attention says,
     // and the two should not say it differently.
     property bool urgent: false
+    // One of this app's windows is the one you are in.
+    property bool focused: false
     // Held under the pointer; the owner's MouseArea says so.
     property bool pressed: false
     // What to draw when nothing resolves. A window, on the taskbar; the
@@ -114,6 +116,27 @@ Item {
         // BarText lays it out on its ink already, and glyphSizeLarge is what
         // puts that ink on the same line the icons are pulled down to.
         fontSize: Theme.glyphSizeLarge
+    }
+
+    // Under the icon, centred on its ink rather than its box, and still while
+    // the artwork bounces, for the same reason the badge is.
+    Rectangle {
+        readonly property real inkCentre: root.hasIcon ? art.x + art.inkX + art.inkWidth / 2 : fallback.x + fallback.width / 2
+
+        width: Theme.focusDotSize
+        height: width
+        radius: width / 2
+        x: Math.round(inkCentre - width / 2)
+        y: Math.round(Theme.pillTop(root.height) + Theme.focusDotLine - height / 2)
+        color: Theme.fg
+        opacity: root.focused ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.markMs * 0.6
+                easing.type: Easing.OutCubic
+            }
+        }
     }
 
     // Sits on the icon's top right corner, mostly outside it, so the app stays
