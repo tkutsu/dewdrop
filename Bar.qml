@@ -41,7 +41,17 @@ PanelWindow {
     // the same thing: this is the layer surface's exclusive zone, and every
     // value it passes through is a relayout of the windows below. It changes
     // once, while the strip it belongs to fades in over it.
-    implicitHeight: Theme.barHeight + Theme.barMargin + (bar.gapless ? Theme.barMargin : 0)
+    readonly property int reserved: Theme.barHeight + Theme.barMargin + (bar.gapless ? Theme.barMargin : 0)
+    exclusiveZone: bar.reserved
+    // The window reaches a few pixels further down than it reserves, for the
+    // glass to bulge into as a drop pours into its neighbour (bar.bulge): the
+    // slab's top has the margin above it, its bottom had nothing. Clicks there
+    // go through to the window underneath.
+    implicitHeight: bar.reserved + 4
+    mask: Region {
+        width: bar.width
+        height: bar.reserved
+    }
     color: "transparent"
 
     // Whether Hyprland has taken the gaps off the workspace this bar's monitor
@@ -103,7 +113,12 @@ PanelWindow {
     // Declared before them so it goes behind, but they hand their fill over as
     // it comes up rather than stacking on it (see Pill.mergeProgress).
     Rectangle {
-        anchors.fill: parent
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
+        height: bar.reserved
         visible: bar.mergeProgress > 0
         color: Theme.barBg
 
@@ -170,6 +185,10 @@ PanelWindow {
         box1: bar.countdownDrop
         box2: bar.noticeDrop
         box3: bar.musicDrop
+        bulge0: bar.bulge(clockPill.x - leftLip, -1, music.reveal, music.stowed)
+        // Whichever is pouring in on the right: the timer into the clock, or
+        // the notice into the timer if one is set and the clock if not.
+        bulge1: countdown.stowed && countdown.reveal > 0 ? bar.bulge(bar.clockRight + rightLip, 1, countdown.reveal, true) : bar.bulge(countdown.reveal > 0 ? bar.noticeEdge : bar.clockRight + rightLip, 1, notice.reveal, notice.stowed)
         reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal, countdown.stowed), bar.dropReach(notice.reveal, notice.stowed), bar.dropReach(music.reveal, music.stowed))
     }
 
@@ -265,6 +284,20 @@ PanelWindow {
     function lip(reveal, leaving) {
         const t = 1 - reveal;
         return leaving ? 7 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : bar.wobble((0.45 - t) / 0.3, -3);
+    }
+
+    // Where the neighbour's glass bulges, above and below, as a drop pours
+    // into it: a short swelling at its end, standing a couple of pixels proud
+    // of the slab by the time the last of the drop is in, and springing back
+    // with the end (bar.lip). `end` is the neighbour's end the drop is on,
+    // `dir` which way the drop lies from it, as for `drop`.
+    function bulge(end, dir, reveal, leaving) {
+        const t = 1 - reveal;
+        const swell = leaving ? 2 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : 0;
+        if (swell <= 0)
+            return Qt.vector4d(0, 0, 0, 0);
+        const w = Theme.barHeight * 1.5;
+        return Qt.vector4d(dir > 0 ? end - w : end, Theme.barMargin - swell, w, Theme.barHeight + 2 * swell);
     }
 
     // How far a drop reaches for its neighbour. At rest, the air between

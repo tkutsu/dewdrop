@@ -17,6 +17,11 @@ ShaderEffect {
     property vector4d box1
     property vector4d box2
     property vector4d box3
+    // Where box0 bulges as a drop pours into it: boxes taller than the slab,
+    // which the glass is let out to (and shaders/liquid.frag blends in by
+    // how far they stand out). None by default.
+    property vector4d bulge0
+    property vector4d bulge1
 
     // How close two boxes come before they start to pull towards each other.
     // The air between islands, so pills at rest are drawn exactly as they are

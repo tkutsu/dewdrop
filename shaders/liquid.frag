@@ -22,6 +22,10 @@ layout(std140, binding = 0) uniform buf {
     vec4 box1;
     vec4 box2;
     vec4 box3;
+    // Swellings on box0, the one a drop pours into: boxes taller than the
+    // slab, where it bulges with what has come in. A width of zero is none.
+    vec4 bulge0;
+    vec4 bulge1;
     // How far each of box1..box3 reaches for the boxes before it (x unused).
     vec4 reaches;
     float lineWidth;
@@ -55,10 +59,24 @@ float smin(float a, float b, float k) {
     return min(a, b) - h * h * k * 0.25;
 }
 
+// How far a bulge stands proud of the slab, above and below.
+float swell(vec4 b) {
+    return b.z > 0.0 ? max((b.w - (rimTo - rimFrom)) * 0.5, 0.0) : 0.0;
+}
+
 void main() {
     vec2 p = qt_TexCoord0 * size;
 
+    // A bulge is blended in by as much as it stands out, so it grows out of
+    // the slab from nothing and goes back into it without a jump.
+    float s0 = swell(bulge0);
+    float s1 = swell(bulge1);
+    float k0 = min(8.0, s0 * 3.0);
+    float k1 = min(8.0, s1 * 3.0);
+
     float d = box(p, box0);
+    d = smin(d, box(p, bulge0), k0);
+    d = smin(d, box(p, bulge1), k1);
     d = smin(d, box(p, box1), reaches.y);
     d = smin(d, box(p, box2), reaches.z);
     d = smin(d, box(p, box3), reaches.w);
@@ -66,8 +84,10 @@ void main() {
     // The smooth minimum swells a join out in every direction, which made
     // the glass taller than a pill wherever two met, and only on top: the
     // bar's window ends at the slabs' bottom edge. Held to the slab's height,
-    // so a join only ever fills out sideways.
-    d = max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5);
+    // so a join only ever fills out sideways. A bulge is let through, and
+    // what its blend rounds it out by.
+    float proud = max(s0 + k0 * 0.25, s1 + k1 * 0.25);
+    d = max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
