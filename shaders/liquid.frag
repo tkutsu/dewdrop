@@ -89,10 +89,6 @@ float glass(vec2 p) {
     return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
 }
 
-// Where the light comes from: above and a little to the left, in the item's
-// pixels (y runs down).
-const vec2 light = vec2(-0.29, -0.96);
-
 void main() {
     vec2 p = qt_TexCoord0 * size;
     float d = glass(p);
@@ -104,21 +100,13 @@ void main() {
                   glass(p + vec2(0.0, 0.5)) - glass(p - vec2(0.0, 0.5)));
     n = length(n) > 0.0 ? normalize(n) : vec2(0.0, -1.0);
 
-    // An edge is lit by as much as it faces the light: the top in full, the
-    // round ends by how far they turn towards it. Light that went through
-    // the glass catches the far edge too, fainter and only where it faces
-    // straight away: the glint along a drop's underside.
-    float facing = dot(n, light);
-    float key = smoothstep(-0.1, 0.9, facing);
-    float back = smoothstep(0.5, 1.0, -facing) * 0.35;
-    vec4 rim = mix(rimBottom, rimTop, max(key, back));
-
-    // The glint: white where the edge faces the light head on. From the
-    // corner rather than overhead, so the straight top edge is left to the
-    // rim and it is the round ends that catch it, top left and, through the
-    // glass, bottom right.
-    float corner = dot(n, vec2(-0.707, -0.707));
-    float glint = pow(max(corner, 0.0), 12.0) * 0.5 + pow(max(-corner, 0.0), 12.0) * 0.25;
+    // Lit from straight above (y runs down): an edge takes the light by as
+    // much as it faces up, the top in full and the round ends by how far
+    // they turn towards it, the same on both sides. Wide enough that an end
+    // facing sideways keeps about the light it had from the old top-to-bottom
+    // gradient, so the pill's outline holds on a dark wallpaper.
+    float key = smoothstep(-0.6, 0.9, -n.y);
+    vec4 rim = mix(rimBottom, rimTop, key);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
@@ -129,16 +117,15 @@ void main() {
     // The glass's thickness: the rim's light carried a few pixels in and
     // dying away, so the edge reads as a rounded lip and not a drawn line.
     float depth = max(-d - lineWidth, 0.0);
-    float glowA = (rim.a * 0.6 + glint * 0.5) * inner * exp(-depth / 2.5);
+    float glowA = rim.a * inner * exp(-depth / 3.5);
 
     // Fill, then the glow over it, then the rim over both, premultiplied.
-    // The glint is white, laid in with the rim's own colour.
     float a = fill.a * shape;
     vec3 rgb = fill.rgb * a;
-    rgb = mix(rim.rgb, vec3(1.0), glint) * glowA + rgb * (1.0 - glowA);
+    rgb = rim.rgb * glowA + rgb * (1.0 - glowA);
     a = glowA + a * (1.0 - glowA);
-    float rimA = min(rim.a + glint, 1.0) * band;
-    rgb = mix(rim.rgb, vec3(1.0), glint) * rimA + rgb * (1.0 - rimA);
+    float rimA = rim.a * band;
+    rgb = rim.rgb * rimA + rgb * (1.0 - rimA);
     a = rimA + a * (1.0 - rimA);
 
     fragColor = vec4(rgb, a) * qt_Opacity;
