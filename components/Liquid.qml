@@ -53,10 +53,26 @@ ShaderEffect {
     // glass draws bent at its edges instead of letting Hyprland's blur show
     // through a tint. Null (the default) for glass laid on other glass, like
     // the workspace mark, and the glass is the plain fill until it has loaded.
+    //
+    // The Image is laid out in the window where the screen is, so its x and
+    // y are the screen's top left in window coordinates and its size is the
+    // screen's; it is a direct child of the window's content.
     property Image backdrop: null
-    // Where this item's top left is on the screen, and the screen's size.
-    property point origin: Qt.point(0, 0)
-    property size screenSize: Qt.size(1, 1)
+
+    // Where this item is in its window. Walked up the parent chain rather than
+    // handed to mapToItem, which would leave the binding nothing to re-run on
+    // (see Pill.centreOnX): every step reads an x or y the layout moves.
+    readonly property point windowPos: {
+        let x = 0, y = 0;
+        for (let item = root; item; item = item.parent) {
+            x += item.x;
+            y += item.y;
+        }
+        return Qt.point(x, y);
+    }
+    // This item's top left on the screen, and the screen's size.
+    readonly property point origin: backdrop ? Qt.point(windowPos.x - backdrop.x, windowPos.y - backdrop.y) : Qt.point(0, 0)
+    readonly property size screenSize: backdrop ? Qt.size(backdrop.width, backdrop.height) : Qt.size(1, 1)
 
     readonly property real glass: backdrop?.status === Image.Ready ? 1 : 0
     readonly property size backdropSize: backdrop ? Qt.size(backdrop.implicitWidth, backdrop.implicitHeight) : Qt.size(1, 1)

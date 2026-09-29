@@ -159,6 +159,7 @@ PanelWindow {
 
         side: Pill.Side.Left
         mergeProgress: bar.mergeProgress
+        backdrop: wallpaperImage
 
         Workspaces {}
     }
@@ -168,10 +169,18 @@ PanelWindow {
     // from one colour to the next (modules/Backdrop.qml), which the plain
     // tint and Hyprland's blur follow for free. Loaded at the screen's size
     // and cropped to cover it, the way hyprpaper shows it.
+    //
+    // Laid out where the screen is, in the bar's own coordinates, which is
+    // how each piece of glass finds the part of it that is behind it. The bar
+    // is the width of the screen, so only its height says where it is: at the
+    // top, or (a bar anchored to the bottom) at the foot.
     Image {
         id: wallpaperImage
 
         visible: false
+        y: bar.anchors.top ? 0 : bar.height - bar.screen.height
+        width: bar.screen.width
+        height: bar.screen.height
         asynchronous: true
         source: Services.Wallpaper.current ? "file://" + Services.Wallpaper.current : ""
         fillMode: Image.PreserveAspectCrop
@@ -192,10 +201,6 @@ PanelWindow {
         visible: opacity > 0
 
         backdrop: wallpaperImage
-        // The bar is the width of the screen, so only its height says where
-        // it is: at the top, or (a bar anchored to the bottom) at the foot.
-        origin: Qt.point(0, bar.anchors.top ? 0 : bar.screen.height - bar.height)
-        screenSize: Qt.size(bar.screen.width, bar.screen.height)
 
         // The clock's ends give as a drop goes into them or lets go of them
         // (bar.lip). The notice only touches the clock with no timer set.
@@ -472,6 +477,7 @@ PanelWindow {
 
         side: Pill.Side.Right
         mergeProgress: bar.mergeProgress
+        backdrop: wallpaperImage
 
         // Whatever has nothing to say right now folds away behind this handle,
         // each module in its own place in the row so that opening the drawer

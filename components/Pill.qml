@@ -197,7 +197,11 @@ Item {
     // itself without knowing any of this happened.
     implicitHeight: Theme.barHeight + Theme.barInset * 2
 
-    Rectangle {
+    // The wallpaper, for the slab to be clear glass over it rather than a
+    // tint (Liquid.backdrop). Null leaves it the tint.
+    property Image backdrop: null
+
+    Item {
         id: slab
 
         anchors {
@@ -208,18 +212,18 @@ Item {
             rightMargin: root.atRightEdge ? Theme.barMargin : 0
         }
         visible: root.drawsSlab
-        radius: Theme.pillRadius
-        color: Qt.rgba(Theme.barBg.r, Theme.barBg.g, Theme.barBg.b, Theme.barBg.a * (1 - root.mergeProgress))
 
-        // The pill's edge, lit from above like every other surface the shell
-        // draws. Goes with the fill once the pills merge: a strip has no ends
-        // for a rim to run round.
-        Rim {
+        // The same glass as the clock's, one box of it, with the edge lit
+        // from above like every other surface the shell draws. Goes once the
+        // pills merge: a strip has no ends for a rim to run round.
+        Liquid {
             anchors.fill: parent
-            radius: Theme.pillRadius
-            topColor: Theme.pillRimTop
             opacity: 1 - root.mergeProgress
             visible: opacity > 0
+            backdrop: root.backdrop
+            box0: Qt.vector4d(0, 0, width, height)
+            rimFrom: 0
+            rimTo: height
         }
     }
 
