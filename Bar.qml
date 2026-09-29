@@ -264,7 +264,7 @@ PanelWindow {
             const close = bar.ease((t - 0.25) / 0.5);
             const plunge = bar.ease((t - 0.65) / 0.35);
             const shrink = 1 - 0.3 * plunge;
-            w = (height + (width - height) * bar.spring((0.5 - t) / 0.3)) * shrink;
+            w = (height + (width - height) * bar.spring((0.5 - t) / 0.36)) * shrink;
             h = height * shrink;
             gap = Theme.pillSpread * (1 - close) - height * 1.6 * plunge;
         }
@@ -287,13 +287,13 @@ PanelWindow {
     }
 
     // Where the neighbour's glass bulges, above and below, as a drop pours
-    // into it: a short swelling at its end, standing a couple of pixels proud
+    // into it: a short swelling at its end, standing a pixel or so proud
     // of the slab by the time the last of the drop is in, and springing back
     // with the end (bar.lip). `end` is the neighbour's end the drop is on,
     // `dir` which way the drop lies from it, as for `drop`.
     function bulge(end, dir, reveal, leaving) {
         const t = 1 - reveal;
-        const swell = leaving ? 2 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : 0;
+        const swell = leaving ? 1.25 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : 0;
         if (swell <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const w = Theme.barHeight * 1.5;
