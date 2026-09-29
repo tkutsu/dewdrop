@@ -293,20 +293,26 @@ Singleton {
     readonly property color label2: Qt.rgba(1, 1, 1, 0.55)
     readonly property color label3: Qt.rgba(1, 1, 1, 0.25)
     readonly property color fg: label
-    // A pill's fill, and the popups' too: a tooltip or a menu is the bar's own
-    // surface carried a little further down, so it is the same half-black
-    // rather than the near-opaque grey GTK gave them. The fill has to stay
+    // A pill's fill: half black, and what the clear glass lays over the
+    // wallpaper it draws (glassTint), rather than the near-opaque grey GTK
+    // gave the bar. popupBg below is the popups' own. The fill has to stay
     // above the 0.3 alpha that wrules.lua's layer rule ignores, or the
     // compositor stops blurring what is behind it — that threshold is also
     // what keeps the gaps between the pills unblurred, so this is the one
     // number both ends depend on.
     readonly property color barBg: Qt.rgba(tint.r, tint.g, tint.b, 0.35)
     // What hangs off the bar — tooltips, popups, menus, the launcher and the
-    // power menu — is darker than the bar. The system does the same: its
-    // menu bar is barely there over the wallpaper, and its menus are nearly
-    // solid, because a menu is read and a bar is glanced at. Same black,
-    // so the two still read as one material at two thicknesses.
-    readonly property color popupBg: Qt.rgba(tint.r, tint.g, tint.b, 0.65)
+    // power menu — is smoked glass rather than the bar's clear glass. The
+    // system does the same: its menu bar is barely there over the wallpaper,
+    // and its menus are nearly solid, because a menu is read and a bar is
+    // glanced at, and a menu opens over a window whose text would show
+    // through anything clearer.
+    //
+    // Same hue as the bar's tint, lifted off near-black. At tint's own 0.08
+    // a popup over a dark terminal was a black box on black; at 0.13 it is a
+    // step lighter than the window under it and still well under the white
+    // labels on it.
+    readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation, 0.13, 0.68)
 
     // What "black" means for the two above. It is black until the wallpaper
     // service says otherwise, and then it is the wallpaper's own colour taken
