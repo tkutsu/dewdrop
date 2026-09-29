@@ -47,12 +47,6 @@ ShaderEffect {
     property real rimFrom: Theme.barInset
     property real rimTo: Theme.barInset + Theme.barHeight
 
-    // A piece of glass laid on a pill (the workspace mark, a badge) rather
-    // than a pill: its rim lit from above by the way the edge faces, with the
-    // light carried a few pixels in as a lip. 0 is the plain rim a Pill's Rim
-    // draws, which the pills themselves keep.
-    property real lip: 0
-
     readonly property size size: Qt.size(width, height)
 
     fragmentShader: Qt.resolvedUrl("../shaders/liquid.frag.qsb")
