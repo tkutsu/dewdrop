@@ -6,10 +6,10 @@ import qs
 import qs.components
 import qs.services
 
-// The music pill: what is playing, with a hand either side of it. The title
-// opens the popup — it is the widest thing in the pill and the one you are
-// already looking at, so it is also the cheapest to hit. The sleeve is
-// play/pause, and so is a right click anywhere on the pill.
+// The music pill: what is playing, and when pointed at, a hand either side of
+// it. The title opens the popup — it is the widest thing in the pill and the
+// one you are already looking at, so it is also the cheapest to hit. The
+// sleeve's slot is play/pause, and so is a right click anywhere on the pill.
 //
 // The four left targets are TapHandlers rather than the BarItem's own click,
 // which only has the right button here: one module, four targets, and a
@@ -137,7 +137,9 @@ BarItem {
         track();
     }
 
-    spacing: Theme.mediaGap
+    // Each part brings its own gap, so that the hands can take theirs with
+    // them as they fold.
+    spacing: 0
     popup: MusicPopup {}
     // The title opens it (below), not the whole pill.
     popupButton: Qt.NoButton
@@ -148,21 +150,55 @@ BarItem {
             [Qt.RightButton]: () => Mpd.send(["toggle"])
         })
 
-    Glyph {
-        Layout.fillHeight: true
-        text: Theme.glyph.mediaPrev
-        transform: Translate { y: prevTap.pressed ? Theme.pressDip : 0 }
+    // The controls, out only while the pill is pointed at: at rest it is the
+    // sleeve and the title, and reached for it opens out into prev, play and
+    // next. Held out while the popup is up, which the pointer leaves the pill
+    // to get to — folding then would slide the popup out from under it.
+    readonly property bool handsOut: root.containsMouse || root.popupOpen
 
-        // A margin of the dip's own depth, on all three. Each target presses
-        // in by moving the item its handler hangs off, and a pointer on the
-        // screen's top pixel — the cheapest place on the bar to click — was
-        // left a pixel above the item it had pressed, which cancelled the tap
-        // before the button came up. BarItem's own click never had this: what
-        // dips there is the contents, not the MouseArea.
-        TapHandler {
-            id: prevTap
-            margin: Theme.pressDip
-            onTapped: Mpd.send(["prev"])
+    // A hand either side, folding the way a module goes into the drawer: its
+    // room springs shut and the pill's edge passes over the glyph, which stays
+    // put beside the title. Its tap is off while folded, where the glyph sits
+    // out past the pill's edge.
+    Item {
+        readonly property real full: prev.implicitWidth + Theme.mediaGap
+
+        Layout.fillHeight: true
+        implicitWidth: root.handsOut ? full : 0
+        clip: width < full
+        opacity: Math.min(1, width / full)
+
+        Behavior on implicitWidth {
+            enabled: root.settled
+            SpringAnimation {
+                spring: Theme.springStiffness
+                damping: Theme.springDamping
+                epsilon: 0.25
+            }
+        }
+
+        Glyph {
+            id: prev
+
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.mediaGap
+            height: parent.height
+            text: Theme.glyph.mediaPrev
+            transform: Translate { y: prevTap.pressed ? Theme.pressDip : 0 }
+
+            // A margin of the dip's own depth, on every target. Each presses
+            // in by moving the item its handler hangs off, and a pointer on
+            // the screen's top pixel — the cheapest place on the bar to click
+            // — was left a pixel above the item it had pressed, which
+            // cancelled the tap before the button came up. BarItem's own click
+            // never had this: what dips there is the contents, not the
+            // MouseArea.
+            TapHandler {
+                id: prevTap
+                enabled: root.handsOut
+                margin: Theme.pressDip
+                onTapped: Mpd.send(["prev"])
+            }
         }
     }
 
@@ -201,11 +237,11 @@ BarItem {
         // picture; this is a thumbnail of the same file.
         //
         // Icon-sized and only just rounded, so it reads as part of the row
-        // rather than as a second pill inside this one. Pointed at, it darkens
-        // under a play or pause mark, the way a mini player's artwork does:
-        // the button is there when reached for and costs the pill nothing at
-        // rest. A folder with no sleeve shows the mark on its own, so the
-        // button is never missing. The gap after it presses with it.
+        // rather than as a second pill inside this one. With the hands out it
+        // gives its place to a play or pause mark between them, so the three
+        // controls read as one row; at rest the picture is back. A folder
+        // with no sleeve shows the mark at rest too, so the slot is never
+        // empty. The gap after it presses with it.
         Item {
             id: slot
 
@@ -216,17 +252,13 @@ BarItem {
             readonly property bool bare: sleeve.status === Image.Null || sleeve.status === Image.Error
 
             Layout.fillHeight: true
-            implicitWidth: size + root.spacing
+            implicitWidth: size + Theme.mediaGap
             transform: Translate { y: playTap.pressed ? Theme.pressDip : 0 }
 
             TapHandler {
                 id: playTap
                 margin: Theme.pressDip
                 onTapped: Mpd.send(["toggle"])
-            }
-
-            HoverHandler {
-                id: playHover
             }
 
             ClippingRectangle {
@@ -249,19 +281,7 @@ BarItem {
                     asynchronous: true
                     smooth: true
                     mipmap: true
-                    opacity: status === Image.Ready ? 1 : 0
-
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.fadeMs
-                        }
-                    }
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: Theme.scrim
-                    opacity: playHover.hovered && !slot.bare ? 1 : 0
+                    opacity: status === Image.Ready && !root.handsOut ? 1 : 0
 
                     Behavior on opacity {
                         NumberAnimation {
@@ -276,7 +296,7 @@ BarItem {
                 x: Math.round((slot.size - width) / 2)
                 height: parent.height
                 text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
-                opacity: playHover.hovered || slot.bare ? 1 : 0
+                opacity: root.handsOut || slot.bare ? 1 : 0
 
                 Behavior on opacity {
                     NumberAnimation {
@@ -332,15 +352,37 @@ BarItem {
         }
     }
 
-    Glyph {
-        Layout.fillHeight: true
-        text: Theme.glyph.mediaNext
-        transform: Translate { y: nextTap.pressed ? Theme.pressDip : 0 }
+    Item {
+        readonly property real full: Theme.mediaGap + next.implicitWidth
 
-        TapHandler {
-            id: nextTap
-            margin: Theme.pressDip
-            onTapped: Mpd.send(["next"])
+        Layout.fillHeight: true
+        implicitWidth: root.handsOut ? full : 0
+        clip: width < full
+        opacity: Math.min(1, width / full)
+
+        Behavior on implicitWidth {
+            enabled: root.settled
+            SpringAnimation {
+                spring: Theme.springStiffness
+                damping: Theme.springDamping
+                epsilon: 0.25
+            }
+        }
+
+        Glyph {
+            id: next
+
+            x: Theme.mediaGap
+            height: parent.height
+            text: Theme.glyph.mediaNext
+            transform: Translate { y: nextTap.pressed ? Theme.pressDip : 0 }
+
+            TapHandler {
+                id: nextTap
+                enabled: root.handsOut
+                margin: Theme.pressDip
+                onTapped: Mpd.send(["next"])
+            }
         }
     }
 
