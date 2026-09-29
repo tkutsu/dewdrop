@@ -82,16 +82,25 @@ Singleton {
     // and exactly as tall as the app icons it holds.
     readonly property int markInset: 2
 
-    // One gap between things that stand on their own: modules, tray icons, one
-    // workspace and the next. Measured icon to icon — a badge floats in the gap
-    // rather than claiming layout width, so a counted module sits exactly as far
-    // from its neighbour as an uncounted one does. On the 4pt grid with
-    // everything else.
+    // One gap between things that stand on their own: modules and tray icons.
+    // Measured icon to icon — a badge floats in the gap rather than claiming
+    // layout width, so a counted module sits exactly as far from its neighbour
+    // as an uncounted one does. On the 4pt grid with everything else.
     readonly property int gap: 16
+
+    // One workspace and the next, which are not loose modules but the items
+    // of a menu bar: the mark reaches past its workspace by the pill's pad
+    // less its inset, and the gap is twice that, so the mark's edge falls
+    // halfway to the neighbour and the marks of two neighbours would meet
+    // edge to edge. At `gap` the mark stood closer to the next workspace
+    // than to its own.
+    readonly property int workspaceGap: (pillPad - markInset) * 2
 
     // Inside a workspace, its number and window icons sit tighter than that, so
     // the workspace reads as one thing rather than as a run of loose icons.
-    readonly property int appIconGap: 3
+    // Ink to ink: the icons' boxes follow their artwork and the number is laid
+    // out on its ink, so every digit sits as far from its icons as any other.
+    readonly property int appIconGap: 4
 
     // The music pill's three controls are one instrument rather than three
     // modules that happen to be neighbours, so they sit closer than `gap` —

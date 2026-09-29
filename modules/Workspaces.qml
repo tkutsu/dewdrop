@@ -246,7 +246,7 @@ BarItem {
             id: buttons
 
             anchors.fill: parent
-            spacing: Theme.gap
+            spacing: Theme.workspaceGap
 
             Repeater {
                 id: workspaces
@@ -352,9 +352,13 @@ BarItem {
                         // is the key that reaches it: 0 for the tenth, as on the
                         // keyboard. It stays at one weight, since the mark says
                         // which workspace is yours and a number that went bold
-                        // would widen the mark as it arrived.
+                        // would widen the mark as it arrived. Laid out on its
+                        // ink, like the icons beside it: tabular figures give
+                        // a 1 as much side bearing as an 8 is wide, which put
+                        // the 1 twice as far from its icons as the 2.
                         BarText {
                             Layout.fillHeight: true
+                            tightWidth: true
                             text: button.modelData.name.replace(/^special:/, "")
                             fontSize: Theme.workspaceTextSize
                             color: Theme.fg
