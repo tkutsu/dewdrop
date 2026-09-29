@@ -195,15 +195,15 @@ Item {
     // off the end of the layer surface and is never clicked — it is here so the
     // slab stays centred in the pill and everything inside goes on centring
     // itself without knowing any of this happened.
-    implicitHeight: Theme.barHeight + Theme.barMargin * 2
+    implicitHeight: Theme.barHeight + Theme.barInset * 2
 
     Rectangle {
         id: slab
 
         anchors {
             fill: parent
-            topMargin: Theme.barMargin
-            bottomMargin: Theme.barMargin
+            topMargin: Theme.barInset
+            bottomMargin: Theme.barInset
             leftMargin: root.atLeftEdge ? Theme.barMargin : 0
             rightMargin: root.atRightEdge ? Theme.barMargin : 0
         }

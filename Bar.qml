@@ -25,32 +25,32 @@ PanelWindow {
         left: true
         right: true
     }
-    // Down to the bottom edge of the pills and no further. The air under them
-    // is Hyprland's own window gap (general:gaps_out), the same gap that puts a
-    // tiled window's left edge level with the left pill; reserving a margin
-    // here as well would stack on top of it and read as double.
+    // The pills with their air above and below. The air below is mostly
+    // Hyprland's own window gap (general:gaps_out), the same gap that puts a
+    // tiled window's left edge level with the left pill, so the bar reserves
+    // only what that gap does not already give: the inset less the gap, which
+    // at a 7px inset and an 8px gap stops a pixel short of the pills' foot.
     //
-    // Except once the gaps are off, when there is no window gap left to double:
-    // the strip would meet the window flush along a line the pills sit hard
-    // against, with their margin still above them. Claiming that margin a
-    // second time puts the same air back underneath, and the pills — anchored
-    // from the top, so they do not move — end up centred in the strip instead
-    // of resting on its bottom edge.
+    // Once the gaps are off there is no window gap to lean on, and the bar
+    // reserves the whole of it — the strip, which the pills sit centred in.
+    // Either way the window's top edge ends up at the same line, so the
+    // windows do not move as the bar changes.
     //
     // Off `gapless` rather than `mergeProgress`, which is the animated form of
     // the same thing: this is the layer surface's exclusive zone, and every
     // value it passes through is a relayout of the windows below. It changes
     // once, while the strip it belongs to fades in over it.
-    readonly property int reserved: Theme.barHeight + Theme.barMargin + (bar.gapless ? Theme.barMargin : 0)
+    readonly property int stripHeight: Theme.barHeight + 2 * Theme.barInset
+    readonly property int reserved: bar.stripHeight - (bar.gapless ? 0 : Theme.barMargin)
     exclusiveZone: bar.reserved
-    // The window reaches a few pixels further down than it reserves, for the
-    // glass to bulge into as a drop pours into its neighbour (bar.bulge): the
-    // slab's top has the margin above it, its bottom had nothing. Clicks there
-    // go through to the window underneath.
-    implicitHeight: bar.reserved + 4
+    // The whole strip, gaps or not: for the strip to fade over as the gaps
+    // come and go, and for the glass to bulge into as a drop pours into its
+    // neighbour (bar.bulge). Clicks below the pills' foot go through to
+    // whatever is under them.
+    implicitHeight: bar.stripHeight
     mask: Region {
         width: bar.width
-        height: bar.reserved
+        height: Math.max(bar.reserved, Theme.barInset + Theme.barHeight)
     }
     color: "transparent"
 
@@ -118,7 +118,7 @@ PanelWindow {
             left: parent.left
             right: parent.right
         }
-        height: bar.reserved
+        height: bar.stripHeight
         visible: bar.mergeProgress > 0
         color: Theme.barBg
 
@@ -180,7 +180,7 @@ PanelWindow {
         readonly property real leftLip: bar.lip(music.reveal, music.stowed)
         readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
 
-        box0: Qt.vector4d(clockPill.x - leftLip, Theme.barMargin, clockPill.width + leftLip + rightLip, Theme.barHeight)
+        box0: Qt.vector4d(clockPill.x - leftLip, Theme.barInset, clockPill.width + leftLip + rightLip, Theme.barHeight)
         // The notice after the timer, since that is what it joins.
         box1: bar.countdownDrop
         box2: bar.noticeDrop
@@ -269,7 +269,7 @@ PanelWindow {
             gap = Theme.pillSpread * (1 - close) - height * 1.6 * plunge;
         }
         const inner = edge + dir * gap;
-        return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barMargin + (height - h) / 2, w, h);
+        return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barInset + (height - h) / 2, w, h);
     }
 
     // How much of a leaving pill has poured into its neighbour, 0..1.
@@ -297,7 +297,7 @@ PanelWindow {
         if (swell <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const w = Theme.barHeight;
-        return Qt.vector4d(dir > 0 ? end - w : end, Theme.barMargin - swell, w, Theme.barHeight + 2 * swell);
+        return Qt.vector4d(dir > 0 ? end - w : end, Theme.barInset - swell, w, Theme.barHeight + 2 * swell);
     }
 
     // How far a drop reaches for its neighbour. At rest, the air between

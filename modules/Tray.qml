@@ -192,7 +192,7 @@ BarItem {
                     // Out by the shadow's room on the left and up by its
                     // room on top, so the box rather than its window is what
                     // lines up with the icon.
-                    anchor.rect: Qt.rect(-menu.shadowSide, 0, entry.width, entry.height - Theme.barMargin + Theme.popupGap - menu.shadowTop)
+                    anchor.rect: Qt.rect(-menu.shadowSide, 0, entry.width, entry.height - Theme.barInset + Theme.popupGap - menu.shadowTop)
                     anchor.edges: Edges.Bottom | Edges.Left
                     anchor.gravity: Edges.Bottom | Edges.Right
 

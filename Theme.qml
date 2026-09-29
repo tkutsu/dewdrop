@@ -17,19 +17,21 @@ Singleton {
     // macOS's menu bar height (24pt since Big Sur). Even, so an icon centres
     // on whole pixels and the pill's round end is exactly half of it. This is
     // the height of a pill rather than of the bar: the layer surface is
-    // barMargin taller on each side, and the extra is transparent.
+    // barInset taller on each side, and the extra is transparent.
     readonly property int barHeight: 24
 
     // The bar draws nothing itself; its three groups are three separate pills
-    // floating on the wallpaper. This is the air around them — off the screen
-    // edges on all four sides, and the least that can ever sit between two
-    // pills. Same value all round, so a pill is as far off the top of the
-    // screen as it is off the side.
+    // floating on the wallpaper. This is the air off the screen's side edges,
+    // and the least that can ever sit between two pills.
     //
-    // Keep it equal to Hyprland's general:gaps_out (hypr/configs/*.lua). The
-    // bar does not reserve the air under the pills; that is the window gap,
-    // and the two only match while these two numbers do.
+    // Keep it equal to Hyprland's general:gaps_out (hypr/configs/*.lua), which
+    // is what lines a tiled window's side up with the pill above it.
     readonly property int barMargin: 8
+
+    // The air above the pills and below them: a pixel tighter than the sides.
+    // The air below is partly Hyprland's window gap, which is barMargin, so
+    // the bar reserves that much less (Bar.reserved).
+    readonly property int barInset: 7
 
     // A pill claims the margin around it as hit area, so a module's box is
     // taller than the slab it is drawn on. Everything centres in its box and
@@ -233,9 +235,9 @@ Singleton {
 
     // Every count on the bar rides the top edge of the pill instead of sitting
     // inside it: half on the slab, half on the margin above, which gives the
-    // icon underneath its corner back. Its own number rather than barMargin,
+    // icon underneath its corner back. Its own number rather than barInset,
     // so widening the air around the bar leaves the badges where they sit;
-    // barMargin is still the ceiling, since any higher and the badge is drawn
+    // barInset is still the ceiling, since any higher and the badge is drawn
     // outside the layer surface and loses its top.
     readonly property int badgeRise: 4
 

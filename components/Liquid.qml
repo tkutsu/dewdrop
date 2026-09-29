@@ -44,8 +44,8 @@ ShaderEffect {
     // that has shrunk inside it, so a drop on its way in stays lit like the
     // pill it came from. Nothing is drawn above or below these either, so
     // glass inset inside a pill moves them in with it.
-    property real rimFrom: Theme.barMargin
-    property real rimTo: Theme.barMargin + Theme.barHeight
+    property real rimFrom: Theme.barInset
+    property real rimTo: Theme.barInset + Theme.barHeight
 
     readonly property size size: Qt.size(width, height)
 
