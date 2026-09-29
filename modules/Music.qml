@@ -25,6 +25,12 @@ BarItem {
     stowed: !Mpd.loaded || !Settings.moduleOn("music")
     folds: false
 
+    // And the popup goes with it: mpd put down from the popup's own quit
+    // button, or the queue emptied, would otherwise leave it hanging from a
+    // pill that is no longer there.
+    onStowedChanged: if (stowed)
+        OpenPopup.close(root)
+
     // Whether a change is run rather than set: only for a pill at rest. One
     // arriving or leaving is drawn off its width at rest (see Bar.drop), and
     // its contents are hidden anyway.
