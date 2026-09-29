@@ -239,6 +239,7 @@ BarItem {
             // it bulges.
             rimFrom: bulbTop
             rimTo: bulbTop + bulbThickness
+            lip: 1
         }
 
         RowLayout {
