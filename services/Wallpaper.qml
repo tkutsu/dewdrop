@@ -182,7 +182,7 @@ Singleton {
     // near black so it still reads as an edge against a dark window.
     // decoration.lua keeps a neutral grey for while the shell is down, and a
     // config reload puts that grey back, so the border is sent again after one.
-    readonly property color border: Qt.hsla(Math.max(0, root.tint.hslHue), root.tint.hslSaturation, 0.3, 1)
+    readonly property color border: Qt.hsla(Math.max(0, root.tint.hslHue), root.tint.hslSaturation, 0.38, 1)
 
     function paintBorder() {
         const rgba = "rgba(" + String(root.border).slice(1) + "ff)";
