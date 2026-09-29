@@ -4,9 +4,9 @@ import qs.components
 import qs.services
 
 // Unread mail: who, what about, and when, newest first. A click on a row
-// opens it in place to be read, and the foot then has the two things to do
-// with it: open the thread in the Gmail app, or mark it read. The plus at the
-// foot's right end writes a new one.
+// opens it in place to be read, and the two things to do with it come up in
+// its top line: open the thread in the Gmail app, or mark it read. The plus at the header's
+// right end writes a new one.
 //
 // Two lines a row, the way Gmail's list reads: the sender and the time, then
 // the subject with as much of the opening as fits after it. Nothing wraps; a
@@ -21,8 +21,6 @@ Popup {
     // A fixed column, so the times line up down the right edge.
     readonly property int whenWidth: 44
     readonly property int cap: 8
-    // The open mail's buttons, under its text.
-    readonly property int actionsHeight: 20
 
     readonly property var rows: Email.threads.slice(0, root.cap)
 
@@ -45,7 +43,7 @@ Popup {
     // The window is held at the height of a fully open mail, so a row opening
     // grows the box inside it rather than resizing the popup every frame of
     // the animation (see Popup.reserveHeight).
-    reserveHeight: chromeHeight - grown + bodyMax + actionsHeight + 12
+    reserveHeight: chromeHeight - grown + bodyMax + 12
 
     // The text of every row on show, asked for as the popup opens, so a row
     // opens straight to its full height instead of to the snippet and then
@@ -144,11 +142,47 @@ Popup {
 
                     PopupText {
                         id: from
-                        width: parent.width - root.whenWidth
+                        width: parent.width - root.whenWidth - (row.isOpen ? mailActions.width + 6 : 0)
                         text: row.modelData.from
                         font.pixelSize: Theme.captionSize
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
+                    }
+
+                    // The two things to do with an open mail, between the
+                    // sender and the time. Centred on the line and a little
+                    // taller than it, into the row's padding, so they come and
+                    // go without moving anything.
+                    Row {
+                        id: mailActions
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: root.whenWidth
+                        anchors.verticalCenter: from.verticalCenter
+                        spacing: 4
+                        opacity: row.isOpen ? 1 : 0
+                        visible: opacity > 0
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: Theme.foldMs
+                                easing.type: Easing.InOutCubic
+                            }
+                        }
+
+                        PopupButton {
+                            framed: true
+                            glyph: Theme.glyph.openApp
+                            label: "open"
+                            onTapped: Email.open(row.modelData)
+                        }
+
+                        PopupButton {
+                            framed: true
+                            glyph: Theme.glyph.mailRead
+                            label: "mark read"
+                            onTapped: Email.markRead(row.modelData)
+                        }
                     }
 
                     PopupText {
@@ -187,17 +221,16 @@ Popup {
                 }
 
                 // The mail itself, once the row is open, unrolling downwards
-                // from under the subject, with the two things to do with it
-                // under the text. The snippet stands in, faintly, if the text
-                // has not landed yet, and the height follows it when it does
-                // rather than jumping. Scrolls past bodyMax rather than growing
-                // the popup down the screen.
+                // from under the subject. The snippet stands in, faintly, if
+                // the text has not landed yet, and the height follows it when
+                // it does rather than jumping. Scrolls past bodyMax rather than
+                // growing the popup down the screen.
                 Item {
                     id: reveal
 
                     visible: height > 0
                     width: parent.width
-                    height: row.isOpen ? mail.height + mailActions.height + 12 : 0
+                    height: row.isOpen ? mail.height + 12 : 0
                     clip: true
 
                     Behavior on height {
@@ -228,27 +261,6 @@ Popup {
                             color: body.fetched !== undefined ? Theme.label : Theme.label3
                             wrapMode: Text.Wrap
                             textFormat: Text.PlainText
-                        }
-                    }
-
-                    Row {
-                        id: mailActions
-
-                        y: mail.y + mail.height + 6
-                        spacing: 4
-
-                        PopupButton {
-                            framed: true
-                            glyph: Theme.glyph.openApp
-                            label: "open"
-                            onTapped: Email.open(row.modelData)
-                        }
-
-                        PopupButton {
-                            framed: true
-                            glyph: Theme.glyph.mailRead
-                            label: "mark read"
-                            onTapped: Email.markRead(row.modelData)
                         }
                     }
                 }
