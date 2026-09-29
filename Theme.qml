@@ -434,13 +434,15 @@ Singleton {
     readonly property int dropMs: 620
 
     // A pill changing size in place — the music pill to a new title — on a
-    // spring rather than a curve, so it overshoots a touch and settles the way
-    // the Dynamic Island does. Fitted to SwiftUI's .bouncy (0.5 s response,
-    // 0.3 bounce, which overshoots 4.6%) by measuring Qt's SpringAnimation,
-    // whose units are its own: 2.5 / 0.26 overshoots 4.7% and is there in
-    // about a quarter of a second.
+    // spring rather than a curve, so it overshoots and settles the way the
+    // Dynamic Island does. Fitted to SwiftUI's .bouncy with extraBounce 0.2
+    // (0.5 bounce, which overshoots 16.3%) by measuring Qt's SpringAnimation,
+    // whose units are its own: 2.5 / 0.19 overshoots 16.4%, is there in 176
+    // ms and within a pixel of rest in 660. Plain .bouncy (2.5 / 0.26, 4.7%)
+    // was tried first: on a title a few dozen pixels longer that is a pixel
+    // or two of wobble, which read as a glitch rather than as a bounce.
     readonly property real springStiffness: 2.5
-    readonly property real springDamping: 0.26
+    readonly property real springDamping: 0.19
 
     // Figures rolling to their next value (RollingText): SwiftUI's default
     // duration, which the roll runs 1.45 times over while its spring settles
