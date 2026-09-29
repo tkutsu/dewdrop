@@ -29,7 +29,7 @@ Singleton {
     // Keep it equal to Hyprland's general:gaps_out (hypr/configs/*.lua). The
     // bar does not reserve the air under the pills; that is the window gap,
     // and the two only match while these two numbers do.
-    readonly property int barMargin: 4
+    readonly property int barMargin: 8
 
     // A pill claims the margin around it as hit area, so a module's box is
     // taller than the slab it is drawn on. Everything centres in its box and
@@ -200,10 +200,11 @@ Singleton {
 
     // Every count on the bar rides the top edge of the pill instead of sitting
     // inside it: half on the slab, half on the margin above, which gives the
-    // icon underneath its corner back. A margin's worth of rise is as far as
-    // it can go — any higher and the badge is drawn outside the layer surface
-    // and loses its top.
-    readonly property int badgeRise: barMargin
+    // icon underneath its corner back. Its own number rather than barMargin,
+    // so widening the air around the bar leaves the badges where they sit;
+    // barMargin is still the ceiling, since any higher and the badge is drawn
+    // outside the layer surface and loses its top.
+    readonly property int badgeRise: 4
 
     // One size for everything hung under the bar: tooltips, the popups and the
     // tray menus. style.css asked for 1rem, which came out at 14, and at that
