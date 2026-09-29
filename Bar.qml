@@ -29,7 +29,7 @@ PanelWindow {
     // Hyprland's own window gap (general:gaps_out), the same gap that puts a
     // tiled window's left edge level with the left pill, so the bar reserves
     // only what that gap does not already give: the inset less the gap, which
-    // at a 7px inset and an 8px gap stops a pixel short of the pills' foot.
+    // at a 6px inset and an 8px gap stops two pixels short of the pills' foot.
     //
     // Once the gaps are off there is no window gap to lean on, and the bar
     // reserves the whole of it — the strip, which the pills sit centred in.
