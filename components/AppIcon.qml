@@ -23,6 +23,9 @@ Item {
     // notifications draw their own mark for a sender with no icon.
     property string fallbackGlyph: Theme.glyph.window
     property alias badgeFill: badge.fill
+    // The artwork's opacity, not the badge's: a dimmed icon keeps its count
+    // as legible as a lit one.
+    property real inkOpacity: 1
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -76,6 +79,7 @@ Item {
         id: art
 
         visible: root.hasIcon
+        opacity: root.inkOpacity
         y: Math.round((root.height - implicitHeight) / 2)
         source: root.iconName ? Quickshell.iconPath(root.iconName, true) : ""
         // The tray's line, found the same way (components/InkProbe.qml). The
@@ -102,6 +106,7 @@ Item {
         id: fallback
 
         visible: !root.hasIcon
+        opacity: root.inkOpacity
         implicitHeight: root.height
         text: root.fallbackGlyph
         transform: Translate { y: root.shift }
