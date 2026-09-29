@@ -22,6 +22,12 @@ BarItem {
     // pill off `reveal` (see Bar.drop), and nothing folds.
     stowed: !Timers.loaded
     folds: false
+
+    // And the popup goes with it: the last timer cancelled from the popup's
+    // own row would otherwise leave it hanging from a pill that is no longer
+    // there.
+    onStowedChanged: if (stowed)
+        OpenPopup.close(root)
     readonly property real progress: Timers.progress
     // How fast that runs while the timer does, for the pill to carry the line
     // on between the ticks (Pill.rate). `total` is in milliseconds.
