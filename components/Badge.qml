@@ -1,8 +1,8 @@
 import QtQuick
 import qs
 
-// The count that sits on an icon's top right corner: a dark disc with a white
-// number. It grows into a pill rather than staying round, because "20" and "99"
+// The count that sits on an icon's top right corner: a disc of the workspace
+// mark's glass, made solid (Theme.badgeBg), with a white number. It grows into a pill rather than staying round, because "20" and "99"
 // have to fit the same badge a "2" does.
 //
 // The disc is opaque unless its owner says otherwise. It spends half its area
@@ -37,6 +37,12 @@ Item {
         anchors.fill: parent
         radius: height / 2
         color: root.fill
+
+        Rim {
+            anchors.fill: parent
+            radius: parent.radius
+            topColor: Theme.markRimTop
+        }
     }
 
     RollingText {

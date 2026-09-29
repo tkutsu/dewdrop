@@ -177,6 +177,14 @@ Singleton {
         value: root.tint
     }
 
+    // And the colour itself, for what has to be drawn solid where the pills
+    // are glass (Theme.badgeBg).
+    Binding {
+        target: Theme
+        property: "backdrop"
+        value: root.behind ? Qt.color(root.behind) : "black"
+    }
+
     // --- the window border ------------------------------------------------------
     // Hyprland's focused border is the same tinted glass, lifted out of the
     // near black so it still reads as an edge against a dark window.

@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import qs
 
@@ -171,17 +170,18 @@ ClickArea {
         }
     }
 
-    // The pin mark: a disc of the workspace mark's glass on the lower right
-    // corner, where the badge takes the upper. It stays inside the pill,
-    // because the bar's surface ends at the pill's bottom edge and anything
-    // past it is cut off.
-    Item {
+    // The pin mark: the badge's disc on the lower right corner, where the
+    // badge takes the upper. It stays inside the pill, because the bar's
+    // surface ends at the pill's bottom edge and anything past it is cut off.
+    Rectangle {
         readonly property int size: Theme.pinMarkSize
 
-        x: layout.x + layout.width - Theme.pinMarkOverlap
+        x: layout.x + layout.width - size / 2
         y: Theme.pillTop(root.height) + Theme.barHeight - size - 1
         width: size
         height: size
+        radius: size / 2
+        color: Theme.badgeBg
         opacity: root.pinKey !== "" && root.marksPin && DrawerPins.pinned(root.pinKey) ? 1 : 0
         visible: opacity > 0
 
@@ -191,41 +191,17 @@ ClickArea {
             }
         }
 
-        RectangularShadow {
-            anchors.fill: disc
-            offset.y: Theme.pinShadowY
-            radius: disc.radius
-            blur: Theme.pinShadowBlur
-            color: Theme.pinShadow
+        Rim {
+            anchors.fill: parent
+            radius: parent.radius
+            topColor: Theme.markRimTop
         }
 
-        // The mark's glass is see-through, and here it lies on the icon's
-        // corner rather than on the empty pill, so the pill's own colour goes
-        // under it first to keep the icon's ink out from behind the pin.
-        Rectangle {
-            id: disc
-            anchors.fill: parent
-            radius: width / 2
-            color: Theme.tint
-
-            Rectangle {
-                anchors.fill: parent
-                radius: parent.radius
-                color: Theme.selectionStrong
-            }
-
-            Rim {
-                anchors.fill: parent
-                radius: parent.radius
-                topColor: Theme.markRimTop
-            }
-
-            Glyph {
-                anchors.centerIn: parent
-                text: Theme.glyph.pin
-                fontSize: Theme.pinGlyphSize
-                color: Theme.badgeFg
-            }
+        Glyph {
+            anchors.centerIn: parent
+            text: Theme.glyph.pin
+            fontSize: Theme.pinGlyphSize
+            color: Theme.badgeFg
         }
     }
 

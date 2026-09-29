@@ -224,19 +224,10 @@ Singleton {
     readonly property real focusDotClearance: 1.5
 
     // The pin mark on a pinned module's lower right corner, shown while the
-    // drawer is open: a disc of the workspace mark's glass (selectionStrong,
-    // markRimTop), larger than the count badge since a pin has no digits to
-    // read and needs the ink to show, and lifted off the icon by a shadow.
-    readonly property int pinMarkSize: 16
-    readonly property int pinGlyphSize: 11
-    // How far the disc reaches back over the icon. The count badge can sit
-    // centred on the icon's edge because half of it rides above the pill;
-    // this one has nowhere to go below, so at this size it hangs out into the
-    // gap instead and takes only the icon's corner.
-    readonly property int pinMarkOverlap: 3
-    readonly property color pinShadow: Qt.rgba(0, 0, 0, 0.45)
-    readonly property int pinShadowBlur: 4
-    readonly property int pinShadowY: 1
+    // drawer is open: the count badge's disc, with a pin in place of the
+    // number.
+    readonly property int pinMarkSize: badgeSize
+    readonly property int pinGlyphSize: 9
 
     // Every count on the bar rides the top edge of the pill instead of sitting
     // inside it: half on the slab, half on the margin above, which gives the
@@ -320,6 +311,9 @@ Singleton {
     // services/Wallpaper.qml), which is why it is the one property here that
     // is not readonly.
     property color tint: "black"
+    // What the pills are laid over, as one colour: the wallpaper's average,
+    // from the same place and for the same reason as tint.
+    property color backdrop: "black"
     // Every hairline the shell draws: around a pill, around a popup, across a
     // popup between its sections. One colour because they are one thing. White
     // at a whisper rather than a grey — a grey at a tenth on a half-black
@@ -403,14 +397,15 @@ Singleton {
     readonly property color menuText: label2
     readonly property color menuSelectionText: label
 
-    // A dark disc with a white number, the same way round as the rest of the
-    // bar. It gets no outline: at 12px an outline costs a pixel of the disc all
-    // the way round, which is most of the disc there is.
-    readonly property color badgeBg: "#1a1a1a"
+    // The workspace mark's glass, made solid: the mark's white laid over the
+    // pill laid over the wallpaper, worked out here rather than left to the
+    // compositor. The badge sits over an icon's strokes, and glass would let
+    // them up under the number or the pin. It takes the mark's rim as well.
+    readonly property color badgeBg: mix(mix(backdrop, tint, barBg.a), Qt.rgba(1, 1, 1, 1), selectionStrong.a)
     readonly property color badgeFg: "white"
 
-    // The ✕ disc on a notification card's corner: the badge's dark disc a step
-    // lighter, ringed because it sits half off the card, over whatever is
+    // The ✕ disc on a notification card's corner: a near-black disc,
+    // ringed because it sits half off the card, over whatever is
     // behind it.
     readonly property color closeBg: "#262626"
     readonly property color closeBgHover: "#3a3a3a"
