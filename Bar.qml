@@ -287,9 +287,9 @@ PanelWindow {
     }
 
     // Where the neighbour's glass bulges, above and below, as a drop pours
-    // into it: a round swelling at its end, a pill's height long and under a pixel proud
-    // of the slab by the time the last of the drop is in, and springing back
-    // with the end (bar.lip). `end` is the neighbour's end the drop is on,
+    // into it: a round swelling at its end, a pill's height long, standing
+    // under a pixel proud of the slab by the time the last of the drop is in,
+    // and springing back with the end (bar.lip). `end` is the neighbour's end the drop is on,
     // `dir` which way the drop lies from it, as for `drop`.
     function bulge(end, dir, reveal, leaving) {
         const t = 1 - reveal;
