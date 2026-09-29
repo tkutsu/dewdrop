@@ -206,7 +206,7 @@ Singleton {
     readonly property real glyphInk: 0.75
 
     // The count badge on a module's glyph (BadgedGlyph): unread mail, updates.
-    readonly property int badgeSize: 12
+    readonly property int badgeSize: 13
     readonly property int badgeTextSize: 9
     // Where every badge's centre line sits, measured from the top of the pill
     // (see pillTop), so badges line up across the bar whatever size the icon

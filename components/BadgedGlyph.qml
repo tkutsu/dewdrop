@@ -38,11 +38,11 @@ Item {
         text: root.badge
         // Overlapping the icon's right edge by half the badge keeps the icon
         // recognisable underneath and stops a wide pill from swallowing it.
-        x: icon.implicitWidth - Theme.badgeSize / 2
+        x: Math.round(icon.implicitWidth - Theme.badgeSize / 2)
         // A fixed line rather than the icon's own top, so every badge on the
         // bar sits at the same height whatever size its icon is — measured
         // from the top of the pill, since this box reaches up into the margin
         // the pill claims, and raised from there onto the pill's edge.
-        y: Theme.pillTop(root.height) + Theme.badgeLine - Theme.badgeRise - height / 2
+        y: Math.round(Theme.pillTop(root.height) + Theme.badgeLine - Theme.badgeRise - height / 2)
     }
 }

@@ -48,10 +48,9 @@ Item {
     RollingText {
         id: label
         anchors.horizontalCenter: parent.horizontalCenter
-        // A seven-row figure in a twelve-row disc is half a row off either
-        // way, and centred on its cap height it lands low. A figure wants to
-        // sit high of centre, where the plain Text it replaced had it.
-        y: -1
+        // A seven-row figure in a thirteen-row disc centres exactly, three
+        // rows either side. At twelve it needed a row's lift (y: -1), and
+        // kept it would now leave two rows over the figure and four under.
         height: parent.height
         color: Theme.badgeFg
         fontSize: Theme.badgeTextSize
