@@ -1445,10 +1445,14 @@ Singleton {
                 // way out, so picking a path here also trains `f` in the
                 // terminal.
                 Quickshell.execDetached(["fasd", "-A", r.path]);
-                // A file opens in $EDITOR the way f.fish opens one, and in a
-                // terminal because that is where an editor lives. Still not
-                // xdg-open: that would hand a .conf to a text viewer and a
-                // .png to an image app, which is not what f does.
+                // A text file opens in $EDITOR the way f.fish opens one, and
+                // in a terminal because that is where an editor lives. Not
+                // xdg-open for those: it would hand a .conf to a text viewer.
+                // Anything binary does go to xdg-open, though, or a .png opens
+                // in nvim as a screen of bytes. `file` decides, at the moment
+                // of opening rather than per row, and an empty file counts as
+                // text because it reads as binary to `file` and is almost
+                // always something about to be written.
                 //
                 // A directory goes to Dolphin rather than to a prompt sitting
                 // in it. f cd-s there because the next thing you type in a
@@ -1458,7 +1462,7 @@ Singleton {
                 if (r.dir)
                     Quickshell.execDetached([Settings.fileManager, r.path]);
                 else
-                    Quickshell.execDetached(Settings.inTerminal([Settings.editor, r.path]));
+                    Quickshell.execDetached(["sh", "-c", 'f=$1; shift; [ -s "$f" ] && [ "$(file -Lb --mime-encoding -- "$f")" = binary ] && exec xdg-open "$f"; exec "$@"', "sh", r.path, ...Settings.inTerminal([Settings.editor, r.path])]);
             },
             url: (r, i) => {
                 root.leave(i);
