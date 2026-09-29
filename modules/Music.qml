@@ -153,8 +153,15 @@ BarItem {
         text: Theme.glyph.mediaPrev
         transform: Translate { y: prevTap.pressed ? Theme.pressDip : 0 }
 
+        // A margin of the dip's own depth, on all three. Each target presses
+        // in by moving the item its handler hangs off, and a pointer on the
+        // screen's top pixel — the cheapest place on the bar to click — was
+        // left a pixel above the item it had pressed, which cancelled the tap
+        // before the button came up. BarItem's own click never had this: what
+        // dips there is the contents, not the MouseArea.
         TapHandler {
             id: prevTap
+            margin: Theme.pressDip
             onTapped: Mpd.send(["prev"])
         }
     }
@@ -183,7 +190,16 @@ BarItem {
 
         TapHandler {
             id: popupTap
+            margin: Theme.pressDip
             onTapped: root.togglePopup()
+        }
+
+        // With another module's popup up, arriving on the title opens this
+        // one in its place. BarItem browses only for a module whose whole box
+        // is the popup's button, which this one's is not, so the title does it.
+        HoverHandler {
+            onHoveredChanged: if (hovered)
+                OpenPopup.browse(root)
         }
 
         // The sleeve, as the title's own icon. It is the one spot of colour on
@@ -291,6 +307,7 @@ BarItem {
 
         TapHandler {
             id: nextTap
+            margin: Theme.pressDip
             onTapped: Mpd.send(["next"])
         }
     }

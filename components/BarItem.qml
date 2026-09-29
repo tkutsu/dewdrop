@@ -40,8 +40,9 @@ ClickArea {
 
     // With another module's popup up, arriving here opens this one in its
     // place (OpenPopup.browse). Only where the whole module is the popup's
-    // button: Music's popup belongs to its title, and the rest of it is
-    // controls that a pointer on its way to them should not open anything.
+    // button: Music's popup belongs to its title, which browses for itself,
+    // and the rest of it is controls that a pointer on its way to them
+    // should not open anything.
     onContainsMouseChanged: if (containsMouse && popup !== null && popupButton !== Qt.NoButton)
         OpenPopup.browse(root)
 

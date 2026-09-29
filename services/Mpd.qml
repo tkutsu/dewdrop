@@ -164,6 +164,13 @@ Singleton {
     // call, because the moment it exits is the moment to dial: mpd.service is
     // Type=notify, so systemctl returns once mpd says it is ready — and the
     // links may by then have backed off to a retry most of a minute away.
+    //
+    // And then play, because the row says "start music", not "start mpd".
+    // mpd comes back in whatever state it was put down in, which is paused
+    // more often than not: a pause is how the evening usually ends, and
+    // pulling the headphones out makes one (see `unplugged` above). `play`
+    // resumes a paused song where it was and starts a stopped one, and
+    // run() holds it for the command link if that is not up yet.
     function startServer() {
         starter.running = true;
     }
@@ -173,9 +180,11 @@ Singleton {
     Process {
         id: starter
         command: ["systemctl", "--user", "start", "mpd.service"]
-        onExited: {
+        onExited: function (exitCode) {
             link.dialNow();
             cmdLink.dialNow();
+            if (exitCode === 0)
+                root.run(["play"]);
         }
     }
 
