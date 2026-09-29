@@ -185,7 +185,9 @@ BarItem {
     // Each part brings its own gap, so that the hands can take theirs with
     // them as they fold.
     spacing: 0
-    popup: MusicPopup {}
+    popup: MusicPopup {
+        accent: root.accent
+    }
     // The title opens it (below), not the whole pill.
     popupButton: Qt.NoButton
     // Each target presses in by itself; the pill as a whole does not.

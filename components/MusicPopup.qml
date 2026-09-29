@@ -16,6 +16,9 @@ Popup {
     // to put in the gutter and the position has not, which is not a reason for
     // the two of them to start in different places.
     readonly property int gutter: 16
+    // The pill's colour for the track, taken off the sleeve (Music.accent),
+    // so the position here is the same line as the one round the pill.
+    property color accent: Theme.fg
     // Wide enough for both figures of the longest track anyone is likely to
     // queue, so the track beside it does not shorten as the numbers grow.
     readonly property int readoutWidth: 84
@@ -257,8 +260,10 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
-                    // Ten seconds a notch, the same jump as the wheel on the pill.
-                    wheelStep: Mpd.duration > 0 ? 10 / Mpd.duration : 0
+                    knob: false
+                    fill: root.accent
+                    // Ten seconds a notch, down going on, the same as the pill.
+                    wheelStep: Mpd.duration > 0 ? -10 / Mpd.duration : 0
                     onMoved: value => Mpd.seekTo(value)
                 }
 
