@@ -148,6 +148,25 @@ ClickArea {
     hoverEnabled: true
     // config.jsonc sets "cursor": false on every module — no pointer hand.
     cursorShape: Qt.ArrowCursor
+    containmentMask: reach
+
+    // A count badge hangs out past the module's box, over the gap to the
+    // next one (BadgedGlyph), and a click on it is a click on the icon. So
+    // the module answers for its contents' badges as well as for its box:
+    // hover, the wheel and every button, here and on the layers above.
+    QtObject {
+        id: reach
+
+        function contains(point: point): bool {
+            if (point.x >= 0 && point.y >= 0 && point.x < root.width && point.y < root.height)
+                return true;
+            for (const item of layout.children)
+                for (const part of item.children)
+                    if (part instanceof Badge && part.visible && part.contains(part.mapFromItem(root, point)))
+                        return true;
+            return false;
+        }
+    }
 
     // Pinned to the right and at its own width rather than filling the
     // module, so that folding into the drawer takes the module's left edge
@@ -212,6 +231,7 @@ ClickArea {
     ClickArea {
         id: pin
         anchors.fill: parent
+        containmentMask: reach
         enabled: root.pinKey !== ""
         acceptedButtons: Qt.MiddleButton
         cursorShape: Qt.ArrowCursor
@@ -224,6 +244,7 @@ ClickArea {
     ClickArea {
         id: opener
         anchors.fill: parent
+        containmentMask: reach
         enabled: root.popup !== null && root.popupButton !== Qt.NoButton
         acceptedButtons: root.popupButton
         cursorShape: Qt.ArrowCursor
