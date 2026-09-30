@@ -23,6 +23,6 @@ BarItem {
             [Qt.RightButton]: () => Keyboard.next()
         })
 
-    onScrollUp: Keyboard.prev()
-    onScrollDown: Keyboard.next()
+    onScrollUp: Keyboard.next()
+    onScrollDown: Keyboard.prev()
 }

@@ -23,8 +23,9 @@ Item {
     // How far one notch of the wheel moves the value. Zero leaves the wheel
     // to whatever is underneath — the sound popup has one handler for all
     // its rows, which a slider taking the wheel for itself would cut short.
-    // Negative for a position, which the wheel goes through the way it goes
-    // down a page: down is later. Up is more only for an amount.
+    // Down is on, towards the right end, for every slider alike, and up is
+    // back: the track lies across the wheel, so it reads like a page. The
+    // bar's icons go the other way round, up for more.
     property real wheelStep: 0
     property real _wheelAcc: 0
     signal moved(real value)
@@ -125,7 +126,7 @@ Item {
                 wheel.accepted = false;
                 return;
             }
-            root._wheelAcc += wheel.angleDelta.y;
+            root._wheelAcc -= wheel.angleDelta.y;
             const notches = Math.trunc(root._wheelAcc / 120);
             if (notches === 0)
                 return;

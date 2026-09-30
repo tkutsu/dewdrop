@@ -37,6 +37,6 @@ BarItem {
             [Qt.RightButton]: () => Wallpaper.openFolder()
         })
 
-    onScrollUp: Wallpaper.prev()
-    onScrollDown: Wallpaper.next()
+    onScrollUp: Wallpaper.next()
+    onScrollDown: Wallpaper.prev()
 }

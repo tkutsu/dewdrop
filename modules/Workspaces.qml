@@ -26,6 +26,8 @@ BarItem {
 
     // The Hyprland dispatcher speaks Lua here (hyprland.lua drives this setup),
     // which is why these read as function calls rather than bare dispatchers.
+    // Down is the next one: the strip lies across the wheel like a Slider,
+    // so it goes the way a slider does rather than the way an icon does.
     onScrollUp: Hyprland.dispatch('hl.dsp.focus({ workspace = "e-1" })')
     onScrollDown: Hyprland.dispatch('hl.dsp.focus({ workspace = "e+1" })')
 
