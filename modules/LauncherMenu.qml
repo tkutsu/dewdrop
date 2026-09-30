@@ -444,9 +444,9 @@ OverlayWindow {
         // and get cut off by the box's edges, so the list is wiped in from the
         // middle rather than squashed into the gap.
         clip: true
-        // Frost rather than the popups' smoke (Theme.frostBg), at an alpha
-        // held over the 0.3 that keeps the compositor blurring behind it.
-        color: Theme.frostBg
+        // The popups' frost, at an alpha held over the 0.3 that keeps the
+        // compositor blurring behind it.
+        color: Theme.popupBg
         // And the corners go from the box's to the selection's on the way in,
         // so what the edges close on is the same shape the fill was.
         radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)

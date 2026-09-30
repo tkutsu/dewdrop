@@ -4,7 +4,7 @@ import Quickshell
 import qs
 
 // The bar's popup chrome. It used to copy the old GTK tooltip's near-opaque
-// grey; it is the launcher's box now, which is the bar's own half-black with a
+// grey; it is the launcher's box now, frosted glass (Theme.popupBg) with a
 // hairline round it, so everything the shell hangs below the pills reads as one
 // surface rather than as two generations of one.
 // Anchored under the item that owns it, so a module only has to supply content.

@@ -4,7 +4,7 @@ import Quickshell.Widgets
 import qs
 
 // A tray item's DBus menu. Styled off the launcher rather than the old GTK
-// menu it replaced: same half-black panel, the same grey fill and white left
+// menu it replaced: same frosted panel, the same grey fill and white left
 // rule on the row you are on, and the same hairline for a separator, so the
 // two menus on this desktop read as one thing.
 // Submenus open as their own popup anchored to the row that owns them.

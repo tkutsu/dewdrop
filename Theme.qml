@@ -302,27 +302,17 @@ Singleton {
     // number both ends depend on.
     readonly property color barBg: Qt.rgba(tint.r, tint.g, tint.b, 0.35)
     // What hangs off the bar — tooltips, popups, menus, the launcher and the
-    // power menu — is smoked glass rather than the bar's clear glass. The
-    // system does the same: its menu bar is barely there over the wallpaper,
-    // and its menus are nearly solid, because a menu is read and a bar is
-    // glanced at, and a menu opens over a window whose text would show
-    // through anything clearer.
+    // power menu — is frosted glass rather than the bar's clear glass: a thin
+    // fill at little more than the 0.3 the blur rule ignores, so most of what
+    // it shows is Hyprland's heavy blur, and a bright patch behind it comes
+    // through as a glow. The blur is what keeps a window's text from showing
+    // through, not the fill.
     //
-    // Same hue as the bar's tint, lifted off near-black. At tint's own 0.08
-    // a popup over a dark terminal was a black box on black; at 0.13 it is a
-    // step lighter than the window under it and still well under the white
-    // labels on it.
-    readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation, 0.13, 0.68)
-    // The launcher is frosted rather than smoked: a thin fill at little more
-    // than the 0.3 the blur rule ignores, so most of what it shows is the
-    // blur, and a bright patch behind it comes through as a glow. Over a dark
-    // window it lands a touch lighter than the window, over anything bright
-    // it is darker, so the labels on it keep their contrast. Half the tint's
-    // saturation, so it reads as frost with a cast of the wallpaper rather
-    // than as a coloured sheet. It is the one surface that gets this: it opens
-    // in the middle of the screen over whatever is there, is read for a
-    // moment, and is gone.
-    readonly property color frostBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.24, 0.36)
+    // Dark enough that it holds about level over a dark window and pulls
+    // anything bright down, so the white labels on it keep their contrast
+    // whatever it opens over. Half the tint's saturation, so it reads as frost
+    // with a cast of the wallpaper rather than as a coloured sheet.
+    readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.16, 0.36)
 
     // What "black" means for the two above. It is black until the wallpaper
     // service says otherwise, and then it is the wallpaper's own colour taken
