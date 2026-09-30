@@ -180,6 +180,11 @@ OverlayWindow {
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
     readonly property int boxPad: 12
+    // Rounder than a popup's corners, the way a bigger piece of glass is, and
+    // the selection's kept concentric with them across the selectionInset
+    // between the two.
+    readonly property int boxRadius: 14
+    readonly property int rowRadius: root.boxRadius - Theme.selectionInset
     // The right-hand slot every row ends in: an app icon, or the "#yt" badge
     // that says which engine Enter would use.
     readonly property int slotWidth: 24
@@ -444,22 +449,24 @@ OverlayWindow {
         // and get cut off by the box's edges, so the list is wiped in from the
         // middle rather than squashed into the gap.
         clip: true
-        // Same fill as a bar pill, and for the same reason: the 0.5 alpha is
-        // what keeps the compositor blurring behind it.
-        color: Theme.popupBg
+        // Frost rather than the popups' smoke (Theme.frostBg), at an alpha
+        // held over the 0.3 that keeps the compositor blurring behind it.
+        color: Theme.frostBg
         // And the corners go from the box's to the selection's on the way in,
         // so what the edges close on is the same shape the fill was.
-        radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)
+        radius: root.boxRadius + (root.rowRadius - root.boxRadius) * (root.zipping ? 1 - root.zip : 0)
 
         // Its edge, above everything drawn inside it so that no row's fill
         // can paint over it.
         Rim {
             anchors.fill: parent
             radius: box.radius
+            topColor: Theme.frostRimTop
+            bottomColor: Theme.frostRimBottom
             z: 10
         }
 
-        // Deliberately no fade over any of this: the 0.5 alpha above is only
+        // Deliberately no fade over any of this: the 0.36 alpha above is only
         // just over the 0.3 the compositor's blur rule ignores, so anything
         // that takes the box's opacity down drops the blur out from behind it
         // partway through, which is a far louder event than the fade it was
@@ -753,7 +760,7 @@ OverlayWindow {
                     height: root.rowHeight
                     y: Launcher.index * root.rowHeight
                     visible: list.count > 0
-                    radius: Theme.selectionRadius
+                    radius: root.rowRadius
                     color: Theme.selection
 
                     // Duration and no velocity: a velocity would cap it, so a
