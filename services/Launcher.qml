@@ -248,17 +248,22 @@ Singleton {
     // Both are for the preview panel, which is the one thing that cares what
     // is selected rather than what is listed — see components/FilePreview.qml.
     readonly property var selected: root.results[root.index] ?? null
-    readonly property bool pathMode: root.pathQuery !== null
+    readonly property bool pathMode: root.pathQuery(root.query) !== null
     readonly property bool musicMode: root.query.charAt(0) === root.musicPrefix
     readonly property bool mailMode: root.query.charAt(0) === root.mailPrefix
     readonly property bool taskMode: root.query.charAt(0) === root.taskPrefix
     readonly property bool timerMode: root.query.charAt(0) === root.timerPrefix
+
     // What the files mode is asked, or null outside it. "/" asks outright. A
     // query that is "~" or starts "~/" is a path already, so it asks without
     // the prefix — the way a sum reaches the calculator unasked — and keeps
     // its tilde, which fdTerms reads as home.
-    readonly property var pathQuery: {
-        const q = root.query;
+    //
+    // A function of the query rather than a property bound to it: route()
+    // runs from onQueryChanged, which can fire before a binding on `query`
+    // has caught up, and a stale answer there asks fd about the keystroke
+    // before this one.
+    function pathQuery(q) {
         if (q.charAt(0) === root.pathPrefix)
             return q.slice(1).trim();
         return /^~(\/|$)/.test(q) ? q.trim() : null;
@@ -426,8 +431,9 @@ Singleton {
         if (!q.length)
             return [];
 
-        if (root.pathMode)
-            return root.pathResults(root.pathQuery);
+        const files = root.pathQuery(q);
+        if (files !== null)
+            return root.pathResults(files);
 
         const sym = q.charAt(0);
         const mode = root.modeResults[sym];
@@ -1074,12 +1080,13 @@ Singleton {
         const sym = q.charAt(0);
         const rest = q.slice(1).trim();
         const t = q.trim();
+        const files = root.pathQuery(q);
 
         qalc.want = sym === root.calcPrefix ? rest : (root.looksLikeMath(t) ? t : "");
 
         // Three characters before walking the disk. Fewer than that matches
         // most of the home directory, and fasd has already answered anyway.
-        fd.want = root.pathMode && root.pathQuery.length >= 3 ? root.pathQuery : "";
+        fd.want = files !== null && files.length >= 3 ? files : "";
 
         LauncherMusic.route(sym === root.musicPrefix, rest);
 
@@ -1100,7 +1107,7 @@ Singleton {
         // Asked once per open, on the keystroke that first names the mode.
         // `asked` rather than "arrived": the second character typed must not
         // start a second read of the same list.
-        if (root.pathMode && !fasd.asked) {
+        if (files !== null && !fasd.asked) {
             fasd.asked = true;
             fasd.running = true;
         }
