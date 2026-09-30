@@ -38,7 +38,9 @@ Item {
         text: root.badge
         // Overlapping the icon's right edge by half the badge keeps the icon
         // recognisable underneath and stops a wide pill from swallowing it.
-        x: Math.round(icon.implicitWidth - Theme.badgeSize / 2)
+        // A two-digit capsule grows rightwards into the gap, so it steps back
+        // 2px to keep from crowding the next icon.
+        x: Math.round(icon.implicitWidth - Theme.badgeSize / 2) - (root.badge.length > 1 ? 2 : 0)
         // A fixed line rather than the icon's own top, so every badge on the
         // bar sits at the same height whatever size its icon is — measured
         // from the top of the pill, since this box reaches up into the margin
