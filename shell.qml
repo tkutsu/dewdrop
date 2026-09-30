@@ -11,7 +11,8 @@ ShellRoot {
     // so a refresh on the two events that change one, and on every window
     // that opens. Without that last one a window that opened floating had no
     // IPC object to say so, counted as tiled, and a lone dialog on an empty
-    // workspace turned the bar into one strip until something else refreshed.
+    // workspace had the bar reserve the gapless strip until something else
+    // refreshed.
     //
     // Here rather than in Bar.qml, which is built once per monitor: the refresh
     // is one `hyprctl clients` for the whole session, and a copy per bar only

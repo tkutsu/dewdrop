@@ -33,21 +33,16 @@ PanelWindow {
     // only what that gap does not already give: the inset less the gap, which
     // at a 6px inset and an 8px gap stops two pixels short of the pills' foot.
     //
-    // Once the gaps are off there is no window gap to lean on, and the bar
-    // reserves the whole of it — the strip, which the pills sit centred in.
-    // Either way the window's top edge ends up at the same line, so the
-    // windows do not move as the bar changes.
-    //
-    // Off `gapless` rather than `mergeProgress`, which is the animated form of
-    // the same thing: this is the layer surface's exclusive zone, and every
-    // value it passes through is a relayout of the windows below. It changes
-    // once, while the strip it belongs to fades in over it.
+    // Once the gaps are off (a lone window, which goes edge to edge on the
+    // other three sides) there is no window gap to lean on, and the bar
+    // reserves the whole strip the pills sit centred in. Either way the
+    // window's top edge ends up at the same line, so the pills keep the same
+    // air under them and nothing on the bar changes.
     readonly property int stripHeight: Theme.barHeight + 2 * Theme.barInset
     readonly property int reserved: bar.stripHeight - (bar.gapless ? 0 : Theme.barMargin)
     exclusiveZone: bar.reserved
-    // The whole strip, gaps or not: for the strip to fade over as the gaps
-    // come and go, and for the glass to bulge into as a drop pours into its
-    // neighbour (bar.bulge). Clicks below the pills' foot go through to
+    // The whole strip, gaps or not: for the glass to bulge into as a drop
+    // pours into its neighbour (bar.bulge). Clicks below the pills' foot go through to
     // whatever is under them.
     implicitHeight: bar.stripHeight
     mask: Region {
@@ -59,8 +54,7 @@ PanelWindow {
     // Whether Hyprland has taken the gaps off the workspace this bar's monitor
     // is showing. It does that for a lone tiled window and for a fullscreen one
     // — the w[tv1] and f[1] workspace rules in hypr/configs/tags.lua — and the
-    // bar follows, so a desktop with nothing to separate gets a bar with
-    // nothing to separate either.
+    // bar reserves the strip in place of the gap (see `reserved`).
     //
     // Re-derived rather than read: Hyprland will tell you the rules it holds
     // (`hyprctl workspacerules`) but not which one matched a workspace, so this
@@ -93,53 +87,6 @@ PanelWindow {
         return tiled === 1;
     }
 
-    // 0 while the pills are three islands, 1 while the bar is one strip. Both
-    // halves of the change are derived from this rather than animating apart,
-    // which is what keeps the fill and the pills over it in step frame by
-    // frame — they are drawing the same colour twice and have to agree on how
-    // much of it each is carrying.
-    property real mergeProgress: bar.gapless ? 1 : 0
-
-    Behavior on mergeProgress {
-        NumberAnimation {
-            duration: Theme.fadeMs
-            easing.type: Easing.InOutQuad
-        }
-    }
-
-    // The air the pills float in, in the pills' own colour: three islands on a
-    // transparent strip become one line, without any of them moving. Square and
-    // borderless on purpose — the rounded ends and the outline are what make a
-    // pill a pill, and this is the strip they stop being.
-    //
-    // Declared before them so it goes behind, but they hand their fill over as
-    // it comes up rather than stacking on it (see Pill.mergeProgress).
-    Rectangle {
-        anchors {
-            top: parent.top
-            left: parent.left
-            right: parent.right
-        }
-        height: bar.stripHeight
-        visible: bar.mergeProgress > 0
-        color: Theme.barBg
-
-        // Two translucent blacks over one another do not add up to one of them:
-        // fading both ends at once the obvious way leaves the pills lighter
-        // than the strip between them for the length of the fade. This is the
-        // alpha that, under a pill carrying the rest of it, composites back to
-        // exactly barBg — 0 at the start, 1 at the end, and the pill's own
-        // colour everywhere in between.
-        //
-        // The blur is the one thing that cannot be faded with it: the gaps have
-        // to cross wrules.lua's 0.3 alpha on the way to 0.5, so the compositor
-        // picks them up partway through rather than gradually.
-        opacity: {
-            const a = Theme.barBg.a;
-            return (1 - (1 - a) / (1 - a * (1 - bar.mergeProgress))) / a;
-        }
-    }
-
     // Anywhere on the bar, pills or the air between them. The drawer stays
     // open while the pointer is here or down in one of the bar's popups.
     HoverHandler {
@@ -159,7 +106,6 @@ PanelWindow {
         id: leftPill
 
         side: Pill.Side.Left
-        mergeProgress: bar.mergeProgress
         backdrop: wallpaperImage
 
         Workspaces {}
@@ -258,12 +204,9 @@ PanelWindow {
     // sideways under a fixed bar.
     // The glass of the clock and of everything that comes and goes beside it,
     // as one surface (see `drop` below). Declared before those pills so it
-    // goes under their contents. Fades with the pills' own slabs once the bar
-    // is one strip.
+    // goes under their contents.
     Liquid {
         anchors.fill: parent
-        opacity: 1 - bar.mergeProgress
-        visible: opacity > 0
 
         backdrop: wallpaperImage
 
@@ -289,7 +232,6 @@ PanelWindow {
 
         drawsSlab: false
         side: Pill.Side.Centre
-        mergeProgress: bar.mergeProgress
         centreOn: clock.centreItem
 
         Clock {
@@ -464,7 +406,6 @@ PanelWindow {
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
-        mergeProgress: bar.mergeProgress
         // With nothing to play there is no pill, rather than an empty one. Off
         // the module's `reveal` rather than its visibility: hiding an item
         // hides its children with it, so a pill reading its child's `visible`
@@ -496,7 +437,6 @@ PanelWindow {
 
         side: Pill.Side.Left
         edgeOffset: bar.clockRight + Theme.pillSpread
-        mergeProgress: bar.mergeProgress
         visible: countdown.reveal > 0
         progress: countdown.progress
         rate: countdown.rate
@@ -524,7 +464,6 @@ PanelWindow {
 
         side: Pill.Side.Left
         edgeOffset: bar.noticeEdge + Theme.pillSpread
-        mergeProgress: bar.mergeProgress
         // Off the module's `reveal`, never its visibility (see the music pill
         // above).
         visible: notice.reveal > 0
@@ -541,7 +480,6 @@ PanelWindow {
         id: rightPill
 
         side: Pill.Side.Right
-        mergeProgress: bar.mergeProgress
         backdrop: wallpaperImage
 
         // Whatever has nothing to say right now folds away behind this handle,

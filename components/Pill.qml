@@ -30,15 +30,6 @@ Item {
     // cannot drift apart.
     property int side: Pill.Side.Centre
 
-    // How far along the bar is in filling the gaps between the pills with the
-    // pill colour and drawing one strip for all three: 0 while we draw our own
-    // slab, 1 once the bar's fill has taken it over entirely. Fading out of the
-    // way rather than staying put because two 0.5-alpha blacks stacked make a
-    // darker pill on a lighter strip, which is the seam the fill exists to
-    // remove. Nothing else changes — same size, same padding, same margin
-    // claimed for clicks — so nothing moves as it goes.
-    property real mergeProgress: 0
-
     // How far short of its side the pill stops. Zero for the three that back
     // onto a screen edge or the centre line; the ones either side of the clock
     // float clear of their edge, which is also what stops them claiming a
@@ -220,12 +211,9 @@ Item {
         visible: root.drawsSlab
 
         // The same glass as the clock's, one box of it, with the edge lit
-        // from above like every other surface the shell draws. Goes once the
-        // pills merge: a strip has no ends for a rim to run round.
+        // from above like every other surface the shell draws.
         Liquid {
             anchors.fill: parent
-            opacity: 1 - root.mergeProgress
-            visible: opacity > 0
             backdrop: root.backdrop
             box0: Qt.vector4d(0, 0, width, height)
             rimFrom: 0
@@ -259,9 +247,7 @@ Item {
         width: slab.width + 2 * room
         height: slab.height + 2 * room
         visible: root.progress >= 0 && opacity > 0
-        // Goes with the outline it stands in for: once the pills have merged
-        // into one strip there are no ends for a line to run between.
-        opacity: (1 - root.mergeProgress) * root.trackOpacity
+        opacity: root.trackOpacity
 
         layer.enabled: visible
         layer.effect: ShaderEffect {
