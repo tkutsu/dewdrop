@@ -190,7 +190,8 @@ BarItem {
     }
     // The title opens it (below), not the whole pill.
     popupButton: Qt.NoButton
-    // Each target presses in by itself; the pill as a whole does not.
+    // Each target presses in by itself, and the title, which opens the
+    // popup and so stands for the whole pill, presses them all in with it.
     dips: false
 
     actions: ({
@@ -231,7 +232,7 @@ BarItem {
             anchors.rightMargin: Theme.mediaGap
             height: parent.height
             text: Theme.glyph.mediaPrev
-            transform: Translate { y: prevTap.pressed ? Theme.pressDip : 0 }
+            transform: Translate { y: prevTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
 
             // A margin of the dip's own depth, on every target. Each presses
             // in by moving the item its handler hangs off, and a pointer on
@@ -300,7 +301,7 @@ BarItem {
 
             Layout.fillHeight: true
             implicitWidth: size + Theme.mediaGap
-            transform: Translate { y: playTap.pressed ? Theme.pressDip : 0 }
+            transform: Translate { y: playTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
 
             TapHandler {
                 id: playTap
@@ -421,7 +422,7 @@ BarItem {
             x: Theme.mediaGap
             height: parent.height
             text: Theme.glyph.mediaNext
-            transform: Translate { y: nextTap.pressed ? Theme.pressDip : 0 }
+            transform: Translate { y: nextTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
 
             TapHandler {
                 id: nextTap
