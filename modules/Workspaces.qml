@@ -26,8 +26,8 @@ BarItem {
 
     // The Hyprland dispatcher speaks Lua here (hyprland.lua drives this setup),
     // which is why these read as function calls rather than bare dispatchers.
-    onScrollUp: Hyprland.dispatch('hl.dsp.focus({ workspace = "e-1" })')
-    onScrollDown: Hyprland.dispatch('hl.dsp.focus({ workspace = "e+1" })')
+    onScrollUp: Hyprland.dispatch('hl.dsp.focus({ workspace = "e+1" })')
+    onScrollDown: Hyprland.dispatch('hl.dsp.focus({ workspace = "e-1" })')
 
     // One strip rather than a run of loose workspaces, because the selection is
     // drawn across it rather than by each workspace for itself.

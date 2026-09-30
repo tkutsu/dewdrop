@@ -44,6 +44,7 @@ Popup {
         Slider {
             anchors.verticalCenter: parent.verticalCenter
             value: NightMode.brightness / 100
+            wheelStep: 0.05
             onMoved: value => NightMode.setBrightness(value * 100)
         }
 

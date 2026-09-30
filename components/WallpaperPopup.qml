@@ -316,6 +316,7 @@ Popup {
                         height: 14
                         trackGradient: channel.modelData.track
                         value: root.hsv[channel.index] / channel.modelData.max
+                        wheelStep: 0.05
                         onMoved: v => root.setChannel(channel.index, Math.round(v * channel.modelData.max))
                     }
 

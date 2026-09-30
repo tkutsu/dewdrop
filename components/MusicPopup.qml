@@ -261,8 +261,8 @@ Popup {
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
                     knob: false
                     fill: root.accent
-                    // Ten seconds a notch, down going on, the same as the pill.
-                    wheelStep: Mpd.duration > 0 ? -10 / Mpd.duration : 0
+                    // Ten seconds a notch, as on the pill.
+                    wheelStep: Mpd.duration > 0 ? 10 / Mpd.duration : 0
                     onMoved: value => Mpd.seekTo(value)
                 }
 

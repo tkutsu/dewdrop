@@ -27,8 +27,10 @@ Popup {
 
     // The wheel moves whichever volume is under the pointer: an app's over
     // its row, the output's anywhere else, in the same steps as the wheel on
-    // the bar icon. A gap between sections counts as the one below it, so
-    // the rule under the master row is the border between the two. Accumulated
+    // the bar icon, though down is louder here: the rows are sliders, and
+    // the wheel goes the way it does on every Slider. A gap between sections
+    // counts as the one below it, so the rule under the master row is the
+    // border between the two. Accumulated
     // the same way BarItem does it, so a touchpad's fractions add up to notches
     // instead of each one being a step. A MouseArea under the contents rather
     // than a WheelHandler, which never saw a wheel event in here; taking no
@@ -45,7 +47,7 @@ Popup {
             const row = content.childAt(0, wheel.y) ?? content.childAt(0, wheel.y + content.spacing);
             const node = row?.modelData ?? null;
             const step = up => node ? Audio.stepNode(node, up) : Audio.step(up);
-            acc += wheel.angleDelta.y;
+            acc -= wheel.angleDelta.y;
             while (acc >= 120) {
                 acc -= 120;
                 step(true);

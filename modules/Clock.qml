@@ -26,11 +26,12 @@ BarItem {
     // instead holds the whole thing still.
     readonly property alias centreItem: dot
 
-    // "actions": { "on-scroll-up": "shift_up", "on-scroll-down": "shift_down" }
+    // Up is the next month and down the one before, the way round every
+    // wheel on the bar goes.
     onScrollUp: if (popupItem)
-        popupItem.offset--
-    onScrollDown: if (popupItem)
         popupItem.offset++
+    onScrollDown: if (popupItem)
+        popupItem.offset--
 
     // Singletons are lazy, and nothing reads Agenda until the popup opens —
     // so without this the calendar would not be fetched until the first click,
