@@ -370,7 +370,7 @@ Singleton {
     // bends from the top and bottom edges would meet in the middle in a seam.
     readonly property real glassBend: 7
     readonly property real glassBendDepth: 12
-    readonly property real glassDispersion: 0.25
+    readonly property real glassDispersion: 0.2
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3
