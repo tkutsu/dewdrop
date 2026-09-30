@@ -180,11 +180,6 @@ OverlayWindow {
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
     readonly property int boxPad: 12
-    // Rounder than a popup's corners, the way a bigger piece of glass is, and
-    // the selection's kept concentric with them across the selectionInset
-    // between the two.
-    readonly property int boxRadius: 14
-    readonly property int rowRadius: root.boxRadius - Theme.selectionInset
     // The right-hand slot every row ends in: an app icon, or the "#yt" badge
     // that says which engine Enter would use.
     readonly property int slotWidth: 24
@@ -454,15 +449,13 @@ OverlayWindow {
         color: Theme.frostBg
         // And the corners go from the box's to the selection's on the way in,
         // so what the edges close on is the same shape the fill was.
-        radius: root.boxRadius + (root.rowRadius - root.boxRadius) * (root.zipping ? 1 - root.zip : 0)
+        radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)
 
         // Its edge, above everything drawn inside it so that no row's fill
         // can paint over it.
         Rim {
             anchors.fill: parent
             radius: box.radius
-            topColor: Theme.frostRimTop
-            bottomColor: Theme.frostRimBottom
             z: 10
         }
 
@@ -760,7 +753,7 @@ OverlayWindow {
                     height: root.rowHeight
                     y: Launcher.index * root.rowHeight
                     visible: list.count > 0
-                    radius: root.rowRadius
+                    radius: Theme.selectionRadius
                     color: Theme.selection
 
                     // Duration and no velocity: a velocity would cap it, so a

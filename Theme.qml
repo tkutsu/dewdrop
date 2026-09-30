@@ -313,18 +313,16 @@ Singleton {
     // step lighter than the window under it and still well under the white
     // labels on it.
     readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation, 0.13, 0.68)
-    // The launcher is frosted rather than smoked: a pale fill at little more
-    // than the 0.3 the blur rule ignores, so it comes out a step lighter than
-    // whatever it opens over instead of darker, and a bright patch behind it
-    // shows through as a glow. Half the tint's saturation, so it reads as
-    // frost with a cast of the wallpaper rather than as a coloured sheet. It
-    // is the one surface that gets this: it opens in the middle of the
-    // screen over whatever is there, is read for a moment, and is gone.
-    readonly property color frostBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.38, 0.36)
-    // Frost's edge, brighter than rimTop and still there along the bottom:
-    // a pale sheet over a dark window needs its outline all the way round.
-    readonly property color frostRimTop: Qt.rgba(1, 1, 1, 0.35)
-    readonly property color frostRimBottom: Qt.rgba(1, 1, 1, 0.1)
+    // The launcher is frosted rather than smoked: a thin fill at little more
+    // than the 0.3 the blur rule ignores, so most of what it shows is the
+    // blur, and a bright patch behind it comes through as a glow. Over a dark
+    // window it lands a touch lighter than the window, over anything bright
+    // it is darker, so the labels on it keep their contrast. Half the tint's
+    // saturation, so it reads as frost with a cast of the wallpaper rather
+    // than as a coloured sheet. It is the one surface that gets this: it opens
+    // in the middle of the screen over whatever is there, is read for a
+    // moment, and is gone.
+    readonly property color frostBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.24, 0.36)
 
     // What "black" means for the two above. It is black until the wallpaper
     // service says otherwise, and then it is the wallpaper's own colour taken
