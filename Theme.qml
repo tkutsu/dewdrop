@@ -368,7 +368,7 @@ Singleton {
     // a lift in colour, then barBg's near-black laid over it at glassTint so
     // labels still read. glassBendDepth is half the pill: any deeper and the
     // bends from the top and bottom edges would meet in the middle in a seam.
-    readonly property real glassBend: 10
+    readonly property real glassBend: 7
     readonly property real glassBendDepth: 12
     readonly property real glassDispersion: 0.25
     readonly property real glassSoften: 1.5
