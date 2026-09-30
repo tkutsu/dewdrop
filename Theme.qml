@@ -550,6 +550,15 @@ Singleton {
     readonly property real foldDamping: 0.12
     readonly property int foldLandMs: 460
 
+    // The right pill kept out of sight while the bar starts (Bar.qml): the
+    // drawer's modules only learn whether they have anything to say once
+    // their services answer, most of a second in, and spring out of the
+    // drawer when they do. Long enough for that and for the glass to come
+    // back within a pixel after it, and then faded in slower than a fade, as
+    // the pill arriving rather than a state changing.
+    readonly property int startMs: 2400
+    readonly property int startFadeMs: 400
+
     // The drawer's chevron turning over once the fold has come to rest: a
     // half turn of a few pixels of ink, which wants to be quick to read as the
     // handle answering rather than as a second thing moving.
