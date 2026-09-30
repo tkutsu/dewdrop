@@ -314,6 +314,23 @@ Singleton {
     // with a cast of the wallpaper rather than as a coloured sheet.
     readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
 
+    // popupBg over something bright, for a box that knows what it is opening
+    // over (components/BackdropProbe.qml). Over white, 0.36 of a dark fill
+    // comes out a light grey, and `label` on that is white on grey. The fill
+    // is thickened until what shows through lands at frostCeiling, where
+    // `label` holds about 6.5:1 and `label2` about 4:1; behind anything at or
+    // under that it is popupBg exactly, so a dark window gets the same glass
+    // as ever. Never past 0.85, so it stays frost and never goes solid.
+    readonly property real frostCeiling: 0.3
+    function frostOver(luma) {
+        const c = popupBg;
+        const own = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        if (luma <= frostCeiling)
+            return c;
+        const a = (luma - frostCeiling) / (luma - own);
+        return Qt.rgba(c.r, c.g, c.b, Math.min(0.85, Math.max(c.a, a)));
+    }
+
     // What "black" means for the two above. It is black until the wallpaper
     // service says otherwise, and then it is the wallpaper's own colour taken
     // down to a near-black of the same hue — the material tinted towards what

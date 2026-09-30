@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Widgets
 import qs
 import qs.components
@@ -318,6 +319,55 @@ OverlayWindow {
         easing.type: Easing.OutCubic
     }
 
+    // How bright the screen is under where the box will be, preview panel and
+    // all; -1 until the first reading, and the frost is popupBg's until it
+    // knows. See Theme.frostOver. Read as the box opens, and again once a
+    // workspace switched under it has slid into place. A window reused inside
+    // its own fold-away keeps the reading it has, since it is over the same
+    // screen.
+    property real behind: -1
+    property bool reading: true
+
+    // Everything the box can cover, and that plus its shadow: after the first
+    // reading the box is in the still, so later ones read the ring round it.
+    readonly property rect boxArea: Qt.rect(Math.round((root.width - root.boxWidth) / 2), Math.round((root.height - root.fullHeight) / 2), root.boxWidth + root.panelGap + root.panelWidth, root.fullHeight)
+    readonly property int ring: 64
+
+    Loader {
+        active: root.reading
+
+        sourceComponent: BackdropProbe {
+            readonly property int out: root.behind < 0 ? 0 : Theme.shadowPad + root.ring
+
+            screen: root.screen
+            region: Qt.rect(root.boxArea.x - out, root.boxArea.y - out, root.boxArea.width + out * 2, root.boxArea.height + out * 2)
+            exclude: root.behind < 0 ? Qt.rect(0, 0, 0, 0) : Qt.rect(root.boxArea.x - Theme.shadowPad, root.boxArea.y - Theme.shadowPad, root.boxArea.width + Theme.shadowPad * 2, root.boxArea.height + Theme.shadowPad * 2)
+            onMeasured: luma => {
+                root.behind = luma;
+                root.reading = false;
+            }
+        }
+    }
+
+    // A still taken mid-slide would be half of each workspace. The slide is
+    // Hyprland's `glide` spring, critically damped at 0.4 s
+    // (hypr/configs/animation.lua).
+    Timer {
+        id: settle
+
+        interval: 450
+        onTriggered: root.reading = true
+    }
+
+    Connections {
+        target: Hyprland
+
+        function onFocusedWorkspaceChanged() {
+            if (root.shown)
+                settle.restart();
+        }
+    }
+
     // The box's shadow, as a sibling rather than a child: the box clips its
     // children to itself, and a shadow is everything outside the box.
     RectangularShadow {
@@ -445,8 +495,16 @@ OverlayWindow {
         // middle rather than squashed into the gap.
         clip: true
         // The popups' frost, at an alpha held over the 0.3 that keeps the
-        // compositor blurring behind it.
-        color: Theme.popupBg
+        // compositor blurring behind it, and thickened over a bright screen.
+        // Eased in rather than switched: the reading lands a frame or two
+        // into the reveal, and only ever raises the alpha, so the blur stays.
+        color: root.behind < 0 ? Theme.popupBg : Theme.frostOver(root.behind)
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.revealMs
+            }
+        }
         // And the corners go from the box's to the selection's on the way in,
         // so what the edges close on is the same shape the fill was.
         radius: Theme.popupRadius + (Theme.selectionRadius - Theme.popupRadius) * (root.zipping ? 1 - root.zip : 0)
