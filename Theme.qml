@@ -519,11 +519,12 @@ Singleton {
     readonly property int foldMs: 360
 
     // The right pill's drawer folds on a spring instead (BarItem), a slow
-    // and soft one: the modules land and the glass flows on past them and
-    // eases back, the way Apple's glass does, and a click mid-fold turns it
-    // round with the speed it had rather than from a standstill. Stiffer
-    // springs (SwiftUI's .bouncy, then 1.0 / 0.15) came back so quickly that
-    // they read as a glitch rather than as the glass settling. Measured on
+    // and soft one: the modules land, then the pill flows on past, its gaps
+    // opening out, and eases back, the way Apple's glass does, and a click
+    // mid-fold turns it round with the speed it had rather than from a
+    // standstill. Stiffer springs (SwiftUI's .bouncy, then 1.0 / 0.15) came
+    // back so quickly that they read as a glitch rather than as the glass
+    // settling. Measured on
     // 2026-09-30: the modules land at 460 ms and the glass runs 7.7% of the
     // drawer past (about twenty pixels), furthest at 640 ms, and is back
     // within a pixel by about 1.45 s. The same both ways: closing, the pill

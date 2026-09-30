@@ -71,12 +71,11 @@ Item {
     // right pill's drawer springing past its own width as it opens, or past
     // shut as it closes, which is below zero (BarItem.overrun).
     //
-    // The module at the inner end rides the glass's end either way. Running
-    // out, the rest have landed and stay put. Squeezed in, they close up
-    // behind it, each by its share of the way from the far end, so the gaps
-    // shrink evenly and spring back rather than the end running over the
-    // icons. Drawn only (BarItem.shift): the layout keeps its places, so
-    // nothing rounds to a pixel or reflows while it happens.
+    // The modules go with it, each by its share of the way from the far end:
+    // the one at the inner end rides the glass's end, and the gaps behind it
+    // open out evenly as the glass runs past and close up as it is squeezed
+    // in, then settle back. Drawn only (BarItem.shift): the layout keeps its
+    // places, so nothing rounds to a pixel or reflows while it happens.
     property real stretch: 0
 
     onStretchChanged: {
@@ -85,12 +84,11 @@ Item {
             return;
         const left = root.side === Pill.Side.Left;
         const dir = left ? 1 : -1;
-        const inner = left ? shown[shown.length - 1] : shown[0];
         const from = item => left ? item.x : row.width - item.x - item.width;
-        const span = from(inner);
+        const span = from(left ? shown[shown.length - 1] : shown[0]);
         for (const item of row.children)
             if ("shift" in item)
-                item.shift = !item.visible ? 0 : item === inner ? dir * stretch : stretch < 0 && span > 0 ? dir * stretch * from(item) / span : 0;
+                item.shift = item.visible && span > 0 ? dir * stretch * from(item) / span : 0;
     }
 
     // The outline as a single line around the pill, starting from the left and
