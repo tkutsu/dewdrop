@@ -447,7 +447,15 @@ Singleton {
         // commands are both guesses at what was meant, so they are ranked
         // against each other and share the ordering.
         const t = q.trim();
-        return root.calcResults(root.looksLikeMath(t) ? t : "", true).concat(root.urlResults(t)).concat(root.mainResults(t));
+        const math = root.looksLikeMath(t);
+        const found = root.calcResults(math ? t : "", true).concat(root.urlResults(t)).concat(root.mainResults(t));
+
+        // Nothing matched, so it was a question: answer it the way "#" would.
+        // Gated on the sum being spotted rather than on qalc's row, which
+        // arrives a beat later and would have the engines flash up first.
+        if (!found.length && !math)
+            return root.engineResults(root.enginePrefix, t);
+        return found;
     }
 
     // Everything the unprefixed query can turn up, in one ranking. Apps and
