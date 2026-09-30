@@ -163,6 +163,16 @@ ClickArea {
     // first frame of the fold and again on the last.
     property bool lead: true
     Layout.leftMargin: lead ? Math.round(Theme.gap * _fold) : 0
+    // Whether a module follows this one: yes, unless it is the last in its
+    // pill (Pill sets that too), whose padding runs out to the pill's end
+    // instead.
+    property bool trail: true
+
+    // How far past its box the module answers on a side with a neighbour:
+    // halfway across the gap, so the gap between two icons is split down the
+    // middle rather than a dead strip that clicks on nothing. The neighbour
+    // takes the other half. Folds with the gap it reaches into.
+    readonly property real _reach: Theme.gap * _fold / 2
 
     implicitWidth: Math.round((layout.implicitWidth + padLeft + padRight) * _fold)
     implicitHeight: Theme.barHeight
@@ -173,15 +183,18 @@ ClickArea {
     cursorShape: Qt.ArrowCursor
     containmentMask: reach
 
-    // A count badge hangs out past the module's box, over the gap to the
-    // next one (BadgedGlyph), and a click on it is a click on the icon. So
-    // the module answers for its contents' badges as well as for its box:
-    // hover, the wheel and every button, here and on the layers above.
+    // The module answers for half the gap either side of it (_reach), and
+    // for its contents' badges as well: a count badge hangs out past the
+    // module's box, over the gap to the next one (BadgedGlyph), and a click
+    // on it is a click on the icon. Hover, the wheel and every button, here
+    // and on the layers above.
     QtObject {
         id: reach
 
         function contains(point: point): bool {
-            if (point.x >= 0 && point.y >= 0 && point.x < root.width && point.y < root.height)
+            const from = root.lead ? -root._reach : 0;
+            const to = root.width + (root.trail ? root._reach : 0);
+            if (point.x >= from && point.y >= 0 && point.x < to && point.y < root.height)
                 return true;
             for (const item of layout.children)
                 for (const part of item.children)

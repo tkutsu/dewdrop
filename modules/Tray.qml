@@ -147,9 +147,14 @@ BarItem {
             // would have opened one doing nothing.
             readonly property var toggleMenu: modelData.hasMenu ? () => OpenPopup.toggle(entry) : null
 
+            // Out halfway across the gap either side, as a module's own hit
+            // area is (BarItem._reach): the gap between two tray icons is
+            // split between them rather than clicking on nothing.
             ClickArea {
                 id: pointer
                 anchors.fill: parent
+                anchors.leftMargin: -Theme.gap / 2
+                anchors.rightMargin: -Theme.gap / 2
                 hoverEnabled: true
                 cursorShape: Qt.ArrowCursor
 

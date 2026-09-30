@@ -391,10 +391,17 @@ Item {
         opacity: root.contentOpacity
     }
 
-    // The first module has nothing in front of it to keep a gap from.
+    // The first module has nothing in front of it to keep a gap from, and
+    // the last nothing after it to reach halfway across to.
     Binding {
         target: root._shown[0] ?? null
         property: "lead"
+        value: false
+    }
+
+    Binding {
+        target: root._shown[root._shown.length - 1] ?? null
+        property: "trail"
         value: false
     }
 
