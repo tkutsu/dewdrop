@@ -192,13 +192,15 @@ ClickArea {
     // The pin mark: the badge's disc on the lower right corner, where the
     // badge takes the upper. It stays inside the pill, because the bar's
     // surface ends at the pill's bottom edge and anything past it is cut off.
-    GlassDisc {
+    Rectangle {
         readonly property int size: Theme.pinMarkSize
 
         x: Math.round(layout.x + layout.width - size / 2)
         y: Theme.pillTop(root.height) + Theme.barHeight - size - 1
         width: size
         height: size
+        radius: size / 2
+        color: Theme.badgeBg(root)
         opacity: root.pinKey !== "" && root.marksPin && DrawerPins.pinned(root.pinKey) ? 1 : 0
         visible: opacity > 0
 
@@ -206,6 +208,12 @@ ClickArea {
             NumberAnimation {
                 duration: Theme.fadeMs
             }
+        }
+
+        Rim {
+            anchors.fill: parent
+            radius: parent.radius
+            topColor: Theme.markRimTop
         }
 
         Glyph {

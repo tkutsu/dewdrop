@@ -178,7 +178,7 @@ Singleton {
     }
 
     // And the colour itself, for what has to be drawn solid where the pills
-    // are glass and there is no image to draw (Theme.badgeBg).
+    // are glass and before the bar has read its own strip (Pill.surface).
     Binding {
         target: Theme
         property: "backdrop"
