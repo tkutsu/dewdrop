@@ -242,6 +242,19 @@ OverlayWindow {
             event.accepted = true;
         }
 
+        // How bright the screen is behind the panel, for its frost. Centred
+        // in a window that is the screen, at the size it opens to.
+        BackdropProbe {
+            id: under
+
+            readonly property int w: body.implicitWidth + root.panelPad * 2
+            readonly property int h: body.implicitHeight + root.panelPad * 2
+
+            screen: root.screen
+            area: Qt.rect(Math.round((root.width - w) / 2), Math.round((root.height - h) / 2), w, h)
+            active: true
+        }
+
         RectangularShadow {
             anchors.fill: panel
             visible: panel.height > 0
@@ -256,8 +269,15 @@ OverlayWindow {
 
             anchors.centerIn: parent
             // Same fill and outline as a popup, and for the same reason: the
-            // alpha is what keeps the compositor blurring behind it.
-            color: Theme.popupBg
+            // alpha is what keeps the compositor blurring behind it. Thickened
+            // over a bright screen the same way too.
+            color: Theme.frostOver(under.luma)
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.revealMs
+                }
+            }
             radius: root.panelRadius
 
             Rim {

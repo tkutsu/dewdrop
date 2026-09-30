@@ -315,7 +315,8 @@ Singleton {
     readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
 
     // popupBg over something bright, for a box that knows what it is opening
-    // over (components/BackdropProbe.qml). Over white, 0.36 of a dark fill
+    // over (components/BackdropProbe.qml), and popupBg itself for one that
+    // does not know yet (-1). Over white, 0.36 of a dark fill
     // comes out a light grey, and `label` on that is white on grey. The fill
     // is thickened until what shows through lands at frostCeiling, where
     // `label` holds about 6.5:1 and `label2` about 4:1; behind anything at or

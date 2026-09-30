@@ -86,6 +86,42 @@ PopupWindow {
         item: reach
     }
 
+    // Where the compositor puts this window on screen, which Quickshell does
+    // not say, worked out from the anchor the way the compositor works it
+    // out: the anchor's window on screen, the point on the anchor's rect its
+    // edges pick, and the window hung off that point towards its gravity.
+    // The anchor's window is the bar, a strip across the top or bottom of its
+    // screen, or for a submenu the menu it came out of, which knows where it
+    // is itself. Slid back onto the screen at the end, which is near enough
+    // for a flip as well. Only asked while shown, and asked again on each
+    // show: mapToItem gives the binding nothing to re-run on.
+    readonly property point windowOnScreen: {
+        const item = root.anchorItem;
+        const win = item?.QsWindow.window;
+        if (!root.visible || !win || !root.screen)
+            return Qt.point(0, 0);
+        const base = win.windowOnScreen ?? Qt.point(0, win.anchors?.top ? 0 : root.screen.height - win.height);
+        const set = root.anchor.rect;
+        const r = set.width > 0 || set.height > 0 ? set : Qt.rect(0, 0, item.width, item.height);
+        const p = item.mapToItem(null, r.x, r.y);
+        const e = root.anchor.edges, g = root.anchor.gravity;
+        const ax = base.x + p.x + (e & Edges.Left ? 0 : e & Edges.Right ? r.width : r.width / 2);
+        const ay = base.y + p.y + (e & Edges.Top ? 0 : e & Edges.Bottom ? r.height : r.height / 2);
+        const x = ax - (g & Edges.Right ? 0 : g & Edges.Left ? root.width : root.width / 2);
+        const y = ay - (g & Edges.Bottom ? 0 : g & Edges.Top ? root.height : root.height / 2);
+        return Qt.point(Math.max(0, Math.min(root.screen.width - root.width, x)), Math.max(0, Math.min(root.screen.height - root.height, y)));
+    }
+
+    // How bright the screen is behind the box, for its frost.
+    BackdropProbe {
+        id: under
+
+        screen: root.screen
+        area: Qt.rect(root.windowOnScreen.x + root.shadowSide, root.windowOnScreen.y + root.shadowTop, root.width - root.shadowSide * 2, root.chromeHeight)
+        active: root.visible
+        ringOnly: true
+    }
+
     // Whether the pointer is on the popup, which the bar counts (below).
     readonly property bool hovered: pointer.hovered
 
@@ -184,7 +220,16 @@ PopupWindow {
                 y: root.shadowTop
                 width: parent.width
                 height: root.chromeHeight
-                color: Theme.popupBg
+                // Thickened over a bright screen (BackdropProbe), and eased
+                // there: the reading lands a few frames after the box. Only
+                // ever up from popupBg, so the blur stays.
+                color: Theme.frostOver(under.luma)
+
+                Behavior on color {
+                    ColorAnimation {
+                        duration: Theme.revealMs
+                    }
+                }
                 radius: root.radius
 
                 Rim {
