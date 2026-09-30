@@ -33,6 +33,17 @@ Row {
     property int fontSize: Theme.textSize
     property int weight: Theme.bodyWeight
 
+    // What the columns show, and what they showed before it. Handed on from
+    // `text` here rather than bound to it, so `from` is already the old string
+    // by the time a column asks: a column's own binding can hear of the change
+    // before a handler on the root does.
+    property string shown: ""
+    property string from: ""
+    onTextChanged: {
+        from = shown;
+        shown = text;
+    }
+
     // SwiftUI's transition, in line heights and in multiples of its duration
     // (Theme.rollMs).
     readonly property real offset: 0.34
@@ -76,14 +87,14 @@ Row {
         // and of no width: a Repeater given a count rebuilds every column when
         // the count changes, and 10:00 to 9:59 would swap rather than roll.
         // Eight is 99:59:59.
-        model: Math.max(8, root.text.length)
+        model: Math.max(8, root.shown.length)
 
         delegate: Item {
             id: column
 
             required property int index
             // Empty past the start of the string (charAt of a negative index).
-            readonly property string ch: root.text.charAt(root.text.length - 1 - index)
+            readonly property string ch: root.shown.charAt(root.shown.length - 1 - index)
             // What the column shows and what it last showed, set here rather
             // than bound: the change handler needs the old one.
             property string shown: ""
@@ -107,8 +118,12 @@ Row {
                 return c === "" || (c >= "0" && c <= "9");
             }
 
+            // A string arriving from nothing is appearing, not changing, and
+            // just shows. A badge's first count lands after the badge is
+            // already up, and rolled in from nothing it bounced and blurred
+            // while its column grew out of no width at all.
             onChChanged: {
-                if (rolls(ch) && rolls(shown) && root.visible) {
+                if (root.from !== "" && rolls(ch) && rolls(shown) && root.visible) {
                     was = shown;
                     shown = ch;
                     roll.restart();
