@@ -29,10 +29,10 @@ Singleton {
     // is what lines a tiled window's side up with the pill above it.
     readonly property int barMargin: 8
 
-    // The air above the pills and below them: two pixels tighter than the sides.
+    // The air above the pills and below them: three pixels tighter than the sides.
     // The air below is partly Hyprland's window gap, which is barMargin, so
     // the bar reserves that much less (Bar.reserved).
-    readonly property int barInset: 6
+    readonly property int barInset: 5
 
     // A pill claims the margin around it as hit area, so a module's box is
     // taller than the slab it is drawn on. Everything centres in its box and
