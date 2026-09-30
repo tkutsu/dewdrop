@@ -14,12 +14,12 @@ Singleton {
     // icon into a smudge. Nothing here is allowed to be fractional, and neither
     // is anything derived from it.
     //
-    // macOS's menu bar height (24pt since Big Sur) plus ten, for pills with
-    // some presence of their own. Even, so an icon centres on whole pixels and
+    // macOS's menu bar height (24pt since Big Sur) plus two, for a little
+    // more room around the icons. Even, so an icon centres on whole pixels and
     // the pill's round end is exactly half of it. This is the height of a pill
     // rather than of the bar: the layer surface is barInset taller on each
     // side, and the extra is transparent.
-    readonly property int barHeight: 34
+    readonly property int barHeight: 26
 
     // The bar draws nothing itself; its three groups are three separate pills
     // floating on the wallpaper. This is the air off the screen's side edges,
