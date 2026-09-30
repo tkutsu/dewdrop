@@ -446,22 +446,7 @@ PanelWindow {
             id: countdown
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
-            summoned: bar.timerSummoned
         }
-    }
-
-    // With nothing set, the timer comes out of the clock while the clock is
-    // being looked at, as the way in to setting one: the pointer anywhere from
-    // the clock across the gap to the timer, or either one's popup up. The
-    // stretch in between is part of it, so the pointer on its way over does
-    // not send the timer back into the clock before it gets there. Read off
-    // the bar's own HoverHandler, which hears the pointer everywhere: an item
-    // of its own laid over the pills would take the hover from the clock.
-    readonly property bool timerSummoned: {
-        if (clock.popupOpen || countdown.popupOpen)
-            return true;
-        const x = barHover.point.position.x;
-        return barHover.hovered && x >= bar.clockLeft && x <= bar.clockRight + Theme.pillSpread + countdownPill.width;
     }
 
     // A notification as it comes in, outermost on this side: right of the

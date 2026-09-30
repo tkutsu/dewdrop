@@ -20,22 +20,14 @@ BarItem {
     // For the pill around it, which is this module and nothing else and so
     // is drawn into the clock with it once nothing is set: the bar draws the
     // pill off `reveal` (see Bar.drop), and nothing folds.
-    stowed: !Timers.loaded && !summoned
+    stowed: !Timers.loaded
     folds: false
-
-    // With nothing set, the clock being looked at brings the pill out of it
-    // bare, as the way in to setting one; the bar says when (bar.timerSummoned).
-    property bool summoned: false
 
     // And the popup goes with it: the last timer cancelled from the popup's
     // own row would otherwise leave it hanging from a pill that is no longer
     // there.
-    onStowedChanged: {
-        if (stowed)
-            OpenPopup.close(root);
-        else
-            root.sync();
-    }
+    onStowedChanged: if (stowed)
+        OpenPopup.close(root)
     readonly property real progress: Timers.progress
     // How fast that runs while the timer does, for the pill to carry the line
     // on between the ticks (Pill.rate). `total` is in milliseconds.
@@ -52,13 +44,12 @@ BarItem {
     // come off the same timer going, and a Binding gated on `loaded` could
     // hear the glyph and label go to "nothing set" before `loaded` did, which
     // snapped the pill to a bare glyph as it started to leave. By the next
-    // tick they agree. A summoned pill is out with nothing set, and shows
-    // just that: the alarm mark on its own.
+    // tick they agree.
     property string shownGlyph: ""
     property string shownLabel: ""
 
     function sync() {
-        if (!Timers.loaded && root.stowed)
+        if (!Timers.loaded)
             return;
         root.shownGlyph = Timers.glyph;
         root.shownLabel = Timers.label;
@@ -109,8 +100,6 @@ BarItem {
         readonly property bool figures: /^[0-9:]+$/.test(root.shownLabel)
 
         Layout.fillHeight: true
-        // Out of the row with nothing to say, so a bare mark carries no gap.
-        visible: root.shownLabel !== ""
         implicitWidth: figures ? rolling.implicitWidth : words.implicitWidth
         // A paused timer is the label gone quiet, the same way a paused song
         // is — the glyph beside it already says which of the two it is, and a
