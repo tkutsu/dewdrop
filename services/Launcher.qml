@@ -248,11 +248,21 @@ Singleton {
     // Both are for the preview panel, which is the one thing that cares what
     // is selected rather than what is listed — see components/FilePreview.qml.
     readonly property var selected: root.results[root.index] ?? null
-    readonly property bool pathMode: root.query.charAt(0) === root.pathPrefix
+    readonly property bool pathMode: root.pathQuery !== null
     readonly property bool musicMode: root.query.charAt(0) === root.musicPrefix
     readonly property bool mailMode: root.query.charAt(0) === root.mailPrefix
     readonly property bool taskMode: root.query.charAt(0) === root.taskPrefix
     readonly property bool timerMode: root.query.charAt(0) === root.timerPrefix
+    // What the files mode is asked, or null outside it. "/" asks outright. A
+    // query that is "~" or starts "~/" is a path already, so it asks without
+    // the prefix — the way a sum reaches the calculator unasked — and keeps
+    // its tilde, which fdTerms reads as home.
+    readonly property var pathQuery: {
+        const q = root.query;
+        if (q.charAt(0) === root.pathPrefix)
+            return q.slice(1).trim();
+        return /^~(\/|$)/.test(q) ? q.trim() : null;
+    }
     // { appId: { count, last } }
     property var db: ({})
 
@@ -397,7 +407,6 @@ Singleton {
     // space went in. The calculator is not strict here: "=" is someone asking
     // qalc a question on purpose, and whatever it says back is the answer.
     readonly property var modeResults: ({
-            [root.pathPrefix]: rest => root.pathResults(rest.trim()),
             [root.calcPrefix]: rest => root.calcResults(rest.trim(), false),
             [root.cmdPrefix]: rest => root.cmdResults(rest.trim()),
             [root.clipPrefix]: rest => root.clipResults(rest.trim()),
@@ -416,6 +425,9 @@ Singleton {
         // returns the whole menu in frecency order.
         if (!q.length)
             return [];
+
+        if (root.pathMode)
+            return root.pathResults(root.pathQuery);
 
         const sym = q.charAt(0);
         const mode = root.modeResults[sym];
@@ -621,8 +633,11 @@ Singleton {
     // described either way round: "downloads torrents" and "downloads/torrents"
     // are the same three-and-a-bit words about the same place, and neither is
     // the literal name of anything.
+    //
+    // A leading "~" is home, as the shell reads it: fasd and fd both hold
+    // whole paths, and neither has a tilde in it to match.
     function fdTerms(query) {
-        return query.toLowerCase().split(/[\s/]+/).filter(t => t.length);
+        return Settings.expand(query).toLowerCase().split(/[\s/]+/).filter(t => t.length);
     }
 
     // Terms joined with a gap, so "hypr key" finds keybinds.lua under hypr the
@@ -1064,7 +1079,7 @@ Singleton {
 
         // Three characters before walking the disk. Fewer than that matches
         // most of the home directory, and fasd has already answered anyway.
-        fd.want = sym === root.pathPrefix && rest.length >= 3 ? rest : "";
+        fd.want = root.pathMode && root.pathQuery.length >= 3 ? root.pathQuery : "";
 
         LauncherMusic.route(sym === root.musicPrefix, rest);
 
@@ -1085,7 +1100,7 @@ Singleton {
         // Asked once per open, on the keystroke that first names the mode.
         // `asked` rather than "arrived": the second character typed must not
         // start a second read of the same list.
-        if (sym === root.pathPrefix && !fasd.asked) {
+        if (root.pathMode && !fasd.asked) {
             fasd.asked = true;
             fasd.running = true;
         }
