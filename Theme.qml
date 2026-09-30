@@ -551,6 +551,13 @@ Singleton {
     readonly property real foldSpring: 0.9
     readonly property real foldDamping: 0.145
     readonly property int foldLandMs: 370
+    // Before the drawer folds, the glass winds up the other way by this
+    // much, in pixels, and lets go into the spring (Drawer.windup): drawn in
+    // past shut before opening, out before shutting. Small beside the
+    // twenty-odd pixels the spring runs past by, and quick, so it reads as
+    // the glass loading up rather than as a false start.
+    readonly property real windup: 5
+    readonly property int windupMs: 110
     // How long after the bar starts the drawer folds without the spring
     // (BarItem): long enough for its modules' services to answer, which
     // took under a second for the update checks (measured, 2026-09-30).

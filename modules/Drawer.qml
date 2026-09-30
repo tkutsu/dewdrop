@@ -45,7 +45,42 @@ BarItem {
     // and it went by unseen.
     property real turned: 0
 
-    onOpenChanged: turn.restart()
+    onOutChanged: turn.restart()
+
+    // Whether the modules are out: `open`, a moment late. The glass winds up
+    // first, a few pixels the other way (`windup`), and the modules go only
+    // as it lets go, so the fold reads as loaded and snapping to its place
+    // rather than as setting off from a standstill. Bar.qml folds the
+    // modules on this and adds `windup` to the pill's stretch.
+    property bool out: false
+    property real windup: 0
+
+    onOpenChanged: anticipate.restart()
+
+    SequentialAnimation {
+        id: anticipate
+
+        // Opening, the glass draws in past shut; shutting, it gives out.
+        NumberAnimation {
+            target: root
+            property: "windup"
+            to: root.open ? -Theme.windup : Theme.windup
+            duration: Theme.windupMs
+            easing.type: Easing.OutQuad
+        }
+        ScriptAction {
+            script: root.out = root.open
+        }
+        // And lets go into the spring, which takes the modules off from
+        // where the glass was held.
+        NumberAnimation {
+            target: root
+            property: "windup"
+            to: 0
+            duration: Theme.windupMs
+            easing.type: Easing.InOutQuad
+        }
+    }
 
     SequentialAnimation {
         id: turn

@@ -491,8 +491,9 @@ PanelWindow {
         readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys]
 
         // The glass running on past the drawer as its spring carries it out,
-        // or squeezing in past shut as it carries it in.
-        stretch: drawable.reduce((sum, m) => sum + (m.here ? m.overrun : 0), 0)
+        // or squeezing in past shut as it carries it in, and first winding up
+        // the other way before either (Drawer.windup).
+        stretch: drawable.reduce((sum, m) => sum + (m.here ? m.overrun : 0), drawer.windup)
 
         Drawer {
             id: drawer
@@ -508,63 +509,63 @@ PanelWindow {
         Audio {
             id: audio
             pinKey: "audio"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
             Layout.rightMargin: -1
         }
         Email {
             id: email
             pinKey: "email"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         Tasks {
             id: tasks
             pinKey: "tasks"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         Updater {
             id: updater
             pinKey: "updater"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         NotificationBell {
             id: bell
             pinKey: "bell"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         Satty {
             id: satty
             pinKey: "satty"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         IdleInhibit {
             id: idle
             pinKey: "idle"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         Wallpaper {
             id: wallpaper
             pinKey: "wallpaper"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         NightMode {
             id: night
             pinKey: "night"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         Sys {
             id: sys
             pinKey: "sys"
-            stowed: !showsClosed && !drawer.open
-            marksPin: drawer.open
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         // Everything from here on is always shown, so the right end of the
         // pill stays put however much of the drawer is folded away.
