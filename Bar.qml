@@ -490,7 +490,8 @@ PanelWindow {
         // are showing anyway.
         readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys]
 
-        // The glass running on past the drawer as its spring carries it out.
+        // The glass running on past the drawer as its spring carries it out,
+        // or squeezing in past shut as it carries it in.
         stretch: drawable.reduce((sum, m) => sum + (m.here ? m.overrun : 0), 0)
 
         Drawer {
@@ -499,12 +500,6 @@ PanelWindow {
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null
-            // The handle rides the end of the glass as it runs past the
-            // modules and back (Pill.stretch), rather than being left behind
-            // with the ones that have landed.
-            transform: Translate {
-                x: -rightPill.stretch
-            }
         }
 
         // A pixel less air on its right than the row gives: the speaker's
