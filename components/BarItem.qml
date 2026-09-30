@@ -122,7 +122,7 @@ ClickArea {
 
     property real _sprung: stowed ? 0 : 1
     Behavior on _sprung {
-        enabled: root.folds
+        enabled: root.folds && root._started
         SpringAnimation {
             spring: Theme.foldSpring
             damping: Theme.foldDamping
@@ -131,6 +131,18 @@ ClickArea {
             // would snap into place.
             epsilon: 0.001
         }
+    }
+
+    // No spring while the bar starts (Theme.startMs). The drawer's modules
+    // hear from their services a moment after they are made, and each sprang
+    // out of the drawer as it did: clipped to its own box as it unfolded,
+    // which cut its badge in half and drew an edge across its icon. They
+    // take their places at once instead.
+    property bool _started: false
+    Timer {
+        interval: Theme.startMs
+        running: root.folds
+        onTriggered: root._started = true
     }
 
     // How it runs for the pills beside the clock, which keep their width:

@@ -549,6 +549,10 @@ Singleton {
     readonly property real foldSpring: 0.6
     readonly property real foldDamping: 0.12
     readonly property int foldLandMs: 460
+    // How long after the bar starts the drawer folds without the spring
+    // (BarItem): long enough for its modules' services to answer, which
+    // took under a second for the update checks (measured, 2026-09-30).
+    readonly property int startMs: 2000
 
     // The drawer's chevron turning over once the fold has come to rest: a
     // half turn of a few pixels of ink, which wants to be quick to read as the
