@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs
@@ -14,67 +13,18 @@ BarItem {
     popup: Calendar {}
 
     // The dot is a separator inside the clock, not a module of its own, so the
-    // two parts sit half a gap apart and read as one thing.
-    readonly property int joint: Theme.gap - Math.round(Theme.gap / 2)
+    // two parts sit half a gap apart and read as one thing. The margins go on
+    // the labels either side rather than on the dot: a RowLayout clamps a cell
+    // to zero width once its margins outweigh it, and at 3px wide the dot loses
+    // that argument — it ends up shoved left with a full gap still on its right.
+    readonly property int dotGap: -Math.round(Theme.gap / 2)
 
-    // The point the bar centres on. The date comes and goes to its left, and
-    // no two month or weekday names are the same length, so centring the
-    // module as a whole would leave the clock creeping left and right under
-    // it. The time, set in tabular figures, never changes width, so pinning
-    // that instead holds it still while the date opens out beside it.
-    readonly property alias centreItem: time
-
-    // Just the time at rest; pointed at, the pill opens out into the day and
-    // the date as well. Held out while the calendar is up, which the pointer
-    // leaves the pill to get to.
-    readonly property bool dated: root.containsMouse || root.popupOpen
-
-    // The date comes and goes the way the music pill takes a new track
-    // (Music.swap): arriving, the room opens on the spring and the date comes
-    // into focus as it does; going, it blurs out first and only then does the
-    // room close, so the pill never shuts over words still being read.
-    property bool shownDated: false
-    property real dateOpacity: 0
-
-    onDatedChanged: {
-        if (dated) {
-            leave.stop();
-            shownDated = true;
-            arrive.restart();
-        } else {
-            arrive.stop();
-            leave.restart();
-        }
-    }
-
-    NumberAnimation {
-        id: arrive
-        target: root
-        property: "dateOpacity"
-        to: 1
-        duration: Theme.foldMs
-        easing.type: Easing.OutCubic
-    }
-
-    SequentialAnimation {
-        id: leave
-
-        NumberAnimation {
-            target: root
-            property: "dateOpacity"
-            to: 0
-            duration: Theme.fadeMs / 2
-            easing.type: Easing.InQuad
-        }
-        PropertyAction {
-            target: root
-            property: "shownDated"
-            value: false
-        }
-    }
-
-    // The slot brings its own joint, so the two come and go together.
-    spacing: 0
+    // The point the bar centres on. Both labels change width — the day number
+    // carries one digit or two, and no two month or weekday names are the same
+    // length — so centring the module as a whole would leave the clock creeping
+    // left and right under it. The dot never changes width, so pinning that
+    // instead holds the whole thing still.
+    readonly property alias centreItem: dot
 
     // Up is the next month and down the one before, the way round every
     // wheel on the bar goes.
@@ -102,69 +52,30 @@ BarItem {
     // or the "MMM" of formatDateTime: a label on its own wants the nominative,
     // which only shows in a locale that inflects (the calendar header makes the
     // same call for its own title).
-    //
-    // Its room springs open and shut the way the music title's does, past its
-    // width and back, and the pill's edge passes over the words, which stay
-    // put beside the time.
-    Item {
-        readonly property real full: date.implicitWidth + root.joint
+    BarText {
+        Layout.fillHeight: true
+        Layout.rightMargin: root.dotGap
+        text: Qt.locale().standaloneDayName(clock.date.getDay(), Locale.ShortFormat) + " " + clock.date.getDate() + " " + Qt.locale().standaloneMonthName(clock.date.getMonth(), Locale.ShortFormat)
+    }
+
+    // Its own child rather than punctuation glued to either label, so it takes
+    // the row's spacing on both sides and lands centred between them — at half
+    // that spacing, so the two parts read as one clock rather than as two things
+    // the bar happened to put next to each other. A middle dot is very little
+    // ink, so it goes a size up to carry the same weight as the rest.
+    BarText {
+        id: dot
 
         Layout.fillHeight: true
-        implicitWidth: root.shownDated ? full : 0
-        clip: width !== full
-
-        Behavior on implicitWidth {
-            SpringAnimation {
-                spring: Theme.springStiffness
-                damping: Theme.springDamping
-                epsilon: 0.25
-            }
-        }
-
-        // Blurred through a layer only while it comes and goes, so the date
-        // at rest is drawn as it always was.
-        Row {
-            id: date
-
-            anchors.right: parent.right
-            anchors.rightMargin: root.joint
-            height: parent.height
-            spacing: root.joint
-            opacity: root.dateOpacity
-            scale: 0.92 + 0.08 * root.dateOpacity
-
-            layer.enabled: root.dateOpacity < 1
-            layer.effect: MultiEffect {
-                blurEnabled: true
-                blurMax: 12
-                blur: 1 - root.dateOpacity
-            }
-
-            BarText {
-                height: parent.height
-                text: Qt.locale().standaloneDayName(clock.date.getDay(), Locale.ShortFormat) + " " + clock.date.getDate() + " " + Qt.locale().standaloneMonthName(clock.date.getMonth(), Locale.ShortFormat)
-            }
-
-            // Its own child rather than punctuation glued to either label, so
-            // it lands centred between them — at half the row's spacing, so
-            // the two parts read as one clock rather than as two things the
-            // bar happened to put next to each other. A middle dot is very
-            // little ink, so it goes a size up to carry the same weight as the
-            // rest.
-            BarText {
-                height: parent.height
-                fontSize: Theme.textSize + 1
-                text: "·"
-            }
-        }
+        fontSize: Theme.textSize + 1
+        text: "\u00b7"
     }
 
     // The time rolls to its next minute the way a timer's figures do
     // (RollingText), and only the figures that change move.
     RollingText {
-        id: time
-
         Layout.fillHeight: true
+        Layout.leftMargin: root.dotGap
         text: Qt.formatDateTime(clock.date, Settings.timeFormat)
     }
 
