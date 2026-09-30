@@ -419,31 +419,10 @@ Singleton {
     readonly property color menuText: label2
     readonly property color menuSelectionText: label
 
-    // The workspace mark's glass, made solid: the mark's white laid over the
-    // pill laid over the wallpaper, worked out here rather than left to the
-    // compositor. The badge sits over an icon's strokes, and glass would let
-    // them up under the number or the pin. It takes the mark's rim as well.
-    // Over the pill the item is on (Pill.surface), so a badge at the teal end
-    // of a sunset is teal; the wallpaper's average outside one.
-    function badgeBg(item) {
-        let ground = mix(backdrop, tint, barBg.a);
-        for (let p = item; p; p = p.parent) {
-            if (p.surface !== undefined) {
-                ground = p.surface;
-                break;
-            }
-        }
-        return mix(ground, Qt.rgba(1, 1, 1, 1), selectionStrong.a);
-    }
-
-    // What the clear glass makes of a colour behind it, the way liquid.frag
-    // does it: saturation raised by glassSaturation, then the tint laid over
-    // at glassTint.
-    function glassOver(c) {
-        const luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-        const lift = v => Math.min(1, Math.max(0, luma + (v - luma) * glassSaturation));
-        return mix(Qt.rgba(lift(c.r), lift(c.g), lift(c.b), 1), tint, glassTint);
-    }
+    // A badge's disc where there is no wallpaper image for it to draw as
+    // glass (components/GlassDisc.qml): the pill's fill over the flat colour,
+    // made solid. The disc lays the mark's white over it.
+    readonly property color badgeBg: mix(backdrop, tint, barBg.a)
     readonly property color badgeFg: "white"
 
     // The ✕ disc on a notification card's corner: a near-black disc,
