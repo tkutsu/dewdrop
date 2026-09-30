@@ -199,9 +199,9 @@ PanelWindow {
     }
 
     // The clock's time is what sits on the centre line, not the pill around
-    // it, and its dot once the date has opened out to the left on a hover:
-    // the date changes width through the week and the month, and centring the
-    // pill would have all of it shuffling sideways under a fixed bar.
+    // it: the date opens out to its left on a hover, and changes width through
+    // the week and the month, and centring the pill would have all of it
+    // shuffling sideways under a fixed bar.
     // The glass of the clock and of everything that comes and goes beside it,
     // as one surface (see `drop` below). Declared before those pills so it
     // goes under their contents.
@@ -242,7 +242,7 @@ PanelWindow {
     // Everything that comes and goes sits either side of the clock, placed off
     // where the clock pill actually ended up rather than given a Side of its
     // own: the centre pill is not where the centre is — it shifts itself so
-    // that the clock's time (or dot) lands on the middle of the bar rather than the
+    // that the clock's time lands on the middle of the bar rather than the
     // pill's own middle (see Pill.centreOn) — and the only honest way to sit
     // beside something that has moved is to read where it ended up. A spread
     // between each pair of neighbours, the same air all the way along.
