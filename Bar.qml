@@ -476,30 +476,11 @@ PanelWindow {
         }
     }
 
-    // The right pill is not shown until the bar has started (Theme.startMs).
-    // Its drawer's modules hear from their services a moment after the bar
-    // is up, and each springs out of the drawer as it does: clipped by its
-    // own edge as it unfolds, which cut a count badge in half and drew a
-    // hard edge across the icon under it.
-    Timer {
-        id: starting
-        interval: Theme.startMs
-        running: true
-    }
-
     Pill {
         id: rightPill
 
         side: Pill.Side.Right
         backdrop: wallpaperImage
-        opacity: starting.running ? 0 : 1
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.startFadeMs
-                easing.type: Easing.InOutQuad
-            }
-        }
 
         // Whatever has nothing to say right now folds away behind this handle,
         // each module in its own place in the row so that opening the drawer
