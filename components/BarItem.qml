@@ -207,15 +207,34 @@ ClickArea {
         id: reach
 
         function contains(point: point): bool {
-            const from = root.lead ? -root._reach : 0;
-            const to = root.width + (root.trail ? root._reach : 0);
-            if (point.x >= from && point.y >= 0 && point.x < to && point.y < root.height)
+            if (point.x >= span.x && point.y >= 0 && point.x < span.x + span.width && point.y < root.height)
                 return true;
             for (const item of layout.children)
                 for (const part of item.children)
                     if (part instanceof Badge && part.visible && part.contains(part.mapFromItem(root, point)))
                         return true;
             return false;
+        }
+    }
+
+    // The box plus that half gap either side, as an item rather than only as
+    // the mask: Qt looks for a child under the pointer only inside its
+    // parent's box and its children's boxes, and asks no mask about that. With
+    // the reach in the mask alone, a click in the gap stopped at the module
+    // and never got to the pin or the popup's button, which fill this.
+    Item {
+        id: span
+        x: root.lead ? -root._reach : 0
+        width: root.width - x + (root.trail ? root._reach : 0)
+        height: root.height
+    }
+
+    // The reach again, for the layers over the span: their x is span's.
+    QtObject {
+        id: spanReach
+
+        function contains(point: point): bool {
+            return reach.contains(Qt.point(point.x + span.x, point.y));
         }
     }
 
@@ -281,8 +300,8 @@ ClickArea {
     // through to the module.
     ClickArea {
         id: pin
-        anchors.fill: parent
-        containmentMask: reach
+        anchors.fill: span
+        containmentMask: spanReach
         enabled: root.pinKey !== ""
         acceptedButtons: Qt.MiddleButton
         cursorShape: Qt.ArrowCursor
@@ -294,8 +313,8 @@ ClickArea {
     // The popup's button, taken the same way as the pin's above.
     ClickArea {
         id: opener
-        anchors.fill: parent
-        containmentMask: reach
+        anchors.fill: span
+        containmentMask: spanReach
         enabled: root.popup !== null && root.popupButton !== Qt.NoButton
         acceptedButtons: root.popupButton
         cursorShape: Qt.ArrowCursor
