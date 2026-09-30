@@ -541,14 +541,16 @@ Singleton {
     // mid-fold turns it round with the speed it had rather than from a
     // standstill. Stiffer springs (SwiftUI's .bouncy, then 1.0 / 0.15) came
     // back so quickly that they read as a glitch rather than as the glass
-    // settling. Measured on
-    // 2026-09-30: the modules land at 460 ms and the glass runs 7.7% of the
-    // drawer past (about twenty pixels), furthest at 640 ms, and is back
-    // within a pixel by about 1.45 s. The same both ways: closing, the pill
-    // is squeezed that far past shut and springs back (Pill.stretch).
-    readonly property real foldSpring: 0.6
-    readonly property real foldDamping: 0.12
-    readonly property int foldLandMs: 460
+    // settling, and 0.6 / 0.12 dragged; this is a fifth quicker than that
+    // with the same overshoot. Worked out on 2026-09-30 by stepping Qt's
+    // spring (which reproduced the 0.6 / 0.12 measurements exactly): the
+    // modules land at 370 ms and the glass runs 8% of the drawer past (about
+    // twenty pixels), furthest at 510 ms, and is back within a pixel by about
+    // 1.2 s. The same both ways: closing, the pill is squeezed that far past
+    // shut and springs back (Pill.stretch).
+    readonly property real foldSpring: 0.9
+    readonly property real foldDamping: 0.145
+    readonly property int foldLandMs: 370
     // How long after the bar starts the drawer folds without the spring
     // (BarItem): long enough for its modules' services to answer, which
     // took under a second for the update checks (measured, 2026-09-30).
