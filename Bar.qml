@@ -499,6 +499,12 @@ PanelWindow {
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null
+            // The handle rides the end of the glass as it runs past the
+            // modules and back (Pill.stretch), rather than being left behind
+            // with the ones that have landed.
+            transform: Translate {
+                x: -rightPill.stretch
+            }
         }
 
         // A pixel less air on its right than the row gives: the speaker's
