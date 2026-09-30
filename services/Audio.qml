@@ -34,23 +34,25 @@ Singleton {
     property bool portAvailable: false
 
     readonly property bool connected: !!sink && sink.name !== "auto_null" && (bluetooth || portAvailable)
-    // 0% is silent either way, so it shows the muted icon.
+    // 0% is silent either way, so it is dimmed like muted.
     readonly property bool silent: muted || volume <= 0
 
-    // The level as how far its waves have lit, in nine steps, and the same
-    // speaker whatever it is playing through: which output is on is the
-    // popup's to say. It used to be a headphones or a loudspeaker glyph for
-    // those ports, which named the device and threw the level away.
+    // The level as how far its waves have lit, and the same speaker whatever
+    // it is playing through: which output is on is the popup's to say. It
+    // used to be a headphones or a loudspeaker glyph for those ports, which
+    // named the device and threw the level away.
     readonly property string icon: connected ? level(volume, muted) : Theme.glyph.audioOff
 
     // The same speaker for anything with a volume: the popup's rows for each
-    // app draw theirs with it too, and so does the music popup. Each step is
-    // a ninth of the way to 100, and anything boosted past it is the last.
+    // app draw theirs with it too, and so does the music popup. 0% is the
+    // empty speaker, and each step after it is a sixth of the way to 100;
+    // anything boosted past 100 is the last.
     function level(percent: int, isMuted: bool): string {
-        if (isMuted || percent <= 0)
+        if (isMuted)
             return Theme.glyph.muted;
         const steps = Theme.glyph.vol;
-        return steps[Math.min(steps.length, Math.ceil(percent * steps.length / 100)) - 1];
+        const last = steps.length - 1;
+        return steps[Math.max(0, Math.min(last, Math.ceil(percent * last / 100)))];
     }
 
     // Everything the machine could play through, for the popup to choose

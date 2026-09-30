@@ -662,6 +662,13 @@ Singleton {
         return "file://" + Quickshell.shellPath("icons/" + name + ".svg");
     }
 
+    // A drawing cut out of the icon font itself, in the font's em box: Glyph
+    // draws it at the font size rather than at a drawing's, so it stands
+    // exactly as big as the glyph it came from.
+    function fontCut(name) {
+        return panel(name) + "#em";
+    }
+
     readonly property var glyph: ({
         // Drawn after SF Symbols' magnifyingglass rather than nf-md-magnify:
         // that glyph centred on its ink sat the lens a pixel and a half up and
@@ -791,15 +798,16 @@ Singleton {
         close: "\u{f0156}",          // nf-md-close
         check: "\u{f012c}",          // nf-md-check, the one in use in a list
 
-        // One speaker for every output (see services/Audio.qml), WhiteSur's
-        // like the caffeine cups: its three waves light inner to outer, each
-        // in three steps of opacity up from the .35 an unlit one sits at, so
-        // nine steps in all. Muted is the same speaker dimmed and struck.
-        muted: panel("audio-volume-muted"),
-        vol: [1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => panel("audio-volume-" + n)),
+        // One speaker for every output (see services/Audio.qml), drawn from
+        // nf-md-volume_high so each wave can take its own opacity, the way
+        // the caffeine cup's steam does: empty is both waves at .25, then the
+        // inner one comes up through .5 and .75 to full, then the outer one.
+        // Muted is nf-md-volume_off, drawn the same way.
+        muted: fontCut("audio-volume-muted"),
+        vol: [0, 1, 2, 3, 4, 5, 6].map(n => fontCut("audio-volume-" + n)),
         // No output to play through reads as the same struck-out speaker as
         // muted, not the struck-out note it used to be (nf-md-volume_off).
-        audioOff: panel("audio-volume-muted"),
+        audioOff: fontCut("audio-volume-muted"),
 
         playing: "\u{f040a}",
         paused: "\u{f03e4}",

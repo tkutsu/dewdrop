@@ -51,7 +51,9 @@ Item {
         x: root.tightWidth ? -inkX : 0
         y: Math.floor((root.height - height) / 2) + root.nudge
         source: root.drawing ? root.text : ""
-        size: Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
+        // A cut from the font (Theme.fontCut) is drawn at the font size, where
+        // the ink rule's shrink-only cap leaves it as big as the glyph was.
+        size: root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
         box: size
         ink: Theme.glyphInk
         opacity: root.color.a

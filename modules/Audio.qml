@@ -34,10 +34,10 @@ BarItem {
     }
 
     // As wide as the widest icon it can show, whichever it is showing. Every
-    // glyph on the bar is laid out on its ink, and the struck-out speaker is
-    // not the width of the others (they all carry every wave, lit or not), so
-    // the module would otherwise change width on mute and shove the language
-    // label along. The speaker sits against the left edge.
+    // glyph on the bar is laid out on its ink, and the struck-out speaker's
+    // ink need not span what the others do (they all carry both waves, lit or
+    // not), so the module could otherwise change width on mute and shove the
+    // language label along. The speaker sits against the left edge.
     Item {
         Layout.fillHeight: true
         implicitWidth: Math.max(widest.implicitWidth, widestMuted.implicitWidth)
