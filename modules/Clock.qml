@@ -17,12 +17,12 @@ BarItem {
     // two parts sit half a gap apart and read as one thing.
     readonly property int joint: Theme.gap - Math.round(Theme.gap / 2)
 
-    // The point the bar centres on. The date comes and goes to its left, and
-    // no two month or weekday names are the same length, so centring the
-    // module as a whole would leave the clock creeping left and right under
-    // it. The time, set in tabular figures, never changes width, so pinning
-    // that instead holds it still while the date opens out beside it.
-    readonly property alias centreItem: time
+    // The point the bar centres on: the time at rest, and the dot once the
+    // date is out. Never the module as a whole, since no two month or weekday
+    // names are the same length and the clock would creep left and right
+    // under the bar. The marker rides the room's spring from one to the
+    // other, so the time slides over as the date opens rather than jumping.
+    readonly property alias centreItem: centre
 
     // Just the time at rest; pointed at, the pill opens out into the day and
     // the date as well. Held out while the calendar is up, which the pointer
@@ -107,6 +107,8 @@ BarItem {
     // width and back, and the pill's edge passes over the words, which stay
     // put beside the time.
     Item {
+        id: room
+
         readonly property real full: date.implicitWidth + root.joint
 
         Layout.fillHeight: true
@@ -119,6 +121,16 @@ BarItem {
                 damping: Theme.springDamping
                 epsilon: 0.25
             }
+        }
+
+        // The time's middle when the room is shut, the dot's when it is open.
+        // In here rather than on the time, which is a Row and would lay it out.
+        Item {
+            id: centre
+
+            readonly property real open: room.full > 0 ? room.width / room.full : 0
+
+            x: room.width + time.width / 2 - open * (time.width / 2 + root.joint + dot.width / 2)
         }
 
         // Blurred through a layer only while it comes and goes, so the date
@@ -152,6 +164,8 @@ BarItem {
             // little ink, so it goes a size up to carry the same weight as the
             // rest.
             BarText {
+                id: dot
+
                 height: parent.height
                 fontSize: Theme.textSize + 1
                 text: "·"
