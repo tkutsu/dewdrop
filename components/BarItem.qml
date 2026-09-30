@@ -107,21 +107,25 @@ ClickArea {
     // edge as it closes, so it reads as being drawn in behind its neighbour
     // rather than as squashed.
     //
-    // A module that folds runs it on a spring (Theme.foldDamping), which
-    // carries it past 1 on the way out, so the pill's edge overshoots and
-    // flows back. The spring's dip below 0 on the way in is cut off: there is
-    // nothing narrower than gone. The pill shows it as a swell instead.
-    readonly property real reveal: folds ? Math.max(0, _sprung) : _eased
-    // How far the spring is past where it is going, either way, as a share
-    // of the fold: for the pill to bulge with (Pill.swell).
-    readonly property real overshoot: folds ? Math.max(0, _sprung - 1, -_sprung) : 0
+    // A module that folds runs it on a spring (Theme.foldSpring), held to
+    // 0..1: the module lands at its own width and stays there while the
+    // spring carries on past it. Each module rounds its width to a pixel (see
+    // below), and ten of them settling back through the same rounding at
+    // once moved the pill's edge in jumps of several pixels. What is past 1
+    // goes to the glass instead, as one amount (overrun).
+    readonly property real reveal: folds ? Math.min(1, Math.max(0, _sprung)) : _eased
+    // How far past its full width the spring has carried the module, in
+    // pixels, for the pill's glass to run on by (Pill.stretch).
+    readonly property real overrun: folds ? Math.max(0, _sprung - 1) * (layout.implicitWidth + padLeft + padRight + (lead ? Theme.gap : 0)) : 0
 
     property real _sprung: stowed ? 0 : 1
     Behavior on _sprung {
         enabled: root.folds
         SpringAnimation {
             spring: Theme.foldSpring
-            damping: Theme.foldDamping
+            // Closing, damped to where it barely goes past, so the edge
+            // glides in to rest rather than being stopped at shut.
+            damping: root.stowed ? Theme.foldCloseDamping : Theme.foldDamping
             // Of the whole fold rather than a pixel: the drawer is a few
             // hundred pixels, and at the default 1% the last few of them
             // would snap into place.
@@ -161,10 +165,21 @@ ClickArea {
     // out of the drawer was given a whole pixel of width and another of gap,
     // and seven of them together made the pill jump fifteen pixels on the
     // first frame of the fold and again on the last.
+    //
+    // But rounded all alike, the modules folding together take their pixels
+    // on the same frame: every gap is the same width, so ten of them went
+    // from one pixel to the next at once and the drawer moved in lurches of
+    // ten. Mid-fold, each module rounds a different fraction of the way
+    // between two pixels (_dither, spread by the golden ratio by its place in
+    // the row), so they take their pixels in turn and the pill's edge moves
+    // a pixel or two at a time. At rest it is nought and nothing moves.
+    // Gap and width are rounded as one, for the same reason.
     property bool lead: true
-    Layout.leftMargin: lead ? Math.round(Theme.gap * _fold) : 0
+    readonly property real _dither: _fold > 0 && _fold < 1 ? ((parent?.children.indexOf(root) ?? -1) + 1) * 0.618034 % 1 - 0.5 : 0
+    readonly property int _gap: lead ? Math.round(Theme.gap * _fold + _dither) : 0
+    Layout.leftMargin: _gap
 
-    implicitWidth: Math.round((layout.implicitWidth + padLeft + padRight) * _fold)
+    implicitWidth: Math.round((layout.implicitWidth + padLeft + padRight + (lead ? Theme.gap : 0)) * _fold + _dither) - _gap
     implicitHeight: Theme.barHeight
     Layout.fillHeight: true
 

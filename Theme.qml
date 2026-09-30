@@ -519,26 +519,20 @@ Singleton {
     readonly property int foldMs: 360
 
     // The right pill's drawer folds on a spring instead (BarItem), a slow
-    // and soft one: its edge flows out past where it is going and eases back,
-    // the way Apple's glass does, and a click mid-fold turns it round with
-    // the speed it had rather than from a standstill. SwiftUI's .bouncy
-    // (the workspace mark's) was tried first: its 4.7% came back so small and
-    // so quick that it read as a glitch rather than as the glass settling.
-    // This is nearer a SwiftUI spring of 0.7 s with 0.4 bounce. Measured on
-    // 2026-09-30: it gets there in 350 ms, is furthest past (8.5%, about two
-    // dozen pixels of drawer) at 480, and is within a pixel of rest after
-    // about 1.1 s.
-    readonly property real foldSpring: 1.0
-    readonly property real foldDamping: 0.15
-    readonly property real foldOver: 0.085
-    readonly property int foldArriveMs: 350
-    readonly property int foldPeakMs: 480
-    // And while it is past, the glass piles up at the pill's moving end and
-    // stands proud of the slab by up to this much, above and below (Pill.swell),
-    // going back in as the spring settles. Closing, the modules cannot go
-    // narrower than nothing, so the spring's run past shut is drawn as this
-    // alone: the end swells against the wall instead of stopping dead.
-    readonly property real foldBulge: 2
+    // and soft one: the modules land and the glass flows on out past them
+    // and eases back, the way Apple's glass does, and a click mid-fold turns
+    // it round with the speed it had rather than from a standstill. Stiffer
+    // springs (SwiftUI's .bouncy, then 1.0 / 0.15) came back so quickly that
+    // they read as a glitch rather than as the glass settling. Measured on
+    // 2026-09-30: opening, the modules land at 460 ms and the glass runs 7.7%
+    // past (about twenty pixels of drawer), furthest at 640 ms, and is back
+    // within a pixel by about 1.45 s. Closing is damped to 1.6% past, which
+    // the modules cannot show, and reaches shut at 640 ms, gliding in.
+    readonly property real foldSpring: 0.6
+    readonly property real foldDamping: 0.12
+    readonly property real foldCloseDamping: 0.15
+    readonly property int foldOpenMs: 460
+    readonly property int foldCloseMs: 640
 
     // The drawer's chevron turning over once the fold has come to rest: a
     // half turn of a few pixels of ink, which wants to be quick to read as the
