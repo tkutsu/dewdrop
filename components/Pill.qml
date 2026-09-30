@@ -201,6 +201,12 @@ Item {
     // tint (Liquid.backdrop). Null leaves it the tint.
     property Image backdrop: null
 
+    // The slab as one colour: the wallpaper under this pill as the glass
+    // shows it, or the tint over the wallpaper's average before the strip has
+    // been read and on a flat colour. For what has to be drawn solid on it
+    // (Theme.badgeBg).
+    readonly property color surface: backdrop?.columns?.length ? Theme.glassOver(backdrop.average(x + slab.x, x + slab.x + slab.width)) : Theme.mix(Theme.backdrop, Theme.tint, Theme.barBg.a)
+
     Item {
         id: slab
 

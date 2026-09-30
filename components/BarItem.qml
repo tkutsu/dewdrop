@@ -200,7 +200,7 @@ ClickArea {
         width: size
         height: size
         radius: size / 2
-        color: Theme.badgeBg
+        color: Theme.badgeBg(root)
         opacity: root.pinKey !== "" && root.marksPin && DrawerPins.pinned(root.pinKey) ? 1 : 0
         visible: opacity > 0
 

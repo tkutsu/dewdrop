@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Wayland
 import qs
 import qs.components
@@ -199,6 +200,56 @@ PanelWindow {
         fillMode: Image.PreserveAspectCrop
         sourceSize: Qt.size(bar.screen.width, bar.screen.height)
         sourceClipRect: Qt.rect(Math.round((natural.width * cover - bar.screen.width) / 2), Math.round((natural.height * cover - bar.screen.height) / 2 + stripTop), bar.width, bar.height)
+
+        // The same strip boiled down to a row of colours, one per
+        // columnWidth pixels across the bar, for what is drawn solid on the
+        // glass (Pill.surface): a badge takes the colour of what is under its
+        // own pill, not the whole wallpaper's, which on a sunset over the sea
+        // put an orange disc on teal glass. Read by magick once per
+        // wallpaper, cut in the image's own pixels so it never scales the
+        // whole thing up to the screen first.
+        readonly property int columnWidth: 8
+        property var columns: []
+
+        function average(from, to) {
+            const first = Math.max(0, Math.floor(from / columnWidth));
+            const last = Math.min(columns.length, Math.ceil(to / columnWidth));
+            let r = 0, g = 0, b = 0;
+            for (let i = first; i < last; i++) {
+                r += columns[i].r;
+                g += columns[i].g;
+                b += columns[i].b;
+            }
+            const n = Math.max(1, last - first);
+            return Qt.rgba(r / n, g / n, b / n, 1);
+        }
+
+        onSourceChanged: {
+            columns = [];
+            if (!source.toString())
+                return;
+            const inImage = v => Math.round(v / cover);
+            const left = inImage((natural.width * cover - bar.screen.width) / 2);
+            const top = inImage((natural.height * cover - bar.screen.height) / 2 + stripTop);
+            stripSample.count = Math.ceil(bar.width / columnWidth);
+            stripSample.exec(["magick", Services.Wallpaper.current + "[0]", "-crop", `${inImage(bar.width)}x${inImage(bar.height)}+${left}+${top}`, "+repage", "-scale", `${stripSample.count}x1!`, "-depth", "8", "txt:-"]);
+        }
+
+        Process {
+            id: stripSample
+
+            property int count: 0
+
+            // One "x,y: (…) #RRGGBB …" line per column. A short answer is one
+            // cut off by the next wallpaper's run, and is dropped.
+            stdout: StdioCollector {
+                onStreamFinished: {
+                    const hexes = text.split("\n").filter(line => /^\d+,\d+:/.test(line)).map(line => line.match(/#[0-9A-Fa-f]{6}/)?.[0]);
+                    if (hexes.length === stripSample.count && hexes.every(Boolean))
+                        wallpaperImage.columns = hexes.map(hex => Qt.color(hex));
+                }
+            }
+        }
     }
 
     // The clock's own separating dot is what sits on the centre line, not the

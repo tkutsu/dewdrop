@@ -2,7 +2,7 @@ import QtQuick
 import qs
 
 // The count that sits on an icon's top right corner: a disc of the workspace
-// mark's glass, made solid (Theme.badgeBg), with a white number. It grows into a pill rather than staying round, because "20" and "99"
+// mark's glass, made solid (Theme.badgeBg) over its own pill, with a white number. It grows into a pill rather than staying round, because "20" and "99"
 // have to fit the same badge a "2" does.
 //
 // The disc is opaque unless its owner says otherwise. It spends half its area
@@ -15,7 +15,7 @@ Item {
     id: root
 
     property alias text: label.text
-    property color fill: Theme.badgeBg
+    property color fill: Theme.badgeBg(root)
     // A single digit fills the disc. Past that the badge becomes a capsule,
     // and a capsule wants more air at its ends than a disc does round its
     // middle: at the disc's 3px a "20" sat with its digits touching the
