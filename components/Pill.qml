@@ -78,6 +78,10 @@ Item {
     // places, so nothing rounds to a pixel or reflows while it happens.
     property real stretch: 0
 
+    // How far the glass's inner end stands proud of the slab, above and
+    // below, while it is stretched or squeezed (Theme.foldSwell).
+    readonly property real swell: Theme.foldSwell * (1 - Math.exp(-Math.abs(stretch) / Theme.foldSwellRun))
+
     onStretchChanged: {
         const shown = root._shown;
         if (shown.length === 0)
@@ -235,13 +239,19 @@ Item {
         visible: root.drawsSlab
 
         // The same glass as the clock's, one box of it, with the edge lit
-        // from above like every other surface the shell draws.
+        // from above like every other surface the shell draws. Out over the
+        // margins above and below, as the clock's is, for the inner end to
+        // swell into; the slab is the box inside them.
         Liquid {
-            anchors.fill: parent
+            anchors {
+                fill: parent
+                topMargin: -Theme.barInset
+                bottomMargin: -Theme.barInset
+            }
             backdrop: root.backdrop
-            box0: Qt.vector4d(0, 0, width, height)
-            rimFrom: 0
-            rimTo: height
+            box0: Qt.vector4d(0, Theme.barInset, width, slab.height)
+            // The inner end, a pill's height of it.
+            bulge0: root.swell > 0 ? Qt.vector4d(root.side === Pill.Side.Left ? width - slab.height : 0, Theme.barInset - root.swell, slab.height, slab.height + 2 * root.swell) : Qt.vector4d(0, 0, 0, 0)
         }
     }
 

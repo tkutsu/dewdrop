@@ -551,6 +551,15 @@ Singleton {
     readonly property real foldSpring: 0.9
     readonly property real foldDamping: 0.145
     readonly property int foldLandMs: 370
+    // And it flexes as it goes, the "gel-like flexibility" Apple gives the
+    // glass: while the spring carries it past, its moving end swells above and
+    // below (Pill.swell), as the liquid in it keeps going while the glass
+    // brakes. A spring brakes hardest where it is furthest past, so the swell
+    // follows the overrun, easing in towards foldSwell: at the usual twenty
+    // pixels past, about 1.7 of the 2. Leading off a few pixels of overrun,
+    // it goes back into the slab with the glass.
+    readonly property real foldSwell: 2
+    readonly property real foldSwellRun: 10
     // How long after the bar starts the drawer folds without the spring
     // (BarItem): long enough for its modules' services to answer, which
     // took under a second for the update checks (measured, 2026-09-30).
