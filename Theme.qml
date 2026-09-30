@@ -312,7 +312,7 @@ Singleton {
     // anything bright down, so the white labels on it keep their contrast
     // whatever it opens over. Half the tint's saturation, so it reads as frost
     // with a cast of the wallpaper rather than as a coloured sheet.
-    readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.16, 0.36)
+    readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
 
     // What "black" means for the two above. It is black until the wallpaper
     // service says otherwise, and then it is the wallpaper's own colour taken
