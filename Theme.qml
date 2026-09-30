@@ -791,15 +791,15 @@ Singleton {
         close: "\u{f0156}",          // nf-md-close
         check: "\u{f012c}",          // nf-md-check, the one in use in a list
 
-        // One speaker for every output (see services/Audio.qml): the level is
-        // its wave count, and muted is the same speaker struck through.
-        muted: "\u{f0581}",
-        volLow: "\u{f057f}",
-        volMed: "\u{f0580}",
-        volHigh: "\u{f057e}",
+        // One speaker for every output (see services/Audio.qml), WhiteSur's
+        // like the caffeine cups: its three waves light inner to outer, each
+        // in three steps of opacity up from the .35 an unlit one sits at, so
+        // nine steps in all. Muted is the same speaker dimmed and struck.
+        muted: panel("audio-volume-muted"),
+        vol: [1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => panel("audio-volume-" + n)),
         // No output to play through reads as the same struck-out speaker as
         // muted, not the struck-out note it used to be (nf-md-volume_off).
-        audioOff: "\u{f0581}",
+        audioOff: panel("audio-volume-muted"),
 
         playing: "\u{f040a}",
         paused: "\u{f03e4}",

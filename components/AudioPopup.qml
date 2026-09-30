@@ -160,10 +160,10 @@ Popup {
         leftPadding: 8
         spacing: 10
 
-        // A fixed box, with the speaker against its left edge: the waves
-        // come and go with the level, and a glyph sized to its own ink
-        // shoved the slider along every time one did. Two pixels past the
-        // font size holds the widest of the five.
+        // A fixed box, with the speaker against its left edge: the struck-out
+        // speaker is not the width of the others, and a glyph sized to its
+        // own ink shoved the slider along whenever it came or went. Two
+        // pixels past the font size holds either.
         Item {
             id: speaker
 

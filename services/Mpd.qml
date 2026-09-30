@@ -188,9 +188,9 @@ Singleton {
         }
     }
 
-    // The same four steps the bar's own volume icon takes, so the player's
-    // level and the system's are read off the same shapes.
-    readonly property string volumeIcon: volume <= 0 ? Theme.glyph.muted : volume < 34 ? Theme.glyph.volLow : volume < 67 ? Theme.glyph.volMed : Theme.glyph.volHigh
+    // The same steps the bar's own volume icon takes, so the player's level
+    // and the system's are read off the same shapes.
+    readonly property string volumeIcon: Audio.level(volume, false)
 
     // A drag hands over a new value every pixel it crosses. Only the latest
     // is worth sending; the ones behind it are already out of date.

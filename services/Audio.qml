@@ -37,22 +37,20 @@ Singleton {
     // 0% is silent either way, so it shows the muted icon.
     readonly property bool silent: muted || volume <= 0
 
-    // The level as the number of waves off the speaker, in three steps, and
-    // the same speaker whatever it is playing through: which output is on is
-    // the popup's to say. It used to be a headphones or a loudspeaker glyph
-    // for those ports, which named the device and threw the level away.
+    // The level as how far its waves have lit, in nine steps, and the same
+    // speaker whatever it is playing through: which output is on is the
+    // popup's to say. It used to be a headphones or a loudspeaker glyph for
+    // those ports, which named the device and threw the level away.
     readonly property string icon: connected ? level(volume, muted) : Theme.glyph.audioOff
 
     // The same speaker for anything with a volume: the popup's rows for each
-    // app draw theirs with it too.
+    // app draw theirs with it too, and so does the music popup. Each step is
+    // a ninth of the way to 100, and anything boosted past it is the last.
     function level(percent: int, isMuted: bool): string {
         if (isMuted || percent <= 0)
             return Theme.glyph.muted;
-        if (percent < 34)
-            return Theme.glyph.volLow;
-        if (percent < 67)
-            return Theme.glyph.volMed;
-        return Theme.glyph.volHigh;
+        const steps = Theme.glyph.vol;
+        return steps[Math.min(steps.length, Math.ceil(percent * steps.length / 100)) - 1];
     }
 
     // Everything the machine could play through, for the popup to choose
