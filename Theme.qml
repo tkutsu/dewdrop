@@ -506,17 +506,32 @@ Singleton {
     // it was.
     readonly property real restOpacity: 0.75
 
-    // Something folding into or out of a pill (the right pill's drawer).
-    // Longer than a fade, because this one moves
-    // everything beside it across the bar, and a fifth of a second of that
-    // read as a jump rather than as a pill growing.
+    // Something folding into or out of place in a popup or a pill: a message
+    // in the mail popup, the music pill's parts. Longer than a fade, because
+    // it moves what is beside it, and a fifth of a second of that read as a
+    // jump rather than as a thing growing.
     //
     // Eased in and out, unlike the reveals, which ease out. A reveal is a box
-    // arriving and should be there at once; this is a pill's edge travelling
-    // a few hundred pixels, and an ease-out puts most of that travel in the
-    // first few frames — which, with the icons fading over the same frames,
-    // read as the icons going and then the pill snapping shut after them.
+    // arriving and should be there at once; this is an edge travelling, and
+    // an ease-out puts most of that travel in the first few frames — which,
+    // with the contents fading over the same frames, read as them going and
+    // then the box snapping shut after them.
     readonly property int foldMs: 360
+
+    // The right pill's drawer folds on a spring instead (BarItem): its edge
+    // runs a little past where it is going and settles back, the way Apple's
+    // glass does, and a click mid-fold turns it round with the speed it had
+    // rather than from a standstill. SwiftUI's plain .bouncy, as for the
+    // workspace mark and for the same reason: the overshoot is a share of the
+    // distance, and the drawer is a few hundred pixels, so the music pill's
+    // 16% would run the edge most of a module past. This is 4.7%, about a
+    // dozen pixels. Measured on 2026-09-30: it gets there in 240 ms, is
+    // furthest past at 320 and within a pixel of rest by about 510. Closing,
+    // the modules cannot go narrower than nothing, so the 4.7% past shut is
+    // not drawn and the edge stops dead where the spring first gets there.
+    readonly property real foldDamping: markDamping
+    readonly property int foldArriveMs: 240
+    readonly property int foldPeakMs: 320
 
     // The drawer's chevron turning over once the fold has come to rest: a
     // half turn of a few pixels of ink, which wants to be quick to read as the

@@ -41,14 +41,15 @@ BarItem {
     // as the fold comes to rest rather than alongside it: the modules move,
     // then the handle answers, pointing the way they will go back.
     //
-    // Eased in and out, like the fold: a thing turned by hand gathers speed
-    // and brakes into place, where an ease-out set off at full speed and read
-    // as a flick. Its first frames are then hardly any turn at all, so it
-    // starts a little before the fold's last frame — while the modules are
-    // braking into place, the chevron is gathering speed, and the turn shows
-    // just as they come to rest, one gesture handed on without a pause. Any
-    // earlier (70% was tried) and most of the turn happened while the eye
-    // was still on the modules, and it went by unseen.
+    // Eased in and out: a thing turned by hand gathers speed and brakes into
+    // place, where an ease-out set off at full speed and read as a flick. Its
+    // first frames are then hardly any turn at all, so it starts once the
+    // pill's edge first stops — at the far end of its overshoot opening, and
+    // against the wall closing (Theme.foldDamping) — and while the edge
+    // settles, the chevron is gathering speed, one gesture handed on without
+    // a pause. Any earlier (70% of the way through the old eased fold was
+    // tried) and most of the turn happened while the eye was still on the
+    // modules, and it went by unseen.
     property real turned: 0
 
     onOpenChanged: turn.restart()
@@ -57,7 +58,7 @@ BarItem {
         id: turn
 
         PauseAnimation {
-            duration: Math.round(Theme.foldMs * 0.8)
+            duration: root.open ? Theme.foldPeakMs : Theme.foldArriveMs
         }
         NumberAnimation {
             target: root

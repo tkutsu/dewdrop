@@ -106,15 +106,35 @@ ClickArea {
     // width. The contents keep their size and slide under the module's left
     // edge as it closes, so it reads as being drawn in behind its neighbour
     // rather than as squashed.
-    property real reveal: stowed ? 0 : 1
+    //
+    // A module that folds runs it on a spring (Theme.foldDamping), which
+    // carries it a little past 1 on the way out, so the pill's edge
+    // overshoots and settles back. The spring's dip below 0 on the way in is
+    // cut off: there is nothing narrower than gone.
+    readonly property real reveal: folds ? Math.max(0, _sprung) : _eased
 
-    // How `reveal` runs. The pills beside the clock take longer and run it
-    // evenly, because the bar lays its own easing over each stage of the drop
-    // it draws off it (Bar.drop).
+    property real _sprung: stowed ? 0 : 1
+    Behavior on _sprung {
+        enabled: root.folds
+        SpringAnimation {
+            spring: Theme.springStiffness
+            damping: Theme.foldDamping
+            // Of the whole fold rather than a pixel: the drawer is a few
+            // hundred pixels, and at the default 1% the last few of them
+            // would snap into place.
+            epsilon: 0.001
+        }
+    }
+
+    // How it runs for the pills beside the clock, which keep their width:
+    // longer and evenly, because the bar lays its own easing over each stage
+    // of the drop it draws off `reveal` (Bar.drop).
     property int foldDuration: Theme.foldMs
     property int foldEasing: Easing.InOutCubic
 
-    Behavior on reveal {
+    property real _eased: stowed ? 0 : 1
+    Behavior on _eased {
+        enabled: !root.folds
         NumberAnimation {
             duration: root.foldDuration
             easing.type: root.foldEasing
