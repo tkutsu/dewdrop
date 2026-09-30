@@ -433,6 +433,6 @@ BarItem {
         }
     }
 
-    onScrollUp: Mpd.send(["seek", "+10"])
-    onScrollDown: Mpd.send(["seek", "-10"])
+    onScrollUp: Mpd.send(["seek", "-10"])
+    onScrollDown: Mpd.send(["seek", "+10"])
 }
