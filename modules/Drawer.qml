@@ -26,14 +26,9 @@ BarItem {
     present: holding
     tooltip: open ? "Show less" : "Show more"
 
-    // A chevron is a few pixels of ink, and its box ended at the ink: a click
-    // a pixel to its right fell into the gap before the next module and did
-    // nothing. The box reaches halfway across that gap instead, and gives the
-    // same back as margin so nothing on the bar moves. One pixel more comes
-    // back than it takes: at the full gap the chevron read as set apart from
-    // the icon beside it.
-    padRight: Math.round(Theme.gap / 2)
-    Layout.rightMargin: -Math.round(Theme.gap / 2) - 1
+    // A pixel less air on its right than the row gives: at the full gap the
+    // chevron read as set apart from the icon beside it.
+    Layout.rightMargin: -1
     onHoldingChanged: if (!holding)
         open = false
 
@@ -42,14 +37,12 @@ BarItem {
     // then the handle answers, pointing the way they will go back.
     //
     // Eased in and out: a thing turned by hand gathers speed and brakes into
-    // place, where an ease-out set off at full speed and read as a flick. Its
-    // first frames are then hardly any turn at all, so it starts once the
-    // pill's edge first stops — at the far end of its overshoot opening, and
-    // against the wall closing (Theme.foldDamping) — and while the edge
-    // settles, the chevron is gathering speed, one gesture handed on without
-    // a pause. Any earlier (70% of the way through the old eased fold was
-    // tried) and most of the turn happened while the eye was still on the
-    // modules, and it went by unseen.
+    // place, where an ease-out set off at full speed and read as a flick. It
+    // starts once the modules have landed (Theme.foldOpenMs, foldCloseMs),
+    // and turns while the glass settles, one gesture handed on without a
+    // pause. Starting earlier (70% of the way through the old eased fold was
+    // tried) put most of the turn where the eye was still on the modules,
+    // and it went by unseen.
     property real turned: 0
 
     onOpenChanged: turn.restart()
@@ -58,7 +51,7 @@ BarItem {
         id: turn
 
         PauseAnimation {
-            duration: root.open ? Theme.foldPeakMs : Theme.foldArriveMs
+            duration: root.open ? Theme.foldOpenMs : Theme.foldCloseMs
         }
         NumberAnimation {
             target: root

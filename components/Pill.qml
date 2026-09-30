@@ -67,20 +67,11 @@ Item {
     property bool drawsSlab: true
     property real contentOpacity: 1
 
-    // How far the glass at the pill's inner end stands proud of the slab,
-    // above and below, in pixels, as the right pill's drawer piles its glass
-    // up there springing past (BarItem.overshoot). Tapered back along the
-    // pill in two steps: the full swell over a pill and a half, half of it
-    // over nearly four. One box a pill's height long, the clock's (Bar.bulge),
-    // stood out as a knob on a neck, and one longer box as a step, because
-    // the shader blends a bulge in over no more than 8 pixels.
-    property real swell: 0
-
-    // One of those steps, in the glass's own pixels. At no swell it lies
-    // inside the slab's round end and changes nothing.
-    function _bulge(length: real, proud: real): vector4d {
-        return Qt.vector4d(side === Pill.Side.Left ? slab.width - length : 0, Theme.barInset - proud, length, slab.height + 2 * proud);
-    }
+    // How far the glass runs on past the pill's inner end, in pixels: the
+    // right pill's drawer springing past as it opens (BarItem.overrun). Only
+    // the glass, which flows out and back on its own; the modules have landed
+    // and stay put under it.
+    property real stretch: 0
 
     // The outline as a single line around the pill, starting from the left and
     // going clockwise. Its measurements, in the slab's own coordinates: the
@@ -220,24 +211,19 @@ Item {
             fill: parent
             topMargin: Theme.barInset
             bottomMargin: Theme.barInset
-            leftMargin: root.atLeftEdge ? Theme.barMargin : 0
-            rightMargin: root.atRightEdge ? Theme.barMargin : 0
+            leftMargin: (root.atLeftEdge ? Theme.barMargin : 0) - (root.side === Pill.Side.Right ? root.stretch : 0)
+            rightMargin: (root.atRightEdge ? Theme.barMargin : 0) - (root.side === Pill.Side.Left ? root.stretch : 0)
         }
         visible: root.drawsSlab
 
         // The same glass as the clock's, one box of it, with the edge lit
-        // from above like every other surface the shell draws. Out into the
-        // air above and below the slab, for it to swell into (swell).
+        // from above like every other surface the shell draws.
         Liquid {
             anchors.fill: parent
-            anchors.topMargin: -Theme.barInset
-            anchors.bottomMargin: -Theme.barInset
             backdrop: root.backdrop
-            box0: Qt.vector4d(0, Theme.barInset, width, slab.height)
-            bulge0: root._bulge(Theme.barHeight * 1.5, root.swell)
-            bulge1: root._bulge(Theme.barHeight * 3.75, root.swell / 2)
-            rimFrom: Theme.barInset
-            rimTo: Theme.barInset + slab.height
+            box0: Qt.vector4d(0, 0, width, height)
+            rimFrom: 0
+            rimTo: height
         }
     }
 
@@ -391,10 +377,17 @@ Item {
         opacity: root.contentOpacity
     }
 
-    // The first module has nothing in front of it to keep a gap from.
+    // The first module has nothing in front of it to keep a gap from, and
+    // the last nothing after it to reach halfway across to.
     Binding {
         target: root._shown[0] ?? null
         property: "lead"
+        value: false
+    }
+
+    Binding {
+        target: root._shown[root._shown.length - 1] ?? null
+        property: "trail"
         value: false
     }
 
