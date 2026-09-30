@@ -618,6 +618,17 @@ OverlayWindow {
                             return;
                         Launcher.forget(Launcher.index);
                         break;
+                    // Right off the end of the line completes it to the
+                    // selected file, the way a shell's Tab does. Written with
+                    // its "~", so the query stays in the files mode, and a
+                    // directory ends in "/" ready for the next name. Anywhere
+                    // short of the end it is the cursor's, as ever.
+                    case Qt.Key_Right:
+                        const row = Launcher.selected;
+                        if (!Launcher.pathMode || row?.kind !== "path" || input.cursorPosition < input.text.length)
+                            return;
+                        input.adopt(Launcher.tildeHome(row.path) + (row.dir ? "/" : ""));
+                        break;
                     default:
                         // Everything else this takes is a step one way or the
                         // other, and each key's mirror does the same in the
