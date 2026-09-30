@@ -42,11 +42,11 @@ PopupWindow {
     // and one that asks for a zero size is a protocol error that takes the
     // whole connection down with it — the shell dies, not just the popup.
     //
-    // MenuPopup is the one that gets here: it has no padding to stand in for
-    // its contents, and QsMenuOpener fills its rows in over DBus some time
-    // after the window has been built, so a tray menu is briefly a window
-    // around nothing. Clamped rather than held back until it has rows, because
-    // this has to hold for every popup, including the ones not written yet.
+    // MenuPopup is the one that could get here: it has no padding to stand in
+    // for its contents, and QsMenuOpener fills its rows in over DBus some time
+    // after it has been built. It holds itself back until they are in, but the
+    // clamp stays, because this has to hold for every popup, including the
+    // ones not written yet.
     implicitWidth: Math.max(1, body.implicitWidth + hPadding * 2) + shadowSide * 2
     implicitHeight: Math.max(chromeHeight, reserveHeight) + shadowTop + shadowBottom
     color: "transparent"

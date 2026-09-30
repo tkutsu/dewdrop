@@ -184,7 +184,6 @@ BarItem {
 
                     anchorItem: entry
                     handle: entry.modelData.menu
-                    visible: true
 
                     // Flush under the icon and hung from its left edge, the
                     // way the system drops a menu from a menu bar extra —

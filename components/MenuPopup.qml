@@ -17,6 +17,16 @@ Popup {
     // A menu drops whole, as the Mac's do; only a popover grows.
     grows: false
 
+    // Up once its rows are in, not before. QsMenuOpener asks the app for them
+    // over DBus each time a menu opens, so a menu shown at once was a window
+    // around nothing that then had to grow to fit them. Growing a popup that
+    // is already up is a round trip with the compositor, and when the rows
+    // came back before the compositor had answered the window's first
+    // configure, that answer, still sized for the empty menu, landed last:
+    // the window stayed one row tall with the rest spilling out of the box.
+    // Shown only now, it is built at its full size and never resized.
+    visible: body.entries.length > 0
+
     // The row that was clicked, for the moment it blinks before the menu
     // acts and closes; null the rest of the time.
     property Item chosen: null
@@ -277,7 +287,6 @@ Popup {
                         // vertically, since the anchoring row can be anywhere.
                         item.anchor.adjustment = PopupAdjustment.FlipX | PopupAdjustment.SlideY;
                         item.dismissed.connect(root.dismissed);
-                        item.visible = true;
                     }
                 }
             }
