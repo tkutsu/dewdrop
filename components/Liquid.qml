@@ -80,6 +80,7 @@ ShaderEffect {
     property real soften: Theme.glassSoften
     property real saturation: Theme.glassSaturation
     property real tint: Theme.glassTint
+    property real dispersion: Theme.glassDispersion
 
     fragmentShader: Qt.resolvedUrl("../shaders/liquid.frag.qsb")
 }

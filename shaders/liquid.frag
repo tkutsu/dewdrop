@@ -9,7 +9,8 @@
 // Given what is behind it (glass = 1), it is clear glass rather than a tint:
 // it draws the wallpaper itself, bent in towards the middle near the edge the
 // way the rim of a lens pulls what is under it, softened a little and
-// brightened in colour. Opaque, so Hyprland's blur underneath never shows.
+// brightened in colour. Red bends a little less and blue a little more, as
+// they do through real glass, so the edge fringes with colour. Opaque, so Hyprland's blur underneath never shows.
 //
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o liquid.frag.qsb liquid.frag
 // A hot reload keeps drawing with the shader it already loaded, so restart
@@ -58,6 +59,8 @@ layout(std140, binding = 0) uniform buf {
     float saturation;
     // How much of fill's colour is laid over what the glass shows.
     float tint;
+    // How much less red bends, and how much more blue, than green does.
+    float dispersion;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -152,7 +155,10 @@ void main() {
         vec2 n = normalize(vec2(field(p + vec2(0.5, 0.0)) - field(p - vec2(0.5, 0.0)),
                                 field(p + vec2(0.0, 0.5)) - field(p - vec2(0.0, 0.5))) + 1e-6);
         float t = clamp(1.0 + d / bendDepth, 0.0, 1.0);
-        vec3 c = softened(p - n * bend * t * t);
+        vec2 shift = n * bend * t * t;
+        vec3 c = vec3(softened(p - shift * (1.0 - dispersion)).r,
+                      softened(p - shift).g,
+                      softened(p - shift * (1.0 + dispersion)).b);
         c = clamp(mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, saturation), 0.0, 1.0);
         body = mix(c, fill.rgb, tint);
         bodyA = shape;

@@ -363,10 +363,14 @@ Singleton {
     // drawing the wallpaper itself (Liquid.backdrop, shaders/liquid.frag).
     // Near the edge it looks glassBend pixels further in, easing off to
     // nothing by glassBendDepth, the way the rim of a lens pulls what is under
-    // it towards the middle. A touch of blur and a lift in colour, then
-    // barBg's near-black laid over it at glassTint so labels still read.
-    readonly property real glassBend: 6
-    readonly property real glassBendDepth: 10
+    // it towards the middle. Red bends glassDispersion less than that and
+    // blue as much more, so the edge fringes with colour. A touch of blur and
+    // a lift in colour, then barBg's near-black laid over it at glassTint so
+    // labels still read. glassBendDepth is half the pill: any deeper and the
+    // bends from the top and bottom edges would meet in the middle in a seam.
+    readonly property real glassBend: 10
+    readonly property real glassBendDepth: 12
+    readonly property real glassDispersion: 0.25
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3
