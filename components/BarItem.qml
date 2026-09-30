@@ -109,23 +109,23 @@ ClickArea {
     //
     // A module that folds runs it on a spring (Theme.foldSpring), held to
     // 0..1: the module lands at its own width and stays there while the
-    // spring carries on past it. Each module rounds its width to a pixel (see
-    // below), and ten of them settling back through the same rounding at
-    // once moved the pill's edge in jumps of several pixels. What is past 1
-    // goes to the glass instead, as one amount (overrun).
+    // spring carries on past it, and at nothing while it carries on past
+    // shut. Each module rounds its width to a pixel (see below), and ten of
+    // them settling back through the same rounding at once moved the pill's
+    // edge in jumps of several pixels. What is outside 0..1 goes to the pill
+    // instead, as one amount (overrun).
     readonly property real reveal: folds ? Math.min(1, Math.max(0, _sprung)) : _eased
     // How far past its full width the spring has carried the module, in
-    // pixels, for the pill's glass to run on by (Pill.stretch).
-    readonly property real overrun: folds ? Math.max(0, _sprung - 1) * (layout.implicitWidth + padLeft + padRight + (lead ? Theme.gap : 0)) : 0
+    // pixels, or past nothing as a negative: for the pill's glass to run on
+    // or squeeze in by (Pill.stretch).
+    readonly property real overrun: folds ? (_sprung - reveal) * (layout.implicitWidth + padLeft + padRight + (lead ? Theme.gap : 0)) : 0
 
     property real _sprung: stowed ? 0 : 1
     Behavior on _sprung {
         enabled: root.folds
         SpringAnimation {
             spring: Theme.foldSpring
-            // Closing, damped to where it barely goes past, so the edge
-            // glides in to rest rather than being stopped at shut.
-            damping: root.stowed ? Theme.foldCloseDamping : Theme.foldDamping
+            damping: Theme.foldDamping
             // Of the whole fold rather than a pixel: the drawer is a few
             // hundred pixels, and at the default 1% the last few of them
             // would snap into place.
@@ -175,6 +175,14 @@ ClickArea {
     // a pixel or two at a time. At rest it is nought and nothing moves.
     // Gap and width are rounded as one, for the same reason.
     property bool lead: true
+
+    // How far the pill has pushed this module along, drawn only, while its
+    // glass runs past or is squeezed in (Pill.stretch).
+    property real shift: 0
+    transform: Translate {
+        x: root.shift
+    }
+
     readonly property real _dither: _fold > 0 && _fold < 1 ? ((parent?.children.indexOf(root) ?? -1) + 1) * 0.618034 % 1 - 0.5 : 0
     readonly property int _gap: lead ? Math.round(Theme.gap * _fold + _dither) : 0
     Layout.leftMargin: _gap

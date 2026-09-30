@@ -38,7 +38,7 @@ BarItem {
     //
     // Eased in and out: a thing turned by hand gathers speed and brakes into
     // place, where an ease-out set off at full speed and read as a flick. It
-    // starts once the modules have landed (Theme.foldOpenMs, foldCloseMs),
+    // starts once the modules have landed (Theme.foldLandMs),
     // and turns while the glass settles, one gesture handed on without a
     // pause. Starting earlier (70% of the way through the old eased fold was
     // tried) put most of the turn where the eye was still on the modules,
@@ -51,7 +51,7 @@ BarItem {
         id: turn
 
         PauseAnimation {
-            duration: root.open ? Theme.foldOpenMs : Theme.foldCloseMs
+            duration: Theme.foldLandMs
         }
         NumberAnimation {
             target: root
