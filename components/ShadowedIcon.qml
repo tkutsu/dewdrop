@@ -23,6 +23,11 @@ Item {
     // less headroom than the theme's convention is drawn smaller so it stands
     // the same height as everything beside it. Zero turns the whole thing off.
     property real ink: 0
+    // Off for artwork already drawn at its size (a cut from the icon font):
+    // the ink is still measured for layout, but never resizes it. A set whose
+    // parts fade in, like the volume speaker's waves, would otherwise measure
+    // taller once a wave was bright enough to count, and come out smaller.
+    property bool fitsInk: true
 
     // A new icon is a new question, and an icon seen before is not a question
     // at all. Nothing else restarts it — the answer resizes the thing it was
@@ -62,7 +67,7 @@ Item {
     // evenness buys back, and would stretch a deliberately short, wide icon
     // into its neighbours.
     readonly property int drawn: {
-        if (root.ink <= 0 || root.extent <= 0)
+        if (!root.fitsInk || root.ink <= 0 || root.extent <= 0)
             return root.size;
         return Math.min(root.size, Math.round(root.size * root.ink / root.extent));
     }
