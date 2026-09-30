@@ -18,6 +18,7 @@ Item {
     property bool tightWidth: true
 
     readonly property bool drawing: text.startsWith("file:")
+    readonly property bool fontCut: text.endsWith("#em")
 
     // A drawing is laid out on its ink too, like the font's glyphs, rather
     // than on the square box it is drawn in: the launcher's 12px magnifier
@@ -51,11 +52,12 @@ Item {
         x: root.tightWidth ? -inkX : 0
         y: Math.floor((root.height - height) / 2) + root.nudge
         source: root.drawing ? root.text : ""
-        // A cut from the font (Theme.fontCut) is drawn at the font size, where
-        // the ink rule's shrink-only cap leaves it as big as the glyph was.
-        size: root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
+        // A cut from the font (Theme.fontCut) is drawn at the font size and
+        // left there, as big as the glyph it came from.
+        size: root.fontCut ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
         box: size
         ink: Theme.glyphInk
+        fitsInk: !root.fontCut
         opacity: root.color.a
     }
 }
