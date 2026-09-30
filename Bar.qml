@@ -490,6 +490,9 @@ PanelWindow {
         // are showing anyway.
         readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys]
 
+        // The glass piling up at the drawer's end as its spring runs past.
+        swell: Theme.foldBulge * Math.min(1, Math.max(0, ...drawable.filter(m => m.here).map(m => m.overshoot)) / Theme.foldOver)
+
         Drawer {
             id: drawer
             holding: rightPill.drawable.some(m => m.here && !m.showsClosed)

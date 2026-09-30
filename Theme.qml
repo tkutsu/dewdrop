@@ -518,20 +518,27 @@ Singleton {
     // then the box snapping shut after them.
     readonly property int foldMs: 360
 
-    // The right pill's drawer folds on a spring instead (BarItem): its edge
-    // runs a little past where it is going and settles back, the way Apple's
-    // glass does, and a click mid-fold turns it round with the speed it had
-    // rather than from a standstill. SwiftUI's plain .bouncy, as for the
-    // workspace mark and for the same reason: the overshoot is a share of the
-    // distance, and the drawer is a few hundred pixels, so the music pill's
-    // 16% would run the edge most of a module past. This is 4.7%, about a
-    // dozen pixels. Measured on 2026-09-30: it gets there in 240 ms, is
-    // furthest past at 320 and within a pixel of rest by about 510. Closing,
-    // the modules cannot go narrower than nothing, so the 4.7% past shut is
-    // not drawn and the edge stops dead where the spring first gets there.
-    readonly property real foldDamping: markDamping
-    readonly property int foldArriveMs: 240
-    readonly property int foldPeakMs: 320
+    // The right pill's drawer folds on a spring instead (BarItem), a slow
+    // and soft one: its edge flows out past where it is going and eases back,
+    // the way Apple's glass does, and a click mid-fold turns it round with
+    // the speed it had rather than from a standstill. SwiftUI's .bouncy
+    // (the workspace mark's) was tried first: its 4.7% came back so small and
+    // so quick that it read as a glitch rather than as the glass settling.
+    // This is nearer a SwiftUI spring of 0.7 s with 0.4 bounce. Measured on
+    // 2026-09-30: it gets there in 350 ms, is furthest past (8.5%, about two
+    // dozen pixels of drawer) at 480, and is within a pixel of rest after
+    // about 1.1 s.
+    readonly property real foldSpring: 1.0
+    readonly property real foldDamping: 0.15
+    readonly property real foldOver: 0.085
+    readonly property int foldArriveMs: 350
+    readonly property int foldPeakMs: 480
+    // And while it is past, the glass piles up at the pill's moving end and
+    // stands proud of the slab by up to this much, above and below (Pill.swell),
+    // going back in as the spring settles. Closing, the modules cannot go
+    // narrower than nothing, so the spring's run past shut is drawn as this
+    // alone: the end swells against the wall instead of stopping dead.
+    readonly property real foldBulge: 2
 
     // The drawer's chevron turning over once the fold has come to rest: a
     // half turn of a few pixels of ink, which wants to be quick to read as the

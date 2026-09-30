@@ -67,6 +67,21 @@ Item {
     property bool drawsSlab: true
     property real contentOpacity: 1
 
+    // How far the glass at the pill's inner end stands proud of the slab,
+    // above and below, in pixels, as the right pill's drawer piles its glass
+    // up there springing past (BarItem.overshoot). Tapered back along the
+    // pill in two steps: the full swell over a pill and a half, half of it
+    // over nearly four. One box a pill's height long, the clock's (Bar.bulge),
+    // stood out as a knob on a neck, and one longer box as a step, because
+    // the shader blends a bulge in over no more than 8 pixels.
+    property real swell: 0
+
+    // One of those steps, in the glass's own pixels. At no swell it lies
+    // inside the slab's round end and changes nothing.
+    function _bulge(length: real, proud: real): vector4d {
+        return Qt.vector4d(side === Pill.Side.Left ? slab.width - length : 0, Theme.barInset - proud, length, slab.height + 2 * proud);
+    }
+
     // The outline as a single line around the pill, starting from the left and
     // going clockwise. Its measurements, in the slab's own coordinates: the
     // stroke is centred on the path it follows, so the path is half a stroke
@@ -211,13 +226,18 @@ Item {
         visible: root.drawsSlab
 
         // The same glass as the clock's, one box of it, with the edge lit
-        // from above like every other surface the shell draws.
+        // from above like every other surface the shell draws. Out into the
+        // air above and below the slab, for it to swell into (swell).
         Liquid {
             anchors.fill: parent
+            anchors.topMargin: -Theme.barInset
+            anchors.bottomMargin: -Theme.barInset
             backdrop: root.backdrop
-            box0: Qt.vector4d(0, 0, width, height)
-            rimFrom: 0
-            rimTo: height
+            box0: Qt.vector4d(0, Theme.barInset, width, slab.height)
+            bulge0: root._bulge(Theme.barHeight * 1.5, root.swell)
+            bulge1: root._bulge(Theme.barHeight * 3.75, root.swell / 2)
+            rimFrom: Theme.barInset
+            rimTo: Theme.barInset + slab.height
         }
     }
 

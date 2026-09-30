@@ -108,16 +108,19 @@ ClickArea {
     // rather than as squashed.
     //
     // A module that folds runs it on a spring (Theme.foldDamping), which
-    // carries it a little past 1 on the way out, so the pill's edge
-    // overshoots and settles back. The spring's dip below 0 on the way in is
-    // cut off: there is nothing narrower than gone.
+    // carries it past 1 on the way out, so the pill's edge overshoots and
+    // flows back. The spring's dip below 0 on the way in is cut off: there is
+    // nothing narrower than gone. The pill shows it as a swell instead.
     readonly property real reveal: folds ? Math.max(0, _sprung) : _eased
+    // How far the spring is past where it is going, either way, as a share
+    // of the fold: for the pill to bulge with (Pill.swell).
+    readonly property real overshoot: folds ? Math.max(0, _sprung - 1, -_sprung) : 0
 
     property real _sprung: stowed ? 0 : 1
     Behavior on _sprung {
         enabled: root.folds
         SpringAnimation {
-            spring: Theme.springStiffness
+            spring: Theme.foldSpring
             damping: Theme.foldDamping
             // Of the whole fold rather than a pixel: the drawer is a few
             // hundred pixels, and at the default 1% the last few of them
