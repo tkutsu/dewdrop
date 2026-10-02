@@ -9,6 +9,8 @@ import qs.services
 BarItem {
 
     tooltip: {
+        if (Updates.trouble !== "")
+            return Updates.trouble;
         if (!Updates.loaded || Updates.loading)
             return "Checking for updates…";
         const n = Updates.pending;

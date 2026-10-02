@@ -30,12 +30,47 @@ Singleton {
     // for both, the way the mail and tasks modules do, so a count of zero
     // is not mistaken for an up-to-date machine.
     property bool loaded: false
-    readonly property bool loading: checkOfficial.running || checkAur.running
+    property int checksRemaining: 0
+    property string officialTrouble: ""
+    property string aurTrouble: ""
+    readonly property string trouble: [officialTrouble, aurTrouble].filter(s => s !== "").join(" · ")
+    readonly property bool loading: checksRemaining > 0 || checkOfficial.running || checkAur.running
+    readonly property bool polling: Settings.moduleOn("updater")
+
+    onPollingChanged: if (root.polling)
+        root.refresh()
+
+    Retry {
+        id: recovery
+        active: root.polling && !root.loading
+        onTriggered: root.refresh()
+    }
 
     function refresh() {
+        if (root.loading)
+            return;
+        recovery.cancel();
+        root.checksRemaining = 2;
         for (const p of [checkOfficial, checkAur, countOfficial, countAur])
             if (!p.running)
                 p.running = true;
+    }
+
+    function retryNow(): void {
+        recovery.retryNow();
+    }
+
+    // Only transport failures are retried; a broken tool still needs fixing.
+    function failedCheck(source: string, exitCode: int, stderr: string): string {
+        if (exitCode === 124 || /could not resolve|connection|network|timed? out|timeout|temporary failure|TLS|SSL|failed to synchronize|failed to download|error.*(?:request|download)|RPC.*(?:failed|error)/i.test(stderr))
+            recovery.schedule();
+        return `${source} check failed${exitCode === 124 ? " (timed out)" : ""}`;
+    }
+
+    function finishCheck(): void {
+        root.checksRemaining--;
+        if (root.checksRemaining === 0 && root.trouble === "")
+            recovery.reset();
     }
 
     function lines(text) {
@@ -54,41 +89,54 @@ Singleton {
         id: checkOfficial
 
         property string out: ""
+        property string err: ""
 
-        command: ["checkupdates"]
+        command: ["timeout", "90s", "checkupdates"]
         stdout: StdioCollector {
             onStreamFinished: checkOfficial.out = text
         }
+        stderr: StdioCollector {
+            onStreamFinished: checkOfficial.err = text
+        }
 
         onExited: function (exitCode) {
-            if (exitCode !== 0 && exitCode !== 2)
-                return;
-            root.officialList = root.lines(checkOfficial.out);
-            root.official = root.officialList.length;
-            root.loaded = true;
+            if (exitCode !== 0 && exitCode !== 2) {
+                root.officialTrouble = root.failedCheck("Official update", exitCode, checkOfficial.err);
+            } else {
+                root.officialTrouble = "";
+                root.officialList = root.lines(checkOfficial.out);
+                root.official = root.officialList.length;
+                root.loaded = true;
+            }
+            root.finishCheck();
         }
     }
 
-    // yay is the looser of the two: `-Qua` exits 1 both for "no AUR updates"
-    // and for an RPC call that did not land, so the pair cannot be told apart
-    // here the way checkupdates' can. Anything past those two codes is still
-    // worth refusing — and the official half, which is the bulk of the count,
-    // is guarded properly.
+    // yay uses 1 both for no updates and a failed RPC. Its stderr distinguishes
+    // the failed call, which must preserve the previous count and retry.
     Process {
         id: checkAur
 
         property string out: ""
+        property string err: ""
 
-        command: ["yay", "-Qua"]
+        command: ["timeout", "90s", "yay", "-Qua"]
         stdout: StdioCollector {
             onStreamFinished: checkAur.out = text
         }
+        stderr: StdioCollector {
+            onStreamFinished: checkAur.err = text
+        }
 
         onExited: function (exitCode) {
-            if (exitCode !== 0 && exitCode !== 1)
-                return;
-            root.aurList = root.lines(checkAur.out);
-            root.aur = root.aurList.length;
+            if (exitCode !== 0 && (exitCode !== 1 || checkAur.err.trim() !== "")) {
+                root.aurTrouble = root.failedCheck("AUR update", exitCode, checkAur.err);
+            } else {
+                root.aurTrouble = "";
+                root.aurList = root.lines(checkAur.out);
+                root.aur = root.aurList.length;
+            }
+            root.finishCheck();
         }
     }
 
@@ -120,9 +168,11 @@ Singleton {
 
     Timer {
         interval: 6 * 60 * 60 * 1000
-        running: true
+        running: root.polling && !root.loading && !recovery.pending
         repeat: true
-        triggeredOnStart: true
         onTriggered: root.refresh()
     }
+
+    Component.onCompleted: if (root.polling)
+        root.refresh()
 }

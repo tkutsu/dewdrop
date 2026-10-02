@@ -82,6 +82,8 @@ Popup {
 
         ReconnectButton {}
 
+        RetryButton { service: Tasks }
+
         PopupButton {
             visible: Tasks.loaded
             framed: true

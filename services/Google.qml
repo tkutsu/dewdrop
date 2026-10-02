@@ -37,6 +37,7 @@ Singleton {
     // timeout or the watchdog gets there first. Null when none is running.
     property var settleRefresh: null
     readonly property int refreshTimeoutMs: 15000
+    readonly property int requestTimeoutMs: 15000
 
     readonly property bool configured: adapter.refresh_token !== ""
 
@@ -114,9 +115,24 @@ Singleton {
         // token Google just issued is not going to be cured by a third.
         const attempt = function (retry) {
             const xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState !== XMLHttpRequest.DONE)
+            const timeout = requestTimeout.createObject(root, {interval: root.requestTimeoutMs});
+            let settled = false;
+            const finish = function () {
+                settled = true;
+                timeout.stop();
+                timeout.destroy();
+            };
+            timeout.triggered.connect(function () {
+                if (settled)
                     return;
+                finish();
+                xhr.abort();
+                fail("Request timed out", 0);
+            });
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== XMLHttpRequest.DONE || settled)
+                    return;
+                finish();
                 if (xhr.status === 401) {
                     root.accessToken = "";
                     root.tokenExpiry = 0;
@@ -149,6 +165,7 @@ Singleton {
                 then(parsed);
             };
             xhr.open(method, url);
+            timeout.start();
             xhr.setRequestHeader("Authorization", "Bearer " + root.accessToken);
             if (body !== null) {
                 xhr.setRequestHeader("Content-Type", "application/json");
@@ -160,12 +177,19 @@ Singleton {
         attempt(true);
     }
 
+    Component {
+        id: requestTimeout
+        Timer {}
+    }
+
     // Get a usable access token, then do the thing. A minute of margin, because
     // a token that expires while the request is in the air is a 401 for no
     // reason anyone could have acted on.
     function authorised(then: var, fail: var): void {
-        if (!root.configured)
+        if (root.needsConsent) {
+            fail(root.reconnect, 0);
             return;
+        }
         if (root.accessToken !== "" && Date.now() < root.tokenExpiry - 60000) {
             then();
             return;
@@ -188,7 +212,7 @@ Singleton {
         // until restarted. Every exit now goes through here and empties the
         // queue, with a failure or a token.
         let settled = false;
-        root.settleRefresh = function (why) {
+        root.settleRefresh = function (why, status) {
             if (settled)
                 return;
             settled = true;
@@ -200,14 +224,12 @@ Singleton {
             if (why !== "") {
                 xhr.abort();
                 for (const held of queued)
-                    held.bad(why, 0);
+                    held.bad(why, status ?? 0);
                 return;
             }
             for (const held of queued)
                 held.go();
         };
-        xhr.timeout = root.refreshTimeoutMs;
-        xhr.ontimeout = root.refreshTimedOut;
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE || settled)
                 return;
@@ -218,14 +240,14 @@ Singleton {
                 // retrying every two minutes forever.
                 const dead = xhr.status === 400 || xhr.status === 401;
                 root.tokenDead = dead;
-                root.settleRefresh(dead ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`));
+                root.settleRefresh(dead ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`), xhr.status);
                 return;
             }
             let parsed;
             try {
                 parsed = JSON.parse(xhr.responseText);
             } catch (e) {
-                root.settleRefresh("Sign-in sent something unreadable");
+                root.settleRefresh("Sign-in sent something unreadable", xhr.status);
                 return;
             }
             root.accessToken = parsed.access_token ?? "";
@@ -243,12 +265,10 @@ Singleton {
             root.settleRefresh("Sign-in timed out");
     }
 
-    // Second line behind xhr.timeout, for the case where the XHR never reports
-    // back at all: a refresh that hangs must end somehow, or every service
-    // queues behind it forever.
+    // QML's XMLHttpRequest has no timeout; the watchdog ends a hung refresh.
     Timer {
         id: watchdog
-        interval: root.refreshTimeoutMs + 5000
+        interval: root.refreshTimeoutMs
         onTriggered: root.refreshTimedOut()
     }
 

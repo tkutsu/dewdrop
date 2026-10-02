@@ -36,7 +36,7 @@ GoogleService {
         if (!root.haveCalendars || Date.now() - root.calendarsAt > root.calendarsMaxAgeMs)
             root.fetchCalendars();
         else
-            root.fetchMonth(Google.now, true);
+            root.refreshMonths();
     }
 
     // --- state ---------------------------------------------------------------
@@ -69,15 +69,15 @@ GoogleService {
 
     // --- reading -------------------------------------------------------------
     // The events on a day, soonest first, all-day ones ahead of the timed.
-    function forDay(day: string): var {
-        const month = root.months[day.slice(0, 7)];
+    function forDay(day: string, monthKey: var): var {
+        const month = root.months[monthKey || day.slice(0, 7)];
         if (!month)
             return [];
         return month[day] ?? [];
     }
 
-    function has(day: string): bool {
-        return root.forDay(day).length > 0;
+    function has(day: string, monthKey: var): bool {
+        return root.forDay(day, monthKey).length > 0;
     }
 
     readonly property var todays: root.forDay(root.today)
@@ -100,8 +100,17 @@ GoogleService {
             }));
             root.haveCalendars = true;
             root.calendarsAt = Date.now();
-            root.fetchMonth(Google.now, true);
+            root.refreshMonths();
         });
+    }
+
+    // Keep the browsed month fresh alongside the current month.
+    function refreshMonths(): void {
+        root.fetchMonth(Google.now, true);
+        if (root.lastShown && root.lastShown !== root.thisMonth) {
+            const [year, month] = root.lastShown.split("-").map(Number);
+            root.fetchMonth(new Date(year, month - 1, 1), true);
+        }
     }
 
     // One month, from every calendar, gathered and published in one go (see
@@ -110,6 +119,8 @@ GoogleService {
     // which is the one allowed to drop months no longer being looked at.
     function fetchMonth(date: var, poll: bool): void {
         const key = root.monthKey(date);
+        if (root.inflight[key])
+            return;
         const first = new Date(date.getFullYear(), date.getMonth(), 1 - 7);
         const last = new Date(date.getFullYear(), date.getMonth() + 1, 1 + 14);
 

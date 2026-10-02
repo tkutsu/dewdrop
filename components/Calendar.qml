@@ -105,6 +105,11 @@ Popup {
     Column {
         spacing: 5
 
+        RetryButton {
+            anchors.right: parent.right
+            service: Agenda
+        }
+
         // --- header: ‹ month year › ---------------------------------------
         // The arrows stand over the first and last columns and are a whole
         // day cell each, with the same hover disc a day gets: a bare chevron
@@ -171,7 +176,7 @@ Popup {
                     readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
                     readonly property bool isToday: day.toDateString() === root.today.toDateString()
                     readonly property string dayKey: Agenda.dayString(day)
-                    readonly property bool busy: Agenda.has(dayKey)
+                    readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown))
 
                     width: root.cell
                     height: root.cell
@@ -253,9 +258,18 @@ Popup {
             topPadding: 6
             spacing: 0
 
-            readonly property var events: Agenda.forDay(root.listDay)
+            readonly property var events: Agenda.forDay(root.listDay, root.hoverDay ? Agenda.monthKey(root.shown) : Agenda.thisMonth)
             // The most the list can take: a full page and the "more" line.
             readonly property real fullHeight: topPadding + root.listRowHeight * (root.listRows + 1)
+
+            PopupText {
+                visible: Agenda.loaded && Agenda.trouble !== ""
+                width: parent.width
+                text: Agenda.trouble
+                color: Theme.warn
+                font.pixelSize: Theme.footnoteSize
+                wrapMode: Text.WordWrap
+            }
 
             // Wraps rather than elides: the one long thing that lands here
             // is the reconnect message, which is no use cut short.

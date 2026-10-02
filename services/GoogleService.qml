@@ -12,12 +12,24 @@ Singleton {
     // The service's name in a message that has to say which API is at fault.
     property string service: "Google"
     property int pollMs: 5 * 60000
+    property bool polling: true
 
     // Whether anything has been heard back yet. Modules dim themselves until
     // this turns — a count of zero because the network is down should not
     // read as a clear list.
     property bool loaded: false
     property string trouble: ""
+    property int requests: 0
+    property bool checking: false
+    property bool checkFailed: false
+    readonly property bool loading: requests > 0
+    readonly property bool retryable: trouble !== "" && !Google.needsConsent
+
+    Retry {
+        id: recovery
+        active: base.configured && base.polling && !Google.needsConsent && !base.loading
+        onTriggered: base.refresh()
+    }
 
     readonly property bool configured: Google.configured
     readonly property string today: Google.today
@@ -29,31 +41,61 @@ Singleton {
         return Google.dayString(date);
     }
 
-    function authorised(then: var): void {
-        Google.authorised(then, base.fail);
+    function authorised(then: var, fail: var): void {
+        base.requests++;
+        Google.authorised(base.settle(then), base.settle(fail ?? base.fail));
     }
 
     function refresh(): void {
-        base.authorised(function () {
-            base.trouble = "";
-            base.fetch();
-        });
+        if (base.loading)
+            return;
+        recovery.cancel();
+        base.checking = true;
+        base.checkFailed = false;
+        base.authorised(() => base.fetch());
+    }
+
+    function retryNow(): void {
+        recovery.retryNow();
+    }
+
+    // Count the whole callback chain, so pages and parallel GETs finish before
+    // declaring recovery. One successful reply cannot hide another's failure.
+    function settle(callback: var): var {
+        return function (...args) {
+            try {
+                callback(...args);
+            } finally {
+                base.requests--;
+                if (base.requests === 0 && base.checking) {
+                    base.checking = false;
+                    if (!base.checkFailed) {
+                        base.trouble = "";
+                        recovery.reset();
+                    }
+                }
+            }
+        };
     }
 
     // The sign-in and the status codes are Google.qml's; what is kept here is
     // what a failure means for the bar. `fail` is optional and defaults to
     // setting `trouble`; a caller that gives its own still has to do that.
     function send(method: string, url: string, body: var, then: var, fail: var): void {
-        Google.send(method, url, body, function (parsed) {
-            base.trouble = "";
-            then(parsed);
-        }, fail ?? base.fail);
+        // A parallel success must not erase another request's failure.
+        base.requests++;
+        Google.send(method, url, body, base.settle(then), base.settle(fail ?? base.fail));
     }
 
     function fail(why: string, status: int): void {
         // A 403 that is not a missing scope (Google.send says which) is the
         // API switched off on the project, which only the console can fix.
         base.trouble = status === 403 && why !== Google.reconnect ? `${base.service} API not enabled in the Google console` : why;
+        base.checkFailed = true;
+        if (!Google.needsConsent && why !== Google.reconnect && (status === 0 || status === 408 || status === 429 || status >= 500))
+            recovery.schedule();
+        else
+            recovery.reset();
     }
 
     // --- gathering -----------------------------------------------------------
@@ -125,20 +167,32 @@ Singleton {
     // Google.qml reads the credentials; this only has to notice when they have
     // arrived. Both paths, because which one runs depends on whether the file
     // landed before or after the singleton was first touched.
-    Component.onCompleted: if (base.configured)
+    Component.onCompleted: if (base.configured && base.polling)
+        base.refresh()
+
+    onPollingChanged: if (base.polling && base.configured)
         base.refresh()
 
     Connections {
         target: Google
 
         function onReady(): void {
-            base.refresh();
+            if (base.polling)
+                base.refresh();
+        }
+    }
+
+    Connections {
+        target: Google
+        function onNeedsConsentChanged(): void {
+            if (Google.needsConsent)
+                recovery.reset();
         }
     }
 
     Timer {
         interval: base.pollMs
-        running: base.configured
+        running: base.configured && base.polling && !Google.needsConsent && !base.loading && !recovery.pending
         repeat: true
         onTriggered: base.refresh()
     }

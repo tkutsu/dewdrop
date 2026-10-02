@@ -38,8 +38,8 @@ Popup {
             framed: true
             live: !Updates.loading
             glyph: Theme.glyph.refresh
-            label: Updates.loading ? "checking…" : "refresh"
-            onTapped: Updates.refresh()
+            label: Updates.loading ? "checking…" : Updates.trouble !== "" ? "retry" : "refresh"
+            onTapped: Updates.retryNow()
         }
 
         // The system's maintenance: caches, orphans, snapshots, logs. A button
@@ -105,9 +105,10 @@ Popup {
         spacing: 9
 
         PopupText {
-            visible: Updates.pending === 0
-            text: "System up to date"
+            visible: Updates.trouble !== "" || !Updates.loaded || Updates.pending === 0
+            text: Updates.trouble !== "" ? Updates.trouble : !Updates.loaded ? "Checking for updates…" : "System up to date"
             color: Theme.label2
+            wrapMode: Text.WordWrap
         }
 
         Section {
