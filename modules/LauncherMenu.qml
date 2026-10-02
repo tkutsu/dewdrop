@@ -21,6 +21,7 @@ OverlayWindow {
 
     name: "launcher"
     shown: Launcher.shown
+    inputItem: box
     onDismissed: Launcher.hide()
 
     // --- the reveal ----------------------------------------------------------

@@ -4,223 +4,223 @@ import qs
 import qs.components
 import qs.services
 
-// The power menu, drawn the Mac's way.
-//
-// Five round buttons on one panel, the way Control Center draws its own, each
-// named as the Apple menu names it: hover or arrow to one, click or Enter to
-// take it. The three irreversible ones (shut down, restart, log out) still
-// ask first, the way rofi-power.sh's `confirmations` did, and they ask it the
-// way the Mac does: the panel turns into an alert, with the action's icon,
-// the Mac's own question, and Cancel beside the action it would take.
-//
-// The screen-sized surface under it, the keyboard grab and the click-to-exit
-// are OverlayWindow's, which the launcher is drawn on too.
+// A floating action pill with launcher-style folding and a CRT action exit.
 OverlayWindow {
     id: root
 
     name: "powermenu"
     shown: Power.shown
-    onDismissed: Power.shown = false
+    color: root.closing ? "black" : "transparent"
+    inputItem: menuClip
+    onDismissed: root.back()
 
-    // --- geometry ------------------------------------------------------------
-    readonly property int discSize: 52
-    readonly property int tileWidth: 78
-    readonly property int panelPad: 18
-    readonly property int buttonWidth: 112
-    readonly property int buttonHeight: 28
-    readonly property int buttonGap: 8
-    // The alert's width: its two buttons and the gap between them. The
-    // question wraps inside it.
-    readonly property int alertWidth: buttonWidth * 2 + buttonGap
-    // Round enough to read as the Mac's panels, and nested round the
-    // buttons' capsules: their radius plus the air between them and the edge.
-    readonly property int panelRadius: buttonHeight / 2 + panelPad / 2
-
-    // --- state ---------------------------------------------------------------
-    // The action awaiting an answer, or null when the panel is showing the
-    // normal five.
+    readonly property var menuActions: Power.actions
+    readonly property int tileWidth: Math.max(96, Math.min(112, Math.floor((width - 64) / menuActions.length)))
     property var pending: null
-    property int index: 0
-
-    // Where the pointer was when it last actually moved, and whether it has
-    // moved at all since the panel last changed what it is showing.
-    //
-    // A button that appears under a stationary pointer is handed a hover
-    // event by Qt, and that is exactly what a confirmation is: the alert's
-    // buttons are built under the cursor that just clicked. Selecting on that
-    // would walk the selection off "Cancel" and undo the one thing the alert
-    // is for. Same trap, and the same answer, as the launcher's list — see
-    // modules/LauncherMenu.qml.
+    property int index: -1
     property point pointer: Qt.point(-1, -1)
     property bool pointerLive: false
+    property bool closing: false
+    property string command: ""
+    property real reveal: root.opened ? 1 : 0
+    property real vertical: 1
+    property real horizontal: 1
+    property real flash: 0
+    property real afterglow: 0
 
-    // Swapping between the five and an alert is the moment that has to
-    // forget where the pointer was.
-    onEntriesChanged: root.pointerLive = false
-
-    // One model for both states, so the keys and the pointer do not care
-    // which it is in. The alert's pair is in the Mac's order: Cancel first,
-    // the action last, named without the ellipsis — the question has been
-    // asked.
     readonly property var entries: pending ? [
         {
             name: "Cancel",
             accept: false
         },
         {
-            name: pending.name.replace("…", ""),
+            name: pending.name,
             accept: true
         }
-    ] : Power.actions
+    ] : root.menuActions
 
-    function choose(i) {
-        const entry = entries[i];
-        if (!entry)
-            return;
+    onEntriesChanged: root.pointerLive = false
 
-        if (root.pending) {
-            if (entry.accept)
-                Power.run(root.pending.arg);
-            else
-                root.back();
-            return;
+    Behavior on reveal {
+        NumberAnimation {
+            duration: Theme.revealMs
+            easing.type: Easing.OutCubic
         }
-
-        if (entry.confirm) {
-            root.pending = entry;
-            // Land on Cancel, not on the thing that wipes the session.
-            root.index = 0;
-            return;
-        }
-
-        Power.run(entry.arg);
     }
 
-    // Escape and Cancel share this: out of an alert, back to the five; out
-    // of the five, gone.
-    function back() {
+    // Every open, including a reopen during dismissal, starts unselected.
+    function adopt(): void {
+        crt.stop();
+        root.closing = false;
+        root.command = "";
+        root.vertical = 1;
+        root.horizontal = 1;
+        root.flash = 0;
+        root.afterglow = 0;
+        root.pending = Power.armed;
+        Power.armed = null;
+        root.index = -1;
+        root.pointerLive = false;
+    }
+
+    // Keep confirmations, and run the command only after the CRT finishes.
+    function choose(i: int): void {
+        if (root.closing || !root.shown)
+            return;
+        const entry = root.entries[i];
+        if (!entry)
+            return;
         if (root.pending) {
-            // -1 when the launcher armed something the menu does not list,
-            // which would leave the panel with nothing selected.
-            root.index = Math.max(0, Power.actions.indexOf(root.pending));
+            if (entry.accept)
+                root.execute(root.pending.arg);
+            else
+                root.back();
+        } else if (entry.confirm) {
+            root.pending = entry;
+            root.index = -1;
+        } else {
+            root.execute(entry.arg);
+        }
+    }
+
+    function execute(arg: string): void {
+        if (arg === "--kill") {
+            Power.run(arg);
+            return;
+        }
+        root.command = arg;
+        root.closing = true;
+        crt.start();
+    }
+
+    // Escape restores the menu and cancels a command still waiting to run.
+    function cancelCrt(): void {
+        crt.stop();
+        root.command = "";
+        root.vertical = 1;
+        root.horizontal = 1;
+        root.flash = 0;
+        root.afterglow = 0;
+        root.closing = false;
+        root.index = -1;
+        root.pointerLive = false;
+    }
+
+    // Ignore incidental input once an action's final animation has begun.
+    function back(): void {
+        if (root.closing)
+            return;
+        if (root.pending) {
             root.pending = null;
+            root.index = -1;
         } else {
             Power.shown = false;
         }
     }
 
-    // What the menu is opening as. Normally nothing, and it comes up showing
-    // its five; the launcher can set Power.armed instead and have it come up
-    // on the alert. Taken rather than read, so the next open is a fresh one
-    // either way — a menu that came back up still asking "shut down?" would
-    // be answering a question from the last time it was open.
-    function adopt(): void {
-        root.pending = Power.armed;
-        Power.armed = null;
-        // On Cancel when the menu opens already asking, the same way choose()
-        // lands there when the asking started here. Arriving from the
-        // launcher is the one path that skips choose(), and it once landed on
-        // the action — so typing "reboot" and pressing Enter twice rebooted,
-        // which is the confirm doing the opposite of its job. Cancel is index
-        // 0 in the alert, so both states open on the first entry.
-        root.index = 0;
+    function move(step: int): void {
+        root.index = root.index < 0 ? (step > 0 ? 0 : root.entries.length - 1) : (root.index + step + root.entries.length) % root.entries.length;
     }
 
-    // Two ways in, because the window is not always new. Usually it is built
-    // when the menu opens, and by then Power.shown has already changed — the
-    // Connections below does not exist yet to hear it, so a fresh window has
-    // to ask on its own.
+    // Track the pointer in fixed screen coordinates, independent of tile layout.
+    function track(p: point): void {
+        const moved = root.pointerLive && (Math.abs(p.x - root.pointer.x) >= 1 || Math.abs(p.y - root.pointer.y) >= 1);
+        root.pointer = p;
+        root.pointerLive = true;
+        if (!moved || root.closing)
+            return;
+        const buttons = root.pending ? answers : actions;
+        for (let i = 0; i < root.entries.length; i++) {
+            const tile = buttons.itemAt(i);
+            if (!tile)
+                continue;
+            const local = tile.mapFromItem(inputSurface, p.x, p.y);
+            if (local.x >= 0 && local.x < tile.width && local.y >= 0 && local.y < tile.height) {
+                root.index = i;
+                return;
+            }
+        }
+        root.index = -1;
+    }
+
     Component.onCompleted: root.adopt()
 
-    // And a reopen inside the fold-away reuses the window it built last time
-    // (see services/Power.qml), which is the case Component.onCompleted cannot
-    // see because it already ran.
     Connections {
         target: Power
 
         function onShownChanged() {
-            if (Power.shown)
+            if (Power.shown) {
                 root.adopt();
-        }
-    }
-
-    // The pointer's half of the selection, on every button in both states:
-    // rofi's hover-select, where the pointer moves the selection rather than
-    // acting on its own — and only when it has really moved. See root.pointer
-    // for the case that forces it. A MouseArea rather than a HoverHandler,
-    // because a real move is the thing being asked about and that is what
-    // positionChanged reports.
-    component Pick: MouseArea {
-        required property int at
-
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.ArrowCursor
-
-        onPositionChanged: function (mouse) {
-            const p = mapToItem(null, mouse.x, mouse.y);
-            if (!root.pointerLive) {
-                root.pointer = p;
-                root.pointerLive = true;
-                return;
-            }
-            if (Math.abs(p.x - root.pointer.x) < 1 && Math.abs(p.y - root.pointer.y) < 1)
-                return;
-            root.pointer = p;
-            root.index = at;
-        }
-
-        onClicked: root.choose(at)
-    }
-
-    // A round button's face: the Control Center disc, a step brighter and
-    // ringed while it is the one Enter would take.
-    component Disc: Rectangle {
-        id: disc
-
-        property string glyph
-        property bool current: false
-
-        width: root.discSize
-        height: root.discSize
-        radius: width / 2
-        color: current ? Theme.selectionStrong : Theme.selection
-        border.width: Theme.pillBorder
-        border.color: current ? Theme.outline : "transparent"
-
-        Behavior on color {
-            ColorAnimation {
-                duration: Theme.fadeMs
+            } else if (root.closing) {
+                // An external IPC close cancels the queued action.
+                crt.stop();
+                root.command = "";
             }
         }
-
-        Glyph {
-            anchors.centerIn: parent
-            height: disc.height
-            text: disc.glyph
-            fontSize: 24
-        }
     }
 
-    // Keyboard lives on an Item rather than on the window: the window has no
-    // focus of its own to give away.
+    // Outside the clip, so the shadow follows the folding edges.
+    RectangularShadow {
+        parent: inputSurface
+        x: menuClip.x
+        y: menuClip.y
+        width: menuClip.width
+        height: menuClip.height
+        visible: menuClip.height > 0
+        offset.y: Theme.shadowY
+        radius: Math.min(22, menuClip.height / 2)
+        blur: Theme.shadowBlur
+        color: Theme.shadow
+    }
+
     Item {
+        id: inputSurface
+
         anchors.fill: parent
         focus: true
+        enabled: root.shown
+        layer.enabled: true
+        transform: Scale {
+            origin.x: inputSurface.width / 2
+            origin.y: inputSurface.height / 2
+            xScale: root.horizontal
+            yScale: root.vertical
+        }
+
+        HoverHandler {
+            onPointChanged: root.track(point.position)
+            onHoveredChanged: if (!hovered) {
+                root.index = -1;
+                root.pointerLive = false;
+            }
+        }
 
         Keys.onPressed: function (event) {
+            if (root.closing) {
+                if (event.key === Qt.Key_Escape)
+                    root.cancelCrt();
+                event.accepted = true;
+                return;
+            }
             switch (event.key) {
             case Qt.Key_Escape:
-                root.back();
+                Power.shown = false;
                 break;
             case Qt.Key_Left:
+            case Qt.Key_Up:
             case Qt.Key_H:
-                root.index = (root.index - 1 + root.entries.length) % root.entries.length;
+            case Qt.Key_I:
+            case Qt.Key_Backtab:
+                root.move(-1);
                 break;
             case Qt.Key_Right:
+            case Qt.Key_Down:
             case Qt.Key_L:
+            case Qt.Key_E:
+                root.move(1);
+                break;
             case Qt.Key_Tab:
-                root.index = (root.index + 1) % root.entries.length;
+                root.move(event.modifiers & Qt.ShiftModifier ? -1 : 1);
                 break;
             case Qt.Key_Return:
             case Qt.Key_Enter:
@@ -228,238 +228,389 @@ OverlayWindow {
                 root.choose(root.index);
                 break;
             default:
-                // 1-5 go straight to a button. Only while the five are
-                // showing: a number is no way to answer "are you sure".
-                if (!root.pending && event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
-                    const n = event.key - Qt.Key_1;
-                    if (n < root.entries.length) {
-                        root.index = n;
-                        root.choose(n);
-                    }
+                if (!root.pending && event.key >= Qt.Key_1 && event.key < Qt.Key_1 + root.menuActions.length) {
+                    root.index = event.key - Qt.Key_1;
+                    root.choose(root.index);
+                    event.accepted = true;
                 }
                 return;
             }
             event.accepted = true;
         }
 
-        // How bright the screen is behind the panel, for its frost. Centred
-        // in a window that is the screen, at the size it opens to.
-        BackdropProbe {
-            id: under
+        // Keep content at its final size while the edges reveal or cover it.
+        Item {
+            id: menuClip
 
-            readonly property int w: body.implicitWidth + root.panelPad * 2
-            readonly property int h: body.implicitHeight + root.panelPad * 2
-
-            screen: root.screen
-            area: Qt.rect(Math.round((root.width - w) / 2), Math.round((root.height - h) / 2), w, h)
-            active: true
-        }
-
-        RectangularShadow {
-            anchors.fill: panel
-            visible: panel.height > 0
-            offset.y: Theme.shadowY
-            radius: panel.radius
-            blur: Theme.shadowBlur
-            color: Theme.shadow
-        }
-
-        Rectangle {
-            id: panel
-
-            anchors.centerIn: parent
-            // Same fill and outline as a popup, and for the same reason: the
-            // alpha is what keeps the compositor blurring behind it. Thickened
-            // over a bright screen the same way too.
-            color: Theme.frostOver(under.luma)
-
-            Behavior on color {
-                ColorAnimation {
-                    duration: Theme.revealMs
-                }
-            }
-            radius: root.panelRadius
-
-            Rim {
-                anchors.fill: parent
-                radius: panel.radius
-                z: 1
-            }
-
-            width: body.implicitWidth + root.panelPad * 2
-            // Zero while closed, which is the whole of the open and close
-            // animation: the panel is centred, so a height that grows from
-            // nothing grows away from the centre line in both directions at
-            // once. Rectangle caps its radius at half the shorter side, so on
-            // the way through it draws as a thinning bar rather than as a
-            // rectangle with corners too big for it.
-            height: root.opened ? body.implicitHeight + root.panelPad * 2 : 0
-            // The contents keep their own size through all of that and get
-            // cut off by the panel's edges, so they are wiped in from the
-            // middle rather than squashed into the gap.
+            readonly property int topEdge: Math.round(menuContent.implicitHeight * (1 - root.reveal) / 2)
+            x: Math.round((root.width - width) / 2)
+            y: Math.round((root.height - menuContent.implicitHeight) / 2) + topEdge
+            width: menuContent.implicitWidth
+            height: Math.max(0, menuContent.implicitHeight - topEdge * 2)
             clip: true
 
-            // The two states are different sizes; grow between them rather
-            // than cutting, so it reads as the same panel asking a question.
-            Behavior on width {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                    easing.type: Easing.OutCubic
-                }
-            }
-
-            // Both the reveal and a change of state come through here.
-            //
-            // Deliberately height alone and not a fade as well: the panel's
-            // alpha is only just over the 0.3 the compositor's blur rule
-            // ignores, so anything that takes its opacity down drops the blur
-            // out from behind it partway through, which is a far louder event
-            // than the fade it was meant to soften.
-            Behavior on height {
-                NumberAnimation {
-                    duration: Theme.revealMs
-                    easing.type: Easing.OutCubic
-                }
-            }
-
-            // The panel is not "off the menu": clicking its padding should do
-            // nothing, not dismiss. Only the screen around it closes.
-            MouseArea {
-                anchors.fill: parent
-            }
-
             Column {
-                id: body
+                id: menuContent
 
-                anchors.centerIn: parent
+                y: -menuClip.topEdge
+                spacing: 32
 
-                // The five: a disc each, the Apple menu's name under it.
-                Row {
+                ActionPill {
+                    id: actions
+
+                    anchors.horizontalCenter: parent.horizontalCenter
                     visible: root.pending === null
-
-                    Repeater {
-                        model: Power.actions
-
-                        delegate: Item {
-                            id: tile
-
-                            required property int index
-                            required property var modelData
-
-                            readonly property bool current: root.pending === null && root.index === tile.index
-
-                            width: root.tileWidth
-                            height: column.implicitHeight
-
-                            Column {
-                                id: column
-
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                spacing: 8
-
-                                Disc {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    glyph: tile.modelData.glyph
-                                    current: tile.current
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    text: tile.modelData.name
-                                    // The menu text/selection pair: the name
-                                    // brightens over the same span the disc
-                                    // does, so the two are one movement.
-                                    color: tile.current ? Theme.menuSelectionText : Theme.menuText
-                                    font.family: Theme.bodyFont
-                                    font.pixelSize: Theme.captionSize
-                                    font.weight: Theme.bodyWeight
-
-                                    Behavior on color {
-                                        ColorAnimation {
-                                            duration: Theme.fadeMs
-                                        }
-                                    }
-                                }
-                            }
-
-                            Pick {
-                                at: tile.index
-                            }
-                        }
-                    }
+                    model: root.menuActions
                 }
 
-                // The alert: what it is about, the question, and the answers.
                 Column {
+                    anchors.horizontalCenter: parent.horizontalCenter
                     visible: root.pending !== null
-                    spacing: 14
+                    spacing: 28
 
-                    Disc {
+                    Glyph {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        glyph: root.pending?.glyph ?? ""
+                        height: 48
+                        fontSize: 24
+                        text: root.pending?.glyph ?? ""
                     }
 
                     Text {
-                        width: root.alertWidth
+                        width: Math.min(380, root.width - 64)
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
                         text: root.pending?.question ?? ""
                         color: Theme.label
                         font.family: Theme.bodyFont
-                        font.pixelSize: Theme.popupTextSize + 1
-                        font.weight: Font.DemiBold
-                        lineHeight: 1.1
+                        font.pixelSize: Theme.popupTextSize + 2
+                        lineHeight: 1.2
                     }
 
-                    Row {
-                        spacing: root.buttonGap
+                    ActionPill {
+                        id: answers
 
-                        Repeater {
-                            model: root.pending ? root.entries : []
-
-                            delegate: Rectangle {
-                                id: button
-
-                                required property int index
-                                required property var modelData
-
-                                readonly property bool current: root.index === button.index
-
-                                width: root.buttonWidth
-                                height: root.buttonHeight
-                                radius: height / 2
-                                color: current ? Theme.selectionStrong : Theme.selection
-                                border.width: Theme.pillBorder
-                                border.color: current ? Theme.outline : "transparent"
-
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: Theme.fadeMs
-                                    }
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: button.modelData.name
-                                    color: button.current ? Theme.menuSelectionText : Theme.menuText
-                                    font.family: Theme.bodyFont
-                                    font.pixelSize: Theme.popupTextSize
-                                    font.weight: Theme.bodyWeight
-
-                                    Behavior on color {
-                                        ColorAnimation {
-                                            duration: Theme.fadeMs
-                                        }
-                                    }
-                                }
-
-                                Pick {
-                                    at: button.index
-                                }
-                            }
-                        }
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        model: root.pending ? root.entries : []
                     }
                 }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                color: "white"
+                opacity: root.flash
+            }
+        }
+    }
+
+    // One slab and a head/tail selector, using the workspace pill's material and motion.
+    component ActionPill: Item {
+        id: pill
+
+        required property var model
+        readonly property int pad: Theme.markInset
+        readonly property Item selected: root.index >= 0 ? buttons.itemAt(root.index) : null
+        readonly property bool held: {
+            for (const child of cells.children)
+                if (child.held === true)
+                    return true;
+            return false;
+        }
+
+        implicitWidth: cells.implicitWidth + pad * 2
+        implicitHeight: 44
+
+        function itemAt(i: int): Item {
+            return buttons.itemAt(i);
+        }
+
+        Liquid {
+            anchors.fill: parent
+            box0: Qt.vector4d(0, 0, width, height)
+            rimFrom: 0
+            rimTo: height
+            soften: Theme.glassSoften * 8
+            tint: 0.58
+            fill: Qt.vector4d(Theme.tint.r + 0.1, Theme.tint.g + 0.1, Theme.tint.b + 0.1, Theme.barBg.a)
+        }
+
+        MouseArea {
+            anchors.fill: parent
+        }
+
+        Liquid {
+            id: mark
+
+            anchors.fill: parent
+            visible: pill.selected !== null
+            property bool placed: false
+            onPlacedChanged: if (placed) {
+                tailLeft = wantLeft;
+                tailRight = wantRight;
+                tailProgress = 1;
+                roundness = 0;
+            }
+
+            onVisibleChanged: {
+                if (visible)
+                    Qt.callLater(() => mark.placed = mark.visible);
+                else {
+                    placed = false;
+                    followTail();
+                }
+            }
+
+            property real lift: pill.held ? 1 : 0
+            Behavior on lift {
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.markDamping
+                }
+            }
+
+            readonly property real edge: Theme.markInset - lift
+            readonly property real slabTop: Theme.pillBorder + edge
+            readonly property real thickness: pill.height - Theme.pillBorder - edge * 2
+            readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
+            readonly property real wantLeft: pill.selected ? cells.x + pill.selected.x + Theme.markInset : 0
+            readonly property real wantRight: pill.selected ? cells.x + pill.selected.x + pill.selected.width - Theme.markInset : 0
+
+            property real headLeft: wantLeft
+            property real headRight: wantRight
+            property real tailLeft: wantLeft
+            property real tailRight: wantRight
+            property point tailStart: Qt.point(wantLeft, wantRight)
+            property real tailProgress: 1
+            property real roundness: 0
+
+            // A new destination keeps the tail wherever the previous move left it.
+            function followTail(): void {
+                if (!mark.placed) {
+                    mark.tailLeft = mark.wantLeft;
+                    mark.tailRight = mark.wantRight;
+                    mark.tailProgress = 1;
+                    mark.roundness = 0;
+                    return;
+                }
+                mark.tailStart = Qt.point(mark.tailLeft, mark.tailRight);
+                mark.tailProgress = 0;
+            }
+
+            onWantLeftChanged: followTail()
+            onWantRightChanged: followTail()
+
+            Behavior on headLeft {
+                enabled: mark.placed
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.markDamping
+                }
+            }
+            Behavior on headRight {
+                enabled: mark.placed
+                SpringAnimation {
+                    spring: Theme.springStiffness
+                    damping: Theme.markDamping
+                }
+            }
+            FrameAnimation {
+                running: mark.visible && mark.placed && (mark.tailProgress < 1 || mark.roundness > 0)
+
+                // Distance and the tail's shrinking size accelerate the same cubic flow.
+                onTriggered: {
+                    const previousMid = mark.tailMid;
+                    const distance = mark.apart / (mark.thickness * 4);
+                    const shrink = 1 - mark.blobHeight / mark.thickness;
+                    const speed = (1 + 0.75 * distance * distance) * (1 + 0.75 * shrink);
+                    mark.tailProgress = Math.min(1, mark.tailProgress + frameTime * 1000 * speed / (Theme.markMs * 1.1));
+                    const t = Math.max(0, (mark.tailProgress - 0.2) / 0.8);
+                    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    const left = mark.tailStart.x + (mark.wantLeft - mark.tailStart.x) * eased;
+                    const right = mark.tailStart.y + (mark.wantRight - mark.tailStart.y) * eased;
+                    const velocity = mark.tailProgress < 1 && frameTime > 0 ? Math.abs((left + right) / 2 - previousMid) / frameTime : 0;
+                    mark.tailLeft = left;
+                    mark.tailRight = right;
+                    // Ease into a ball as flow speeds up, and back into a pill at rest.
+                    const pace = Math.min(1, velocity / (mark.thickness * 24));
+                    const round = pace * pace * (3 - 2 * pace);
+                    const roundingTime = round > mark.roundness ? 0.025 : 0.05;
+                    mark.roundness += (round - mark.roundness) * (1 - Math.exp(-frameTime / roundingTime));
+                    if (round === 0 && mark.roundness < 0.001)
+                        mark.roundness = 0;
+                }
+            }
+
+            readonly property bool atFirst: pill.selected?.index === 0
+            readonly property bool atLast: pill.selected?.index === pill.model.length - 1
+            readonly property real wallLeft: Theme.pillBorder
+            readonly property real wallRight: pill.width - Theme.pillBorder
+            readonly property real frontLeft: atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift
+            readonly property real frontRight: atLast ? Math.min(headRight + lift, wallRight) : headRight + lift
+            readonly property real pastLeft: atFirst ? wallLeft - (headLeft - lift) : 0
+            readonly property real pastRight: atLast ? headRight + lift - wallRight : 0
+            readonly property real press: {
+                const t = Math.min(1, Math.max(pastLeft, pastRight, 0) / Theme.markPress);
+                return 1 - (1 - t) * (1 - t);
+            }
+            readonly property real bulbEdge: Math.max(0, edge - Theme.markBulge * press)
+            readonly property real bulbTop: Theme.pillBorder + bulbEdge
+            readonly property real bulbThickness: pill.height - Theme.pillBorder - bulbEdge * 2
+            readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
+            readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
+            readonly property real headMid: (frontLeft + frontRight) / 2
+            readonly property real tailMid: (tailLeft + tailRight) / 2
+            readonly property real apart: Math.abs(headMid - tailMid)
+            readonly property real neck: thickness * (1 - 0.6 * Math.pow(Math.min(1, apart / (thickness * 3)), 2))
+            readonly property real tailWidth: tailRight - tailLeft + lift * 2
+            readonly property real blobWidth: tailWidth + (neck - tailWidth) * roundness
+            readonly property real blobHeight: thickness + (neck - thickness) * roundness
+
+            box0: Qt.vector4d(tailMid - blobWidth / 2, slabTop + (thickness - blobHeight) / 2, blobWidth, blobHeight)
+            box1: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
+            box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
+            box3: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
+            reach: Theme.pillSpread * Math.min(1, apart / thickness)
+            reaches: Qt.vector4d(reach, reach, reach, 3 * press)
+            fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
+            rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
+            rimFrom: bulbTop
+            rimTo: bulbTop + bulbThickness
+        }
+
+        Row {
+            id: cells
+
+            x: pill.pad
+            height: pill.height
+
+            Repeater {
+                id: buttons
+
+                model: pill.model
+
+                delegate: Item {
+                    id: button
+
+                    required property int index
+                    required property var modelData
+                    readonly property bool held: picker.pressed
+
+                    width: root.tileWidth
+                    height: pill.height
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData.name
+                    Accessible.onPressAction: root.choose(index)
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 8
+                        Glyph {
+                            visible: !!button.modelData.glyph
+                            text: button.modelData.glyph ?? ""
+                            height: pill.height
+                            fontSize: 18
+                            color: Theme.label
+                        }
+
+                        Text {
+                            height: pill.height
+                            verticalAlignment: Text.AlignVCenter
+                            text: button.modelData.name
+                            color: Theme.label
+                            font.family: Theme.bodyFont
+                            font.pixelSize: Theme.labelSize
+                            font.weight: Theme.bodyWeight
+                        }
+                    }
+
+                    MouseArea {
+                        id: picker
+
+                        anchors.fill: parent
+                        enabled: root.shown && !root.closing
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.choose(button.index)
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.centerIn: parent
+        width: Math.max(3, menuClip.width * root.horizontal)
+        height: 3
+        radius: height / 2
+        color: "white"
+        opacity: root.afterglow
+
+        layer.enabled: root.afterglow > 0
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: "white"
+            shadowBlur: 0.6
+            shadowOpacity: 0.8
+        }
+    }
+
+    // Compress the menu vertically, then the phosphor line to a dot.
+    SequentialAnimation {
+        id: crt
+
+        ParallelAnimation {
+            NumberAnimation {
+                target: root
+                property: "vertical"
+                to: 0.002
+                duration: 260
+                easing.type: Easing.InCubic
+            }
+            NumberAnimation {
+                target: root
+                property: "flash"
+                to: 0.8
+                duration: 260
+                easing.type: Easing.InQuad
+            }
+        }
+        PropertyAction {
+            target: root
+            property: "afterglow"
+            value: 1
+        }
+        PropertyAction {
+            target: root
+            property: "vertical"
+            value: 0
+        }
+        PauseAnimation {
+            duration: 55
+        }
+        NumberAnimation {
+            target: root
+            property: "horizontal"
+            to: 0
+            duration: 170
+            easing.type: Easing.InCubic
+        }
+        NumberAnimation {
+            target: root
+            property: "afterglow"
+            to: 0
+            duration: 110
+        }
+        PauseAnimation {
+            duration: 40
+        }
+        ScriptAction {
+            script: {
+                const arg = root.command;
+                root.command = "";
+                if (arg !== "")
+                    Power.run(arg);
+                else
+                    root.cancelCrt();
             }
         }
     }

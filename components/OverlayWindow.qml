@@ -6,10 +6,9 @@ import qs
 
 // The screen-sized surface a launcher or a power menu is drawn on.
 //
-// Both want the same six things, and used to say all of them twice: a full-
-// screen transparent layer so that clicking off the box dismisses it, exclusive
-// keyboard focus for exactly as long as the box is wanted, and a first frame at
-// zero so the reveal has somewhere to animate from.
+// Both share a transparent drawing layer, keyboard focus while
+// wanted, and a first frame at zero for the reveal. Only the menu accepts
+// pointer input; Hyprland reports outside clicks without consuming them.
 //
 // Drawn transparent on purpose: wrules.lua's layer rule ignores anything under
 // 0.3 alpha, so only the box on top of this gets blurred and the rest of the
@@ -25,6 +24,8 @@ PanelWindow {
     // The layer namespace, after "quickshell:". Needs a matching rule in
     // wrules.lua to be blurred.
     required property string name
+    // The menu's input area, excluding the fullscreen backdrop and shadows.
+    required property Item inputItem
 
     // Clicking anywhere that is not the box.
     signal dismissed
@@ -40,10 +41,9 @@ PanelWindow {
 
     WlrLayershell.namespace: "quickshell:" + root.name
     WlrLayershell.layer: WlrLayer.Overlay
-    // The box owns the keyboard while it is up, the way rofi did. Only while it
-    // is up: holding the keyboard through the fold-away would eat the first
-    // thing typed into whatever is underneath.
-    WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    // Take keyboard input without blocking focus on an outside mouse press.
+    // Release it during the fold-away so the next window can accept typing.
+    WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     // Open where the user is, not wherever the compositor would have put it.
     screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null
@@ -62,17 +62,31 @@ PanelWindow {
     // it no longer holds the keyboard: the click that dismissed it should not be
     // followed by a tenth of a second of presses disappearing into a surface
     // that is on its way out.
-    mask: root.shown ? null : blank
+    mask: root.shown ? inputRegion : blank
+
+    Region {
+        id: inputRegion
+        item: root.inputItem
+    }
 
     Region {
         id: blank
     }
 
-    // Declared here rather than by the caller so it lands under everything the
-    // caller adds: a base component's own children are created before the ones
-    // appended at the instantiation site.
-    MouseArea {
-        anchors.fill: parent
-        onClicked: root.dismissed()
+    HoverHandler {
+        id: pointer
+        parent: root.inputItem
+        enabled: root.shown
+    }
+
+    // Match OpenPopup: outside presses dismiss and still reach their target.
+    Connections {
+        target: Hyprland
+        enabled: root.shown
+
+        function onRawEvent(event: HyprlandEvent): void {
+            if (event.name === "custom" && event.data === "click" && !pointer.hovered)
+                root.dismissed();
+        }
     }
 }
