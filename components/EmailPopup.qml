@@ -20,7 +20,10 @@ Popup {
     readonly property int inset: 6
     // A fixed column, so the times line up down the right edge.
     readonly property int whenWidth: 44
-    readonly property int cap: 8
+    readonly property int batch: 8
+    property int cap: batch
+    readonly property int listMax: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
+    readonly property bool loadingMore: Email.loading && root.rows.length < Math.min(root.cap, Email.total)
 
     readonly property var rows: Email.threads.slice(0, root.cap)
 
@@ -45,14 +48,23 @@ Popup {
     // The window is held at the height of a fully open mail, so a row opening
     // grows the box inside it rather than resizing the popup every frame of
     // the animation (see Popup.reserveHeight).
-    reserveHeight: chromeHeight - grown + bodyMax + 12
+    reserveHeight: chromeHeight - threadList.height + Math.min(rowList.implicitHeight - grown + bodyMax + 12, root.listMax)
 
     // The text of every row on show, asked for as the popup opens, so a row
     // opens straight to its full height instead of to the snippet and then
     // again when the text lands. Each is read once a session.
-    Component.onCompleted: {
+    onRowsChanged: root.preload()
+    Component.onCompleted: root.preload()
+
+    function preload(): void {
         for (const r of root.rows)
             Email.read(r);
+    }
+
+    function loadMore(): void {
+        if (Email.threads.length >= root.cap)
+            root.cap = Math.min(root.cap + root.batch, Email.total);
+        Email.loadMore(root.cap);
     }
 
     spacing: 3
@@ -64,6 +76,8 @@ Popup {
         title: "Mail"
 
         ReconnectButton {}
+
+        RetryButton { service: Email }
 
         PopupButton {
             framed: true
@@ -104,256 +118,308 @@ Popup {
         wrapMode: Text.WordWrap
     }
 
-    Repeater {
-        id: list
+    Flickable {
+        id: threadList
 
-        model: root.rows
+        width: root.bodyWidth
+        height: Math.min(rowList.implicitHeight, root.listMax)
+        contentHeight: rowList.implicitHeight
+        clip: true
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        acceptedButtons: Qt.NoButton
 
-        delegate: PopupRow {
-            id: row
+        Column {
+            id: rowList
+            width: parent.width
+            spacing: root.spacing
 
-            required property var modelData
+            Repeater {
+                id: list
 
-            width: root.bodyWidth
-            readonly property bool isOpen: root.expanded === row.modelData.id
-            readonly property real grown: reveal.height
+                model: root.rows
 
-            height: lines.implicitHeight + root.rowPad * 2
+                delegate: PopupRow {
+                    id: row
 
-            gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: {
-                if (row.isOpen) {
-                    root.expanded = "";
-                } else {
-                    root.expanded = row.modelData.id;
-                    Email.read(row.modelData);
-                }
-            }
+                    required property var modelData
 
-            Column {
-                id: lines
+                    width: root.bodyWidth
+                    readonly property bool isOpen: root.expanded === row.modelData.id
+                    readonly property real grown: reveal.height
 
-                x: root.inset
-                y: root.rowPad
-                width: row.width - root.inset * 2
-                spacing: 1
+                    height: lines.implicitHeight + root.rowPad * 2
 
-                Item {
-                    width: parent.width
-                    height: from.implicitHeight
-
-                    PopupText {
-                        id: from
-                        width: Math.min(implicitWidth, parent.width - root.whenWidth - (row.isOpen ? mailActions.width + 6 : 0) - count.width)
-                        text: row.modelData.from
-                        font.pixelSize: Theme.captionSize
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
+                    onTapped: {
+                        if (reveal.bodyHovered)
+                            return;
+                        if (row.isOpen) {
+                            root.expanded = "";
+                        } else {
+                            root.expanded = row.modelData.id;
+                            Email.read(row.modelData);
+                        }
                     }
 
-                    // How many are waiting in the thread, the way Gmail's
-                    // list counts a conversation, when it is more than one.
-                    PopupText {
-                        id: count
-                        anchors.left: from.right
-                        anchors.baseline: from.baseline
-                        width: visible ? implicitWidth : 0
-                        visible: row.modelData.messages.length > 1
-                        leftPadding: 5
-                        text: row.modelData.messages.length
-                        font.pixelSize: Theme.footnoteSize
-                        color: Theme.label2
-                    }
+                    Column {
+                        id: lines
 
-                    // The two things to do with an open mail, between the
-                    // sender and the time. Centred on the line and a little
-                    // taller than it, into the row's padding, so they come and
-                    // go without moving anything.
-                    Row {
-                        id: mailActions
+                        x: root.inset
+                        y: root.rowPad
+                        width: row.width - root.inset * 2
+                        spacing: 1
 
-                        anchors.right: parent.right
-                        anchors.rightMargin: root.whenWidth
-                        anchors.verticalCenter: from.verticalCenter
-                        spacing: 4
-                        opacity: row.isOpen ? 1 : 0
-                        visible: opacity > 0
+                        Item {
+                            width: parent.width
+                            height: from.implicitHeight
 
-                        Behavior on opacity {
-                            NumberAnimation {
-                                duration: Theme.foldMs
-                                easing.type: Easing.InOutCubic
+                            PopupText {
+                                id: from
+                                width: Math.min(implicitWidth, parent.width - root.whenWidth - (row.isOpen ? mailActions.width + 6 : 0) - count.width)
+                                text: row.modelData.from
+                                textFormat: Text.PlainText
+                                font.pixelSize: Theme.captionSize
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+
+                            // How many are waiting in the thread, the way Gmail's
+                            // list counts a conversation, when it is more than one.
+                            PopupText {
+                                id: count
+                                anchors.left: from.right
+                                anchors.baseline: from.baseline
+                                width: visible ? implicitWidth : 0
+                                visible: row.modelData.messages.length > 1
+                                leftPadding: 5
+                                text: row.modelData.messages.length
+                                font.pixelSize: Theme.footnoteSize
+                                color: Theme.label2
+                            }
+
+                            // The two things to do with an open mail, between the
+                            // sender and the time. Centred on the line and a little
+                            // taller than it, into the row's padding, so they come and
+                            // go without moving anything.
+                            Row {
+                                id: mailActions
+
+                                anchors.right: parent.right
+                                anchors.rightMargin: root.whenWidth
+                                anchors.verticalCenter: from.verticalCenter
+                                spacing: 4
+                                opacity: row.isOpen ? 1 : 0
+                                visible: opacity > 0
+
+                                Behavior on opacity {
+                                    NumberAnimation {
+                                        duration: Theme.foldMs
+                                        easing.type: Easing.InOutCubic
+                                    }
+                                }
+
+                                PopupButton {
+                                    framed: true
+                                    glyph: Theme.glyph.openApp
+                                    label: "open"
+                                    onTapped: Email.open(row.modelData)
+                                }
+
+                                PopupButton {
+                                    framed: true
+                                    glyph: Theme.glyph.mailRead
+                                    label: "mark read"
+                                    onTapped: Email.markRead(row.modelData)
+                                }
+                            }
+
+                            PopupText {
+                                anchors.right: parent.right
+                                anchors.baseline: from.baseline
+                                text: Email.sayWhen(row.modelData.at)
+                                font.pixelSize: Theme.footnoteSize
+                                color: Theme.label2
                             }
                         }
 
-                        PopupButton {
-                            framed: true
-                            glyph: Theme.glyph.openApp
-                            label: "open"
-                            onTapped: Email.open(row.modelData)
-                        }
-
-                        PopupButton {
-                            framed: true
-                            glyph: Theme.glyph.mailRead
-                            label: "mark read"
-                            onTapped: Email.markRead(row.modelData)
-                        }
-                    }
-
-                    PopupText {
-                        anchors.right: parent.right
-                        anchors.baseline: from.baseline
-                        text: Email.sayWhen(row.modelData.at)
-                        font.pixelSize: Theme.footnoteSize
-                        color: Theme.label2
-                    }
-                }
-
-                // The subject takes what it needs and the snippet what is left,
-                // so a short subject shows more of the mail and a long one
-                // pushes the snippet off the end rather than being cut itself.
-                Row {
-                    width: parent.width
-
-                    PopupText {
-                        id: subject
-                        width: Math.min(implicitWidth, parent.width)
-                        text: row.modelData.subject
-                        font.pixelSize: Theme.captionSize
-                        color: Theme.label
-                        elide: Text.ElideRight
-                    }
-
-                    PopupText {
-                        width: parent.width - subject.width
-                        visible: !row.isOpen && width > 30 && text !== ""
-                        leftPadding: 6
-                        text: row.modelData.snippet
-                        font.pixelSize: Theme.captionSize
-                        color: Theme.label2
-                        elide: Text.ElideRight
-                    }
-                }
-
-                // The mail itself, once the row is open, unrolling downwards
-                // from under the subject. The snippet stands in, faintly, if
-                // the text has not landed yet, and the height follows it when
-                // it does rather than jumping. Scrolls past bodyMax rather than
-                // growing the popup down the screen.
-                //
-                // One mail is its text alone. Several unread in the thread are
-                // each under who sent it and when, oldest first, strung on a
-                // rail down the left: a dot at each sender, and a line from one
-                // to the next.
-                Item {
-                    id: reveal
-
-                    visible: height > 0
-                    width: parent.width
-                    height: row.isOpen ? mail.height + 12 : 0
-                    clip: true
-
-                    Behavior on height {
-                        NumberAnimation {
-                            duration: Theme.foldMs
-                            easing.type: Easing.InOutCubic
-                        }
-                    }
-
-                    Flickable {
-                        id: mail
-
-                        y: 6
-                        width: parent.width
-                        height: Math.min(chain.implicitHeight, root.bodyMax)
-                        contentHeight: chain.implicitHeight
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        Column {
-                            id: chain
-
-                            readonly property int links: row.modelData.messages.length
-
+                        // The subject takes what it needs and the snippet what is left,
+                        // so a short subject shows more of the mail and a long one
+                        // pushes the snippet off the end rather than being cut itself.
+                        Row {
                             width: parent.width
-                            spacing: 10
 
-                            Repeater {
-                                model: row.modelData.messages
+                            PopupText {
+                                id: subject
+                                width: Math.min(implicitWidth, parent.width)
+                                text: row.modelData.subject
+                                textFormat: Text.PlainText
+                                font.pixelSize: Theme.captionSize
+                                color: Theme.label
+                                elide: Text.ElideRight
+                            }
 
-                                delegate: Item {
-                                    id: link
+                            PopupText {
+                                width: parent.width - subject.width
+                                visible: !row.isOpen && width > 30 && text !== ""
+                                leftPadding: 6
+                                text: row.modelData.snippet
+                                textFormat: Text.PlainText
+                                font.pixelSize: Theme.captionSize
+                                color: Theme.label2
+                                elide: Text.ElideRight
+                            }
+                        }
 
-                                    required property var modelData
-                                    required property int index
-                                    readonly property bool chained: chain.links > 1
-                                    readonly property var fetched: Email.bodies[link.modelData.id]
+                        // The mail itself, once the row is open, unrolling downwards
+                        // from under the subject. The snippet stands in, faintly, if
+                        // the text has not landed yet, and the height follows it when
+                        // it does rather than jumping. Scrolls past bodyMax rather than
+                        // growing the popup down the screen.
+                        //
+                        // One mail is its text alone. Several unread in the thread are
+                        // each under who sent it and when, oldest first, strung on a
+                        // rail down the left: a dot at each sender, and a line from one
+                        // to the next.
+                        Item {
+                            id: reveal
+                            readonly property bool bodyHovered: bodyHover.hovered
 
-                                    width: chain.width
-                                    height: said.implicitHeight
+                            HoverHandler { id: bodyHover }
 
-                                    // Down to the next dot, clear of both.
-                                    Rectangle {
-                                        visible: link.chained && link.index < chain.links - 1
-                                        x: dot.x + Math.floor(dot.width / 2)
-                                        y: dot.y + dot.height + 3
-                                        width: 1
-                                        height: link.height + chain.spacing - dot.height - 6
-                                        color: Theme.label3
-                                    }
+                            visible: height > 0
+                            width: parent.width
+                            height: row.isOpen ? mail.height + 12 : 0
+                            clip: true
 
-                                    Rectangle {
-                                        id: dot
+                            Behavior on height {
+                                NumberAnimation {
+                                    duration: Theme.foldMs
+                                    easing.type: Easing.InOutCubic
+                                }
+                            }
 
-                                        visible: link.chained
-                                        // On whole pixels, or a dot this small blurs.
-                                        x: Math.floor((root.railWidth - width) / 2)
-                                        y: Math.round((sender.height - height) / 2)
-                                        width: 5
-                                        height: 5
-                                        radius: width / 2
-                                        color: Theme.label2
-                                    }
+                            Flickable {
+                                id: mail
 
-                                    Column {
-                                        id: said
+                                y: 6
+                                width: parent.width
+                                height: Math.min(chain.implicitHeight, root.bodyMax)
+                                contentHeight: chain.implicitHeight
+                                clip: true
+                                boundsBehavior: Flickable.StopAtBounds
+                                acceptedButtons: Qt.NoButton
 
-                                        x: link.chained ? root.railWidth : 0
-                                        width: link.width - x
-                                        spacing: 2
+                                Column {
+                                    id: chain
 
-                                        Item {
-                                            visible: link.chained
-                                            width: parent.width
-                                            height: sender.implicitHeight
+                                    readonly property int links: row.modelData.messages.length
 
-                                            PopupText {
-                                                id: sender
-                                                width: parent.width - root.whenWidth
-                                                text: link.modelData.from
-                                                font.pixelSize: Theme.footnoteSize
-                                                font.weight: Font.DemiBold
-                                                color: Theme.label2
-                                                elide: Text.ElideRight
-                                            }
+                                    width: parent.width
+                                    spacing: 10
 
-                                            PopupText {
-                                                anchors.right: parent.right
-                                                anchors.baseline: sender.baseline
-                                                text: Email.sayWhen(link.modelData.at)
-                                                font.pixelSize: Theme.footnoteSize
+                                    Repeater {
+                                        model: row.modelData.messages
+
+                                        delegate: Item {
+                                            id: link
+
+                                            required property var modelData
+                                            required property int index
+                                            readonly property bool chained: chain.links > 1
+                                            readonly property var fetched: Email.bodies[link.modelData.id]
+
+                                            width: chain.width
+                                            height: said.implicitHeight
+
+                                            // Down to the next dot, clear of both.
+                                            Rectangle {
+                                                visible: link.chained && link.index < chain.links - 1
+                                                x: dot.x + Math.floor(dot.width / 2)
+                                                y: dot.y + dot.height + 3
+                                                width: 1
+                                                height: link.height + chain.spacing - dot.height - 6
                                                 color: Theme.label3
                                             }
-                                        }
 
-                                        PopupText {
-                                            width: parent.width
-                                            text: link.fetched !== undefined ? link.fetched : link.modelData.snippet + "…"
-                                            font.pixelSize: Theme.captionSize
-                                            color: link.fetched !== undefined ? Theme.label : Theme.label3
-                                            wrapMode: Text.Wrap
-                                            textFormat: Text.PlainText
+                                            Rectangle {
+                                                id: dot
+
+                                                visible: link.chained
+                                                // On whole pixels, or a dot this small blurs.
+                                                x: Math.floor((root.railWidth - width) / 2)
+                                                y: Math.round((sender.height - height) / 2)
+                                                width: 5
+                                                height: 5
+                                                radius: width / 2
+                                                color: Theme.label2
+                                            }
+
+                                            Column {
+                                                id: said
+
+                                                x: link.chained ? root.railWidth : 0
+                                                width: link.width - x
+                                                spacing: 2
+
+                                                Item {
+                                                    visible: link.chained
+                                                    width: parent.width
+                                                    height: sender.implicitHeight
+
+                                                    PopupText {
+                                                        id: sender
+                                                        width: parent.width - root.whenWidth
+                                                        text: link.modelData.from
+                                                        textFormat: Text.PlainText
+                                                        font.pixelSize: Theme.footnoteSize
+                                                        font.weight: Font.DemiBold
+                                                        color: Theme.label2
+                                                        elide: Text.ElideRight
+                                                    }
+
+                                                    PopupText {
+                                                        anchors.right: parent.right
+                                                        anchors.baseline: sender.baseline
+                                                        text: Email.sayWhen(link.modelData.at)
+                                                        font.pixelSize: Theme.footnoteSize
+                                                        color: Theme.label3
+                                                    }
+                                                }
+
+                                                TextEdit {
+                                                    id: messageText
+                                                    width: parent.width
+                                                    text: Email.richText(link.fetched !== undefined ? link.fetched : link.modelData.snippet + "…")
+                                                    font.family: Theme.bodyFont
+                                                    font.pixelSize: Theme.captionSize
+                                                    color: link.fetched !== undefined ? Theme.label : Theme.label3
+                                                    selectionColor: Theme.selection
+                                                    selectedTextColor: Theme.label
+                                                    readOnly: true
+                                                    selectByMouse: true
+                                                    persistentSelection: true
+                                                    activeFocusOnPress: false
+                                                    wrapMode: TextEdit.Wrap
+                                                    textFormat: TextEdit.RichText
+                                                    onLinkActivated: url => {
+                                                        if (/^https?:\/\//i.test(url))
+                                                            Qt.openUrlExternally(url);
+                                                    }
+
+                                                    // Right-click copies the selection, or the whole message.
+                                                    MouseArea {
+                                                        anchors.fill: parent
+                                                        acceptedButtons: Qt.RightButton
+                                                        cursorShape: messageText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
+                                                        onClicked: {
+                                                            if (messageText.selectedText === "")
+                                                                messageText.selectAll();
+                                                            messageText.copy();
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -365,12 +431,27 @@ Popup {
         }
     }
 
-    PopupText {
+    PopupRow {
+        id: more
         width: root.bodyWidth
-        leftPadding: root.inset
+        height: moreLabel.implicitHeight + root.rowPad * 2
         visible: Email.loaded && Email.total > root.rows.length && root.rows.length > 0
-        text: `… and ${Email.total - root.rows.length} more`
-        font.pixelSize: Theme.footnoteSize
-        opacity: 0.45
+        enabled: !root.loadingMore
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onTapped: root.loadMore()
+
+        HoverHandler {
+            cursorShape: more.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+        }
+
+        PopupText {
+            id: moreLabel
+            x: root.inset
+            y: root.rowPad
+            width: parent.width - root.inset * 2
+            text: root.loadingMore ? "Loading..." : `Load more (${Email.total - root.rows.length})`
+            font.pixelSize: Theme.footnoteSize
+            color: Theme.label2
+        }
     }
 }

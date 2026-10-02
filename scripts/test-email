@@ -1,0 +1,427 @@
+#!/usr/bin/env python3
+"""Exercise the installed email QML methods and text control with offline fixtures."""
+import base64
+import json
+import os
+from pathlib import Path
+import re
+import textwrap
+import tempfile
+import unittest
+
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+from PySide6.QtCore import QPoint, QPointF, Qt, QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression
+from PySide6.QtQuick import QQuickItem, QQuickTextDocument, QQuickWindow
+from PySide6.QtTest import QTest
+
+CONFIG = Path(__file__).resolve().parents[1]
+APP = QGuiApplication.instance() or QGuiApplication([])
+SERVICE = (CONFIG / 'services/Email.qml').read_text()
+POPUP = (CONFIG / 'components/EmailPopup.qml').read_text()
+METHODS = '\n'.join(re.findall(r'^    function .*?^    }', SERVICE, re.M | re.S))
+BODY = textwrap.dedent(re.search(r'^(?P<indent> +)TextEdit \{.*?^(?P=indent)}', POPUP, re.M | re.S).group())
+
+STATE = '''
+    property string api: "https://fixture.invalid"
+    property int generation: 0
+    property var cache: ({})
+    property var opened: ({})
+    property int detailed: 12
+    property bool morePending: false
+    property bool loading: false
+    function refresh() { root.fetchThreads(); }
+    onLoadingChanged: root.flushMore()
+    property var threads: []
+    property int total: 0
+    property bool loaded: false
+    property string snapshot: ""
+    property string trouble: ""
+    property var found: null
+    property var bodies: ({})
+    property var reading: ({})
+    property var readQueue: []
+    property int bodyRequests: 0
+    property int bodyParallel: 4
+    property var pending: []
+    property int maxPending: 0
+    function authorised(then, failed) { then(); }
+    function send(method, url, body, then, failed) {
+        pending.push({url: url, then: then, failed: failed});
+        maxPending = Math.max(maxPending, pending.length);
+    }
+    function fail(why, status) { trouble = why; }
+    function reply(body, index) { pending.splice(index ?? 0, 1)[0].then(body); }
+    function reject(index) { pending.splice(index ?? 0, 1)[0].failed("fixture failure", 503); }
+'''
+
+
+def encoded(text):
+    return base64.urlsafe_b64encode(text.encode()).decode().rstrip('=')
+
+
+class EmailTests(unittest.TestCase):
+    def setUp(self):
+        self.engine = QQmlEngine()
+        self.components = []
+        self.root = self.create('import QtQuick\nimport \"services/EmailEntities.js\" as EmailEntities\nItem { id: root\n' + STATE + METHODS + '\n}')
+        self.engine.rootContext().setContextProperty('sut', self.root)
+        self.engine.rootContext().setContextProperty('Email', self.root)
+        self.engine.rootContext().setContextProperty('Theme', {
+            'bodyFont': 'Sans Serif', 'captionSize': 12,
+            'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
+            'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'figures': {},
+            'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r'},
+        })
+
+    def tearDown(self):
+        self.engine.rootContext().setContextProperty('Email', None)
+        self.engine.rootContext().setContextProperty('sut', None)
+        self.root.deleteLater()
+        self.engine.deleteLater()
+        APP.processEvents()
+
+    def create(self, source):
+        component = QQmlComponent(self.engine)
+        component.setData(source.encode(), QUrl.fromLocalFile(str(CONFIG / 'tests-fixture.qml')))
+        self.components.append(component)
+        result = component.create()
+        self.assertIsNotNone(result, '\n'.join(e.toString() for e in component.errors()))
+        return result
+
+    def js(self, code):
+        expr = QQmlExpression(self.engine.rootContext(), self.root, '(function () {' + code + '\n})()')
+        value, _ = expr.evaluate()
+        self.assertFalse(expr.hasError(), expr.error().toString())
+        return value
+
+    def check(self, expression):
+        self.assertTrue(self.js('return ' + expression + ';'), expression)
+
+    def test_named_and_numeric_entities(self):
+        self.check('sut.unentity("&nbsp;&copy;&mdash;&eacute;&#x1F600;&#39;") === "\\u00a0©—é😀\\\'"')
+        self.check('sut.unentity("&#1114112; &#xD800; &#0;") === "� � �"')
+        self.check('sut.unentity("&unknown; &constructor; &toString; &amp;lt; &#38;amp;") === "&unknown; &constructor; &toString; &lt; &amp;"')
+        self.check('sut.unentity("&NotEqualTilde;&ZeroWidthSpace;&#128;") === "≂̸\\u200b€"')
+        self.check('sut.unentity("<b> &lt;b&gt;\\nline") === "<b> <b>\\nline"')
+
+    def test_html_layout_and_links(self):
+        html = '<head>hidden</head><style>x</style><!-- hidden --><div> One </div>\n    <div> Two&nbsp; &copy; </div><a href="https://example.com?a=1&amp;b=2">Visit</a><script>hidden</script>'
+        self.check('sut.unquote(sut.untag(' + json.dumps(html) + ')) === "One\\nTwo ©\\nVisit (https://example.com?a=1&b=2)"')
+        self.check('sut.untag("<a href=javascript:bad>Label</a>") === "Label"')
+        self.check('sut.untag("<a href=https://example.com>https://example.com</a>") === "https://example.com"')
+        self.check('sut.untag("<table><tr><td>A</td><td>B</td></tr></table>").trim() === "A B"')
+
+    def test_html_quoted_replies_are_not_repeated_in_chain(self):
+        self.check('sut.unquote(sut.untag("<div>New</div><div class=\\"gmail_quote\\"><blockquote>Old reply</blockquote></div>")) === "New"')
+        self.check('sut.unquote(sut.untag("<div>New</div><blockquote type=\\"cite\\">Old reply</blockquote>")) === "New"')
+        self.check('sut.unquote(sut.untag("<blockquote>Newsletter quotation</blockquote>")) === "Newsletter quotation"')
+
+    def test_plain_text_and_reply_history(self):
+        self.check('sut.unquote("Hi  \\r\\n\\r\\n\\r\\nBye\\u00a0\\u200b\\rOn Monday Ann\\nwrote:\\nquoted") === "Hi\\n\\nBye"')
+        self.check('sut.unquote("New\\n> quoted\\nEnd") === "New\\nEnd"')
+        self.check('sut.unquote("  if (x) {\\n    y();\\n  }") === "if (x) {\\n    y();\\n  }"')
+
+    def test_utf8_and_nested_mime(self):
+        plain = encoded('Καλημέρα 😀\n\nHello')
+        attachment = encoded('wrong attachment')
+        payload = {'mimeType': 'multipart/mixed', 'parts': [
+            {'mimeType': 'text/plain', 'filename': 'note.txt', 'body': {'data': attachment}},
+            {'mimeType': 'multipart/alternative', 'parts': [
+                {'mimeType': 'text/html', 'body': {'data': encoded('<p>HTML</p>')}},
+                {'mimeType': 'text/plain', 'body': {'data': plain}},
+            ]},
+        ]}
+        self.check('sut.textOf(' + json.dumps(payload) + ') === "Καλημέρα 😀\\n\\nHello"')
+        self.check('sut.utf8([0xf4,0xbf,0xbf,0xbf,0xed,0xa0,0x80,0xc0,0xaf,0xe2]) === "�".repeat(10)')
+        self.check('sut.textOf(null) === ""')
+
+    def test_unread_chain_order_and_read_reply_exclusion(self):
+        self.js('''
+            var messages = [
+                {id: "new", internalDate: "30", labelIds: ["UNREAD"], payload: {headers: [{name:"From",value:"New <new@example.com>"}]}},
+                {id: "read", internalDate: "40", labelIds: []},
+                {id: "old", internalDate: "10", labelIds: ["UNREAD"], snippet: "&copy;"}
+            ];
+            var row = sut.rowOf({id:"t",snippet:"&copy;"}, {messages: messages});
+            if (row.message !== "new" || row.at !== 30 || row.from !== "New" || row.messages.map(m=>m.id).join() !== "old,new" || row.messages[0].snippet !== "©" || messages[0].id !== "new") throw Error("wrong unread chain");
+        ''')
+        self.check('sut.rowOf({id:"t"}, {messages:[]}).subject === "(no subject)"')
+        self.check('sut.rowOf({id:"t"}, {messages:[{id:"old",internalDate:10},{id:"new",internalDate:20}]}).message === "new"')
+
+    def test_1201_threads_across_pages_and_poll_cache(self):
+        self.js('''
+            function listed(start, count) { return Array.from({length:count}, (_,i)=>({id:"t"+(start+i),historyId:"1"})); }
+            sut.fetchThreads();
+            sut.reply({threads:listed(0,500),nextPageToken:"page + /"});
+            if (!sut.pending[0].url.includes("pageToken=page%20%2B%20%2F")) throw Error("unescaped token");
+            sut.reply({threads:listed(499,500),nextPageToken:"last"});
+            sut.reply({threads:listed(999,202)});
+            if (sut.pending.length !== 12 || sut.loaded) throw Error("wrong detail limit or partial publication");
+            while (sut.pending.length) {
+                const id = sut.pending[0].url.match(/threads\\/(t\\d+)/)[1];
+                sut.reply({messages:[{id:"m"+id,internalDate:String(2000-Number(id.slice(1))),labelIds:["UNREAD"]}]});
+            }
+            if (sut.total !== 1201 || sut.threads.length !== 12 || !sut.loaded) throw Error("wrong paginated total");
+            sut.fetchThreads();
+            sut.reply({threads:listed(0,500),nextPageToken:"p2"});
+            sut.reply({threads:listed(500,500),nextPageToken:"p3"});
+            sut.reply({threads:listed(1000,201)});
+            if (sut.pending.length !== 0 || sut.total !== 1201) throw Error("cache missed");
+        ''')
+
+    def test_load_more_waits_for_current_requests_and_can_retry(self):
+        self.js('sut.threads=Array.from({length:12},(_,i)=>({id:"t"+i})); sut.loading=true; sut.loadMore(16);')
+        self.check('sut.detailed === 20 && sut.morePending && sut.pending.length === 0')
+        self.js('sut.loading=false;')
+        self.check('!sut.morePending && sut.pending.length === 1 && sut.pending[0].url.includes("labelIds=INBOX&labelIds=UNREAD")')
+        self.js('sut.reject(); sut.loadMore(16);')
+        self.check('sut.pending.length === 1 && sut.detailed === 20')
+
+    def test_load_more_uses_already_loaded_threads(self):
+        self.js('sut.threads=Array.from({length:20},(_,i)=>({id:"t"+i})); sut.loadMore(16);')
+        self.check('sut.pending.length === 0 && !sut.morePending')
+
+    def test_missing_history_id_fetches_details(self):
+        self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t"}]});')
+        self.check('sut.pending.length === 1 && sut.pending[0].url.includes("threads/t?")')
+
+    def test_repeated_token_and_failed_page_preserve_state(self):
+        self.js('sut.total=77; sut.loaded=true; sut.fetchThreads(); sut.reply({threads:[{id:"t"}],nextPageToken:"same"}); sut.reply({nextPageToken:"same"});')
+        self.check('sut.pending.length === 0 && sut.total === 77 && sut.trouble.includes("page token")')
+        self.js('sut.fetchThreads(); sut.reply({nextPageToken:"second"}); sut.reject();')
+        self.check('sut.total === 77 && sut.trouble === "fixture failure"')
+
+    def test_thread_marked_unread_again_returns_on_next_poll(self):
+        for history in ('after', 'before', None):
+            with self.subTest(history=history):
+                self.js('''
+                    sut.opened={}; sut.cache={t:{historyId:"before",row:sut.rowOf({id:"t"},{messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]})}};
+                    sut.total=1; sut.threads=[sut.cache.t.row]; sut.drop(sut.threads[0]);
+                ''')
+                self.check('sut.total === 0 && sut.threads.length === 0')
+                self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t",historyId:' + json.dumps(history) + '}]}); while(sut.pending.length) sut.reply({messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});')
+                self.check('sut.total === 1 && sut.threads.length === 1 && !sut.opened.t')
+
+    def test_thread_dropped_during_pagination_stays_hidden(self):
+        self.js('''
+            sut.threads=[sut.rowOf({id:"t"},{messages:[{id:"m",labelIds:["UNREAD"]}]})]; sut.total=1;
+            sut.fetchThreads();
+            sut.reply({threads:[{id:"t",historyId:"1"}],nextPageToken:"last"});
+            sut.drop(sut.threads[0]);
+            sut.reply({threads:[]});
+        ''')
+        self.check('sut.total === 0 && sut.threads.length === 0 && sut.pending.length === 0')
+        self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t",historyId:"2"}]}); while(sut.pending.length) sut.reply({messages:[{id:"m",labelIds:["UNREAD"]}]});')
+        self.check('sut.total === 1 && sut.threads.length === 1')
+
+    def test_server_confirmed_read_thread_stays_absent(self):
+        self.js('''
+            sut.threads=[sut.rowOf({id:"t"},{messages:[{id:"m",labelIds:["UNREAD"]}]})]; sut.total=1;
+            sut.drop(sut.threads[0]); sut.fetchThreads(); sut.reply({threads:[]});
+        ''')
+        self.check('sut.total === 0 && sut.threads.length === 0 && Object.keys(sut.opened).length === 0')
+
+    def test_stale_poll_and_open_during_metadata(self):
+        self.js('''
+            sut.fetchThreads(); sut.fetchThreads();
+            sut.reply({threads:[{id:"stale",historyId:"1"}]});
+            sut.reply({threads:[{id:"current",historyId:"1"}]});
+            sut.opened={current:Date.now()};
+            sut.reply({messages:[{id:"m",labelIds:["UNREAD"]}]});
+        ''')
+        self.check('sut.total === 0 && sut.threads.length === 0 && sut.pending.length === 0')
+
+    def test_many_replies_are_deduplicated_and_bounded(self):
+        self.js('''
+            var row={messages:Array.from({length:150},(_,i)=>({id:"m"+i,snippet:"fallback"}))};
+            sut.read(row); sut.read(row);
+            if (sut.pending.length !== 4 || sut.readQueue.length !== 146) throw Error("unbounded or duplicate requests");
+            while (sut.pending.length) sut.reply({payload:{mimeType:"text/plain",body:{data:"SGVsbG8"}}});
+            if (Object.keys(sut.bodies).length !== 150 || sut.maxPending !== 4 || sut.bodyRequests !== 0 || Object.keys(sut.reading).length) throw Error("missing bodies or stuck requests");
+            sut.read(row);
+            if (sut.pending.length) throw Error("cached body fetched twice");
+        ''')
+
+    def test_large_inline_body_fetch_and_failure_retry(self):
+        self.js('sut.read({messages:[{id:"large",snippet:"fallback"}]}); sut.reply({payload:{mimeType:"text/plain",body:{attachmentId:"large + /",size:200000}}});')
+        self.check('sut.bodyRequests === 1 && sut.pending.length === 1 && sut.pending[0].url.includes("attachments/large%20%2B%20%2F?fields=data")')
+        self.js('sut.reply({data:"SGVsbG8"});')
+        self.check('sut.bodies.large === "Hello" && sut.bodyRequests === 0')
+        self.js('sut.read({messages:[{id:"fail",snippet:"fallback"}]}); sut.reply({payload:{mimeType:"text/html",body:{attachmentId:"a"}}}); sut.reject();')
+        self.check('sut.bodyRequests === 0 && !sut.reading.fail && sut.bodies.fail === undefined')
+
+    def test_body_failure_can_be_retried(self):
+        self.js('sut.read({messages:[{id:"m",snippet:"fallback"}]}); sut.reject();')
+        self.check('sut.bodyRequests === 0 && !sut.reading.m && sut.bodies.m === undefined')
+        self.js('sut.read({messages:[{id:"m",snippet:"fallback"}]}); sut.reply({payload:null});')
+        self.check('sut.bodies.m === "fallback"')
+
+    def test_link_markup_and_escaping(self):
+        self.check('sut.richText("<img src=x> https://example.com?a=1&b=2. www.example.com").includes("&lt;img src=x&gt;")')
+        self.check('sut.richText("https://example.com?a=1&b=2.").includes("href=\\"https://example.com?a=1&amp;b=2\\"")')
+        self.check('sut.richText("(https://example.com/a_(b)).").includes("href=\\"https://example.com/a_(b)\\"")')
+        self.check('!sut.richText("javascript:bad file:///tmp/x").includes("<a ")')
+        self.check('sut.richText("www.example.com").includes("href=\\"https://www.example.com\\"")')
+
+    def test_complete_popup_events_and_dynamic_preload(self):
+        # Instantiate the full popup with its real row/text components, replacing
+        # only window chrome, buttons and external services with offline stubs.
+        self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
+        stubs = {
+            'Popup.qml': """import QtQuick
+                Item { id: chrome; property real reserveHeight: 0; property var screen: null
+                    readonly property real chromeHeight: column.implicitHeight
+                    default property alias content: column.data
+                    property alias spacing: column.spacing
+                    implicitWidth: column.implicitWidth; implicitHeight: column.implicitHeight
+                    width: implicitWidth; height: implicitHeight
+                    Column { id: column }
+                }""",
+            'PopupHeader.qml': 'import QtQuick\nRow { property string title }',
+            'PopupButton.qml': 'import QtQuick\nItem { property bool framed; property string glyph; property string label; signal tapped(); width: 15; height: 15 }',
+            'ReconnectButton.qml': 'import QtQuick\nItem {}',
+            'RetryButton.qml': 'import QtQuick\nItem { property var service }',
+        }
+        with tempfile.TemporaryDirectory(prefix='email-popup-test-') as directory:
+            for name in ['PopupRow.qml', 'PopupText.qml']:
+                stubs[name] = (CONFIG / 'components' / name).read_text().replace('import qs\n', '')
+            for name, source in stubs.items():
+                Path(directory, name).write_text(source)
+            source = re.sub(r'^import qs(?:\.\w+)?\n', '', POPUP, flags=re.M)
+            source = source.replace('Qt.openUrlExternally(url);', 'root.testActivated = url;')
+            source = source.replace('id: more\n', 'id: more\n        objectName: "emailMore"\n', 1)
+            source = source.replace('id: root', 'id: root\n    property string testActivated: ""\n    property alias testMore: more\n    property alias testList: list\n    property alias testScroll: threadList', 1)
+            component = QQmlComponent(self.engine)
+            component.setData(source.encode(), QUrl.fromLocalFile(directory + '/EmailPopup.qml'))
+            self.components.append(component)
+            self.js('''
+                var row=sut.rowOf({id:"t"},{messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});
+                sut.bodies={m:"Hello https://example.com\\nsecond line"};
+                sut.threads=[row]; sut.total=1; sut.loaded=true;
+            ''')
+            popup = component.create()
+            self.assertIsNotNone(popup, '\n'.join(e.toString() for e in component.errors()))
+            self.engine.rootContext().setContextProperty('popup', popup)
+            window = QQuickWindow()
+            window.resize(340, 800)
+            popup.setParentItem(window.contentItem())
+            window.show()
+            popup.setProperty('expanded', 't')
+            QTest.qWait(30)
+            def items(parent):
+                for child in parent.childItems():
+                    yield child
+                    yield from items(child)
+            editors = [child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')]
+            self.assertEqual(len(editors), 1)
+            editor = editors[0]
+            point = editor.mapToScene(QPointF(1, 8)).toPoint()
+            QTest.mouseMove(window, point)
+            QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, point)
+            QTest.mouseMove(window, point + QPoint(32, 0), 20)
+            QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, point + QPoint(32, 0))
+            self.assertTrue(editor.property('selectedText'))
+            self.assertEqual(popup.property('expanded'), 't')
+            QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, point)
+            self.assertTrue(APP.clipboard().text())
+            self.assertEqual(popup.property('expanded'), 't')
+            self.js('popup.expanded=""; sut.threads=[sut.rowOf({id:"replacement"},{messages:[{id:"new",internalDate:20,labelIds:["UNREAD"]}]})];')
+            self.check('sut.pending.length === 1 && sut.pending[0].url.includes("messages/new?")')
+            self.js('''
+                sut.reply({payload:{mimeType:"text/plain",body:{data:"SGVsbG8"}}});
+                var cache={}, bodies={};
+                for (var i=0; i<40; i++) {
+                    const row=sut.rowOf({id:"t"+i},{messages:[{id:"m"+i,internalDate:40-i,labelIds:["UNREAD"]}]});
+                    if (i<12) cache[row.id]={historyId:"1",row:row};
+                    bodies["m"+i]="Hello";
+                }
+                sut.bodies=bodies; sut.cache=cache;
+                sut.threads=Object.values(cache).map(t=>t.row); sut.total=40;
+            ''')
+            QTest.qWait(20)
+            self.check('popup.testList.count === 8 && popup.testMore.visible')
+            for count in (16,24,32,40):
+                more=next(item for item in items(popup) if item.objectName() == 'emailMore')
+                point=more.mapToScene(QPointF(20,more.height()/2)).toPoint()
+                QTest.mouseMove(window,point)
+                QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,point)
+                self.assertEqual(popup.property('cap'),count)
+                self.js('''
+                    if (sut.pending.length) {
+                        const listed=Array.from({length:40},(_,i)=>({id:"t"+i,historyId:"1"}));
+                        sut.reply({threads:listed});
+                        while (sut.pending.length) {
+                            const id=sut.pending[0].url.match(/threads\\/t(\\d+)/)[1];
+                            sut.reply({messages:[{id:"m"+id,internalDate:40-Number(id),labelIds:["UNREAD"]}]});
+                        }
+                    }
+                ''')
+                QTest.qWait(5)
+                self.check('popup.testList.count === '+str(count))
+                self.check('popup.testScroll.height <= popup.listMax')
+            self.check('!popup.testMore.visible && popup.testScroll.contentHeight > popup.testScroll.height')
+            self.js('popup.testScroll.contentY=popup.testScroll.contentHeight-popup.testScroll.height;')
+            self.check('popup.testScroll.contentY > 0')
+            window.close()
+            popup.setParentItem(None)
+            popup.deleteLater()
+            window.deleteLater()
+            self.engine.rootContext().setContextProperty('popup', None)
+
+    def test_real_text_control_selection_copy_and_links(self):
+        # Keep the real popup control; intercept the external browser boundary.
+        body = BODY.replace('Qt.openUrlExternally(url);', 'link.activated = url;')
+        ui = self.create('''import QtQuick
+            Item {
+                id: link; width: 320; height: 240
+                property string activated: ""
+                property var fetched: "Hello https://example.com?a=1&b=2\\nsecond line"
+                property var modelData: ({snippet:"fallback"})
+                property alias editor: messageText
+            ''' + body + '\n}')
+        self.engine.rootContext().setContextProperty('ui', ui)
+        window = QQuickWindow()
+        window.resize(320, 240)
+        ui.setParentItem(window.contentItem())
+        window.show()
+        QTest.qWait(30)
+        self.check('ui.editor.getText(0,ui.editor.length).replace(/\\u2028/g,"\\n") === ui.fetched')
+        self.check('ui.editor.readOnly && ui.editor.selectByMouse')
+        editor_item = ui.childItems()[0]
+        quick_document = editor_item.property('textDocument')
+        document = quick_document.textDocument()
+        link_cursor = document.find('https://example.com')
+        self.assertEqual(link_cursor.charFormat().foreground().color().name(), '#c0c0c0')
+        QTest.mouseMove(window, QPoint(80, 8))
+        QTest.qWait(5)
+        self.assertEqual(window.cursor().shape(), Qt.PointingHandCursor)
+        QTest.mouseMove(window, QPoint(5, 8))
+        QTest.qWait(5)
+        self.assertEqual(window.cursor().shape(), Qt.IBeamCursor)
+        self.js('ui.editor.select(0,5);')
+        QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, QPoint(10, 8))
+        self.assertEqual(APP.clipboard().text(), 'Hello')
+        self.js('ui.editor.deselect();')
+        QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, QPoint(10, 8))
+        self.assertEqual(APP.clipboard().text(), 'Hello https://example.com?a=1&b=2\nsecond line')
+        self.js('ui.editor.deselect();')
+        QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, QPoint(1, 8))
+        QTest.mouseMove(window, QPoint(32, 8), 20)
+        QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, QPoint(32, 8))
+        self.check('ui.editor.selectedText.length > 0')
+        self.js('ui.editor.deselect();')
+        QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(80, 8))
+        self.assertEqual(ui.property('activated'), 'https://example.com?a=1&b=2')
+        self.js('ui.editor.linkActivated("file:///tmp/x");')
+        self.assertEqual(ui.property('activated'), 'https://example.com?a=1&b=2')
+        window.close()
+        ui.setParentItem(None)
+        ui.deleteLater()
+        window.deleteLater()
+        self.engine.rootContext().setContextProperty('ui', None)
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

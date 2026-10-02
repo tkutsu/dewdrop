@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs
+import "EmailEntities.js" as EmailEntities
 
 // Unread Gmail, as a list the popup can show and open.
 //
@@ -14,8 +15,8 @@ import qs
 // thing to open.
 //
 // A poll is one list call, plus one call per thread whose history moved since
-// it was last read. Only the first few threads are read in full, since those
-// are all the popup has room for; the rest are counted and nothing more.
+// it was last read. The first few threads are detailed initially; the popup
+// asks for more as its load-more button reveals additional rows.
 GoogleService {
     id: root
 
@@ -25,6 +26,7 @@ GoogleService {
     service: "Gmail"
     // Mail is the one thing on the bar you might be sat waiting for.
     pollMs: 30000
+    polling: Settings.moduleOn("email") || (Launcher.shown && Launcher.mailMode)
 
     onFetch: root.fetchThreads()
 
@@ -39,26 +41,28 @@ GoogleService {
     property int total: 0
     property string snapshot: ""
 
-    // How many threads are read in full: the popup's cap and a few over, so a
-    // row opened from the popup has one ready to take its place.
-    readonly property int detailed: 12
+    // Thread metadata requested so far, plus a few spare rows to replace
+    // threads marked read. Grows when the popup requests another batch.
+    property int detailed: 12
+    property bool morePending: false
 
     // Thread id → {historyId, row}. A thread's history id moves whenever
     // anything in it does, so a matching one means the row read last time is
     // still true and need not be asked for again.
     property var cache: ({})
 
-    // Thread id → when it was opened from the popup. Gmail marks a thread
-    // read when it is opened, but a poll in the few seconds before that lands
-    // would put the row straight back; it stays out until a poll no longer
-    // lists it, or for two minutes if it never goes (Gmail set not to mark on
-    // open, say).
+    // Threads opened while a poll is in flight stay out of that poll's
+    // result. The next poll trusts Gmail again, so marking a thread unread
+    // in Gmail brings it back without a local suppression timeout.
     property var opened: ({})
-    readonly property int openedMs: 2 * 60000
 
     // Message id → its text, read when a row is opened in the popup. Kept
     // for the session: a mail does not change once sent.
     property var bodies: ({})
+    property var reading: ({})
+    property var readQueue: []
+    property int bodyRequests: 0
+    readonly property int bodyParallel: 4
 
     // Replies from an earlier poll that land after a later one began are
     // dropped, or a slow one could put an opened row back.
@@ -78,53 +82,93 @@ GoogleService {
         return root.count === 0 ? "No unread mail" : `${root.count} unread`;
     }
 
+    // Grow the metadata window on demand, after any current request chain.
+    function loadMore(limit: int): void {
+        if (limit <= root.threads.length)
+            return;
+        root.detailed = Math.max(root.detailed, limit + 4);
+        root.morePending = true;
+        root.flushMore();
+    }
+
+    function flushMore(): void {
+        if (!root.morePending || root.loading)
+            return;
+        root.morePending = false;
+        root.refresh();
+    }
+
+    onLoadingChanged: root.flushMore()
+
     // --- reading -------------------------------------------------------------
     function fetchThreads(): void {
         root.generation += 1;
         const gen = root.generation;
-        const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD&maxResults=100&fields=threads(id,historyId,snippet)`;
-        root.send("GET", url, null, function (body) {
-            if (gen !== root.generation)
-                return;
-            const listed = body?.threads ?? [];
+        root.opened = ({});
+        const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD&maxResults=500&fields=nextPageToken,threads(id,historyId,snippet)`;
+        const listed = [];
+        const seen = ({});
+        const pages = ({});
+        const page = function (token) {
+            const nextUrl = token ? `${url}&pageToken=${encodeURIComponent(token)}` : url;
+            root.send("GET", nextUrl, null, function (body) {
+                if (gen !== root.generation)
+                    return;
+                for (const t of body?.threads ?? []) {
+                    if (t.id && !seen[t.id]) {
+                        seen[t.id] = true;
+                        listed.push(t);
+                    }
+                }
+                if (body?.nextPageToken) {
+                    if (pages[body.nextPageToken]) {
+                        root.fail("Gmail repeated a page token", 0);
+                        return;
+                    }
+                    pages[body.nextPageToken] = true;
+                    page(body.nextPageToken);
+                    return;
+                }
 
-            const now = Date.now();
-            const still = ({});
-            for (const t of listed)
-                if (root.opened[t.id] && now - root.opened[t.id] < root.openedMs)
-                    still[t.id] = root.opened[t.id];
-            root.opened = still;
+                const unread = listed.filter(t => !root.opened[t.id]);
+                const wanted = unread.slice(0, root.detailed);
+                const stale = wanted.filter(t => !t.historyId || root.cache[t.id]?.historyId !== t.historyId);
 
-            const unread = listed.filter(t => !root.opened[t.id]);
-            const wanted = unread.slice(0, root.detailed);
-            const stale = wanted.filter(t => root.cache[t.id]?.historyId !== t.historyId);
-
-            // Every stale thread asked for at once, and published together
-            // when the last one lands, for the reason GoogleService.gather
-            // gives: a list filled in reply by reply reorders itself under the
-            // pointer.
-            if (stale.length === 0) {
-                root.publish(unread, wanted);
-                return;
-            }
-            let outstanding = stale.length;
-            const landed = function () {
-                outstanding--;
-                if (outstanding === 0 && gen === root.generation)
+                // Every stale thread asked for at once, and published together
+                // when the last one lands, for the reason GoogleService.gather
+                // gives: a list filled in reply by reply reorders itself under the
+                // pointer.
+                if (stale.length === 0) {
                     root.publish(unread, wanted);
-            };
-            for (const t of stale)
-                root.send("GET", root.headersUrl(t.id), null, function (thread) {
-                    root.cache[t.id] = {
-                        historyId: t.historyId,
-                        row: root.rowOf(t, thread)
-                    };
-                    landed();
-                }, function (why, status) {
+                    return;
+                }
+                let outstanding = stale.length;
+                const landed = function () {
+                    outstanding--;
+                    if (outstanding === 0 && gen === root.generation)
+                        root.publish(unread, wanted);
+                };
+                for (const t of stale)
+                    root.send("GET", root.headersUrl(t.id), null, function (thread) {
+                        if (gen !== root.generation)
+                            return;
+                        root.cache[t.id] = {
+                            historyId: t.historyId,
+                            row: root.rowOf(t, thread)
+                        };
+                        landed();
+                    }, function (why, status) {
+                        if (gen !== root.generation)
+                            return;
+                        root.fail(why, status);
+                        landed();
+                    });
+            }, function (why, status) {
+                if (gen === root.generation)
                     root.fail(why, status);
-                    landed();
-                });
-        });
+            });
+        };
+        page("");
     }
 
     // A thread's messages with only what a row needs: who, what, when, and
@@ -134,6 +178,9 @@ GoogleService {
     }
 
     function publish(unread: var, wanted: var): void {
+        // A row may have been opened while its metadata was in flight.
+        unread = unread.filter(t => !root.opened[t.id]);
+        wanted = wanted.filter(t => !root.opened[t.id]);
         // Only what is still listed is kept, so the cache is never bigger
         // than the inbox's unread.
         const kept = ({});
@@ -142,7 +189,7 @@ GoogleService {
                 kept[t.id] = root.cache[t.id];
         root.cache = kept;
 
-        const rows = wanted.filter(t => kept[t.id]).map(t => kept[t.id].row);
+        const rows = wanted.filter(t => kept[t.id]).map(t => kept[t.id].row).sort((a, b) => b.at - a.at);
         // Replaced only when something moved, so a poll that changed nothing
         // does not rebuild the popup's rows under the pointer (see Tasks).
         const next = JSON.stringify(rows);
@@ -161,7 +208,7 @@ GoogleService {
     // unread ones before it come along as the chain, so a row opened reads
     // them all and not just the last word.
     function rowOf(listed: var, thread: var): var {
-        const messages = thread?.messages ?? [];
+        const messages = (thread?.messages ?? []).slice().sort((a, b) => Number(a.internalDate ?? 0) - Number(b.internalDate ?? 0));
         const unread = messages.filter(m => (m.labelIds ?? []).includes("UNREAD"));
         const chain = unread.length > 0 ? unread : messages.slice(-1);
         const m = chain[chain.length - 1];
@@ -195,21 +242,17 @@ GoogleService {
 
     // Gmail sends the snippet HTML-escaped, apostrophes included.
     function unentity(text: string): string {
-        return text.replace(/&(#\d+|#x[0-9a-f]+|amp|lt|gt|quot|apos);/gi, function (all, code) {
-            switch (code.toLowerCase()) {
-            case "amp":
-                return "&";
-            case "lt":
-                return "<";
-            case "gt":
-                return ">";
-            case "quot":
-                return "\"";
-            case "apos":
-                return "'";
-            }
-            const n = code[1].toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-            return isNaN(n) ? all : String.fromCodePoint(n);
+        return text.replace(/&(#(?:x[0-9a-f]+|\d+)|[a-z][a-z0-9]+);/gi, function (all, code) {
+            if (code[0] !== "#")
+                return Object.prototype.hasOwnProperty.call(EmailEntities.named, code) ? EmailEntities.named[code] : all;
+            let n = code[1].toLowerCase() === "x" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+            if (n === 0 || n > 0x10ffff || (n >= 0xd800 && n <= 0xdfff))
+                return "\ufffd";
+            // HTML's legacy numeric references use Windows-1252 in this range.
+            const legacy = [0x20ac,0x81,0x201a,0x192,0x201e,0x2026,0x2020,0x2021,0x2c6,0x2030,0x160,0x2039,0x152,0x8d,0x17d,0x8f,0x90,0x2018,0x2019,0x201c,0x201d,0x2022,0x2013,0x2014,0x2dc,0x2122,0x161,0x203a,0x153,0x9d,0x17e,0x178];
+            if (n >= 0x80 && n <= 0x9f)
+                n = legacy[n - 0x80];
+            return String.fromCodePoint(n);
         });
     }
 
@@ -331,15 +374,43 @@ GoogleService {
     // taken off when it does not; either way without the quoted history
     // under it, which is the chain the popup already shows above it.
     function read(row: var): void {
-        for (const m of row.messages ?? [])
-            if (m.id !== "" && root.bodies[m.id] === undefined)
-                root.authorised(function () {
-                    root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
+        const queued = root.readQueue.slice();
+        for (const m of row.messages ?? []) {
+            if (m.id && root.bodies[m.id] === undefined && !root.reading[m.id]) {
+                root.reading[m.id] = true;
+                queued.push(m);
+            }
+        }
+        root.readQueue = queued;
+        root.readNext();
+    }
+
+    // Bound body requests even when one unread conversation has many replies.
+    function readNext(): void {
+        while (root.bodyRequests < root.bodyParallel && root.readQueue.length > 0) {
+            const m = root.readQueue[0];
+            root.readQueue = root.readQueue.slice(1);
+            root.bodyRequests++;
+            const finished = function () {
+                delete root.reading[m.id];
+                root.bodyRequests--;
+                root.readNext();
+            };
+            const failed = function (why, status) {
+                root.fail(why, status);
+                finished();
+            };
+            root.authorised(function () {
+                root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
+                    root.loadText(m.id, body?.payload, function (text) {
                         const next = Object.assign({}, root.bodies);
-                        next[m.id] = root.textOf(body?.payload) || m.snippet;
+                        next[m.id] = text || m.snippet;
                         root.bodies = next;
-                    });
-                });
+                        finished();
+                    }, failed);
+                }, failed);
+            }, failed);
+        }
     }
 
     function textOf(payload: var): string {
@@ -350,18 +421,52 @@ GoogleService {
         return html !== "" ? root.unquote(root.untag(html)) : "";
     }
 
-    // The first part of a MIME tree with this type, decoded.
-    function part(p: var, type: string): string {
-        if (!p)
-            return "";
-        if (p.mimeType === type && p.body?.data)
-            return root.utf8(root.unbase64(p.body.data));
+    // Large inline bodies live behind Gmail's attachment endpoint too.
+    function loadText(id: string, payload: var, then: var, failed: var): void {
+        const types = ["text/plain", "text/html"];
+        const attempt = function (index) {
+            if (index === types.length) {
+                then("");
+                return;
+            }
+            const p = root.mimePart(payload, types[index]);
+            if (!p) {
+                attempt(index + 1);
+                return;
+            }
+            const decoded = function (data) {
+                const text = root.utf8(root.unbase64(data ?? ""));
+                const clean = root.unquote(types[index] === "text/html" ? root.untag(text) : text);
+                if (clean !== "")
+                    then(clean);
+                else
+                    attempt(index + 1);
+            };
+            if (p.body.data)
+                decoded(p.body.data);
+            else
+                root.send("GET", `${root.api}/messages/${id}/attachments/${encodeURIComponent(p.body.attachmentId)}?fields=data`, null, body => decoded(body?.data), failed);
+        };
+        attempt(0);
+    }
+
+    // Ignore file attachments when choosing the message's readable MIME part.
+    function mimePart(p: var, type: string): var {
+        if (!p || p.filename || (p.headers ?? []).some(h => h.name.toLowerCase() === "content-disposition" && /^attachment\b/i.test(h.value)))
+            return null;
+        if (p.mimeType === type && (p.body?.data || p.body?.attachmentId))
+            return p;
         for (const child of p.parts ?? []) {
-            const found = root.part(child, type);
-            if (found !== "")
+            const found = root.mimePart(child, type);
+            if (found)
                 return found;
         }
-        return "";
+        return null;
+    }
+
+    function part(p: var, type: string): string {
+        const found = root.mimePart(p, type);
+        return found?.body?.data ? root.utf8(root.unbase64(found.body.data)) : "";
     }
 
     // Gmail's base64url to bytes, as a list of numbers.
@@ -384,55 +489,76 @@ GoogleService {
         return bytes;
     }
 
-    // Bytes to text. QML has no TextDecoder, and mail is UTF-8 all but
-    // always; a byte that does not fit is passed through as itself.
+    // Invalid UTF-8 becomes a replacement character instead of crashing QML.
     function utf8(bytes: var): string {
         let out = "";
         for (let i = 0; i < bytes.length; i++) {
             const b = bytes[i];
-            let n = 0;
-            let cp = b;
-            if (b >= 0xf0 && b < 0xf8) {
-                n = 3;
-                cp = b & 0x07;
-            } else if (b >= 0xe0) {
-                n = 2;
-                cp = b & 0x0f;
-            } else if (b >= 0xc0) {
-                n = 1;
-                cp = b & 0x1f;
+            if (b < 0x80) {
+                out += String.fromCharCode(b);
+                continue;
             }
-            if (n > 0) {
-                let ok = true;
-                for (let k = 1; k <= n; k++) {
-                    const c = bytes[i + k];
-                    if (c === undefined || (c & 0xc0) !== 0x80) {
-                        ok = false;
-                        break;
-                    }
-                    cp = (cp << 6) | (c & 0x3f);
-                }
-                if (ok) {
-                    out += String.fromCodePoint(cp);
-                    i += n;
-                    continue;
-                }
-                cp = b;
+            const n = b >= 0xc2 && b <= 0xdf ? 1 : b >= 0xe0 && b <= 0xef ? 2 : b >= 0xf0 && b <= 0xf4 ? 3 : 0;
+            let cp = b & (n === 1 ? 0x1f : n === 2 ? 0x0f : 0x07);
+            let valid = n > 0;
+            for (let k = 1; k <= n && valid; k++) {
+                const c = bytes[i + k];
+                valid = c !== undefined && (c & 0xc0) === 0x80;
+                cp = (cp << 6) | (c & 0x3f);
             }
-            out += String.fromCharCode(cp);
+            if (!valid || cp < (n === 1 ? 0x80 : n === 2 ? 0x800 : 0x10000) || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) {
+                out += "\ufffd";
+                continue;
+            }
+            out += String.fromCodePoint(cp);
+            i += n;
         }
         return out;
     }
 
+    // Keep HTML link destinations, discard layout and non-content markup.
     function untag(html: string): string {
-        return root.unentity(html.replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, "").replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " "));
+        return root.unentity(html
+            .replace(/<!--[\s\S]*?-->/g, "")
+            .replace(/<(style|script|head)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+            .replace(/<(?:div|blockquote)\b[^>]*(?:\bclass\s*=\s*["'][^"']*\bgmail_quote\b|\btype\s*=\s*["']?cite\b)[^>]*>[\s\S]*$/gi, "")
+            .replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, function (all, attrs, label) {
+                const href = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+                const url = href ? root.unentity(href[1] ?? href[2] ?? href[3]).trim() : "";
+                return /^https?:\/\//i.test(url) && root.unentity(label.replace(/<[^>]+>/g, "")).trim() !== url ? `${label} (${url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")})` : label;
+            })
+            .replace(/\s+/g, " ")
+            .replace(/<br\b[^>]*>/gi, "\n")
+            .replace(/<\/?(?:p|div|tr|li|h[1-6]|blockquote|table|ul|ol)\b[^>]*>/gi, "\n")
+            .replace(/<\/?(?:td|th)\b[^>]*>/gi, " ")
+            .replace(/<[^>]+>/g, ""))
+            .replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n");
+    }
+
+    // Only generated anchors reach the UI; mail HTML never reaches Qt's renderer.
+    function richText(text: string): string {
+        const escape = value => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        const pattern = /(?:https?:\/\/|www\.)[^\s<>"\u200b-\u200d\ufeff]+/gi;
+        let result = "";
+        let offset = 0;
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            let url = match[0].replace(/[.,;:!?]+$/, "");
+            // Keep balanced parentheses in URLs, but leave prose punctuation out.
+            while (url.endsWith(")") && (url.match(/\)/g) ?? []).length > (url.match(/\(/g) ?? []).length)
+                url = url.slice(0, -1);
+            result += escape(text.slice(offset, match.index));
+            result += `<a href="${escape(/^www\./i.test(url) ? "https://" + url : url)}" style="color: #c0c0c0">${escape(url)}</a>`;
+            offset = match.index + url.length;
+        }
+        return "<span style=\"white-space: pre-wrap\">" + result.concat(escape(text.slice(offset))).replace(/\n/g, "<br>") + "</span>";
     }
 
     // The mail without what it is replying to: everything from the
     // "On … wrote:" line down, which mail clients often wrap onto a second
     // line, and any line quoted with ">".
     function unquote(text: string): string {
-        const lines = text.replace(/\r/g, "").split("\n");
+        const lines = text.replace(/\r\n?/g, "\n").replace(/[\u200b\ufeff]/g, "").replace(/[\u00a0\u202f]/g, " ").split("\n");
         const kept = [];
         const attribution = /^\s*(On|Στις) .+(wrote|έγραψε):\s*$/;
         for (let i = 0; i < lines.length; i++) {
@@ -470,8 +596,8 @@ GoogleService {
         });
     }
 
-    // Off the list at once rather than at the next poll, and kept off it
-    // until a poll agrees (see `opened`).
+    // Remove immediately and guard against replies from the current poll.
+    // A fresh poll checks Gmail's state again (see `opened`).
     function drop(thread: var): void {
         // Once: a mail read in the launcher and then opened in Gmail would
         // otherwise come off the count twice.

@@ -180,6 +180,7 @@ OverlayWindow {
     // glance and starts being a scroll. maxResults still ranks well past this,
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
+    readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !Launcher.mailOpen
     readonly property int boxPad: 12
     // The right-hand slot every row ends in: an app icon, or the "#yt" badge
     // that says which engine Enter would use.
@@ -265,7 +266,17 @@ OverlayWindow {
                 preview.item.scroll(dir);
             return;
         }
+        if (dir > 0)
+            root.loadUnreadMore(Launcher.index + 1);
         Launcher.move(dir);
+    }
+
+    // Fetch another screenful near the end of bare @, including a wheel
+    // step when the initial rows fit the viewport and cannot scroll yet.
+    function loadUnreadMore(lastVisible) {
+        if (!root.unreadList || lastVisible < list.count - 3 || Email.loading || Email.morePending || Email.threads.length >= Email.total)
+            return;
+        Email.loadMore(Math.min(Email.total, Email.threads.length + root.visibleRows));
     }
 
     // True for the length of a keystroke. A new query is a new list, and the
@@ -746,18 +757,23 @@ OverlayWindow {
                 // while there are rows: the drop to nothing is not a
                 // position anyone chose.
                 property real keptY: 0
+                property int keptCount: 0
 
-                onContentYChanged: if (list.count > 0)
-                    list.keptY = list.contentY
+                onContentYChanged: {
+                    if (list.count > 0)
+                        list.keptY = list.contentY;
+                    if (list.contentY > 0)
+                        root.loadUnreadMore(Math.ceil((list.contentY + list.height) / root.rowHeight));
+                }
 
                 // Every rebuild, whether a keystroke or the list changing
                 // under a selection that did not move — a timer removed, an
-                // answer landing, a record opened with Tab. Without this the
+                // answer landing, a record expanded. Without this the
                 // list came back at the top however far down it had been,
                 // and the highlight flew back down to a row it had never
                 // left. The scroll is put back where it was and the selected
                 // row is then brought in only as far as it has to come, which
-                // for Tab is nowhere: opening only adds rows below the
+                // when toggling a tree is nowhere: opening only adds rows below the
                 // selection and shutting in place only takes them away.
                 //
                 // forceLayout first, or the rows are made on the next polish
@@ -770,8 +786,13 @@ OverlayWindow {
                         return;
                     list.currentIndex = Launcher.index;
                     list.forceLayout();
+                    const grew = list.count > list.keptCount;
+                    list.keptCount = list.count;
                     list.contentY = Math.max(0, Math.min(Math.max(0, list.contentHeight - list.height), list.keptY));
-                    root.keepSelectionVisible();
+                    // New unread rows retain the viewport even when wheel
+                    // scrolling left the selected row above it.
+                    if (!root.unreadList || !grew)
+                        root.keepSelectionVisible();
                 }
 
                 // The selection belongs to the view, not to the row. A row
@@ -1030,6 +1051,12 @@ OverlayWindow {
                         }
 
                         onClicked: Launcher.activate(row.index)
+
+                        onWheel: function (wheel) {
+                            if (wheel.angleDelta.y < 0 || wheel.pixelDelta.y < 0)
+                                root.loadUnreadMore(Math.ceil((list.contentY + list.height) / root.rowHeight));
+                            wheel.accepted = false;
+                        }
                     }
                 }
             }
