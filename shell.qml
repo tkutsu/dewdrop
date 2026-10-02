@@ -21,8 +21,21 @@ ShellRoot {
         target: Hyprland
 
         function onRawEvent(event) {
+            if (event.name === "changeworkspaceid")
+                workspaceRefresh.restart();
             if (event.name === "openwindow" || event.name === "changefloatingmode" || event.name === "fullscreen")
                 Hyprland.refreshToplevels();
+        }
+    }
+
+    // Coalesce a compaction pass so workspace IDs, app membership and focus agree.
+    Timer {
+        id: workspaceRefresh
+        interval: 50
+        onTriggered: {
+            Hyprland.refreshWorkspaces();
+            Hyprland.refreshToplevels();
+            Hyprland.refreshMonitors();
         }
     }
 

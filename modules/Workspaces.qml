@@ -1,18 +1,18 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Hyprland
 import qs
 import qs.components
 
-// hyprland/workspaces with a taskbar: the workspace number followed by one icon
-// per *app* on it, dotted underneath when it holds the focused window.
+// One group per workspace, ordered by number, with one icon per app.
 // Clicking an icon that stands for several windows walks through them.
 BarItem {
     id: root
 
     // workspace-taskbar ignore-list
-    readonly property var ignored: [/^steam_app.*/, /^gamescope$/]
+    readonly property var ignored: [/^gamescope$/]
 
     // Which windows are shouting. Hyprland flags the workspace, but it flags
     // the window too, so the bar can point at the app that wants you rather
@@ -24,12 +24,37 @@ BarItem {
         return addresses.some(a => root.urgentAddresses.includes(a));
     }
 
+    // ID compaction needs fresh window associations and monitor focus in Quickshell 0.3.
+    function refreshWorkspaceAssociations(): void {
+        Hyprland.refreshToplevels();
+        Hyprland.refreshMonitors();
+    }
+
+    Connections {
+        target: Hyprland
+
+        function onRawEvent(event) {
+            if (event.name === "changeworkspaceid")
+                Qt.callLater(root.refreshWorkspaceAssociations);
+        }
+    }
+
+    Connections {
+        target: Hyprland.workspaces
+
+        // Association refreshes discover new workspaces with ID -1; resolve those after discovery.
+        function onValuesChanged() {
+            if (Hyprland.workspaces.values.some(w => w.id === -1))
+                Qt.callLater(Hyprland.refreshWorkspaces);
+        }
+    }
+
     // The Hyprland dispatcher speaks Lua here (hyprland.lua drives this setup),
     // which is why these read as function calls rather than bare dispatchers.
     // Down is the next one: the strip lies across the wheel like a Slider,
     // so it goes the way a slider does rather than the way an icon does.
-    onScrollUp: Hyprland.dispatch('hl.dsp.focus({ workspace = "e-1" })')
-    onScrollDown: Hyprland.dispatch('hl.dsp.focus({ workspace = "e+1" })')
+    onScrollUp: Hyprland.dispatch('workspace_cycle(-1)')
+    onScrollDown: Hyprland.dispatch('workspace_cycle(1)')
 
     // One strip rather than a run of loose workspaces, because the selection is
     // drawn across it rather than by each workspace for itself.
@@ -39,12 +64,32 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: buttons.implicitWidth
 
-        // The workspace the mark is under. Asking the buttons which of them is
-        // active keeps the mark out of the delegate, which is the whole point:
-        // one mark that moves, rather than one per workspace fading in and out.
+        // Use the drawer's spring when workspace groups make the left pill grow or shrink.
+        Behavior on implicitWidth {
+            id: widthChange
+
+            enabled: root._started
+            property bool growing: true
+            onTargetValueChanged: growing = targetValue > strip.implicitWidth
+
+            SequentialAnimation {
+                PauseAnimation {
+                    duration: widthChange.growing ? 0 : 180
+                }
+                SpringAnimation {
+                    spring: widthChange.growing ? Theme.springStiffness : Theme.foldSpring
+                    damping: Theme.foldDamping
+                    epsilon: 0.1
+                }
+            }
+        }
+
+        // Read focus directly: delegate active bindings update separately and
+        // briefly leave no selection when moving towards an earlier workspace.
         readonly property Item selected: {
+            const focused = Hyprland.focusedWorkspace?.id;
             for (const child of buttons.children)
-                if (child.active === true)
+                if (focused !== undefined && child.modelData?.id === focused)
                     return child;
             return null;
         }
@@ -61,7 +106,7 @@ BarItem {
 
         // The focused workspace sits on a rounded fill, the way the open item
         // on the system's menu bar does: a lighter slab inside the pill,
-        // holding the number and its icons. It was a rule under the group
+        // holding its app icons. It was a rule under the group
         // before that, which is a tab's idiom rather than a menu bar's.
         // Urgency is not its business — the icon of the app that wants you
         // bounces for that, wherever on the strip it is, rather than only on
@@ -118,22 +163,76 @@ BarItem {
             readonly property real thickness: Theme.barHeight - Theme.pillBorder - edge * 2
             readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
 
-            // Where the mark belongs, in this item's pixels.
-            readonly property real wantLeft: strip.selected ? strip.selected.x + inset : 0
-            readonly property real wantRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : 0
+            readonly property real targetLeft: strip.selected ? strip.selected.x + inset : wantLeft
+            readonly property real targetRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : wantRight
+            property real wantLeft: 0
+            property real wantRight: 0
+            property bool hasSelection: false
+
+            // Focus, delegate removal, and layout can change separately in one update.
+            // Retain the drawn destination until all three have settled.
+            function retarget(): void {
+                mark.hasSelection = strip.selected !== null;
+                if (!mark.hasSelection)
+                    return;
+                mark.wantLeft = mark.targetLeft;
+                mark.wantRight = mark.targetRight;
+            }
+
+            onTargetLeftChanged: Qt.callLater(mark.retarget)
+            onTargetRightChanged: Qt.callLater(mark.retarget)
+            Component.onCompleted: Qt.callLater(mark.retarget)
+
+            Connections {
+                target: strip
+
+                function onSelectedChanged() {
+                    Qt.callLater(mark.retarget);
+                }
+            }
 
             // Each end runs from wherever it is to where the mark belongs, so
             // a switch made mid-run picks both ends up where they are rather
             // than snapping them together first. Not until the mark has been
             // placed once, or it would flow in from the screen's edge.
             property bool placed: false
-            onVisibleChanged: if (visible)
-                Qt.callLater(() => placed = true)
+            onPlacedChanged: if (placed) {
+                tailLeft = wantLeft;
+                tailRight = wantRight;
+                tailProgress = 1;
+                roundness = 0;
+            }
+
+            // Place once; a delegate disappearing between IPC updates keeps its motion.
+            onVisibleChanged: if (visible && !placed)
+                Qt.callLater(() => {
+                    if (mark.visible)
+                        mark.placed = true;
+                })
 
             property real headLeft: wantLeft
             property real headRight: wantRight
             property real tailLeft: wantLeft
             property real tailRight: wantRight
+            property point tailStart: Qt.point(wantLeft, wantRight)
+            property real tailProgress: 1
+            property real roundness: 0
+
+            // A new destination keeps the tail wherever the previous move left it.
+            function followTail(): void {
+                if (!mark.placed) {
+                    mark.tailLeft = mark.wantLeft;
+                    mark.tailRight = mark.wantRight;
+                    mark.tailProgress = 1;
+                    mark.roundness = 0;
+                    return;
+                }
+                mark.tailStart = Qt.point(mark.tailLeft, mark.tailRight);
+                mark.tailProgress = 0;
+            }
+
+            onWantLeftChanged: followTail()
+            onWantRightChanged: followTail()
 
             Behavior on headLeft {
                 enabled: mark.placed
@@ -149,28 +248,30 @@ BarItem {
                     damping: Theme.markDamping
                 }
             }
-            Behavior on tailLeft {
-                enabled: mark.placed
-                SequentialAnimation {
-                    PauseAnimation {
-                        duration: Theme.markMs * 0.2
-                    }
-                    NumberAnimation {
-                        duration: Theme.markMs * 0.8
-                        easing.type: Easing.InOutCubic
-                    }
-                }
-            }
-            Behavior on tailRight {
-                enabled: mark.placed
-                SequentialAnimation {
-                    PauseAnimation {
-                        duration: Theme.markMs * 0.2
-                    }
-                    NumberAnimation {
-                        duration: Theme.markMs * 0.8
-                        easing.type: Easing.InOutCubic
-                    }
+            FrameAnimation {
+                running: mark.visible && mark.placed && (mark.tailProgress < 1 || mark.roundness > 0)
+
+                // Distance and the tail's shrinking size accelerate the same cubic flow.
+                onTriggered: {
+                    const previousMid = mark.tailMid;
+                    const distance = mark.apart / (mark.thickness * 4);
+                    const shrink = 1 - mark.blobHeight / mark.thickness;
+                    const speed = (1 + 0.75 * distance * distance) * (1 + 0.75 * shrink);
+                    mark.tailProgress = Math.min(1, mark.tailProgress + frameTime * 1000 * speed / (Theme.markMs * 1.1));
+                    const t = Math.max(0, (mark.tailProgress - 0.2) / 0.8);
+                    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    const left = mark.tailStart.x + (mark.wantLeft - mark.tailStart.x) * eased;
+                    const right = mark.tailStart.y + (mark.wantRight - mark.tailStart.y) * eased;
+                    const velocity = mark.tailProgress < 1 && frameTime > 0 ? Math.abs((left + right) / 2 - previousMid) / frameTime : 0;
+                    mark.tailLeft = left;
+                    mark.tailRight = right;
+                    // Ease into a ball as flow speeds up, and back into a pill at rest.
+                    const pace = Math.min(1, velocity / (mark.thickness * 24));
+                    const round = pace * pace * (3 - 2 * pace);
+                    const roundingTime = round > mark.roundness ? 0.025 : 0.05;
+                    mark.roundness += (round - mark.roundness) * (1 - Math.exp(-frameTime / roundingTime));
+                    if (round === 0 && mark.roundness < 0.001)
+                        mark.roundness = 0;
                 }
             }
 
@@ -181,10 +282,12 @@ BarItem {
             readonly property bool atFirst: strip.selected !== null && strip.selected.index === 0
             readonly property bool atLast: strip.selected !== null && strip.selected.index === workspaces.count - 1
             readonly property real wallLeft: wantLeft - inset + Theme.pillBorder
-            readonly property real wallRight: wantRight + inset - Theme.pillBorder
+            // The pill keeps its old width briefly after an empty workspace leaves.
+            readonly property real wallRight: strip.width + Theme.pillPad * 2 - Theme.pillBorder
 
-            readonly property real frontLeft: atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift
-            readonly property real frontRight: atLast ? Math.min(headRight + lift, wallRight) : headRight + lift
+            // A long jump can overshoot by more than a narrow workspace's width.
+            readonly property real frontLeft: Math.min(atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift, atLast ? wallRight : Infinity)
+            readonly property real frontRight: Math.max(frontLeft, atLast ? Math.min(headRight + lift, wallRight) : headRight + lift)
 
             // How far past a wall the spring would have carried the head, on
             // whichever side it is pressing.
@@ -212,14 +315,27 @@ BarItem {
             // Full thickness while the ends overlap, down to 40% of it once
             // they are three thicknesses apart: a neighbour's mark only
             // stretches, a long way off it pours through a thread.
-            readonly property real neck: thickness * (1 - 0.6 * Math.min(1, apart / (thickness * 3)))
+            readonly property real neck: thickness * (1 - 0.6 * Math.pow(Math.min(1, apart / (thickness * 3)), 2))
+            readonly property real tailWidth: tailRight - tailLeft + lift * 2
+            readonly property real blobWidth: tailWidth + (neck - tailWidth) * roundness
+            readonly property real blobHeight: thickness + (neck - thickness) * roundness
 
-            visible: strip.selected !== null
+            visible: hasSelection
             x: -Theme.pillPad
             width: strip.width + Theme.pillPad * 2
             height: strip.height
 
-            box0: Qt.vector4d(tailLeft - lift, slabTop, tailRight - tailLeft + lift * 2, thickness)
+            // Keep the liquid inside the pill's current rounded rim as both animate.
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                autoPaddingEnabled: false
+                maskEnabled: true
+                maskSource: markMask
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1
+            }
+
+            box0: Qt.vector4d(tailMid - blobWidth / 2, slabTop + (thickness - blobHeight) / 2, blobWidth, blobHeight)
             box1: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
             box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
 
@@ -243,18 +359,43 @@ BarItem {
             rimTo: bulbTop + bulbThickness
         }
 
+        Item {
+            id: markMask
+
+            width: mark.width
+            height: mark.height
+            visible: false
+            layer.enabled: true
+
+            Rectangle {
+                // BarItem rounds the pill width; account for that rounding at its left edge.
+                x: strip.width + root.padLeft + root.padRight - root.width + Theme.pillBorder
+                y: Theme.pillTop(parent.height) + Theme.pillBorder
+                width: Math.max(0, root.width - root.padLeft - root.padRight + Theme.pillPad * 2 - Theme.pillBorder * 2)
+                height: Theme.barHeight - Theme.pillBorder * 2
+                radius: Theme.pillRadius - Theme.pillBorder
+                color: "white"
+            }
+        }
+
         RowLayout {
             id: buttons
 
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: implicitWidth
             spacing: Theme.workspaceGap
 
             Repeater {
                 id: workspaces
 
                 model: ScriptModel {
-                    // "sort-by-number": true
-                    values: [...Hyprland.workspaces.values].sort((a, b) => a.id - b.id)
+                    // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
+                    values: [...Hyprland.workspaces.values]
+                        .filter(w => w.active || w.lastIpcObject?.ispersistent
+                            || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
+                        .sort((a, b) => a.id - b.id)
                 }
 
                 delegate: Item {
@@ -304,11 +445,11 @@ BarItem {
                         }
                     }
 
-                    // The number and icons of a workspace you are not on stand
+                    // The icons of a workspace you are not on stand
                     // a little back, and come forward with the mark.
                     readonly property real ink: Theme.restOpacity + (1 - Theme.restOpacity) * button.lit
 
-                    // Held down on one of the icons. A press on the number
+                    // Held down on one of the icons. A press on the workspace
                     // gives no answer of its own: the mark moving over is it.
                     readonly property bool held: {
                         for (const child of row.children)
@@ -328,12 +469,10 @@ BarItem {
                         // nothing in the chain clips, and that is what turns the corner
                         // of the screen into a click on workspace one.
                         anchors.leftMargin: button.index === 0 ? -root.padLeft : 0
-                        // By id, the way the number row's keys reach it. The tenth
-                        // is named "0", and focusing it by name asked for a
-                        // workspace 0 that does not exist; back-and-forth then
-                        // took that as a second visit and flipped between the
-                        // last two.
-                        onClicked: Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`)
+                        onClicked: {
+                            if (!button.active)
+                                Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`);
+                        }
                     }
 
                     RowLayout {
@@ -342,33 +481,34 @@ BarItem {
                         height: parent.height
                         spacing: Theme.appIconGap
 
-                        // The workspace's name, which for the ten on the number row
-                        // is the key that reaches it: 0 for the tenth, as on the
-                        // keyboard. It stays at one weight, since the mark says
-                        // which workspace is yours and a number that went bold
-                        // would widen the mark as it arrived. Laid out on its
-                        // ink, like the icons beside it: tabular figures give
-                        // a 1 as much side bearing as an 8 is wide, which put
-                        // the 1 twice as far from its icons as the 2.
+                        // An empty workspace occupies one icon's ink width without drawing an icon.
+                        Item {
+                            visible: button.apps.length === 0 && !emptyBounce.running
+                            Layout.fillHeight: true
+                            implicitWidth: Math.round(Theme.iconSize * Theme.iconInk)
+                        }
+
+                        // Urgency from ignored apps still needs a visible signal.
                         BarText {
+                            visible: emptyBounce.running
                             Layout.fillHeight: true
                             tightWidth: true
-                            text: button.modelData.name.replace(/^special:/, "")
-                            fontSize: Theme.workspaceTextSize
+                            text: "\u25cb"
+                            fontSize: Theme.textSize
                             color: Theme.fg
-                            opacity: numberBounce.running ? 1 : button.ink
+                            opacity: emptyBounce.running ? 1 : button.ink
 
-                            transform: Translate { y: numberBounce.offset }
+                            transform: Translate { y: emptyBounce.offset }
                         }
 
                         // The fallback, and only that. Urgency belongs on the
-                        // icon of the app that wants you, so the number moves
+                        // icon of the app that wants you, so the marker moves
                         // just when the workspace is shouting and no icon on it
                         // has owned up — an ignored window, or one Hyprland
                         // flagged by workspace without flagging the window.
                         // Otherwise a shouting app would move twice over.
                         Bounce {
-                            id: numberBounce
+                            id: emptyBounce
                             running: button.modelData.urgent && !button.apps.some(a => root.anyUrgent(a.addresses))
                         }
 
