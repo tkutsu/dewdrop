@@ -34,7 +34,7 @@ Singleton {
         // pause between two keystrokes — and one of them being a process and
         // the other a loop is not a reason for them to wait different lengths.
         interval: 60
-        onTriggered: root.query = Launcher.query.slice(1).trim()
+        onTriggered: root.query = Launcher.classifyQuery(Launcher.query).text
     }
 
     // Every keystroke, from Launcher.route(): whether the box is in this mode
@@ -47,7 +47,7 @@ Singleton {
             root.query = "";
             return;
         }
-        // Read once and then kept, so this is a real ask only on the first #
+        // Read once and then kept, so this is a real ask only on the first &
         // of a session — and a rescan of mpd's database is what makes it one
         // again. See services/Library.qml. Not while mpd is down: there is
         // nobody to read it from, and the row on top offers to start it.

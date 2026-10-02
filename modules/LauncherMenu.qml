@@ -236,19 +236,13 @@ OverlayWindow {
         return 0;
     }
 
-    // What a step does depends on the key and the mode. Tab opens and shuts
-    // the tree in music mode, and a mail to read in mail mode, and moves the
-    // selection everywhere else; nothing is lost to the swap, since the arrows
-    // and both Ctrl pairs still move it.
+    // Tab opens and shuts a mail in mail mode and moves the selection
+    // elsewhere. Music trees toggle with Right at the end of the query.
     // Page keys page the file under the / list, and in music mode, where
     // there is none, step a level of the tree instead.
     function step(key, dir) {
         const tab = key === Qt.Key_Tab || key === Qt.Key_Backtab;
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
-        if (Launcher.musicMode && tab) {
-            LauncherMusic.fold();
-            return;
-        }
         // Reading a mail, every step is the reader's: Tab back to the list,
         // the arrows a row's height of text, the page keys a screenful.
         if (Launcher.mailOpen) {
@@ -526,6 +520,7 @@ OverlayWindow {
                 color: Theme.fg
                 selectionColor: Theme.selection
                 selectedTextColor: Theme.fg
+                selectByMouse: true
                 font.family: Theme.bodyFont
                 font.pixelSize: Theme.queryTextSize
                 font.weight: Theme.bodyWeight
@@ -599,6 +594,27 @@ OverlayWindow {
                 // Keys handlers run before TextInput's own, so the navigation
                 // keys are ours and everything else still types.
                 Keys.onPressed: function (event) {
+                    // Use the platform's editing shortcuts before launcher navigation.
+                    if (event.matches(StandardKey.Copy)) {
+                        input.copy();
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.matches(StandardKey.Paste)) {
+                        input.paste();
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.matches(StandardKey.Cut)) {
+                        input.cut();
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.matches(StandardKey.SelectAll)) {
+                        input.selectAll();
+                        event.accepted = true;
+                        return;
+                    }
                     const ctrl = event.modifiers & Qt.ControlModifier;
 
                     switch (event.key) {
@@ -609,7 +625,7 @@ OverlayWindow {
                     case Qt.Key_Enter:
                         // Only the music rows and mail's ctrl+enter read the
                         // modifier; see Launcher.hint for what each one means.
-                        Launcher.activate(Launcher.index, ctrl ? "play" : (event.modifiers & Qt.AltModifier) ? "next" : "queue");
+                        Launcher.activate(Launcher.index, ctrl ? "play" : "queue");
                         break;
                     // Drop the row rather than act on it. Only the clipboard
                     // has anything to drop; elsewhere this does nothing, and
@@ -619,14 +635,21 @@ OverlayWindow {
                             return;
                         Launcher.forget(Launcher.index);
                         break;
-                    // Right off the end of the line completes it to the
+                    // Right at the end toggles the selected music tree.
+                    // In file mode it completes the line to the
                     // selected file, the way a shell's Tab does. Written with
                     // its "~", so the query stays in the files mode, and a
                     // directory ends in "/" ready for the next name. Anywhere
                     // short of the end it is the cursor's, as ever.
                     case Qt.Key_Right:
+                        if (input.cursorPosition < input.text.length)
+                            return;
+                        if (Launcher.musicMode) {
+                            LauncherMusic.fold();
+                            break;
+                        }
                         const row = Launcher.selected;
-                        if (!Launcher.pathMode || row?.kind !== "path" || input.cursorPosition < input.text.length)
+                        if (!Launcher.pathMode || row?.kind !== "path")
                             return;
                         input.adopt(Launcher.tildeHome(row.path) + (row.dir ? "/" : ""));
                         break;
@@ -762,7 +785,7 @@ OverlayWindow {
                 // view's own current item. A plain array replaced wholesale
                 // puts the highlight back at the top of the content before
                 // the selection is restored underneath it, and the way back
-                // is animated — so every Tab in music mode had the grey bar
+                // is animated — so every tree toggle in music mode had the grey bar
                 // set off from the first row of the library and fly down the
                 // whole list to the row it had never actually left. contentY
                 // is reset by the same rebuild and put back in onModelChanged

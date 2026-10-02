@@ -37,8 +37,7 @@ function isBoundary(text, i) {
 //
 // So the two halves come apart. prep() is what a caller holding a long list
 // does once, when the list is built; scorePrepped() is what it calls per
-// keystroke. score() does all of it in one call, for a caller with nothing to
-// keep a list in.
+// keystroke.
 function prep(text) {
     // The folded-but-cased string as well as the lowercased one: isBoundary
     // reads the first to find camelCase humps, so it has to be indexed the
@@ -49,12 +48,6 @@ function prep(text) {
 
 function prepQuery(query) {
     return fold(query).toLowerCase();
-}
-
-function score(query, text) {
-    if (!text) return null;
-    const p = prep(text);
-    return scorePrepped(prepQuery(query), p[0], p[1]);
 }
 
 // `q` folded and lowercased, `raw` folded, `t` folded and lowercased — i.e.

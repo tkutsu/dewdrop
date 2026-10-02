@@ -24,7 +24,7 @@ Singleton {
 
     // --- modes ---------------------------------------------------------------
 
-    // The first character of the query picks a mode. "#" is search: the word
+    // The first non-space character picks a mode. "#" is search: the word
     // after it can name an engine ("#y lofi"), and without one the query goes
     // to the fallback ("#lofi" is a Google search).
     //
@@ -152,14 +152,9 @@ Singleton {
     // what Enter would do — and having two of those is one more surface to
     // learn and one more place for the keyboard grab to go wrong.
     //
-    // A comma because a task is a note jotted mid-sentence, and it is the last
-    // punctuation key that starts nothing else here. A per-cent sign because it
-    // is the other unclaimed key on the row of numbers and it already reads as
-    // a quantity of something — which a duration is. It cannot be confused with
-    // a sum, either: the unprefixed calculator only takes a query that looks
-    // like maths, and nothing that starts with a per-cent does.
+    // Tasks and timers share a comma: plain text writes down a task, while a
+    // leading duration or time of day sets a timer or alarm.
     readonly property string taskPrefix: ","
-    readonly property string timerPrefix: "%"
 
     // What the hint in the query line says. Normally the modes, assembled
     // from the prefix characters themselves rather than typed out, so changing
@@ -170,7 +165,7 @@ Singleton {
     // In search mode it turns into the engines, because by then the mode is
     // not the question any more — which of them answers it is, and the
     // letter that picks each one is the thing worth having in front of you.
-    readonly property string prefixHint: [root.pathPrefix + "files", root.windowPrefix + "windows", root.clipPrefix + "clipboard", root.enginePrefix + "web", root.mailPrefix + "email", root.cmdPrefix + "run", root.taskPrefix + "task", root.timerPrefix + "timer", root.musicPrefix + "music", root.calcPrefix + "calc"].join("   ")
+    readonly property string prefixHint: [root.pathPrefix + "files", root.windowPrefix + "windows", root.clipPrefix + "clipboard", root.enginePrefix + "web", root.mailPrefix + "email", root.cmdPrefix + "run", root.taskPrefix + "tasks", root.musicPrefix + "music", root.calcPrefix + "calc"].join("   ")
 
     // Each engine written as one word with its key bracketed inside it:
     // "#[y]outube". The brackets are the whole instruction — which letter to
@@ -186,26 +181,13 @@ Singleton {
             return root.enginePrefix + e.hint.slice(0, at) + "[" + e.key + "]" + e.hint.slice(at + 1);
         }).join("   ")
 
-    // Only while the box is still a menu of what it can do. The moment there
-    // is a query, the line has been answered — there are rows underneath
-    // saying what this particular query does, and the reminder is in the way
-    // of them. Same again one level down: "#" on its own is someone looking
-    // for the engine they want, and "#y" is someone who has found it.
+    // Show hints for an empty launcher or a bare mode prefix. Any character
+    // after the prefix, including a space, hides the hint until removed.
     readonly property string hint: {
-        // In music mode the keys stay up for as long as the mode does: there
-        // are four of them and nothing on the rows says which is which.
+        if (root.query.replace(/^\s+/, "").length > 1)
+            return "";
         if (root.musicMode)
-            return "tab expand  ·  enter queue  ·  ctrl+enter play  ·  alt+enter next";
-        // These two stay up for as long as their mode does, for the same reason
-        // music's does — and a better one. Everywhere else the line is a menu
-        // of what the box can do, and it goes as soon as you have chosen, since
-        // the rows underneath then say what your query does. Here the line is a
-        // grammar, and a grammar is needed while the sentence is being written
-        // rather than before it is started: "@fri" is wanted at the end of the
-        // task, which is exactly the moment every other mode would have taken
-        // the reminder away.
-        if (root.timerMode)
-            return Timers.syntax;
+            return "→ at end expand  ·  enter queue  ·  ctrl+enter play";
         // The keys, and Gmail's own search operators, which nothing on a mail
         // row hints at.
         if (root.mailOpen)
@@ -213,10 +195,10 @@ Singleton {
         if (root.mailMode)
             return "tab read  ·  ctrl+enter new mail  ·  from:  subject:  has:attachment";
         if (root.taskMode)
-            return Tasks.syntax;
-        if (!root.query.length)
+            return Tasks.syntax + "   " + Timers.syntax;
+        if (root.classification.mode === "empty")
             return root.prefixHint;
-        if (root.query === root.enginePrefix)
+        if (root.classification.mode === root.enginePrefix && !root.classification.text)
             return root.engineHint;
         return "";
     }
@@ -248,26 +230,44 @@ Singleton {
     // Both are for the preview panel, which is the one thing that cares what
     // is selected rather than what is listed — see components/FilePreview.qml.
     readonly property var selected: root.results[root.index] ?? null
-    readonly property bool pathMode: root.pathQuery(root.query) !== null
-    readonly property bool musicMode: root.query.charAt(0) === root.musicPrefix
-    readonly property bool mailMode: root.query.charAt(0) === root.mailPrefix
-    readonly property bool taskMode: root.query.charAt(0) === root.taskPrefix
-    readonly property bool timerMode: root.query.charAt(0) === root.timerPrefix
+    readonly property var classification: root.classifyQuery(root.query)
+    readonly property bool pathMode: root.classification.mode === root.pathPrefix
+    readonly property bool musicMode: root.classification.mode === root.musicPrefix
+    readonly property bool mailMode: root.classification.mode === root.mailPrefix
+    readonly property bool taskMode: root.classification.mode === root.taskPrefix
 
-    // What the files mode is asked, or null outside it. "/" asks outright. A
-    // query that is "~" or starts "~/" is a path already, so it asks without
-    // the prefix — the way a sum reaches the calculator unasked — and keeps
-    // its tilde, which fdTerms reads as home.
-    //
-    // A function of the query rather than a property bound to it: route()
-    // runs from onQueryChanged, which can fire before a binding on `query`
-    // has caught up, and a stale answer there asks fd about the keystroke
-    // before this one.
-    function pathQuery(q) {
-        if (q.charAt(0) === root.pathPrefix)
-            return q.slice(1).trim();
-        return /^~(\/|$)/.test(q) ? q.trim() : null;
+    // Classify without starting work or building rows. route() calls this
+    // directly: onQueryChanged can run before the classification binding updates.
+    function classifyQuery(q) {
+        if (!q.length)
+            return { mode: "empty", text: "" };
+
+        const leading = q.replace(/^\s+/, "");
+        const sym = leading.charAt(0);
+        if (root.modeResults[sym] || root.prefixes[sym]) {
+            const rest = leading.slice(1);
+            return { mode: sym, text: sym === root.taskPrefix ? rest : rest.trim() };
+        }
+
+        // Automatic maths and URLs add rows to the main list. Files take over
+        // only when neither applies; search remains a fallback after matching.
+        const t = q.trim();
+        const math = root.looksLikeMath(t);
+        const url = root.parseUrl(t);
+        if (!math && !url && root.looksLikePath(t))
+            return { mode: root.pathPrefix, text: t };
+        return { mode: "main", text: t, math: math, url: url };
     }
+
+    // Recognize file search syntax independently of mode precedence.
+    function looksLikePath(q) {
+        // Home and explicit relative paths can contain spaces. Other guesses
+        // require compact text so a sentence ending in ".txt" stays a question.
+        if (/^(?:~(?:\/|$)|\.{1,2}\/)/.test(q))
+            return true;
+        return !/\s/.test(q) && (q.includes("/") || /^\.[^\d.\s]/.test(q) || /\.[a-z][a-z0-9]*$/i.test(q));
+    }
+
     // { appId: { count, last } }
     property var db: ({})
 
@@ -302,7 +302,7 @@ Singleton {
     // Open with a mode already picked, as if the prefix had been typed. The
     // popups on the bar and the two keybinds come in this way.
     function openWith(prefix: string): void {
-        if (root.shown && root.query.charAt(0) === prefix) {
+        if (root.shown && root.classifyQuery(root.query).mode === prefix) {
             root.hide();
             return;
         }
@@ -404,57 +404,45 @@ Singleton {
         return total;
     }
 
-    // Each mode's rows, keyed by the character that picks it and given the
-    // query with that character off. Most trim it: a space after the prefix
-    // is not part of a path or a sum. The two that take a line being typed
-    // do not, or ", " would read the same as "," and the preview under the
-    // row would flicker between "nothing to set" and the real answer as the
-    // space went in. The calculator is not strict here: "=" is someone asking
-    // qalc a question on purpose, and whatever it says back is the answer.
+    // Each explicit mode builds rows from the text prepared by classifyQuery.
+    // The explicit calculator accepts whatever qalc says; automatic maths is strict.
     readonly property var modeResults: ({
-            [root.calcPrefix]: rest => root.calcResults(rest.trim(), false),
-            [root.cmdPrefix]: rest => root.cmdResults(rest.trim()),
-            [root.clipPrefix]: rest => root.clipResults(rest.trim()),
-            [root.windowPrefix]: rest => root.windowResults(rest.trim()),
-            [root.musicPrefix]: rest => LauncherMusic.results(rest.trim()),
-            [root.mailPrefix]: rest => root.mailResults(rest.trim()),
-            [root.taskPrefix]: rest => root.taskResults(rest),
-            [root.timerPrefix]: rest => root.timerResults(rest)
+            [root.pathPrefix]: rest => root.pathResults(rest),
+            [root.calcPrefix]: rest => root.calcResults(rest, false),
+            [root.cmdPrefix]: rest => root.cmdResults(rest),
+            [root.clipPrefix]: rest => root.clipResults(rest),
+            [root.windowPrefix]: rest => root.windowResults(rest),
+            [root.musicPrefix]: rest => LauncherMusic.results(rest),
+            [root.mailPrefix]: rest => root.mailResults(rest),
+            [root.taskPrefix]: rest => root.taskResults(rest)
         })
 
     readonly property var results: {
-        const q = root.query;
+        const c = root.classification;
         // Nothing typed, nothing listed: the box opens as a bare query line.
         // A single space is the "show me everything" gesture — appResults
         // trims it off, so a space arrives there as an empty app query and
         // returns the whole menu in frecency order.
-        if (!q.length)
+        if (c.mode === "empty")
             return [];
 
-        const files = root.pathQuery(q);
-        if (files !== null)
-            return root.pathResults(files);
-
-        const sym = q.charAt(0);
-        const mode = root.modeResults[sym];
+        const mode = root.modeResults[c.mode];
         if (mode)
-            return mode(q.slice(1));
-        if (root.prefixes[sym])
-            return root.engineResults(sym, q.slice(1));
+            return mode(c.text);
+        if (root.prefixes[c.mode])
+            return root.engineResults(c.mode, c.text);
 
         // Unprefixed. A sum and a domain are things the query says outright,
         // so they sit above the list rather than inside it. Apps and power
         // commands are both guesses at what was meant, so they are ranked
         // against each other and share the ordering.
-        const t = q.trim();
-        const math = root.looksLikeMath(t);
-        const found = root.calcResults(math ? t : "", true).concat(root.urlResults(t)).concat(root.mainResults(t));
+        const found = root.calcResults(c.math ? c.text : "", true).concat(root.urlResults(c.text, c.url)).concat(root.mainResults(c.text));
 
         // Nothing matched, so it was a question: answer it the way "#" would.
         // Gated on the sum being spotted rather than on qalc's row, which
         // arrives a beat later and would have the engines flash up first.
-        if (!found.length && !math)
-            return root.engineResults(root.enginePrefix, t);
+        if (!found.length && !c.math)
+            return root.engineResults(root.enginePrefix, c.text);
         return found;
     }
 
@@ -651,7 +639,7 @@ Singleton {
     // A leading "~" is home, as the shell reads it: fasd and fd both hold
     // whole paths, and neither has a tilde in it to match.
     function fdTerms(query) {
-        return Settings.expand(query).toLowerCase().split(/[\s/]+/).filter(t => t.length);
+        return Settings.expand(query).toLowerCase().split(/[\s/]+/).filter(t => t.length && t !== "." && t !== "..");
     }
 
     // Terms joined with a gap, so "hypr key" finds keybinds.lua under hypr the
@@ -792,8 +780,12 @@ Singleton {
     // finger is already on; the tasks underneath are there to be ticked off,
     // which is a thing you came to do rather than a thing you are mid-flow on.
     function taskResults(query) {
+        const typed = query.trim();
+        const timerInput = typed.length > 0 && Timers.parse(typed).ok;
+        const rows = root.timerResults(timerInput ? typed : "");
+
         if (!Tasks.configured)
-            return [
+            return rows.concat([
                 {
                     kind: "note",
                     glyph: Theme.glyph.tasks,
@@ -801,14 +793,11 @@ Singleton {
                     raw: true,
                     subtitle: ""
                 }
-            ];
+            ]);
 
-        const typed = query.trim();
-        const rows = [];
-
-        if (typed.length) {
+        if (typed.length && !timerInput) {
             const p = Tasks.parse(typed);
-            rows.push({
+            rows.unshift({
                 kind: "task-add",
                 glyph: Theme.glyph.plus,
                 // What was typed, not what was parsed: the row is a preview of
@@ -816,10 +805,7 @@ Singleton {
                 // leave you unsure whether it had been understood or eaten.
                 title: typed,
                 raw: true,
-                // Not Tasks.preview: that is written to stand on its own and
-                // opens by repeating the task back, which on a row that is
-                // already showing the task is the same words twice. What is
-                // left is the part that was worked out rather than typed.
+                // Show the parsed date and destination beside the typed title.
                 subtitle: !p.ok ? p.error : "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (Tasks.lists.length > 1 ? "  ·  " + Tasks.lists[0].title : ""),
                 ok: p.ok,
                 text: typed
@@ -867,10 +853,8 @@ Singleton {
         return rows.concat(scored.slice(0, root.maxResults).map(x => x.row));
     }
 
-    // The same shape for timers: the line being typed on top, what is already
-    // running underneath. Enter on a running one holds it rather than cancelling
-    // it — cancelling is the one action here that loses something, and it is not
-    // what a list of timers is usually opened to do.
+    // Timer rows in tasks mode: a time being typed first, then existing timers.
+    // Enter on a running timer pauses it; its countdown stays bound in the row.
     function timerResults(query) {
         const typed = query.trim();
         const rows = [];
@@ -1007,7 +991,7 @@ Singleton {
         onTriggered: Email.search(mailSearch.want, true)
     }
 
-    // What a bare "#" lists when nothing is unread.
+    // What a bare "@" lists when nothing is unread.
     readonly property string recentMail: "in:inbox"
 
     // --- windows -------------------------------------------------------------
@@ -1084,26 +1068,23 @@ Singleton {
     // has to have been asked before it is shown, or the answer arrives a beat
     // after the row it belongs to.
     function route(): void {
-        const q = root.query;
-        const sym = q.charAt(0);
-        const rest = q.slice(1).trim();
-        const t = q.trim();
-        const files = root.pathQuery(q);
+        const c = root.classifyQuery(root.query);
+        const files = c.mode === root.pathPrefix;
 
-        qalc.want = sym === root.calcPrefix ? rest : (root.looksLikeMath(t) ? t : "");
+        qalc.want = c.mode === root.calcPrefix || c.math ? c.text : "";
 
         // Three characters before walking the disk. Fewer than that matches
         // most of the home directory, and fasd has already answered anyway.
-        fd.want = files !== null && files.length >= 3 ? files : "";
+        fd.want = files && c.text.length >= 3 ? c.text : "";
 
-        LauncherMusic.route(sym === root.musicPrefix, rest);
+        LauncherMusic.route(c.mode === root.musicPrefix, c.text);
 
-        // A bare "#" with nothing unread lists the inbox instead. Asked at
+        // A bare "@" with nothing unread lists the inbox instead. Asked at
         // once rather than after the debounce: nothing was typed to wait out.
-        if (sym === root.mailPrefix && !rest && !Email.threads.length)
+        if (c.mode === root.mailPrefix && !c.text && !Email.threads.length)
             Email.search(root.recentMail, false);
 
-        const mail = sym === root.mailPrefix ? rest : "";
+        const mail = c.mode === root.mailPrefix ? c.text : "";
         if (mail !== mailSearch.want) {
             mailSearch.want = mail;
             if (mail)
@@ -1115,11 +1096,11 @@ Singleton {
         // Asked once per open, on the keystroke that first names the mode.
         // `asked` rather than "arrived": the second character typed must not
         // start a second read of the same list.
-        if (files !== null && !fasd.asked) {
+        if (files && !fasd.asked) {
             fasd.asked = true;
             fasd.running = true;
         }
-        if (sym === root.clipPrefix && !clip.asked) {
+        if (c.mode === root.clipPrefix && !clip.asked) {
             clip.asked = true;
             clip.running = true;
         }
@@ -1134,6 +1115,11 @@ Singleton {
     // bytes·hours·litres² — and "1password" is 1 pa·word·s². So an unprefixed
     // query is gated on the way in rather than on what comes back.
     function looksLikeMath(q) {
+        // A numeric token has at most one decimal point. IPv4 addresses and
+        // version strings cannot become maths just because a slash follows them.
+        const numbers = q.match(/[\d.]+/g) || [];
+        if (numbers.some(n => /\d/.test(n) && !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(n)))
+            return false;
         // A word against an open bracket is a call, and no application is
         // named like one: sqrt(2), log(10), sin(0).
         if (/^[a-z]+\(/i.test(q))
@@ -1220,16 +1206,18 @@ Singleton {
     // Real TLDs that are also file extensions on this machine. A bare
     // "install.sh" or "README.md" is the file far more often than the site, so
     // these only count as a domain when something else in the string says URL:
-    // a scheme, a www., a port or a path.
+    // a scheme, a www., a port or query parameters. A slash alone can belong
+    // to a file path such as "README.md/notes".
     //
     // Every one of these has to appear in `tlds` as well — that list is what
     // decides a domain at all, and this one only holds some of them back.
     readonly property var extTlds: ["sh", "md", "so", "rs", "pl", "cc", "in"]
 
-    function urlResults(q) {
+    // Detect a URL without constructing UI rows.
+    function parseUrl(q) {
         // A domain has no spaces in it, and a query with one is a sentence.
         if (!q || /\s/.test(q))
-            return [];
+            return null;
 
         const scheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(q);
         const host = (scheme ? (q.split("/")[2] ?? "") : q).split("/")[0].split("?")[0].split("#")[0].split(":")[0];
@@ -1239,11 +1227,11 @@ Singleton {
             ok = true;
         } else if (!ok) {
             const m = host.toLowerCase().match(/^([a-z0-9-]+\.)+([a-z]{2,})$/);
-            const hint = /^www\./i.test(q) || /[/?#]/.test(q) || /:\d+/.test(q);
+            const hint = /^www\./i.test(q) || /[?#]/.test(q) || /:\d+/.test(q);
             ok = !!m && root.tlds.indexOf(m[2]) !== -1 && (hint || root.extTlds.indexOf(m[2]) === -1);
         }
         if (!ok)
-            return [];
+            return null;
 
         // https for the internet, because a bare domain typed at a launcher
         // in 2026 is a site that has had TLS for a decade and anything that
@@ -1251,15 +1239,21 @@ Singleton {
         // thing on the port is a dev server with no certificate and https is
         // the one that fails.
         const local = /^localhost$/i.test(host) || /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+        return { host: host, url: scheme ? q : (local ? "http://" : "https://") + q };
+    }
 
+    // Build the URL row from the classifier's parsed destination.
+    function urlResults(q, url) {
+        if (!url)
+            return [];
         return [
             {
                 kind: "url",
                 glyph: Theme.glyph.web,
                 title: "open " + q,
-                subtitle: host.replace(/^www\./i, ""),
+                subtitle: url.host.replace(/^www\./i, ""),
                 raw: true,
-                url: scheme ? q : (local ? "http://" : "https://") + q
+                url: url.url
             }
         ];
     }
@@ -1290,6 +1284,19 @@ Singleton {
     // filtered in here after that. Per keystroke it would be a process per
     // letter, for a list that cannot change while you are looking at it.
     property var clipEntries: []
+
+    // Choose an icon from the preview without decoding the stored payload.
+    function clipIcon(text) {
+        const body = text.trim();
+        if (body.startsWith("[[ binary data"))
+            return /\b(png|jpe?g|gif|webp|bmp|tiff?|svg|avif|heic|ico)\b/i.test(body)
+                ? "image-x-generic" : "application-octet-stream";
+        if (/^(?:(?:copy|cut)\s+)?file:\/\//i.test(body) || /^(\/|~\/)/.test(body))
+            return "folder";
+        if (/^(https?|ftp):\/\/\S+$/i.test(body))
+            return "internet-web-browser";
+        return "text-x-generic";
+    }
 
     function clipResults(query) {
         // Still reading. An empty list and a list not yet asked for look the
@@ -1340,7 +1347,7 @@ Singleton {
                     kind: "clip",
                     id: x.e.id,
                     line: x.e.line,
-                    glyph: Theme.glyph.clipboard,
+                    icon: root.clipIcon(x.e.text),
                     // One line per row, so a copied paragraph does not arrive
                     // as a row with a newline in the middle of it.
                     title: x.e.text.replace(/\s+/g, " ").trim(),
@@ -1522,7 +1529,7 @@ Singleton {
             }
         })
 
-    // `mode` is only for the music rows — "queue", "play" or "next", from
+    // `mode` is only for the music rows — "queue" or "play", from
     // which modifier was held with Enter.
     function activate(i, mode): void {
         const r = root.results[i];
@@ -1533,7 +1540,7 @@ Singleton {
                 root.leave(i);
             else
                 root.hide();
-            Email.compose(root.query.slice(1).trim());
+            Email.compose(root.classifyQuery(root.query).text);
             return;
         }
         if (!r)
@@ -1588,7 +1595,7 @@ Singleton {
     // How long an unused entry is kept. Past a week its weight is already at
     // the floor, and past this it is only a line in a file that would
     // otherwise grow by one for every command ever typed.
-    readonly property int keepMs: 90 * 24 * 3600000
+    readonly property real keepMs: 90 * 24 * 3600000
 
     function bump(id): void {
         // A fresh object rather than a mutation: `db` is a var property, and
@@ -1643,11 +1650,8 @@ Singleton {
         // is the point: smart-close.sh (Super+Q) has to tell "I closed the
         // launcher, stop here" from "nothing was up, go close a window" —
         // `toggle` would have opened the launcher in the second case.
-        // Open already in a mode, for the keys that used to raise a box of
-        // their own: Super+T and Super+Shift+T. Toggling rather than opening,
-        // so the same key puts it away — and only when it is already in that
-        // mode, or Super+T on an open task box would close it instead of
-        // switching.
+        // Open in a mode, or close when that mode is already open. Super+T
+        // and Super+Shift+T both use the combined tasks and timers mode.
         function open(prefix: string): void {
             root.openWith(prefix);
         }

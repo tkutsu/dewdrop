@@ -140,7 +140,7 @@ BarItem {
                 else if (Timers.focus)
                     Timers.toggle(Timers.focus.id);
                 else
-                    Launcher.openWith(Launcher.timerPrefix);
+                    Launcher.openWith(Launcher.taskPrefix);
             },
             // Nothing to throw away with no timer running or ringing.
             [Qt.MiddleButton]: root.ringing || Timers.focus ? () => {

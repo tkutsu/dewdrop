@@ -135,8 +135,17 @@ Popup {
         PopupButton {
             framed: true
             glyph: Theme.glyph.plus
-            onTapped: Launcher.openWith(Launcher.timerPrefix)
+            onTapped: Launcher.openWith(Launcher.taskPrefix)
         }
+    }
+
+    PopupText {
+        visible: Timers.phoneWarning !== ""
+        width: root.bodyWidth
+        text: Timers.phoneWarning
+        color: Theme.warn
+        font.pixelSize: Theme.footnoteSize
+        wrapMode: Text.WordWrap
     }
 
     PopupText {

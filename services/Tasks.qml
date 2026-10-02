@@ -23,6 +23,7 @@ GoogleService {
     // be current when you look, far enough apart to be nothing on a quota of
     // 50,000 requests a day.
     pollMs: 2 * 60000
+    polling: Settings.moduleOn("tasks") || (Launcher.shown && Launcher.taskMode)
 
     onFetch: root.fetchLists()
 
@@ -96,10 +97,9 @@ GoogleService {
         return "soon";
     }
 
-    // What the badge counts: what is late and what is due now. Not the whole
-    // list — a badge saying 47 because of everything ever written down is a
-    // number nobody acts on, and the popup is where the rest lives.
-    readonly property int count: root.overdue.length + root.due.length
+    // Count overdue, due today, and undated tasks; future-dated tasks stay in
+    // the popup until their due day.
+    readonly property int count: root.overdue.length + root.due.length + root.undated.length
 
     readonly property string icon: Theme.glyph.tasks
 
@@ -125,8 +125,9 @@ GoogleService {
             parts.push(`${root.overdue.length} overdue`);
         if (root.due.length > 0)
             parts.push(`${root.due.length} due today`);
-        // What the badge counts and no more: later and undated are the
-        // popup's, where there is room to read them.
+        if (root.undated.length > 0)
+            parts.push(`${root.undated.length} undated`);
+        // Match the badge count; future-dated tasks are shown in the popup.
         if (parts.length === 0)
             parts.push(root.tasks.length === 0 ? "Nothing on the list" : "Nothing due today");
         return parts.join("  ·  ");
@@ -242,9 +243,16 @@ GoogleService {
         // gone from the bar while it is still open on Google's side.
         root.snapshot = "";
 
+        const failed = function (why, status) {
+            root.fail(why, status);
+            root.forget(task.id);
+            if (!root.tasks.some(t => t.id === task.id))
+                root.tasks = root.tasks.concat([task]);
+            root.snapshot = "";
+        };
         root.authorised(() => root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
             status: "completed"
-        }, () => root.fetchTasks()));
+        }, () => root.fetchTasks(), failed), failed);
     }
 
     // The counterpart, for the tick that was meant for the row above. Google
@@ -252,12 +260,14 @@ GoogleService {
     // not clear `hidden`, and a task left hidden is one that never comes back
     // into the list — so that goes too.
     function restore(task: var): void {
-        root.forget(task.id);
         root.authorised(() => root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
             status: "needsAction",
             completed: null,
             hidden: false
-        }, () => root.fetchTasks()));
+        }, () => {
+            root.forget(task.id);
+            root.fetchTasks();
+        }));
     }
 
     function forget(id: string): void {
@@ -281,11 +291,8 @@ GoogleService {
     }
 
     // --- reading what was typed ----------------------------------------------
-    // "milk", "milk @tomorrow", "call the dentist @fri", "tax @2026-10-01".
-    //
-    // The date goes at the end behind an @ rather than at the front: a task is
-    // named before it is scheduled, and a prefix would put the one part you
-    // always have to type behind the one you often skip.
+    // A recognised first word schedules the task, just as a time sets a timer.
+    // "milk", "tomorrow milk", "fri call the dentist", "2026-10-01 tax".
     function parse(text: string): var {
         const raw = (text ?? "").trim();
         if (raw === "")
@@ -296,8 +303,9 @@ GoogleService {
                 error: ""
             };
 
-        const at = raw.match(/^(.*?)\s*@(\S+)$/);
-        if (!at)
+        const head = raw.split(/\s+/)[0];
+        const day = root.readDay(head.toLowerCase());
+        if (day === "")
             return {
                 ok: true,
                 title: raw,
@@ -305,15 +313,7 @@ GoogleService {
                 error: ""
             };
 
-        const title = at[1].trim();
-        const day = root.readDay(at[2].toLowerCase());
-        if (day === "")
-            return {
-                ok: false,
-                title: title,
-                day: "",
-                error: `Not a day: ${at[2]}`
-            };
+        const title = raw.slice(head.length).trim();
         if (title === "")
             return {
                 ok: false,
@@ -329,10 +329,8 @@ GoogleService {
         };
     }
 
-    // Only the date suffixes, for the line under the launcher's query. The task
-    // is whatever you type and explains itself; where the date goes and what it
-    // may say is the part that does not, so that is all this shows.
-    readonly property string syntax: ["@today", "@tomorrow", "@fri", "@2026-10-01"].join("   ")
+    // Date keywords for the first word; the task title follows them.
+    readonly property string syntax: ["today", "tomorrow", "fri", "2026-10-01"].join("   ")
 
     function readDay(word: string): string {
         if (word === "today")
@@ -342,7 +340,7 @@ GoogleService {
         if (/^\d{4}-\d{2}-\d{2}$/.test(word))
             return word;
 
-        // A weekday name means the next one of those, and never today: "@mon"
+        // A weekday name means the next one of those, and never today: "mon"
         // typed on a Monday is about the week coming, not the day that is
         // nearly over.
         const locale = Qt.locale();
@@ -354,18 +352,6 @@ GoogleService {
                 return root.dayString(at);
         }
         return "";
-    }
-
-    function preview(text: string): string {
-        if (!root.configured)
-            return `Google Tasks not connected — run ${Google.setup}`;
-        const p = root.parse(text);
-        if (p.title === "" && p.day === "")
-            return "";
-        if (!p.ok)
-            return p.error;
-        const where = root.lists.length > 1 ? `  ·  ${root.lists[0].title}` : "";
-        return p.day === "" ? `Task  ·  ${p.title}${where}` : `Task ${root.sayDay(p.day)}  ·  ${p.title}${where}`;
     }
 
     function run(text: string): string {

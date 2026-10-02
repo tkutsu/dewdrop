@@ -435,14 +435,6 @@ Singleton {
         return Parse.parse(text);
     }
 
-    function duration(word: string): real {
-        return Parse.duration(word);
-    }
-
-    function preview(text: string): string {
-        return Parse.preview(text);
-    }
-
     function brief(text: string): string {
         return Parse.brief(text);
     }

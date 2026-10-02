@@ -108,8 +108,8 @@ function parse(text) {
     const rest = raw.slice(raw.split(/\s+/)[0].length).trim();
 
     // A time of day, which is what a colon means when the number before it
-    // could be an hour. "7:30" is half past seven; "90:00" is not a time, so
-    // it falls through to the duration reading below and is ninety minutes.
+    // could be an hour. "7:30" is half past seven; durations use units
+    // instead, so ninety minutes is "90m", not "90:00".
     // "7am" and "7pm" carry no minutes at all.
     const at = head.match(/^(\d{1,2}):(\d{2})(am|pm)?$/) ?? head.match(/^(\d{1,2})()(am|pm)$/);
     if (at) {
@@ -147,22 +147,7 @@ function parse(text) {
     };
 }
 
-// What `run` would do, without doing it. The prompt box shows this under the
-// line as it is typed, which is what saves the box from needing a
-// confirmation step: the answer to "did it understand me" is already on
-// screen before Enter is pressed.
-function preview(text) {
-    const p = parse(text);
-    if (!p.ok)
-        return (text ?? "").trim() === "" ? "" : p.error;
-    const label = p.label !== "" ? "  ·  " + p.label : "";
-    if (p.kind === "alarm")
-        return `Alarm ${hhmm(p.hour, p.minute)} ${dayWord(p.hour, p.minute)}${label}`;
-    return `Timer ${spell(p.ms)}${label}`;
-}
-
-// The same reading as preview(), without the label echoed back. For a row
-// that is already showing what was typed — see the launcher's timer mode.
+// The parsed time without the label, which the launcher row already shows.
 function brief(text) {
     const p = parse(text);
     if (!p.ok)
