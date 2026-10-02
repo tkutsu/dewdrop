@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import qs
 import qs.components
 import qs.services
@@ -43,12 +44,9 @@ Popup {
     readonly property int rowHeight: 22
     readonly property int visibleRows: 8
 
-    // A row's controls are boxes rather than bare glyphs, and they are laid
-    // side by side with nothing between them. A glyph is about eight pixels of
-    // ink; aiming at one and missing used to land on the row underneath, which
-    // is itself a button — so a near miss on "move this down" played the song
-    // instead. There is nothing left to miss into now.
+    // Give row controls a full hit target around their glyphs.
     readonly property int buttonWidth: 20
+    readonly property int queueTailWidth: 60
 
     // Whether the quit button in the header has been pressed once. See the
     // button itself for why it takes two.
@@ -515,7 +513,8 @@ Popup {
         // rows, the same way the launcher's list does.
         height: Math.min(count, root.visibleRows) * root.rowHeight
         clip: true
-        model: Mpd.queue
+        model: reorder.showing ? reorder.queue : Mpd.queue
+        interactive: !reorder.showing
         // Nothing here scrolls with momentum; a flick that overshoots the ends
         // only looks like the list came loose.
         boundsBehavior: Flickable.StopAtBounds
@@ -546,6 +545,207 @@ Popup {
                     list.contentY = Math.max(0, Math.min(list.contentHeight - list.height, y));
                 });
             }
+
+            function onQueueChanged() {
+                if (reorder.settling && !drop.running)
+                    reorder.finishDrop();
+            }
+        }
+
+        // Keep the pointer grab on the view: MPD replaces whole arrays, and
+        // scrolling can recycle the row that started the drag.
+        MouseArea {
+            id: reorder
+
+            parent: list
+            anchors.fill: parent
+            z: 2
+            enabled: !settling
+            acceptedButtons: Qt.LeftButton
+            pressAndHoldInterval: 300
+            preventStealing: dragging
+            cursorShape: dragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
+
+            property bool dragging: false
+            property bool settling: false
+            readonly property bool showing: dragging || settling
+            property real elevation: 0
+            property real dropY: 0
+            property var queue: []
+            property int from: -1
+            property int to: -1
+            property real grabOffset: 0
+            readonly property real liftedY: Math.max(0, Math.min(height - root.rowHeight, mouseY - grabOffset))
+            readonly property int scrollDirection: !dragging ? 0 : mouseY < root.rowHeight ? -1 : mouseY > height - root.rowHeight ? 1 : 0
+
+            // Use the lifted row's centre to choose the slot, including rows
+            // reached by scrolling while the pointer stays at an edge.
+            function updateTarget() {
+                if (dragging)
+                    to = Math.max(0, Math.min(queue.length - 1, Math.floor((list.contentY + liftedY + root.rowHeight / 2) / root.rowHeight)));
+            }
+
+            // Switching back to MPD's model rebuilds the view after the drop.
+            function finishDrop() {
+                const y = list.contentY;
+                dragging = false;
+                settling = false;
+                elevation = 0;
+                Qt.callLater(() => {
+                    list.contentY = Math.max(0, Math.min(Math.max(0, list.contentHeight - list.height), y));
+                });
+            }
+
+            onPressed: mouse => {
+                from = list.indexAt(mouse.x, mouse.y + list.contentY);
+                if (from < 0 || mouse.x >= width - root.buttonWidth) {
+                    mouse.accepted = false;
+                    return;
+                }
+                queue = Mpd.queue;
+                grabOffset = mouse.y + list.contentY - from * root.rowHeight;
+            }
+            onPressAndHold: {
+                if (queue !== Mpd.queue || queue.length < 2)
+                    return;
+                list.cancelFlick();
+                to = from;
+                dragging = true;
+                elevation = 1;
+                updateTarget();
+            }
+            onPositionChanged: updateTarget()
+            onReleased: {
+                if (!dragging)
+                    return;
+                updateTarget();
+                // A queue edited elsewhere during the hold has new positions.
+                // Cancel rather than moving a different song by a stale index.
+                if (queue !== Mpd.queue)
+                    to = from;
+                else if (from !== to)
+                    Mpd.moveTo(queue[from].pos, queue[to].pos);
+                dropY = liftedY;
+                settling = true;
+                dragging = false;
+                elevation = 0;
+                drop.restart();
+            }
+            onCanceled: finishDrop()
+            onClicked: if (queue === Mpd.queue && from >= 0)
+                Mpd.playAt(queue[from].pos)
+
+            Behavior on elevation {
+                NumberAnimation {
+                    duration: Theme.revealMs
+                    easing.type: Easing.OutCubic
+                }
+            }
+
+            NumberAnimation {
+                id: drop
+                target: reorder
+                property: "dropY"
+                to: reorder.to * root.rowHeight - list.contentY
+                duration: Theme.revealMs
+                easing.type: Easing.OutCubic
+                onFinished: {
+                    if (reorder.queue !== Mpd.queue || reorder.from === reorder.to)
+                        reorder.finishDrop();
+                }
+            }
+
+            // Keep the landed preview until MPD sends its new order, so a
+            // slow reply cannot flash the track back into its old position.
+            Timer {
+                interval: 1000
+                running: reorder.settling && !drop.running
+                onTriggered: reorder.finishDrop()
+            }
+
+            Timer {
+                interval: 100
+                repeat: true
+                running: reorder.scrollDirection !== 0
+                onTriggered: {
+                    list.contentY = Math.max(0, Math.min(Math.max(0, list.contentHeight - list.height), list.contentY + reorder.scrollDirection * root.rowHeight));
+                    reorder.updateTarget();
+                }
+            }
+
+            Rectangle {
+                id: lifted
+
+                x: 4 * reorder.elevation
+                y: (reorder.settling ? reorder.dropY : reorder.liftedY) - 2 * reorder.elevation
+                width: parent.width - 8 * reorder.elevation
+                height: root.rowHeight
+                scale: 1 + 0.01 * reorder.elevation
+                visible: reorder.showing
+                radius: Theme.selectionRadius
+                color: Theme.well
+                readonly property var song: reorder.showing ? reorder.queue[reorder.from] : null
+
+                RectangularShadow {
+                    anchors.fill: parent
+                    z: -1
+                    radius: lifted.radius
+                    blur: 8
+                    offset.y: 3
+                    color: Theme.shadow
+                    opacity: reorder.elevation
+                }
+
+                PopupText {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 6
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18
+                    horizontalAlignment: Text.AlignRight
+                    text: reorder.from === Mpd.songPos ? Mpd.stateIcon : String(reorder.to + 1)
+                    font.family: reorder.from === Mpd.songPos ? Theme.glyphFont : Theme.bodyFont
+                    font.pixelSize: Theme.footnoteSize
+                    opacity: reorder.from === Mpd.songPos ? 1 : 0.4
+                }
+
+                Item {
+                    id: liftedLine
+                    x: 32
+                    width: parent.width - x - root.queueTailWidth - 8
+                    height: parent.height
+
+                    PopupText {
+                        id: liftedName
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Math.min(implicitWidth, lifted.song?.artist ? liftedLine.width * 0.62 : liftedLine.width)
+                        text: lifted.song?.title ?? ""
+                        font.pixelSize: Theme.captionSize
+                        font.weight: reorder.from === Mpd.songPos ? Font.DemiBold : Font.Normal
+                        opacity: reorder.from === Mpd.songPos ? 1 : 0.8
+                        elide: Text.ElideRight
+                    }
+
+                    PopupText {
+                        anchors.left: liftedName.right
+                        anchors.leftMargin: 6
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: lifted.song?.artist ?? ""
+                        font.pixelSize: Theme.captionSize
+                        opacity: 0.45
+                        elide: Text.ElideRight
+                    }
+                }
+
+                PopupText {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 6
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Mpd.clock(lifted.song?.duration ?? 0)
+                    font.pixelSize: Theme.footnoteSize
+                    opacity: 0.4
+                }
+            }
         }
 
         delegate: PopupRow {
@@ -558,10 +758,18 @@ Popup {
 
             width: ListView.view.width
             height: root.rowHeight
+            opacity: reorder.showing && row.index === reorder.from ? 0 : 1
+            transform: Translate {
+                y: !reorder.showing ? 0 : row.index > reorder.from && row.index <= reorder.to ? -root.rowHeight : row.index < reorder.from && row.index >= reorder.to ? root.rowHeight : 0
 
-            // Anywhere on the row plays it, except the controls at its end —
-            // they take the press off it rather than letting both happen.
-            onTapped: Mpd.playAt(row.modelData.pos)
+                Behavior on y {
+                    enabled: reorder.showing
+                    NumberAnimation {
+                        duration: Theme.revealMs
+                        easing.type: Easing.OutCubic
+                    }
+                }
+            }
 
             // The queue position, except on the song that is playing — there
             // the number is the one thing you already know, and the state icon
@@ -620,17 +828,13 @@ Popup {
                 }
             }
 
-            // The song's length, and the things that can be done to it where it
-            // sits: one is worth reading down the column, the other is only ever
-            // about the row under the pointer, so they take turns in a space
-            // wide enough for both. Fixed width, so the titles beside them do
-            // not shift along as the pointer goes down the list.
+            // The duration gives way to remove on hover without shifting titles.
             Item {
                 id: tail
 
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: root.buttonWidth * 3
+                width: root.queueTailWidth
                 height: parent.height
 
                 PopupText {
@@ -643,44 +847,13 @@ Popup {
                     opacity: 0.4
                 }
 
-                Row {
-                    anchors.fill: parent
-                    spacing: 0
+                PopupButton {
+                    anchors.right: parent.right
+                    width: root.buttonWidth
+                    height: root.rowHeight
                     visible: row.hovered
-
-                    Repeater {
-                        model: [
-                            {
-                                glyph: Theme.glyph.queueUp,
-                                live: row.index > 0,
-                                act: () => Mpd.moveTo(row.modelData.pos, row.modelData.pos - 1)
-                            },
-                            {
-                                glyph: Theme.glyph.queueDown,
-                                live: row.index < list.count - 1,
-                                act: () => Mpd.moveTo(row.modelData.pos, row.modelData.pos + 1)
-                            },
-                            {
-                                glyph: Theme.glyph.queueRemove,
-                                live: true,
-                                act: () => Mpd.removeAt(row.modelData.pos)
-                            }
-                        ]
-
-                        // Nothing to move past at the ends of the queue: the
-                        // control stays where it is and goes quiet, rather
-                        // than the row's three buttons becoming two and the
-                        // rest sliding over.
-                        delegate: PopupButton {
-                            required property var modelData
-
-                            width: root.buttonWidth
-                            height: root.rowHeight
-                            glyph: modelData.glyph
-                            live: modelData.live
-                            onTapped: modelData.act()
-                        }
-                    }
+                    glyph: Theme.glyph.queueRemove
+                    onTapped: Mpd.removeAt(row.modelData.pos)
                 }
             }
         }
