@@ -80,6 +80,8 @@ BarItem {
     // the last value after.
     property string shownLabel: ""
     property string shownCover: ""
+    property string outgoingLabel: ""
+    property real titleMix: 1
 
     // The track's colour, taken off the sleeve the way Apple Music tints what
     // is playing: the record's most vivid colour, lifted to read on dark
@@ -119,21 +121,34 @@ BarItem {
         }
     }
 
-    // A new track is not swapped in under the eye: title and sleeve dip out
-    // together, change while they cannot be seen, and come back as the pill
-    // runs to the new title's width.
+    // The sleeve changes while faded out; the titles overlap as the pill
+    // springs to the arriving title's width.
     function follow() {
         if (!Mpd.loaded || (Mpd.label === root.shownLabel && Mpd.cover === root.shownCover))
             return;
         if (root.settled) {
             swap.restart();
         } else {
+            titleFade.stop();
+            root.outgoingLabel = "";
+            root.titleMix = 1;
             root.shownLabel = Mpd.label;
             root.shownCover = Mpd.cover;
         }
     }
 
     property real swapOpacity: 1
+
+    NumberAnimation {
+        id: titleFade
+        target: root
+        property: "titleMix"
+        from: 0
+        to: 1
+        duration: Theme.foldMs
+        easing.type: Easing.InOutCubic
+        onFinished: root.outgoingLabel = ""
+    }
 
     SequentialAnimation {
         id: swap
@@ -149,7 +164,15 @@ BarItem {
             script: {
                 if (!Mpd.loaded)
                     return;
-                root.shownLabel = Mpd.label;
+                if (root.shownLabel !== Mpd.label) {
+                    titleFade.stop();
+                    root.outgoingLabel = root.shownLabel;
+                    root.shownLabel = Mpd.label;
+                    if (root.outgoingLabel)
+                        titleFade.restart();
+                    else
+                        root.titleMix = 1;
+                }
                 root.shownCover = Mpd.cover;
             }
         }
@@ -250,32 +273,18 @@ BarItem {
         }
     }
 
-    // The sleeve and the title, which change together with the track.
-    //
-    // The swap is a blur-replace, the way the Dynamic Island changes what it
-    // shows: going, they soften, shrink a touch and fade; coming, the reverse.
-    // Blurred through a layer only while it runs, so the pill at rest is
-    // drawn as it always was.
+    // The sleeve blurs and fades through its swap; the title crossfades
+    // separately so the width's rebound never blanks the whole row.
     RowLayout {
         Layout.fillHeight: true
         // The sleeve brings the gap after it, so the two come and go together.
         spacing: 0
-        opacity: root.swapOpacity
-        scale: 0.92 + 0.08 * root.swapOpacity
 
-        layer.enabled: root.swapOpacity < 1
-        layer.effect: MultiEffect {
-            blurEnabled: true
-            blurMax: 12
-            blur: 1 - root.swapOpacity
-        }
-
-        // With another module's popup up, arriving on the title opens this
+        // With another module's popup up, resting on the title opens this
         // one in its place. BarItem browses only for a module whose whole box
         // is the popup's button, which this one's is not, so the title does it.
         HoverHandler {
-            onHoveredChanged: if (hovered)
-                OpenPopup.browse(root)
+            onHoveredChanged: OpenPopup.browse(root, hovered)
         }
 
         // The sleeve, as the title's own icon and the pill's play button. It
@@ -302,6 +311,15 @@ BarItem {
             Layout.fillHeight: true
             implicitWidth: size + Theme.mediaGap
             transform: Translate { y: playTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
+            opacity: root.swapOpacity
+            scale: 0.92 + 0.08 * root.swapOpacity
+            layer.enabled: root.swapOpacity < 1
+            layer.smooth: true
+            layer.effect: MultiEffect {
+                blurEnabled: true
+                blurMax: 12
+                blur: 1 - root.swapOpacity
+            }
 
             TapHandler {
                 id: playTap
@@ -356,13 +374,29 @@ BarItem {
 
         // The title's room, which is what sizes the pill: it springs to the
         // new title's width rather than jumping there, and the glass drawn off
-        // the pill goes with it. Clipped only on the way.
+        // the pill goes with it. The title can enter the end's padding, but
+        // stays inside the curve and clear of the next control.
         //
         // And the popup's button, which presses in by itself.
         Item {
+            id: titleRoom
+
+            // The cap's horizontal room at the text's height, inside the track.
+            // A little vertical air also covers hinted strokes and descenders.
+            readonly property real endRoom: Math.max(0, root.padRight - Theme.pillTrack - Theme.pillRadius
+                + Math.sqrt(Math.max(0, Theme.pillRadius * Theme.pillRadius - Math.pow((title.fontSize + 4) / 2, 2))))
+            readonly property real availableWidth: width + Math.min(endRoom,
+                Theme.mediaGap + Math.max(0, endRoom - nextRoom.width))
+            property real playbackOpacity: Mpd.state === "play" ? 1 : Theme.dimOpacity
+
+            Behavior on playbackOpacity {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
+
             Layout.fillHeight: true
             implicitWidth: title.implicitWidth
-            clip: width !== title.implicitWidth
             transform: Translate { y: popupTap.pressed ? Theme.pressDip : 0 }
 
             TapHandler {
@@ -375,7 +409,8 @@ BarItem {
                 enabled: root.settled
                 SpringAnimation {
                     spring: Theme.springStiffness
-                    damping: Theme.springDamping
+                    // Give the second rebound enough travel to read as a bounce.
+                    damping: 0.14
                     epsilon: 0.25
                 }
             }
@@ -383,24 +418,32 @@ BarItem {
             BarText {
                 id: title
 
+                width: Math.min(implicitWidth, titleRoom.availableWidth)
                 height: parent.height
+                clip: true
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
                 // Paused is the title gone quiet rather than a second icon
                 // saying so: an icon that only reports would be the one thing
                 // in the pill that cannot be pressed.
-                opacity: Mpd.state === "play" ? 1 : Theme.dimOpacity
+                opacity: titleRoom.playbackOpacity * root.titleMix
+            }
 
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.fadeMs
-                    }
-                }
+            BarText {
+                width: Math.min(implicitWidth, titleRoom.availableWidth)
+                height: parent.height
+                clip: true
+                text: root.outgoingLabel
+                maxWidth: Theme.mediaTitleWidth
+                visible: root.titleMix < 1 && text !== ""
+                opacity: titleRoom.playbackOpacity * (1 - root.titleMix)
             }
         }
     }
 
     Item {
+        id: nextRoom
+
         readonly property real full: Theme.mediaGap + next.implicitWidth
 
         Layout.fillHeight: true

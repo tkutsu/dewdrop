@@ -12,13 +12,10 @@ Singleton {
     id: root
 
     property Item owner: null
-
-    // Whether the popup now up took over from another one rather than opening
-    // from nothing. The Mac draws a menu that the pointer slid across to at
-    // once, without the reveal it gave the first: that one was the answer to
-    // a click, and the rest are the same menu bar being browsed. Read by
-    // components/Popup.qml as the new popup comes up.
     property bool switched: false
+    property int browseDelayMs: 300
+    property Item _pending: null
+    onOwnerChanged: root.cancelBrowse()
 
     // Layer surfaces hear nothing of clicks in other windows, so Hyprland
     // tells us: a non-consuming bind in hypr/configs/keybinds.lua emits
@@ -36,31 +33,57 @@ Singleton {
         }
     }
 
-    function set(item: Item, handover: bool): void {
-        root.switched = handover;
+    function set(item: Item): void {
+        root.switched = root.owner !== null && item !== null && root.owner !== item;
+        root.cancelBrowse();
         root.owner = item;
     }
 
     function toggle(item: Item): void {
-        root.set(root.owner === item ? null : item, false);
+        root.set(root.owner === item ? null : item);
     }
 
-    // The pointer has arrived on `item`, which can open a popup of its own.
-    // Once one popup is up the bar is being browsed rather than passed over,
-    // so the popup follows the pointer, the way a menu bar's menus do after
-    // the first click. With nothing up, a hover is only a hover.
-    function browse(item: Item): void {
-        if (root.owner !== null && root.owner !== item)
-            root.set(item, true);
+    // Browse only after resting on another popup's button. Leaving cancels
+    // that button's request; entering another one starts a fresh wait.
+    // With nothing open, hovering still only shows a tooltip.
+    function browse(item: Item, hovered: bool): void {
+        if (!hovered) {
+            if (root._pending === item)
+                root.cancelBrowse();
+            return;
+        }
+        root.cancelBrowse();
+        if (root.owner === null || root.owner === item)
+            return;
+        root._pending = item;
+        browseDelay.restart();
+    }
+
+    function cancelBrowse(): void {
+        browseDelay.stop();
+        root._pending = null;
+    }
+
+    Timer {
+        id: browseDelay
+        interval: root.browseDelayMs
+        onTriggered: {
+            if (root.owner !== null && root._pending !== null)
+                root.set(root._pending);
+            else
+                root.cancelBrowse();
+        }
     }
 
     function close(item: Item): void {
+        if (root._pending === item)
+            root.cancelBrowse();
         if (root.owner === item)
-            root.set(null, false);
+            root.set(null);
     }
 
     // Whichever is up: for a button in a popup that sends you somewhere else.
     function dismiss(): void {
-        root.set(null, false);
+        root.set(null);
     }
 }

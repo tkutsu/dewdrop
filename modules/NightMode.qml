@@ -12,9 +12,17 @@ BarItem {
     // On is a state worth seeing; off is the screen as it always is.
     quiet: !NightMode.on
 
-    Glyph {
+    // Reserve one icon slot so the narrower dim bulb cannot resize the bar.
+    Item {
         Layout.fillHeight: true
-        text: NightMode.icon
+        implicitWidth: Theme.glyphSize - 2
+
+        Glyph {
+            x: Math.round((parent.width - width) / 2)
+            height: parent.height
+            text: NightMode.icon
+            nudge: -1
+        }
     }
 
     actions: ({

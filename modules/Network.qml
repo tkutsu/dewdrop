@@ -37,13 +37,14 @@ BarItem {
     // height stands well in from the ink box, and at the full gap it read as
     // set apart from both neighbours. Kept from the tray, which measured it.
     readonly property bool cone: !Network.wiredUp
-    Layout.leftMargin: Theme.gap - (cone ? 1 : 0)
+    Layout.leftMargin: cone ? -1 : 0
     Layout.rightMargin: cone ? -1 : 0
 
     Glyph {
         Layout.fillHeight: true
         text: Network.icon
         fontSize: Theme.trayGlyphSize
+        nudge: root.cone ? -1 : 0
     }
 
     // Left is the popup (BarItem.popupButton).

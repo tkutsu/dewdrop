@@ -13,7 +13,7 @@ BarItem {
     BarText {
         Layout.fillHeight: true
         text: Keyboard.short
-        fontSize: Theme.labelSize
+        fontSize: Theme.languageTextSize
         // Two capitals in a row of glyphs: centred on their ink like the
         // glyphs, not on a cap height the glyphs do not have.
         opticalCentre: true

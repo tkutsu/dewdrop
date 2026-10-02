@@ -123,7 +123,8 @@ BarItem {
                 height: parent.height
                 visible: !!entry.glyph
                 text: entry.glyph
-                fontSize: Theme.trayGlyphSize
+                fontSize: Theme.trayGlyphSize - (entry.glyph === Theme.glyph.vpn || entry.glyph === Theme.glyph.vpnOff ? 1 : 0)
+                nudge: entry.glyph === Theme.glyph.vpn || entry.glyph === Theme.glyph.vpnOff ? -1 : 0
                 transform: Translate {
                     y: entry.shift
                 }
@@ -147,9 +148,9 @@ BarItem {
             // would have opened one doing nothing.
             readonly property var toggleMenu: modelData.hasMenu ? () => OpenPopup.toggle(entry) : null
 
-            // Out halfway across the gap either side, as a module's own hit
-            // area is (BarItem._reach): the gap between two tray icons is
-            // split between them rather than clicking on nothing.
+            // Cover half the gap either side, like a module's own padding:
+            // the gap between two tray icons is split between them rather
+            // than clicking on nothing.
             ClickArea {
                 id: pointer
                 anchors.fill: parent
@@ -158,8 +159,8 @@ BarItem {
                 hoverEnabled: true
                 cursorShape: Qt.ArrowCursor
 
-                onContainsMouseChanged: if (containsMouse && entry.modelData.hasMenu)
-                    OpenPopup.browse(entry)
+                onContainsMouseChanged: if (entry.modelData.hasMenu)
+                    OpenPopup.browse(entry, containsMouse)
 
                 // Right is the menu. An item that is nothing but its menu has
                 // no useful activate(), so on one of those every button is.

@@ -30,6 +30,8 @@ Item {
     // cannot drift apart.
     property int side: Pill.Side.Centre
 
+    readonly property int moduleGap: Theme.gap + (side === Pill.Side.Right ? 3 : 0)
+
     // How far short of its side the pill stops. Zero for the three that back
     // onto a screen edge or the centre line; the ones either side of the clock
     // float clear of their edge, which is also what stops them claiming a
@@ -59,6 +61,9 @@ Item {
     // The colour of that line: white, or whatever colour the thing it
     // measures has of its own (the music pill's sleeve).
     property color trackColor: Theme.fg
+
+    // Keep the path and its faint remainder aligned as the line thickens.
+    property real trackWidth: Theme.pillTrack
 
     // Whether the pill draws its own slab. Not for the ones around the clock,
     // whose glass is drawn for all of them at once by the bar (Liquid.qml) so
@@ -102,13 +107,13 @@ Item {
     // outside of it. Half a pixel of bleed covers the fringe and costs no
     // height — it is inside the margin the pill already claims.
     readonly property real trackBleed: 0.5
-    readonly property real trackInset: Theme.pillTrack / 2 - trackBleed
+    readonly property real trackInset: root.trackWidth / 2 - trackBleed
     // Except along the foot, where the bar's surface ends on the slab's edge
     // and anything past it is cut: the bleed there was cut with it, and left
     // the line a pixel wide along the bottom and half again that along the
     // top. There is no fringe for it to cover at a cut edge, so the line
     // stands wholly inside instead.
-    readonly property real trackFootInset: Theme.pillTrack / 2
+    readonly property real trackFootInset: root.trackWidth / 2
     // The slab's own corner, brought in by the path's insets so the line
     // stays concentric with the edge it stands inside: by the mean of the two,
     // top and foot, which on fully round ends is the circle through both.
@@ -290,8 +295,8 @@ Item {
             y: track.room - root.trackBleed
             width: slab.width + 2 * root.trackBleed
             height: slab.height + root.trackBleed
-            radius: root.trackRadius + Theme.pillTrack / 2
-            lineWidth: Theme.pillTrack
+            radius: root.trackRadius + root.trackWidth / 2
+            lineWidth: root.trackWidth
             topColor: Qt.rgba(root.trackColor.r, root.trackColor.g, root.trackColor.b, Theme.pillTrackRest)
             bottomColor: topColor
         }
@@ -308,18 +313,15 @@ Item {
 
             ShapePath {
                 strokeColor: root.trackColor
-                strokeWidth: Theme.pillTrack
+                strokeWidth: root.trackWidth
                 fillColor: "transparent"
-                // Square ends, so the lit part stops exactly where the track has
-                // got to rather than half a stroke past it. Round ones were tried
-                // (2026-09-28): at 1.5px a round cap is a 0.75px half-disc, and
-                // antialiased it draws the same pixels as a square one.
-                capStyle: ShapePath.FlatCap
+                // Rounded tips stay smooth as the line thickens on hover.
+                capStyle: ShapePath.RoundCap
                 strokeStyle: root.lit >= root.trackLength ? ShapePath.SolidLine : ShapePath.DashLine
                 // In multiples of the stroke width, which is what a dash pattern
                 // is measured in. Never zero: a zero-length gap is not a dash
                 // pattern Qt will draw.
-                dashPattern: [Math.max(0.001, root.lit / Theme.pillTrack), Math.max(0.001, (root.trackLength - root.lit) / Theme.pillTrack)]
+                dashPattern: [Math.max(0.001, root.lit / root.trackWidth), Math.max(0.001, (root.trackLength - root.lit) / root.trackWidth)]
 
                 // Nine o'clock, and clockwise from there: up the left edge and
                 // round its corner, along the top, down the right edge, back along
@@ -381,10 +383,10 @@ Item {
         }
     }
 
-    // No spacing of the row's own: each module brings the gap in front of it
-    // (BarItem.lead), which is what lets a module folding into the right
-    // pill's drawer take its gap with it. A row's spacing is fixed for every
-    // visible item, and cancelling it with a negative margin does not work —
+    // No spacing of the row's own: each module carries half the gap to its
+    // neighbours as padding, so folding takes that padding with it. A row's
+    // spacing is fixed for every visible item, and cancelling it with a
+    // negative margin does not work —
     // RowLayout clamps a cell at zero width, so a folding module kept its
     // whole gap until its width outgrew it, and the pill jumped by a gap per
     // module at the start of the fold and again at the end.
@@ -395,8 +397,7 @@ Item {
         opacity: root.contentOpacity
     }
 
-    // The first module has nothing in front of it to keep a gap from, and
-    // the last nothing after it to reach halfway across to.
+    // The first and last modules have no neighbour on their outer side.
     Binding {
         target: root._shown[0] ?? null
         property: "lead"

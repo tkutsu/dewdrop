@@ -19,27 +19,18 @@ Popup {
         PopupButton {
             framed: true
             lit: NightMode.on
-            glyph: Theme.glyph.nightOn
+            glyph: NightMode.on ? Theme.glyph.check : ""
             label: "night mode"
             onTapped: NightMode.toggle()
         }
     }
 
-    // The sun, the track and the figure, on the audio popup's grid.
+    // The brightness track and percentage.
     Row {
         id: row
 
         leftPadding: 8
         spacing: 10
-
-        Glyph {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Theme.popupTextSize + 2
-            height: Theme.popupTextSize + 4
-            tightWidth: false
-            text: Theme.glyph.nightOff
-            fontSize: Theme.popupTextSize
-        }
 
         Slider {
             anchors.verticalCenter: parent.verticalCenter

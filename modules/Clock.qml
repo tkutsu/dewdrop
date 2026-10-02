@@ -12,19 +12,14 @@ BarItem {
 
     popup: Calendar {}
 
-    // The dot is a separator inside the clock, not a module of its own, so the
-    // two parts sit half a gap apart and read as one thing. The margins go on
-    // the labels either side rather than on the dot: a RowLayout clamps a cell
-    // to zero width once its margins outweigh it, and at 3px wide the dot loses
-    // that argument — it ends up shoved left with a full gap still on its right.
-    readonly property int dotGap: -Math.round(Theme.gap / 2)
+    // Each label claims half the row spacing next to the centre anchor.
+    readonly property int centreMargin: -Math.round(Theme.gap / 2)
 
     // The point the bar centres on. Both labels change width — the day number
     // carries one digit or two, and no two month or weekday names are the same
     // length — so centring the module as a whole would leave the clock creeping
-    // left and right under it. The dot never changes width, so pinning that
-    // instead holds the whole thing still.
-    readonly property alias centreItem: dot
+    // left and right under it. Pinning the gap between them keeps it still.
+    readonly property alias centreItem: centreGap
 
     // Up is the next month and down the one before, the way round every
     // wheel on the bar goes.
@@ -47,35 +42,31 @@ BarItem {
     }
 
     // Which day, then what time — two facts rather than three, so the weekday
-    // and the date are one label with a word space between them and the dot has
-    // only the one joint to mark. standalone names rather than dayName/monthName
+    // and the date are one label with a word space between them.
+    // standalone names rather than dayName/monthName
     // or the "MMM" of formatDateTime: a label on its own wants the nominative,
     // which only shows in a locale that inflects (the calendar header makes the
     // same call for its own title).
     BarText {
         Layout.fillHeight: true
-        Layout.rightMargin: root.dotGap
+        Layout.rightMargin: root.centreMargin
         text: Qt.locale().standaloneDayName(clock.date.getDay(), Locale.ShortFormat) + " " + clock.date.getDate() + " " + Qt.locale().standaloneMonthName(clock.date.getMonth(), Locale.ShortFormat)
     }
 
-    // Its own child rather than punctuation glued to either label, so it takes
-    // the row's spacing on both sides and lands centred between them — at half
-    // that spacing, so the two parts read as one clock rather than as two things
-    // the bar happened to put next to each other. A middle dot is very little
-    // ink, so it goes a size up to carry the same weight as the rest.
-    BarText {
-        id: dot
+    // A zero-width anchor keeps the date/time gap centred without punctuation.
+    Item {
+        id: centreGap
 
         Layout.fillHeight: true
-        fontSize: Theme.textSize + 1
-        text: "\u00b7"
+        Layout.preferredWidth: 0
+        Layout.maximumWidth: 0
     }
 
     // The time rolls to its next minute the way a timer's figures do
     // (RollingText), and only the figures that change move.
     RollingText {
         Layout.fillHeight: true
-        Layout.leftMargin: root.dotGap
+        Layout.leftMargin: root.centreMargin
         text: Qt.formatDateTime(clock.date, Settings.timeFormat)
     }
 

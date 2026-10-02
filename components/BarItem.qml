@@ -3,16 +3,14 @@ import QtQuick.Layouts
 import qs
 
 // The per-module shell: pointer handling, scroll accumulation and the hover
-// popup. Spacing is not its business — the bar's rows space their children
-// uniformly, so a module is exactly as wide as what it draws. What a click
-// does is the module's `actions`, a table from button to what it runs (see
-// ClickArea).
+// popup. Each module carries half the gap to its neighbours as clickable
+// padding. What a click does is the module's `actions`, a table from button
+// to what it runs (see ClickArea).
 ClickArea {
     id: root
 
     default property alias content: layout.data
-    // Modules are spaced by the pill they sit in; this is for the one whose
-    // own contents are a group rather than a row of separate things.
+    // Spacing within a module whose contents are a group.
     property alias spacing: layout.spacing
 
     // Text for a plain hover tooltip, or a Component for something richer — a
@@ -38,13 +36,13 @@ ClickArea {
         OpenPopup.toggle(root);
     }
 
-    // With another module's popup up, arriving here opens this one in its
+    // With another module's popup up, resting here opens this one in its
     // place (OpenPopup.browse). Only where the whole module is the popup's
     // button: Music's popup belongs to its title, which browses for itself,
     // and the rest of it is controls that a pointer on its way to them
     // should not open anything.
-    onContainsMouseChanged: if (containsMouse && popup !== null && popupButton !== Qt.NoButton)
-        OpenPopup.browse(root)
+    onContainsMouseChanged: if (popup !== null && popupButton !== Qt.NoButton)
+        OpenPopup.browse(root, containsMouse)
 
     // Fitts's law: the modules at the ends of the bar back onto a screen edge,
     // which makes them the cheapest targets on screen — but only if their hit
@@ -101,24 +99,30 @@ ClickArea {
     property bool stowed: false
 
     // How far out of the drawer the module is, 0..1. It folds to nothing
-    // rather than blinking out: its width goes, and so does the gap in front
-    // of it, which the row would otherwise go on reserving for an item of no
-    // width. The contents keep their size and slide under the module's left
+    // rather than blinking out: its width and gap padding go together.
+    // The contents keep their size and slide under the module's left
     // edge as it closes, so it reads as being drawn in behind its neighbour
     // rather than as squashed.
     //
-    // A module that folds runs it on a spring (Theme.foldSpring), held to
-    // 0..1: the module lands at its own width and stays there while the
-    // spring carries on past it, and at nothing while it carries on past
-    // shut. Each module rounds its width to a pixel (see below), and ten of
-    // them settling back through the same rounding at once moved the pill's
-    // edge in jumps of several pixels. What is outside 0..1 goes to the pill
-    // instead, as one amount (overrun).
-    readonly property real reveal: folds ? Math.min(1, Math.max(0, _sprung)) : _eased
+    // Once the spring first reaches its destination, keep the module there
+    // for the rest of the settling. Otherwise each undershoot starts folding
+    // and clipping an open icon again, or briefly reveals a closed one.
+    // All the remaining spring motion goes to the pill's glass (overrun).
+    property bool _landed: false
+    property bool _initialized: false
+    Component.onCompleted: {
+        _initialized = true;
+        _landed = stowed ? _sprung <= 0 : _sprung >= 1;
+    }
+    onStowedChanged: _landed = false
+    on_SprungChanged: if (_initialized && (stowed ? _sprung <= 0 : _sprung >= 1))
+        _landed = true
+
+    readonly property real reveal: folds ? (_landed ? (stowed ? 0 : 1) : Math.min(1, Math.max(0, _sprung))) : _eased
     // How far past its full width the spring has carried the module, in
     // pixels, or past nothing as a negative: for the pill's glass to run on
     // or squeeze in by (Pill.stretch).
-    readonly property real overrun: folds ? (_sprung - reveal) * (layout.implicitWidth + padLeft + padRight + (lead ? Theme.gap : 0)) : 0
+    readonly property real overrun: folds ? (_sprung - reveal) * _fullWidth : 0
 
     property real _sprung: stowed ? 0 : 1
     Behavior on _sprung {
@@ -168,25 +172,15 @@ ClickArea {
 
     visible: here && reveal > 0
     clip: _fold < 1
-    // Whether a gap goes in front of this module: yes, unless it is the first
-    // in its pill (Pill sets that). The gap folds with the module, so a module
-    // going into the drawer takes its share of the row with it.
-    //
-    // Rounded to the nearest pixel here, the width below too, because the
-    // layout would otherwise round them up: a module a hundredth of the way
-    // out of the drawer was given a whole pixel of width and another of gap,
-    // and seven of them together made the pill jump fifteen pixels on the
-    // first frame of the fold and again on the last.
-    //
-    // But rounded all alike, the modules folding together take their pixels
-    // on the same frame: every gap is the same width, so ten of them went
-    // from one pixel to the next at once and the drawer moved in lurches of
-    // ten. Mid-fold, each module rounds a different fraction of the way
-    // between two pixels (_dither, spread by the golden ratio by its place in
-    // the row), so they take their pixels in turn and the pill's edge moves
-    // a pixel or two at a time. At rest it is nought and nothing moves.
-    // Gap and width are rounded as one, for the same reason.
+    // Half the gap on each side with a neighbour. Pill turns these off at
+    // the row's ends, where padLeft/padRight carry the pill's padding instead.
     property bool lead: true
+    property bool trail: true
+    readonly property int _moduleGap: parent?.parent?.moduleGap ?? Theme.gap
+    // Split odd gaps asymmetrically to keep settled content on whole pixels.
+    readonly property real _leftGap: lead ? Math.floor(_moduleGap / 2) : 0
+    readonly property real _rightGap: trail ? Math.ceil(_moduleGap / 2) : 0
+    readonly property real _fullWidth: layout.implicitWidth + padLeft + padRight + _leftGap + _rightGap
 
     // How far the pill has pushed this module along, drawn only, while its
     // glass runs past or is squeezed in (Pill.stretch).
@@ -195,21 +189,10 @@ ClickArea {
         x: root.shift
     }
 
+    // Round content and padding together. Stagger the rounding across modules
+    // so a fold does not move every module's edge by a pixel on the same frame.
     readonly property real _dither: _fold > 0 && _fold < 1 ? ((parent?.children.indexOf(root) ?? -1) + 1) * 0.618034 % 1 - 0.5 : 0
-    readonly property int _gap: lead ? Math.round(Theme.gap * _fold + _dither) : 0
-    Layout.leftMargin: _gap
-    // Whether a module follows this one: yes, unless it is the last in its
-    // pill (Pill sets that too), whose padding runs out to the pill's end
-    // instead.
-    property bool trail: true
-
-    // How far past its box the module answers on a side with a neighbour:
-    // halfway across the gap, so the gap between two icons is split down the
-    // middle rather than a dead strip that clicks on nothing. The neighbour
-    // takes the other half. Folds with the gap it reaches into.
-    readonly property real _reach: Theme.gap * _fold / 2
-
-    implicitWidth: Math.round((layout.implicitWidth + padLeft + padRight + (lead ? Theme.gap : 0)) * _fold + _dither) - _gap
+    implicitWidth: Math.round(_fullWidth * _fold + _dither)
     implicitHeight: Theme.barHeight
     Layout.fillHeight: true
 
@@ -218,16 +201,15 @@ ClickArea {
     cursorShape: Qt.ArrowCursor
     containmentMask: reach
 
-    // The module answers for half the gap either side of it (_reach), and
-    // for its contents' badges as well: a count badge hangs out past the
-    // module's box, over the gap to the next one (BadgedGlyph), and a click
-    // on it is a click on the icon. Hover, the wheel and every button, here
-    // and on the layers above.
+    // The box includes the gap padding. Also answer for badges that extend
+    // past it: a count badge can hang over the next module (BadgedGlyph).
+    // A click on it is a click on the icon, for hover, the wheel and every
+    // button, here and on the layers above.
     QtObject {
         id: reach
 
         function contains(point: point): bool {
-            if (point.x >= span.x && point.y >= 0 && point.x < span.x + span.width && point.y < root.height)
+            if (point.x >= 0 && point.y >= 0 && point.x < root.width && point.y < root.height)
                 return true;
             for (const item of layout.children)
                 for (const part of item.children)
@@ -237,25 +219,19 @@ ClickArea {
         }
     }
 
-    // The box plus that half gap either side, as an item rather than only as
-    // the mask: Qt looks for a child under the pointer only inside its
-    // parent's box and its children's boxes, and asks no mask about that. With
-    // the reach in the mask alone, a click in the gap stopped at the module
-    // and never got to the pin or the popup's button, which fill this.
+    // Include badge overhang in the popup and pin buttons' boxes too. A mask
+    // alone cannot route a click to a child whose box ends before the badge.
     Item {
         id: span
-        x: root.lead ? -root._reach : 0
-        width: root.width - x + (root.trail ? root._reach : 0)
-        height: root.height
-    }
-
-    // The reach again, for the layers over the span: their x is span's.
-    QtObject {
-        id: spanReach
-
-        function contains(point: point): bool {
-            return reach.contains(Qt.point(point.x + span.x, point.y));
+        width: {
+            let right = root.width;
+            for (const item of layout.children)
+                for (const part of item.children)
+                    if (part instanceof Badge && part.visible)
+                        right = Math.max(right, layout.x + item.x + part.x + part.width);
+            return right;
         }
+        height: root.height
     }
 
     // Pinned to the right and at its own width rather than filling the
@@ -266,7 +242,7 @@ ClickArea {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.rightMargin: root.padRight
+        anchors.rightMargin: root.padRight + root._rightGap
         width: implicitWidth
         // On the contents rather than the module, which several modules set
         // an opacity of their own on to say they are still loading. In step
@@ -321,7 +297,7 @@ ClickArea {
     ClickArea {
         id: pin
         anchors.fill: span
-        containmentMask: spanReach
+        containmentMask: reach
         enabled: root.pinKey !== ""
         acceptedButtons: Qt.MiddleButton
         cursorShape: Qt.ArrowCursor
@@ -334,7 +310,7 @@ ClickArea {
     ClickArea {
         id: opener
         anchors.fill: span
-        containmentMask: spanReach
+        containmentMask: reach
         enabled: root.popup !== null && root.popupButton !== Qt.NoButton
         acceptedButtons: root.popupButton
         cursorShape: Qt.ArrowCursor

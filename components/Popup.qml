@@ -16,6 +16,9 @@ PopupWindow {
     // Not `required`: the loaders that create these set it immediately after
     // construction, and a required property warns on every instantiation.
     property Item anchorItem
+    // Keep keyboard entry available for the weather location search.
+    property bool acceptsKeyboard: false
+    grabFocus: root.acceptsKeyboard
     property real padding: 6
     // A popover's corner by default; the menus round themselves tighter.
     property int radius: Theme.popupRadius
@@ -136,30 +139,26 @@ PopupWindow {
         root.heldUntil = Date.now() + ms;
     }
 
-    // A popover grows out of the pill that opened it, the way the Mac's come
-    // out of their anchor, rather than being there whole on the next frame.
-    // Scale alone: Hyprland fades the surface in (fadePopupsIn in
-    // hypr/configs/animation.lua), and fades the blur with it, which an
-    // opacity here would drop out halfway at the 0.3 alpha floor.
-    //
-    // Off for a tooltip and a menu, which the Mac draws flat, and skipped for
-    // a popup the pointer slid across to from another (OpenPopup.switched).
-    property bool grows: true
-    // How far in the box starts. Enough to read as coming from the pill,
-    // not so much that a wide popup visibly travels.
-    readonly property real growFrom: 0.94
-    property real grown: 1
+    // Hyprland fades the surface and its blur together. Keep the extra slide
+    // opt-in: the basic Qt render loop steps it at 60 Hz even on a 120 Hz screen.
+    property bool grows: false
+    readonly property real settleDistance: 2
+    property real revealProgress: 1
 
-    onVisibleChanged: if (visible && grows && !OpenPopup.switched)
-        growIn.restart()
+    onVisibleChanged: {
+        settleIn.stop();
+        root.revealProgress = 1;
+        if (visible && grows && !OpenPopup.switched)
+            settleIn.restart();
+    }
 
     NumberAnimation {
-        id: growIn
+        id: settleIn
         target: root
-        property: "grown"
+        property: "revealProgress"
         from: 0
         to: 1
-        duration: Theme.revealMs
+        duration: 180
         easing.type: Easing.OutCubic
     }
 
@@ -187,20 +186,12 @@ PopupWindow {
             id: pointer
         }
 
-        // The box and its shadow, grown together from the middle of the
-        // box's top edge: the point right under the pill. Only what is drawn
-        // scales; the reach above keeps its full size, so the pointer is
-        // counted the same from the first frame.
+        // Move only the drawing; keep text at its native size and the hit area fixed.
         Item {
             anchors.fill: parent
 
-            transform: Scale {
-                readonly property real s: root.growFrom + (1 - root.growFrom) * root.grown
-
-                origin.x: chrome.width / 2
-                origin.y: root.shadowTop
-                xScale: s
-                yScale: s
+            transform: Translate {
+                y: -root.settleDistance * (1 - root.revealProgress)
             }
 
             // Under the box rather than round it: the fill is translucent, so

@@ -23,6 +23,7 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: Theme.glyph.wallpaper
+        fontSize: Theme.glyphSize - 2
     }
 
     // Singletons are built on first use, and the boot-time restore lives in

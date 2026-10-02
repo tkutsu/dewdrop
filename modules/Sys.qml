@@ -71,6 +71,9 @@ BarItem {
         implicitWidth: bulb
         implicitHeight: join + bulb
         Layout.alignment: Qt.AlignVCenter
+        transform: Translate {
+            y: -1
+        }
 
         // The tube, open at the bottom: it is drawn long enough to reach into
         // the bulb and clipped at the ring, so it has no bottom edge of its

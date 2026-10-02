@@ -14,6 +14,8 @@ PanelWindow {
 
     required property var modelData
     screen: modelData
+    // Popovers reuse this strip to begin with the pill's clear glass.
+    readonly property Image glassBackdrop: wallpaperImage
 
     // wrules.lua blurs layers by namespace; this needs a matching rule there
     // for the bar to get blurred. The rule ignores anything under 0.3 alpha,
@@ -147,19 +149,18 @@ PanelWindow {
         sourceSize: Qt.size(bar.screen.width, bar.screen.height)
         sourceClipRect: Qt.rect(Math.round((natural.width * cover - bar.screen.width) / 2), Math.round((natural.height * cover - bar.screen.height) / 2 + stripTop), bar.width, bar.height)
 
-        // The same strip boiled down to a row of colours, one per
-        // columnWidth pixels across the bar, for what is drawn solid on the
-        // glass (Pill.surface): a badge takes the colour of what is under its
-        // own pill, not the whole wallpaper's, which on a sunset over the sea
-        // put an orange disc on teal glass. Read by magick once per
-        // wallpaper, cut in the image's own pixels so it never scales the
-        // whole thing up to the screen first.
+        // Cache a small colour grid once per wallpaper or screen geometry.
+        // Badges average their icon's region from it as the layout moves;
+        // the column averages keep Pill.surface cheap to read.
         readonly property int columnWidth: 8
+        readonly property int rowHeight: 4
         property var columns: []
+        property var cells: []
 
         function average(from, to) {
-            const first = Math.max(0, Math.floor(from / columnWidth));
-            const last = Math.min(columns.length, Math.ceil(to / columnWidth));
+            const step = width / Math.max(1, columns.length);
+            const first = Math.max(0, Math.floor(from / step));
+            const last = Math.min(columns.length, Math.ceil(to / step));
             let r = 0, g = 0, b = 0;
             for (let i = first; i < last; i++) {
                 r += columns[i].r;
@@ -170,36 +171,85 @@ PanelWindow {
             return Qt.rgba(r / n, g / n, b / n, 1);
         }
 
-        onSourceChanged: {
-            columns = [];
-            if (!source.toString())
-                return;
+        // Weight partial cells so a moving icon changes colour smoothly.
+        function averageRegion(area) {
+            const nx = columns.length, ny = cells.length / nx;
+            if (!nx || !ny)
+                return Theme.backdrop;
+            const dx = width / nx, dy = height / ny;
+            const left = Math.max(0, area.x), right = Math.min(width, area.x + area.width);
+            const top = Math.max(0, area.y), bottom = Math.min(height, area.y + area.height);
+            let r = 0, g = 0, b = 0, weight = 0;
+            for (let y = Math.max(0, Math.floor(top / dy)); y < Math.min(ny, Math.ceil(bottom / dy)); y++) {
+                const h = Math.min(bottom, (y + 1) * dy) - Math.max(top, y * dy);
+                for (let x = Math.max(0, Math.floor(left / dx)); x < Math.min(nx, Math.ceil(right / dx)); x++) {
+                    const w = h * (Math.min(right, (x + 1) * dx) - Math.max(left, x * dx));
+                    const c = cells[y * nx + x];
+                    r += c.r * w;
+                    g += c.g * w;
+                    b += c.b * w;
+                    weight += w;
+                }
+            }
+            return weight > 0 ? Qt.rgba(r / weight, g / weight, b / weight, 1) : Theme.backdrop;
+        }
+
+        readonly property string sampleRequest: {
+            if (!source.toString() || natural.width <= 0 || natural.height <= 0 || width <= 0 || height <= 0)
+                return "";
             const inImage = v => Math.round(v / cover);
             const left = inImage((natural.width * cover - bar.screen.width) / 2);
             const top = inImage((natural.height * cover - bar.screen.height) / 2 + stripTop);
-            stripSample.count = Math.ceil(bar.width / columnWidth);
-            stripSample.exec(["magick", Services.Wallpaper.current + "[0]", "-crop", `${inImage(bar.width)}x${inImage(bar.height)}+${left}+${top}`, "+repage", "-scale", `${stripSample.count}x1!`, "-depth", "8", "txt:-"]);
+            return JSON.stringify([Services.Wallpaper.current, `${Math.max(1, inImage(width))}x${Math.max(1, inImage(height))}+${left}+${top}`, Math.ceil(width / columnWidth), Math.ceil(height / rowHeight)]);
         }
 
-        Process {
+        onSampleRequestChanged: {
+            columns = [];
+            cells = [];
+            // A -> flat colour -> A still needs a fresh sample after clearing.
+            if (!stripSample.running)
+                stripSample.arg = "";
+        }
+
+        QueuedProcess {
             id: stripSample
 
-            property int count: 0
+            want: wallpaperImage.sampleRequest
+            command: {
+                if (!arg)
+                    return [];
+                const [path, crop, nx, ny] = JSON.parse(arg);
+                return ["magick", path + "[0]", "-crop", crop, "+repage", "-scale", `${nx}x${ny}!`, "-depth", "8", "txt:-"];
+            }
 
-            // One "x,y: (…) #RRGGBB …" line per column. A short answer is one
-            // cut off by the next wallpaper's run, and is dropped.
-            stdout: StdioCollector {
-                onStreamFinished: {
-                    const hexes = text.split("\n").filter(line => /^\d+,\d+:/.test(line)).map(line => line.match(/#[0-9A-Fa-f]{6}/)?.[0]);
-                    if (hexes.length === stripSample.count && hexes.every(Boolean))
-                        wallpaperImage.columns = hexes.map(hex => Qt.color(hex));
+            // An answer belongs to its request, even if the wallpaper changed
+            // while magick was still reading the previous one.
+            onResult: (request, text) => {
+                if (request !== want)
+                    return;
+                const [, , nx, ny] = JSON.parse(request);
+                const hexes = text.split("\n").filter(line => /^\d+,\d+:/.test(line)).map(line => line.match(/#[0-9A-Fa-f]{6}/)?.[0]);
+                if (hexes.length !== nx * ny || !hexes.every(Boolean))
+                    return;
+                const cells = hexes.map(hex => Qt.color(hex)), columns = [];
+                for (let x = 0; x < nx; x++) {
+                    let r = 0, g = 0, b = 0;
+                    for (let y = 0; y < ny; y++) {
+                        const c = cells[y * nx + x];
+                        r += c.r;
+                        g += c.g;
+                        b += c.b;
+                    }
+                    columns.push(Qt.rgba(r / ny, g / ny, b / ny, 1));
                 }
+                wallpaperImage.cells = cells;
+                wallpaperImage.columns = columns;
             }
         }
     }
 
-    // The clock's own separating dot is what sits on the centre line, not the
-    // pill around it: the date either side of the dot changes width through the
+    // The clock's date/time gap sits on the centre line, not the
+    // pill around it: the labels either side change width through the
     // week and the month, and centring the pill would have all of it shuffling
     // sideways under a fixed bar.
     // The glass of the clock and of everything that comes and goes beside it,
@@ -242,7 +292,7 @@ PanelWindow {
     // Everything that comes and goes sits either side of the clock, placed off
     // where the clock pill actually ended up rather than given a Side of its
     // own: the centre pill is not where the centre is — it shifts itself so
-    // that the clock's dot lands on the middle of the bar rather than the
+    // that the clock's date/time gap lands on the middle of the bar rather than the
     // pill's own middle (see Pill.centreOn) — and the only honest way to sit
     // beside something that has moved is to read where it ended up. A spread
     // between each pair of neighbours, the same air all the way along.
@@ -415,6 +465,15 @@ PanelWindow {
         rate: music.rate
         trackColor: music.accent
         trackOpacity: contentOpacity
+        trackWidth: music.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
+
+        Behavior on trackWidth {
+            enabled: music.settled
+            NumberAnimation {
+                duration: Theme.foldMs
+                easing.type: Easing.InOutCubic
+            }
+        }
 
         Music {
             id: music
@@ -488,7 +547,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys]
+        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, language]
 
         // The glass running on past the drawer as its spring carries it out,
         // or squeezing in past shut as it carries it in, and first winding up
@@ -567,8 +626,7 @@ PanelWindow {
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
-        // Everything from here on is always shown, so the right end of the
-        // pill stays put however much of the drawer is folded away.
+        // Connectivity and the tray stay visible as the drawer folds away.
         Bluetooth {}
         Network {}
         Tray {
@@ -583,10 +641,17 @@ PanelWindow {
         // shifting the label keeps the module's own width fixed, so nothing
         // moves when the layout changes.
         Language {
-            settingsKey: "language"
+            id: language
+            pinKey: "language"
+            quiet: true
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+            Layout.leftMargin: -1
             Layout.rightMargin: -2
         }
-        LauncherButton {}
+        LauncherButton {
+            Layout.leftMargin: -1
+        }
     }
 
     // A click anywhere on the bar but the right pill puts the drawer away,

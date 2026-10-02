@@ -14,12 +14,11 @@ Singleton {
     // icon into a smudge. Nothing here is allowed to be fractional, and neither
     // is anything derived from it.
     //
-    // macOS's menu bar height (24pt since Big Sur) plus two, for a little
-    // more room around the icons. Even, so an icon centres on whole pixels and
+    // More room around the icons. Even, so an icon centres on whole pixels and
     // the pill's round end is exactly half of it. This is the height of a pill
     // rather than of the bar: the layer surface is barInset taller on each
     // side, and the extra is transparent.
-    readonly property int barHeight: 26
+    readonly property int barHeight: 30
 
     // The bar draws nothing itself; its three groups are three separate pills
     // floating on the wallpaper. This is the air off the screen's side edges,
@@ -29,10 +28,10 @@ Singleton {
     // is what lines a tiled window's side up with the pill above it.
     readonly property int barMargin: 8
 
-    // The air above the pills and below them: three pixels tighter than the sides.
+    // The air above the pills and below them: four pixels tighter than the sides.
     // The air below is partly Hyprland's window gap, which is barMargin, so
     // the bar reserves that much less (Bar.reserved).
-    readonly property int barInset: 5
+    readonly property int barInset: 4
 
     // A pill claims the margin around it as hit area, so a module's box is
     // taller than the slab it is drawn on. Everything centres in its box and
@@ -91,13 +90,8 @@ Singleton {
     // as an uncounted one does. On the 4pt grid with everything else.
     readonly property int gap: 16
 
-    // One workspace and the next, which are not loose modules but the items
-    // of a menu bar: the mark reaches past its workspace by the pill's pad
-    // less its inset, and the gap is twice that, so the mark's edge falls
-    // halfway to the neighbour and the marks of two neighbours would meet
-    // edge to edge. At `gap` the mark stood closer to the next workspace
-    // than to its own.
-    readonly property int workspaceGap: (pillPad - markInset) * 2
+    // Keep workspace groups 2px closer than the gap where their marks meet.
+    readonly property int workspaceGap: (pillPad - markInset) * 2 - 2
 
     // Inside a workspace, its number and window icons sit tighter than that, so
     // the workspace reads as one thing rather than as a run of loose icons.
@@ -167,22 +161,22 @@ Singleton {
     // label beside an icon doesn't outweigh the icon; kept as its own name
     // because it is a different question from the bar's text.
     readonly property int labelSize: 12
+    // Use the icon artwork's target size for the language label's font size.
+    readonly property int languageTextSize: 13
     // The workspace numbers: a step under the clock, so they read as marks
     // on the taskbar rather than as words beside its icons.
     readonly property int workspaceTextSize: 11
+    // A 16px font gives roughly 13px of visible icon artwork; individual
+    // shapes keep the proportions drawn into the font.
     readonly property int glyphSize: 16
     // Glyphs inside a popup, beside its 12px text rather than the bar's.
     readonly property int popupGlyphSize: 14
     readonly property int glyphSizeLarge: 16
-    // The Wi-Fi and Bluetooth glyphs, and anything the tray draws in place of
-    // an app's artwork (they began as stand-ins for nm-applet's). A step under
-    // glyphSize: at 16 the wifi cone was 12px of solid ink with its tip a row
-    // below the Bluetooth and launcher drawings either side of it, and read a
-    // size up from them. At 15 it is 11px and ends on their bottom row.
-    readonly property int trayGlyphSize: 15
+    // Network, Bluetooth and tray stand-ins use the same icon font size.
+    readonly property int trayGlyphSize: 16
     // One size for everything the bar draws from artwork rather than from a
-    // font — the tray and the workspace taskbar. 18 is the box macOS gives a
-    // menu bar item; iconInk decides how much of it the artwork fills.
+    // font — the tray and the workspace taskbar. The 20px ceiling leaves room
+    // for artwork with built-in margins to reach the 13px visible target.
     //
     // It used to be two, 16 here and 13 for the taskbar, because the two sets
     // are drawn to different conventions: a panel icon keeps margin inside its
@@ -190,23 +184,14 @@ Singleton {
     // them visibly different ink. The box is not what decides that any more
     // (see iconInk), so the convention the artwork was drawn to stopped
     // mattering and the second size went with it.
-    readonly property int iconSize: 18
+    readonly property int iconSize: 20
     // How tall an icon's ink should stand in its box, measured rather than
-    // assumed (components/InkProbe.qml). Thirteen pixels of ink in an
-    // eighteen pixel box: level with the bar's 16px glyphs, whose ink comes
-    // out at 12 to 14, and deliberately under every icon the theme ships —
-    // those come in between 0.75 and 0.97 depending on who drew them, and an
-    // app handing the tray one of its own — or a taskbar window icon, which is
-    // an application icon and fills its box outright — can reach the full box.
-    // Setting the line below all of them is what makes a row even: every icon
-    // is pulled down onto it rather than only the ones that overshot, so the
-    // tray and the taskbar each stand at one height instead of at the theme's
-    // spread of them, and both stand at the same one.
-    readonly property real iconInk: 13 / 18
-    // The same for a drawing that stands in a glyph's slot (see Glyph): held
-    // to twelve pixels, between the glyphs' ten and the tray's artwork, so a
-    // row that mixes the two reads as one hand rather than two sizes.
-    readonly property real glyphInk: 0.75
+    // assumed (components/InkProbe.qml). Thirteen pixels of ink in a 20px box
+    // keeps tray and workspace artwork on the same line despite different
+    // margins in the source images.
+    readonly property real iconInk: 13 / 20
+    // Drawings in glyph slots share the artwork's visible target (see Glyph).
+    readonly property real glyphInk: 13 / 20
 
     // The count badge on a module's glyph (BadgedGlyph): unread mail, updates.
     readonly property int badgeSize: 13
@@ -223,7 +208,7 @@ Singleton {
     // shape, and hung on a line of its own from the top of the pill, below
     // the icons' ink and inside the workspace mark.
     readonly property int focusDotSize: 3
-    readonly property real focusDotLine: 19.5
+    readonly property real focusDotLine: 22.5
     // The gap cut out of the icon's artwork round the dot, so the two never
     // touch.
     readonly property real focusDotClearance: 1.5
@@ -446,13 +431,22 @@ Singleton {
     // pill laid over the wallpaper, worked out here rather than left to the
     // compositor. The badge sits over an icon's strokes, and glass would let
     // them up under the number or the pin. It takes the mark's rim as well.
-    // Over the pill the item is on (Pill.surface), so a badge at the teal end
-    // of a sunset is teal; the wallpaper's average outside one.
-    function badgeBg(item) {
+    // A count badge samples the wallpaper under its icon's area. Pin marks
+    // keep the pill's surface; outside a pill, use the wallpaper's average.
+    function badgeBg(item, area) {
         let ground = mix(backdrop, tint, barBg.a);
+        let x = area?.x ?? 0, y = area?.y ?? 0;
         for (let p = item; p; p = p.parent) {
+            // Read the layout positions and BarItem's spring translation:
+            // mapToItem alone would not make these binding dependencies.
+            if (area) {
+                x += p.x + (p.shift ?? 0);
+                y += p.y;
+            }
             if (p.surface !== undefined) {
-                ground = p.surface;
+                ground = area && p.backdrop?.columns?.length
+                    ? glassOver(p.backdrop.averageRegion(Qt.rect(x - p.backdrop.x, y - p.backdrop.y, area.width, area.height)))
+                    : p.surface;
                 break;
             }
         }
@@ -468,13 +462,6 @@ Singleton {
         return mix(Qt.rgba(lift(c.r), lift(c.g), lift(c.b), 1), tint, glassTint);
     }
     readonly property color badgeFg: "white"
-
-    // The ✕ disc on a notification card's corner: a near-black disc,
-    // ringed because it sits half off the card, over whatever is
-    // behind it.
-    readonly property color closeBg: "#262626"
-    readonly property color closeBgHover: "#3a3a3a"
-    readonly property color closeRing: Qt.rgba(1, 1, 1, 0.15)
 
     readonly property color warn: "#ff88aa"
 
@@ -541,22 +528,13 @@ Singleton {
     // then the box snapping shut after them.
     readonly property int foldMs: 360
 
-    // The right pill's drawer folds on a spring instead (BarItem), a slow
-    // and soft one: the modules land, then the pill flows on past, its gaps
-    // opening out, and eases back, the way Apple's glass does, and a click
-    // mid-fold turns it round with the speed it had rather than from a
-    // standstill. Stiffer springs (SwiftUI's .bouncy, then 1.0 / 0.15) came
-    // back so quickly that they read as a glitch rather than as the glass
-    // settling, and 0.6 / 0.12 dragged; this is a fifth quicker than that
-    // with the same overshoot. Worked out on 2026-09-30 by stepping Qt's
-    // spring (which reproduced the 0.6 / 0.12 measurements exactly): the
-    // modules land at 370 ms and the glass runs 8% of the drawer past (about
-    // twenty pixels), furthest at 510 ms, and is back within a pixel by about
-    // 1.2 s. The same both ways: closing, the pill is squeezed that far past
-    // shut and springs back (Pill.stretch).
-    readonly property real foldSpring: 0.9
-    readonly property real foldDamping: 0.145
-    readonly property int foldLandMs: 370
+    // The side pills use the music title's spring (Music.qml): the same
+    // stiffness and damping for workspace width changes and drawer folds.
+    // Drawer modules land first, then the glass settles (Pill.stretch).
+    // At 2.5 / 0.14, Qt's spring first reaches its target at about 160 ms.
+    readonly property real foldSpring: springStiffness
+    readonly property real foldDamping: 0.14
+    readonly property int foldLandMs: 160
     // Before the drawer folds, the glass winds up the other way by this
     // much, in pixels, and lets go into the spring (Drawer.windup): drawn in
     // past shut before opening, out before shutting. Small beside the
@@ -718,8 +696,8 @@ Singleton {
         idleOn: panel("caffeine-cup-full"),
         idleOff: panel("caffeine-cup-empty"),
 
-        nightOn: "\u{f0594}",
-        nightOff: "\u{f0599}",         // nf-md-weather_sunny
+        nightOn: "\u{f0336}",         // nf-md-lightbulb_outline (dim)
+        nightOff: "\u{f06e8}",        // nf-md-lightbulb_on_outline (lit)
 
         cpu: "\u{f0ee0}",
         gpu: "\u{f0fb3}",

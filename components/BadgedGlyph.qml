@@ -36,6 +36,8 @@ Item {
 
         visible: root.badged
         text: root.badge
+        // Sample the icon's box, centred vertically, rather than the pill.
+        fill: Theme.badgeBg(icon, Qt.rect(0, Math.floor((icon.height - root.glyphSize) / 2) + root.nudge, icon.width, root.glyphSize))
         // Overlapping the icon's right edge by half the badge keeps the icon
         // recognisable underneath and stops a wide pill from swallowing it.
         // A two-digit capsule grows rightwards into the gap, so it steps back

@@ -172,7 +172,7 @@ Item {
         width: Theme.focusDotSize
         height: width
         radius: width / 2
-        x: Math.round(inkCentre - width / 2)
+        x: inkCentre - width / 2
         y: Math.round(Theme.pillTop(root.height) + Theme.focusDotLine - height / 2)
         color: Theme.fg
         opacity: root.dotShown

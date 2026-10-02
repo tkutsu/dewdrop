@@ -37,7 +37,7 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
-        fontSize: Theme.glyphSizeLarge
+        fontSize: Theme.glyphSizeLarge + 1
     }
 
     actions: ({
