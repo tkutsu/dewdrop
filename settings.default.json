@@ -35,6 +35,7 @@
         "tray": true,      // apps' status icons
         "bluetooth": true, // the radio and its devices (bluez)
         "network": true,   // Wi-Fi and the cable (NetworkManager)
+        "weather": true,   // next six hours, seven days, and hourly forecasts
         "audio": true,     // output volume
         "language": true,  // the keyboard layout (see layoutNames)
     },
