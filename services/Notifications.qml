@@ -254,7 +254,7 @@ Singleton {
             root.burst++;
         root.latest = n;
         root.showing = true;
-        noticeTimer.restart();
+        root.timeNotice();
     }
 
     // Done with as a notice. A fleeting one is done with altogether.
@@ -289,10 +289,17 @@ Singleton {
         onTriggered: root.showing = false
     }
 
+    // restart() starts even a stopped timer, so enforce the hold and timeout.
+    function timeNotice(): void {
+        if (root.showing && !root.held && root.noticeMs > 0)
+            noticeTimer.restart();
+        else
+            noticeTimer.stop();
+    }
+
     // Let go of by the pointer, a notice gets its full time again rather than
     // whatever was left when it was reached for.
-    onHeldChanged: if (!held && showing)
-        noticeTimer.restart()
+    onHeldChanged: root.timeNotice()
 
     // A notice whose notification was closed from elsewhere — the sender
     // withdrew it, or it was cleared in the centre — has nothing left to show.

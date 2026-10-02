@@ -30,7 +30,6 @@ Singleton {
     // point of them, so they skip the availability check entirely.
     readonly property bool bluetooth: (sink?.properties?.["device.api"] ?? "") === "bluez5"
 
-    property string portType: "none"
     property bool portAvailable: false
 
     readonly property bool connected: !!sink && sink.name !== "auto_null" && (bluetooth || portAvailable)
@@ -165,7 +164,6 @@ Singleton {
                 }
                 const entry = sinks.find(s => s.name === name);
                 const port = entry?.ports?.find(p => p.name === entry.active_port);
-                root.portType = port?.type ?? "none";
                 // Ports without jack detection (S/PDIF) report "unknown" and so
                 // read as disconnected, which is what we want here: the analog
                 // outs are the ones actually in use on this box.

@@ -289,6 +289,7 @@ Singleton {
     function show(target) {
         if (target < 0 || target >= files.length)
             return;
+        debounce.stop();
         root.color = "";
         root.current = files[target];
         root.save();
@@ -316,7 +317,12 @@ Singleton {
         state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n`);
     }
 
+    property string renderedColor: ""
+
     function renderColor() {
+        if (!root.color || render.running)
+            return;
+        root.renderedColor = root.color;
         render.exec(["magick", "-size", "1x1", "xc:" + root.color, root.colorPath]);
     }
 
@@ -331,8 +337,10 @@ Singleton {
     Process {
         id: render
         onExited: function (code) {
-            if (code === 0)
+            if (code === 0 && root.color && root.color === root.renderedColor)
                 root.apply(root.colorPath);
+            else if (root.color && root.color !== root.renderedColor)
+                debounce.restart();
         }
     }
 

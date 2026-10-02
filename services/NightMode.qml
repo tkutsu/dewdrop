@@ -59,7 +59,6 @@ Singleton {
         if (setter.running || root.wanted < 0)
             return;
         const step = root.wanted - root.committed;
-        root.committed = root.wanted;
         root.wanted = -1;
         if (step === 0)
             return;
@@ -69,7 +68,18 @@ Singleton {
 
     Process {
         id: setter
-        onExited: root.push()
+        onExited: function (code) {
+            // Reconcile the actual result before calculating another relative step.
+            level.reload();
+            level.waitForJob();
+            if (code !== 0) {
+                console.warn("Could not set display brightness:", code);
+                root.wanted = -1;
+            }
+            if (root.wanted < 0)
+                root.brightness = root.committed;
+            root.push();
+        }
     }
 
     // watchChanges only reports that the file moved; it does not re-read it, so
@@ -93,10 +103,11 @@ Singleton {
         onFileChanged: level.reload()
         onLoaded: {
             const value = parseInt(level.text());
-            if (isNaN(value) || setter.running || root.wanted >= 0)
+            if (isNaN(value))
                 return;
-            root.brightness = value;
             root.committed = value;
+            if (!setter.running && root.wanted < 0)
+                root.brightness = value;
         }
     }
 }

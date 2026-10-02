@@ -85,11 +85,14 @@ Singleton {
             } else if (c === "/" && text[i + 1] === "/") {
                 while (i + 1 < text.length && text[i + 1] !== "\n")
                     i++;
+            } else if (c === "}" || c === "]") {
+                out = out.replace(/,\s*$/, "");
+                out += c;
             } else {
                 out += c;
             }
         }
-        return JSON.parse(out.replace(/,(\s*[}\]])/g, "$1"));
+        return JSON.parse(out);
     }
 
     // A file that does not parse keeps the last settings that did, and says

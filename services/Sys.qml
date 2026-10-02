@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs
 
 // CPU, GPU and memory, behind the bar's thermometer.
 //
@@ -684,7 +685,7 @@ Singleton {
     // it was being paid every five seconds all day whenever the badge showed
     // the card. Card 0 only — the bar has room for one card, and with two the
     // lines would alternate.
-    readonly property bool gpuWanted: root.gpuPresent && (root.showGpu || root.watchers > 0)
+    readonly property bool gpuWanted: root.gpuPresent && ((root.showGpu && Settings.moduleOn("sys")) || root.watchers > 0)
 
     Process {
         id: gpuPoll
@@ -758,7 +759,7 @@ Singleton {
     // nothing.
     Timer {
         interval: root.watchers > 0 ? 2000 : 5000
-        running: true
+        running: Settings.moduleOn("sys") || root.watchers > 0
         repeat: true
         triggeredOnStart: true
         onTriggered: root.sample()
