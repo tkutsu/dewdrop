@@ -8,12 +8,11 @@ import Quickshell.Io
 // keyed by BarItem.pinKey. A pin only ever adds: an unpinned module still comes
 // out whenever it has something to say (BarItem.quiet), because taking the pin
 // off means "back to normal", not "hide". Kept across restarts, and at the root
-// rather than in services/ because BarItem reads it (see Popup.qml's note on
-// why components cannot import qs.services).
+// for use by BarItem and the drawer.
 Singleton {
     id: root
 
-    property var pins: ({})
+    property alias pins: stored.pins
 
     function pinned(key) {
         return root.pins[key] === true;
@@ -26,7 +25,6 @@ Singleton {
         else
             pins[key] = true;
         root.pins = pins;
-        stored.pins = pins;
         file.writeAdapter();
     }
 
@@ -35,7 +33,6 @@ Singleton {
 
         path: Paths.state("drawer.json")
         printErrors: false
-        onLoaded: root.pins = stored.pins
         onLoadFailed: file.writeAdapter()
 
         JsonAdapter {

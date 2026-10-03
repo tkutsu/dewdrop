@@ -7,10 +7,8 @@ import qs.services
 
 // What is on the list and what is late, as a count on the right pill.
 //
-// It counts today and overdue and nothing else. A badge that stood for
-// everything ever written down would read 47 for months and never change, and a
-// number that never changes is one nobody looks at; these two are the ones with
-// a day attached to them, so the badge moves when the day does.
+// The badge counts incomplete tasks due today, overdue, or undated.
+// Future-dated tasks remain available in the popup.
 //
 // Hidden entirely until Google Tasks is connected: a machine that has never run
 // gtasks-setup is not a machine with an empty task list, and an icon for

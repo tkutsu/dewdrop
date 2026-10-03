@@ -15,8 +15,7 @@ import Quickshell.Io
 // Both may carry // comments and trailing commas, which are stripped before
 // parsing. Edits are picked up on save.
 //
-// At the root rather than in services/ because BarItem and Theme read it (see
-// Popup.qml's note on why components cannot import qs.services).
+// Shared settings live at the root for use by components and services.
 Singleton {
     id: root
 

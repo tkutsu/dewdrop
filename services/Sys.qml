@@ -13,7 +13,7 @@ import qs
 // disks are only worth paying for while something is on screen to read them,
 // so that half runs while `watchers` is up and stops when the popup closes.
 // nvidia-smi is one long-lived process for as long as anything reads the
-// card, the badge included.
+// card while the popup is open.
 Singleton {
     id: root
 
@@ -68,14 +68,7 @@ Singleton {
     // long as it is on screen, which is what gates the expensive poll.
     property int watchers: 0
 
-    // Which of the two the bar is showing. The popup shows both either way;
-    // this is only about the one reading that is on the bar all day.
-    //
-    // Not `onGpu`: a property whose name starts with "on" is read as a signal
-    // handler, and the file will not load.
-    property bool showGpu: false
-
-    readonly property real temp: showGpu ? (gpu ? gpu.temp : 0) : cpuTemp
+    readonly property real temp: cpuTemp
 
     // The scale the tube is read against: an empty one at the bottom of it, a
     // full one at the top, and past the top the column changes colour.
@@ -679,13 +672,8 @@ Singleton {
         }
     }
 
-    // One nvidia-smi for as long as the card is being read, printing a line
-    // every two seconds, rather than a fresh one per sample: starting it is
-    // the expensive part (the driver is opened and every card enumerated), and
-    // it was being paid every five seconds all day whenever the badge showed
-    // the card. Card 0 only — the bar has room for one card, and with two the
-    // lines would alternate.
-    readonly property bool gpuWanted: root.gpuPresent && ((root.showGpu && Settings.moduleOn("sys")) || root.watchers > 0)
+    // Stream GPU readings while the popup is open; one process samples card 0.
+    readonly property bool gpuWanted: root.gpuPresent && root.watchers > 0
 
     Process {
         id: gpuPoll
@@ -727,11 +715,6 @@ Singleton {
             fan: n(10)
         };
     }
-
-    // A badge set to a card that turned out not to be there falls back to
-    // the chip, rather than showing nothing until it is clicked again.
-    onGpuPresentChanged: if (!gpuPresent)
-        showGpu = false
 
     function sample() {
         // The whole section only while the popup is up to read it, or on a

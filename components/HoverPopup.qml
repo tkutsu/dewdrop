@@ -31,6 +31,8 @@ Item {
 
     readonly property bool tipping: root.popup === null && root.text !== "" && root.settled && !root.dismissed && OpenPopup.owner === null
 
+    readonly property bool wanted: root.popup !== null ? root.open : root.tipping
+
     onTippingChanged: tipping ? Tooltips.shown() : Tooltips.hidden()
     Component.onDestruction: if (tipping)
         Tooltips.hidden()
@@ -59,9 +61,16 @@ Item {
         onTriggered: root.settled = true
     }
 
+    // Keep the surface through the 120 ms exit and its final frame.
+    Linger {
+        id: lifetime
+        shown: root.wanted
+        hold: 160
+    }
+
     Loader {
         id: loader
-        active: root.popup !== null ? root.open : root.tipping
+        active: lifetime.active
         sourceComponent: root.popup !== null ? root.popup : plain
 
         onLoaded: {
@@ -75,6 +84,7 @@ Item {
             // hangs popupGap down.
             const slabBottom = Theme.pillTop(root.anchorItem.height) + Theme.barHeight;
             item.anchor.rect = Qt.rect(0, 0, root.anchorItem.width, slabBottom + Theme.popupGap - item.shadowTop);
+            item.requestedVisible = Qt.binding(() => root.wanted);
             item.visible = true;
         }
     }

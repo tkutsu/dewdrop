@@ -79,7 +79,7 @@ Popup {
                 glyph: e.running ? Theme.glyph.timer : Theme.glyph.timerPaused,
                 warn: false,
                 dim: !e.running,
-                title: e.label !== "" ? e.label : "Timer",
+                title: (e.label !== "" ? e.label : "Timer") + (e.phoneBackend === "calendar" ? " (Calendar)" : ""),
                 // Left to the delegate, off `entry` above.
                 readout: "",
                 buttons: [
@@ -107,7 +107,7 @@ Popup {
                 // it: it is still a thing you set, and finding it again is the
                 // whole difference between turning one off and cancelling it.
                 dim: !e.running,
-                title: e.label !== "" ? e.label : "Alarm",
+                title: (e.label !== "" ? e.label : "Alarm") + (e.phoneBackend === "calendar" ? " (Calendar)" : ""),
                 readout: Timers.hhmm(e.hour, e.minute),
                 buttons: [
                     {
@@ -130,6 +130,13 @@ Popup {
         inset: 2
         title: "Timers"
 
+        ReconnectButton { visible: Timers.usesCalendar && Google.needsConsent }
+
+        RetryButton {
+            service: CalendarTimers
+            visible: Timers.usesCalendar && CalendarTimers.retryable
+        }
+
         // The way in to setting another: the launcher, which takes any
         // duration or time of day.
         PopupButton {
@@ -139,11 +146,45 @@ Popup {
         }
     }
 
+    Row {
+        spacing: 6
+
+        PopupButton {
+            framed: true
+            label: "Pushover"
+            lit: Timers.phoneBackend === "pushover"
+            onTapped: Timers.selectPhoneBackend("pushover")
+        }
+
+        PopupButton {
+            framed: true
+            label: "Google Calendar"
+            lit: Timers.phoneBackend === "calendar"
+            onTapped: Timers.selectPhoneBackend("calendar")
+        }
+    }
+
     PopupText {
-        visible: Timers.phoneWarning !== ""
+        width: root.bodyWidth
+        text: "Phone alerts for new timers"
+        opacity: 0.6
+        font.pixelSize: Theme.footnoteSize
+    }
+
+    PopupText {
+        visible: Timers.phoneBackend === "pushover" && Timers.phoneWarning !== ""
         width: root.bodyWidth
         text: Timers.phoneWarning
         color: Theme.warn
+        font.pixelSize: Theme.footnoteSize
+        wrapMode: Text.WordWrap
+    }
+
+    PopupText {
+        visible: Timers.usesCalendar
+        width: root.bodyWidth
+        text: CalendarTimers.status
+        color: CalendarTimers.trouble !== "" || Google.needsConsent ? Theme.warn : Theme.label2
         font.pixelSize: Theme.footnoteSize
         wrapMode: Text.WordWrap
     }

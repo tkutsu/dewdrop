@@ -7,7 +7,7 @@ import qs.services
 // The networks in range, and one click on a row to join or leave it. A tick
 // on the one in use and a spinner while one is being joined; at the right
 // edge a lock on a network that will ask for a password, then its signal in
-// the bar's cone. NetworkManager's own editor is a left click on the bar icon
+// the bar's cone. NetworkManager's own editor is a right click on the bar icon
 // away, for anything this is not.
 Popup {
     id: root
@@ -84,7 +84,6 @@ Popup {
                     glyph: Theme.glyph.close
                     glyphSize: Theme.captionSize
                     onTapped: {
-                        root.hold(1500);
                         Network.forget(row.modelData);
                     }
                 }

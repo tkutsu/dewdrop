@@ -57,8 +57,10 @@ def normalize(body):
         hours_by_day.setdefault(local.date().isoformat(), []).append({
             "at": stamp, "time": local.strftime("%H:%M"),
             "temperature": number(hourly["temperature_2m"][i]),
+            "feelsLike": number(hourly["apparent_temperature"][i]),
             "rain": number(hourly["precipitation_probability"][i]),
             "wind": number(hourly["wind_speed_10m"][i]),
+            "windDirection": number(hourly["wind_direction_10m"][i]),
             "description": description, "icon": icon, "severity": severity,
         })
     days = []
@@ -68,7 +70,7 @@ def normalize(body):
         description, icon, _ = condition(daily["weather_code"][i])
         days.append({
             "date": date, "weekday": local.strftime("%a"), "label": local.strftime("%A, %d %b"),
-            "shortDate": local.strftime("%d %b"), "description": description, "icon": icon,
+            "description": description, "icon": icon,
             "high": number(daily["temperature_2m_max"][i]),
             "low": number(daily["temperature_2m_min"][i]),
             "rain": number(daily["precipitation_probability_max"][i]),
@@ -91,7 +93,7 @@ def fetch(mode, args):
         base = "https://api.open-meteo.com/v1/forecast"
         params = {
             "latitude": lat, "longitude": lon, "timezone": args[2], "timeformat": "unixtime", "forecast_days": 7,
-            "hourly": "temperature_2m,weather_code,precipitation_probability,wind_speed_10m,is_day",
+            "hourly": "temperature_2m,apparent_temperature,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day",
             "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
         }
     else:

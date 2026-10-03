@@ -1,2 +1,4 @@
-# Each machine's own choices, written by the settings page (Settings.qml).
+# Each machine's own choices, read by Settings.qml.
 settings.json
+
+__pycache__/

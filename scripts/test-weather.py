@@ -2,6 +2,8 @@
 """Check weather caching and rate limits without making network requests."""
 
 import importlib.util
+import io
+import json
 import tempfile
 import time
 import unittest
@@ -10,6 +12,7 @@ from email.utils import formatdate
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, urlsplit
 
 spec = importlib.util.spec_from_file_location("weather", Path(__file__).with_name("weather-fetch.py"))
 weather = importlib.util.module_from_spec(spec)
@@ -25,7 +28,7 @@ class WeatherRequests(unittest.TestCase):
         clock_patch = patch.object(weather.time, "time", return_value=10000)
         self.clock = clock_patch.start()
         self.addCleanup(clock_patch.stop)
-        self.forecast = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000}]}] * 7, "timezone": "UTC"}
+        self.forecast = {"days": [{"date": "2026-10-03", "feelsLikeHigh": 21, "feelsLikeLow": 12, "hours": [{"at": 10000, "feelsLike": 18}]}] * 7, "timezone": "UTC"}
 
     def request(self, mode="forecast", args=None, force=False):
         return weather.request(mode, args or ["37.98", "23.73", "Europe/Athens"], self.state, self.cache, force)
@@ -50,6 +53,25 @@ class WeatherRequests(unittest.TestCase):
             self.request(force=True)
             self.request(args=["40", "20", "Europe/Athens"])
             self.assertEqual(fetch.call_count, 3)
+
+    def test_older_cache_expires_and_remains_available_during_backoff(self):
+        old = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000}]}] * 7, "timezone": "UTC"}
+        cached = {"key": [37.98, 23.73, "Europe/Athens"], "forecast": old, "fetchedAt": 10000}
+        weather.write_json(self.cache, cached)
+        with patch.object(weather, "fetch", return_value=self.forecast) as fetch:
+            self.clock.return_value += 901
+            upgraded = self.request()
+            self.request()
+            fetch.assert_called_once()
+            self.assertEqual(upgraded["days"][0]["hours"][0]["feelsLike"], 18)
+
+        weather.write_json(self.cache, cached)
+        with patch.object(weather, "fetch", side_effect=self.rate_limit("600")) as fetch:
+            limited = self.request(force=True)
+            restored = self.request(force=True)
+            fetch.assert_called_once()
+            self.assertEqual(restored["days"], old["days"])
+            self.assertEqual(restored["cooldownUntil"], limited["cooldownUntil"])
 
     def test_numeric_retry_after_blocks_all_requests_including_manual_refresh(self):
         with patch.object(weather, "fetch", side_effect=self.rate_limit("600")) as fetch:
@@ -126,6 +148,63 @@ class WeatherRequests(unittest.TestCase):
                 results = list(workers.map(lambda _: self.request(), range(2)))
             self.assertEqual(fetch.call_count, 1)
             self.assertEqual(results[0]["fetchedAt"], results[1]["fetchedAt"])
+
+
+class WeatherTemperatures(unittest.TestCase):
+    def setUp(self):
+        days = [1790985600 + i * 86400 for i in range(7)]
+        self.body = {
+            "timezone": "UTC",
+            "hourly": {
+                "time": days,
+                "temperature_2m": [20] * 7,
+                "apparent_temperature": [17, None, -3, 0, 18, 19, 20],
+                "weather_code": [0] * 7,
+                "is_day": [1] * 7,
+                "precipitation_probability": [0] * 7,
+                "wind_speed_10m": [15] * 7,
+                "wind_direction_10m": [0, None, 90, 180, 270, 360, 45],
+            },
+            "daily": {
+                "time": days,
+                "weather_code": [0] * 7,
+                "temperature_2m_max": [25] * 7,
+                "temperature_2m_min": [15] * 7,
+                "apparent_temperature_max": [22, None, 0, 0, 23, 24, 25],
+                "apparent_temperature_min": [12, None, -5, 0, 13, 14, 15],
+                "precipitation_probability_max": [0] * 7,
+            },
+        }
+
+    def test_normalizes_air_and_feels_like_temperatures_including_missing_values(self):
+        days = weather.normalize(self.body)["days"]
+        self.assertEqual(days[0]["hours"][0]["temperature"], 20)
+        self.assertEqual(days[0]["hours"][0]["feelsLike"], 17)
+        self.assertEqual((days[0]["high"], days[0]["low"]), (25, 15))
+        self.assertIsNone(days[1]["hours"][0]["feelsLike"])
+        self.assertEqual(days[2]["hours"][0]["feelsLike"], -3)
+        self.assertEqual(days[3]["hours"][0]["feelsLike"], 0)
+
+    def test_forecast_requests_hourly_feels_like_fields(self):
+        with patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(self.body))) as opened:
+            forecast = weather.fetch("forecast", ["37.98", "23.73", "Europe/Athens"])
+        params = parse_qs(urlsplit(opened.call_args.args[0]).query)
+        self.assertIn("apparent_temperature", params["hourly"][0].split(","))
+        self.assertNotIn("apparent_temperature_max", params["daily"][0].split(","))
+        self.assertNotIn("apparent_temperature_min", params["daily"][0].split(","))
+        self.assertEqual(forecast["days"][0]["hours"][0]["feelsLike"], 17)
+
+    def test_normalizes_wind_direction_without_losing_north_or_missing_values(self):
+        days = weather.normalize(self.body)["days"]
+        self.assertEqual(days[0]["hours"][0]["windDirection"], 0)
+        self.assertIsNone(days[1]["hours"][0]["windDirection"])
+        self.assertEqual(days[3]["hours"][0]["windDirection"], 180)
+
+    def test_forecast_requests_hourly_wind_direction(self):
+        with patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(self.body))) as opened:
+            weather.fetch("forecast", ["37.98", "23.73", "Europe/Athens"])
+        params = parse_qs(urlsplit(opened.call_args.args[0]).query)
+        self.assertIn("wind_direction_10m", params["hourly"][0].split(","))
 
 
 if __name__ == "__main__":

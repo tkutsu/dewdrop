@@ -148,8 +148,8 @@ function parse(text) {
 }
 
 // The parsed time without the label, which the launcher row already shows.
-function brief(text) {
-    const p = parse(text);
+function brief(text, parsed) {
+    const p = parsed ?? parse(text);
     if (!p.ok)
         return p.error;
     if (p.kind === "alarm")

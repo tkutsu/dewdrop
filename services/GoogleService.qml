@@ -1,11 +1,7 @@
 import QtQuick
 import Quickshell
 
-// What a service built on the Google sign-in looks like from the outside, and
-// the plumbing both of them (Tasks, Agenda) would otherwise carry twice: it
-// polls, it says whether anything has been heard back yet, it keeps one line of
-// trouble, and it fetches a set of things in parallel and publishes them in one
-// go. The service itself only says what to fetch and what to make of it.
+// Shared polling, token acquisition, retries, and parallel fetches for Google services.
 Singleton {
     id: base
 
@@ -84,7 +80,8 @@ Singleton {
     function send(method: string, url: string, body: var, then: var, fail: var): void {
         // A parallel success must not erase another request's failure.
         base.requests++;
-        Google.send(method, url, body, base.settle(then), base.settle(fail ?? base.fail));
+        const rejected = base.settle(fail ?? base.fail);
+        Google.authorised(() => Google.send(method, url, body, base.settle(then), rejected), rejected);
     }
 
     function fail(why: string, status: int): void {

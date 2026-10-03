@@ -6,7 +6,7 @@ import qs.services
 
 // The timer pill: what is counting down, and what it is counting down to.
 //
-// An island of its own beside the music pill rather than a glyph on the right
+// An pill of its own beside the music pill rather than a glyph on the right
 // one, for the same reason the player is: its label changes every second, and
 // nothing that only changes when something happens should have to move over for
 // that. With nothing set there is no pill at all.

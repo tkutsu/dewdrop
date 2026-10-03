@@ -165,7 +165,6 @@ Singleton {
     readonly property int languageTextSize: 13
     // The workspace numbers: a step under the clock, so they read as marks
     // on the taskbar rather than as words beside its icons.
-    readonly property int workspaceTextSize: 11
     // A 16px font gives roughly 13px of visible icon artwork; individual
     // shapes keep the proportions drawn into the font.
     readonly property int glyphSize: 16
@@ -558,16 +557,8 @@ Singleton {
     // each of them needs time enough to read as a move of its own.
     readonly property int dropMs: 620
 
-    // A pill changing size in place — the music pill to a new title — on a
-    // spring rather than a curve, so it overshoots and settles the way the
-    // Dynamic Island does. Fitted to SwiftUI's .bouncy with extraBounce 0.2
-    // (0.5 bounce, which overshoots 16.3%) by measuring Qt's SpringAnimation,
-    // whose units are its own: 2.5 / 0.19 overshoots 16.4%, is there in 176
-    // ms and within a pixel of rest in 660. Plain .bouncy (2.5 / 0.26, 4.7%)
-    // was tried first: on a title a few dozen pixels longer that is a pixel
-    // or two of wobble, which read as a glitch rather than as a bounce.
+    // Stiffness shared by the pill and selection springs; each uses its own damping.
     readonly property real springStiffness: 2.5
-    readonly property real springDamping: 0.19
 
     // Figures rolling to their next value (RollingText): SwiftUI's default
     // duration, which the roll runs 1.45 times over while its spring settles

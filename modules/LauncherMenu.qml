@@ -182,7 +182,7 @@ OverlayWindow {
     readonly property int visibleRows: 12
     readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !Launcher.mailOpen
     readonly property int boxPad: 12
-    // The right-hand slot every row ends in: an app icon, or the "#yt" badge
+    // The right-hand slot every row ends in: an app icon, or the "#y" badge
     // that says which engine Enter would use.
     readonly property int slotWidth: 24
     // How far a row is set in per level of the music mode's tree. Wide enough
@@ -538,7 +538,7 @@ OverlayWindow {
                 verticalAlignment: TextInput.AlignVCenter
                 clip: true
 
-                // What the six first characters do, inside the field and
+                // What the nine mode prefixes do, inside the field and
                 // against its right edge, in the quietest step of the label
                 // scale. It used to be a line of its own under the query, which
                 // made an empty launcher a two-row box with nothing in the top
@@ -1001,7 +1001,7 @@ OverlayWindow {
                         }
 
                         // Engine rows have no icon; the key you would be using
-                        // goes here instead, so a quote then "y" shows you
+                        // goes here instead, so "#" then "y" shows you
                         // landing on YouTube as you type it.
                         Text {
                             anchors.centerIn: parent

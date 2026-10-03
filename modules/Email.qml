@@ -6,7 +6,7 @@ import qs.components
 import qs.services
 
 // Unread mail, with the threads themselves in the popup. A click on the icon
-// opens the inbox; a click on a row in the popup opens it to be read there.
+// opens the mail popup; selecting a row opens its thread in Gmail.
 BarItem {
     // #custom-email.loading { opacity: 0.55 }
     opacity: Email.loaded ? 1 : Theme.dimOpacity

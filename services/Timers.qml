@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs
 import "TimersParse.js" as Parse
+import "CalendarTimersParse.js" as CalendarParse
 
 // Countdowns and alarms — one list, one clock, one place they are
 // written down.
@@ -73,6 +74,19 @@ Singleton {
     // overwrite the very thing being restored.
     property bool restored: false
     property int nextId: 1
+    property string phoneBackend: "pushover"
+    readonly property bool usesCalendar: root.phoneBackend === "calendar" || root.entries.some(e => e.phoneBackend === "calendar") || CalendarTimers.jobs.length > 0
+
+    // The choice is for new timers; existing ones keep their delivery method.
+    function selectPhoneBackend(backend: string): string {
+        if (backend !== "pushover" && backend !== "calendar")
+            return "Choose pushover or calendar";
+        root.phoneBackend = backend;
+        root.save();
+        if (backend === "calendar")
+            CalendarTimers.prepare();
+        return backend;
+    }
 
     // --- derived -------------------------------------------------------------
     readonly property var timers: root.entries.filter(e => e.kind !== "alarm")
@@ -94,7 +108,7 @@ Singleton {
     }
 
     // Whether the bar carries a pill at all. Nothing set, nothing shown — the
-    // module is an island of its own for exactly this reason.
+    // module has its own pill for this reason.
     readonly property bool loaded: root.ringing.length > 0 || root.focus !== null || root.nextAlarm !== null
 
     readonly property real leftMs: root.focus ? root.remaining(root.focus) : 0
@@ -218,21 +232,37 @@ Singleton {
     }
 
     // --- the list ------------------------------------------------------------
-    function _commit(list: var): void {
+    function _commit(list, expired) {
+        CalendarTimers.enqueue(CalendarParse.changes(root.entries, list, Date.now(), expired));
         root.entries = list;
         root.save();
     }
 
     function _patch(id: string, changes: var): void {
-        root._commit(root.entries.map(e => e.id === id ? Object.assign({}, e, changes) : e));
+        root._commit(root.entries.map(e => {
+            if (e.id !== id)
+                return e;
+            const next = Object.assign({}, e, changes);
+            // Deleted event IDs cannot be reused when a timer resumes.
+            if (next.phoneBackend === "calendar" && !e.running && next.running) {
+                next.calendarEventId = CalendarParse.eventId();
+                next.calendarStart = next.endsAt;
+            }
+            return next;
+        }));
     }
 
-    function _drop(id: string): void {
-        root._commit(root.entries.filter(e => e.id !== id));
+    function _drop(id, expired) {
+        root._commit(root.entries.filter(e => e.id !== id), expired);
     }
 
     function _add(entry: var): void {
         entry.id = String(root.nextId++);
+        entry.phoneBackend = root.phoneBackend;
+        if (entry.phoneBackend === "calendar") {
+            entry.calendarEventId = CalendarParse.eventId();
+            entry.calendarStart = entry.endsAt;
+        }
         root._commit(root.entries.concat([entry]));
     }
 
@@ -369,7 +399,7 @@ Singleton {
                 endsAt: root.occurrence(e.hour, e.minute, e.days, root.now + 1000)
             });
         else
-            root._drop(e.id);
+            root._drop(e.id, true);
 
         const ringingEntry = {
             id: e.id,
@@ -384,7 +414,10 @@ Singleton {
         const title = e.kind === "alarm" ? "Alarm" : "Timer";
         const body = e.label !== "" ? e.label : (e.kind === "alarm" ? root.hhmm(e.hour, e.minute) : root.spell(e.total));
         root.beat();
-        root.notifyPhone(title, body, ringingEntry);
+        if (e.phoneBackend !== "calendar")
+            Pushover.notifyPhone(title, body, ringingEntry);
+        else if (CalendarTimers.jobs.some(job => job.id === e.calendarEventId && job.operation === "upsert"))
+            root.phoneFailed("Calendar reminder was never synced");
     }
 
 
@@ -392,10 +425,7 @@ Singleton {
     // way back from sending.
     function hush(): void {
         root.ringing = [];
-        for (const alert of root.phoneAlerts) {
-            alert.dismissed = true;
-            root.cancelPhone(alert);
-        }
+        Pushover.dismiss();
     }
 
     // Whatever emptied the ring — dismissed, or the whole list thrown away —
@@ -409,202 +439,27 @@ Singleton {
         Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", urgent ? "critical" : "normal", title, body]);
     }
 
-    // Credentials live beside the Google sign-in, outside the config repo.
-    // A blocking first read covers a restored timer firing during startup;
-    // later edits are picked up without restarting the shell.
-    FileView {
-        id: pushoverCredentials
-
-        path: Paths.data("pushover.json")
-        blockLoading: true
-        watchChanges: true
-        printErrors: false
-        onFileChanged: pushoverCredentials.reload()
-    }
-
-    // The popup and sender read the same status, including edits made while
-    // the shell is running. Never put credential values in the warning.
-    readonly property var phoneCredentials: {
-        try {
-            return JSON.parse(pushoverCredentials.text());
-        } catch (e) {
-            return null;
-        }
-    }
-    readonly property string phoneWarning: {
-        const credentials = root.phoneCredentials;
-        return credentials && /^[A-Za-z0-9]{30}$/.test(credentials.token ?? "") && /^[A-Za-z0-9]{30}$/.test(credentials.user ?? "")
-            ? "" : "Phone alerts unavailable: Pushover credentials missing or invalid.";
-    }
-
-    // Bound every phone request and validate its response without logging
-    // credentials or receipts.
-    function phoneRequest(method: string, path: string, data: var, accepted: var, failed: var): void {
-        const xhr = new XMLHttpRequest();
-        const timeout = phoneTimeout.createObject(root);
-        let settled = false;
-        const finish = function () {
-            settled = true;
-            timeout.stop();
-            timeout.destroy();
-        };
-        timeout.triggered.connect(function () {
-            if (settled)
-                return;
-            finish();
-            xhr.abort();
-            failed("Request timed out");
-        });
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || settled)
-                return;
-            finish();
-            if (xhr.status !== 200) {
-                failed(xhr.status === 0 ? "No network" : `Pushover returned HTTP ${xhr.status}`);
-                return;
-            }
-            let response;
-            try {
-                response = JSON.parse(xhr.responseText);
-            } catch (e) {
-                failed("Pushover sent an unreadable response");
-                return;
-            }
-            if (response.status !== 1) {
-                failed("Pushover rejected the request");
-                return;
-            }
-            accepted(response);
-        };
-        xhr.open(method, "https://api.pushover.net/1/" + path);
-        if (data !== null)
-            xhr.setRequestHeader("Content-Type", "application/json");
-        timeout.start();
-        xhr.send(data === null ? null : JSON.stringify(data));
-    }
-
-    // Receipts outlive the local sound's one-minute limit. Each one belongs to
-    // an occurrence, so acknowledging yesterday's alarm cannot hush today's.
-    property var phoneAlerts: []
-
-    function forgetPhone(alert: var): void {
-        root.phoneAlerts = root.phoneAlerts.filter(a => a !== alert);
-    }
-
-    // One phone alert per expiry. Retrying an ambiguous send could duplicate
-    // it; receipt checks and cancellation can safely retry instead.
-    function notifyPhone(title: string, body: string, entry: var): void {
-        if (root.phoneWarning !== "") {
-            root.phoneFailed(root.phoneWarning);
-            return;
-        }
-        const credentials = root.phoneCredentials;
-        const alert = {
-            id: entry.id,
-            firedAt: entry.firedAt,
-            token: credentials.token,
-            receipt: "",
-            dismissed: false,
-            busy: false,
-            warned: false,
-            expiresAt: Date.now() + 10800000
-        };
-        root.phoneAlerts = root.phoneAlerts.concat([alert]);
-        root.phoneRequest("POST", "messages.json", {
-            token: credentials.token,
-            user: credentials.user,
-            title: title,
-            message: body,
-            // Server retries stop on phone acknowledgment. Pushover requires
-            // at least 30 seconds and caps an emergency alert at 50 retries.
-            priority: 2,
-            retry: 30,
-            expire: 10800,
-            timestamp: Math.floor(root.now / 1000)
-        }, function (response) {
-            if (!/^[A-Za-z0-9]{30}$/.test(response.receipt ?? "")) {
-                root.forgetPhone(alert);
-                root.phoneFailed("Pushover did not return a valid receipt");
-                return;
-            }
-            alert.receipt = response.receipt;
-            if (alert.dismissed)
-                root.cancelPhone(alert);
-        }, function (reason) {
-            root.forgetPhone(alert);
-            root.phoneFailed(reason);
-        });
-    }
-
-    // Keep failed syncs pending for the next poll, but report an outage once.
-    function phoneSyncFailed(alert: var, reason: string): void {
-        alert.busy = false;
-        if (!alert.warned) {
-            alert.warned = true;
-            root.phoneFailed(reason);
+    Connections {
+        target: CalendarTimers
+        function onMissedReminder(id: string): void {
+            if (root.entries.some(entry => entry.calendarEventId === id))
+                root.phoneFailed("Calendar reminder was never synced");
         }
     }
 
-    function cancelPhone(alert: var): void {
-        if (alert.receipt === "" || alert.busy)
-            return;
-        alert.busy = true;
-        root.phoneRequest("POST", `receipts/${alert.receipt}/cancel.json`, {
-            token: alert.token
-        }, function () {
-            root.forgetPhone(alert);
-        }, function (reason) {
-            root.phoneSyncFailed(alert, reason);
-        });
-    }
+    readonly property string phoneWarning: Pushover.phoneWarning
 
-    // Pushover permits checking each receipt no faster than every five seconds.
-    function pollPhone(): void {
-        for (const alert of root.phoneAlerts) {
-            if (Date.now() >= alert.expiresAt) {
-                root.forgetPhone(alert);
-                continue;
-            }
-            if (alert.dismissed) {
-                root.cancelPhone(alert);
-                continue;
-            }
-            if (alert.receipt === "" || alert.busy)
-                continue;
-            alert.busy = true;
-            root.phoneRequest("GET", `receipts/${alert.receipt}.json?token=${encodeURIComponent(alert.token)}`, null, function (response) {
-                alert.busy = false;
-                alert.warned = false;
-                if (response.acknowledged === 1) {
-                    root.ringing = root.ringing.filter(r => r.id !== alert.id || r.firedAt !== alert.firedAt);
-                    root.forgetPhone(alert);
-                } else if (response.expired === 1) {
-                    root.forgetPhone(alert);
-                } else if (alert.dismissed) {
-                    root.cancelPhone(alert);
-                }
-            }, function (reason) {
-                root.phoneSyncFailed(alert, reason);
-            });
+    Connections {
+        target: Pushover
+        function onFailed(reason: string): void { root.phoneFailed(reason); }
+        function onAcknowledged(id: string, firedAt: real): void {
+            root.ringing = root.ringing.filter(entry => entry.id !== id || entry.firedAt !== firedAt);
         }
     }
 
-    Timer {
-        interval: 5000
-        running: root.phoneAlerts.length > 0
-        repeat: true
-        onTriggered: root.pollPhone()
-    }
-
-    // Phone delivery failing must still leave the local alarm useful.
     function phoneFailed(reason: string): void {
-        console.warn("Pushover: " + reason);
+        console.warn("Phone alert: " + reason);
         root.notify("Phone alert failed", reason, false);
-    }
-
-    Component {
-        id: phoneTimeout
-        Timer { interval: 15000 }
     }
 
     // One sound at a time, and one this file can still stop. execDetached sets
@@ -634,8 +489,8 @@ Singleton {
         return Parse.parse(text);
     }
 
-    function brief(text: string): string {
-        return Parse.brief(text);
+    function brief(text: string, parsed: var): string {
+        return Parse.brief(text, parsed);
     }
 
     // Parse and act. The one entry point the prompt and the IPC both use, so
@@ -698,7 +553,7 @@ Singleton {
     onCountingChanged: root.arm()
 
     // The ring, on its own timer rather than one sound per tick: the file is
-    // about a second long and a beat a second would be a siren.
+    // two seconds long and a beat a second would be a siren.
     Timer {
         interval: root.beatMs
         running: root.ringing.length > 0
@@ -728,6 +583,7 @@ Singleton {
             id: adapter
 
             property list<var> entries: []
+            property string phoneBackend: "pushover"
         }
     }
 
@@ -735,19 +591,21 @@ Singleton {
         if (!root.restored)
             return;
         adapter.entries = root.entries;
+        adapter.phoneBackend = root.phoneBackend;
         file.writeAdapter();
     }
 
     // What survives a restart, and what does not.
     //
-    // An alarm is a standing instruction and comes back as one, re-aimed at its
-    // next occurrence. A paused timer is untouched — it was not counting while
-    // the shell was down either. A running one is judged on how overdue it is:
+    // A repeating alarm returns at its next occurrence. A paused countdown
+    // or disabled alarm is retained. Running countdowns and one-shot alarms
+    // are judged on how overdue they are:
     // still to come, it carries on to the same instant it was always going to
     // end at; a few minutes past, it goes off now, late but not useless; long
     // past, it is dropped without a sound, because a timer for something that
     // finished an hour ago has nothing left to say.
     function adopt(): void {
+        root.phoneBackend = adapter.phoneBackend === "calendar" ? "calendar" : "pushover";
         const stored = adapter.entries ?? [];
         const now = Date.now();
         const kept = [];
@@ -760,9 +618,11 @@ Singleton {
 
             if (e.kind === "alarm") {
                 e.days = e.days ?? [];
-                e.endsAt = root.occurrence(e.hour, e.minute, e.days, now);
-                kept.push(e);
-                continue;
+                if (e.days.length > 0) {
+                    e.endsAt = root.occurrence(e.hour, e.minute, e.days, now);
+                    kept.push(e);
+                    continue;
+                }
             }
             if (!e.running) {
                 kept.push(e);
@@ -781,14 +641,15 @@ Singleton {
         root.restored = true;
         root.tick();
         root.save();
+        if (root.phoneBackend === "calendar")
+            CalendarTimers.prepare();
     }
 
     // qs ipc call timer …
     IpcHandler {
         target: "timer"
 
-        // Everything the grammar takes: "25m", "1h30 bread", "7:30 wake up",
-        // "7:30 wake up".
+        // Durations and times of day: "25m", "1h30 bread", "7:30 wake up".
         function set(spec: string): string {
             return root.run(spec);
         }
@@ -814,6 +675,14 @@ Singleton {
 
         function list(): string {
             return root.tooltip;
+        }
+
+        function backend(name: string): string {
+            return root.selectPhoneBackend(name);
+        }
+
+        function phone(): string {
+            return root.phoneBackend === "calendar" ? CalendarTimers.status : (root.phoneWarning || "Pushover selected");
         }
     }
 }

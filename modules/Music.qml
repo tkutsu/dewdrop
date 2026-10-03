@@ -218,7 +218,7 @@ BarItem {
     dips: false
 
     actions: ({
-            [Qt.RightButton]: () => Mpd.send(["toggle"])
+            [Qt.RightButton]: () => Mpd.toggle()
         })
 
     // The controls, out only while the pill is pointed at: at rest it is the
@@ -268,7 +268,7 @@ BarItem {
                 id: prevTap
                 enabled: root.handsOut
                 margin: Theme.pressDip
-                onTapped: Mpd.send(["prev"])
+                onTapped: Mpd.prev()
             }
         }
     }
@@ -324,7 +324,7 @@ BarItem {
             TapHandler {
                 id: playTap
                 margin: Theme.pressDip
-                onTapped: Mpd.send(["toggle"])
+                onTapped: Mpd.toggle()
             }
 
             ClippingRectangle {
@@ -471,11 +471,11 @@ BarItem {
                 id: nextTap
                 enabled: root.handsOut
                 margin: Theme.pressDip
-                onTapped: Mpd.send(["next"])
+                onTapped: Mpd.next()
             }
         }
     }
 
-    onScrollUp: Mpd.send(["seek", "-10"])
-    onScrollDown: Mpd.send(["seek", "+10"])
+    onScrollUp: Mpd.seek(-10)
+    onScrollDown: Mpd.seek(10)
 }

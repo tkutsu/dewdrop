@@ -104,7 +104,6 @@ GoogleService {
     function fetchThreads(): void {
         root.generation += 1;
         const gen = root.generation;
-        root.opened = ({});
         const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD&maxResults=500&fields=nextPageToken,threads(id,historyId,snippet)`;
         const listed = [];
         const seen = ({});
@@ -130,6 +129,13 @@ GoogleService {
                     return;
                 }
 
+                // Hide a just-opened thread while Gmail catches up. Confirmation
+                // clears the marker; a failed read is visible again after 30 seconds.
+                const opened = ({});
+                for (const [id, at] of Object.entries(root.opened))
+                    if (seen[id] && Date.now() - at < 30000)
+                        opened[id] = at;
+                root.opened = opened;
                 const unread = listed.filter(t => !root.opened[t.id]);
                 const wanted = unread.slice(0, root.detailed);
                 const stale = wanted.filter(t => !t.historyId || root.cache[t.id]?.historyId !== t.historyId);
@@ -274,7 +280,7 @@ GoogleService {
     }
 
     // --- searching -----------------------------------------------------------
-    // The launcher's # mode past the prefix: the whole mailbox, read or not,
+    // The launcher's @ mode past the prefix: the whole mailbox, read or not,
     // in Gmail's own search syntax ("from:ann has:attachment"), because the
     // API takes the same q= the search box does. The answer is tagged with
     // the query it was for, {q, rows, trouble}, the way the calculator's is,
@@ -282,7 +288,7 @@ GoogleService {
     //
     // `starredFirst` puts the starred matches on top — asked for separately,
     // so a starred mail that is not among the newest few still makes the
-    // list. The launcher's "recent" view (a bare "#" with nothing unread) is
+    // list. The launcher's "recent" view (a bare "@" with nothing unread) is
     // the same search without it.
     property var found: null
     property int searches: 0
@@ -299,6 +305,7 @@ GoogleService {
             if (current())
                 root.found = {
                     q: q,
+                    at: Date.now(),
                     rows: rows.sort((a, b) => (starredFirst ? b.starred - a.starred : 0) || b.at - a.at),
                     trouble: trouble
                 };
@@ -313,32 +320,30 @@ GoogleService {
                 then(body?.threads ?? []);
         }, failed);
 
-        root.authorised(function () {
-            if (!starredFirst) {
-                list(q, listed => root.detail(listed, rows => answer(rows, "")));
+        if (!starredFirst) {
+            list(q, listed => root.detail(listed, rows => answer(rows, "")));
+            return;
+        }
+        // Bracketed, so "a OR b" gains the star as a whole rather than
+        // on its last word.
+        let starred = null;
+        let all = null;
+        const merge = function () {
+            if (starred === null || all === null)
                 return;
-            }
-            // Bracketed, so "a OR b" gains the star as a whole rather than
-            // on its last word.
-            let starred = null;
-            let all = null;
-            const merge = function () {
-                if (starred === null || all === null)
-                    return;
-                const seen = ({});
-                for (const t of starred)
-                    seen[t.id] = true;
-                const listed = starred.concat(all.filter(t => !seen[t.id])).slice(0, root.searchMax);
-                root.detail(listed, rows => answer(rows, ""));
-            };
-            list(`(${q}) is:starred`, l => {
-                starred = l;
-                merge();
-            });
-            list(q, l => {
-                all = l;
-                merge();
-            });
+            const seen = ({});
+            for (const t of starred)
+                seen[t.id] = true;
+            const listed = starred.concat(all.filter(t => !seen[t.id])).slice(0, root.searchMax);
+            root.detail(listed, rows => answer(rows, ""));
+        };
+        list(`(${q}) is:starred`, l => {
+            starred = l;
+            merge();
+        });
+        list(q, l => {
+            all = l;
+            merge();
         });
     }
 
@@ -400,25 +405,15 @@ GoogleService {
                 root.fail(why, status);
                 finished();
             };
-            root.authorised(function () {
-                root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
-                    root.loadText(m.id, body?.payload, function (text) {
-                        const next = Object.assign({}, root.bodies);
-                        next[m.id] = text || m.snippet;
-                        root.bodies = next;
-                        finished();
-                    }, failed);
+            root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
+                root.loadText(m.id, body?.payload, function (text) {
+                    const next = Object.assign({}, root.bodies);
+                    next[m.id] = text || m.snippet;
+                    root.bodies = next;
+                    finished();
                 }, failed);
             }, failed);
         }
-    }
-
-    function textOf(payload: var): string {
-        const plain = root.part(payload, "text/plain");
-        if (plain !== "")
-            return root.unquote(plain);
-        const html = root.part(payload, "text/html");
-        return html !== "" ? root.unquote(root.untag(html)) : "";
     }
 
     // Large inline bodies live behind Gmail's attachment endpoint too.
@@ -462,11 +457,6 @@ GoogleService {
                 return found;
         }
         return null;
-    }
-
-    function part(p: var, type: string): string {
-        const found = root.mimePart(p, type);
-        return found?.body?.data ? root.utf8(root.unbase64(found.body.data)) : "";
     }
 
     // Gmail's base64url to bytes, as a list of numbers.
@@ -586,18 +576,16 @@ GoogleService {
     // Read without opening it: the UNREAD label off every message in the
     // thread, which is what Gmail's own "mark as read" does. Needs the
     // gmail.modify scope; a token granted before it was added gets a 403 and
-    // the row comes back on the next poll, with `trouble` saying why.
+    // a failed read returns after the grace period, with `trouble` saying why.
     function markRead(thread: var): void {
         root.drop(thread);
-        root.authorised(function () {
-            root.send("POST", `${root.api}/threads/${thread.id}/modify`, {
-                removeLabelIds: ["UNREAD"]
-            }, function () {});
-        });
+        root.send("POST", `${root.api}/threads/${thread.id}/modify`, {
+            removeLabelIds: ["UNREAD"]
+        }, function () {});
     }
 
     // Remove immediately and guard against replies from the current poll.
-    // A fresh poll checks Gmail's state again (see `opened`).
+    // Polls wait briefly for Gmail to confirm the read (see `opened`).
     function drop(thread: var): void {
         // Once: a mail read in the launcher and then opened in Gmail would
         // otherwise come off the count twice.

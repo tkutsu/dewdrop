@@ -64,7 +64,7 @@ Item {
     // Scaled with the font size it stands in for, so a popup's smaller glyphs
     // get smaller drawings. An SVG cannot take the colour, but every colour a
     // glyph is given is white at some alpha, so the alpha is what carries over.
-    ShadowedIcon {
+    FittedIcon {
         id: art
         visible: root.drawing
         x: root.tightWidth ? -inkX : 0
@@ -82,7 +82,7 @@ Item {
     // The next drawing, drawn unseen at the same size so InkProbe can measure
     // it (a grab ignores the opacity above what it grabs). Empty once shown,
     // so a settled glyph holds one picture, not two.
-    ShadowedIcon {
+    FittedIcon {
         id: pending
         opacity: 0
         source: root.drawing && root.text !== root.shown ? root.text : ""

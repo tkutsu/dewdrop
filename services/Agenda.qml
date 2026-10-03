@@ -94,7 +94,7 @@ GoogleService {
 
     function fetchCalendars(): void {
         root.send("GET", `${root.api}/users/me/calendarList?minAccessRole=owner`, null, function (body) {
-            root.calendars = (body.items ?? []).filter(c => c.selected === true).map(c => ({
+            root.calendars = (body.items ?? []).filter(c => c.selected === true && c.summary !== CalendarTimers.calendarName).map(c => ({
                 id: c.id,
                 title: c.summary ?? ""
             }));

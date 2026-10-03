@@ -7,7 +7,7 @@ import qs
 // every time the popup opens. The notification centre set the pattern.
 //
 // Buttons are the children, laid in a row from the right edge. A framed
-// PopupButton at `buttonHeight` is what goes here.
+// PopupButton supplies the header controls.
 Item {
     id: root
 
@@ -16,8 +16,6 @@ Item {
     // The title's inset from the popup's edge, level with the text of the rows
     // under it.
     property int inset: 6
-
-    readonly property int buttonHeight: 20
 
     implicitWidth: root.inset + name.implicitWidth + 12 + row.implicitWidth
     implicitHeight: 22

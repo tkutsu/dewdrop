@@ -70,7 +70,7 @@ ClickArea {
     property bool present: true
 
     // The module's name in Settings, for the ones that can be switched off
-    // on the settings page. Off is `present` false from outside: the module
+    // in settings.json. Off is `present` false from outside: the module
     // is not on this machine's bar at all.
     property string settingsKey: pinKey
     readonly property bool here: present && Settings.moduleOn(settingsKey)
@@ -197,7 +197,7 @@ ClickArea {
     Layout.fillHeight: true
 
     hoverEnabled: true
-    // config.jsonc sets "cursor": false on every module — no pointer hand.
+    // Keep the normal pointer over bar modules.
     cursorShape: Qt.ArrowCursor
     containmentMask: reach
 

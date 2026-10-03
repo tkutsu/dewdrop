@@ -6,8 +6,8 @@ import qs.components
 import qs.services
 
 // A notification as it arrives: who sent it and one line of what it said, on an
-// island of its own beside the clock, folding away again once it has been
-// seen. The bar's own version of the island a phone grows around its camera
+// pill of its own beside the clock, folding away again once it has been
+// seen. The bar's own version of the pill a phone grows around its camera
 // for the same thing, and the one place on screen a glance already goes to
 // read the time.
 //

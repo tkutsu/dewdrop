@@ -108,9 +108,7 @@ GoogleService {
     // kept over months is mostly overdue most of the time, so the warm state
     // would be the resting state, and a colour that is always on points at
     // nothing. The badge already counts what is late, the tooltip says how
-    // many, and the popup groups them under a heading in the warn colour —
-    // which is the one place there is room to read it rather than only notice
-    // it.
+    // many, and the popup shows each task's due day and urgency.
     readonly property string label: !root.loaded || root.count === 0 ? "" : String(Math.min(root.count, 99))
 
     readonly property string tooltip: {
@@ -250,9 +248,9 @@ GoogleService {
                 root.tasks = root.tasks.concat([task]);
             root.snapshot = "";
         };
-        root.authorised(() => root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
+        root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
             status: "completed"
-        }, () => root.fetchTasks(), failed), failed);
+        }, () => root.fetchTasks(), failed);
     }
 
     // The counterpart, for the tick that was meant for the row above. Google
@@ -260,14 +258,14 @@ GoogleService {
     // not clear `hidden`, and a task left hidden is one that never comes back
     // into the list — so that goes too.
     function restore(task: var): void {
-        root.authorised(() => root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
+        root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
             status: "needsAction",
             completed: null,
             hidden: false
         }, () => {
             root.forget(task.id);
             root.fetchTasks();
-        }));
+        });
     }
 
     function forget(id: string): void {
@@ -287,7 +285,7 @@ GoogleService {
         };
         if (day !== "")
             body.due = day + "T00:00:00.000Z";
-        root.authorised(() => root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks()));
+        root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks());
     }
 
     // --- reading what was typed ----------------------------------------------
