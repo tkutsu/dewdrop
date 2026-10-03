@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import qs
+import qs.services
 
 // A taskbar window icon. Three ways to find one, in order of how specific they
 // are: the window class's desktop entry, an icon theme entry named after the

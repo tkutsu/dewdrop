@@ -153,6 +153,15 @@ ShellRoot {
             check(CalendarTimers.trouble === "", "successful retry clears trouble");
             Timers.cancel(entry.id);
             Google.reply({}, 200);
+            check(CalendarTimers.jobs.length === 0 && !CalendarTimers.polling, "idle queue stops polling");
+            const calendar = CalendarTimers.calendarId;
+            CalendarTimers.calendarId = "";
+            CalendarTimers.prepare();
+            Google.reply(null, 503);
+            check(CalendarTimers.trouble !== "" && CalendarTimers.polling, "failed lookup with an empty queue keeps retry live");
+            CalendarTimers.retryNow();
+            Google.reply({items: [{id: calendar, summary: "pc_timers"}]}, 200);
+            check(CalendarTimers.calendarId === calendar && CalendarTimers.trouble === "" && !CalendarTimers.polling, "recovered lookup stops polling");
 
             const stale = {id: "stale", operation: "upsert", entry: {kind: "countdown", endsAt: Date.now() - 1000}};
             const beforeStale = Google.calls.length;

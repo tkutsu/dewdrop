@@ -110,6 +110,7 @@ ShellRoot {
             check(Launcher.results.some(r => r.kind === "desktop"), "safe default desktop controls");
             check(Launcher.results.filter(r => r.kind === "mode").length === Launcher.modes.length, "all modes discoverable");
             check(!Launcher.results.some(r => r.kind === "power"), "no power actions on home");
+            check(Launcher.noteRow("g", "title").subtitle === "", "note rows default to no subtitle");
             const stableResults = Launcher.results;
             Audio.icon = "different-volume";
             Network.icon = "different-signal";
