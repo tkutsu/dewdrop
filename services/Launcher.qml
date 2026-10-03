@@ -957,8 +957,10 @@ Singleton {
         return rows;
     }
 
-    function noteRow(glyph: string, title: string, subtitle: string): var {
-        return {kind: "note", glyph, title, subtitle: subtitle ?? "", raw: true};
+    // Untyped on purpose: a typed `subtitle: string` turns a missing argument
+    // into the string "undefined", and typed parameters cannot take defaults.
+    function noteRow(glyph, title, subtitle = "") {
+        return {kind: "note", glyph, title, subtitle, raw: true};
     }
 
     // --- mail ----------------------------------------------------------------

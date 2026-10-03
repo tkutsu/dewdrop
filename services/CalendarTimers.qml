@@ -23,6 +23,7 @@ GoogleService {
     property bool restored: false
     onRestoredChanged: root.updatePolling()
     onJobsChanged: root.updatePolling()
+    onTroubleChanged: root.updatePolling()
     property string timeZone: ""
     readonly property string status: {
         if (Google.needsConsent)
@@ -52,10 +53,14 @@ GoogleService {
             root.refresh();
     }
 
+    // Poll while there is work queued or trouble to recover from: Retry only
+    // runs while polling, so an empty queue with an error would otherwise leave
+    // the popup's retry button doing nothing.
+    //
     // Set this explicitly: a synchronous stale-job cleanup can change the
     // queue during a refresh, which would loop a binding on its length.
     function updatePolling(): void {
-        root.polling = root.restored && root.jobs.length > 0;
+        root.polling = root.restored && (root.jobs.length > 0 || root.trouble !== "");
     }
 
     // Replace a pending operation for the same event, retaining its ID on retry.

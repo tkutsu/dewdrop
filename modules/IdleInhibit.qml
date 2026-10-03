@@ -11,16 +11,18 @@ import qs.components
 BarItem {
     id: root
 
-    property var inhibitWindow: null
     readonly property bool active: Caffeine.active
-    Component.onCompleted: {
-        root.inhibitWindow = QsWindow.window;
-        Caffeine.attach(root.inhibitWindow);
-    }
-    Component.onDestruction: Caffeine.detach(root.inhibitWindow)
 
     tooltip: active ? "Caffeine on" : "Caffeine off"
+    // Only worth a place on the bar while it is holding the screen awake.
     quiet: !active
+
+    // Bound rather than read once: the bar's window does not exist yet when
+    // this item completes. One per bar is harmless; any of them holds it.
+    IdleInhibitor {
+        enabled: root.active
+        window: QsWindow.window
+    }
 
     Glyph {
         Layout.fillHeight: true

@@ -52,15 +52,12 @@ ShellRoot {
         modelData: "App"
         GROUP_STATE
     }
-    property var caffeine: Caffeine
     property var api: TestApi
     component WeatherSelection: Item {
         id: root
         WEATHER_SELECTION
     }
     WeatherSelection { id: weatherSelection }
-    FloatingWindow { id: first; visible: false }
-    FloatingWindow { id: second; visible: false }
     Connections {
         target: Pushover
         function onAcknowledged(id, firedAt) { root.acknowledged = id + ":" + firedAt; }
@@ -181,14 +178,6 @@ ShellRoot {
             check(Weather.windBearing(45) === "NE ↗" && Weather.windBearing(359) === "N ↑", "diagonal direction and north wrap correctly");
             check(Weather.windBearing(null) === "" && Weather.windBearing(-1) === "" && Weather.windBearing(361) === "", "unknown or invalid direction has no arrow");
 
-            Caffeine.attach(first);
-            Caffeine.attach(second);
-            Caffeine.active = true;
-            Caffeine.detach(first);
-            check(Caffeine.active && Caffeine.windows.length === 1 && Caffeine.windows[0] === second, "caffeine survives removal of its first bar");
-            Caffeine.active = false;
-            Caffeine.detach(second);
-
             Http.send("POST", "https://fixture.invalid", {answer: 42}, {Authorization: "fixture"}, 5000,
                 () => root.accepted++, () => root.failed++);
             const request = FakeRequest.requests[0];
@@ -233,7 +222,7 @@ ShellRoot {
                 check(root.failed === 1 && FakeRequest.requests[5].aborted, "timeout aborts once");
                 FakeRequest.reply(5, {});
                 check(root.accepted === 2 && root.failed === 1, "late response cannot complete a timed-out request");
-                console.log("PASS: weather outlook, shared caffeine, HTTP deadlines and phone receipts");
+                console.log("PASS: weather outlook, HTTP deadlines and phone receipts");
             } catch (error) { console.log("FAIL: " + error); }
             Qt.quit();
         }
@@ -247,7 +236,7 @@ def main():
         target = Path(folder)
         services = target / "services"
         services.mkdir()
-        for name in ("Weather.qml", "Caffeine.qml", "Pushover.qml", "Http.qml", "Google.qml", "GoogleService.qml"):
+        for name in ("Weather.qml", "Pushover.qml", "Http.qml", "Google.qml", "GoogleService.qml"):
             source = (ROOT / "services" / name).read_text()
             if name in ("Http.qml", "Google.qml"):
                 source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")
