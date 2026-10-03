@@ -33,13 +33,18 @@ Singleton {
     readonly property bool searching: !!searchJob.want && (searchJob.running || searchJob.arg !== searchJob.want)
     readonly property bool stale: root.updatedAt > 0 && (root.now - root.updatedAt > 1800 || root.trouble !== "")
 
-    readonly property var today: root.days.find(day => day.hours.some(hour => hour.at <= root.now && root.now < hour.at + 3600)) ?? null
-    readonly property var thisHour: root.today?.hours.find(hour => hour.at <= root.now && root.now < hour.at + 3600) ?? null
+    // Not flatMap: Qt's JavaScript engine does not have it.
+    readonly property var allHours: [].concat(...root.days.map(day => day.hours))
+    readonly property var thisHour: root.allHours.find(hour => hour.at <= root.now && root.now < hour.at + 3600) ?? null
+    readonly property var today: root.thisHour ? root.days.find(day => day.hours.includes(root.thisHour)) ?? null : null
+    readonly property var upcoming: root.allHours.filter(hour => hour.at + 3600 > root.now && hour.at < root.now + 6 * 3600)
     readonly property string summary: root.summarize(root.upcoming)
-    readonly property var upcoming: root.days.reduce((hours, day) => hours.concat(day.hours), []).filter(hour => hour.at + 3600 > root.now && hour.at < root.now + 6 * 3600)
     readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
-    readonly property string tooltip: !root.location ? "Choose a weather location" : `Next 6 hours: ${root.summary}${root.upcoming.length && root.stale ? " (Last forecast)" : ""}`
+    // The six-hour line the bar and popup share: the summary, marked when it
+    // is a cached forecast, or why there is none yet.
+    readonly property string nextSixHours: root.upcoming.length ? `${root.stale ? "Last forecast: " : ""}${root.summary}` : root.trouble || "Loading weather..."
+    readonly property string tooltip: root.location ? `Next 6 hours: ${root.nextSixHours}` : "Choose a weather location"
 
     // Merge matching hourly forecasts without bridging missing hours or DST epochs.
     function hourRanges(hours: var, key: string): var {
@@ -54,18 +59,18 @@ Singleton {
         return ranges;
     }
 
-    // Lead with impactful weather, folding noisy hourly changes into a short outlook.
+    // Lead with impactful weather, folding noisy hourly changes into a short
+    // outlook. Hours are classed by the helper's severity scale (condition()
+    // in weather-fetch.py: 0 clear, 1 partly cloudy, 2 overcast, 3 fog,
+    // 4 drizzle and up wet, 6 heavy rain and up hazardous, -1 unknown), so a
+    // renamed condition changes the wording here and nothing else.
     function summarize(hours: var): string {
         if (!hours.length)
             return "Forecast unavailable.";
         const finite = value => typeof value === "number" && Number.isFinite(value);
         const complete = hours[0].at <= root.now && hours[hours.length - 1].at + 3600 >= root.now + 6 * 3600 && hours.every((hour, index) => index === 0 || hour.at - hours[index - 1].at === 3600);
-        const known = hours.filter(hour => hour.description && hour.description !== "Unavailable");
-        const wetNames = ["Drizzle", "Rain", "Heavy rain", "Freezing rain", "Snow", "Thunderstorm"];
-        const wet = hours.filter(hour => wetNames.includes(hour.description) || finite(hour.rain) && hour.rain >= 30);
-        const hazard = ["Thunderstorm", "Freezing rain", "Snow", "Heavy rain"].find(name => hours.some(hour => hour.description === name)) ?? (!wet.length && hours.some(hour => hour.description === "Fog") ? "Fog" : null);
-        const likely = wet.filter(hour => finite(hour.rain) && hour.rain >= 70);
-        let outlook;
+        const known = hours.filter(hour => hour.severity >= 0);
+        const wet = hours.filter(hour => hour.severity >= 4 || finite(hour.rain) && hour.rain >= 30);
 
         function timing(forecast) {
             const periods = root.hourRanges(forecast, "");
@@ -79,61 +84,75 @@ Singleton {
             return `${forecast.length === 1 ? "around" : "from"} ${first.time}`;
         }
 
-        if (hazard || wet.length) {
-            const focus = hazard ? hours.filter(hour => hour.description === hazard) : likely.length ? likely : wet;
-            const label = hazard === "Thunderstorm" ? "Thunderstorms" : hazard === "Fog" ? "Foggy" : hazard || (likely.length ? "Rain likely" : "Rain possible");
-            outlook = `${label} ${timing(focus)}`;
-            if (root.hourRanges(focus, "").length === 1 && focus.length < hours.length) {
-                const last = wet.length ? wet[wet.length - 1] : focus[focus.length - 1];
-                const after = hours.find(hour => hour.at === last.at + 3600);
-                if (after && known.includes(after) && !wet.includes(after))
-                    outlook += `, ${["Clear", "Partly cloudy"].includes(after.description) ? "clearing" : "easing"} around ${after.time}`;
+        // What is falling or hanging about, else what the sky does.
+        function conditions() {
+            const worst = hours.reduce((top, hour) => hour.severity > top.severity ? hour : top);
+            // Fog only leads while nothing is falling.
+            const hazard = worst.severity >= 6 || worst.severity === 3 && !wet.length ? worst.description : "";
+            if (hazard || wet.length) {
+                const likely = wet.filter(hour => finite(hour.rain) && hour.rain >= 70);
+                const focus = hazard ? hours.filter(hour => hour.description === hazard) : likely.length ? likely : wet;
+                const label = hazard === "Thunderstorm" ? "Thunderstorms" : hazard === "Fog" ? "Foggy" : hazard || (likely.length ? "Rain likely" : "Rain possible");
+                let text = `${label} ${timing(focus)}`;
+                if (root.hourRanges(focus, "").length === 1 && focus.length < hours.length) {
+                    const last = wet.length ? wet[wet.length - 1] : focus[focus.length - 1];
+                    const after = hours.find(hour => hour.at === last.at + 3600);
+                    if (after && known.includes(after) && !wet.includes(after))
+                        text += `, ${after.severity <= 1 ? "clearing" : "easing"} around ${after.time}`;
+                }
+                return text;
             }
-        } else if (known.length) {
+            if (!known.length)
+                return "Conditions unavailable";
+
             const ranges = root.hourRanges(known, "description");
             const last = ranges[ranges.length - 1];
-            const clear = known.filter(hour => hour.description === "Clear").length;
-            const cloudy = known.filter(hour => hour.description === "Overcast").length;
-            if (ranges.length <= 3 && last.end - last.start >= 7200 && known[0].description !== "Clear" && last.hour.description === "Clear")
-                outlook = `Cloudy at first, clearing around ${last.hour.time}`;
-            else if (ranges.length <= 3 && last.end - last.start >= 7200 && known[0].description === "Clear" && last.hour.description === "Overcast")
-                outlook = `Clear at first, cloudier from ${last.hour.time}`;
-            else {
-                outlook = clear === known.length ? "Clear" : cloudy === known.length ? "Overcast" : clear / known.length >= 0.6 ? "Mostly clear" : cloudy / known.length >= 0.6 ? "Mostly cloudy" : "Partly cloudy";
-                const rain = hours.map(hour => hour.rain).filter(finite);
-                if (complete && known.length === hours.length && rain.length === hours.length)
-                    outlook += Math.max(...rain) <= 10 ? " and dry" : " with little chance of rain";
-            }
-        } else {
-            outlook = "Conditions unavailable";
+            const settles = ranges.length <= 3 && last.end - last.start >= 7200;
+            if (settles && known[0].severity !== 0 && last.hour.severity === 0)
+                return `Cloudy at first, clearing around ${last.hour.time}`;
+            if (settles && known[0].severity === 0 && last.hour.severity === 2)
+                return `Clear at first, cloudier from ${last.hour.time}`;
+
+            const clear = known.filter(hour => hour.severity === 0).length / known.length;
+            const cloudy = known.filter(hour => hour.severity === 2).length / known.length;
+            const sky = clear === 1 ? "Clear" : cloudy === 1 ? "Overcast" : clear >= 0.6 ? "Mostly clear" : cloudy >= 0.6 ? "Mostly cloudy" : "Partly cloudy";
+            const rain = hours.map(hour => hour.rain).filter(finite);
+            if (complete && known.length === hours.length && rain.length === hours.length)
+                return sky + (Math.max(...rain) <= 10 ? " and dry" : " with little chance of rain");
+            return sky;
         }
 
-        const sentences = [outlook];
-        const winds = hours.filter(hour => finite(hour.wind));
-        const peakWind = winds.length ? Math.max(...winds.map(hour => hour.wind)) : 0;
-        if (peakWind >= 29) {
-            const threshold = peakWind >= 62 ? 62 : peakWind >= 50 ? 50 : peakWind >= 39 ? 39 : 29;
+        function wind() {
+            const winds = hours.filter(hour => finite(hour.wind));
+            const peak = winds.length ? Math.max(...winds.map(hour => hour.wind)) : 0;
+            if (peak < 29)
+                return "";
+            const threshold = peak >= 62 ? 62 : peak >= 50 ? 50 : peak >= 39 ? 39 : 29;
             const windy = winds.filter(hour => hour.wind >= threshold);
             const label = threshold === 62 ? "Gale-force winds" : threshold === 50 ? "Very strong winds" : threshold === 39 ? "Strong winds" : "Breezy";
-            sentences.push(`${label}${windy.length === hours.length ? "" : ` ${timing(windy)}`}`);
+            return `${label}${windy.length === hours.length ? "" : ` ${timing(windy)}`}`;
         }
-        const temperatures = hours.map(hour => hour.temperature).filter(finite);
-        if (temperatures.length) {
+
+        function temperature() {
+            const temperatures = hours.map(hour => hour.temperature).filter(finite);
+            if (!temperatures.length)
+                return "";
             const minimum = Math.min(...temperatures);
             const maximum = Math.max(...temperatures);
             const low = Math.round(minimum);
             const high = Math.round(maximum);
-            const first = Math.round(hours[0].temperature);
-            const last = Math.round(hours[hours.length - 1].temperature);
+            const first = hours[0].temperature;
+            const last = hours[hours.length - 1].temperature;
             if (maximum >= 35)
-                sentences.push(`Hot, up to ${high}°C`);
-            else if (minimum <= 0)
-                sentences.push(`Freezing, down to ${low}°C`);
-            else if (finite(hours[0].temperature) && finite(hours[hours.length - 1].temperature) && Math.abs(last - first) >= 3)
-                sentences.push(`${last > first ? "Warming" : "Cooling"} to ${last}°C`);
-            else
-                sentences.push(high - low <= 2 ? `Around ${Math.round((low + high) / 2)}°C` : `Around ${low}-${high}°C`);
+                return `Hot, up to ${high}°C`;
+            if (minimum <= 0)
+                return `Freezing, down to ${low}°C`;
+            if (finite(first) && finite(last) && Math.abs(Math.round(last) - Math.round(first)) >= 3)
+                return `${last > first ? "Warming" : "Cooling"} to ${Math.round(last)}°C`;
+            return high - low <= 2 ? `Around ${Math.round((low + high) / 2)}°C` : `Around ${low}-${high}°C`;
         }
+
+        const sentences = [conditions(), wind(), temperature()].filter(sentence => sentence !== "");
         if (!complete)
             sentences.push("Some hours are missing");
         else if (known.length < hours.length)

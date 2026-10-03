@@ -28,7 +28,7 @@ class WeatherRequests(unittest.TestCase):
         clock_patch = patch.object(weather.time, "time", return_value=10000)
         self.clock = clock_patch.start()
         self.addCleanup(clock_patch.stop)
-        self.forecast = {"days": [{"date": "2026-10-03", "feelsLikeHigh": 21, "feelsLikeLow": 12, "hours": [{"at": 10000, "feelsLike": 18}]}] * 7, "timezone": "UTC"}
+        self.forecast = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000, "feelsLike": 18}]}] * 7}
 
     def request(self, mode="forecast", args=None, force=False):
         return weather.request(mode, args or ["37.98", "23.73", "Europe/Athens"], self.state, self.cache, force)
@@ -55,7 +55,7 @@ class WeatherRequests(unittest.TestCase):
             self.assertEqual(fetch.call_count, 3)
 
     def test_older_cache_expires_and_remains_available_during_backoff(self):
-        old = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000}]}] * 7, "timezone": "UTC"}
+        old = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000}]}] * 7}
         cached = {"key": [37.98, 23.73, "Europe/Athens"], "forecast": old, "fetchedAt": 10000}
         weather.write_json(self.cache, cached)
         with patch.object(weather, "fetch", return_value=self.forecast) as fetch:
@@ -133,6 +133,15 @@ class WeatherRequests(unittest.TestCase):
             self.clock.return_value = 10030
             self.assertEqual(self.request()["retryAt"], 10090)
 
+    def test_unreadable_reply_is_not_blamed_on_the_connection(self):
+        with patch.object(weather, "fetch", side_effect=URLError("offline")):
+            self.assertIn("connection", self.request()["error"])
+        self.state.unlink()
+        with patch.object(weather, "fetch", side_effect=ValueError("Incomplete forecast")):
+            result = self.request()
+            self.assertIn("could not be read", result["error"])
+            self.assertEqual(result["retryAt"], 10030)
+
     def test_search_rate_limit_also_blocks_forecasts(self):
         with patch.object(weather, "fetch", side_effect=self.rate_limit("120")) as fetch:
             self.request("search", ["Athens"])
@@ -170,14 +179,14 @@ class WeatherTemperatures(unittest.TestCase):
                 "weather_code": [0] * 7,
                 "temperature_2m_max": [25] * 7,
                 "temperature_2m_min": [15] * 7,
-                "apparent_temperature_max": [22, None, 0, 0, 23, 24, 25],
-                "apparent_temperature_min": [12, None, -5, 0, 13, 14, 15],
                 "precipitation_probability_max": [0] * 7,
             },
         }
 
     def test_normalizes_air_and_feels_like_temperatures_including_missing_values(self):
-        days = weather.normalize(self.body)["days"]
+        forecast = weather.normalize(self.body)
+        self.assertEqual(set(forecast), {"days"})
+        days = forecast["days"]
         self.assertEqual(days[0]["hours"][0]["temperature"], 20)
         self.assertEqual(days[0]["hours"][0]["feelsLike"], 17)
         self.assertEqual((days[0]["high"], days[0]["low"]), (25, 15))
