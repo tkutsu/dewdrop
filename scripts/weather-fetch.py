@@ -67,10 +67,8 @@ def normalize(body):
     for i, stamp in enumerate(daily["time"]):
         local = datetime.fromtimestamp(stamp, zone)
         date = local.date().isoformat()
-        description, icon, _ = condition(daily["weather_code"][i])
         days.append({
-            "date": date, "weekday": local.strftime("%a"), "label": local.strftime("%A, %d %b"),
-            "description": description, "icon": icon,
+            "date": date, "weekday": local.strftime("%a"), "icon": condition(daily["weather_code"][i])[1],
             "high": number(daily["temperature_2m_max"][i]),
             "low": number(daily["temperature_2m_min"][i]),
             "rain": number(daily["precipitation_probability_max"][i]),
@@ -78,7 +76,7 @@ def normalize(body):
         })
     if len(days) != 7 or not all(day["hours"] for day in days):
         raise ValueError("Incomplete forecast")
-    return {"days": days, "timezone": body["timezone"]}
+    return {"days": days}
 
 
 def fetch(mode, args):
@@ -187,7 +185,10 @@ def request(mode, args, state_path, cache_path, force=False):
                 return {**snapshot, "error": "Weather is rate limited. Waiting for the cooldown to end.", "status": 429, "cooldownUntil": cooldown, "retryAt": cooldown}
             if isinstance(error, HTTPError):
                 error.close()
-            result = {**snapshot, "error": "Weather request failed. Check your connection and try again."}
+            # Transport and HTTP failures are OSErrors; anything else is a
+            # reply that could not be read, which no reconnecting will fix.
+            reason = "Check your connection and try again." if isinstance(error, OSError) else "The forecast it sent could not be read."
+            result = {**snapshot, "error": f"Weather request failed. {reason}"}
             if mode == "forecast":
                 attempts = min(state.get("forecastFailures", 0) + 1, 5)
                 result["retryAt"] = now + min(30 * 2 ** (attempts - 1), 300)

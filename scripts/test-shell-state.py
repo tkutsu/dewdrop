@@ -129,12 +129,16 @@ ShellRoot {
             check(Weather.tooltip.includes("Last forecast"), "cached tooltip identifies stale data");
             Weather.days = [];
             check(Weather.summary === "Forecast unavailable.", "empty summary is explicit");
-            check(Weather.tooltip === "Next 6 hours: Forecast unavailable.", "empty tooltip keeps its requested heading");
+            check(Weather.tooltip === "Next 6 hours: Fixture offline", "empty tooltip keeps its heading and says why");
 
             Weather.trouble = "";
             Weather.updatedAt = 0;
+            check(Weather.tooltip === "Next 6 hours: Loading weather...", "empty tooltip without trouble says it is loading");
+            check(Weather.thisHour === null && Weather.today === null, "no forecast has no current hour or day");
+            // The helper sends a severity with every description (condition() in weather-fetch.py).
+            const severities = {"Clear": 0, "Partly cloudy": 1, "Overcast": 2, "Fog": 3, "Rain": 5, "Freezing rain": 7, "Snow": 7, "Thunderstorm": 8, "Unavailable": -1};
             const scenario = (descriptions, probabilities, temperatures, speeds) => repeated.map((hour, index) => Object.assign({}, hour, {
-                description: descriptions[index], rain: probabilities[index], temperature: temperatures[index], wind: speeds[index]
+                description: descriptions[index], severity: severities[descriptions[index]], rain: probabilities[index], temperature: temperatures[index], wind: speeds[index]
             }));
             const clear = Array(7).fill("Clear");
             const cloudy = Array(7).fill("Overcast");
