@@ -84,7 +84,7 @@ Item {
 
     // Quick for the first half minute, then patient. mpd is normally either
     // up or stopped for the evening, and it comes back through the launcher's
-    // # row, which dials at once (dialNow) — so the slow retry only covers an
+    // & row, which dials at once (dialNow) — so the slow retry only covers an
     // mpd started by hand from a terminal, and five minutes is soon enough
     // for that. At 45 s the evening was two ConnectionRefused lines in the
     // log every three quarters of a minute, for nothing.

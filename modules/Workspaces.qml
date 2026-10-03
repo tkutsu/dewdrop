@@ -24,31 +24,6 @@ BarItem {
         return addresses.some(a => root.urgentAddresses.includes(a));
     }
 
-    // ID compaction needs fresh window associations and monitor focus in Quickshell 0.3.
-    function refreshWorkspaceAssociations(): void {
-        Hyprland.refreshToplevels();
-        Hyprland.refreshMonitors();
-    }
-
-    Connections {
-        target: Hyprland
-
-        function onRawEvent(event) {
-            if (event.name === "changeworkspaceid")
-                Qt.callLater(root.refreshWorkspaceAssociations);
-        }
-    }
-
-    Connections {
-        target: Hyprland.workspaces
-
-        // Association refreshes discover new workspaces with ID -1; resolve those after discovery.
-        function onValuesChanged() {
-            if (Hyprland.workspaces.values.some(w => w.id === -1))
-                Qt.callLater(Hyprland.refreshWorkspaces);
-        }
-    }
-
     // The Hyprland dispatcher speaks Lua here (hyprland.lua drives this setup),
     // which is why these read as function calls rather than bare dispatchers.
     // Down is the next one: the strip lies across the wheel like a Slider,
@@ -139,34 +114,22 @@ BarItem {
         // ends of the strip that would carry it out through the pill's own
         // end, so there the end is a wall: the head stops against it and the
         // rest of the run piles up against it as a bulb (see press).
-        Liquid {
+        FlowMark {
             id: mark
-
-            readonly property int inset: Theme.markInset
-
-            // How far the glass has come up off the pill, 0..1: a press held
-            // on an icon lifts it a pixel towards the pill's edges and
-            // lights it a step, and letting go drops it back on the spring.
-            // A pixel, because the bar's surface ends at the pill's foot and
-            // the mark cannot swell past it the way a lens on a phone does.
-            property real lift: strip.held ? 1 : 0
-
-            Behavior on lift {
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.markDamping
-                }
-            }
-
-            readonly property real edge: inset - lift
-            readonly property real slabTop: Theme.pillTop(strip.height) + Theme.pillBorder + edge
-            readonly property real thickness: Theme.barHeight - Theme.pillBorder - edge * 2
-            readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
+            held: strip.held
+            slabY: Theme.pillTop(strip.height)
+            slabHeight: Theme.barHeight
+            atFirst: strip.selected !== null && strip.selected.index === 0
+            atLast: strip.selected !== null && strip.selected.index === workspaces.count - 1
+            wallLeft: wantLeft - inset + Theme.pillBorder
+            wallRight: strip.width + Theme.pillPad * 2 - Theme.pillBorder
+            visible: hasSelection
+            x: -Theme.pillPad
+            width: strip.width + Theme.pillPad * 2
+            height: strip.height
 
             readonly property real targetLeft: strip.selected ? strip.selected.x + inset : wantLeft
             readonly property real targetRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : wantRight
-            property real wantLeft: 0
-            property real wantRight: 0
             property bool hasSelection: false
 
             // Focus, delegate removal, and layout can change separately in one update.
@@ -191,140 +154,6 @@ BarItem {
                 }
             }
 
-            // Each end runs from wherever it is to where the mark belongs, so
-            // a switch made mid-run picks both ends up where they are rather
-            // than snapping them together first. Not until the mark has been
-            // placed once, or it would flow in from the screen's edge.
-            property bool placed: false
-            onPlacedChanged: if (placed) {
-                tailLeft = wantLeft;
-                tailRight = wantRight;
-                tailProgress = 1;
-                roundness = 0;
-            }
-
-            // Place once; a delegate disappearing between IPC updates keeps its motion.
-            onVisibleChanged: if (visible && !placed)
-                Qt.callLater(() => {
-                    if (mark.visible)
-                        mark.placed = true;
-                })
-
-            property real headLeft: wantLeft
-            property real headRight: wantRight
-            property real tailLeft: wantLeft
-            property real tailRight: wantRight
-            property point tailStart: Qt.point(wantLeft, wantRight)
-            property real tailProgress: 1
-            property real roundness: 0
-
-            // A new destination keeps the tail wherever the previous move left it.
-            function followTail(): void {
-                if (!mark.placed) {
-                    mark.tailLeft = mark.wantLeft;
-                    mark.tailRight = mark.wantRight;
-                    mark.tailProgress = 1;
-                    mark.roundness = 0;
-                    return;
-                }
-                mark.tailStart = Qt.point(mark.tailLeft, mark.tailRight);
-                mark.tailProgress = 0;
-            }
-
-            onWantLeftChanged: followTail()
-            onWantRightChanged: followTail()
-
-            Behavior on headLeft {
-                enabled: mark.placed
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.markDamping
-                }
-            }
-            Behavior on headRight {
-                enabled: mark.placed
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.markDamping
-                }
-            }
-            FrameAnimation {
-                running: mark.visible && mark.placed && (mark.tailProgress < 1 || mark.roundness > 0)
-
-                // Distance and the tail's shrinking size accelerate the same cubic flow.
-                onTriggered: {
-                    const previousMid = mark.tailMid;
-                    const distance = mark.apart / (mark.thickness * 4);
-                    const shrink = 1 - mark.blobHeight / mark.thickness;
-                    const speed = (1 + 0.75 * distance * distance) * (1 + 0.75 * shrink);
-                    mark.tailProgress = Math.min(1, mark.tailProgress + frameTime * 1000 * speed / (Theme.markMs * 1.1));
-                    const t = Math.max(0, (mark.tailProgress - 0.2) / 0.8);
-                    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                    const left = mark.tailStart.x + (mark.wantLeft - mark.tailStart.x) * eased;
-                    const right = mark.tailStart.y + (mark.wantRight - mark.tailStart.y) * eased;
-                    const velocity = mark.tailProgress < 1 && frameTime > 0 ? Math.abs((left + right) / 2 - previousMid) / frameTime : 0;
-                    mark.tailLeft = left;
-                    mark.tailRight = right;
-                    // Ease into a ball as flow speeds up, and back into a pill at rest.
-                    const pace = Math.min(1, velocity / (mark.thickness * 24));
-                    const round = pace * pace * (3 - 2 * pace);
-                    const roundingTime = round > mark.roundness ? 0.025 : 0.05;
-                    mark.roundness += (round - mark.roundness) * (1 - Math.exp(-frameTime / roundingTime));
-                    if (round === 0 && mark.roundness < 0.001)
-                        mark.roundness = 0;
-                }
-            }
-
-            // The pill's ends, as walls for the head. A pixel short of the
-            // slab's edge, so the pill's rim stays in view outside the glass
-            // pressed against it. Only at the first and last workspace: in
-            // the middle of the strip the overshoot has room to run.
-            readonly property bool atFirst: strip.selected !== null && strip.selected.index === 0
-            readonly property bool atLast: strip.selected !== null && strip.selected.index === workspaces.count - 1
-            readonly property real wallLeft: wantLeft - inset + Theme.pillBorder
-            // The pill keeps its old width briefly after an empty workspace leaves.
-            readonly property real wallRight: strip.width + Theme.pillPad * 2 - Theme.pillBorder
-
-            // A long jump can overshoot by more than a narrow workspace's width.
-            readonly property real frontLeft: Math.min(atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift, atLast ? wallRight : Infinity)
-            readonly property real frontRight: Math.max(frontLeft, atLast ? Math.min(headRight + lift, wallRight) : headRight + lift)
-
-            // How far past a wall the spring would have carried the head, on
-            // whichever side it is pressing.
-            readonly property real pastLeft: atFirst ? wallLeft - (headLeft - lift) : 0
-            readonly property real pastRight: atLast ? headRight + lift - wallRight : 0
-
-            // How hard the head is pressed into the wall, 0..1, eased out so
-            // the glass gives quickly at first and then stiffens. It comes
-            // out as a bulb of glass against the wall, taller than the rest
-            // of the mark, the way a drop run into something piles up where
-            // it hit rather than swelling all along.
-            readonly property real press: {
-                const t = Math.min(1, Math.max(pastLeft, pastRight, 0) / Theme.markPress);
-                return 1 - (1 - t) * (1 - t);
-            }
-            readonly property real bulbEdge: Math.max(0, edge - Theme.markBulge * press)
-            readonly property real bulbTop: Theme.pillTop(strip.height) + Theme.pillBorder + bulbEdge
-            readonly property real bulbThickness: Theme.barHeight - Theme.pillBorder - bulbEdge * 2
-            readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
-            readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
-
-            readonly property real headMid: (frontLeft + frontRight) / 2
-            readonly property real tailMid: (tailLeft + tailRight) / 2
-            readonly property real apart: Math.abs(headMid - tailMid)
-            // Full thickness while the ends overlap, down to 40% of it once
-            // they are three thicknesses apart: a neighbour's mark only
-            // stretches, a long way off it pours through a thread.
-            readonly property real neck: thickness * (1 - 0.6 * Math.pow(Math.min(1, apart / (thickness * 3)), 2))
-            readonly property real tailWidth: tailRight - tailLeft + lift * 2
-            readonly property real blobWidth: tailWidth + (neck - tailWidth) * roundness
-            readonly property real blobHeight: thickness + (neck - thickness) * roundness
-
-            visible: hasSelection
-            x: -Theme.pillPad
-            width: strip.width + Theme.pillPad * 2
-            height: strip.height
-
             // Keep the liquid inside the pill's current rounded rim as both animate.
             layer.enabled: true
             layer.effect: MultiEffect {
@@ -335,28 +164,6 @@ BarItem {
                 maskSpreadAtMin: 1
             }
 
-            box0: Qt.vector4d(tailMid - blobWidth / 2, slabTop + (thickness - blobHeight) / 2, blobWidth, blobHeight)
-            box1: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
-            box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
-
-            // At rest the head lies on the tail, and a reach would swell the
-            // two into something fatter than either; it comes up only as they
-            // part.
-            reach: Theme.pillSpread * Math.min(1, apart / thickness)
-            box3: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
-            // The bulb joins the head with a small reach of its own: enough
-            // to round the step between the two, and short enough that the
-            // swell a join adds (a quarter of the reach) stays inside the
-            // pixel between the wall and the pill's edge.
-            reaches: Qt.vector4d(reach, reach, reach, 3 * press)
-            // The strong step, not a popup row's hover: on a pill this thin
-            // over a bright wallpaper, the row fill was barely there.
-            fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
-            rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
-            // The bulb's band, which is the rest of the mark's or taller when
-            // it bulges.
-            rimFrom: bulbTop
-            rimTo: bulbTop + bulbThickness
         }
 
         Item {

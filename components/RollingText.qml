@@ -27,6 +27,7 @@ Row {
     id: root
 
     property string text: ""
+    property int columns: 8
     // Counting down, the figures drop: the next one comes in from above.
     property bool countsDown: false
     property color color: Theme.fg
@@ -76,7 +77,7 @@ Row {
         // and of no width: a Repeater given a count rebuilds every column when
         // the count changes, and 10:00 to 9:59 would swap rather than roll.
         // Eight is 99:59:59.
-        model: Math.max(8, root.text.length)
+        model: Math.max(root.columns, root.text.length)
 
         delegate: Item {
             id: column

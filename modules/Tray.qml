@@ -97,7 +97,7 @@ BarItem {
             Layout.fillHeight: true
             implicitWidth: entry.glyph ? substitute.implicitWidth : icon.inkWidth
 
-            ShadowedIcon {
+            FittedIcon {
                 id: icon
                 x: -inkX
                 anchors.verticalCenter: parent.verticalCenter

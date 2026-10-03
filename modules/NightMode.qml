@@ -15,13 +15,25 @@ BarItem {
     // Reserve one icon slot so the narrower dim bulb cannot resize the bar.
     Item {
         Layout.fillHeight: true
-        implicitWidth: Theme.glyphSize - 2
+        implicitWidth: Math.max(onRuler.implicitWidth, offRuler.implicitWidth)
 
         Glyph {
             x: Math.round((parent.width - width) / 2)
             height: parent.height
             text: NightMode.icon
-            nudge: -1
+            fontSize: Theme.glyphSize - 1
+        }
+        Glyph {
+            id: onRuler
+            text: Theme.glyph.nightOn
+            fontSize: Theme.glyphSize - 1
+            opacity: 0
+        }
+        Glyph {
+            id: offRuler
+            text: Theme.glyph.nightOff
+            fontSize: Theme.glyphSize - 1
+            opacity: 0
         }
     }
 

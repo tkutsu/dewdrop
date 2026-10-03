@@ -37,16 +37,22 @@ PanelWindow {
     property bool completed: false
     readonly property bool opened: root.completed && root.shown
 
-    Component.onCompleted: root.completed = true
+    Component.onCompleted: {
+        root.pickScreen();
+        root.completed = true;
+    }
+    onShownChanged: if (root.shown) root.pickScreen()
+
+    // Keep an open overlay on the screen selected when it was requested.
+    function pickScreen(): void {
+        root.screen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null;
+    }
 
     WlrLayershell.namespace: "quickshell:" + root.name
     WlrLayershell.layer: WlrLayer.Overlay
     // Take keyboard input without blocking focus on an outside mouse press.
     // Release it during the fold-away so the next window can accept typing.
     WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-
-    // Open where the user is, not wherever the compositor would have put it.
-    screen: Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null
 
     anchors {
         top: true

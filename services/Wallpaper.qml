@@ -37,6 +37,8 @@ Singleton {
     property string thumbed: ""
 
     onFilesChanged: {
+        if (!root.files.length)
+            return;
         const list = root.files.join("\n");
         if (list === root.thumbed || thumbnail.running)
             return;
@@ -250,7 +252,7 @@ Singleton {
     }
 
     readonly property int index: files.indexOf(current)
-    readonly property string tooltip: color ? `Wallpaper: ${color}` : (files.length ? `Wallpaper: ${index + 1}/${files.length}` : "No wallpapers found")
+    readonly property string tooltip: "No wallpapers found"
 
     // Every entry point rescans first, so a file added a second ago is already
     // in the rotation. `find` over a few dozen images costs nothing next to the
@@ -305,7 +307,6 @@ Singleton {
         root.current = "";
         root.color = hex;
         root.lastColor = hex;
-        root.save();
         debounce.restart();
     }
 
@@ -331,7 +332,10 @@ Singleton {
     Timer {
         id: debounce
         interval: 60
-        onTriggered: root.renderColor()
+        onTriggered: {
+            root.save();
+            root.renderColor();
+        }
     }
 
     Process {

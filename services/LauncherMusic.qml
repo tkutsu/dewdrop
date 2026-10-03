@@ -15,7 +15,7 @@ import qs.services
 Singleton {
     id: root
 
-    // The tree's entire state: the keys of the rows Tab has opened. Keys are
+    // The tree's state: keys of rows opened with Right at the query's end. Keys are
     // paths ("artist:3/album:7"), so the same record found twice — once on
     // its own, once under its artist — opens where it was asked to and
     // nowhere else.
@@ -192,14 +192,7 @@ Singleton {
     }
 
     function note(text) {
-        return {
-            kind: "note",
-            key: "note",
-            glyph: Theme.glyph.track,
-            title: text,
-            subtitle: "",
-            raw: true
-        };
+        return Object.assign(Launcher.noteRow(Theme.glyph.track, text), {key: "note"});
     }
 
     // "1 track", "14 tracks". A discography that says "1 tracks" is one
@@ -286,7 +279,7 @@ Singleton {
 
     // --- walking the tree ----------------------------------------------------
 
-    // Tab. An artist or a record opens or shuts; anything inside one shuts
+    // Right at the query's end. An artist or a record opens or shuts; anything inside one shuts
     // the one it is in and goes back up to it, so the same key that went in
     // comes back out. Opening only adds rows below the selection, and
     // shutting from inside lands on a row above everything that goes, so the
@@ -345,15 +338,13 @@ Singleton {
 
     // --- acting on a row -----------------------------------------------------
 
-    // Enter, with `mode` from the modifier held: "queue", "play" or "next".
+    // Enter, with `mode` from the modifier held: "queue" or "play".
     // Every row goes the same way — whatever files it stands for, wherever
     // the key that chose it says to put them. A playlist is the exception
     // only in that mpd loads it by name: it is a list of files this has never
     // read.
     //
-    // Returns whether the box should leave. Only play does: queueing and
-    // play-next are things you do several of in a row, so the box stays up
-    // with the selection where it was.
+    // Play closes the launcher. Queueing keeps it open for more selections.
     function activate(r, mode): bool {
         // The box stays up: mpd is a second away, and the library it brings
         // is what the mode was opened to look through.

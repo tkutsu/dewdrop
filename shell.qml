@@ -1,3 +1,6 @@
+//@ pragma Env QSG_RENDER_LOOP=threaded
+
+// Drive popup motion and fades at the display refresh rate.
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -25,6 +28,14 @@ ShellRoot {
                 workspaceRefresh.restart();
             if (event.name === "openwindow" || event.name === "changefloatingmode" || event.name === "fullscreen")
                 Hyprland.refreshToplevels();
+        }
+    }
+
+    Connections {
+        target: Hyprland.workspaces
+        function onValuesChanged(): void {
+            if (Hyprland.workspaces.values.some(workspace => workspace.id === -1))
+                workspaceRefresh.restart();
         }
     }
 

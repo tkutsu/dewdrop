@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+import Quickshell.Hyprland
 import qs
 
 // The bar's popup chrome. It used to copy the old GTK tooltip's near-opaque
@@ -18,7 +19,8 @@ PopupWindow {
     property Item anchorItem
     // Keep keyboard entry available for the weather location search.
     property bool acceptsKeyboard: false
-    grabFocus: root.acceptsKeyboard
+    property bool probes: true
+    grabFocus: root.acceptsKeyboard && root.requestedVisible
     property real padding: 6
     // A popover's corner by default; the menus round themselves tighter.
     property int radius: Theme.popupRadius
@@ -121,45 +123,37 @@ PopupWindow {
 
         screen: root.screen
         area: Qt.rect(root.windowOnScreen.x + root.shadowSide, root.windowOnScreen.y + root.shadowTop, root.width - root.shadowSide * 2, root.chromeHeight)
-        active: root.visible
+        active: root.visible && root.probes
         ringOnly: true
     }
 
     // Whether the pointer is on the popup, which the bar counts (below).
     readonly property bool hovered: pointer.hovered
 
-    // Stay open a while even with the pointer outside. For a button whose
-    // press shrinks the popup — a row gone from a list — and so leaves the
-    // pointer over the empty strip under it, where the popup cannot see it:
-    // without this the popup closed on the pointer it had just moved out from
-    // under, before it could be brought back.
-    property real heldUntil: 0
+    // Fade the surface and compositor blur together without crossing the
+    // blur mask's alpha cutoff; keep the surface alive through its exit.
+    // Tooltips and menus fade without moving their content.
+    property bool grows: true
+    property bool requestedVisible: true
+    readonly property bool opened: root.backingWindowVisible && root.requestedVisible
+    HyprlandWindow.opacity: root.revealProgress
+    property real revealProgress: root.opened ? 1 : 0
+    property real slideOffset: root.opened ? 0 : -4
 
-    function hold(ms: int): void {
-        root.heldUntil = Date.now() + ms;
+    Behavior on revealProgress {
+        enabled: root.backingWindowVisible
+        NumberAnimation {
+            duration: root.opened ? (root.grows ? 180 : 120) : 120
+            easing.type: root.opened ? Easing.BezierSpline : Easing.InQuad
+            easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1]
+        }
     }
-
-    // Hyprland fades the surface and its blur together. Keep the extra slide
-    // opt-in: the basic Qt render loop steps it at 60 Hz even on a 120 Hz screen.
-    property bool grows: false
-    readonly property real settleDistance: 2
-    property real revealProgress: 1
-
-    onVisibleChanged: {
-        settleIn.stop();
-        root.revealProgress = 1;
-        if (visible && grows && !OpenPopup.switched)
-            settleIn.restart();
-    }
-
-    NumberAnimation {
-        id: settleIn
-        target: root
-        property: "revealProgress"
-        from: 0
-        to: 1
-        duration: 180
-        easing.type: Easing.OutCubic
+    Behavior on slideOffset {
+        enabled: root.backingWindowVisible
+        NumberAnimation {
+            duration: root.opened ? 220 : 120
+            easing.type: Easing.OutCubic
+        }
     }
 
     // Counted for the whole shell, so the right pill's drawer can tell a
@@ -177,6 +171,7 @@ PopupWindow {
     // hears the pointer over anything a popup puts in its body.
     Item {
         id: reach
+        enabled: root.requestedVisible
 
         x: root.shadowSide
         width: parent.width - root.shadowSide * 2
@@ -186,12 +181,12 @@ PopupWindow {
             id: pointer
         }
 
-        // Move only the drawing; keep text at its native size and the hit area fixed.
+        // Animate only the drawing; keep the hit area fixed.
         Item {
             anchors.fill: parent
 
             transform: Translate {
-                y: -root.settleDistance * (1 - root.revealProgress)
+                y: root.grows && !OpenPopup.switched ? root.slideOffset : 0
             }
 
             // Under the box rather than round it: the fill is translucent, so

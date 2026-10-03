@@ -12,12 +12,12 @@ import qs.services
 // centre moved in here.
 //
 // Grouped by sender, the way swaync did it: an app with several waiting is
-// one card with the rest stacked behind it, opened with a click to pick one
+// one card with a count badge, opened with a click to pick one
 // out, and cleared with one click on its ✕ rather than one per notification.
 //
 // Clicking a card does what clicking the notice beside the clock does
 // (Notifications.activate). While the pointer is on a card, a ✕ stands where
-// the sender's icon was and puts it away without following it.
+// the time was and puts it away without following it.
 Popup {
     id: root
 
@@ -31,13 +31,6 @@ Popup {
     readonly property int cardGap: 6
     readonly property int iconSize: 32
     readonly property int iconRadius: 6
-    // The sender's picture, when it sent one: a contact, a sleeve, a
-    // screenshot. Square on the right of the card, as the system shows it.
-    readonly property int thumbSize: 40
-    // The cards stacked behind a closed group: how far each one shows below
-    // the card in front of it, and how much narrower it is on each side.
-    readonly property int sheetPeek: 4
-    readonly property int sheetInset: 8
     // How tall the list gets before it scrolls: two thirds of the screen,
     // which leaves the popup a popup rather than a panel down the side.
     readonly property int listMax: Math.round((root.screen?.height ?? 1080) * 2 / 3)
@@ -161,7 +154,9 @@ Popup {
     }
 
     // Everything one sender has waiting. Closed, it is its newest card with
-    // the rest stacked behind it; open, a header and every card under it.
+    // a count badge; open, a header and every card under it.
+    // Card positions change immediately with the group's height: animating
+    // them clips the last card when the header and viewport shrink.
     component Group: Column {
         id: group
 
@@ -169,26 +164,24 @@ Popup {
         readonly property var items: Notifications.list.filter(n => root.groupOf(n) === group.modelData)
         // Closed until asked, unless the popup was opened on one of these:
         // that one is what was asked for, and it should be in plain sight.
-        property bool open: group.items.includes(Notifications.centreFocus)
-        readonly property bool stacked: group.items.length > 1 && !group.open
+        property bool open: false
+        Component.onCompleted: group.open = group.items.includes(Notifications.centreFocus)
+        Connections {
+            target: Notifications
+            function onCentreFocusChanged(): void {
+                if (group.items.includes(Notifications.centreFocus))
+                    group.open = true;
+            }
+        }
+        readonly property bool collapsed: group.items.length > 1 && !group.open
 
         // Down to one, it is a card like any other, and it closes so that the
-        // next to arrive stacks on it rather than finding it open.
+        // next to arrive joins a collapsed group rather than finding it open.
         onItemsChanged: if (group.items.length < 2)
             group.open = false
 
         width: ListView.view.width
         spacing: root.cardGap
-
-        // A card leaving an open group slides the ones below it up, as the
-        // list does.
-        move: Transition {
-            NumberAnimation {
-                property: "y"
-                duration: Theme.fadeMs
-                easing.type: Easing.OutCubic
-            }
-        }
 
         // Open: whose these are, and the two things that act on all of them.
         PopupHeader {
@@ -211,11 +204,11 @@ Popup {
 
         Repeater {
             model: ScriptModel {
-                values: group.stacked ? group.items.slice(0, 1) : group.items
+                values: group.collapsed ? group.items.slice(0, 1) : group.items
             }
 
             delegate: Card {
-                behind: group.stacked ? group.items.slice(1) : []
+                others: group.collapsed ? group.items.slice(1) : []
                 onOpened: group.open = true
             }
         }
@@ -227,55 +220,27 @@ Popup {
 
         required property var modelData
         readonly property Notification n: modelData
-        // The rest of its group, stacked behind it while the group is closed.
+        // The rest of its group, counted in the badge while the group is closed.
         // Then a click opens the group rather than following this one, and
         // the ✕ clears all of them.
-        property var behind: []
-        readonly property int sheets: Math.min(card.behind.length, 2)
+        property var others: []
         signal opened
         readonly property var buttons: Notifications.buttons(card.n)
         readonly property string icon: Notifications.iconFor(card.n)
-        // A picture of its own — a contact, a sleeve, a screenshot. Not the
-        // sender's icon again: a sender that names only an icon gets it
-        // handed back here as the image too, and the card would show the same
-        // logo at both ends.
+        // Mullvad's image payload is its logo, not a preview. Icon URLs and
+        // images matching the sender's icon likewise belong only on the left.
         readonly property string image: {
-            const url = card.n ? Notifications.url(card.n.image) : "";
+            if (!card.n || card.n.desktopEntry === "mullvad-vpn" || card.n.appName === "Mullvad VPN")
+                return "";
+            const url = Notifications.url(card.n.image);
             return url.startsWith("image://icon/") || url === card.icon ? "" : url;
         }
 
         width: parent.width
-        height: fill.height + card.sheets * root.sheetPeek
+        height: fill.height
 
         HoverHandler {
             id: hover
-        }
-
-        // The cards behind, each only the strip of it that shows below the
-        // one in front. Clipped to that strip rather than drawn whole behind:
-        // the fills are translucent, and a whole card behind would lighten
-        // the one in front of it.
-        Repeater {
-            model: card.sheets
-
-            delegate: Item {
-                required property int index
-
-                x: root.sheetInset * (index + 1)
-                y: fill.height + root.sheetPeek * index
-                width: card.width - x * 2
-                height: root.sheetPeek
-                clip: true
-
-                Rectangle {
-                    y: root.sheetPeek - height
-                    width: parent.width
-                    height: root.cardRadius * 2
-                    radius: root.cardRadius
-                    color: Theme.selection
-                    opacity: 0.5
-                }
-            }
         }
 
         // The card: a faint fill at rest, the row highlight under the
@@ -300,10 +265,10 @@ Popup {
         }
 
         // Clicking the card is asking for what it is about (see
-        // Notifications.activate), or, on a stack, which of them.
+        // Notifications.activate), or, on a group, which of them.
         MouseArea {
             anchors.fill: parent
-            onClicked: card.behind.length > 0 ? card.opened() : Notifications.activate(card.n)
+            onClicked: card.others.length > 0 ? card.opened() : Notifications.activate(card.n)
         }
 
         Item {
@@ -312,10 +277,9 @@ Popup {
             x: root.cardPad
             y: root.cardPad
             width: parent.width - root.cardPad * 2
-            implicitHeight: Math.max(iconBox.height, text.implicitHeight, thumb.visible ? thumb.height : 0)
+            implicitHeight: Math.max(iconBox.height, text.implicitHeight)
 
-            // The app's icon, or a bell on a tile when it sent none; under the
-            // pointer, the ✕ in its place.
+            // The app's icon, or a bell on a tile when it sent none.
             Item {
                 id: iconBox
 
@@ -327,12 +291,12 @@ Popup {
 
                     anchors.fill: parent
                     source: card.icon
-                    visible: status === Image.Ready && !hover.hovered
+                    visible: status === Image.Ready
                 }
 
                 Rectangle {
                     anchors.fill: parent
-                    visible: appIcon.status !== Image.Ready && !hover.hovered
+                    visible: appIcon.status !== Image.Ready
                     radius: root.iconRadius
                     color: Theme.selection
 
@@ -344,12 +308,11 @@ Popup {
                     }
                 }
 
-                PopupButton {
-                    anchors.fill: parent
-                    visible: hover.hovered
-                    glyph: Theme.glyph.close
-                    glyphSize: Theme.labelSize
-                    onTapped: [card.n, ...card.behind].forEach(n => n.dismiss())
+                Badge {
+                    visible: card.others.length > 0
+                    text: String(card.others.length + 1)
+                    x: parent.width - width / 2
+                    y: -height / 2
                 }
             }
 
@@ -357,19 +320,22 @@ Popup {
                 id: text
 
                 x: iconBox.width + 10
-                width: content.width - x - (thumb.visible ? thumb.width + 10 : 0)
+                width: content.width - x
                 spacing: 2
 
                 // Who, and how long ago, on one line.
                 Item {
+                    id: metadata
+
                     width: parent.width
-                    height: appName.implicitHeight
+                    height: Math.max(appName.implicitHeight, dismiss.implicitHeight)
 
                     PopupText {
                         id: appName
 
-                        width: parent.width - age.implicitWidth - 8
-                        text: (card.n?.appName || "Notification") + (card.behind.length > 0 ? `  ·  ${card.behind.length + 1}` : "")
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - Math.max(age.implicitWidth, dismiss.width) - 8
+                        text: card.n?.appName || "Notification"
                         color: Theme.label2
                         font.pixelSize: Theme.captionSize
                         elide: Text.ElideRight
@@ -379,9 +345,22 @@ Popup {
                         id: age
 
                         anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !hover.hovered
                         text: card.n ? Notifications.ago(card.n, clock.date.getTime()) : ""
                         color: Theme.label3
                         font.pixelSize: Theme.captionSize
+                    }
+
+                    PopupButton {
+                        id: dismiss
+
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: hover.hovered
+                        glyph: Theme.glyph.close
+                        glyphSize: Theme.captionSize
+                        onTapped: [card.n, ...card.others].forEach(n => n.dismiss())
                     }
                 }
 
@@ -407,6 +386,34 @@ Popup {
                     lineHeight: 1.1
                 }
 
+                // A content image gets its own space below the text, keeping
+                // the header aligned and preserving the whole image.
+                Item {
+                    width: parent.width
+                    height: preview.height + 6
+                    visible: card.image !== "" && picture.status === Image.Ready
+
+                    ClippingRectangle {
+                        id: preview
+
+                        y: 6
+                        width: parent.width
+                        height: picture.implicitWidth > 0 ? Math.min(140, width * picture.implicitHeight / picture.implicitWidth) : 0
+                        radius: root.iconRadius
+                        color: "transparent"
+
+                        Image {
+                            id: picture
+
+                            anchors.fill: parent
+                            source: card.image
+                            fillMode: Image.PreserveAspectFit
+                            sourceSize.width: Math.ceil(preview.width * 2)
+                            asynchronous: true
+                        }
+                    }
+                }
+
                 // What the sender offers besides opening it: "Reply",
                 // "Mark as read", "Show in folder".
                 Flow {
@@ -426,28 +433,6 @@ Popup {
                             onTapped: Notifications.run(modelData)
                         }
                     }
-                }
-            }
-
-            ClippingRectangle {
-                id: thumb
-
-                anchors.right: parent.right
-                width: root.thumbSize
-                height: root.thumbSize
-                radius: root.iconRadius
-                color: "transparent"
-                visible: card.image !== "" && picture.status === Image.Ready
-
-                Image {
-                    id: picture
-
-                    anchors.fill: parent
-                    source: card.image
-                    fillMode: Image.PreserveAspectCrop
-                    sourceSize.width: root.thumbSize * 2
-                    sourceSize.height: root.thumbSize * 2
-                    asynchronous: true
                 }
             }
         }

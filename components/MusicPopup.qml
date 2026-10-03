@@ -111,15 +111,15 @@ Popup {
                         model: [
                             {
                                 glyph: Theme.glyph.mediaPrev,
-                                act: () => Mpd.send(["prev"])
+                                act: () => Mpd.prev()
                             },
                             {
                                 glyph: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing,
-                                act: () => Mpd.send(["toggle"])
+                                act: () => Mpd.toggle()
                             },
                             {
                                 glyph: Theme.glyph.mediaNext,
-                                act: () => Mpd.send(["next"])
+                                act: () => Mpd.next()
                             }
                         ]
 
@@ -190,10 +190,8 @@ Popup {
                 // Asked twice. Everything else in this popup can be undone
                 // from this popup; this cannot — mpd going down takes the
                 // pill the popup hangs from with it, so the second press is
-                // the last chance to not do it. The arming lives here rather
-                // than on the service on purpose: the popup is built and
-                // thrown away with every hover, so a button left armed
-                // disarms itself as soon as the pointer leaves.
+                // the last chance to reconsider. Arming lasts until this
+                // popup closes or the second press stops MPD.
                 PopupButton {
                     id: quit
 
@@ -331,9 +329,8 @@ Popup {
     // shut, which is about what it is worth.
     //
     // Whether it is open lives on the service rather than here, for the same
-    // reason Mpd.premute does: this popup is built and thrown away with every
-    // hover, and a section that forgot it was open would be one that never
-    // stayed open.
+    // reason Mpd.premute does: the popup is rebuilt each time it opens,
+    // while this preference lasts for the session.
     Column {
         width: root.bodyWidth
         spacing: 0

@@ -156,7 +156,8 @@ Singleton {
     // "now", "4m", "2h", then the weekday — the way the system's own centre
     // says it, short enough to sit on the same line as the app's name.
     function ago(n, now) {
-        const at = root.arrived[n.id] ?? now;
+        root.remember(n);
+        const at = root.arrived[n.id];
         const s = Math.max(0, (now - at) / 1000);
         if (s < 60)
             return "now";
@@ -218,16 +219,33 @@ Singleton {
     // from functions, so it is mutated in place like `arrived`.
     readonly property var passing: ({})
 
-    function receive(n) {
-        // Kept by default; a fleeting one is kept too, just for as long as its
-        // notice is up, since an untracked notification is closed the moment
-        // this handler returns.
-        n.tracked = true;
+    // Restore metadata for notices kept by the server through hot reload.
+    function remember(n) {
+        if (root.arrived[n.id] !== undefined)
+            return;
         root.arrived[n.id] = Date.now();
         n.closed.connect(() => {
             delete root.arrived[n.id];
             delete root.passing[n.id];
         });
+    }
+
+    Component.onCompleted: {
+        for (const n of root.list) {
+            root.remember(n);
+            if (root.isFleeting(n)) {
+                root.passing[n.id] = true;
+                root.letGo(n);
+            }
+        }
+    }
+
+    function receive(n) {
+        // Kept by default; a fleeting one is kept too, just for as long as its
+        // notice is up, since an untracked notification is closed the moment
+        // this handler returns.
+        n.tracked = true;
+        root.remember(n);
         if (root.isFleeting(n))
             root.passing[n.id] = true;
 

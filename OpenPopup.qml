@@ -17,6 +17,9 @@ Singleton {
     property Item _pending: null
     onOwnerChanged: root.cancelBrowse()
 
+    // A launcher action asks the chosen screen's bar for its existing popup.
+    signal controlRequested(key: string, screenName: string)
+
     // Layer surfaces hear nothing of clicks in other windows, so Hyprland
     // tells us: a non-consuming bind in hypr/configs/keybinds.lua emits
     // `custom>>click` on every press and still hands it to whatever was under

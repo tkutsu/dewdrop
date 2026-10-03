@@ -47,6 +47,7 @@ Item {
 
     RollingText {
         id: label
+        columns: 3
         anchors.horizontalCenter: parent.horizontalCenter
         // An eight-row figure in a thirteen-row disc, left where it falls:
         // two rows over it and three under, which is the high-of-centre a

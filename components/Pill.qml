@@ -41,14 +41,6 @@ Item {
     // together rather than this one trailing by a pixel at a time.
     property real edgeOffset: 0
 
-    // Trim off the padding at the pill's inner end — the one that faces the
-    // rest of the bar rather than a screen edge. The right pill opens on the
-    // volume glyph, whose ink already carries more air on its left than the
-    // other glyphs do, so `pillPad` reads wide there. Taking it off the pad
-    // rather than shifting the glyph pulls the pill's edge in instead of
-    // moving anything inside it.
-    property int innerPadTrim: 0
-
     // How far through whatever the pill is carrying, 0..1, or -1 for the pills
     // that are carrying nothing that runs — which is all of them but one.
     property real progress: -1
@@ -426,12 +418,12 @@ Item {
     Binding {
         target: root._shown[0] ?? null
         property: "padLeft"
-        value: root.atLeftEdge ? Theme.pillPad + Theme.barMargin : Theme.pillPad - root.innerPadTrim
+        value: root.atLeftEdge ? Theme.pillPad + Theme.barMargin : Theme.pillPad
     }
 
     Binding {
         target: root._shown[root._shown.length - 1] ?? null
         property: "padRight"
-        value: root.atRightEdge ? Theme.pillPad + Theme.barMargin : Theme.pillPad - root.innerPadTrim
+        value: root.atRightEdge ? Theme.pillPad + Theme.barMargin : Theme.pillPad
     }
 }

@@ -84,45 +84,15 @@ Singleton {
         return `${m}:${s < 10 ? "0" : ""}${s}`;
     }
 
-    // mpc's words, spoken over the command socket. The buttons and the bar's
-    // scroll were written in mpc's vocabulary and there is no reason to
-    // rewrite them; a process per press was what those words cost when they
-    // were handed to mpc itself. Anything not translated here still goes to
-    // mpc, so a new caller is never silently dropped.
-    function send(args): void {
-        const verb = args[0];
-        const arg = args[1];
-        switch (verb) {
-        case "toggle":
-            // `mpc toggle` starts a stopped queue; MPD's bare `pause` would
-            // not, and the pill's play button is pressed on a stopped queue
-            // more often than on a paused one.
-            root.run([root.state === "play" ? "pause 1" : root.state === "pause" ? "pause 0" : "play"]);
-            return;
-        case "pause":
-            root.run(["pause 1"]);
-            return;
-        case "prev":
-            root.run(["previous"]);
-            return;
-        case "next":
-            root.run(["next"]);
-            return;
-        case "seek":
-            // "+10" and "-10" as they are; anything else is seconds.
-            root.run(["seekcur " + arg]);
-            return;
-        case "volume":
-            root.run([/^[+-]/.test(arg) ? "volume " + arg : "setvol " + arg]);
-            return;
-        case "repeat":
-        case "single":
-            root.run([verb + " " + (arg === "on" ? "1" : "0")]);
-            return;
-        default:
-            Quickshell.execDetached(["mpc"].concat(args));
-        }
+    // Starting a stopped queue needs play; pause alone cannot resume it.
+    function toggle(): void {
+        root.run([root.state === "play" ? "pause 1" : root.state === "pause" ? "pause 0" : "play"]);
     }
+
+    function pause(): void { root.run(["pause 1"]); }
+    function prev(): void { root.run(["previous"]); }
+    function next(): void { root.run(["next"]); }
+    function seek(delta: int): void { root.run(["seekcur " + (delta >= 0 ? "+" : "") + delta]); }
 
     // Nothing left to hear it through — the headphones came out and there is
     // no speaker behind them, or the output went away altogether — and the
@@ -149,7 +119,7 @@ Singleton {
         id: unplugged
         interval: 500
         onTriggered: if (!Audio.connected && root.state === "play")
-            root.send(["pause"])
+            root.pause()
     }
 
     // Putting the daemon down, which `mpc stop` does not: that ends playback
@@ -198,7 +168,7 @@ Singleton {
 
     // mpd has no mute, so it is a volume of nothing and the level to come back
     // to. Kept on the service rather than in the popup, which is built and
-    // thrown away with every hover — a mute that forgets what it muted is
+    // rebuilt each time it opens — a mute that forgets what it muted is
     // worse than no mute at all.
     property int premute: -1
 
@@ -322,7 +292,7 @@ Singleton {
 
     // Whether the popup's playlist section is folded open. Here rather than in
     // the popup for the same reason `premute` is: the popup is built and
-    // thrown away with every hover, and a section that forgot it was open
+    // rebuilt each time it opens, and a section that forgot it was open
     // would be one that never stayed open.
     property bool playlistsOpen: false
 
@@ -347,8 +317,7 @@ Singleton {
     // connections of their own — and three separate execDetached calls are not
     // ordered against each other at all.
     //
-    // Positions. MPD takes one on `add` and on `load`, so "play next" is an
-    // insert rather than an append followed by a move. mpc exposes neither.
+    // Send transport and queue actions over the persistent command socket.
     MpdLink {
         id: cmdLink
         path: Settings.mpdSocket
@@ -421,21 +390,15 @@ Singleton {
         }
     }
 
-    // Where a batch of files goes. "queue" is the end of it, "play" is instead
-    // of everything already there, "next" is straight after whatever is
-    // playing — which is the one of the three that has to count.
+    // Queue appends files; play replaces the queue and starts it.
     function enqueue(files, mode): void {
         if (!files || !files.length)
             return;
         const commands = [];
         if (mode === "play")
             commands.push("clear");
-        // Absolute positions rather than MPD's relative +0. Sending a hundred
-        // of those would put every file directly after the current song, so
-        // the album would arrive backwards.
-        const at = root.songPos + 1;
         for (let i = 0; i < files.length; i++)
-            commands.push("add " + root.quote(files[i]) + (mode === "next" ? " " + (at + i) : ""));
+            commands.push("add " + root.quote(files[i]));
         if (mode === "play")
             commands.push("play");
         root.run(commands);
@@ -447,9 +410,7 @@ Singleton {
         const commands = [];
         if (mode === "play")
             commands.push("clear");
-        // The whole of it, written as the range 0:, because a position is only
-        // accepted after one.
-        commands.push("load " + root.quote(name) + (mode === "next" ? " 0: " + (root.songPos + 1) : ""));
+        commands.push("load " + root.quote(name));
         if (mode === "play")
             commands.push("play");
         root.run(commands);

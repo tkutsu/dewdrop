@@ -66,17 +66,13 @@ Item {
     }
 
     // A page of the text, up or down, for a file longer than the panel.
-    // Returns whether there was anywhere to go: the box asks this and the
-    // answer block in turn, and whichever has something to scroll takes the
-    // key. See LauncherMenu.qml.
-    function scroll(dir): bool {
+    function scroll(dir): void {
         if (!bodyView.visible || bodyView.contentHeight <= bodyView.height)
-            return false;
+            return;
         // A page less two lines, so the lines being read carry over the jump
         // rather than the page turning out from under them.
         const step = Math.max(bodyView.height - body.font.pixelSize * 2, body.font.pixelSize);
         bodyView.contentY = Math.max(0, Math.min(bodyView.contentHeight - bodyView.height, bodyView.contentY + dir * step));
-        return true;
     }
 
     QueuedProcess {

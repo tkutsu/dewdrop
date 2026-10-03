@@ -4,7 +4,7 @@ import qs
 import qs.components
 import qs.services
 
-// custom/wallpaper. Stage 4 turns the "12/47" tooltip into a thumbnail grid.
+// Open the wallpaper picker and colour controls.
 BarItem {
     tooltip: "Wallpaper"
     popup: WallpaperPopup {}

@@ -3,10 +3,8 @@ import Quickshell.Widgets
 import qs
 import qs.services
 
-// style.css puts "-gtk-icon-shadow: 1px 1px 0 rgba(0, 0, 0, 0.2)" on the tray
-// and on the workspace taskbar. MultiEffect pads the layer it renders into by
-// default, which shrinks the icon inside its own box — so the padding is turned
-// off and the room for the 1px offset is given by the wrapper instead.
+// Fit artwork to its visible ink and expose the measured dimensions.
+
 Item {
     id: root
 
@@ -72,14 +70,10 @@ Item {
         return Math.min(root.size, Math.round(root.size * root.ink / root.extent));
     }
 
-    // One spare pixel for the 1px drop shadow to land in.
     implicitWidth: box
     implicitHeight: box
 
-    // The shadow rides a wrapper rather than the icon itself, so that the
-    // picture the probe takes of the icon is of the icon: a layer on the thing
-    // being grabbed hands back the effect's output instead, and a shadow one
-    // pixel below the artwork would have measured as one more pixel of artwork.
+    // Keep artwork separate from the measurements exposed by this item.
     Item {
         id: artwork
 

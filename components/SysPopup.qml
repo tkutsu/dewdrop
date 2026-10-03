@@ -3,7 +3,7 @@ import qs
 import qs.components
 import qs.services
 
-// The thermometer's tooltip: the whole machine in three sections — the CPU and
+// The thermometer's popup: the whole machine in three sections — the CPU and
 // the memory it is working in, and then the card, which is its own machine.
 // Each one is a heading carrying its headline figure, and rows of detail under
 // it.
@@ -29,9 +29,8 @@ Popup {
 
     // The service only samples processes and the card while someone is
     // looking. Counted in a beat after opening rather than at once: the first
-    // detail sample is the heaviest work the popup does, and landing it during
-    // the slide-in stalled the slide. The pointer has to rest for half a second
-    // before the popup exists at all, so a further fade's worth costs nothing.
+    // detail sample is the heaviest work the popup does; delaying it keeps
+    // the slide-in animation responsive.
     property bool watching: false
 
     Timer {
@@ -205,7 +204,7 @@ Popup {
 
         // Temperatures first and the load beside them, the same way round as
         // the card's heading below. Which sensor is which is in the order, not
-        // in a label: the package reading leads, the die follows.
+        // in a label: Tctl, Tdie, package, then CPU, when available.
         Head {
             glyph: Theme.glyph.cpu
             title: Sys.cpuModel
@@ -251,9 +250,6 @@ Popup {
             }
         }
 
-        // Every sensor the CPU's own chip publishes, which on this one is the
-        // package reading the badge carries and the die under it. The badge's
-        // own sensor is named first; the rest are context for it.
         Line {
             label: "clock"
             value: `${Sys.cpuMhz} MHz`

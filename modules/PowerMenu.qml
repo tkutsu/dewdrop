@@ -179,7 +179,7 @@ OverlayWindow {
         anchors.fill: parent
         focus: true
         enabled: root.shown
-        layer.enabled: true
+        layer.enabled: root.closing
         transform: Scale {
             origin.x: inputSurface.width / 2
             origin.y: inputSurface.height / 2
@@ -329,8 +329,6 @@ OverlayWindow {
             box0: Qt.vector4d(0, 0, width, height)
             rimFrom: 0
             rimTo: height
-            soften: Theme.glassSoften * 8
-            tint: 0.58
             fill: Qt.vector4d(Theme.tint.r + 0.1, Theme.tint.g + 0.1, Theme.tint.b + 0.1, Theme.barBg.a)
         }
 
@@ -338,143 +336,18 @@ OverlayWindow {
             anchors.fill: parent
         }
 
-        Liquid {
-            id: mark
-
+        FlowMark {
             anchors.fill: parent
             visible: pill.selected !== null
-            property bool placed: false
-            onPlacedChanged: if (placed) {
-                tailLeft = wantLeft;
-                tailRight = wantRight;
-                tailProgress = 1;
-                roundness = 0;
-            }
-
-            onVisibleChanged: {
-                if (visible)
-                    Qt.callLater(() => mark.placed = mark.visible);
-                else {
-                    placed = false;
-                    followTail();
-                }
-            }
-
-            property real lift: pill.held ? 1 : 0
-            Behavior on lift {
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.markDamping
-                }
-            }
-
-            readonly property real edge: Theme.markInset - lift
-            readonly property real slabTop: Theme.pillBorder + edge
-            readonly property real thickness: pill.height - Theme.pillBorder - edge * 2
-            readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
-            readonly property real wantLeft: pill.selected ? cells.x + pill.selected.x + Theme.markInset : 0
-            readonly property real wantRight: pill.selected ? cells.x + pill.selected.x + pill.selected.width - Theme.markInset : 0
-
-            property real headLeft: wantLeft
-            property real headRight: wantRight
-            property real tailLeft: wantLeft
-            property real tailRight: wantRight
-            property point tailStart: Qt.point(wantLeft, wantRight)
-            property real tailProgress: 1
-            property real roundness: 0
-
-            // A new destination keeps the tail wherever the previous move left it.
-            function followTail(): void {
-                if (!mark.placed) {
-                    mark.tailLeft = mark.wantLeft;
-                    mark.tailRight = mark.wantRight;
-                    mark.tailProgress = 1;
-                    mark.roundness = 0;
-                    return;
-                }
-                mark.tailStart = Qt.point(mark.tailLeft, mark.tailRight);
-                mark.tailProgress = 0;
-            }
-
-            onWantLeftChanged: followTail()
-            onWantRightChanged: followTail()
-
-            Behavior on headLeft {
-                enabled: mark.placed
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.markDamping
-                }
-            }
-            Behavior on headRight {
-                enabled: mark.placed
-                SpringAnimation {
-                    spring: Theme.springStiffness
-                    damping: Theme.markDamping
-                }
-            }
-            FrameAnimation {
-                running: mark.visible && mark.placed && (mark.tailProgress < 1 || mark.roundness > 0)
-
-                // Distance and the tail's shrinking size accelerate the same cubic flow.
-                onTriggered: {
-                    const previousMid = mark.tailMid;
-                    const distance = mark.apart / (mark.thickness * 4);
-                    const shrink = 1 - mark.blobHeight / mark.thickness;
-                    const speed = (1 + 0.75 * distance * distance) * (1 + 0.75 * shrink);
-                    mark.tailProgress = Math.min(1, mark.tailProgress + frameTime * 1000 * speed / (Theme.markMs * 1.1));
-                    const t = Math.max(0, (mark.tailProgress - 0.2) / 0.8);
-                    const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-                    const left = mark.tailStart.x + (mark.wantLeft - mark.tailStart.x) * eased;
-                    const right = mark.tailStart.y + (mark.wantRight - mark.tailStart.y) * eased;
-                    const velocity = mark.tailProgress < 1 && frameTime > 0 ? Math.abs((left + right) / 2 - previousMid) / frameTime : 0;
-                    mark.tailLeft = left;
-                    mark.tailRight = right;
-                    // Ease into a ball as flow speeds up, and back into a pill at rest.
-                    const pace = Math.min(1, velocity / (mark.thickness * 24));
-                    const round = pace * pace * (3 - 2 * pace);
-                    const roundingTime = round > mark.roundness ? 0.025 : 0.05;
-                    mark.roundness += (round - mark.roundness) * (1 - Math.exp(-frameTime / roundingTime));
-                    if (round === 0 && mark.roundness < 0.001)
-                        mark.roundness = 0;
-                }
-            }
-
-            readonly property bool atFirst: pill.selected?.index === 0
-            readonly property bool atLast: pill.selected?.index === pill.model.length - 1
-            readonly property real wallLeft: Theme.pillBorder
-            readonly property real wallRight: pill.width - Theme.pillBorder
-            readonly property real frontLeft: atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift
-            readonly property real frontRight: atLast ? Math.min(headRight + lift, wallRight) : headRight + lift
-            readonly property real pastLeft: atFirst ? wallLeft - (headLeft - lift) : 0
-            readonly property real pastRight: atLast ? headRight + lift - wallRight : 0
-            readonly property real press: {
-                const t = Math.min(1, Math.max(pastLeft, pastRight, 0) / Theme.markPress);
-                return 1 - (1 - t) * (1 - t);
-            }
-            readonly property real bulbEdge: Math.max(0, edge - Theme.markBulge * press)
-            readonly property real bulbTop: Theme.pillBorder + bulbEdge
-            readonly property real bulbThickness: pill.height - Theme.pillBorder - bulbEdge * 2
-            readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
-            readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
-            readonly property real headMid: (frontLeft + frontRight) / 2
-            readonly property real tailMid: (tailLeft + tailRight) / 2
-            readonly property real apart: Math.abs(headMid - tailMid)
-            readonly property real neck: thickness * (1 - 0.6 * Math.pow(Math.min(1, apart / (thickness * 3)), 2))
-            readonly property real tailWidth: tailRight - tailLeft + lift * 2
-            readonly property real blobWidth: tailWidth + (neck - tailWidth) * roundness
-            readonly property real blobHeight: thickness + (neck - thickness) * roundness
-
-            box0: Qt.vector4d(tailMid - blobWidth / 2, slabTop + (thickness - blobHeight) / 2, blobWidth, blobHeight)
-            box1: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
-            box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
-            box3: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
-            reach: Theme.pillSpread * Math.min(1, apart / thickness)
-            reaches: Qt.vector4d(reach, reach, reach, 3 * press)
-            fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
-            rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
-            rimFrom: bulbTop
-            rimTo: bulbTop + bulbThickness
+            resetWhenHidden: true
+            held: pill.held
+            slabHeight: pill.height
+            wantLeft: pill.selected ? cells.x + pill.selected.x + Theme.markInset : 0
+            wantRight: pill.selected ? cells.x + pill.selected.x + pill.selected.width - Theme.markInset : 0
+            atFirst: pill.selected?.index === 0
+            atLast: pill.selected?.index === pill.model.length - 1
+            wallLeft: Theme.pillBorder
+            wallRight: pill.width - Theme.pillBorder
         }
 
         Row {

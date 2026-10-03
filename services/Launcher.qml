@@ -60,72 +60,61 @@ Singleton {
     // itself rather than an abbreviation making room for a repeat of the key.
     readonly property string enginePrefix: "#"
 
-    readonly property var prefixes: ({
-            // Keyed by the prefix, which has to be `enginePrefix` written out:
-            // an object literal cannot name one of its own properties.
-            "#": {
-                // No key at all, rather than a key nothing types.
-                fallback: "",
-                // A list, not a map keyed by the letters: the rows below the
-                // selected one are drawn in this order, and object key
-                // enumeration is not an order anything should depend on.
-                engines: [
-                    {
-                        key: "",
-                        name: "Google",
-                        hint: "google",
-                        url: "https://www.google.com/search?q=%s"
-                    },
-                    {
-                        key: "y",
-                        name: "YouTube",
-                        hint: "youtube",
-                        url: "https://www.youtube.com/results?search_query=%s"
-                    },
-                    {
-                        key: "c",
-                        name: "ChatGPT",
-                        hint: "chatgpt",
-                        url: "https://chatgpt.com/?q=%s"
-                    },
-                    {
-                        key: "l",
-                        name: "Claude",
-                        // /new is the fresh conversation and q= is what goes
-                        // in it, which is the whole test for being in this
-                        // list — see the note about Gemini above.
-                        url: "https://claude.ai/new?q=%s",
-                        hint: "claude"
-                    },
-                    {
-                        key: "x",
-                        name: "1337x",
-                        hint: "1337x",
-                        // Path, not a query string: 1337x takes the term as a
-                        // path segment with the page number after it. The 1 is
-                        // the first page.
-                        url: "https://1337x.to/search/%s/1/"
-                    },
-                    {
-                        key: "t",
-                        name: "Translate",
-                        hint: "translate",
-                        // Auto-detect the source, English the target: the
-                        // text is what changes, the direction rarely does.
-                        url: "https://translate.google.com/?sl=auto&tl=en&text=%s&op=translate"
-                    },
-                    {
-                        key: "m",
-                        name: "Maps",
-                        hint: "maps",
-                        url: "https://www.google.com/maps/search/%s"
-                    }
-                ]
-            }
-        })
+    readonly property var engines: [
+        {
+            key: "",
+            name: "Google",
+            hint: "google",
+            url: "https://www.google.com/search?q=%s"
+        },
+        {
+            key: "y",
+            name: "YouTube",
+            hint: "youtube",
+            url: "https://www.youtube.com/results?search_query=%s"
+        },
+        {
+            key: "c",
+            name: "ChatGPT",
+            hint: "chatgpt",
+            url: "https://chatgpt.com/?q=%s"
+        },
+        {
+            key: "l",
+            name: "Claude",
+            // /new is the fresh conversation and q= is what goes
+            // in it, which is the whole test for being in this
+            // list — see the note about Gemini above.
+            url: "https://claude.ai/new?q=%s",
+            hint: "claude"
+        },
+        {
+            key: "x",
+            name: "1337x",
+            hint: "1337x",
+            // Path, not a query string: 1337x takes the term as a
+            // path segment with the page number after it. The 1 is
+            // the first page.
+            url: "https://1337x.to/search/%s/1/"
+        },
+        {
+            key: "t",
+            name: "Translate",
+            hint: "translate",
+            // Auto-detect the source, English the target: the
+            // text is what changes, the direction rarely does.
+            url: "https://translate.google.com/?sl=auto&tl=en&text=%s&op=translate"
+        },
+        {
+            key: "m",
+            name: "Maps",
+            hint: "maps",
+            url: "https://www.google.com/maps/search/%s"
+        }
+    ]
 
-    // The modes with nothing to choose between, so not `prefixes` entries:
-    // that map is engine groups, and none of these has a second engine.
+
+    // Modes with one destination use a prefix directly.
     //
     // Files, from fasd and fd. A calculation. A shell command. The clipboard.
     // The characters are the ones already on the keys they mean — "=" starts
@@ -156,6 +145,18 @@ Singleton {
     // leading duration or time of day sets a timer or alarm.
     readonly property string taskPrefix: ","
 
+    readonly property var modes: [
+        { prefix: root.pathPrefix, title: "Files", hint: "files" },
+        { prefix: root.windowPrefix, title: "Windows", hint: "windows" },
+        { prefix: root.clipPrefix, title: "Clipboard", hint: "clipboard" },
+        { prefix: root.enginePrefix, title: "Web", hint: "web" },
+        { prefix: root.mailPrefix, title: "Mail", hint: "email" },
+        { prefix: root.taskPrefix, title: "Tasks and timers", hint: "tasks" },
+        { prefix: root.musicPrefix, title: "Music", hint: "music" },
+        { prefix: root.calcPrefix, title: "Calculator", hint: "calc" },
+        { prefix: root.cmdPrefix, title: "Commands", hint: "run" }
+    ]
+
     // What the hint in the query line says. Normally the modes, assembled
     // from the prefix characters themselves rather than typed out, so changing
     // one of them changes what the box says it does. No entry for apps: that
@@ -165,7 +166,7 @@ Singleton {
     // In search mode it turns into the engines, because by then the mode is
     // not the question any more — which of them answers it is, and the
     // letter that picks each one is the thing worth having in front of you.
-    readonly property string prefixHint: [root.pathPrefix + "files", root.windowPrefix + "windows", root.clipPrefix + "clipboard", root.enginePrefix + "web", root.mailPrefix + "email", root.cmdPrefix + "run", root.taskPrefix + "tasks", root.musicPrefix + "music", root.calcPrefix + "calc"].join("   ")
+    readonly property string prefixHint: root.modes.map(mode => mode.prefix + mode.hint).join("   ")
 
     // Each engine written as one word with its key bracketed inside it:
     // "#[y]outube". The brackets are the whole instruction — which letter to
@@ -174,7 +175,7 @@ Singleton {
     //
     // Google gets no brackets because it has no key, which is what "a bare #
     // is a Google search" looks like written down.
-    readonly property string engineHint: root.prefixes[root.enginePrefix].engines.map(e => {
+    readonly property string engineHint: root.engines.map(e => {
             const at = e.hint.indexOf(e.key);
             if (!e.key || at < 0)
                 return root.enginePrefix + e.hint;
@@ -219,6 +220,8 @@ Singleton {
     readonly property bool active: linger.active
     property string query: ""
     property int index: 0
+    onResultsChanged: if (root.index >= root.results.length)
+        root.index = Math.max(0, root.results.length - 1)
 
     // The row a choice was made on, or -1 for a box that was dismissed rather
     // than used. The exit animation is built on it — see LauncherMenu.qml —
@@ -244,7 +247,7 @@ Singleton {
 
         const leading = q.replace(/^\s+/, "");
         const sym = leading.charAt(0);
-        if (root.modeResults[sym] || root.prefixes[sym]) {
+        if (root.modeResults[sym] || sym === root.enginePrefix) {
             const rest = leading.slice(1);
             return { mode: sym, text: sym === root.taskPrefix ? rest : rest.trim() };
         }
@@ -317,6 +320,8 @@ Singleton {
     }
 
     function show(): void {
+        controlHandoff.stop();
+        OpenPopup.dismiss();
         root.query = "";
         root.index = 0;
         // The calculator's and fd's last answers are kept: each is tagged with
@@ -419,17 +424,14 @@ Singleton {
 
     readonly property var results: {
         const c = root.classification;
-        // Nothing typed, nothing listed: the box opens as a bare query line.
-        // A single space is the "show me everything" gesture — appResults
-        // trims it off, so a space arrives there as an empty app query and
-        // returns the whole menu in frecency order.
+        // Empty opens with frequent choices and modes; a space still lists apps.
         if (c.mode === "empty")
-            return [];
+            return root.homeResults();
 
         const mode = root.modeResults[c.mode];
         if (mode)
             return mode(c.text);
-        if (root.prefixes[c.mode])
+        if (c.mode === root.enginePrefix)
             return root.engineResults(c.mode, c.text);
 
         // Unprefixed. A sum and a domain are things the query says outright,
@@ -446,13 +448,10 @@ Singleton {
         return found;
     }
 
-    // Everything the unprefixed query can turn up, in one ranking. Apps and
-    // power commands score on the same scale and sort together, the way
-    // krunner's do: "lock" should beat every app whose name merely contains
-    // those letters, and "re" should not put reboot above a browser.
+    // Rank apps, power commands, and desktop controls on the same match scale.
     function mainResults(query) {
         const terms = root.prepTerms(query);
-        const scored = root.appMatches(terms).concat(root.powerMatches(terms));
+        const scored = root.appMatches(terms).concat(root.powerMatches(terms), root.desktopMatches(terms));
         scored.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
         return scored.slice(0, root.maxResults).map(x => x.row);
     }
@@ -479,8 +478,7 @@ Singleton {
         for (const a of root.appIndex) {
             const e = a.entry;
             const f = root.frecency(e.id);
-            // With nothing typed the list is pure history, so opening the
-            // launcher and pressing Enter reruns what you last ran.
+            // Empty matches are ranked by history for the home list and space.
             let s = f;
 
             if (terms.length) {
@@ -505,6 +503,76 @@ Singleton {
         }
 
         return scored;
+    }
+
+    // Desktop controls use their existing services and the bar's own popups.
+    readonly property var controlScreen: {
+        const screens = Quickshell.screens.filter(s => Settings.screenOn(s.name));
+        return screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? screens[0] ?? null;
+    }
+
+    readonly property bool controlsAvailable: root.controlScreen !== null
+
+    readonly property var desktopCommands: [
+        { key: "sound", title: "Sound controls", aliases: "audio volume speaker headphones output", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], popup: "sound", available: Settings.moduleOn("audio") && root.controlsAvailable },
+        { key: "display", title: "Display controls", aliases: "brightness screen monitor", glyph: Theme.glyph.nightOff, popup: "display", available: Settings.moduleOn("night") && root.controlsAvailable },
+        { key: "network", title: "Network controls", aliases: "wifi wi-fi ethernet internet connection", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], popup: "network", available: Settings.moduleOn("network") && root.controlsAvailable },
+        { key: "bluetooth", title: "Bluetooth devices", aliases: "connect headphones pairing wireless", glyph: Theme.glyph.bluetooth, popup: "bluetooth", available: Settings.moduleOn("bluetooth") && Bluetooth.present && root.controlsAvailable },
+        { key: "notifications", title: "Notifications", aliases: "notification centre center alerts", glyph: Theme.glyph.notif, popup: "notifications", available: Settings.moduleOn("bell") && root.controlsAvailable },
+        { key: "mute", title: Audio.muted ? "Unmute sound" : "Mute sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
+        { key: "dnd", title: Notifications.dnd ? "Turn do not disturb off" : "Turn do not disturb on", aliases: "dnd notifications silence quiet", glyph: Theme.glyph.notif, run: () => Notifications.setDnd(!Notifications.dnd) },
+        { key: "night", title: NightMode.on ? "Turn night mode off" : "Turn night mode on", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
+        { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi off" : "Turn Wi-Fi on", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },
+        { key: "bluetooth-power", title: Bluetooth.on ? "Turn Bluetooth off" : "Turn Bluetooth on", aliases: "wireless radio", glyph: Theme.glyph.bluetooth, available: Bluetooth.present, run: () => Bluetooth.toggle() }
+    ]
+
+    function desktopMatches(terms) {
+        const scored = [];
+        for (const action of root.desktopCommands) {
+            if (action.available === false)
+                continue;
+            const m = terms.length ? root.matchScore(terms, [[action.title, 1], [action.aliases, 0.8]]) : 0;
+            if (m === null)
+                continue;
+            const f = root.frecency("desktop:" + action.key);
+            scored.push({
+                s: terms.length ? m + root.frecencyWeight * Math.log2(1 + f) : f,
+                row: { kind: "desktop", action, title: action.title, glyph: action.glyph, raw: true }
+            });
+        }
+        return scored;
+    }
+
+    // Fill unused history slots with safe controls, then offer every prefix.
+    function homeResults() {
+        const desktop = root.desktopMatches([]);
+        const frequent = root.appMatches([]).concat(desktop).filter(x => x.s > 0);
+        frequent.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
+        const rows = frequent.slice(0, 5).map(x => x.row);
+        for (const choice of desktop) {
+            if (rows.length >= 5)
+                break;
+            if (choice.row.action.popup && !rows.some(r => r.kind === "desktop" && r.action.key === choice.row.action.key))
+                rows.push(choice.row);
+        }
+        return rows.concat(root.modes.map(mode => ({ kind: "mode", prefix: mode.prefix, title: mode.title, raw: true })));
+    }
+
+    // Release the launcher overlay before handing input back to a bar popup.
+    Timer {
+        id: controlHandoff
+        property string key: ""
+        property string screenName: ""
+        interval: Theme.zipTotalMs
+        onTriggered: OpenPopup.controlRequested(key, screenName)
+    }
+
+    function openControl(key) {
+        if (!root.controlScreen)
+            return;
+        controlHandoff.key = key;
+        controlHandoff.screenName = root.controlScreen.name;
+        controlHandoff.restart();
     }
 
     // --- power ---------------------------------------------------------------
@@ -736,7 +804,7 @@ Singleton {
         // the same order as ~/.config/fish/functions/f.fish: what you have
         // opened before, then what is actually on the disk. f.fish can afford
         // a depth-7 walk with no result cap because fzf streams and you are
-        // already waiting; this runs between keystrokes, so it is capped at 60
+        // already waiting; this caps the scan at 60 hits, or 200 for multiple terms,
         // and stopped at depth 6, which lands in about 40ms.
         const hits = root.fdHits;
         if (hits && hits.q === query) {
@@ -781,22 +849,18 @@ Singleton {
     // which is a thing you came to do rather than a thing you are mid-flow on.
     function taskResults(query) {
         const typed = query.trim();
-        const timerInput = typed.length > 0 && Timers.parse(typed).ok;
-        const rows = root.timerResults(timerInput ? typed : "");
+        const parsedTimer = typed.length ? Timers.parse(typed) : null;
+        const timerInput = !!parsedTimer?.ok;
+        const rows = root.timerResults(timerInput ? typed : "", parsedTimer);
 
         if (!Tasks.configured)
             return rows.concat([
-                {
-                    kind: "note",
-                    glyph: Theme.glyph.tasks,
-                    title: `Google Tasks not connected — run ${Google.setup}`,
-                    raw: true,
-                    subtitle: ""
-                }
+                root.noteRow(Theme.glyph.tasks, `Google Tasks not connected — run ${Google.setup}`)
             ]);
 
+        const parsedTask = typed.length ? Tasks.parse(typed) : null;
         if (typed.length && !timerInput) {
-            const p = Tasks.parse(typed);
+            const p = parsedTask;
             rows.unshift({
                 kind: "task-add",
                 glyph: Theme.glyph.plus,
@@ -815,7 +879,7 @@ Singleton {
         // Filtered on the parsed title rather than the raw line, or the "@fri"
         // in ",milk @fri" would be a term no task could match and the list
         // below would empty out exactly as the date was typed.
-        const core = typed.length ? Tasks.parse(typed).title : "";
+        const core = parsedTask?.title ?? "";
         const terms = root.prepTerms(core);
         const scored = [];
 
@@ -855,12 +919,12 @@ Singleton {
 
     // Timer rows in tasks mode: a time being typed first, then existing timers.
     // Enter on a running timer pauses it; its countdown stays bound in the row.
-    function timerResults(query) {
+    function timerResults(query, parsed) {
         const typed = query.trim();
         const rows = [];
 
         if (typed.length) {
-            const p = Timers.parse(typed);
+            const p = parsed ?? Timers.parse(typed);
             rows.push({
                 kind: "timer-add",
                 glyph: p.ok && p.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer,
@@ -869,7 +933,7 @@ Singleton {
                 // Same again: "25m" is what was typed and "25 minutes" is what
                 // it was read as, so the reading is worth showing and the label
                 // beside it is not.
-                subtitle: Timers.brief(typed),
+                subtitle: Timers.brief(typed, p),
                 ok: p.ok,
                 text: typed
             });
@@ -893,6 +957,10 @@ Singleton {
         return rows;
     }
 
+    function noteRow(glyph: string, title: string, subtitle: string): var {
+        return {kind: "note", glyph, title, subtitle: subtitle ?? "", raw: true};
+    }
+
     // --- mail ----------------------------------------------------------------
 
     // "@" on its own is the unread the bar already has, so it is on screen at
@@ -900,15 +968,7 @@ Singleton {
     // Google — debounced harder than the disk walk for it, and shown only
     // once the answer for this exact query is back (see Email.found).
     function mailResults(query) {
-        const note = title => [
-                {
-                    kind: "note",
-                    glyph: Theme.glyph.mailRead,
-                    title: title,
-                    raw: true,
-                    subtitle: ""
-                }
-            ];
+        const note = title => [root.noteRow(Theme.glyph.mailRead, title)];
         if (!Email.configured)
             return note(`Gmail not connected — run ${Google.setup}`);
 
@@ -943,7 +1003,10 @@ Singleton {
     // would otherwise have to find it in.
     property var mailOpen: null
     // Its text, "" until it lands.
-    readonly property string mailText: root.mailOpen ? (Email.bodies[root.mailOpen.message] ?? "") : ""
+    readonly property string mailText: !root.mailOpen ? "" : (root.mailOpen.messages ?? []).map(message => {
+        const body = Email.bodies[message.id] ?? message.snippet ?? "";
+        return `${message.from}  ${Email.sayWhen(message.at)}\n${body}`;
+    }).join("\n\n")
 
     // Tab in mail mode: read the selected mail, or go back to the list from
     // one, onto the row it was read from if it is still there. Reading counts
@@ -1025,7 +1088,7 @@ Singleton {
                 // numbered ones rather than before them.
                 order: ws.id < 0 ? 1e6 - ws.id : ws.id,
                 at: rows.length,
-                icon: root.windowIcon(cls, entry),
+                icon: AppIcons.resolve(cls, entry),
                 title: t.title || app,
                 subtitle: [app, root.workspaceLabel(ws)].filter(x => x).join("  ·  "),
                 raw: true
@@ -1047,18 +1110,6 @@ Singleton {
     // The same search the taskbar makes (components/AppIcon.qml): the desktop
     // entry's icon, else a theme icon named after the class. Empty for none,
     // which the row answers with the window glyph.
-    function windowIcon(cls, entry) {
-        const override = Theme.appIconOverride[cls];
-        if (override)
-            return override;
-        if (entry?.icon)
-            return entry.icon;
-        for (const candidate of [cls, cls.toLowerCase()])
-            if (candidate && Quickshell.hasThemeIcon(candidate))
-                return candidate;
-        return "";
-    }
-
     // --- shelling out --------------------------------------------------------
 
     // Every keystroke: point the modes that work between keystrokes at what
@@ -1081,7 +1132,7 @@ Singleton {
 
         // A bare "@" with nothing unread lists the inbox instead. Asked at
         // once rather than after the debounce: nothing was typed to wait out.
-        if (c.mode === root.mailPrefix && !c.text && !Email.threads.length)
+        if (c.mode === root.mailPrefix && !c.text && !Email.threads.length && !(Email.found?.q === root.recentMail && !Email.found.trouble && Date.now() - Email.found.at < 30000))
             Email.search(root.recentMail, false);
 
         const mail = c.mode === root.mailPrefix ? c.text : "";
@@ -1310,13 +1361,7 @@ Singleton {
         // than guessing which.
         if (!root.clipEntries.length)
             return [
-                {
-                    kind: "note",
-                    glyph: Theme.glyph.clipboard,
-                    title: "no clipboard history",
-                    subtitle: "needs cliphist storing",
-                    raw: true
-                }
+                root.noteRow(Theme.glyph.clipboard, "no clipboard history", "needs cliphist storing")
             ];
 
         const terms = root.prepTerms(query);
@@ -1397,21 +1442,21 @@ Singleton {
     // --- engines -------------------------------------------------------------
 
     function engineResults(sym, rest) {
-        const group = root.prefixes[sym];
+        const engines = root.engines;
         const m = rest.match(/^(\S+)(?:\s+(.*))?$/);
-        let key = group.fallback;
+        let key = "";
         let q = rest.trim();
         // The first word is an engine key only if it actually names one, so
         // "#lofi" searches for lofi rather than looking for an engine "lofi".
-        if (m && group.engines.some(e => e.key === m[1])) {
+        if (m && engines.some(e => e.key === m[1])) {
             key = m[1];
             q = (m[2] || "").trim();
         }
 
         // Selected engine first, the rest following in the order they are
         // listed, so the list does not reshuffle itself as you type.
-        const picked = group.engines.filter(e => e.key === key);
-        const others = group.engines.filter(e => e.key !== key);
+        const picked = engines.filter(e => e.key === key);
+        const others = engines.filter(e => e.key !== key);
         return picked.concat(others).map(e => ({
                     kind: "url",
                     badge: sym + e.key,
@@ -1443,6 +1488,18 @@ Singleton {
     // would have to be reopened between them. Adding a task or a timer does
     // leave: that is a sentence finished.
     readonly property var actions: ({
+            desktop: (r, i) => {
+                root.leave(i);
+                root.bump("desktop:" + r.action.key);
+                if (r.action.popup)
+                    root.openControl(r.action.popup);
+                else
+                    r.action.run();
+            },
+            mode: (r, i) => {
+                root.query = r.prefix;
+                root.queryReplaced(r.prefix);
+            },
             app: (r, i) => {
                 root.leave(i);
                 root.bump(r.entry.id);
@@ -1529,8 +1586,7 @@ Singleton {
             }
         })
 
-    // `mode` is only for the music rows — "queue" or "play", from
-    // which modifier was held with Enter.
+    // Ctrl+Enter requests play for music or compose for mail; Enter queues music.
     function activate(i, mode): void {
         const r = root.results[i];
         // Ctrl+Enter in mail mode writes a new one, whatever row is selected
@@ -1619,7 +1675,7 @@ Singleton {
     FileView {
         id: store
 
-        path: Quickshell.statePath("launcher-frecency.json")
+        path: Paths.state("launcher-frecency.json")
         // Stated rather than left to the default: the load is what emits
         // `loaded`, and without it the first launch would write a db holding
         // one app over the real one — history would reset on every restart.
@@ -1628,6 +1684,15 @@ Singleton {
         // fresh install is not worth a line in the log.
         printErrors: false
 
+        onLoadFailed: {
+            try {
+                const history = legacyHistory.text();
+                root.db = JSON.parse(history);
+                store.setText(history);
+            } catch (error) {
+                root.db = ({});
+            }
+        }
         onLoaded: {
             try {
                 root.db = JSON.parse(store.text());
@@ -1635,6 +1700,14 @@ Singleton {
                 root.db = {};
             }
         }
+    }
+
+    FileView {
+        id: legacyHistory
+        path: Quickshell.statePath("launcher-frecency.json")
+        preload: false
+        blockLoading: true
+        printErrors: false
     }
 
     IpcHandler {
@@ -1646,16 +1719,16 @@ Singleton {
             root.toggle();
         }
 
-        // Close if open, and say whether there was anything to close. The bool
-        // is the point: smart-close.sh (Super+Q) has to tell "I closed the
-        // launcher, stop here" from "nothing was up, go close a window" —
-        // `toggle` would have opened the launcher in the second case.
         // Open in a mode, or close when that mode is already open. Super+T
         // and Super+Shift+T both use the combined tasks and timers mode.
         function open(prefix: string): void {
             root.openWith(prefix);
         }
 
+        // Close if open, and say whether there was anything to close. The bool
+        // is the point: smart-close.sh (Super+Q) has to tell "I closed the
+        // launcher, stop here" from "nothing was up, go close a window" —
+        // `toggle` would have opened the launcher in the second case.
         function dismiss(): bool {
             const was = root.shown;
             root.hide();

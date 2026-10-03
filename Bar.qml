@@ -14,8 +14,6 @@ PanelWindow {
 
     required property var modelData
     screen: modelData
-    // Popovers reuse this strip to begin with the pill's clear glass.
-    readonly property Image glassBackdrop: wallpaperImage
 
     // wrules.lua blurs layers by namespace; this needs a matching rule there
     // for the bar to get blurred. The rule ignores anything under 0.3 alpha,
@@ -412,7 +410,7 @@ PanelWindow {
     }
 
     // 0 to 1 the way a spring gets there: past it by about 13%, back a touch
-    // short, and on it. Near the pill width spring (Theme.springDamping).
+    // short, and on it. Near the pill width spring (Theme.foldDamping).
     function spring(x) {
         if (x >= 1)
             return 1;
@@ -547,7 +545,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, weather, language]
+        readonly property var drawable: [audio, email, tasks, updater, bell, weather, satty, idle, wallpaper, night, sys, language]
 
         // The glass running on past the drawer as its spring carries it out,
         // or squeezing in past shut as it carries it in, and first winding up
@@ -596,6 +594,12 @@ PanelWindow {
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
+        Weather {
+            id: weather
+            pinKey: "weather"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
         Satty {
             id: satty
             pinKey: "satty"
@@ -626,15 +630,9 @@ PanelWindow {
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
-        Weather {
-            id: weather
-            pinKey: "weather"
-            stowed: !showsClosed && !drawer.out
-            marksPin: drawer.out
-        }
         // Connectivity and the tray stay visible as the drawer folds away.
-        Bluetooth {}
-        Network {}
+        Bluetooth { id: bluetooth }
+        Network { id: network }
         Tray {
             settingsKey: "tray"
         }
@@ -657,6 +655,34 @@ PanelWindow {
         }
         LauncherButton {
             Layout.leftMargin: -1
+        }
+    }
+
+    Connections {
+        target: OpenPopup
+
+        function onControlRequested(key: string, screenName: string): void {
+            if (bar.modelData.name !== screenName)
+                return;
+            const item = { sound: audio, display: night, network, bluetooth, notifications: bell }[key];
+            if (!item?.here)
+                return;
+            controlOpen.interval = item.stowed ? Theme.windupMs + Theme.foldLandMs : 1;
+            controlOpen.item = item;
+            if (item.stowed)
+                drawer.open = true;
+            controlOpen.restart();
+        }
+    }
+
+    // Anchor a requested popup after its drawer slot has finished unfolding.
+    Timer {
+        id: controlOpen
+        property var item: null
+        onTriggered: {
+            if (item?.here && !item.stowed)
+                OpenPopup.set(item);
+            item = null;
         }
     }
 

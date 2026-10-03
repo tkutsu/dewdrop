@@ -44,6 +44,7 @@ STATE = '''
     property var readQueue: []
     property int bodyRequests: 0
     property int bodyParallel: 4
+    property string fixtureText: ""
     property var pending: []
     property int maxPending: 0
     function authorised(then, failed) { then(); }
@@ -96,6 +97,10 @@ class EmailTests(unittest.TestCase):
         self.assertFalse(expr.hasError(), expr.error().toString())
         return value
 
+    def text_of(self, payload):
+        self.js('sut.loadText("fixture", ' + json.dumps(payload) + ', function(text) { sut.fixtureText=text; }, function(why) { throw Error(why); });')
+        return self.js('return sut.fixtureText;')
+
     def check(self, expression):
         self.assertTrue(self.js('return ' + expression + ';'), expression)
 
@@ -133,9 +138,9 @@ class EmailTests(unittest.TestCase):
                 {'mimeType': 'text/plain', 'body': {'data': plain}},
             ]},
         ]}
-        self.check('sut.textOf(' + json.dumps(payload) + ') === "Καλημέρα 😀\\n\\nHello"')
+        self.assertEqual(self.text_of(payload), "Καλημέρα 😀\n\nHello")
         self.check('sut.utf8([0xf4,0xbf,0xbf,0xbf,0xed,0xa0,0x80,0xc0,0xaf,0xe2]) === "�".repeat(10)')
-        self.check('sut.textOf(null) === ""')
+        self.assertEqual(self.text_of(None), "")
 
     def test_unread_chain_order_and_read_reply_exclusion(self):
         self.js('''
@@ -193,7 +198,16 @@ class EmailTests(unittest.TestCase):
         self.js('sut.fetchThreads(); sut.reply({nextPageToken:"second"}); sut.reject();')
         self.check('sut.total === 77 && sut.trouble === "fixture failure"')
 
-    def test_thread_marked_unread_again_returns_on_next_poll(self):
+    def test_opened_thread_stays_hidden_until_gmail_catches_up(self):
+        self.js('''
+            sut.threads=[sut.rowOf({id:"t"},{messages:[{id:"m",labelIds:["UNREAD"]}]})]; sut.total=1;
+            sut.drop(sut.threads[0]); sut.fetchThreads();
+            sut.reply({threads:[{id:"t",historyId:"old"}]});
+            while (sut.pending.length) sut.reply({messages:[{id:"m",labelIds:["UNREAD"]}]});
+        ''')
+        self.check('sut.total === 0 && sut.threads.length === 0 && !!sut.opened.t')
+
+    def test_thread_marked_unread_again_returns_after_confirmation(self):
         for history in ('after', 'before', None):
             with self.subTest(history=history):
                 self.js('''
@@ -201,6 +215,7 @@ class EmailTests(unittest.TestCase):
                     sut.total=1; sut.threads=[sut.cache.t.row]; sut.drop(sut.threads[0]);
                 ''')
                 self.check('sut.total === 0 && sut.threads.length === 0')
+                self.js('sut.fetchThreads(); sut.reply({threads:[]});')
                 self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t",historyId:' + json.dumps(history) + '}]}); while(sut.pending.length) sut.reply({messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});')
                 self.check('sut.total === 1 && sut.threads.length === 1 && !sut.opened.t')
 
@@ -213,7 +228,7 @@ class EmailTests(unittest.TestCase):
             sut.reply({threads:[]});
         ''')
         self.check('sut.total === 0 && sut.threads.length === 0 && sut.pending.length === 0')
-        self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t",historyId:"2"}]}); while(sut.pending.length) sut.reply({messages:[{id:"m",labelIds:["UNREAD"]}]});')
+        self.js('sut.opened.t = Date.now() - 30001; sut.fetchThreads(); sut.reply({threads:[{id:"t",historyId:"2"}]}); while(sut.pending.length) sut.reply({messages:[{id:"m",labelIds:["UNREAD"]}]});')
         self.check('sut.total === 1 && sut.threads.length === 1')
 
     def test_server_confirmed_read_thread_stays_absent(self):

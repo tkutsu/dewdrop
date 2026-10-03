@@ -175,8 +175,10 @@ Singleton {
     // The event feed. pactl fires a burst per change, so the reload is debounced
     // rather than run once per line.
     Process {
+        id: subscription
         running: true
         command: ["pactl", "subscribe"]
+        onExited: subscriptionRetry.restart()
         // A hot reload destroys this object but leaves the subprocess running,
         // reparented to init, and pulse only accepts so many clients before it
         // starts refusing them — at which point the bar loses the sink and
@@ -195,6 +197,15 @@ Singleton {
         id: debounce
         interval: 50
         onTriggered: probe.reload()
+    }
+
+    Timer {
+        id: subscriptionRetry
+        interval: 1000
+        onTriggered: {
+            subscription.running = true;
+            probe.reload();
+        }
     }
 
     Component.onCompleted: probe.reload()

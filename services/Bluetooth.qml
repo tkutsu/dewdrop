@@ -29,6 +29,9 @@ Singleton {
 
     onAdapterChanged: {
         powered = null;
+        powerEvents.running = false;
+        if (root.present)
+            powerEventsRetry.restart();
         Qt.callLater(root.refreshPower);
     }
     Component.onCompleted: refreshPower()
@@ -41,11 +44,31 @@ Singleton {
         powerProbe.running = true;
     }
 
-    Timer {
-        interval: 5000
+    // busctl wait uses ordinary signal subscriptions, which need no monitoring privilege.
+    Process {
+        id: powerEvents
         running: root.present
-        repeat: true
-        onTriggered: root.refreshPower()
+        command: ["busctl", "--system", "--quiet", "wait", "org.bluez", root.adapter?.dbusPath ?? "/org/bluez", "org.freedesktop.DBus.Properties", "PropertiesChanged"]
+        Component.onDestruction: running = false
+        onExited: function (code) {
+            if (!root.present)
+                return;
+            if (code === 0) {
+                root.refreshPower();
+                Qt.callLater(() => powerEvents.running = root.present);
+            } else {
+                powerEventsRetry.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: powerEventsRetry
+        interval: 5000
+        onTriggered: if (root.present) {
+            powerEvents.running = true;
+            root.refreshPower();
+        }
     }
 
     Connections {

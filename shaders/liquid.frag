@@ -13,7 +13,6 @@
 // they do through real glass, so the edge fringes with colour. Opaque, so Hyprland's blur underneath never shows.
 //
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o liquid.frag.qsb liquid.frag
-// Popup variant: qsb --qt6 -D POPUP_RADIUS -o popup-glass.frag.qsb liquid.frag
 // A hot reload keeps drawing with the shader it already loaded, so restart
 // Quickshell after recompiling.
 
@@ -62,9 +61,6 @@ layout(std140, binding = 0) uniform buf {
     float tint;
     // How much less red bends, and how much more blue, than green does.
     float dispersion;
-#ifdef POPUP_RADIUS
-    float cornerRadius;
-#endif
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -74,9 +70,6 @@ float box(vec2 p, vec4 b) {
         return 1e5;
     vec2 half_ = b.zw * 0.5;
     float r = min(half_.x, half_.y);
-#ifdef POPUP_RADIUS
-    r = min(r, cornerRadius);
-#endif
     vec2 q = abs(p - (b.xy + half_)) - half_ + r;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }

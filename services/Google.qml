@@ -6,7 +6,7 @@ import Quickshell.Io
 import qs
 
 // The one Google sign-in the bar has, shared by everything that talks to a
-// Google API (Tasks and Agenda so far).
+// Google API (Tasks, Agenda, Email, and CalendarTimers).
 //
 // ~/_scripts/gtasks-setup walks the consent once and leaves a refresh token in
 // the file read below, granted for every scope the bar uses; scripts/gtasks-auth
@@ -18,7 +18,7 @@ import qs
 // What each service keeps for itself is what it fetches and what it makes of a
 // failure. `send` hands a reply to `then` or a reason to `fail`, so no caller
 // has to remember to check a status code. The shape of a service — polling,
-// gathering, trouble — is GoogleService.qml, which both build on.
+// gathering, trouble — is GoogleService.qml, which these services build on.
 Singleton {
     id: root
 
@@ -114,25 +114,7 @@ Singleton {
         // again once behind a fresh one. Once, because a second 401 with a
         // token Google just issued is not going to be cured by a third.
         const attempt = function (retry) {
-            const xhr = new XMLHttpRequest();
-            const timeout = requestTimeout.createObject(root, {interval: root.requestTimeoutMs});
-            let settled = false;
-            const finish = function () {
-                settled = true;
-                timeout.stop();
-                timeout.destroy();
-            };
-            timeout.triggered.connect(function () {
-                if (settled)
-                    return;
-                finish();
-                xhr.abort();
-                fail("Request timed out", 0);
-            });
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState !== XMLHttpRequest.DONE || settled)
-                    return;
-                finish();
+            Http.send(method, url, body, {Authorization: "Bearer " + root.accessToken}, root.requestTimeoutMs, function (xhr) {
                 if (xhr.status === 401) {
                     root.accessToken = "";
                     root.tokenExpiry = 0;
@@ -163,23 +145,9 @@ Singleton {
                         return;
                     }
                 then(parsed);
-            };
-            xhr.open(method, url);
-            timeout.start();
-            xhr.setRequestHeader("Authorization", "Bearer " + root.accessToken);
-            if (body !== null) {
-                xhr.setRequestHeader("Content-Type", "application/json");
-                xhr.send(JSON.stringify(body));
-            } else {
-                xhr.send();
-            }
+            }, fail);
         };
         attempt(true);
-    }
-
-    Component {
-        id: requestTimeout
-        Timer {}
     }
 
     // Get a usable access token, then do the thing. A minute of margin, because

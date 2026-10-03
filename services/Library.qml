@@ -263,7 +263,6 @@ Singleton {
 
     // How many rows are worth ranking. The launcher's own cap is the same
     // number and applies to what comes back from here.
-    readonly property int maxHits: 50
 
     // And how far below the best hit a row may score and still be worth a
     // line. A subsequence matcher turned on ten thousand titles will always
@@ -283,7 +282,7 @@ Singleton {
         if (!root.loaded)
             return [];
 
-        const terms = query.split(/\s+/).filter(t => t.length).map(t => Fuzzy.prepQuery(t));
+        const terms = Launcher.prepTerms(query);
         if (!terms.length)
             return [];
 
@@ -443,7 +442,7 @@ Singleton {
                 best = h.score;
         const kept = best > 0 ? hits.filter(h => h.score >= best * root.floor) : hits;
         kept.sort((x, y) => y.score - x.score || root.name(x).localeCompare(root.name(y)));
-        return kept.slice(0, root.maxHits);
+        return kept.slice(0, Launcher.maxResults);
     }
 
     // --- reading a hit -------------------------------------------------------

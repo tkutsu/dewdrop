@@ -7,7 +7,7 @@ import qs.services
 // The devices, and one click on a row to connect it, drop it or pair it. A
 // tick on what is connected, a spinner while something is on its way, and
 // the battery at the right edge once there is nothing else to say. The whole
-// of blueman is a left click on the bar icon away, for anything this is not.
+// of blueman is a right click on the bar icon away, for anything this is not.
 Popup {
     id: root
 
@@ -92,7 +92,7 @@ Popup {
 
                 // Only on the row under the pointer, and only for a device
                 // there is something to forget. The row goes with it, so the
-                // popup holds on over the gap it leaves.
+                // popup remains open while the device reconnects.
                 PopupButton {
                     id: forget
 
@@ -101,7 +101,6 @@ Popup {
                     glyph: Theme.glyph.close
                     glyphSize: Theme.captionSize
                     onTapped: {
-                        root.hold(1500);
                         row.modelData.forget();
                     }
                 }

@@ -57,18 +57,7 @@ Item {
         return windowClass ? DesktopEntries.heuristicLookup(windowClass) : null;
     }
 
-    readonly property string iconName: {
-        const override = Theme.appIconOverride[windowClass];
-        if (override)
-            return override;
-        if (entry?.icon)
-            return entry.icon;
-        for (const candidate of [windowClass, windowClass.toLowerCase()]) {
-            if (candidate && Quickshell.hasThemeIcon(candidate))
-                return candidate;
-        }
-        return "";
-    }
+    readonly property string iconName: AppIcons.resolve(root.windowClass, root.entry)
 
     // Only Ready counts: a name that resolves to nothing leaves the image blank
     // rather than erroring, which would hide the fallback.
@@ -99,7 +88,7 @@ Item {
             maskSpreadAtMin: 1
         }
 
-        ShadowedIcon {
+        FittedIcon {
             id: art
 
             visible: root.hasIcon
@@ -148,7 +137,7 @@ Item {
         width: artwork.width
         height: artwork.height
         visible: false
-        layer.enabled: true
+        layer.enabled: root.dotShown > 0
 
         Rectangle {
             readonly property real centreX: dot.x + dot.width / 2
