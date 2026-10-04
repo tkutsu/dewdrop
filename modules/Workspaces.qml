@@ -123,11 +123,7 @@ BarItem {
         cancelDrag();
         if (!valid)
             return;
-        // move_window_to only takes a workspace that exists; this one is made by the move.
-        if (fresh)
-            Hyprland.dispatch(`function() local w = hl.get_window("address:0x${address}") if w and w.mapped then hl.dispatch(hl.dsp.window.move({ window = w, workspace = ${id}, follow = false })) end end`);
-        else
-            Hyprland.dispatch(`move_window_to(${id}, "0x${address}")`);
+        Hyprland.dispatch(`move_window_to(${id}, "0x${address}")`);
     }
 
     HoverHandler {
