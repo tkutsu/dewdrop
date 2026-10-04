@@ -21,7 +21,33 @@ BarItem {
     property int dragWorkspaceId: -1
     property point dragPoint: Qt.point(0, 0)
 
+    // True while a group opens or folds. The icons animate their own widths
+    // then, and the strip follows them exactly rather than chasing them with
+    // its spring, which would leave the pill's end behind (see widthChange).
+    property bool folding: false
+
+    Timer {
+        id: foldTimer
+        interval: Theme.markMs * 0.6
+        onTriggered: root.folding = false
+    }
+
+    function startFold(): void {
+        folding = true;
+        foldTimer.restart();
+    }
+
+    function expand(workspace, cls: string): void {
+        startFold();
+        expandedWorkspaceObject = workspace;
+        expandedClass = cls;
+        expandedWorkspace = workspace.id;
+    }
+
     function collapse(): void {
+        if (expandedWorkspace === -1)
+            return;
+        startFold();
         expandedWorkspace = -1;
         expandedClass = "";
         expandedWorkspaceObject = null;
@@ -84,7 +110,7 @@ BarItem {
         cancelDrag();
         if (!valid)
             return;
-        Hyprland.dispatch(`move_windows(${id}, {"0x${address}"})`);
+        Hyprland.dispatch(`move_window_to(${id}, "0x${address}")`);
     }
 
     HoverHandler {
@@ -137,7 +163,7 @@ BarItem {
         Behavior on implicitWidth {
             id: widthChange
 
-            enabled: root._started
+            enabled: root._started && !root.folding
             property bool growing: true
             onTargetValueChanged: growing = targetValue > strip.implicitWidth
 
@@ -386,8 +412,11 @@ BarItem {
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
 
+                    // Shaped like the focus slab: it reaches the same way past the icons.
                     Rectangle {
                         anchors.fill: parent
+                        anchors.leftMargin: -(Theme.pillPad - Theme.markInset)
+                        anchors.rightMargin: -(Theme.pillPad - Theme.markInset)
                         anchors.topMargin: Theme.pillTop(button.height) + Theme.markInset
                         anchors.bottomMargin: Theme.pillTop(button.height) + Theme.markInset
                         radius: Theme.pillRadius - Theme.markInset
@@ -465,7 +494,12 @@ BarItem {
                                 // opacity together, the way the strip itself opens.
                                 property real reveal: modelData.folded ? 0 : 1
 
+                                // Only for opening and folding: a folded icon that
+                                // becomes the group's first, because the first window
+                                // closed, takes its place at once.
                                 Behavior on reveal {
+                                    enabled: root.folding
+
                                     NumberAnimation {
                                         duration: Theme.markMs * 0.6
                                         easing.type: Easing.OutCubic
@@ -477,7 +511,8 @@ BarItem {
                                 Layout.preferredWidth: implicitWidth * reveal
                                 Layout.leftMargin: -Theme.appIconGap * (1 - reveal)
                                 windowClass: modelData.windowClass
-                                urgent: root.anyUrgent(modelData.addresses)
+                                // A folded icon's window is already in the first icon's addresses.
+                                urgent: !modelData.folded && root.anyUrgent(modelData.addresses)
                                 // Only on the workspace in front of you: Hyprland
                                 // keeps the last window as active after you move
                                 // to an empty one, and a dot left behind there
@@ -517,9 +552,7 @@ BarItem {
                                         addressOnPress = addresses.length === 1 ? addresses[0] : "";
                                         if (addresses.length > 1) {
                                             suppressClick = true;
-                                            root.expandedWorkspaceObject = button.modelData;
-                                            root.expandedClass = app.windowClass;
-                                            root.expandedWorkspace = button.modelData.id;
+                                            root.expand(button.modelData, app.windowClass);
                                             Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addresses[0]}" })`);
                                         } else if (!app.modelData.expanded) {
                                             root.collapse();
