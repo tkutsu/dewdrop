@@ -63,15 +63,24 @@ Liquid {
     property real tailProgress: 1
     property real roundness: 0
 
+    // Set by the owner when the destination is the same place changing size,
+    // not a new place: at rest the ends follow the new edges exactly instead
+    // of flowing to them, and a flow already under way keeps going, since it
+    // heads for wherever the destination is now.
+    property bool resizing: false
+    readonly property bool _following: resizing && tailProgress >= 1
+
     // A new destination keeps the tail wherever the previous move left it.
     function followTail(): void {
-        if (!root.placed) {
+        if (!root.placed || root._following) {
             root.tailLeft = root.wantLeft;
             root.tailRight = root.wantRight;
             root.tailProgress = 1;
             root.roundness = 0;
             return;
         }
+        if (root.resizing)
+            return;
         root.tailStart = Qt.point(root.tailLeft, root.tailRight);
         root.tailProgress = 0;
     }
@@ -80,14 +89,14 @@ Liquid {
     onWantRightChanged: followTail()
 
     Behavior on headLeft {
-        enabled: root.placed
+        enabled: root.placed && !root._following
         SpringAnimation {
             spring: Theme.springStiffness
             damping: Theme.markDamping
         }
     }
     Behavior on headRight {
-        enabled: root.placed
+        enabled: root.placed && !root._following
         SpringAnimation {
             spring: Theme.springStiffness
             damping: Theme.markDamping
