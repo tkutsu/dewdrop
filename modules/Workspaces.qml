@@ -673,42 +673,11 @@ BarItem {
             }
         }
 
-        // Where the dragged window will land: a thin upright line between icons,
-        // gliding from slot to slot rather than jumping.
-        Rectangle {
-            id: dropLine
-
-            readonly property bool shown: root.dropTarget !== null && root.dragSource !== null
-            readonly property real target: shown
+        // Where the dragged window will land.
+        DropLine {
+            target: root.dropTarget !== null && root.dragSource !== null
                 ? root.dropTarget.x + root.dropTarget.slotX(root.dragSource.windowClass, root.dragAddress)
                 : NaN
-            // Kept where it was while the line fades out.
-            property real at: 0
-            onTargetChanged: if (!isNaN(target)) at = target
-
-            x: Math.round(at - width / 2)
-            y: Math.round(Theme.pillTop(strip.height) + (Theme.barHeight - height) / 2)
-            z: 9
-            width: 2
-            height: Theme.iconSize
-            radius: 1
-            color: Theme.fg
-            opacity: shown ? 0.5 : 0
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 120
-                }
-            }
-
-            Behavior on at {
-                enabled: dropLine.opacity > 0
-
-                NumberAnimation {
-                    duration: 120
-                    easing.type: Easing.OutCubic
-                }
-            }
         }
 
         // Draw outside the layout so the ghost never changes workspace widths or takes input.

@@ -34,7 +34,7 @@ Item {
         if (order.length === 0)
             return;
         for (const item of row.children) {
-            const index = order.indexOf(item.settingsKey ?? "");
+            const index = order.indexOf(item.settingsKey);
             item.Layout.row = 0;
             item.Layout.column = index >= 0 ? index + 1 : item === row.children[0] ? 0 : order.length + 1;
         }
@@ -43,8 +43,9 @@ Item {
     onOrderChanged: arrange()
     Component.onCompleted: arrange()
 
-    readonly property var _movable: _shown.filter(item => order.includes(item.settingsKey))
+    readonly property var _movable: shown.filter(item => order.includes(item.settingsKey))
     readonly property bool dragValid: root.visible && dragSource !== null && dragSource.here && dragSource.visible
+    // Later, not here: clearing dragSource now re-evaluates dragValid inside its own change.
     onDragValidChanged: if (dragging && !dragValid) Qt.callLater(root.cancelInvalidDrag)
 
     function cancelInvalidDrag(): void {
@@ -74,20 +75,19 @@ Item {
     }
 
     readonly property Item dropBefore: dragging ? beforeAt(dragPoint) : null
+    // A drop just before the module that already follows the source leaves it where it is.
+    readonly property bool dropMoves: dragging
+        && dropBefore !== (_movable[_movable.indexOf(dragSource) + 1] ?? null)
 
     function cancelDrag(): void {
         dragging = false;
         dragSource = null;
     }
 
-    function cancelInactiveDrag(): void {
-        if (!reorder.active)
-            cancelDrag();
-    }
-
     // Resolve the drop from current geometry, including a drawer still settling.
+    // A null point is a drag that ended without a release, which cancels.
     function finishDrag(point): void {
-        if (dragging && dragValid && root.contains(point))
+        if (dragging && dragValid && point !== null && root.contains(point))
             RightPillOrder.move(dragSource.settingsKey, beforeAt(point)?.settingsKey ?? null,
                 root._movable.map(item => item.settingsKey));
         cancelDrag();
@@ -145,7 +145,7 @@ Item {
     property real stretch: 0
 
     onStretchChanged: {
-        const shown = root._shown;
+        const shown = root.shown;
         if (shown.length === 0)
             return;
         const left = root.side === Pill.Side.Left;
@@ -448,14 +448,14 @@ Item {
     // neighbours as padding, so folding takes that padding with it. A row's
     // spacing is fixed for every visible item, and cancelling it with a
     // negative margin does not work —
-    // RowLayout clamps a cell at zero width, so a folding module kept its
+    // the layout clamps a cell at zero width, so a folding module kept its
     // whole gap until its width outgrew it, and the pill jumped by a gap per
     // module at the start of the fold and again at the end.
+    // A grid of one row rather than a RowLayout: its columns (arrange) put
+    // the right pill's modules in their saved order without recreating them.
     GridLayout {
         id: row
         anchors.fill: parent
-        rows: 1
-        rowSpacing: 0
         columnSpacing: 0
         opacity: root.contentOpacity
         onChildrenChanged: root.arrange()
@@ -464,18 +464,16 @@ Item {
     // An ancestor handler observes child MouseAreas without swallowing their clicks.
     DragHandler {
         id: reorder
-        parent: root
         target: null
         enabled: root.order.length > 0
+        // Turning a handler off drops its grab without saying so.
         onEnabledChanged: if (!enabled) root.cancelDrag()
         acceptedButtons: Qt.LeftButton
         grabPermissions: root.moduleAt(centroid.pressPosition) !== null
             ? PointerHandler.CanTakeOverFromItems : PointerHandler.TakeOverForbidden
         onActiveChanged: {
-            if (!active) {
-                Qt.callLater(root.cancelInactiveDrag);
+            if (!active)
                 return;
-            }
             root.dragSource = root.moduleAt(centroid.pressPosition);
             if (root.dragSource === null)
                 return;
@@ -484,56 +482,40 @@ Item {
             OpenPopup.dismiss();
         }
         onCentroidChanged: if (active && root.dragging) root.dragPoint = centroid.position
-        onCanceled: root.cancelDrag()
-        // centroid is reset before active becomes false; the release event retains its position.
+        // Every end of the drag comes through here, released or not. Only a
+        // release drops; centroid is reset by then, but the point keeps its place.
         onGrabChanged: (transition, point) => {
-            if (transition === PointerDevice.UngrabExclusive && point.state === EventPoint.Released)
-                root.finishDrag(root.mapFromItem(null, point.scenePosition));
+            const ends = [PointerDevice.UngrabExclusive, PointerDevice.CancelGrabExclusive, PointerDevice.OverrideGrabExclusive];
+            if (!ends.includes(transition))
+                return;
+            const released = transition === PointerDevice.UngrabExclusive && point.state === EventPoint.Released;
+            root.finishDrag(released ? root.mapFromItem(null, point.scenePosition) : null);
         }
     }
 
-    Rectangle {
-        id: dropLine
-        readonly property bool shown: root.dragging && root.dragValid && root.contains(root.dragPoint)
-        readonly property real target: {
-            if (!shown)
+    // Between the modules either side of the drop, splitting any margin they overlap by.
+    DropLine {
+        target: {
+            if (!root.dropMoves || !root.contains(root.dragPoint))
                 return NaN;
             const items = root._movable.filter(item => item !== root.dragSource);
             const next = root.dropBefore;
-            const previous = next ? items[items.indexOf(next) - 1] : items[items.length - 1];
-            const left = previous ? previous.mapToItem(root, previous.width, 0).x
-                : next ? next.mapToItem(root, 0, 0).x : root.dragSource.mapToItem(root, 0, 0).x;
-            const right = next ? next.mapToItem(root, 0, 0).x : left;
-            return (left + right) / 2;
-        }
-        property real at: 0
-        onTargetChanged: if (!isNaN(target)) at = target
-        x: Math.round(at - width / 2)
-        y: Math.round(Theme.pillTop(root.height) + (Theme.barHeight - height) / 2)
-        z: 9
-        width: 2
-        height: Theme.iconSize
-        radius: 1
-        color: Theme.fg
-        opacity: shown ? 0.5 : 0
-        Behavior on opacity {
-            NumberAnimation { duration: 120 }
-        }
-        Behavior on at {
-            enabled: dropLine.opacity > 0
-            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+            const previous = items[(next ? items.indexOf(next) : items.length) - 1];
+            const left = previous?.mapToItem(root, previous.width, 0).x;
+            const right = next?.mapToItem(root, 0, 0).x;
+            return ((left ?? right) + (right ?? left)) / 2;
         }
     }
 
     // The first and last modules have no neighbour on their outer side.
     Binding {
-        target: root._shown[0] ?? null
+        target: root.shown[0] ?? null
         property: "lead"
         value: false
     }
 
     Binding {
-        target: root._shown[root._shown.length - 1] ?? null
+        target: root.shown[root.shown.length - 1] ?? null
         property: "trail"
         value: false
     }
@@ -543,7 +525,7 @@ Item {
     // by exactly what they inset its content, so the padding and the margin
     // beyond it click through to the module they belong to. A module that hides
     // itself hands its end to the next one along.
-    readonly property var _shown: {
+    readonly property var shown: {
         const shown = [];
         for (const child of row.children)
             if (child.visible)
@@ -552,13 +534,13 @@ Item {
     }
 
     Binding {
-        target: root._shown[0] ?? null
+        target: root.shown[0] ?? null
         property: "padLeft"
         value: root.atLeftEdge ? Theme.pillPad + Theme.barMargin : Theme.pillPad
     }
 
     Binding {
-        target: root._shown[root._shown.length - 1] ?? null
+        target: root.shown[root.shown.length - 1] ?? null
         property: "padRight"
         value: root.atRightEdge ? Theme.pillPad + Theme.barMargin : Theme.pillPad
     }

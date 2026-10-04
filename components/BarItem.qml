@@ -31,8 +31,11 @@ ClickArea {
     // its own with togglePopup() (Music's title).
     property int popupButton: Qt.LeftButton
     readonly property bool popupOpen: OpenPopup.owner === root
-    readonly property bool pillDragging: parent?.parent?.dragging ?? false
-    readonly property bool reordering: pillDragging && parent?.parent?.dragSource === root
+    // The pill whose row this module sits in, if it does: while the pill
+    // drags a module to a new place, tooltips and popups keep still.
+    readonly property Item pill: parent?.parent instanceof Pill ? parent.parent : null
+    readonly property bool pillDragging: pill?.dragging ?? false
+    readonly property bool reordering: pillDragging && pill.dragSource === root
 
     function togglePopup(): void {
         OpenPopup.toggle(root);

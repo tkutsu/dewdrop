@@ -13,7 +13,7 @@ Singleton {
 
     function move(key, beforeKey, visibleKeys): bool {
         const next = Order.move(root.keys, key, beforeKey, visibleKeys);
-        if (next.every((key, index) => key === root.keys[index]))
+        if (next.every((k, index) => k === root.keys[index]))
             return false;
         stored.order = next;
         file.writeAdapter();

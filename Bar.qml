@@ -539,7 +539,7 @@ PanelWindow {
         side: Pill.Side.Right
         backdrop: wallpaperImage
         order: RightPillOrder.keys
-        readonly property bool languageAtLauncher: _shown[_shown.length - 2] === language
+        readonly property bool languageAtLauncher: shown[shown.length - 2] === language
 
         // Whatever has nothing to say right now folds away behind this handle,
         // each module in its own place in the row so that opening the drawer
@@ -641,11 +641,11 @@ PanelWindow {
         // Every Glyph on the bar is laid out on its ink, but the language
         // label is text and keeps its advance, which leaves about a pixel
         // of side bearing to the right of the "N". That pixel comes back
-        // out, and one more: the launcher's ring meets the N's straight stem
-        // only at its middle, and at the measured gap the pair read as
-        // further apart than their neighbours. Trimming the gap rather than
-        // shifting the label keeps the module's own width fixed, so nothing
-        // moves when the layout changes.
+        // out, and one more beside the launcher: its ring meets the N's
+        // straight stem only at its middle, and at the measured gap the pair
+        // read as further apart than their neighbours. Trimming the gap
+        // rather than shifting the label keeps the module's own width fixed,
+        // so nothing moves when the layout changes.
         Language {
             id: language
             pinKey: "language"
@@ -656,7 +656,7 @@ PanelWindow {
             Layout.rightMargin: rightPill.languageAtLauncher ? -2 : -1
         }
         LauncherButton {
-            Layout.leftMargin: rightPill.languageAtLauncher ? -1 : 0
+            Layout.leftMargin: -1
         }
     }
 
