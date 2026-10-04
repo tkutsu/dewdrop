@@ -249,23 +249,25 @@ Singleton {
 
     Timer {
         // Align the graph clock with minute boundaries, including city midnight.
+        // The same tick renews a forecast past the helper's 15-minute cache by
+        // the wall clock: Qt timers stand still while the machine sleeps, so a
+        // 15-minute countdown kept a stale forecast up long after every wake.
         interval: Math.max(1, 60000 - Math.floor(root.now * 1000) % 60000)
         running: root.enabled
         repeat: true
-        onTriggered: root.now = Date.now() / 1000
-    }
-    Timer {
-        // A reload resumes the cached forecast's remaining freshness window.
-        interval: root.updatedAt > 0 ? Math.max(1000, Math.min(15 * 60000, Math.ceil((root.updatedAt + 15 * 60 - Date.now() / 1000) * 1000))) : 15 * 60000
-        running: root.enabled && !!root.location && !root.loading && !root.waitingForForecast
-        repeat: true
-        onTriggered: root.refresh()
+        onTriggered: {
+            root.now = Date.now() / 1000;
+            if (!root.loading && root.now - root.updatedAt >= 15 * 60)
+                root.refresh();
+        }
     }
     // Wake at the helper's persisted deadline; manual refresh and reconnect
-    // use the same gate and cannot shorten a provider's cooldown.
+    // use the same gate and cannot shorten a provider's cooldown. Measured
+    // from `now`, so a wake that comes early (Qt rounds long timers to whole
+    // seconds) restarts for the remainder rather than a whole backoff again.
     Timer {
         id: retryWake
-        interval: Math.max(1, Math.min(2147483647, Math.ceil((root.nextRetryAt - Date.now() / 1000) * 1000)))
+        interval: Math.max(1, Math.min(2147483647, Math.ceil((root.nextRetryAt - root.now) * 1000)))
         running: root.enabled && root.nextRetryAt > 0
         onTriggered: {
             root.now = Date.now() / 1000;
