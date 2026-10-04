@@ -47,7 +47,7 @@ Singleton {
             root.query = "";
             return;
         }
-        // Read once and then kept, so this is a real ask only on the first &
+        // Read once and then kept, so this is a real ask only on the first #
         // of a session — and a rescan of mpd's database is what makes it one
         // again. See services/Library.qml. Not while mpd is down: there is
         // nobody to read it from, and the row on top offers to start it.
