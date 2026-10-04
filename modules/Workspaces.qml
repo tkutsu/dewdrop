@@ -484,7 +484,7 @@ BarItem {
                         id: row
                         anchors.left: parent.left
                         height: parent.height
-                        spacing: Theme.appIconGap
+                        spacing: 0
 
                         // An empty workspace occupies one icon's ink width without drawing an icon.
                         Item {
@@ -541,6 +541,8 @@ BarItem {
                                 // How far a folded icon has opened, 0..1: width, gap and
                                 // opacity together, the way the strip itself opens.
                                 property real reveal: icon.folded ? 0 : 1
+                                readonly property int gapWidth: index > 0 ? Theme.appIconGap : 0
+                                readonly property int slotWidth: Math.round((implicitWidth + gapWidth) * reveal)
 
                                 // Only for opening and folding: a folded icon that
                                 // becomes the group's first, because the first window
@@ -562,8 +564,9 @@ BarItem {
                                 opacity: reveal
                                 scale: reveal
                                 transformOrigin: Item.Left
-                                Layout.leftMargin: -Theme.appIconGap * (1 - reveal)
-                                Layout.rightMargin: -implicitWidth * (1 - reveal)
+                                // Fold the gap into the slot so hiding the icon leaves no final layout jump.
+                                Layout.leftMargin: Math.round(gapWidth * reveal)
+                                Layout.rightMargin: slotWidth - implicitWidth - Layout.leftMargin
                                 windowClass: icon.windowClass
                                 // A folded icon's window is already in the first icon's addresses.
                                 urgent: !icon.folded && root.anyUrgent(icon.addresses)
