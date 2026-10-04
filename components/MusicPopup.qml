@@ -171,7 +171,7 @@ Popup {
                     elide: Text.ElideRight
                 }
 
-                // The way to put something else on: the launcher's & mode,
+                // The way to put something else on: the launcher's # mode,
                 // which has the whole library. Beside the quit button, as
                 // every popup under the bar keeps its plus at the right end of
                 // its top line; the quit button asks twice, so a plus that
