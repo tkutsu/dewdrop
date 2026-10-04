@@ -238,7 +238,7 @@ def main():
         (target / 'components').mkdir()
         (target / 'state').mkdir()
         (target / 'runtime').mkdir(mode=0o700)
-        for name in ('RightPillOrder.qml', 'RightPillOrder.js', 'components/Pill.qml', 'components/BarItem.qml', 'components/ClickArea.qml', 'components/DropLine.qml'):
+        for name in ('Tooltips.qml', 'RightPillOrder.qml', 'RightPillOrder.js', 'components/Pill.qml', 'components/BarItem.qml', 'components/ClickArea.qml', 'components/DropLine.qml'):
             shutil.copyfile(ROOT / name, target / name)
         for name, text in STUBS.items():
             (target / name).write_text(text)

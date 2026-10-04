@@ -104,6 +104,10 @@ ClickArea {
     // `showsClosed` and whether the drawer is open.
     property bool stowed: false
 
+    // Modules add their own finite motion; folds include the spring's full settling.
+    property bool contentAnimating: false
+    readonly property bool animating: contentAnimating || foldSpring.running || foldEase.running
+
     // How far out of the drawer the module is, 0..1. It folds to nothing
     // rather than blinking out: its width and gap padding go together.
     // The contents keep their size and slide under the module's left
@@ -134,6 +138,7 @@ ClickArea {
     Behavior on _sprung {
         enabled: root.folds && root._started
         SpringAnimation {
+            id: foldSpring
             spring: Theme.foldSpring
             damping: Theme.foldDamping
             // Of the whole fold rather than a pixel: the drawer is a few
@@ -165,6 +170,7 @@ ClickArea {
     Behavior on _eased {
         enabled: !root.folds
         NumberAnimation {
+            id: foldEase
             duration: root.foldDuration
             easing.type: root.foldEasing
         }
