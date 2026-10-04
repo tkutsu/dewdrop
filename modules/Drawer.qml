@@ -16,6 +16,7 @@ BarItem {
     id: root
 
     property bool open: false
+    contentAnimating: anticipate.running || turn.running
     // Whether anything is in the drawer. The handle is only there while it
     // holds something — a chevron that opened onto nothing would be a control
     // for its own sake.

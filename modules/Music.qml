@@ -138,6 +138,7 @@ BarItem {
     }
 
     property real swapOpacity: 1
+    contentAnimating: swap.running || titleFade.running || previousWidth.running || titleWidth.running || nextWidth.running
 
     NumberAnimation {
         id: titleFade
@@ -243,6 +244,7 @@ BarItem {
         Behavior on implicitWidth {
             enabled: root.settled
             NumberAnimation {
+                id: previousWidth
                 duration: Theme.foldMs
                 easing.type: Easing.InOutCubic
             }
@@ -408,6 +410,7 @@ BarItem {
             Behavior on implicitWidth {
                 enabled: root.settled
                 SpringAnimation {
+                    id: titleWidth
                     spring: Theme.springStiffness
                     // Give the second rebound enough travel to read as a bounce.
                     damping: 0.14
@@ -454,6 +457,7 @@ BarItem {
         Behavior on implicitWidth {
             enabled: root.settled
             NumberAnimation {
+                id: nextWidth
                 duration: Theme.foldMs
                 easing.type: Easing.InOutCubic
             }

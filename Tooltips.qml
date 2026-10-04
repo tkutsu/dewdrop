@@ -14,6 +14,15 @@ Singleton {
     property int showing: 0
     readonly property bool warm: showing > 0 || cooling.running
 
+    property var movingPills: []
+    readonly property bool blocked: movingPills.length > 0
+
+    // Track owners rather than a count so overlapping motion and teardown balance.
+    function setMoving(pill: Item, moving: bool): void {
+        const others = root.movingPills.filter(item => item !== pill);
+        root.movingPills = moving ? [...others, pill] : others;
+    }
+
     function shown(): void {
         root.showing++;
     }

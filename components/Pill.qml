@@ -27,6 +27,9 @@ Item {
     // Empty on the other pills; the right pill fixes its unkeyed ends in place.
     property var order: []
     property bool dragging: false
+    readonly property bool animating: dragging || row.children.some(item => item.animating === true)
+    onAnimatingChanged: Tooltips.setMoving(root, animating)
+    Component.onDestruction: Tooltips.setMoving(root, false)
     property Item dragSource: null
     property point dragPoint: Qt.point(0, 0)
 
@@ -41,7 +44,10 @@ Item {
     }
 
     onOrderChanged: arrange()
-    Component.onCompleted: arrange()
+    Component.onCompleted: {
+        arrange();
+        Tooltips.setMoving(root, animating);
+    }
 
     readonly property var _movable: shown.filter(item => order.includes(item.settingsKey))
     readonly property bool dragValid: root.visible && dragSource !== null && dragSource.here && dragSource.visible

@@ -25,6 +25,7 @@ BarItem {
     // then, and the strip follows them exactly rather than chasing them with
     // its spring, which would leave the pill's end behind (see widthChange).
     property bool folding: false
+    contentAnimating: folding || stripResize.running || mark.animating
 
     Timer {
         id: foldTimer
@@ -181,6 +182,7 @@ BarItem {
             onTargetValueChanged: growing = targetValue > strip.implicitWidth
 
             SequentialAnimation {
+                id: stripResize
                 PauseAnimation {
                     duration: widthChange.growing ? 0 : 180
                 }

@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Bluetooth as BlueZ
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs
@@ -320,7 +321,6 @@ Singleton {
     }
 
     function show(): void {
-        controlHandoff.stop();
         OpenPopup.dismiss();
         root.query = "";
         root.index = 0;
@@ -448,11 +448,11 @@ Singleton {
         return found;
     }
 
-    // Rank apps, power commands, and desktop controls on the same match scale.
+    // Rank apps, power commands, desktop controls and paired Bluetooth devices.
     function mainResults(query) {
         const terms = root.prepTerms(query);
-        const scored = root.appMatches(terms).concat(root.powerMatches(terms), root.desktopMatches(terms));
-        scored.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
+        const scored = root.appMatches(terms).concat(root.powerMatches(terms), root.desktopMatches(terms), root.bluetoothMatches(terms));
+        scored.sort((a, b) => b.s - a.s || (a.row.sortTitle ?? a.row.title).localeCompare(b.row.sortTitle ?? b.row.title));
         return scored.slice(0, root.maxResults).map(x => x.row);
     }
 
@@ -505,25 +505,13 @@ Singleton {
         return scored;
     }
 
-    // Desktop controls use their existing services and the bar's own popups.
-    readonly property var controlScreen: {
-        const screens = Quickshell.screens.filter(s => Settings.screenOn(s.name));
-        return screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? screens[0] ?? null;
-    }
-
-    readonly property bool controlsAvailable: root.controlScreen !== null
-
+    // Desktop actions run directly through their existing services.
     readonly property var desktopCommands: [
-        { key: "sound", title: "Sound controls", aliases: "audio volume speaker headphones output", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], popup: "sound", available: Settings.moduleOn("audio") && root.controlsAvailable },
-        { key: "display", title: "Display controls", aliases: "brightness screen monitor", glyph: Theme.glyph.nightOff, popup: "display", available: Settings.moduleOn("night") && root.controlsAvailable },
-        { key: "network", title: "Network controls", aliases: "wifi wi-fi ethernet internet connection", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], popup: "network", available: Settings.moduleOn("network") && root.controlsAvailable },
-        { key: "bluetooth", title: "Bluetooth devices", aliases: "connect headphones pairing wireless", glyph: Theme.glyph.bluetooth, popup: "bluetooth", available: Settings.moduleOn("bluetooth") && Bluetooth.present && root.controlsAvailable },
-        { key: "notifications", title: "Notifications", aliases: "notification centre center alerts", glyph: Theme.glyph.notif, popup: "notifications", available: Settings.moduleOn("bell") && root.controlsAvailable },
         { key: "mute", title: Audio.muted ? "Unmute sound" : "Mute sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
         { key: "dnd", title: Notifications.dnd ? "Turn do not disturb off" : "Turn do not disturb on", aliases: "dnd notifications silence quiet", glyph: Theme.glyph.notif, run: () => Notifications.setDnd(!Notifications.dnd) },
         { key: "night", title: NightMode.on ? "Turn night mode off" : "Turn night mode on", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
         { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi off" : "Turn Wi-Fi on", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },
-        { key: "bluetooth-power", title: Bluetooth.on ? "Turn Bluetooth off" : "Turn Bluetooth on", aliases: "wireless radio", glyph: Theme.glyph.bluetooth, available: Bluetooth.present, run: () => Bluetooth.toggle() }
+        { key: "bluetooth-power", title: Bluetooth.on ? "Turn Bluetooth off" : "Turn Bluetooth on", aliases: "wireless radio" + (!Bluetooth.on ? " connect headphones headset " + Bluetooth.devices.filter(d => d.paired).map(d => d.name).join(" ") : ""), glyph: Theme.glyph.bluetooth, available: Bluetooth.present, run: () => Bluetooth.toggle() }
     ]
 
     function desktopMatches(terms) {
@@ -543,36 +531,57 @@ Singleton {
         return scored;
     }
 
-    // Fill unused history slots with safe controls, then offer every prefix.
+    // Match both actions and sort by name, so connection progress changes
+    // the label without moving the device away from the selection.
+    function bluetoothMatches(terms) {
+        if (!Bluetooth.present || !Bluetooth.on)
+            return [];
+        const scored = [];
+        for (const device of Bluetooth.devices) {
+            if (!device.paired)
+                continue;
+            const connecting = device.state === BlueZ.BluetoothDeviceState.Connecting;
+            const disconnecting = device.state === BlueZ.BluetoothDeviceState.Disconnecting;
+            const title = (connecting ? "Connecting to " : disconnecting ? "Disconnecting " : device.connected ? "Disconnect " : "Connect ") + device.name;
+            const status = connecting ? "Connecting…" : disconnecting ? "Disconnecting…" : device.pairing ? "Pairing…" : device.connected ? "Connected" : "Disconnected";
+            const aliases = "bluetooth wireless connect disconnect" + (device.icon?.startsWith("audio-") ? " headphones headset audio" : "");
+            const s = terms.length ? root.matchScore(terms, [[device.name, 1], ["Connect " + device.name, 1], ["Disconnect " + device.name, 1], [aliases, 0.8]]) : 0;
+            if (s !== null)
+                scored.push({
+                    s,
+                    row: {
+                        kind: "bluetooth",
+                        address: device.address,
+                        connect: !device.connected,
+                        title,
+                        sortTitle: device.name,
+                        subtitle: "Bluetooth · " + status,
+                        glyph: Theme.glyph.bluetooth,
+                        raw: true
+                    }
+                });
+        }
+        return scored;
+    }
+
+    // Resolve the current device rather than trusting a row from before a
+    // state change or adapter replacement; never reverse a stale action.
+    function activateBluetooth(row): void {
+        if (!Bluetooth.present || !Bluetooth.on)
+            return;
+        const device = Bluetooth.devices.find(d => d.address === row.address && d.paired);
+        if (!device || device.pairing || device.state === BlueZ.BluetoothDeviceState.Connecting || device.state === BlueZ.BluetoothDeviceState.Disconnecting || row.connect === device.connected)
+            return;
+        Bluetooth.activate(device);
+    }
+
+    // Show frequently used apps and actions, then offer every prefix.
     function homeResults() {
         const desktop = root.desktopMatches([]);
         const frequent = root.appMatches([]).concat(desktop).filter(x => x.s > 0);
         frequent.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
         const rows = frequent.slice(0, 5).map(x => x.row);
-        for (const choice of desktop) {
-            if (rows.length >= 5)
-                break;
-            if (choice.row.action.popup && !rows.some(r => r.kind === "desktop" && r.action.key === choice.row.action.key))
-                rows.push(choice.row);
-        }
         return rows.concat(root.modes.map(mode => ({ kind: "mode", prefix: mode.prefix, title: mode.title, raw: true })));
-    }
-
-    // Release the launcher overlay before handing input back to a bar popup.
-    Timer {
-        id: controlHandoff
-        property string key: ""
-        property string screenName: ""
-        interval: Theme.zipTotalMs
-        onTriggered: OpenPopup.controlRequested(key, screenName)
-    }
-
-    function openControl(key) {
-        if (!root.controlScreen)
-            return;
-        controlHandoff.key = key;
-        controlHandoff.screenName = root.controlScreen.name;
-        controlHandoff.restart();
     }
 
     // --- power ---------------------------------------------------------------
@@ -1491,13 +1500,13 @@ Singleton {
     // leave: that is a sentence finished.
     readonly property var actions: ({
             desktop: (r, i) => {
-                root.leave(i);
+                // Powering on keeps the search visible for the device action.
+                if (r.action.key !== "bluetooth-power" || Bluetooth.on)
+                    root.leave(i);
                 root.bump("desktop:" + r.action.key);
-                if (r.action.popup)
-                    root.openControl(r.action.popup);
-                else
-                    r.action.run();
+                r.action.run();
             },
+            bluetooth: (r, i) => root.activateBluetooth(r),
             mode: (r, i) => {
                 root.query = r.prefix;
                 root.queryReplaced(r.prefix);

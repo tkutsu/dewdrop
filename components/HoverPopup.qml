@@ -29,7 +29,7 @@ Item {
     property bool settled: false
     property bool dismissed: false
 
-    readonly property bool tipping: root.popup === null && root.text !== "" && root.settled && !root.dismissed && OpenPopup.owner === null
+    readonly property bool tipping: root.popup === null && root.text !== "" && root.settled && !root.dismissed && !Tooltips.blocked && OpenPopup.owner === null
 
     readonly property bool wanted: root.popup !== null ? root.open : root.tipping
 
@@ -40,8 +40,21 @@ Item {
     onPressedChanged: if (pressed)
         dismissed = true
 
+    // Movement invalidates the old dwell, even if the pointer never leaves.
+    Connections {
+        target: Tooltips
+        function onBlockedChanged(): void {
+            if (root.popup !== null)
+                return;
+            delay.stop();
+            root.settled = false;
+            if (root.hovered && !Tooltips.blocked)
+                delay.restart();
+        }
+    }
+
     onHoveredChanged: {
-        if (hovered) {
+        if (hovered && !Tooltips.blocked) {
             if (Tooltips.warm)
                 settled = true;
             else
@@ -70,7 +83,8 @@ Item {
 
     Loader {
         id: loader
-        active: lifetime.active
+        // Remove tags at once, without drawing their exit fade during pill motion.
+        active: lifetime.active && (root.popup !== null || !Tooltips.blocked)
         sourceComponent: root.popup !== null ? root.popup : plain
 
         onLoaded: {

@@ -25,7 +25,14 @@ MOCKS = {
     "Bluetooth": '''property bool present: true
         property bool on: true
         property string icon: "bluetooth"
-        function toggle() { on = !on; }''',
+        property var devices: []
+        property int activations: 0
+        function toggle() { on = !on; }
+        function activate(device) {
+            activations++;
+            if (device.connected) device.disconnect();
+            else device.connect();
+        }''',
     "Notifications": '''property bool dnd: false
         property string icon: "notifications"
         function setDnd(value) { dnd = value; }''',
@@ -57,28 +64,41 @@ MOCKS = {
 
 TEST = '''import QtQuick
 import Quickshell
+import Quickshell.Bluetooth as BlueZ
 import qs
 import qs.services
 
 ShellRoot {
     id: test
     property string adopted: ""
-    property int handoffs: 0
-    property string handoffKey: ""
-    property string handoffScreen: ""
     property var launcher: Launcher
+
+    QtObject {
+        id: headphones
+        property string address: "AA:BB:CC:DD:EE:01"
+        property string name: "Sony WH-1000XM5"
+        property string icon: "audio-headset"
+        property bool paired: true
+        property bool connected: false
+        property bool pairing: false
+        property int state: BlueZ.BluetoothDeviceState.Disconnected
+        function connect() { state = BlueZ.BluetoothDeviceState.Connecting; }
+        function disconnect() { state = BlueZ.BluetoothDeviceState.Disconnecting; }
+    }
+    QtObject {
+        id: keyboard
+        property string address: "AA:BB:CC:DD:EE:02"
+        property string name: "Desk keyboard"
+        property string icon: "input-keyboard"
+        property bool paired: true
+        property bool connected: true
+        property bool pairing: false
+        property int state: BlueZ.BluetoothDeviceState.Connected
+    }
 
     Connections {
         target: Launcher
         function onQueryReplaced(text) { test.adopted = text; }
-    }
-    Connections {
-        target: OpenPopup
-        function onControlRequested(key, screenName) {
-            test.handoffs++;
-            test.handoffKey = key;
-            test.handoffScreen = screenName;
-        }
     }
 
     function check(ok, message) {
@@ -94,6 +114,97 @@ ShellRoot {
         Launcher.activate(at);
     }
 
+    function bluetoothRow() {
+        return Launcher.results.find(r => r.kind === "bluetooth" && r.address === headphones.address);
+    }
+    function activateHeadphones() {
+        const at = Launcher.results.findIndex(r => r.kind === "bluetooth" && r.address === headphones.address);
+        check(at >= 0, "headphones are searchable");
+        Launcher.activate(at);
+    }
+
+    function checkBluetooth() {
+        Bluetooth.devices = [headphones, keyboard];
+        Bluetooth.on = true;
+        Launcher.show();
+        for (const query of ["Sony", "WH-1000", "headphones", "connect headphones", "disconnect headphones", "bluetooth"]) {
+            Launcher.query = query;
+            check(bluetoothRow()?.title === "Connect Sony WH-1000XM5", "device alias " + query);
+        }
+        Launcher.query = "headphones";
+        check(!Launcher.results.some(r => r.kind === "bluetooth" && r.address === keyboard.address), "headphone alias excludes keyboards");
+        Settings.disabled = ({bluetooth: true});
+        check(!!bluetoothRow(), "device action works independently of bar module");
+        Settings.disabled = ({});
+        Launcher.query = "bluetooth";
+        const deviceOrder = Launcher.results.filter(r => r.kind === "bluetooth").map(r => r.address).join(",");
+        Launcher.index = Launcher.results.findIndex(r => r.kind === "bluetooth" && r.address === headphones.address);
+        const staleConnect = bluetoothRow();
+        Launcher.activate(Launcher.index);
+        check(Bluetooth.activations === 1 && headphones.state === BlueZ.BluetoothDeviceState.Connecting && Launcher.shown, "connect delegates and keeps launcher open");
+        check(bluetoothRow().subtitle.includes("Connecting…"), "connecting state shown without typing");
+        check(Launcher.selected?.address === headphones.address, "busy device stays selected");
+        Launcher.activate(Launcher.index);
+        check(Bluetooth.activations === 1, "connecting ignores repeated activation");
+        headphones.connected = true;
+        headphones.state = BlueZ.BluetoothDeviceState.Connected;
+        check(bluetoothRow().title === "Disconnect Sony WH-1000XM5", "connected device updates action without typing");
+        check(Launcher.selected?.address === headphones.address && Launcher.results.filter(r => r.kind === "bluetooth").map(r => r.address).join(",") === deviceOrder, "connection keeps device order and selection");
+        Launcher.actions.bluetooth(staleConnect, 0);
+        check(Bluetooth.activations === 1, "stale connect cannot disconnect device");
+        const staleDisconnect = bluetoothRow();
+        Launcher.query = "disconnect headphones";
+        activateHeadphones();
+        check(Bluetooth.activations === 2 && headphones.state === BlueZ.BluetoothDeviceState.Disconnecting && Launcher.shown, "disconnect delegates and keeps launcher open");
+        check(bluetoothRow().subtitle.includes("Disconnecting…"), "disconnect query retains busy row");
+        activateHeadphones();
+        check(Bluetooth.activations === 2, "disconnecting ignores repeated activation");
+        headphones.connected = false;
+        headphones.state = BlueZ.BluetoothDeviceState.Disconnected;
+        check(bluetoothRow().title === "Connect Sony WH-1000XM5", "disconnected device updates action");
+        Launcher.actions.bluetooth(staleDisconnect, 0);
+        check(Bluetooth.activations === 2, "stale disconnect cannot reconnect device");
+        headphones.pairing = true;
+        activateHeadphones();
+        check(Bluetooth.activations === 2, "pairing device ignores activation");
+        headphones.pairing = false;
+        headphones.paired = false;
+        check(!bluetoothRow(), "unpaired device excluded");
+        Launcher.actions.bluetooth(staleConnect, 0);
+        check(Bluetooth.activations === 2, "stale row cannot pair a device");
+        headphones.paired = true;
+        Bluetooth.devices = [keyboard];
+        check(!bluetoothRow(), "removed device disappears");
+        Launcher.actions.bluetooth(staleConnect, 0);
+        check(Bluetooth.activations === 2, "removed device ignored");
+        Bluetooth.devices = [headphones, keyboard];
+        Bluetooth.present = false;
+        check(!bluetoothRow(), "missing adapter excludes devices");
+        Launcher.actions.bluetooth(staleConnect, 0);
+        check(Bluetooth.activations === 2, "missing adapter ignores stale action");
+        Bluetooth.present = true;
+        Bluetooth.on = false;
+        for (const query of ["headphones", "Sony"]) {
+            Launcher.query = query;
+            check(!bluetoothRow(), "powered-off device excluded");
+            check(Launcher.results.some(r => r.kind === "desktop" && r.action.key === "bluetooth-power"), "power-on offered for " + query);
+        }
+        Launcher.actions.bluetooth(staleConnect, 0);
+        check(Bluetooth.activations === 2, "powered-off adapter ignores stale action");
+        activateDesktop("bluetooth-power");
+        check(Bluetooth.on && Launcher.shown, "power-on keeps launcher open");
+        Launcher.query = "Sony";
+        check(!!bluetoothRow(), "device appears after power-on");
+        activateHeadphones();
+        headphones.state = BlueZ.BluetoothDeviceState.Disconnected;
+        check(bluetoothRow().title === "Connect Sony WH-1000XM5" && bluetoothRow().subtitle.includes("Disconnected"), "failed connection returns to disconnected");
+        activateHeadphones();
+        check(Bluetooth.activations === 4, "failed connection can be retried");
+        headphones.state = BlueZ.BluetoothDeviceState.Disconnected;
+        Bluetooth.devices = [];
+        check(!bluetoothRow(), "empty device list has no action");
+    }
+
     function run() {
         try {
             LauncherMusic.rows = [{kind: "music", title: "first"}, {kind: "music", title: "last"}];
@@ -107,7 +218,7 @@ ShellRoot {
             Launcher.mailOpen = null;
             Launcher.db = ({});
             Launcher.show();
-            check(Launcher.results.some(r => r.kind === "desktop"), "safe default desktop controls");
+            check(!Launcher.results.some(r => r.kind === "desktop"), "no unused desktop actions on home");
             check(Launcher.results.filter(r => r.kind === "mode").length === Launcher.modes.length, "all modes discoverable");
             check(!Launcher.results.some(r => r.kind === "power"), "no power actions on home");
             check(Launcher.noteRow("g", "title").subtitle === "", "note rows default to no subtitle");
@@ -122,9 +233,14 @@ ShellRoot {
             Launcher.query = "#y cats";
             check(Launcher.results[0].badge === "#y", "explicit engine key selects YouTube");
             Launcher.query = "";
-            check(!Launcher.results.some(r => r.kind === "desktop" && !r.action.popup), "no unused toggles on home");
+            check(!Launcher.results.some(r => r.kind === "desktop"), "no unused toggles on home");
 
-            for (const [query, key] of [["brightness", "display"], ["volume", "sound"], ["wifi", "network"], ["connect headphones", "bluetooth"], ["dnd", "dnd"], ["night mode", "night"]]) {
+            const popupKeys = ["sound", "display", "network", "bluetooth", "notifications"];
+            for (const query of ["", " ", "brightness", "volume", "wifi", "bluetooth", "notifications"]) {
+                Launcher.query = query;
+                check(!Launcher.results.some(r => r.kind === "desktop" && popupKeys.includes(r.action.key)), "no popover-only actions for " + query);
+            }
+            for (const [query, key] of [["volume", "mute"], ["wifi", "wifi"], ["bluetooth", "bluetooth-power"], ["dnd", "dnd"], ["night mode", "night"]]) {
                 Launcher.query = query;
                 check(Launcher.results.some(r => r.kind === "desktop" && r.action.key === key), "alias " + query);
             }
@@ -138,11 +254,12 @@ ShellRoot {
             Launcher.query = "2+2";
             check(Launcher.results[0].kind === "calc", "automatic calculator precedence");
 
-            Launcher.db = ({"desktop:display": {count: 10, last: Date.now()}, "desktop:sound": {count: 2, last: Date.now()}});
+            Launcher.db = ({"desktop:display": {count: 100, last: Date.now()}, "desktop:mute": {count: 10, last: Date.now()}, "desktop:dnd": {count: 2, last: Date.now()}});
             Launcher.query = "";
-            check(Launcher.results[0].action.key === "display", "history ranking");
+            check(Launcher.results[0].action.key === "mute", "history ranking");
+            check(!Launcher.results.some(r => r.kind === "desktop" && popupKeys.includes(r.action.key)), "old popover history cannot restore removed actions");
             const ids = Launcher.results.filter(r => r.kind === "desktop").map(r => r.action.key);
-            check(new Set(ids).size === ids.length, "home defaults do not duplicate history");
+            check(new Set(ids).size === ids.length, "home actions do not duplicate history");
             const app = Launcher.appIndex.find(a => a.entry.name === "Launcher regression app");
             check(!!app, "fixture desktop app indexed");
             const history = {};
@@ -153,13 +270,13 @@ ShellRoot {
             check(Launcher.results[0].kind === "app", "application matching remains first for exact app keywords");
             Launcher.query = "";
             Settings.disabled = ({night: true});
-            check(!desktop("display"), "disabled bar controls excluded");
+            check(!!desktop("night"), "direct action works independently of bar module");
             Settings.disabled = ({});
             Bluetooth.present = false;
             check(!desktop("bluetooth") && !desktop("bluetooth-power"), "absent Bluetooth excluded");
             Bluetooth.present = true;
             Network.wifi = null;
-            check(!desktop("wifi") && desktop("network"), "wired network remains available");
+            check(!desktop("wifi"), "Wi-Fi action unavailable without Wi-Fi device");
             Network.wifi = ({});
             Audio.sink = null;
             check(!desktop("mute"), "mute unavailable without audio");
@@ -180,7 +297,8 @@ ShellRoot {
             check(!Network.wifiOn, "Wi-Fi action delegates to service");
             Launcher.show();
             activateDesktop("bluetooth-power");
-            check(!Bluetooth.on, "Bluetooth action delegates to service");
+            check(!Bluetooth.on && !Launcher.shown, "Bluetooth power-off delegates and closes");
+            checkBluetooth();
 
             Launcher.show();
             const files = Launcher.results.findIndex(r => r.kind === "mode" && r.prefix === "/");
@@ -201,10 +319,8 @@ ShellRoot {
             Launcher.activate(off);
             check(Power.armed?.key === "shutdown", "power confirmation preserved");
 
-            Launcher.show();
-            activateDesktop("sound");
-            check(test.handoffs === 0, "popup waits for launcher exit");
-            cancelled.restart();
+            console.log("PASS: launcher discovery, ranking, prefixes and direct actions");
+            Qt.quit();
         } catch (error) {
             fail(error);
         }
@@ -214,37 +330,6 @@ ShellRoot {
         Qt.quit();
     }
     Timer { interval: 100; running: true; onTriggered: test.run() }
-    Timer {
-        id: cancelled
-        interval: 10
-        onTriggered: {
-            Launcher.show();
-            checkCancelled.restart();
-        }
-    }
-    Timer {
-        id: checkCancelled
-        interval: 100
-        onTriggered: {
-            try {
-                test.check(test.handoffs === 0, "reopening cancels stale popup request");
-                test.activateDesktop("display");
-                finish.restart();
-            } catch (error) { test.fail(error); }
-        }
-    }
-    Timer {
-        id: finish
-        interval: 100
-        onTriggered: {
-            try {
-                test.check(test.handoffs === 1 && test.handoffKey === "display", "requested popup handed off once");
-                test.check(test.handoffScreen === Launcher.controlScreen.name, "popup targets chosen screen");
-                console.log("PASS: launcher discovery, ranking, prefixes, actions and popup handoff");
-                Qt.quit();
-            } catch (error) { test.fail(error); }
-        }
-    }
 }
 '''
 
@@ -265,8 +350,7 @@ def main():
             (services / (name + ".qml")).write_text("pragma Singleton\nimport QtQuick\nQtObject {\n" + body + "\n}\n")
         for name in ("Fuzzy.js", "Linger.qml"):
             (target / name).write_text((ROOT / name).read_text())
-        # The popup signal is tested without opening a real compositor surface.
-        (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { signal controlRequested(key: string, screenName: string); function dismiss() {} }\n')
+        (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property string home: "/tmp"; function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path; } }\n')
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int zipTotalMs: 50; property int revealMs: 10; property var glyph: ({lock: "", alarm: "", timer: "", tasks: "", vol: ["sound"], wifiStrength: ["network"]}) }\n')

@@ -6,6 +6,7 @@ Liquid {
     id: root
     property bool held: false
     property bool resetWhenHidden: false
+    readonly property bool animating: liftSpring.running || leftSpring.running || rightSpring.running || tailMotion.running
     property real slabY: 0
     required property real slabHeight
 
@@ -20,6 +21,7 @@ Liquid {
 
     Behavior on lift {
         SpringAnimation {
+            id: liftSpring
             spring: Theme.springStiffness
             damping: Theme.markDamping
         }
@@ -91,6 +93,7 @@ Liquid {
     Behavior on headLeft {
         enabled: root.placed && !root._following
         SpringAnimation {
+            id: leftSpring
             spring: Theme.springStiffness
             damping: Theme.markDamping
         }
@@ -98,11 +101,13 @@ Liquid {
     Behavior on headRight {
         enabled: root.placed && !root._following
         SpringAnimation {
+            id: rightSpring
             spring: Theme.springStiffness
             damping: Theme.markDamping
         }
     }
     FrameAnimation {
+        id: tailMotion
         running: root.visible && root.placed && (root.tailProgress < 1 || root.roundness > 0)
 
         // Distance and the tail's shrinking size accelerate the same cubic flow.
