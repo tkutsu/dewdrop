@@ -7,9 +7,131 @@ import qs
 import qs.components
 
 // One group per workspace, ordered by number, with one icon per app.
-// Clicking an icon that stands for several windows walks through them.
+// Groups expand in place; individual windows can be dragged to another workspace.
 BarItem {
     id: root
+
+    property string expandedClass: ""
+    property int expandedWorkspace: -1
+    property var expandedWorkspaceObject: null
+    readonly property var screen: QsWindow.window?.screen ?? null
+    property bool dragging: false
+    property Item dragSource: null
+    property string dragAddress: ""
+    property var dragWorkspace: null
+    property int dragWorkspaceId: -1
+    property var dragScreen: null
+    property point dragPoint: Qt.point(0, 0)
+    property var pendingMoves: []
+
+    function collapse(): void {
+        expandedWorkspace = -1;
+        expandedClass = "";
+        expandedWorkspaceObject = null;
+    }
+
+    function windowClass(toplevel): string {
+        return toplevel.lastIpcObject?.class || toplevel.wayland?.appId || "";
+    }
+
+    readonly property bool expansionValid: expandedWorkspaceObject !== null
+        && expandedWorkspaceObject.id === expandedWorkspace
+        && Hyprland.workspaces.values.includes(expandedWorkspaceObject)
+        && Hyprland.toplevels.values.filter(t => t.workspace?.id === expandedWorkspace
+            && root.windowClass(t) === expandedClass).length > 1
+    onExpansionValidChanged: if (!expansionValid) Qt.callLater(root.collapseInvalidExpansion)
+
+    function collapseInvalidExpansion(): void {
+        if (!expansionValid)
+            collapse();
+    }
+
+    readonly property bool dragValid: dragSource !== null && dragWorkspace !== null
+        && dragWorkspace.id === dragWorkspaceId && screen === dragScreen
+        && Quickshell.screens.includes(dragScreen)
+        && Hyprland.toplevels.values.some(t => t.address === dragAddress && t.workspace === dragWorkspace)
+    onDragValidChanged: if (dragging && !dragValid) root.cancelDrag()
+    onVisibleChanged: if (!visible) root.cancelDrag()
+
+    function cancelDrag(): void {
+        dragging = false;
+        dragSource = null;
+        dragAddress = "";
+        dragWorkspace = null;
+        dragWorkspaceId = -1;
+        dragScreen = null;
+    }
+
+    // Hit only workspace bodies, with the first one's screen-edge padding included.
+    function workspaceAt(point) {
+        const local = root.mapFromItem(strip, point.x, point.y);
+        const pillY = Theme.pillTop(root.height);
+        if (local.x < 0 || local.x >= root.width || local.y < pillY || local.y >= pillY + Theme.barHeight)
+            return null;
+        for (let i = 0; i < workspaces.count; i++) {
+            const button = workspaces.itemAt(i);
+            if (button && point.x >= button.x - (i === 0 ? root.padLeft : 0)
+                && point.x < button.x + button.width)
+                return button.modelData;
+        }
+        return null;
+    }
+
+    readonly property var dropWorkspace: dragging ? root.workspaceAt(dragPoint) : null
+    readonly property int dropWorkspaceId: dropWorkspace && dropWorkspace !== dragWorkspace ? dropWorkspace.id : -1
+
+    // Capture the ID at release; membership follows the workspace object through compaction.
+    function finishDrag(point): void {
+        const destination = root.workspaceAt(point);
+        const id = destination?.id;
+        const address = dragAddress;
+        const valid = dragging && dragValid && destination !== dragWorkspace
+            && Number.isInteger(id) && id > 0 && /^[0-9a-fA-F]+$/.test(address);
+        cancelDrag();
+        if (!valid)
+            return;
+        pendingMoves = [...pendingMoves, { address, destination, deadline: Date.now() + 1500 }];
+        Hyprland.dispatch(`move_windows(${id}, {"0x${address}"})`);
+    }
+
+    readonly property var confirmedMoves: pendingMoves.filter(move => Hyprland.toplevels.values
+        .some(t => t.address === move.address && t.workspace === move.destination))
+    onConfirmedMovesChanged: if (confirmedMoves.length > 0) Qt.callLater(root.confirmMoves)
+
+    function confirmMoves(): void {
+        pendingMoves = pendingMoves.filter(move => !confirmedMoves.includes(move));
+    }
+
+    Timer {
+        interval: 1500
+        running: root.pendingMoves.length > 0
+        repeat: true
+        onTriggered: {
+            root.confirmMoves();
+            const failed = root.pendingMoves.filter(move => Date.now() >= move.deadline);
+            if (failed.length > 0)
+                console.warn(`Workspace move failed for ${failed.length} window(s); confirmed moves were kept.`);
+            root.pendingMoves = root.pendingMoves.filter(move => !failed.includes(move));
+        }
+    }
+
+    HoverHandler {
+        id: stripHover
+        // Include the strip's pill padding when deciding whether a click was outside.
+        parent: root
+    }
+
+    Connections {
+        target: Hyprland
+        enabled: root.expandedWorkspace !== -1
+
+        function onRawEvent(event: HyprlandEvent): void {
+            if (event.name === "custom" && event.data === "click" && !stripHover.hovered)
+                root.collapse();
+        }
+    }
+
+    onClicked: root.collapse()
 
     // workspace-taskbar ignore-list
     readonly property var ignored: [/^gamescope$/]
@@ -28,8 +150,8 @@ BarItem {
     // which is why these read as function calls rather than bare dispatchers.
     // Down is the next one: the strip lies across the wheel like a Slider,
     // so it goes the way a slider does rather than the way an icon does.
-    onScrollUp: Hyprland.dispatch('workspace_cycle(-1)')
-    onScrollDown: Hyprland.dispatch('workspace_cycle(1)')
+    onScrollUp: if (!root.dragging) Hyprland.dispatch('workspace_cycle(-1)')
+    onScrollDown: if (!root.dragging) Hyprland.dispatch('workspace_cycle(1)')
 
     // One strip rather than a run of loose workspaces, because the selection is
     // drawn across it rather than by each workspace for itself.
@@ -73,6 +195,8 @@ BarItem {
         // way `selected` is, rather than off a handler of the strip's own,
         // which would have to share the press with the areas that act on it.
         readonly property bool held: {
+            if (root.dragging)
+                return false;
             for (const child of buttons.children)
                 if (child.held === true)
                     return true;
@@ -226,7 +350,7 @@ BarItem {
                             // fallback glyph. The Wayland app id arrives with the window
                             // itself, so it covers the gap until the IPC object catches
                             // up.
-                            const cls = toplevel.lastIpcObject?.class || toplevel.wayland?.appId || "";
+                            const cls = root.windowClass(toplevel);
                             if (root.ignored.some(re => re.test(cls)))
                                 continue;
                             if (!byClass[cls]) {
@@ -240,6 +364,25 @@ BarItem {
                         }
                         return order.map(cls => byClass[cls]);
                     }
+
+                    // Keep the representative's address as its key when it becomes the first expanded icon.
+                    readonly property var icons: {
+                        const result = [];
+                        for (const app of button.apps) {
+                            const expanded = root.expandedWorkspace === button.modelData.id
+                                && root.expandedClass === app.windowClass;
+                            for (const address of expanded ? app.addresses : [app.addresses[0]])
+                                result.push({
+                                    key: address,
+                                    windowClass: app.windowClass,
+                                    addresses: expanded ? [address] : app.addresses,
+                                    expanded
+                                });
+                        }
+                        return result;
+                    }
+
+                    Component.onDestruction: if (root.dragWorkspace === button.modelData) root.cancelDrag()
 
                     // How far the mark has come onto this workspace, 0..1: in
                     // as its head arrives, back out as its tail lets go.
@@ -268,6 +411,15 @@ BarItem {
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
 
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.topMargin: Theme.pillTop(button.height) + Theme.markInset
+                        anchors.bottomMargin: Theme.pillTop(button.height) + Theme.markInset
+                        radius: Theme.pillRadius - Theme.markInset
+                        color: Theme.selectionStrong
+                        visible: root.dropWorkspaceId === button.modelData.id
+                    }
+
                     MouseArea {
                         id: press
                         anchors.fill: parent
@@ -276,6 +428,7 @@ BarItem {
                         // nothing in the chain clips, and that is what turns the corner
                         // of the screen into a click on workspace one.
                         anchors.leftMargin: button.index === 0 ? -root.padLeft : 0
+                        onPressed: root.collapse()
                         onClicked: {
                             if (!button.active)
                                 Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`);
@@ -320,16 +473,10 @@ BarItem {
                         }
 
                         Repeater {
-                            // Keyed by class, so a window opening or closing
-                            // anywhere on the desktop touches only the icon it
-                            // belongs to. The array itself is new on every
-                            // change, and a Repeater handed the array rebuilt
-                            // every icon on every workspace each time: a new
-                            // desktop entry lookup and a new image load per
-                            // icon, for a window that was not theirs.
+                            // Address keys preserve the pointer grab and icon lookups across expansion.
                             model: ScriptModel {
-                                values: button.apps
-                                objectProp: "windowClass"
+                                values: button.icons
+                                objectProp: "key"
                             }
 
                             delegate: AppIcon {
@@ -346,34 +493,91 @@ BarItem {
                                 // to an empty one, and a dot left behind there
                                 // would point at a window you are not in.
                                 focused: button.active && modelData.addresses.includes(Hyprland.activeToplevel?.address)
-                                pressed: tap.pressed
+                                pressed: tap.pressed && !root.dragging
                                 // An app that wants you is not one to stand back.
-                                inkOpacity: app.urgent ? 1 : button.ink
+                                inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
+
+                                Component.onDestruction: if (root.dragSource === app) root.cancelDrag()
 
                                 // The app's name, the way the Dock labels its
                                 // icons.
                                 HoverPopup {
                                     anchorItem: app
-                                    hovered: tap.containsMouse
-                                    pressed: tap.pressed
-                                    text: app.entry?.name || app.windowClass
+                                    hovered: tap.containsMouse && !root.dragging
+                                    pressed: tap.pressed || root.dragging
+                                    text: app.modelData.expanded
+                                        ? (Hyprland.toplevels.values.find(t => t.address === app.modelData.key)?.title
+                                            || app.entry?.name || app.windowClass)
+                                        : (app.entry?.name || app.windowClass)
                                 }
 
                                 MouseArea {
                                     id: tap
                                     anchors.fill: parent
                                     hoverEnabled: true
+                                    preventStealing: true
+                                    property point pressPoint: Qt.point(0, 0)
+                                    property string addressOnPress: ""
+                                    property bool suppressClick: false
 
-                                    // Focusing a window switches workspace as a side
-                                    // effect. Where an icon stands for several windows,
-                                    // each click moves on to the next of them, so the
-                                    // icon is a way through the whole group.
-                                    onClicked: {
+                                    onEnabledChanged: if (!enabled && root.dragSource === app) root.cancelDrag()
+
+                                    onPressed: mouse => {
+                                        suppressClick = false;
+                                        pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
                                         const addresses = app.modelData.addresses;
-                                        const current = Hyprland.activeToplevel?.address;
-                                        const at = addresses.indexOf(current);
-                                        const next = addresses[(at + 1) % addresses.length];
-                                        Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${next}" })`);
+                                        addressOnPress = addresses.length === 1 ? addresses[0] : "";
+                                        if (addresses.length > 1) {
+                                            suppressClick = true;
+                                            root.expandedWorkspaceObject = button.modelData;
+                                            root.expandedClass = app.windowClass;
+                                            root.expandedWorkspace = button.modelData.id;
+                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addresses[0]}" })`);
+                                        } else if (!app.modelData.expanded) {
+                                            root.collapse();
+                                        }
+                                    }
+
+                                    onPositionChanged: mouse => {
+                                        if (!pressed || addressOnPress === "" || suppressClick && !root.dragging)
+                                            return;
+                                        const point = tap.mapToItem(strip, mouse.x, mouse.y);
+                                        if (!root.dragging && Math.hypot(point.x - pressPoint.x, point.y - pressPoint.y) >= drag.threshold) {
+                                            suppressClick = true;
+                                            root.dragSource = app;
+                                            root.dragAddress = addressOnPress;
+                                            root.dragWorkspace = button.modelData;
+                                            root.dragWorkspaceId = button.modelData.id;
+                                            root.dragScreen = root.screen;
+                                            root.dragging = true;
+                                            root._scrollAcc = 0;
+                                        }
+                                        if (root.dragging && root.dragSource === app) {
+                                            root.dragPoint = point;
+                                            const global = strip.mapToGlobal(point.x, point.y);
+                                            const screen = root.dragScreen;
+                                            if (!root.dragValid || global.x < screen.x || global.y < screen.y
+                                                || global.x >= screen.x + screen.width || global.y >= screen.y + screen.height)
+                                                root.cancelDrag();
+                                        }
+                                    }
+
+                                    onReleased: mouse => {
+                                        if (root.dragging && root.dragSource === app)
+                                            root.finishDrag(tap.mapToItem(strip, mouse.x, mouse.y));
+                                        addressOnPress = "";
+                                    }
+
+                                    onCanceled: {
+                                        suppressClick = true;
+                                        addressOnPress = "";
+                                        if (root.dragSource === app)
+                                            root.cancelDrag();
+                                    }
+
+                                    onClicked: {
+                                        if (!suppressClick)
+                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${app.modelData.addresses[0]}" })`);
                                     }
                                 }
                             }
@@ -381,6 +585,18 @@ BarItem {
                     }
                 }
             }
+        }
+
+        // Draw outside the layout so the ghost never changes workspace widths or takes input.
+        AppIcon {
+            z: 10
+            visible: root.dragging
+            windowClass: root.dragSource?.windowClass ?? ""
+            focused: root.dragSource?.focused ?? false
+            x: root.dragPoint.x - width / 2
+            y: root.dragPoint.y - height / 2
+            width: implicitWidth
+            height: Theme.barHeight
         }
     }
 }
