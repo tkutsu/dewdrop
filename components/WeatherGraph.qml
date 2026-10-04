@@ -76,7 +76,7 @@ Item {
                 }
                 PopupText {
                     Layout.preferredWidth: 100
-                    text: `${Weather.measure(graph.selectedHour?.[graph.series[0].key], "°C")}${graph.feelsLike ? " feels like" : ""}`
+                    text: `${graph.feelsLike ? "feels like " : ""}${Weather.measure(graph.selectedHour?.[graph.series[0].key], "°C")}`
                     color: graph.series[0].color
                     font.pixelSize: Theme.captionSize
                 }
@@ -92,6 +92,66 @@ Item {
                     color: graph.series[2].color
                     font.pixelSize: Theme.captionSize
                     elide: Text.ElideRight
+                }
+            }
+        }
+
+        Item {
+            x: graph.plotLeft
+            width: graph.plotWidth
+            height: 22
+
+            Repeater {
+                model: graph.iconRanges
+                delegate: Item {
+                    id: interval
+                    required property var modelData
+                    x: 2 + (modelData.start - graph.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
+                    width: (modelData.end - modelData.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
+                    height: parent.height
+                    readonly property bool hasRange: modelData.end - modelData.start > 3600
+                    opacity: modelData.end <= Weather.now ? 0.35 : 0.8
+
+                    Glyph {
+                        id: rangeIcon
+                        x: (interval.width - width) / 2
+                        height: 22
+                        text: modelData.hour.icon
+                        color: Theme.fg
+                        fontSize: Theme.popupGlyphSize
+                    }
+                    Rectangle {
+                        x: 2
+                        anchors.verticalCenter: rangeIcon.verticalCenter
+                        width: Math.max(0, rangeIcon.x - x - 4)
+                        height: 1
+                        visible: interval.hasRange
+                        color: Theme.label2
+                    }
+                    Rectangle {
+                        x: rangeIcon.x + rangeIcon.width + 4
+                        anchors.verticalCenter: rangeIcon.verticalCenter
+                        width: Math.max(0, parent.width - x - 2)
+                        height: 1
+                        visible: interval.hasRange
+                        color: Theme.label2
+                    }
+                    Rectangle {
+                        x: 2
+                        anchors.verticalCenter: rangeIcon.verticalCenter
+                        width: 1
+                        height: 5
+                        visible: interval.hasRange
+                        color: Theme.label2
+                    }
+                    Rectangle {
+                        x: interval.width - 3
+                        anchors.verticalCenter: rangeIcon.verticalCenter
+                        width: 1
+                        height: 5
+                        visible: interval.hasRange
+                        color: Theme.label2
+                    }
                 }
             }
         }
@@ -250,66 +310,6 @@ Item {
                             drawSeries(futureColor);
                             ctx.restore();
                         }
-                    }
-                }
-            }
-        }
-
-        Item {
-            x: graph.plotLeft
-            width: graph.plotWidth
-            height: 22
-
-            Repeater {
-                model: graph.iconRanges
-                delegate: Item {
-                    id: interval
-                    required property var modelData
-                    x: 2 + (modelData.start - graph.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
-                    width: (modelData.end - modelData.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
-                    height: parent.height
-                    readonly property bool hasRange: modelData.end - modelData.start > 3600
-                    opacity: modelData.end <= Weather.now ? 0.35 : 0.8
-
-                    Glyph {
-                        id: rangeIcon
-                        x: (interval.width - width) / 2
-                        height: 22
-                        text: modelData.hour.icon
-                        color: Theme.fg
-                        fontSize: Theme.popupGlyphSize
-                    }
-                    Rectangle {
-                        x: 2
-                        anchors.verticalCenter: rangeIcon.verticalCenter
-                        width: Math.max(0, rangeIcon.x - x - 4)
-                        height: 1
-                        visible: interval.hasRange
-                        color: Theme.label2
-                    }
-                    Rectangle {
-                        x: rangeIcon.x + rangeIcon.width + 4
-                        anchors.verticalCenter: rangeIcon.verticalCenter
-                        width: Math.max(0, parent.width - x - 2)
-                        height: 1
-                        visible: interval.hasRange
-                        color: Theme.label2
-                    }
-                    Rectangle {
-                        x: 2
-                        anchors.verticalCenter: rangeIcon.verticalCenter
-                        width: 1
-                        height: 5
-                        visible: interval.hasRange
-                        color: Theme.label2
-                    }
-                    Rectangle {
-                        x: interval.width - 3
-                        anchors.verticalCenter: rangeIcon.verticalCenter
-                        width: 1
-                        height: 5
-                        visible: interval.hasRange
-                        color: Theme.label2
                     }
                 }
             }

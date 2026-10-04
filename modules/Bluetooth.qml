@@ -44,6 +44,9 @@ BarItem {
 
     // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.RightButton]: () => Quickshell.execDetached(["blueman-manager"])
+            [Qt.RightButton]: () => {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(["blueman-manager"]);
+            }
         })
 }

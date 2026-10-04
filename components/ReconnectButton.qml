@@ -12,5 +12,8 @@ PopupButton {
     framed: true
     label: Google.consenting ? "reconnecting…" : "reconnect"
     warn: true
-    onTapped: Google.reconsent()
+    onTapped: {
+        OpenPopup.dismiss();
+        Google.reconsent();
+    }
 }

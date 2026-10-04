@@ -164,6 +164,7 @@ BarItem {
     // name: it centres the window at 55% of the screen.
     actions: ({
             [Qt.RightButton]: () => {
+                OpenPopup.dismiss();
                 const tool = "btop";
                 Quickshell.execDetached(Settings.inTerminal([tool], tool + " (floating)"));
             }

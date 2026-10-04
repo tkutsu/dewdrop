@@ -67,6 +67,13 @@ Popup {
         Email.loadMore(root.cap);
     }
 
+    // Use the full unread count, including threads beyond the displayed batch.
+    function markRead(thread): void {
+        Email.markRead(thread);
+        if (Email.total === 0)
+            OpenPopup.close(root.anchorItem);
+    }
+
     spacing: 3
 
     // Gmail itself, and a new mail at the right end, where every popup under
@@ -92,7 +99,10 @@ Popup {
         PopupButton {
             framed: true
             glyph: Theme.glyph.plus
-            onTapped: Email.compose("")
+            onTapped: {
+                OpenPopup.dismiss();
+                Email.compose("");
+            }
         }
     }
 
@@ -223,14 +233,17 @@ Popup {
                                     framed: true
                                     glyph: Theme.glyph.openApp
                                     label: "open"
-                                    onTapped: Email.open(row.modelData)
+                                    onTapped: {
+                                        OpenPopup.dismiss();
+                                        Email.open(row.modelData);
+                                    }
                                 }
 
                                 PopupButton {
                                     framed: true
                                     glyph: Theme.glyph.mailRead
                                     label: "mark read"
-                                    onTapped: Email.markRead(row.modelData)
+                                    onTapped: root.markRead(row.modelData)
                                 }
                             }
 
@@ -403,8 +416,10 @@ Popup {
                                                     wrapMode: TextEdit.Wrap
                                                     textFormat: TextEdit.RichText
                                                     onLinkActivated: url => {
-                                                        if (/^https?:\/\//i.test(url))
+                                                        if (/^https?:\/\//i.test(url)) {
+                                                            OpenPopup.dismiss();
                                                             Qt.openUrlExternally(url);
+                                                        }
                                                     }
 
                                                     // Right-click copies the selection, or the whole message.

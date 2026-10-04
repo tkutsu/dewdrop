@@ -69,6 +69,8 @@ class EmailTests(unittest.TestCase):
         self.root = self.create('import QtQuick\nimport \"services/EmailEntities.js\" as EmailEntities\nItem { id: root\n' + STATE + METHODS + '\n}')
         self.engine.rootContext().setContextProperty('sut', self.root)
         self.engine.rootContext().setContextProperty('Email', self.root)
+        self.popup_state = self.create('import QtQuick\nItem { property bool shown: true; function dismiss() { shown = false; } function close(item) { dismiss(); } }')
+        self.engine.rootContext().setContextProperty('OpenPopup', self.popup_state)
         self.engine.rootContext().setContextProperty('Theme', {
             'bodyFont': 'Sans Serif', 'captionSize': 12,
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
@@ -79,13 +81,15 @@ class EmailTests(unittest.TestCase):
     def tearDown(self):
         self.engine.rootContext().setContextProperty('Email', None)
         self.engine.rootContext().setContextProperty('sut', None)
+        self.engine.rootContext().setContextProperty('OpenPopup', None)
+        self.popup_state.deleteLater()
         self.root.deleteLater()
         self.engine.deleteLater()
         APP.processEvents()
 
-    def create(self, source):
+    def create(self, source, directory=CONFIG):
         component = QQmlComponent(self.engine)
-        component.setData(source.encode(), QUrl.fromLocalFile(str(CONFIG / 'tests-fixture.qml')))
+        component.setData(source.encode(), QUrl.fromLocalFile(str(directory / 'tests-fixture.qml')))
         self.components.append(component)
         result = component.create()
         self.assertIsNotNone(result, '\n'.join(e.toString() for e in component.errors()))
@@ -286,7 +290,7 @@ class EmailTests(unittest.TestCase):
         self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
         stubs = {
             'Popup.qml': """import QtQuick
-                Item { id: chrome; property real reserveHeight: 0; property var screen: null
+                Item { id: chrome; property real reserveHeight: 0; property var screen: null; property Item anchorItem
                     readonly property real chromeHeight: column.implicitHeight
                     default property alias content: column.data
                     property alias spacing: column.spacing
@@ -379,6 +383,14 @@ class EmailTests(unittest.TestCase):
             self.check('!popup.testMore.visible && popup.testScroll.contentHeight > popup.testScroll.height')
             self.js('popup.testScroll.contentY=popup.testScroll.contentHeight-popup.testScroll.height;')
             self.check('popup.testScroll.contentY > 0')
+            self.js('popup.markRead(sut.threads[0]);')
+            self.check('OpenPopup.shown && sut.total === 39')
+            self.js('''
+                var last=sut.threads[0];
+                sut.threads=[last]; sut.total=1;
+                popup.markRead(last);
+            ''')
+            self.check('!OpenPopup.shown && sut.total === 0')
             window.close()
             popup.setParentItem(None)
             popup.deleteLater()
@@ -395,7 +407,7 @@ class EmailTests(unittest.TestCase):
                 property var fetched: "Hello https://example.com?a=1&b=2\\nsecond line"
                 property var modelData: ({snippet:"fallback"})
                 property alias editor: messageText
-            ''' + body + '\n}')
+            ''' + body + '\n}', directory=Path(tempfile.gettempdir()))
         self.engine.rootContext().setContextProperty('ui', ui)
         window = QQuickWindow()
         window.resize(320, 240)
@@ -426,11 +438,15 @@ class EmailTests(unittest.TestCase):
         QTest.mouseMove(window, QPoint(32, 8), 20)
         QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, QPoint(32, 8))
         self.check('ui.editor.selectedText.length > 0')
+        self.check('OpenPopup.shown')
         self.js('ui.editor.deselect();')
         QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(80, 8))
         self.assertEqual(ui.property('activated'), 'https://example.com?a=1&b=2')
+        self.check('!OpenPopup.shown')
+        self.js('OpenPopup.shown=true;')
         self.js('ui.editor.linkActivated("file:///tmp/x");')
         self.assertEqual(ui.property('activated'), 'https://example.com?a=1&b=2')
+        self.check('OpenPopup.shown')
         window.close()
         ui.setParentItem(None)
         ui.deleteLater()

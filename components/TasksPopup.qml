@@ -46,6 +46,13 @@ Popup {
 
     readonly property var rows: Tasks.ordered
 
+    // Future-dated tasks also keep the list open, even with a zero bar count.
+    function complete(task): void {
+        Tasks.complete(task);
+        if (Tasks.ordered.length === 0)
+            OpenPopup.close(root.anchorItem);
+    }
+
     function dotColour(task) {
         switch (Tasks.urgency(task)) {
         case "late":
@@ -133,7 +140,7 @@ Popup {
             // slipped press would otherwise tick off whatever it started on,
             // so only a release on the row counts.
             gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: Tasks.complete(row.modelData)
+            onTapped: root.complete(row.modelData)
 
             // Hung off the first line's baseline and sat a pixel over the
             // middle of its x-height, which is where that line looks like it

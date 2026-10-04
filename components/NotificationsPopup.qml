@@ -48,6 +48,14 @@ Popup {
         return n?.appName || "Notification";
     }
 
+    // Keep the centre available until the last notification is cleared.
+    function clear(items): void {
+        for (const n of items)
+            n.dismiss();
+        if (Notifications.count === 0)
+            OpenPopup.close(root.anchorItem);
+    }
+
     // The senders, in the order of their newest notification. Names rather
     // than arrays of notifications, so the list's model diffs them by value
     // and a group keeps its card (and whether it is open) as it changes.
@@ -101,7 +109,7 @@ Popup {
             visible: Notifications.count > 0
             framed: true
             label: "clear"
-            onTapped: Notifications.clearAll()
+            onTapped: root.clear(Notifications.list)
         }
     }
 
@@ -198,7 +206,7 @@ Popup {
             PopupButton {
                 framed: true
                 label: "clear"
-                onTapped: group.items.forEach(n => n.dismiss())
+                onTapped: root.clear(group.items)
             }
         }
 
@@ -268,7 +276,15 @@ Popup {
         // Notifications.activate), or, on a group, which of them.
         MouseArea {
             anchors.fill: parent
-            onClicked: card.others.length > 0 ? card.opened() : Notifications.activate(card.n)
+            onClicked: {
+                if (card.others.length > 0) {
+                    card.opened();
+                } else {
+                    Notifications.activate(card.n);
+                    if (Notifications.count === 0)
+                        OpenPopup.close(root.anchorItem);
+                }
+            }
         }
 
         Item {
@@ -360,7 +376,7 @@ Popup {
                         visible: hover.hovered
                         glyph: Theme.glyph.close
                         glyphSize: Theme.captionSize
-                        onTapped: [card.n, ...card.others].forEach(n => n.dismiss())
+                        onTapped: root.clear([card.n, ...card.others])
                     }
                 }
 
