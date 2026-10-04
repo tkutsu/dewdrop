@@ -83,7 +83,7 @@ BarItem {
     }
 
     // Hit only workspace bodies, with the first one's screen-edge padding included.
-    function workspaceAt(point) {
+    function buttonAt(point): Item {
         const local = root.mapFromItem(strip, point.x, point.y);
         const pillY = Theme.pillTop(root.height);
         if (local.x < 0 || local.x >= root.width || local.y < pillY || local.y >= pillY + Theme.barHeight)
@@ -92,17 +92,20 @@ BarItem {
             const button = workspaces.itemAt(i);
             if (button && point.x >= button.x - (i === 0 ? root.padLeft : 0)
                 && point.x < button.x + button.width)
-                return button.modelData;
+                return button;
         }
         return null;
     }
 
-    readonly property var dropWorkspace: dragging ? root.workspaceAt(dragPoint) : null
-    readonly property int dropWorkspaceId: dropWorkspace && dropWorkspace !== dragWorkspace ? dropWorkspace.id : -1
+    // The workspace a release would move the window to, or null.
+    readonly property Item dropTarget: {
+        const button = dragging ? root.buttonAt(dragPoint) : null;
+        return button && button.modelData !== dragWorkspace ? button : null;
+    }
 
     // Capture the ID at release; membership follows the workspace object through compaction.
     function finishDrag(point): void {
-        const destination = root.workspaceAt(point);
+        const destination = root.buttonAt(point)?.modelData ?? null;
         const id = destination?.id;
         const address = dragAddress;
         const valid = dragging && dragValid && destination !== dragWorkspace
@@ -250,6 +253,9 @@ BarItem {
             width: strip.width + Theme.pillPad * 2
             height: strip.height
 
+            // The workspace the mark was last sent to.
+            property Item placedOn: null
+
             readonly property real targetLeft: strip.selected ? strip.selected.x + inset : wantLeft
             readonly property real targetRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : wantRight
             property bool hasSelection: false
@@ -260,6 +266,11 @@ BarItem {
                 mark.hasSelection = strip.selected !== null;
                 if (!mark.hasSelection)
                     return;
+                // Still on the same workspace while a group opens or folds: its
+                // edges moved under it, and the mark follows them rather than
+                // flowing as if focus had moved.
+                mark.resizing = root.folding && strip.selected === mark.placedOn;
+                mark.placedOn = strip.selected;
                 mark.wantLeft = mark.targetLeft;
                 mark.wantRight = mark.targetRight;
             }
@@ -412,16 +423,34 @@ BarItem {
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
 
-                    // Shaped like the focus slab: it reaches the same way past the icons.
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.leftMargin: -(Theme.pillPad - Theme.markInset)
-                        anchors.rightMargin: -(Theme.pillPad - Theme.markInset)
-                        anchors.topMargin: Theme.pillTop(button.height) + Theme.markInset
-                        anchors.bottomMargin: Theme.pillTop(button.height) + Theme.markInset
-                        radius: Theme.pillRadius - Theme.markInset
-                        color: Theme.selectionStrong
-                        visible: root.dropWorkspaceId === button.modelData.id
+                    // Where a window of `cls` would show up in this group, as an x
+                    // between icons: after its app's icon if the app is here already,
+                    // otherwise where the app's first window falls in Hyprland's
+                    // window order, which is how `apps` orders the row.
+                    function slotX(cls: string, address: string): real {
+                        const shown = [];
+                        for (const child of row.children)
+                            if (child.visible && child.modelData?.key !== undefined)
+                                shown.push(child);
+                        if (shown.length === 0)
+                            return row.implicitWidth / 2;
+                        shown.sort((a, b) => a.x - b.x);
+                        let slot = -1;
+                        for (let i = 0; i < shown.length; i++)
+                            if (shown[i].windowClass === cls)
+                                slot = i + 1;
+                        if (slot === -1) {
+                            const order = Hyprland.toplevels.values.map(t => t.address);
+                            const at = order.indexOf(address);
+                            slot = shown.findIndex((icon, i) => (i === 0 || shown[i - 1].windowClass !== icon.windowClass)
+                                && order.indexOf(icon.modelData.key) > at);
+                            if (slot === -1)
+                                slot = shown.length;
+                        }
+                        if (slot === 0)
+                            return shown[0].x - Theme.appIconGap / 2;
+                        const before = shown[slot - 1];
+                        return before.x + before.width * before.scale + Theme.appIconGap / 2;
                     }
 
                     MouseArea {
@@ -506,10 +535,16 @@ BarItem {
                                     }
                                 }
 
+                                // The icon keeps its size and scales into a slot that
+                                // shrinks under it: shrinking the icon itself would
+                                // spill its artwork over the next one, or crop it
+                                // and resize its layer every frame while it has a dot.
                                 visible: reveal > 0
                                 opacity: reveal
-                                Layout.preferredWidth: implicitWidth * reveal
+                                scale: reveal
+                                transformOrigin: Item.Left
                                 Layout.leftMargin: -Theme.appIconGap * (1 - reveal)
+                                Layout.rightMargin: -implicitWidth * (1 - reveal)
                                 windowClass: modelData.windowClass
                                 // A folded icon's window is already in the first icon's addresses.
                                 urgent: !modelData.folded && root.anyUrgent(modelData.addresses)
@@ -597,6 +632,44 @@ BarItem {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Where the dragged window will land: a thin upright line between icons,
+        // gliding from slot to slot rather than jumping.
+        Rectangle {
+            id: dropLine
+
+            readonly property bool shown: root.dropTarget !== null && root.dragSource !== null
+            readonly property real target: shown
+                ? root.dropTarget.x + root.dropTarget.slotX(root.dragSource.windowClass, root.dragAddress)
+                : NaN
+            // Kept where it was while the line fades out.
+            property real at: 0
+            onTargetChanged: if (!isNaN(target)) at = target
+
+            x: Math.round(at - width / 2)
+            y: Math.round(Theme.pillTop(strip.height) + (Theme.barHeight - height) / 2)
+            z: 9
+            width: 2
+            height: Theme.iconSize
+            radius: 1
+            color: Theme.fg
+            opacity: shown ? 0.5 : 0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 120
+                }
+            }
+
+            Behavior on at {
+                enabled: dropLine.opacity > 0
+
+                NumberAnimation {
+                    duration: 120
+                    easing.type: Easing.OutCubic
                 }
             }
         }
