@@ -538,6 +538,8 @@ PanelWindow {
 
         side: Pill.Side.Right
         backdrop: wallpaperImage
+        order: RightPillOrder.keys
+        readonly property bool languageAtLauncher: _shown[_shown.length - 2] === language
 
         // Whatever has nothing to say right now folds away behind this handle,
         // each module in its own place in the row so that opening the drawer
@@ -651,10 +653,10 @@ PanelWindow {
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
             Layout.leftMargin: -1
-            Layout.rightMargin: -2
+            Layout.rightMargin: rightPill.languageAtLauncher ? -2 : -1
         }
         LauncherButton {
-            Layout.leftMargin: -1
+            Layout.leftMargin: rightPill.languageAtLauncher ? -1 : 0
         }
     }
 

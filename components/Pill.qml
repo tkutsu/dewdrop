@@ -24,6 +24,75 @@ Item {
 
     default property alias content: row.data
 
+    // Empty on the other pills; the right pill fixes its unkeyed ends in place.
+    property var order: []
+    property bool dragging: false
+    property Item dragSource: null
+    property point dragPoint: Qt.point(0, 0)
+
+    function arrange(): void {
+        if (order.length === 0)
+            return;
+        for (const item of row.children) {
+            const index = order.indexOf(item.settingsKey ?? "");
+            item.Layout.row = 0;
+            item.Layout.column = index >= 0 ? index + 1 : item === row.children[0] ? 0 : order.length + 1;
+        }
+    }
+
+    onOrderChanged: arrange()
+    Component.onCompleted: arrange()
+
+    readonly property var _movable: _shown.filter(item => order.includes(item.settingsKey))
+    readonly property bool dragValid: root.visible && dragSource !== null && dragSource.here && dragSource.visible
+    onDragValidChanged: if (dragging && !dragValid) Qt.callLater(root.cancelInvalidDrag)
+
+    function cancelInvalidDrag(): void {
+        if (dragging && !dragValid)
+            cancelDrag();
+    }
+
+    function moduleAt(point): Item {
+        if (!root.contains(point))
+            return null;
+        for (const item of root._movable)
+            if (item.contains(item.mapFromItem(root, point)))
+                return item;
+        return null;
+    }
+
+    // Compare against the remaining modules so either side of the source is a no-op.
+    function beforeAt(point): Item {
+        for (const item of root._movable) {
+            if (item === root.dragSource)
+                continue;
+            const middle = item.mapToItem(root, item.width / 2, 0).x;
+            if (point.x < middle)
+                return item;
+        }
+        return null;
+    }
+
+    readonly property Item dropBefore: dragging ? beforeAt(dragPoint) : null
+
+    function cancelDrag(): void {
+        dragging = false;
+        dragSource = null;
+    }
+
+    function cancelInactiveDrag(): void {
+        if (!reorder.active)
+            cancelDrag();
+    }
+
+    // Resolve the drop from current geometry, including a drawer still settling.
+    function finishDrag(point): void {
+        if (dragging && dragValid && root.contains(point))
+            RightPillOrder.move(dragSource.settingsKey, beforeAt(point)?.settingsKey ?? null,
+                root._movable.map(item => item.settingsKey));
+        cancelDrag();
+    }
+
     // Where on the bar this pill sits. It anchors itself from this rather than
     // being placed by the bar, so the one thing that decides whether the pill
     // backs onto a screen edge is also the thing that puts it there — the two
@@ -382,11 +451,78 @@ Item {
     // RowLayout clamps a cell at zero width, so a folding module kept its
     // whole gap until its width outgrew it, and the pill jumped by a gap per
     // module at the start of the fold and again at the end.
-    RowLayout {
+    GridLayout {
         id: row
         anchors.fill: parent
-        spacing: 0
+        rows: 1
+        rowSpacing: 0
+        columnSpacing: 0
         opacity: root.contentOpacity
+        onChildrenChanged: root.arrange()
+    }
+
+    // An ancestor handler observes child MouseAreas without swallowing their clicks.
+    DragHandler {
+        id: reorder
+        parent: root
+        target: null
+        enabled: root.order.length > 0
+        onEnabledChanged: if (!enabled) root.cancelDrag()
+        acceptedButtons: Qt.LeftButton
+        grabPermissions: root.moduleAt(centroid.pressPosition) !== null
+            ? PointerHandler.CanTakeOverFromItems : PointerHandler.TakeOverForbidden
+        onActiveChanged: {
+            if (!active) {
+                Qt.callLater(root.cancelInactiveDrag);
+                return;
+            }
+            root.dragSource = root.moduleAt(centroid.pressPosition);
+            if (root.dragSource === null)
+                return;
+            root.dragPoint = centroid.position;
+            root.dragging = true;
+            OpenPopup.dismiss();
+        }
+        onCentroidChanged: if (active && root.dragging) root.dragPoint = centroid.position
+        onCanceled: root.cancelDrag()
+        // centroid is reset before active becomes false; the release event retains its position.
+        onGrabChanged: (transition, point) => {
+            if (transition === PointerDevice.UngrabExclusive && point.state === EventPoint.Released)
+                root.finishDrag(root.mapFromItem(null, point.scenePosition));
+        }
+    }
+
+    Rectangle {
+        id: dropLine
+        readonly property bool shown: root.dragging && root.dragValid && root.contains(root.dragPoint)
+        readonly property real target: {
+            if (!shown)
+                return NaN;
+            const items = root._movable.filter(item => item !== root.dragSource);
+            const next = root.dropBefore;
+            const previous = next ? items[items.indexOf(next) - 1] : items[items.length - 1];
+            const left = previous ? previous.mapToItem(root, previous.width, 0).x
+                : next ? next.mapToItem(root, 0, 0).x : root.dragSource.mapToItem(root, 0, 0).x;
+            const right = next ? next.mapToItem(root, 0, 0).x : left;
+            return (left + right) / 2;
+        }
+        property real at: 0
+        onTargetChanged: if (!isNaN(target)) at = target
+        x: Math.round(at - width / 2)
+        y: Math.round(Theme.pillTop(root.height) + (Theme.barHeight - height) / 2)
+        z: 9
+        width: 2
+        height: Theme.iconSize
+        radius: 1
+        color: Theme.fg
+        opacity: shown ? 0.5 : 0
+        Behavior on opacity {
+            NumberAnimation { duration: 120 }
+        }
+        Behavior on at {
+            enabled: dropLine.opacity > 0
+            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+        }
     }
 
     // The first and last modules have no neighbour on their outer side.
@@ -412,7 +548,7 @@ Item {
         for (const child of row.children)
             if (child.visible)
                 shown.push(child);
-        return shown;
+        return root.order.length > 0 ? shown.sort((a, b) => a.Layout.column - b.Layout.column) : shown;
     }
 
     Binding {

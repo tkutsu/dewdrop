@@ -31,6 +31,8 @@ ClickArea {
     // its own with togglePopup() (Music's title).
     property int popupButton: Qt.LeftButton
     readonly property bool popupOpen: OpenPopup.owner === root
+    readonly property bool pillDragging: parent?.parent?.dragging ?? false
+    readonly property bool reordering: pillDragging && parent?.parent?.dragSource === root
 
     function togglePopup(): void {
         OpenPopup.toggle(root);
@@ -42,7 +44,7 @@ ClickArea {
     // and the rest of it is controls that a pointer on its way to them
     // should not open anything.
     onContainsMouseChanged: if (popup !== null && popupButton !== Qt.NoButton)
-        OpenPopup.browse(root, containsMouse)
+        OpenPopup.browse(root, containsMouse && !root.pillDragging)
 
     // Fitts's law: the modules at the ends of the bar back onto a screen edge,
     // which makes them the cheapest targets on screen — but only if their hit
@@ -249,7 +251,7 @@ ClickArea {
         // an opacity of their own on to say they are still loading. In step
         // with the slot, so the icon and the room it stands in come and go
         // together rather than one after the other.
-        opacity: root._fold
+        opacity: root._fold * (root.reordering ? 0.35 : 1)
         spacing: Theme.gap
         transform: Translate {
             y: root.dips && (root.acting || pin.acting || opener.acting) ? Theme.pressDip : 0
@@ -338,7 +340,7 @@ ClickArea {
     HoverPopup {
         id: hover
         anchorItem: root
-        hovered: root.containsMouse
+        hovered: root.containsMouse && !root.pillDragging
         pressed: root.pressed || pin.pressed || opener.pressed
         text: root.tooltip
     }
