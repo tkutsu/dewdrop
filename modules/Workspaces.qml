@@ -440,7 +440,7 @@ BarItem {
                     function slotX(cls: string, address: string): real {
                         const shown = [];
                         for (const child of row.children)
-                            if (child.visible && child.modelData?.key !== undefined)
+                            if (child.visible && child.icon !== undefined)
                                 shown.push(child);
                         if (shown.length === 0)
                             return row.implicitWidth / 2;
@@ -453,7 +453,7 @@ BarItem {
                             const order = Hyprland.toplevels.values.map(t => t.address);
                             const at = order.indexOf(address);
                             slot = shown.findIndex((icon, i) => (i === 0 || shown[i - 1].windowClass !== icon.windowClass)
-                                && order.indexOf(icon.modelData.key) > at);
+                                && order.indexOf(icon.modelData) > at);
                             if (slot === -1)
                                 slot = shown.length;
                         }
@@ -516,22 +516,29 @@ BarItem {
                         }
 
                         Repeater {
-                            // Keyed by address: see `icons`.
+                            // Keyed by address: see `icons`. The model holds the keys
+                            // alone and each icon looks its entry up, because ScriptModel
+                            // moves a row without taking the new value: a window dropped
+                            // in ahead of a group would leave the old first icon open,
+                            // still holding the whole group's addresses.
                             model: ScriptModel {
-                                values: button.icons
-                                objectProp: "key"
+                                values: button.icons.map(icon => icon.key)
                             }
 
                             delegate: AppIcon {
                                 id: app
 
-                                required property var modelData
+                                required property string modelData
                                 required property int index
+
+                                // Folded while its row waits to be removed.
+                                readonly property var icon: button.icons.find(icon => icon.key === app.modelData)
+                                    ?? ({ key: app.modelData, windowClass: "", addresses: [], expanded: false, folded: true })
 
                                 Layout.alignment: Qt.AlignVCenter
                                 // How far a folded icon has opened, 0..1: width, gap and
                                 // opacity together, the way the strip itself opens.
-                                property real reveal: modelData.folded ? 0 : 1
+                                property real reveal: icon.folded ? 0 : 1
 
                                 // Only for opening and folding: a folded icon that
                                 // becomes the group's first, because the first window
@@ -555,14 +562,14 @@ BarItem {
                                 transformOrigin: Item.Left
                                 Layout.leftMargin: -Theme.appIconGap * (1 - reveal)
                                 Layout.rightMargin: -implicitWidth * (1 - reveal)
-                                windowClass: modelData.windowClass
+                                windowClass: icon.windowClass
                                 // A folded icon's window is already in the first icon's addresses.
-                                urgent: !modelData.folded && root.anyUrgent(modelData.addresses)
+                                urgent: !icon.folded && root.anyUrgent(icon.addresses)
                                 // Only on the workspace in front of you: Hyprland
                                 // keeps the last window as active after you move
                                 // to an empty one, and a dot left behind there
                                 // would point at a window you are not in.
-                                focused: button.active && modelData.addresses.includes(Hyprland.activeToplevel?.address)
+                                focused: button.active && icon.addresses.includes(Hyprland.activeToplevel?.address)
                                 pressed: tap.pressed && !root.dragging
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
@@ -575,8 +582,8 @@ BarItem {
                                     anchorItem: app
                                     hovered: tap.containsMouse && !root.dragging
                                     pressed: tap.pressed || root.dragging
-                                    text: app.modelData.expanded
-                                        ? (Hyprland.toplevels.values.find(t => t.address === app.modelData.key)?.title
+                                    text: app.icon.expanded
+                                        ? (Hyprland.toplevels.values.find(t => t.address === app.modelData)?.title
                                             || app.entry?.name || app.windowClass)
                                         : (app.entry?.name || app.windowClass)
                                 }
@@ -593,13 +600,13 @@ BarItem {
                                     onPressed: mouse => {
                                         suppressClick = false;
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
-                                        const addresses = app.modelData.addresses;
+                                        const addresses = app.icon.addresses;
                                         addressOnPress = addresses.length === 1 ? addresses[0] : "";
                                         if (addresses.length > 1) {
                                             suppressClick = true;
                                             root.expand(button.modelData, app.windowClass);
                                             Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addresses[0]}" })`);
-                                        } else if (!app.modelData.expanded) {
+                                        } else if (!app.icon.expanded) {
                                             root.collapse();
                                         }
                                     }
@@ -636,7 +643,7 @@ BarItem {
 
                                     onClicked: {
                                         if (!suppressClick)
-                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${app.modelData.addresses[0]}" })`);
+                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${app.icon.addresses[0]}" })`);
                                     }
                                 }
                             }
