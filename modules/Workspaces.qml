@@ -14,15 +14,12 @@ BarItem {
     property string expandedClass: ""
     property int expandedWorkspace: -1
     property var expandedWorkspaceObject: null
-    readonly property var screen: QsWindow.window?.screen ?? null
     property bool dragging: false
     property Item dragSource: null
     property string dragAddress: ""
     property var dragWorkspace: null
     property int dragWorkspaceId: -1
-    property var dragScreen: null
     property point dragPoint: Qt.point(0, 0)
-    property var pendingMoves: []
 
     function collapse(): void {
         expandedWorkspace = -1;
@@ -47,11 +44,9 @@ BarItem {
     }
 
     readonly property bool dragValid: dragSource !== null && dragWorkspace !== null
-        && dragWorkspace.id === dragWorkspaceId && screen === dragScreen
-        && Quickshell.screens.includes(dragScreen)
+        && dragWorkspace.id === dragWorkspaceId
         && Hyprland.toplevels.values.some(t => t.address === dragAddress && t.workspace === dragWorkspace)
     onDragValidChanged: if (dragging && !dragValid) root.cancelDrag()
-    onVisibleChanged: if (!visible) root.cancelDrag()
 
     function cancelDrag(): void {
         dragging = false;
@@ -59,7 +54,6 @@ BarItem {
         dragAddress = "";
         dragWorkspace = null;
         dragWorkspaceId = -1;
-        dragScreen = null;
     }
 
     // Hit only workspace bodies, with the first one's screen-edge padding included.
@@ -90,29 +84,7 @@ BarItem {
         cancelDrag();
         if (!valid)
             return;
-        pendingMoves = [...pendingMoves, { address, destination, deadline: Date.now() + 1500 }];
         Hyprland.dispatch(`move_windows(${id}, {"0x${address}"})`);
-    }
-
-    readonly property var confirmedMoves: pendingMoves.filter(move => Hyprland.toplevels.values
-        .some(t => t.address === move.address && t.workspace === move.destination))
-    onConfirmedMovesChanged: if (confirmedMoves.length > 0) Qt.callLater(root.confirmMoves)
-
-    function confirmMoves(): void {
-        pendingMoves = pendingMoves.filter(move => !confirmedMoves.includes(move));
-    }
-
-    Timer {
-        interval: 1500
-        running: root.pendingMoves.length > 0
-        repeat: true
-        onTriggered: {
-            root.confirmMoves();
-            const failed = root.pendingMoves.filter(move => Date.now() >= move.deadline);
-            if (failed.length > 0)
-                console.warn(`Workspace move failed for ${failed.length} window(s); confirmed moves were kept.`);
-            root.pendingMoves = root.pendingMoves.filter(move => !failed.includes(move));
-        }
     }
 
     HoverHandler {
@@ -365,24 +337,27 @@ BarItem {
                         return order.map(cls => byClass[cls]);
                     }
 
-                    // Keep the representative's address as its key when it becomes the first expanded icon.
+                    // Every window of a multi-window app keeps an icon; the ones after the
+                    // first are folded to nothing until the group is expanded. The first
+                    // keeps its address as key across both states, so a press on it is not
+                    // lost to a rebuild, and nothing is created or removed to animate.
                     readonly property var icons: {
                         const result = [];
                         for (const app of button.apps) {
                             const expanded = root.expandedWorkspace === button.modelData.id
                                 && root.expandedClass === app.windowClass;
-                            for (const address of expanded ? app.addresses : [app.addresses[0]])
+                            app.addresses.forEach((address, i) => {
                                 result.push({
                                     key: address,
                                     windowClass: app.windowClass,
-                                    addresses: expanded ? [address] : app.addresses,
-                                    expanded
+                                    addresses: expanded || i > 0 ? [address] : app.addresses,
+                                    expanded,
+                                    folded: i > 0 && !expanded
                                 });
+                            });
                         }
                         return result;
                     }
-
-                    Component.onDestruction: if (root.dragWorkspace === button.modelData) root.cancelDrag()
 
                     // How far the mark has come onto this workspace, 0..1: in
                     // as its head arrives, back out as its tail lets go.
@@ -473,7 +448,7 @@ BarItem {
                         }
 
                         Repeater {
-                            // Address keys preserve the pointer grab and icon lookups across expansion.
+                            // Keyed by address: see `icons`.
                             model: ScriptModel {
                                 values: button.icons
                                 objectProp: "key"
@@ -486,6 +461,21 @@ BarItem {
                                 required property int index
 
                                 Layout.alignment: Qt.AlignVCenter
+                                // How far a folded icon has opened, 0..1: width, gap and
+                                // opacity together, the way the strip itself opens.
+                                property real reveal: modelData.folded ? 0 : 1
+
+                                Behavior on reveal {
+                                    NumberAnimation {
+                                        duration: Theme.markMs * 0.6
+                                        easing.type: Easing.OutCubic
+                                    }
+                                }
+
+                                visible: reveal > 0
+                                opacity: reveal
+                                Layout.preferredWidth: implicitWidth * reveal
+                                Layout.leftMargin: -Theme.appIconGap * (1 - reveal)
                                 windowClass: modelData.windowClass
                                 urgent: root.anyUrgent(modelData.addresses)
                                 // Only on the workspace in front of you: Hyprland
@@ -520,8 +510,6 @@ BarItem {
                                     property string addressOnPress: ""
                                     property bool suppressClick: false
 
-                                    onEnabledChanged: if (!enabled && root.dragSource === app) root.cancelDrag()
-
                                     onPressed: mouse => {
                                         suppressClick = false;
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
@@ -539,7 +527,7 @@ BarItem {
                                     }
 
                                     onPositionChanged: mouse => {
-                                        if (!pressed || addressOnPress === "" || suppressClick && !root.dragging)
+                                        if (!pressed || addressOnPress === "" || (suppressClick && !root.dragging))
                                             return;
                                         const point = tap.mapToItem(strip, mouse.x, mouse.y);
                                         if (!root.dragging && Math.hypot(point.x - pressPoint.x, point.y - pressPoint.y) >= drag.threshold) {
@@ -548,17 +536,10 @@ BarItem {
                                             root.dragAddress = addressOnPress;
                                             root.dragWorkspace = button.modelData;
                                             root.dragWorkspaceId = button.modelData.id;
-                                            root.dragScreen = root.screen;
                                             root.dragging = true;
-                                            root._scrollAcc = 0;
                                         }
                                         if (root.dragging && root.dragSource === app) {
                                             root.dragPoint = point;
-                                            const global = strip.mapToGlobal(point.x, point.y);
-                                            const screen = root.dragScreen;
-                                            if (!root.dragValid || global.x < screen.x || global.y < screen.y
-                                                || global.x >= screen.x + screen.width || global.y >= screen.y + screen.height)
-                                                root.cancelDrag();
                                         }
                                     }
 
