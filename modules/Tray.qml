@@ -137,7 +137,7 @@ BarItem {
 
             HoverPopup {
                 anchorItem: entry
-                hovered: pointer.containsMouse && !entry.menuOpen
+                hovered: pointer.containsMouse && !entry.menuOpen && !root.pillDragging
                 pressed: pointer.pressed
                 // Not the id when the app gives neither: a service name
                 // ("chrome_status_icon_1") tells nobody anything.
@@ -160,7 +160,7 @@ BarItem {
                 cursorShape: Qt.ArrowCursor
 
                 onContainsMouseChanged: if (entry.modelData.hasMenu)
-                    OpenPopup.browse(entry, containsMouse)
+                    OpenPopup.browse(entry, containsMouse && !root.pillDragging)
 
                 // Right is the menu. An item that is nothing but its menu has
                 // no useful activate(), so on one of those every button is.
