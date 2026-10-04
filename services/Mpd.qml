@@ -130,7 +130,7 @@ Singleton {
         Quickshell.execDetached(["systemctl", "--user", "stop", "mpd.service"]);
     }
 
-        // And back up, from the launcher's # mode. A process rather than a detached
+    // And back up, from the launcher's # mode. A process rather than a detached
     // call, because the moment it exits is the moment to dial: mpd.service is
     // Type=notify, so systemctl returns once mpd says it is ready — and the
     // links may by then have backed off to a retry most of a minute away.

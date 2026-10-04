@@ -34,10 +34,10 @@ Singleton {
     // you are doing — in both cases you are typing a question and picking who
     // answers it.
     //
-    // A percent sign, which leaves the hash free for music, and not the full stop this
-    // would rather have been: a leading dot would take the decimals off the
-    // calculator, since the mode is picked before anything looks at what
-    // follows and ".5*2" would be a web search for "5*2". See looksLikeMath.
+    // A percent sign leaves the hash free for music. A leading dot would take
+    // decimals off the calculator, since the mode is picked before anything
+    // looks at what follows: ".5*2" would be a web search for "5*2".
+    // See looksLikeMath.
     // The underscore it used to be went to the windows below.
     //
     // One letter each, and Google has none at all — it is what a bare "%"
@@ -170,11 +170,11 @@ Singleton {
     readonly property string prefixHint: root.modes.map(mode => mode.prefix + mode.hint).join("   ")
 
     // Each engine written as one word with its key bracketed inside it:
-    // "#[y]outube". The brackets are the whole instruction — which letter to
+    // "%[y]outube". The brackets are the whole instruction — which letter to
     // type and where it sits in the name — in the space the name was taking
-    // anyway, where "#y youtube" spent a word saying the key twice.
+    // anyway, where "%y youtube" spent a word saying the key twice.
     //
-    // Google gets no brackets because it has no key, which is what "a bare #
+    // Google gets no brackets because it has no key, which is what "a bare %
     // is a Google search" looks like written down.
     readonly property string engineHint: root.engines.map(e => {
             const at = e.hint.indexOf(e.key);
@@ -440,7 +440,7 @@ Singleton {
         // against each other and share the ordering.
         const found = root.calcResults(c.math ? c.text : "", true).concat(root.urlResults(c.text, c.url)).concat(root.mainResults(c.text));
 
-        // Nothing matched, so it was a question: answer it the way "#" would.
+        // Nothing matched, so it was a question: answer it the way "%" would.
         // Gated on the sum being spotted rather than on qalc's row, which
         // arrives a beat later and would have the engines flash up first.
         if (!found.length && !c.math)
@@ -1458,7 +1458,7 @@ Singleton {
         let key = "";
         let q = rest.trim();
         // The first word is an engine key only if it actually names one, so
-        // "#lofi" searches for lofi rather than looking for an engine "lofi".
+        // "%lofi" searches for lofi rather than looking for an engine "lofi".
         if (m && engines.some(e => e.key === m[1])) {
             key = m[1];
             q = (m[2] || "").trim();
