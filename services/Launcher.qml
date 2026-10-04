@@ -25,26 +25,26 @@ Singleton {
 
     // --- modes ---------------------------------------------------------------
 
-    // The first non-space character picks a mode. "#" is search: the word
-    // after it can name an engine ("#y lofi"), and without one the query goes
-    // to the fallback ("#lofi" is a Google search).
+    // The first non-space character picks a mode. "%" is search: the word
+    // after it can name an engine ("%y lofi"), and without one the query goes
+    // to the fallback ("%lofi" is a Google search).
     //
     // One search prefix rather than one per family, because the split between
     // "web" and "AI" was a distinction about the destination, not about what
     // you are doing — in both cases you are typing a question and picking who
     // answers it.
     //
-    // A hash, which is what a search tag reads as, and not the full stop this
+    // A percent sign, which leaves the hash free for music, and not the full stop this
     // would rather have been: a leading dot would take the decimals off the
     // calculator, since the mode is picked before anything looks at what
     // follows and ".5*2" would be a web search for "5*2". See looksLikeMath.
     // The underscore it used to be went to the windows below.
     //
-    // One letter each, and Google has none at all — it is what a bare "#"
+    // One letter each, and Google has none at all — it is what a bare "%"
     // does, so the search run most often costs the fewest keys. Claude is
-    // "#l" because ChatGPT holds the "c", so the key moved to the next free
+    // "%l" because ChatGPT holds the "c", so the key moved to the next free
     // letter of the word, which costs nothing to remember because the hint
-    // line marks the key where it falls: "#c[l]aude".
+    // line marks the key where it falls: "%c[l]aude".
     //
     // %s is replaced with the URL-encoded query. Every engine here has a place
     // to put one, which is why there is no Gemini: neither gemini.google.com
@@ -59,7 +59,7 @@ Singleton {
     // and `key` has to be one of its letters: the line brackets the key inside
     // the word rather than spelling it out beside it, so the word is the name
     // itself rather than an abbreviation making room for a repeat of the key.
-    readonly property string enginePrefix: "#"
+    readonly property string enginePrefix: "%"
 
     readonly property var engines: [
         {
@@ -130,9 +130,9 @@ Singleton {
     // sum, not a command, not a quoted line.
     readonly property string windowPrefix: "_"
     // The library: artists, their records, the songs on them, and the stored
-    // playlists. An ampersand, which starts nothing else here — it is not a
+    // playlists. A hash, which starts nothing else here — it is not a
     // path, a sum, a prompt, a quoted line or a window.
-    readonly property string musicPrefix: "&"
+    readonly property string musicPrefix: "#"
     // Mail: the unread on its own, a search of the whole mailbox past it. The
     // at-sign, which is what an address reads as.
     readonly property string mailPrefix: "@"

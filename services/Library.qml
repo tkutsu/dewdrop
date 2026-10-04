@@ -6,7 +6,7 @@ import Quickshell.Io
 import qs.services
 import "../Fuzzy.js" as Fuzzy
 
-// MPD's database as the launcher's & mode has to see it: artists holding
+// MPD's database as the launcher's # mode has to see it: artists holding
 // albums holding tracks, with all three ranked against one query at once.
 //
 // A copy, and deliberately so. MPD can answer `search title "..."` itself, but
@@ -45,7 +45,7 @@ Singleton {
             return;
         // Not straight back at a read that has just failed. Whoever asked
         // hears `loading` drop and would ask again at once, and that was mpc
-        // spawned in a loop for as long as the & mode stayed open.
+        // spawned in a loop for as long as the # mode stayed open.
         if (root.failed && Date.now() - root.triedAt < 5000)
             return;
         root.triedAt = Date.now();

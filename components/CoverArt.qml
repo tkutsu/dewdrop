@@ -3,7 +3,7 @@ import Qt.labs.folderlistmodel
 import qs
 import qs.components
 
-// The artwork for whatever row the launcher's & mode is sitting on.
+// The artwork for whatever row the launcher's # mode is sitting on.
 //
 // The same errand FilePreview.qml runs for / mode, and the same reason for
 // running it: a list of records read as text is a list of words, and the thing

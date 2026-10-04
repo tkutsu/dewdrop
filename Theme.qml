@@ -806,7 +806,7 @@ Singleton {
         queueDown: "\u{f035d}",
         queueRemove: "\u{f0156}",
 
-        // The four kinds of thing in the library the launcher's & mode ranks,
+        // The four kinds of thing in the library the launcher's # mode ranks,
         // so a row says what it is without spending a word on it: a person
         // with a note against them, a record, a note, a list with a note
         // (nf-md-account_music, _album, _music_note, _playlist_music).
