@@ -2,12 +2,12 @@ const defaults = ["audio", "email", "tasks", "updater", "bell", "weather", "satt
     "wallpaper", "night", "sys", "bluetooth", "network", "tray", "language"];
 
 // Keep saved positions while accepting modules added since the last drop.
-function normalise(order, knownKeys = defaults) {
+function normalise(order) {
     const keys = [];
     for (const key of Array.isArray(order) ? order : [])
-        if (knownKeys.includes(key) && !keys.includes(key))
+        if (defaults.includes(key) && !keys.includes(key))
             keys.push(key);
-    for (const key of knownKeys)
+    for (const key of defaults)
         if (!keys.includes(key))
             keys.push(key);
     return keys;

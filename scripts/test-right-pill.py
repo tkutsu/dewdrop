@@ -22,7 +22,6 @@ const defaults = Array.from(normalise([]));
 const equal = (actual, expected) => assert.equal(JSON.stringify(actual), JSON.stringify(expected));
 equal(normalise(['network', 'audio', 'audio', 'obsolete', null]), ['network', 'audio', ...defaults.filter(k => !['network', 'audio'].includes(k))]);
 for (const bad of [null, {}, 'audio', 42]) equal(normalise(bad), defaults);
-equal(normalise(['b', 'a'], ['a', 'b', 'new']), ['b', 'a', 'new']);
 const visible = ['audio', 'tasks', 'network'];
 const moved = Array.from(move(defaults, 'audio', null, visible));
 const expected = [...defaults];
@@ -170,6 +169,12 @@ ShellRoot {
                 root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'disabled controller writes nothing');
                 root.check(!RightPillOrder.move('audio', 'email', pill._movable.map(m => m.settingsKey)), 'own slot does not write');
                 root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'own slot preserves order');
+                const own = email.x + email.width - 1;
+                mousePress(email, email.width / 2, 20, Qt.LeftButton);
+                mouseMove(pill, own, 20, 20); mouseMove(pill, own, 20, 20);
+                root.check(pill.dragging && !pill.dropMoves, 'own slot shows no drop line');
+                mouseRelease(pill, own, 20, Qt.LeftButton);
+                root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'own slot drop writes nothing');
                 mousePress(launcher, launcher.width / 2, 20, Qt.LeftButton);
                 mouseMove(pill, email.x, 20, 20); mouseMove(pill, email.x, 20, 20);
                 root.check(!pill.dragging, 'launcher stays fixed');
@@ -223,6 +228,7 @@ def run_shell(target, source):
     assert result.returncode == 0 and 'PASS:' in output and 'FAIL:' not in output, output
     for error in ('ReferenceError:', 'TypeError:', 'Binding loop', 'Failed to load configuration', 'Cannot assign', 'Unable to assign'):
         assert error not in output, output
+    return output
 
 
 def main():
@@ -232,7 +238,7 @@ def main():
         (target / 'components').mkdir()
         (target / 'state').mkdir()
         (target / 'runtime').mkdir(mode=0o700)
-        for name in ('RightPillOrder.qml', 'RightPillOrder.js', 'components/Pill.qml', 'components/BarItem.qml', 'components/ClickArea.qml'):
+        for name in ('RightPillOrder.qml', 'RightPillOrder.js', 'components/Pill.qml', 'components/BarItem.qml', 'components/ClickArea.qml', 'components/DropLine.qml'):
             shutil.copyfile(ROOT / name, target / name)
         for name, text in STUBS.items():
             (target / name).write_text(text)
@@ -263,12 +269,8 @@ ShellRoot { Timer { interval: 150; running: true; onTriggered: {
     console.log('ORDER:' + JSON.stringify(RightPillOrder.keys));
     console.log('PASS: saved order reloaded'); Qt.quit();
 } } }"""
-        (target / 'shell.qml').write_text(restart)
-        env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', XDG_RUNTIME_DIR=str(target / 'runtime'))
-        env.pop('WAYLAND_DISPLAY', None)
-        result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=10)
-        output = result.stdout + result.stderr
-        assert result.returncode == 0 and 'ORDER:' + json.dumps(saved, separators=(',', ':')) in output, output
+        output = run_shell(target, restart)
+        assert 'ORDER:' + json.dumps(saved, separators=(',', ':')) in output, output
         print('PASS: order survives a fresh shell process')
 
 
