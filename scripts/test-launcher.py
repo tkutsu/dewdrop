@@ -208,7 +208,7 @@ ShellRoot {
     function run() {
         try {
             LauncherMusic.rows = [{kind: "music", title: "first"}, {kind: "music", title: "last"}];
-            Launcher.query = "&";
+            Launcher.query = "#";
             Launcher.index = 1;
             LauncherMusic.rows = LauncherMusic.rows.slice(0, 1);
             check(Launcher.index === 0 && Launcher.selected.title === "first", "selection clamps when rows disappear");
@@ -230,8 +230,8 @@ ShellRoot {
             Launcher.query = "@";
             Launcher.query = "@ ";
             check(Email.searches === 0, "fresh recent-mail search is reused");
-            Launcher.query = "#y cats";
-            check(Launcher.results[0].badge === "#y", "explicit engine key selects YouTube");
+            Launcher.query = "%y cats";
+            check(Launcher.results[0].badge === "%y", "explicit engine key selects YouTube");
             Launcher.query = "";
             check(!Launcher.results.some(r => r.kind === "desktop"), "no unused toggles on home");
 
@@ -306,7 +306,7 @@ ShellRoot {
             check(Launcher.shown && Launcher.pathMode && test.adopted === "/", "mode selection keeps launcher open and updates input");
 
             LauncherMusic.rows = [{kind: "music-track", title: "Track", subtitle: ""}];
-            Launcher.query = "&track";
+            Launcher.query = "#track";
             Launcher.activate(0, "queue");
             check(LauncherMusic.activated === "queue" && Launcher.shown, "Enter queues without closing");
             Launcher.activate(0, "play");
