@@ -72,7 +72,10 @@ BarItem {
 
     // Left is the calendar (BarItem.popupButton); right is the app.
     actions: ({
-            [Qt.RightButton]: () => Quickshell.execDetached([Paths.script("pwa-gcalendar.sh")]),
+            [Qt.RightButton]: () => {
+                OpenPopup.dismiss();
+                Quickshell.execDetached([Paths.script("pwa-gcalendar.sh")]);
+            },
             [Qt.MiddleButton]: () => {
                 // was: t=$(date '+%F %T'); wl-copy; notify-send
                 // Not clock.date: that one only moves on the minute now, and a

@@ -49,7 +49,10 @@ Popup {
             framed: true
             glyph: Theme.glyph.cleanup
             label: "clean up"
-            onTapped: Quickshell.execDetached(Settings.inTerminal([Paths.script("cleanup.sh")], "cleanup"))
+            onTapped: {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(Settings.inTerminal([Paths.script("cleanup.sh")], "cleanup"));
+            }
         }
     }
 

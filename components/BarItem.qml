@@ -86,8 +86,9 @@ ClickArea {
     // middle click for itself.
     property string pinKey: ""
     // Whether the module stands out of the drawer while it is closed: when
-    // it has something to say, or always once it is pinned.
-    readonly property bool showsClosed: pinKey === "" || !quiet || DrawerPins.pinned(pinKey)
+    // it has something to say, is pinned, or owns the open popup. A quiet
+    // popup owner waits until its popup closes before folding away.
+    readonly property bool showsClosed: pinKey === "" || !quiet || DrawerPins.pinned(pinKey) || popupOpen
 
     // Whether to mark a pinned module as pinned. Set by the drawer's owner
     // while the drawer is open, which is when pinned and unpinned stand side

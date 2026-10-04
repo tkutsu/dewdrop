@@ -35,7 +35,10 @@ BarItem {
 
     // Left is the popup (BarItem.popupButton); right is the folder.
     actions: ({
-            [Qt.RightButton]: () => Wallpaper.openFolder()
+            [Qt.RightButton]: () => {
+                OpenPopup.dismiss();
+                Wallpaper.openFolder();
+            }
         })
 
     onScrollUp: Wallpaper.next()

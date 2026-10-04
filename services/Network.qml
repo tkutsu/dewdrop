@@ -111,6 +111,7 @@ Singleton {
     // launcher is the one text box the shell keeps; a network is joined for
     // the first time a few times a year.
     function ask(name: string): void {
+        OpenPopup.dismiss();
         Quickshell.execDetached(Settings.inTerminal(["nmcli", "--ask", "device", "wifi", "connect", name], "Join " + name + " (floating)", true));
     }
 

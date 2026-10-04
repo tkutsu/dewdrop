@@ -11,6 +11,10 @@ BarItem {
     tooltip: Services.Weather.tooltip
     popup: WeatherPopup {}
 
+    actions: ({
+            [Qt.RightButton]: () => Services.Weather.refresh(true)
+        })
+
     Glyph {
         Layout.fillHeight: true
         text: Services.Weather.icon

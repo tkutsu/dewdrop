@@ -44,6 +44,10 @@ BarItem {
     // Do not disturb is the popup's header, beside its own clear; middle pins
     // the bell (BarItem.pinKey).
     actions: ({
-            [Qt.RightButton]: () => Notifications.clearAll()
+            [Qt.RightButton]: () => {
+                Notifications.clearAll();
+                if (Notifications.count === 0)
+                    OpenPopup.close(root);
+            }
         })
 }

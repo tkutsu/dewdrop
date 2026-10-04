@@ -237,11 +237,14 @@ Popup {
             id: attribution
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            text: `<a href="https://open-meteo.com/">Open-Meteo</a>`
+            text: `<a href="https://open-meteo.com/" style="color: ${Theme.label2}">Open-Meteo</a>`
             textFormat: Text.RichText
-            linkColor: Theme.label2
+            color: Theme.label2
             font.pixelSize: Theme.footnoteSize
-            onLinkActivated: link => Qt.openUrlExternally(link)
+            onLinkActivated: link => {
+                OpenPopup.dismiss();
+                Qt.openUrlExternally(link);
+            }
         }
         PopupText {
             id: updated

@@ -49,6 +49,9 @@ BarItem {
 
     // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.RightButton]: () => Quickshell.execDetached(["nm-connection-editor"])
+            [Qt.RightButton]: () => {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(["nm-connection-editor"]);
+            }
         })
 }
