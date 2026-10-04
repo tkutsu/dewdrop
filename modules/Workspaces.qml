@@ -94,7 +94,15 @@ BarItem {
                 && point.x < button.x + button.width)
                 return button;
         }
+        if (newWorkspace.visible && point.x >= newWorkspace.x - Theme.workspaceGap)
+            return newWorkspace;
         return null;
+    }
+
+    // The number a new workspace takes: compaction keeps them contiguous,
+    // so it is the one after the last.
+    function nextWorkspaceId(): int {
+        return (workspaces.itemAt(workspaces.count - 1)?.modelData.id ?? 0) + 1;
     }
 
     // The workspace a release would move the window to, or null.
@@ -105,15 +113,21 @@ BarItem {
 
     // Capture the ID at release; membership follows the workspace object through compaction.
     function finishDrag(point): void {
-        const destination = root.buttonAt(point)?.modelData ?? null;
-        const id = destination?.id;
+        const button = root.buttonAt(point);
+        const fresh = button !== null && button === newWorkspace;
+        const destination = button?.modelData ?? null;
+        const id = fresh ? root.nextWorkspaceId() : destination?.id;
         const address = dragAddress;
-        const valid = dragging && dragValid && destination !== dragWorkspace
+        const valid = dragging && dragValid && (fresh || destination !== dragWorkspace)
             && Number.isInteger(id) && id > 0 && /^[0-9a-fA-F]+$/.test(address);
         cancelDrag();
         if (!valid)
             return;
-        Hyprland.dispatch(`move_window_to(${id}, "0x${address}")`);
+        // move_window_to only takes a workspace that exists; this one is made by the move.
+        if (fresh)
+            Hyprland.dispatch(`function() local w = hl.get_window("address:0x${address}") if w and w.mapped then hl.dispatch(hl.dsp.window.move({ window = w, workspace = ${id}, follow = false })) end end`);
+        else
+            Hyprland.dispatch(`move_window_to(${id}, "0x${address}")`);
     }
 
     HoverHandler {
@@ -632,6 +646,26 @@ BarItem {
                             }
                         }
                     }
+                }
+            }
+
+            // An empty workspace after the last, there only while a window is
+            // dragged, so it can be dropped into a workspace of its own. It
+            // draws nothing, the way an empty workspace does; the pill opens
+            // to make room for it and the drop line marks it. Not offered
+            // when the strip already has an empty one to drop on.
+            Item {
+                id: newWorkspace
+
+                readonly property var modelData: null
+
+                visible: root.dragging && workspaces.model.values
+                    .every(w => Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
+                Layout.fillHeight: true
+                implicitWidth: Math.round(Theme.iconSize * Theme.iconInk)
+
+                function slotX(cls: string, address: string): real {
+                    return width / 2;
                 }
             }
         }
