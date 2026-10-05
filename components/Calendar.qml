@@ -11,7 +11,13 @@ Popup {
 
     // Months from "now", the way waybar's shift_up/shift_down worked.
     property int offset: 0
-    readonly property date today: new Date()
+    // Agenda's day, which turns at midnight, so a popup left open across it
+    // moves its ring with the list underneath. Built from its parts: parsed
+    // whole, "YYYY-MM-DD" is midnight in UTC rather than here.
+    readonly property date today: {
+        const [y, m, d] = Agenda.today.split("-").map(Number);
+        return new Date(y, m - 1, d);
+    }
     readonly property date shown: new Date(today.getFullYear(), today.getMonth() + offset, 1)
 
     // The month turned to is fetched as it comes into view, if it has not

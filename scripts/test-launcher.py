@@ -365,7 +365,7 @@ def main():
         components.mkdir()
         source = (ROOT / "services/Launcher.qml").read_text()
         # Reads of clipboard/history and query helpers stay inside the fixture.
-        source = re.sub(r"^(\s*)command:.*$", r'\1command: ["/usr/bin/true"]', source, flags=re.MULTILINE)
+        source = re.sub(r"^(\s*)command:.*?(,?)$", r'\1command: ["/usr/bin/true"]\2', source, flags=re.MULTILINE)
         (services / "Launcher.qml").write_text(source)
         for name, body in MOCKS.items():
             (services / (name + ".qml")).write_text("pragma Singleton\nimport QtQuick\nQtObject {\n" + body + "\n}\n")
