@@ -12,14 +12,6 @@ import "../Fuzzy.js" as Fuzzy
 
 // What the launcher knows: the query, where the selection is, what matches,
 // and which apps get reached for often enough to float.
-//
-// This replaces Rofi.qml, and with it the whole dismiss-glass apparatus. rofi
-// under native wayland sizes its layer surface to the window it draws, so a
-// click that missed the box never reached it — Rofi.qml had to raise a
-// screen-sized surface underneath, poll `pgrep -x rofi` to find out when to
-// take it down again, and have rofi-launch.sh bracket the run with IPC calls
-// to say when it was up. LauncherMenu.qml is its own screen-sized surface, so
-// none of that has anywhere to live.
 Singleton {
     id: root
 
@@ -38,7 +30,6 @@ Singleton {
     // decimals off the calculator, since the mode is picked before anything
     // looks at what follows: ".5*2" would be a web search for "5*2".
     // See looksLikeMath.
-    // The underscore it used to be went to the windows below.
     //
     // One letter each, and Google has none at all — it is what a bare "%"
     // does, so the search run most often costs the fewest keys. Claude is
@@ -48,12 +39,8 @@ Singleton {
     //
     // %s is replaced with the URL-encoded query. Every engine here has a place
     // to put one, which is why there is no Gemini: neither gemini.google.com
-    // nor AI Studio takes a prompt in the URL. Google has never shipped the
-    // parameter, the AI Studio request for it has sat open since April 2025,
-    // and the only thing that works is a browser extension typing into the box
-    // for you — or, for Chrome's own omnibox, an x-omnibox-gemini *header*,
-    // which is not something a URL can carry. An entry for it could only ever
-    // open an empty chat and drop what was typed.
+    // nor AI Studio takes a prompt in the URL, so an entry could only open an
+    // empty chat and drop what was typed.
     //
     // `hint` is the word the query line's hint writes the engine as,
     // and `key` has to be one of its letters: the line brackets the key inside
@@ -136,11 +123,9 @@ Singleton {
     // Mail: the unread on its own, a search of the whole mailbox past it. The
     // at-sign, which is what an address reads as.
     readonly property string mailPrefix: "@"
-    // Writing something down, and setting something going. These two replace a
-    // quick-entry overlay of their own: it was a second box on the same screen
-    // doing the same job as this one — a line of text, a note underneath saying
-    // what Enter would do — and having two of those is one more surface to
-    // learn and one more place for the keyboard grab to go wrong.
+    // Writing something down, and setting something going: here rather than in
+    // a quick-entry box of their own, which would be a second line of text on
+    // the same screen and one more place for the keyboard grab to go wrong.
     //
     // Tasks and timers share a comma: plain text writes down a task, while a
     // leading duration or time of day sets a timer or alarm.
@@ -205,7 +190,7 @@ Singleton {
         return "";
     }
 
-    // rofi drew 9 rows; this is how many are worth ranking behind them.
+    // How many rows are worth ranking; the box shows a dozen of them at once.
     readonly property int maxResults: 50
     // How hard usage history pushes a match up the list. High enough that the
     // app you always want wins a tie, low enough that it cannot drag a bad
@@ -361,8 +346,7 @@ Singleton {
 
     // --- matching ------------------------------------------------------------
 
-    // Space-separated terms are ANDed, the way rofi's `tokenize: true` did:
-    // "fire priv" finds Firefox's private-window entry. Each term scores
+    // Space-separated terms are ANDed: "fire priv" finds Firefox's private-window entry. Each term scores
     // against every field it is given and keeps its best hit; a term that
     // lands nowhere makes the whole thing a miss, which is null rather than a
     // low score — the caller drops those entirely.
@@ -371,8 +355,6 @@ Singleton {
     // are folded before the loop rather than inside it: the terms once per
     // keystroke by prepTerms, the fields once per list by prepFields — or,
     // for a list too short to be worth keeping, once per call by matchScore.
-    // Per entry per keystroke, which is what a folded term inside a folded
-    // field loop came to, was a keystroke's worth of normalize() calls.
     function prepTerms(query) {
         return query.split(/\s+/).filter(t => t.length).map(t => Fuzzy.prepQuery(t));
     }
@@ -462,8 +444,7 @@ Singleton {
     // The menu with its fields folded, rebuilt when the installed apps
     // change and read on every keystroke.
     //
-    // rofi's drun-match-fields: name, generic, keywords, categories.
-    // Weighted, because a hit on the name means more than a hit on a
+    // Name, generic name, keywords, categories. Weighted, because a hit on the name means more than a hit on a
     // category half the menu shares.
     //
     // Deliberately not e.id: Chrome PWAs are installed with ids like

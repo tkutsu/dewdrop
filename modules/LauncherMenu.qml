@@ -6,16 +6,12 @@ import qs
 import qs.components
 import qs.services
 
-// The launcher box: a query line over a list of matches.
-//
-// Laid out the way ~/.config/rofi/theme.rasi laid rofi out, because that is
-// what the desktop has looked like for years — a narrow half-black box, one
-// lowercase name per row, its icon out at the right edge, and the row you are
-// on marked by a grey fill with a white rule down its left side.
+// The launcher box: a query line over a list of matches, one lowercase name
+// per row with its icon out at the right edge, and the selected row a rounded
+// fill.
 //
 // The screen-sized surface under it, the keyboard grab and the click-to-exit
-// are OverlayWindow's, which the power menu is drawn on too. That surface is
-// the part rofi could not do for itself — see services/Launcher.qml.
+// are OverlayWindow's, which the power menu is drawn on too.
 OverlayWindow {
     id: root
 
@@ -163,21 +159,14 @@ OverlayWindow {
     }
 
     // --- geometry ------------------------------------------------------------
-    // What Spotlight is. Apple publishes no figure for it, so this is a
-    // measurement of Apple's own Big Sur screenshot: 680 of window body, over
-    // a result row pitch of 28 — which is the height this list already drew
-    // at, arrived at separately. The rest of the field agrees to within a
-    // fifth. Alfred's default theme is 560 and its Modern one 700, Raycast is
-    // a documented 750, and Sol, which exists to be a native Spotlight, is 700.
-    //
-    // It was 360 before, inherited from rofi's 15em at Ubuntu Light 10. That
-    // was too narrow for the box to say what it could do: the engine line
-    // under the query wants 447 and was being elided at the seventh of nine.
-    // Everything below is derived, so this is still the only number to turn.
+    // What Spotlight is: 680 of window body over a 28 row pitch, measured off
+    // Apple's Big Sur screenshot (Alfred, Raycast and Sol are all 560–750).
+    // Wide enough for the engine hint line, which wants 447. Everything below
+    // is derived, so this is the only number to turn.
     readonly property int boxWidth: 680
     readonly property int rowHeight: 28
-    // rofi drew 9; 12 is as deep as the list goes before it stops being a
-    // glance and starts being a scroll. maxResults still ranks well past this,
+    // As deep as the list goes before it stops being a glance and starts
+    // being a scroll. maxResults still ranks well past this,
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
     readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !Launcher.mailOpen
@@ -209,8 +198,7 @@ OverlayWindow {
 
     // The box at its tallest, with the list full. This places the box; it does
     // not size it. The top edge is pinned where a full box would have been
-    // centred, so a launcher showing twelve rows sits exactly where the centred
-    // one used to, and every shorter one keeps its query line on that same line.
+    // centred, so every shorter one keeps its query line on that same line.
     readonly property int fullHeight: boxPad * 2 + inputHeight + contentGap * 2 + Theme.pillBorder + visibleRows * rowHeight
 
     // +1 for the keys that go down, -1 for the ones that go up, 0 for the
@@ -292,12 +280,10 @@ OverlayWindow {
     property bool settling: false
 
     // Keeping the selected row on screen, and scrolling no further than it
-    // takes to get it there. The view used to do this for itself, off the
-    // current item it was tracking — it does not any more, because the
-    // highlight below is placed rather than followed, and a view left with
-    // nothing to track will happily let the selection walk off the bottom
-    // edge. So the rule it had is written out: never above the top edge,
-    // never below the bottom one, and otherwise wherever the list already is.
+    // takes to get it there. Written out rather than left to the view: the
+    // highlight below is placed rather than followed, and a view with nothing
+    // to track lets the selection walk off the bottom edge. Never above the
+    // top edge, never below the bottom one, otherwise wherever the list is.
     //
     // Not `reveal`: that is the property above, and a function of the same
     // name is shadowed by it.
@@ -545,13 +531,10 @@ OverlayWindow {
 
                 // What the nine mode prefixes do, inside the field and
                 // against its right edge, in the quietest step of the label
-                // scale. It used to be a line of its own under the query, which
-                // made an empty launcher a two-row box with nothing in the top
-                // row; it was the field's placeholder before that, which was
-                // gone by the time it was any use. Here it stays while the mode
-                // it describes does (see Launcher.hint), in the room the query
-                // is not using, and gives way as the query reaches it — it is a
-                // reference, and never the thing being read.
+                // scale. It stays while the mode it describes does (see
+                // Launcher.hint), in the room the query is not using, and
+                // gives way as the query reaches it — it is a reference, and
+                // never the thing being read.
                 Text {
                     id: hint
 
@@ -803,9 +786,8 @@ OverlayWindow {
                 // The selection belongs to the view, not to the row. A row
                 // can only be selected or not, so a fill drawn by the delegate
                 // can only appear and disappear — while one the view owns is a
-                // single object that moves from row to row. Same two marks
-                // rofi used, a grey fill and a white rule down the left edge,
-                // now sliding between rows instead of blinking between them.
+                // single object that slides from row to row instead of
+                // blinking between them.
                 //
                 // Placed from the service's index rather than followed to the
                 // view's own current item. A plain array replaced wholesale
@@ -824,10 +806,7 @@ OverlayWindow {
                 highlightFollowsCurrentItem: false
                 // The selected row, as the system draws it: a rounded fill
                 // held in from the box's edges rather than running out to
-                // them, and nothing else marking it. The rule that used to
-                // run down its left edge went with the edge-to-edge fill —
-                // once the fill is a shape of its own it no longer needs
-                // pointing at.
+                // them, and nothing else marking it.
                 highlight: Rectangle {
                     x: Theme.selectionInset
                     width: list.width - Theme.selectionInset * 2
@@ -866,9 +845,8 @@ OverlayWindow {
 
                     width: ListView.view.width
                     height: root.rowHeight
-                    // The fill and the rule that used to be here are the
-                    // view's `highlight` above. All that is left of being the
-                    // selected row is the colour of its text.
+                    // The fill is the view's `highlight` above; all that marks
+                    // the selected row here is the colour of its text.
                     color: "transparent"
 
                     Text {
@@ -896,8 +874,8 @@ OverlayWindow {
                         // word — can say so and take the rest, which is what a
                         // task written as a sentence to yourself needs.
                         width: Math.min(implicitWidth, row.width * (row.modelData.titleShare ?? (row.modelData.subtitle ? 0.55 : 0.88)))
-                        // rofi lowercased every row it drew, and an app name is
-                        // the launcher's to style. A calculated answer, a
+                        // An app name is the launcher's to style, so it is
+                        // lowercased. A calculated answer, a
                         // command and a copied line are not — they are text
                         // that came from somewhere else and has to come back
                         // out the way it went in.
@@ -1019,7 +997,7 @@ OverlayWindow {
                         }
                     }
 
-                    // rofi's hover-select: the pointer moves the selection
+                    // Hover selects: the pointer moves the selection
                     // rather than acting on its own. Emphatically only when it
                     // moves.
                     //
