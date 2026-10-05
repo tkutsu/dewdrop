@@ -65,7 +65,8 @@
     "monoFont": "IosevkaTerm Nerd Font Mono",
 
     // Workspace parallax is toggled in the wallpaper popup. Extra zoom leaves
-    // room to pan; 1 disables travel. Motion follows the workspace glide spring.
+    // room to pan across and, with the popup's track, to move the picture up
+    // and down; 1 disables both. Motion follows the workspace glide spring.
     "wallpaperParallaxZoom": 1.08,
 
     // --- apps it opens -----------------------------------------------------

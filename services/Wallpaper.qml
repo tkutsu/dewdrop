@@ -94,9 +94,17 @@ Singleton {
 
     // Workspace motion is remembered even while a solid colour is selected.
     property bool parallax: false
+    // Where the parallax crop sits in the zoom's spare height, from 0 at the
+    // top of the picture to 1 at the bottom.
+    property real parallaxY: 0.5
 
     function setParallax(on) {
         root.parallax = on;
+        root.save();
+    }
+
+    function setParallaxY(y) {
+        root.parallaxY = y;
         root.save();
     }
 
@@ -354,10 +362,10 @@ Singleton {
         root.save();
     }
 
-    // What is on screen, the last colour, drift, and workspace parallax.
-    // New lines follow the old ones so earlier state files still read.
+    // What is on screen, the last colour, drift, workspace parallax and its
+    // height. New lines follow the old ones so earlier state files still read.
     function save() {
-        state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n${root.parallax ? "parallax" : ""}\n`);
+        state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n${root.parallax ? "parallax" : ""}\n${Math.round(root.parallaxY * 1000) / 1000}\n`);
     }
 
     Connections {
@@ -389,6 +397,8 @@ Singleton {
                 root.lastColor = last || root.color;
                 root.drift = (lines[2] ?? "").trim() === "drift";
                 root.parallax = (lines[3] ?? "").trim() === "parallax";
+                const y = parseFloat(lines[4]);
+                root.parallaxY = y >= 0 && y <= 1 ? y : 0.5;
             }
             root.stateKnown = true;
             root.restore();

@@ -80,6 +80,7 @@ ShaderEffectSource {
         readonly property string path: strip.presentation?.path ?? ""
         readonly property real zoom: strip.presentation?.zoom ?? 1
         readonly property real offsetX: strip.presentation?.offsetX ?? 0
+        readonly property real offsetY: strip.presentation?.offsetY ?? 0
         readonly property var columns: image.columns
         readonly property int imageStatus: image.status
         readonly property bool sampleReady: image.sampleReady
@@ -106,12 +107,15 @@ ShaderEffectSource {
             readonly property size natural: strip.presentation?.natural ?? Qt.size(0, 0)
             readonly property real cover: natural.width > 0 && natural.height > 0 ? Math.max(root.screen.width / natural.width, root.screen.height / natural.height) * strip.zoom : 1
             readonly property real cropLeft: (natural.width * cover - width) / 2
-            readonly property real cropTop: (natural.height * cover - root.screen.height) / 2 + stripTop
+            // The zoom's spare height, which the wallpaper can be moved through.
+            readonly property real travel: root.screen.height * (strip.zoom - 1)
+            readonly property real cropTop: (natural.height * cover - root.screen.height - travel) / 2 + stripTop
 
             // Load the whole travel range once; only its position moves per frame.
             width: root.screen.width * strip.zoom
-            height: strip.height
+            height: strip.height + travel
             x: (root.screen.width - width) / 2 + strip.offsetX
+            y: strip.offsetY - travel / 2
             asynchronous: true
             retainWhileLoading: true
             cache: false
@@ -125,14 +129,32 @@ ShaderEffectSource {
             // the column averages keep Pill.surface cheap to read.
             readonly property int columnWidth: 8
             readonly property int rowHeight: 4
-            property var columns: []
-            property var cells: []
+            property var grid: ({ nx: 0, cells: [] })
             property bool sampleReady: false
             onStatusChanged: root.checkReady()
             onSampleReadyChanged: root.checkReady()
-            onSourceChanged: {
-                columns = [];
-                cells = [];
+            onSourceChanged: grid = { nx: 0, cells: [] }
+
+            // Each column's colour over the rows the bar shows, which move
+            // with the wallpaper's height but not with its pan.
+            readonly property var columns: {
+                const nx = grid.nx, ny = nx ? grid.cells.length / nx : 0;
+                if (!ny)
+                    return [];
+                const dy = image.height / ny;
+                const first = Math.max(0, Math.floor(-image.y / dy)), last = Math.min(ny, Math.ceil((strip.height - image.y) / dy));
+                const n = Math.max(1, last - first), averages = [];
+                for (let x = 0; x < nx; x++) {
+                    let r = 0, g = 0, b = 0;
+                    for (let row = first; row < last; row++) {
+                        const c = grid.cells[row * nx + x];
+                        r += c.r;
+                        g += c.g;
+                        b += c.b;
+                    }
+                    averages.push(Qt.rgba(r / n, g / n, b / n, 1));
+                }
+                return averages;
             }
 
             function average(from, to) {
@@ -153,18 +175,18 @@ ShaderEffectSource {
 
             // Weight partial cells so a moving icon changes colour smoothly.
             function averageRegion(area) {
-                const nx = columns.length, ny = cells.length / nx;
-                if (!nx || !ny)
+                const nx = grid.nx, ny = nx ? grid.cells.length / nx : 0;
+                if (!ny)
                     return strip.presentation?.average ?? Theme.backdrop;
                 const dx = width / nx, dy = height / ny;
                 const left = Math.max(0, area.x - image.x), right = Math.min(width, area.x + area.width - image.x);
-                const top = Math.max(0, area.y), bottom = Math.min(height, area.y + area.height);
+                const top = Math.max(0, area.y - image.y), bottom = Math.min(height, area.y + area.height - image.y);
                 let r = 0, g = 0, b = 0, weight = 0;
                 for (let y = Math.max(0, Math.floor(top / dy)); y < Math.min(ny, Math.ceil(bottom / dy)); y++) {
                     const h = Math.min(bottom, (y + 1) * dy) - Math.max(top, y * dy);
                     for (let x = Math.max(0, Math.floor(left / dx)); x < Math.min(nx, Math.ceil(right / dx)); x++) {
                         const w = h * (Math.min(right, (x + 1) * dx) - Math.max(left, x * dx));
-                        const c = cells[y * nx + x];
+                        const c = grid.cells[y * nx + x];
                         r += c.r * w;
                         g += c.g * w;
                         b += c.b * w;
@@ -207,19 +229,7 @@ ShaderEffectSource {
                     const hexes = text.split("\n").filter(line => /^\d+,\d+:/.test(line)).map(line => line.match(/#[0-9A-Fa-f]{6}/)?.[0]);
                     if (hexes.length !== nx * ny || !hexes.every(Boolean))
                         return;
-                    const cells = hexes.map(hex => Qt.color(hex)), columns = [];
-                    for (let x = 0; x < nx; x++) {
-                        let r = 0, g = 0, b = 0;
-                        for (let y = 0; y < ny; y++) {
-                            const c = cells[y * nx + x];
-                            r += c.r;
-                            g += c.g;
-                            b += c.b;
-                        }
-                        columns.push(Qt.rgba(r / ny, g / ny, b / ny, 1));
-                    }
-                    image.cells = cells;
-                    image.columns = columns;
+                    image.grid = { nx, cells: hexes.map(hex => Qt.color(hex)) };
                 }
             }
         }

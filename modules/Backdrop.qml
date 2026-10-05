@@ -230,8 +230,9 @@ PanelWindow {
         property string sampled: ""
         property size natural: Qt.size(0, 0)
         property real zoom: 1
-        // Parallax travel, none at zoom 1, which leaves no room to pan.
+        // Parallax travel, none at zoom 1, which leaves no room to move.
         readonly property real offsetX: (0.5 - root.pan.fraction) * root.width * (layer.zoom - 1)
+        readonly property real offsetY: (0.5 - Wallpaper.parallaxY) * root.height * (layer.zoom - 1)
         // Whether the bar can cut its strip from this layer: an image whose
         // size is known.
         readonly property bool glass: layer.path !== "" && layer.natural.width > 0
@@ -254,7 +255,7 @@ PanelWindow {
             width: root.width * layer.zoom
             height: root.height * layer.zoom
             x: (root.width - width) / 2 + layer.offsetX
-            y: (root.height - height) / 2
+            y: (root.height - height) / 2 + layer.offsetY
             source: layer.path ? "file://" + layer.path.split("/").map(encodeURIComponent).join("/") : ""
             // Decode at the window's pixel size, including fractional scaling.
             sourceSize: Qt.size(Math.ceil(width * root.devicePixelRatio), Math.ceil(height * root.devicePixelRatio))
