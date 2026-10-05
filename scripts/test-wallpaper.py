@@ -206,11 +206,15 @@ ShellRoot {
         TestCase { id: test; when: false
             function buttons(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
-                if (item.wheelStep !== undefined && item.rotation === 90) found.height = item;
+                if (item.fullHeight !== undefined) found.framing = item;
+                if (item.cursorShape === Qt.OpenHandCursor) found.frameArea = item;
+                if (item.snapMode !== undefined && item.cellWidth !== undefined) found.grid = item;
                 for (const child of item.children) buttons(child, found);
             }
             function run() {
                 tryVerify(() => Wallpaper.restored, 5000);
+                // The framing shows a picture, so put one up.
+                Wallpaper.show(0);
                 wait(100);
                 const controls = {};
                 buttons(popup, controls);
@@ -220,17 +224,29 @@ ShellRoot {
                 verify(!Wallpaper.parallax && !controls.parallax.lit && controls.parallax.glyph === '', 'parallax button switches off');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
                 verify(Wallpaper.parallax && controls.parallax.glyph === Theme.glyph.check, 'parallax button switches on with standard check');
-                const lane = controls.height.parent;
-                tryVerify(() => lane.height === controls.height.width && lane.opacity === 1, 1000);
-                const button = controls.parallax.mapToItem(popup, controls.parallax.width, controls.parallax.height);
-                const track = lane.mapToItem(popup, lane.width / 2, 0);
-                verify(Math.abs(track.x + lane.width / 2 - button.x) < 2 && track.y > button.y, 'height track sits under the parallax button');
-                mouseClick(controls.height, controls.height.width * 0.25, controls.height.height / 2);
-                verify(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'clicking a quarter down the track puts the crop a quarter down');
+                const framing = controls.framing, area = controls.frameArea;
+                tryVerify(() => framing.height === framing.fullHeight && framing.opacity === 1, 1000);
+                const reserved = popup.reserveHeight;
+                verify(framing.mapToItem(popup, 0, 0).y > controls.parallax.mapToItem(popup, 0, controls.parallax.height).y, 'framing opens under the parallax button');
+                mouseClick(area, area.width / 2, area.height * 0.25);
+                verify(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'pressing a quarter down the picture frames a quarter down');
+                mouseWheel(area, area.width / 2, area.height / 2, 0, -120);
+                wait(50);
+                verify(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'the framing leaves the wheel alone');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                tryVerify(() => lane.height === 0, 1000);
+                tryVerify(() => framing.height === 0, 1000);
+                verify(popup.reserveHeight === reserved, 'closing the framing keeps the window its size');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                tryVerify(() => lane.height > 0, 1000);
+                tryVerify(() => framing.height === framing.fullHeight, 1000);
+                const grid = controls.grid, files = Wallpaper.files.slice();
+                verify(!grid.interactive, 'a short library does not scroll');
+                Wallpaper.files = Array.from({length: 20}, () => files[0]);
+                wait(50);
+                verify(grid.interactive && grid.height === 3 * grid.cellHeight - 4, 'a long library scrolls inside three rows');
+                mouseWheel(grid, grid.width / 2, grid.height / 2, 0, -120);
+                tryVerify(() => grid.contentY > 0, 1000);
+                Wallpaper.files = files;
+                wait(50);
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
                 verify(!Wallpaper.drift && !controls.drift.lit, 'drift button switches off');
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
@@ -310,6 +326,9 @@ Item {
     id: root
     default property alias content: body.data
     property alias spacing: body.spacing
+    property real reserveHeight: 0
+    readonly property real chromeHeight: implicitHeight
+    property var screen: null
     implicitWidth: body.implicitWidth + 12
     implicitHeight: body.implicitHeight + 12
     Rectangle { anchors.fill: parent; color: '#242424'; radius: Theme.popupRadius; border.width: 1; border.color: Theme.stroke }
