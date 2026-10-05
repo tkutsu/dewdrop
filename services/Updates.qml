@@ -36,6 +36,17 @@ Singleton {
     readonly property string trouble: [officialTrouble, aurTrouble].filter(s => s !== "").join(" · ")
     readonly property bool loading: checksRemaining > 0 || checkOfficial.running || checkAur.running
     readonly property bool polling: Settings.moduleOn("updater")
+    property bool refreshQueued: false
+
+    onLoadingChanged: if (!root.loading && root.refreshQueued) Qt.callLater(root.flushRefresh)
+
+    function flushRefresh(): void {
+        if (root.loading || !root.refreshQueued)
+            return;
+        root.refreshQueued = false;
+        if (root.polling)
+            root.refresh();
+    }
 
     onPollingChanged: if (root.polling)
         root.refresh()
@@ -47,8 +58,10 @@ Singleton {
     }
 
     function refresh() {
-        if (root.loading)
+        if (root.loading) {
+            root.refreshQueued = true;
             return;
+        }
         recovery.cancel();
         root.checksRemaining = 2;
         for (const p of [checkOfficial, checkAur, countOfficial, countAur])
@@ -164,6 +177,31 @@ Singleton {
         function refresh(): void {
             root.refresh();
         }
+    }
+
+    Connections {
+        target: WallClock
+        function onWokeUp(): void {
+            if (root.polling)
+                root.refresh();
+        }
+    }
+
+    // External pacman/yay transactions also invalidate the installed counts.
+    FileView {
+        path: "/var/log/pacman.log"
+        watchChanges: root.polling
+        printErrors: false
+        onFileChanged: {
+            reload();
+            packageChange.restart();
+        }
+    }
+
+    Timer {
+        id: packageChange
+        interval: 2000
+        onTriggered: if (root.polling) root.refresh()
     }
 
     Timer {

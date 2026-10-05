@@ -60,8 +60,7 @@ Singleton {
     property var topCpu: []
     property var topMem: []
 
-    // Cleared the first time nvidia-smi fails, so a machine without one is
-    // asked once rather than every time the popup opens.
+    // A failed probe pauses sampling; opening the popup or waking retries it.
     property bool gpuPresent: true
 
     // Raised by whatever is showing the detail (components/SysPopup.qml) for as
@@ -675,6 +674,16 @@ Singleton {
     // Stream GPU readings while the popup is open; one process samples card 0.
     readonly property bool gpuWanted: root.gpuPresent && root.watchers > 0
 
+    Timer {
+        interval: 30000
+        running: root.watchers > 0 && !root.gpuPresent
+        onTriggered: root.gpuPresent = true
+    }
+    Connections {
+        target: WallClock
+        function onWokeUp(): void { root.gpuPresent = true; }
+    }
+
     Process {
         id: gpuPoll
         running: root.gpuWanted
@@ -684,7 +693,7 @@ Singleton {
             onRead: line => root.parseGpu(line)
         }
 
-        // No driver, no card, or a card that cannot be talked to: stop asking.
+        // No driver, no card, or a card that cannot be talked to: pause sampling.
         // Only while it was wanted — being stopped from here ends it the same
         // way, and that is not the card's fault.
         onExited: function (exitCode) {
@@ -782,6 +791,7 @@ Singleton {
         root.watched = watching;
         if (!watching)
             return;
+        root.gpuPresent = true;
         root._cpuPrev = null;
         root._corePrev = [];
         root._procPrev = {};

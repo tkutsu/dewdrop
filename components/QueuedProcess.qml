@@ -27,6 +27,7 @@ Process {
     property string arg: ""
     // How long `want` has to hold still before it is acted on.
     property int interval: 60
+    property bool cancelled: false
 
     signal result(string arg, string text)
 
@@ -40,8 +41,13 @@ Process {
     onWantChanged: {
         if (root.want)
             root.debounce.restart();
-        else
+        else {
             root.debounce.stop();
+            if (root.running)
+                root.cancelled = true;
+            else
+                root.arg = "";
+        }
     }
 
     // Only the debounce calls this. An exiting run that finds newer work
@@ -54,6 +60,7 @@ Process {
         if (root.running || root.want === root.arg)
             return;
         root.arg = root.want;
+        root.cancelled = false;
         if (root.arg)
             root.running = true;
     }
@@ -64,10 +71,21 @@ Process {
     function cancel(): void {
         root.want = "";
         root.debounce.stop();
+        if (root.running)
+            root.cancelled = true;
+        else
+            root.arg = "";
     }
 
-    onExited: if (root.want !== root.arg)
-        root.debounce.restart()
+    onExited: {
+        // Keep arg intact until its stdout is collected, then forget that run.
+        if (root.cancelled) {
+            root.arg = "";
+            root.cancelled = false;
+        }
+        if (root.want && root.want !== root.arg)
+            root.debounce.restart();
+    }
 
     stdout: StdioCollector {
         onStreamFinished: root.result(root.arg, text)

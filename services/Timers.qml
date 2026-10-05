@@ -28,7 +28,7 @@ Singleton {
     readonly property int ringMs: 60000
     readonly property int beatMs: 3000
 
-    // How overdue a restored countdown may be and still be worth announcing.
+    // How overdue a countdown or alarm may be and still be worth announcing.
     // The shell coming back up an hour later should not fire a timer set for a
     // kettle that has long since boiled; one coming back after a crash a
     // minute ago should.
@@ -380,14 +380,29 @@ Singleton {
 
     function expire(): void {
         const due = root.entries.filter(e => e.running && e.endsAt <= root.now);
-        for (const e of due)
-            root.fire(e);
+        for (const e of due) {
+            // A countdown tick can beat the shared wake signal after suspend.
+            if (root.now - e.endsAt <= root.graceMs)
+                root.fire(e);
+            else if (e.kind === "alarm" && e.days.length > 0)
+                root._patch(e.id, {endsAt: root.occurrence(e.hour, e.minute, e.days, root.now + 1000)});
+            else
+                root._drop(e.id, true);
+        }
         // Each ring gives up on its own clock. One hush for the lot would
         // silence a timer that just went off because an older one had been
         // ringing a minute.
         const kept = root.ringing.filter(r => root.now - r.firedAt <= root.ringMs);
         if (kept.length !== root.ringing.length)
             root.ringing = kept;
+    }
+
+    Connections {
+        target: WallClock
+        function onWokeUp(): void {
+            root.tick();
+            root.arm();
+        }
     }
 
     function fire(e: var): void {

@@ -24,7 +24,7 @@ BarItem {
 
     // Same treatment the mail module gets, and for the same reason: a count of
     // zero because nothing has come back yet must not read as a clear list.
-    opacity: Tasks.loaded ? 1 : Theme.dimOpacity
+    opacity: Tasks.stale ? Theme.dimOpacity : 1
 
     BadgedGlyph {
         Layout.fillHeight: true

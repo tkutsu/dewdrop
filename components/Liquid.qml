@@ -49,15 +49,15 @@ ShaderEffect {
 
     readonly property size size: Qt.size(width, height)
 
-    // The wallpaper, for glass that sits on it: an Image of it, which the
+    // The wallpaper, for glass that sits on it: a texture of it, which the
     // glass draws bent at its edges instead of letting Hyprland's blur show
     // through a tint. Null (the default) for glass laid on other glass, like
     // the workspace mark, and the glass is the plain fill until it has loaded.
     //
-    // The Image holds just the part of the wallpaper that is behind it, and is
+    // The texture holds just the part of the wallpaper that is behind it, and is
     // laid out in the window over that part, as a direct child of the
     // window's content.
-    property Image backdrop: null
+    property Item backdrop: null
 
     // Where this item is in its window. Walked up the parent chain rather than
     // handed to mapToItem, which would leave the binding nothing to re-run on
@@ -74,7 +74,7 @@ ShaderEffect {
     readonly property point origin: backdrop ? Qt.point(windowPos.x - backdrop.x, windowPos.y - backdrop.y) : Qt.point(0, 0)
     readonly property size backdropSize: backdrop ? Qt.size(backdrop.width, backdrop.height) : Qt.size(1, 1)
 
-    readonly property real glass: backdrop?.status === Image.Ready ? 1 : 0
+    readonly property real glass: backdrop?.glassWeight ?? (backdrop?.status === Image.Ready ? 1 : 0)
     property real bend: Theme.glassBend
     property real bendDepth: Theme.glassBendDepth
     property real soften: Theme.glassSoften

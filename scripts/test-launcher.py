@@ -47,6 +47,10 @@ MOCKS = {
         function results(query) { return rows; }
         function activate(row, mode) { activated = mode; return false; }''',
     "Email": '''property var threads: []
+        property bool configured: true
+        property bool loaded: true
+        property bool loading: false
+        property string trouble: ""
         property var bodies: ({})
         property var found: null
         function sayWhen(at) { return "10:00"; }
@@ -216,6 +220,23 @@ ShellRoot {
             Email.bodies = ({old: "earlier reply", new: "latest reply"});
             check(Launcher.mailText.includes("earlier reply") && Launcher.mailText.includes("latest reply"), "reader shows unread conversation");
             Launcher.mailOpen = null;
+            Launcher.db = ({});
+            Email.found = null;
+            check(Launcher.mailResults("")[0].title === "reading inbox...", "bare mail query reports pending inbox");
+            Email.found = {q: Launcher.recentMail, rows: [], trouble: "mail fetch failed"};
+            check(Launcher.mailResults("")[0].title === "mail fetch failed", "bare mail query reports failed inbox");
+            Email.found = {q: Launcher.recentMail, rows: [], trouble: ""};
+            Email.loading = true;
+            check(Launcher.mailResults("")[0].title === "reading inbox...", "cached empty inbox stays marked while reloading");
+            Email.loading = false;
+            Email.trouble = "Google needs reconnecting";
+            check(Launcher.mailResults("")[0].title === Email.trouble, "cached empty inbox shows expired sign-in");
+            Email.trouble = "";
+            Launcher.rankingNow = Date.now();
+            Launcher.db = ({aged: {count: 2, last: Launcher.rankingNow}});
+            check(Launcher.frecency("aged") === 8, "recent launch weight");
+            Launcher.rankingNow += 25 * 3600000;
+            check(Launcher.frecency("aged") === 2, "ranking decays when clock advances");
             Launcher.db = ({});
             Launcher.show();
             check(!Launcher.results.some(r => r.kind === "desktop"), "no unused desktop actions on home");

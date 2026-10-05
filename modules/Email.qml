@@ -9,7 +9,7 @@ import qs.services
 // opens the mail popup; selecting a row opens its thread in Gmail.
 BarItem {
     // #custom-email.loading { opacity: 0.55 }
-    opacity: Email.loaded ? 1 : Theme.dimOpacity
+    opacity: Email.stale ? Theme.dimOpacity : 1
 
     tooltip: Email.tooltip
     popup: EmailPopup {}

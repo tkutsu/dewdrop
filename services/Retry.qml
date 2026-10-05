@@ -10,16 +10,23 @@ QtObject {
     property int attempts: 0
     property int initialMs: 5000
     property int maximumMs: 5 * 60000
+    property double retryAt: 0
+    property double clockNow: Date.now()
     readonly property int delayMs: Math.min(initialMs * Math.pow(2, attempts), maximumMs)
 
     signal triggered
 
     function schedule(): void {
+        if (root.pending)
+            return;
+        root.clockNow = Date.now();
+        root.retryAt = root.clockNow + root.delayMs;
         root.pending = true;
     }
 
     function cancel(): void {
         root.pending = false;
+        root.retryAt = 0;
     }
 
     function reset(): void {
@@ -36,12 +43,31 @@ QtObject {
     }
 
     property Timer timer: Timer {
-        interval: root.delayMs
+        interval: Math.max(1, Math.ceil(root.retryAt - root.clockNow))
         running: root.active && root.pending
         onTriggered: {
+            root.clockNow = Date.now();
+            if (root.clockNow < root.retryAt) {
+                root.timer.restart();
+                return;
+            }
             root.pending = false;
+            root.retryAt = 0;
             root.attempts = Math.min(root.attempts + 1, 16);
             root.triggered();
+        }
+    }
+
+    property Connections wakeRecovery: Connections {
+        target: WallClock
+        function onWokeUp(): void {
+            if (!root.active || !root.pending)
+                return;
+            root.clockNow = Date.now();
+            if (root.clockNow >= root.retryAt)
+                root.retryNow();
+            else
+                root.timer.restart();
         }
     }
 

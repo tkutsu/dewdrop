@@ -23,7 +23,10 @@ Singleton {
     // Whether the window exists, which is not the same thing: PowerMenu.qml
     // folds itself shut when `shown` goes false, so the window has to outlive
     // the intent by the length of that. See qs.Linger.
-    readonly property bool active: linger.active
+    readonly property bool active: linger.active || root.blackout
+
+    // Outlive the menu until the compositor exits after a CRT power action.
+    property bool blackout: false
 
     Linger {
         id: linger
@@ -97,20 +100,41 @@ Singleton {
     property var armed: null
 
     function toggle(): void {
+        root.blackout = false;
         root.shown = !root.shown;
     }
 
     function arm(action): void {
+        root.blackout = false;
         root.armed = action;
         root.shown = true;
     }
 
-    // Close first, then act. hyprctl kill in particular puts the compositor
-    // into click-to-kill mode, and the menu must not be the thing on screen
-    // when the crosshair goes live.
-    function run(arg: string): void {
+    // Ordinary actions close first; CRT exits keep black until session teardown.
+    function run(arg: string, keepBlack: bool): void {
+        root.blackout = keepBlack && ["--poweroff", "--reboot", "--logout"].includes(arg);
         root.shown = false;
-        Quickshell.execDetached([root.script, arg]);
+        if (root.blackout) {
+            action.command = [root.script, arg];
+            action.running = true;
+        } else {
+            Quickshell.execDetached([root.script, arg]);
+        }
+    }
+
+    Process {
+        id: action
+
+        stderr: StdioCollector {
+            onStreamFinished: if (text.trim() !== "") console.warn("Power action: " + text.trim())
+        }
+        // Successful systemctl requests return before the compositor exits.
+        onExited: function (code, status) {
+            if (code !== 0 || status !== 0) {
+                console.warn("Power action failed: " + code);
+                root.blackout = false;
+            }
+        }
     }
 
     // SUPER+SHIFT+L reaches the menu through this:
@@ -123,10 +147,12 @@ Singleton {
         }
 
         function open(): void {
+            root.blackout = false;
             root.shown = true;
         }
 
         function close(): void {
+            root.blackout = false;
             root.shown = false;
         }
     }
