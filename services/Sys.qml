@@ -281,7 +281,9 @@ Singleton {
 
             if (mode === ":cpu") {
                 const f = line.split(/ +/);
-                const n = f.slice(1).map(Number);
+                // user through steal: guest and guest_nice, the last two, are
+                // already counted inside user and nice.
+                const n = f.slice(1, 9).map(Number);
                 // idle + iowait is the part of the interval the thread had
                 // nothing to do; everything else it was carrying something.
                 const sample = {
@@ -791,6 +793,10 @@ Singleton {
         root.gpuPresent = true;
         root._cpuPrev = null;
         root._corePrev = [];
+        // And the figures from then go too, or they stand in for the load now
+        // until the second sample. Mapped, so the per-thread rows stay put.
+        root.cpuUse = 0;
+        root.coreUse = root.coreUse.map(() => 0);
         root._procPrev = {};
         root._drivePrev = {};
         root.sample();

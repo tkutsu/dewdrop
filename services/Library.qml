@@ -96,7 +96,9 @@ Singleton {
         // mid-update or wedged) would leave `loading` set for the rest of
         // the session, and "reading the library" on screen for as long. A
         // real dump of this library is a tenth of a second.
-        command: ["timeout", "15", "mpc", "-f", "%file%\t%albumartist%\t%artist%\t%album%\t%title%\t%date%\t%time%", "listall"]
+        // Over the same socket as services/Mpd.qml, not mpc's default TCP port,
+        // which mpd only happens to be listening on as well.
+        command: ["timeout", "15", "mpc", ...(Settings.mpdSocket ? ["--host", Settings.mpdSocket] : []), "-f", "%file%\t%albumartist%\t%artist%\t%album%\t%title%\t%date%\t%time%", "listall"]
 
         // After the collector, which waits for the stream before letting the
         // exit through. A dump that failed to spawn never closes its stdout,

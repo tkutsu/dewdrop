@@ -211,6 +211,8 @@ ShellRoot {
 
     function run() {
         try {
+            check(Launcher.results.length === 0, "a closed launcher computes nothing");
+            Launcher.show();
             LauncherMusic.rows = [{kind: "music", title: "first"}, {kind: "music", title: "last"}];
             Launcher.query = "#";
             Launcher.index = 1;
@@ -240,7 +242,8 @@ ShellRoot {
             Launcher.db = ({});
             Launcher.show();
             check(!Launcher.results.some(r => r.kind === "desktop"), "no unused desktop actions on home");
-            check(Launcher.results.filter(r => r.kind === "mode").length === Launcher.modes.length, "all modes discoverable");
+            check(!Launcher.results.some(r => r.kind === "mode"), "modes stay in the hint line, not the list");
+            check(Launcher.results.some(r => r.kind === "app"), "home opens full of apps without history");
             check(!Launcher.results.some(r => r.kind === "power"), "no power actions on home");
             check(Launcher.noteRow("g", "title").subtitle === "", "note rows default to no subtitle");
             const stableResults = Launcher.results;
@@ -321,10 +324,18 @@ ShellRoot {
             check(!Bluetooth.on && !Launcher.shown, "Bluetooth power-off delegates and closes");
             checkBluetooth();
 
+            Launcher.db = ({});
             Launcher.show();
-            const files = Launcher.results.findIndex(r => r.kind === "mode" && r.prefix === "/");
-            Launcher.activate(files);
-            check(Launcher.shown && Launcher.pathMode && test.adopted === "/", "mode selection keeps launcher open and updates input");
+            check(!Launcher.results.some(r => r.action), "unused desktop actions stay off home");
+            check(!Launcher.appIndex.some(a => a.entry.id === "launcher-hidden"), "hidden apps are not indexed");
+            Launcher.query = "regression priv";
+            const priv = Launcher.results.findIndex(r => r.kind === "app" && r.action?.name === "Private window");
+            check(priv === 0 && Launcher.results[0].subtitle === "Launcher regression app", "desktop action found by app and action name");
+            Launcher.activate(priv);
+            check(Launcher.db["launcher-regression:private"]?.count === 1 && !Launcher.shown, "desktop action launches and is ranked");
+            Launcher.show();
+            check(Launcher.results.some(r => r.action?.name === "Private window"), "used desktop action joins home");
+            Launcher.db = ({});
 
             LauncherMusic.rows = [{kind: "music-track", title: "Track", subtitle: ""}];
             Launcher.query = "#track";
@@ -372,7 +383,7 @@ def main():
         for name in ("Fuzzy.js", "Linger.qml"):
             (target / name).write_text((ROOT / name).read_text())
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
-        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property string home: "/tmp"; function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path; } }\n')
+        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property string home: "/tmp"; function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path; } }\n')
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int zipTotalMs: 50; property int revealMs: 10; property var glyph: ({lock: "", alarm: "", timer: "", tasks: "", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
@@ -381,7 +392,8 @@ def main():
         runtime.mkdir(mode=0o700)
         applications = target / "data/applications"
         applications.mkdir(parents=True)
-        (applications / "launcher-regression.desktop").write_text("[Desktop Entry]\nType=Application\nName=Launcher regression app\nKeywords=zzlauncher;\nExec=/usr/bin/true\n")
+        (applications / "launcher-regression.desktop").write_text("[Desktop Entry]\nType=Application\nName=Launcher regression app\nKeywords=zzlauncher;\nExec=/usr/bin/true\nActions=private;\n\n[Desktop Action private]\nName=Private window\nExec=/usr/bin/true\n")
+        (applications / "launcher-hidden.desktop").write_text("[Desktop Entry]\nType=Application\nName=Launcher hidden app\nExec=/usr/bin/true\n")
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime), XDG_STATE_HOME=str(target / "state"), XDG_DATA_HOME=str(target / "data"))
         env.pop("WAYLAND_DISPLAY", None)
         env.pop("HYPRLAND_INSTANCE_SIGNATURE", None)

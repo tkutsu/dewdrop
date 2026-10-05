@@ -14,7 +14,7 @@ Popup {
     // service only tracks the default output. These are only worth keeping
     // bound while there is a popup to show them.
     PwObjectTracker {
-        objects: Audio.sinks.concat(Audio.outStreams)
+        objects: Audio.sinks.concat(Audio.outStreams, Audio.sources)
     }
 
     spacing: 6
@@ -43,7 +43,8 @@ Popup {
         acceptedButtons: Qt.NoButton
 
         onWheel: function (wheel) {
-            // Only the app rows carry a node; the outputs and master don't.
+            // The app rows and the input section carry a node; the outputs
+            // and master don't.
             const row = content.childAt(0, wheel.y) ?? content.childAt(0, wheel.y + content.spacing);
             const node = row?.modelData ?? null;
             const step = up => node ? Audio.stepNode(node, up) : Audio.step(up);
@@ -142,6 +143,52 @@ Popup {
                         }
                     }
                 }
+            }
+
+            // The input, after a rule, laid out as the output is: the
+            // microphones to choose between when there is more than one, then
+            // its level, the mic glyph its mute. Each part carries the source
+            // as its node, so the wheel over any of it moves the mic.
+            Rectangle {
+                readonly property var modelData: Audio.source
+                visible: !!Audio.source
+                width: master.width
+                height: Theme.pillBorder
+                color: Theme.stroke
+            }
+
+            Column {
+                readonly property var modelData: Audio.source
+                visible: Audio.sources.length > 1
+
+                Repeater {
+                    model: ScriptModel {
+                        values: Audio.sources
+                    }
+
+                    delegate: ChoiceRow {
+                        id: input
+
+                        required property var modelData
+
+                        width: master.width
+                        text: modelData.description || modelData.name
+                        current: modelData === Audio.source
+                        onTapped: Audio.setDefaultSource(input.modelData)
+                    }
+                }
+            }
+
+            VolumeRow {
+                readonly property var modelData: Audio.source
+                visible: !!Audio.source
+                icon: Audio.micMuted ? Theme.glyph.micMuted : Theme.glyph.mic
+                volume: Audio.micVolume
+                onMoved: value => {
+                    if (Audio.source?.audio)
+                        Audio.source.audio.volume = value;
+                }
+                onIconTapped: Audio.toggleMic()
             }
         }
     }

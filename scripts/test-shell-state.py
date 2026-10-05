@@ -65,7 +65,8 @@ ShellRoot {
     function check(ok, message) { if (!ok) throw Error(message); }
     function run() {
         try {
-            const firstNote = {id: 1, appName: "App", closed: {connect: function(callback) {}}};
+            const ignored = {connect: function(callback) {}};
+            const firstNote = {id: 1, appName: "App", closed: ignored, summaryChanged: ignored, bodyChanged: ignored};
             const secondNote = {id: 2, appName: "App"};
             Notifications.list = [firstNote, secondNote];
             Notifications.centreFocus = firstNote;

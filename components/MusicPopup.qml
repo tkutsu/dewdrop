@@ -255,6 +255,8 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
+                    // A stream has no length to seek through.
+                    enabled: Mpd.duration > 0
                     knob: false
                     fill: root.accent
                     // Ten seconds a notch, as on the pill.
@@ -266,7 +268,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.readoutWidth
                     horizontalAlignment: Text.AlignRight
-                    text: `${Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}`
+                    text: Mpd.duration > 0 ? `${Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}` : Mpd.clock(Mpd.elapsed)
                     opacity: 0.75
                     font.pixelSize: Theme.captionSize
                 }
