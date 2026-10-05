@@ -88,8 +88,7 @@ Singleton {
 
     // --- input -----------------------------------------------------------------
     // The microphone, for the popup's last section: which one, how loud, and
-    // muted or not. Read from PipeWire like the output; volumecontrol.sh keeps
-    // the mic keys.
+    // muted or not. Read from PipeWire like the output.
     readonly property PwNode source: Pipewire.defaultAudioSource
     readonly property var sources: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioSource).sort((a, b) => (a.description || a.name).localeCompare(b.description || b.name))
     readonly property bool micMuted: source?.audio?.muted ?? false
@@ -111,16 +110,15 @@ Singleton {
     readonly property string tooltip: sink ? description : "No audio output"
 
     // One notch of the wheel, up or down. Set on the node rather than through
-    // volumecontrol.sh: a fast flick is several notches in one event, and a
+    // a script: a fast flick is several notches in one event, and a
     // script per notch reads the volume before the last one has written it,
     // so steps were lost. The assignment lands at once, so notches add up.
     function step(up) {
         root.stepNode(root.sink, up);
     }
 
-    // Up or down to the next multiple of five, unmuting on the way: the same
-    // step volumecontrol.sh takes for the media keys, for the default sink
-    // and for any one app's stream.
+    // Up or down to the next multiple of five, unmuting on the way, for the
+    // default sink and for any one app's stream.
     function stepNode(node, up: bool): void {
         const audio = node?.audio;
         if (!audio)
