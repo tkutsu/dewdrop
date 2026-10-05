@@ -11,10 +11,10 @@ Popup {
     readonly property real cellWidth: 104
     readonly property real cellHeight: 58
     readonly property real gridWidth: columns * cellWidth + (columns - 1) * 4
-    // The lane beside the grid for the parallax height's track.
-    readonly property real laneWidth: 14
-    readonly property real laneGap: 8
-    readonly property real bodyWidth: Math.max(320, gridWidth + laneGap + laneWidth)
+    // Past this many rows the thumbnails scroll rather than stretch the popup.
+    readonly property int visibleRows: 3
+    readonly property real bodyWidth: Math.max(320, gridWidth)
+    readonly property real screenAspect: root.screen ? root.screen.height / root.screen.width : 9 / 16
 
     // Everything in a channel row that is not the track, so the three tracks
     // can take whatever the thumbnails above them leave over.
@@ -25,6 +25,9 @@ Popup {
     readonly property real sliderWidth: bodyWidth - swatchWidth - 8 - labelWidth - readoutWidth - rowSpacing * 2
 
     spacing: 8
+    // Room for the framing up front, so turning parallax on opens it inside a
+    // window that keeps its size (see Popup.reserveHeight).
+    reserveHeight: root.chromeHeight - framing.height + framing.fullHeight
 
     // Hue 0..360, saturation and value 0..100. HSV rather than RGB because the
     // three questions it asks — which colour, how strong, how bright — are the
@@ -173,17 +176,25 @@ Popup {
         }
     }
 
-    PopupHeader {
-        width: root.bodyWidth
-        inset: 0
-        title: "Wallpaper"
+    // The header, and under it while parallax is on, the framing. One block
+    // so the framing's gap opens with it instead of jumping in at the start.
+    Column {
+        PopupHeader {
+            width: root.bodyWidth
+            inset: 0
+            title: "Wallpaper"
 
-        PopupButton {
-            framed: true
-            lit: Wallpaper.parallax
-            glyph: Wallpaper.parallax ? Theme.glyph.check : ""
-            label: "parallax"
-            onTapped: Wallpaper.setParallax(!Wallpaper.parallax)
+            PopupButton {
+                framed: true
+                lit: Wallpaper.parallax
+                glyph: Wallpaper.parallax ? Theme.glyph.check : ""
+                label: "parallax"
+                onTapped: Wallpaper.setParallax(!Wallpaper.parallax)
+            }
+        }
+
+        Framing {
+            id: framing
         }
     }
 
@@ -192,106 +203,166 @@ Popup {
         text: Wallpaper.tooltip
     }
 
-    // The thumbnails, and beside them, under the parallax button, where the
-    // parallax crop sits up and down: a track the height of the grid that
-    // grows down out of the button while parallax is on. The lane is kept
-    // either way, since resizing a popup jerks it (see Popup.reserveHeight).
-    Item {
-        width: root.bodyWidth
-        height: grid.height
+    GridView {
+        id: grid
 
-        Grid {
-            id: grid
+        readonly property int rows: Math.ceil(count / root.columns)
 
-            // Centred while the lane is empty, beside it once the track is out.
-            x: (root.bodyWidth - width - (Wallpaper.parallax ? root.laneGap + root.laneWidth : 0)) / 2
-            columns: root.columns
-            spacing: 4
+        x: (root.bodyWidth - root.gridWidth) / 2
+        // Cells carry the gap on their right and bottom; the last ones fall
+        // outside the view.
+        width: root.gridWidth + 4
+        height: Math.max(0, Math.min(rows, root.visibleRows) * cellHeight - 4)
+        cellWidth: root.cellWidth + 4
+        cellHeight: root.cellHeight + 4
+        clip: true
+        model: Wallpaper.files
+        // Scrolls only when there is more than fits, so the wheel otherwise
+        // falls through to whatever is underneath.
+        interactive: rows > root.visibleRows
+        // Whole rows, as the music queue does, and no momentum past the ends.
+        boundsBehavior: Flickable.StopAtBounds
+        snapMode: GridView.SnapToRow
 
-            Behavior on x {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                    easing.type: Easing.InOutQuad
-                }
+        // Open where the wallpaper on screen is, once there are cells to find.
+        Component.onCompleted: Qt.callLater(() => {
+            const index = Wallpaper.files.indexOf(Wallpaper.current);
+            if (index >= 0)
+                grid.positionViewAtIndex(index, GridView.Contain);
+        })
+
+        delegate: Item {
+            id: cell
+
+            required property string modelData
+            required property int index
+
+            readonly property bool current: cell.modelData === Wallpaper.current
+
+            width: root.cellWidth
+            height: root.cellHeight
+
+            Image {
+                anchors.fill: parent
+                // The kept thumbnail once there is one (Wallpaper.thumbs).
+                source: "file://" + Wallpaper.thumbOf(cell.modelData)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                // Decoded at cell size: the thumbnail is 512 wide, and
+                // until it exists this is all that stands between a cell
+                // and a full 4K wallpaper in memory.
+                sourceSize.width: root.cellWidth * 2
+                opacity: cell.current || hover.hovered ? 1 : 0.6
             }
 
-            Repeater {
-                model: Wallpaper.files
+            Rectangle {
+                anchors.fill: parent
+                color: "transparent"
+                border.width: 1
+                border.color: cell.current ? Theme.fg : (hover.hovered ? Theme.outlineHover : "transparent")
+            }
 
-                delegate: Item {
-                    id: cell
+            HoverHandler {
+                id: hover
+            }
 
-                    required property string modelData
-                    required property int index
+            TapHandler {
+                onTapped: Wallpaper.show(cell.index)
+            }
+        }
+    }
 
-                    readonly property bool current: cell.modelData === Wallpaper.current
+    // Where the parallax crop sits: the picture as the zoom frames it, with a
+    // frame round the part on screen. Pressing or dragging puts the frame's
+    // height where the pointer is; across is the workspace's to set. It takes
+    // no wheel, which in this popup only ever scrolls the thumbnails.
+    component Framing: Item {
+        id: framing
 
-                    width: root.cellWidth
-                    height: root.cellHeight
+        readonly property bool shown: Wallpaper.parallax && Wallpaper.current !== ""
+        readonly property real previewHeight: 144
+        readonly property real fullHeight: framing.previewHeight + root.spacing
+        readonly property real zoom: Settings.wallpaperParallaxZoom
+        readonly property real across: Wallpaper.backdrops[root.screen?.name]?.pan.fraction ?? 0.5
 
-                    Image {
-                        anchors.fill: parent
-                        // The kept thumbnail once there is one (Wallpaper.thumbs).
-                        source: "file://" + Wallpaper.thumbOf(cell.modelData)
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        // Decoded at cell size: the thumbnail is 512 wide, and
-                        // until it exists this is all that stands between a cell
-                        // and a full 4K wallpaper in memory.
-                        sourceSize.width: root.cellWidth * 2
-                        opacity: cell.current || hover.hovered ? 1 : 0.6
-                    }
+        width: root.bodyWidth
+        height: framing.shown ? framing.fullHeight : 0
+        opacity: framing.shown ? 1 : 0
+        clip: true
 
-                    Rectangle {
-                        anchors.fill: parent
-                        color: "transparent"
-                        border.width: 1
-                        border.color: cell.current ? Theme.fg : (hover.hovered ? Theme.outlineHover : "transparent")
-                    }
+        Behavior on height {
+            NumberAnimation {
+                duration: Theme.fadeMs
+                easing.type: Easing.InOutQuad
+            }
+        }
 
-                    HoverHandler {
-                        id: hover
-                    }
-
-                    TapHandler {
-                        onTapped: Wallpaper.show(cell.index)
-                    }
-                }
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.fadeMs
             }
         }
 
         Item {
-            x: root.bodyWidth - root.laneWidth
-            width: root.laneWidth
-            height: Wallpaper.parallax ? grid.height : 0
-            opacity: Wallpaper.parallax ? 1 : 0
-            clip: true
+            id: preview
 
-            Behavior on height {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                    easing.type: Easing.InOutQuad
+            x: (root.bodyWidth - width) / 2
+            y: root.spacing
+            width: Math.round(framing.previewHeight / root.screenAspect)
+            height: framing.previewHeight
+
+            // The rest of the picture, dimmed: in reach, but not on screen.
+            Image {
+                anchors.fill: parent
+                source: Wallpaper.current ? "file://" + Wallpaper.thumbOf(Wallpaper.current) : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                sourceSize.width: preview.width * 2
+                opacity: 0.35
+            }
+
+            Item {
+                id: frame
+
+                // Whole pixels, or the clip shaves the border's far edges.
+                width: Math.round(preview.width / framing.zoom)
+                height: Math.round(preview.height / framing.zoom)
+                x: Math.round((preview.width - width) * framing.across)
+                y: Math.round((preview.height - height) * Wallpaper.parallaxY)
+                clip: true
+
+                Image {
+                    x: -frame.x
+                    y: -frame.y
+                    width: preview.width
+                    height: preview.height
+                    source: Wallpaper.current ? "file://" + Wallpaper.thumbOf(Wallpaper.current) : ""
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    sourceSize.width: preview.width * 2
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: "transparent"
+                    border.width: 1
+                    border.color: Theme.fg
                 }
             }
 
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                }
-            }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
 
-            // Turned a quarter so its start is the top, as the picture and
-            // the wheel both read. No fill: a height is a place, not an amount.
-            Slider {
-                x: (root.laneWidth - width) / 2
-                y: (grid.height - height) / 2
-                width: grid.height
-                height: root.laneWidth
-                rotation: 90
-                fill: Theme.sliderTrack
-                value: Wallpaper.parallaxY
-                wheelStep: 0.05
-                onMoved: v => Wallpaper.setParallaxY(v)
+                function seek(y) {
+                    Wallpaper.setParallaxY(Math.max(0, Math.min(1, y / height)));
+                }
+
+                onPressed: mouse => seek(mouse.y)
+                onPositionChanged: mouse => {
+                    if (pressed)
+                        seek(mouse.y);
+                }
             }
         }
     }
