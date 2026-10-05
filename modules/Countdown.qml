@@ -14,6 +14,11 @@ import qs.services
 // It carries whichever timer is nearest its end, the next alarm when nothing is
 // running, and the fact that something has gone off when something has. Those
 // are three states of one thing, so they are one pill and not three modules.
+//
+// No popup: pointed at, it opens out the way the music pill does. The glyph
+// gives its place to a pause or play mark and a close hand folds out after the
+// label, so what can be done to the timer is on the timer. The full list, and
+// the phone settings, are the clock's popup.
 BarItem {
     id: root
 
@@ -23,17 +28,35 @@ BarItem {
     stowed: !Timers.loaded
     folds: false
 
-    // And the popup goes with it: the last timer cancelled from the popup's
-    // own row would otherwise leave it hanging from a pill that is no longer
-    // there.
-    onStowedChanged: if (stowed)
-        OpenPopup.close(root)
+    // Whether a hover is run rather than set: only for a pill at rest (see
+    // Music.settled).
+    readonly property bool settled: reveal >= 1
+
     readonly property real progress: Timers.progress
     // How fast that runs while the timer does, for the pill to carry the line
     // on between the ticks (Pill.rate). `total` is in milliseconds.
     readonly property real rate: !ringing && Timers.focus?.running && Timers.focus.total > 0 ? 1000 / Timers.focus.total : 0
 
     readonly property bool ringing: Timers.ringing.length > 0
+
+    // What the hands act on: the timer the pill shows, or the alarm it shows
+    // when no timer is set. Pausing an alarm is switching it off, the same as
+    // the popup's button always was.
+    readonly property var target: Timers.focus ?? Timers.nextAlarm
+
+    function hold() {
+        if (root.ringing)
+            Timers.hush();
+        else if (root.target)
+            Timers.toggle(root.target.id);
+    }
+
+    function dismiss() {
+        if (root.ringing)
+            Timers.hush();
+        else if (root.target)
+            Timers.cancel(root.target.id);
+    }
 
     // What the pill shows, kept while the pill goes: the timer is gone before
     // its pill is, and the glyph and figures would otherwise swap to "nothing
@@ -71,18 +94,71 @@ BarItem {
 
     Component.onCompleted: root.sync()
 
-    spacing: Theme.mediaGap
-    popup: TimerPopup {}
+    // Each part brings its own gap, so that the close hand can take its gap
+    // with it as it folds.
+    spacing: 0
+    // Each target presses in by itself.
+    dips: false
+    contentAnimating: closeWidth.running
 
-    Glyph {
+    // Out only while the pill is pointed at.
+    readonly property bool handsOut: root.containsMouse
+
+    // The glyph's slot, and the pause button once the hands are out: the
+    // glyph fades to what pressing it will do, as the music pill's sleeve
+    // does. Ringing, there is nothing to pause, so it keeps hopping and a
+    // press shuts it up. Wide enough for either, so the swap moves nothing.
+    Item {
+        id: slot
+        readonly property bool inkHovered: slotHover.hovered
+
+        HoverHandler { id: slotHover }
+
+        readonly property bool marked: root.handsOut && !root.ringing
+
         Layout.fillHeight: true
-        text: root.shownGlyph
-        fontSize: Theme.glyphSizeLarge
-        // White even while ringing: the hop below on the alarm's beat is the
-        // signal, and orange means "warm" everywhere else on this bar.
-        color: Theme.fg
+        implicitWidth: Math.max(glyph.implicitWidth, mark.implicitWidth) + Theme.mediaGap
+        transform: Translate { y: slotTap.pressed ? Theme.pressDip : 0 }
 
-        transform: Translate { y: bounce.offset }
+        TapHandler {
+            id: slotTap
+            margin: Theme.pressDip
+            onTapped: root.hold()
+        }
+
+        Glyph {
+            id: glyph
+            x: Math.round((slot.width - Theme.mediaGap - width) / 2)
+            height: parent.height
+            text: root.shownGlyph
+            fontSize: Theme.glyphSizeLarge
+            // White even while ringing: the hop below on the alarm's beat is the
+            // signal, and orange means "warm" everywhere else on this bar.
+            color: Theme.fg
+            opacity: slot.marked ? 0 : 1
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
+
+            transform: Translate { y: bounce.offset }
+        }
+
+        Glyph {
+            id: mark
+            x: Math.round((slot.width - Theme.mediaGap - width) / 2)
+            height: parent.height
+            text: root.target?.running ? Theme.glyph.paused : Theme.glyph.playing
+            opacity: slot.marked ? 1 : 0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
+        }
     }
 
     // On the beat, not beside it: the alarm sounds on Timers.beatMs and the
@@ -128,11 +204,48 @@ BarItem {
         }
     }
 
-    // Left is the popup (BarItem.popupButton). Right is the thing you came to
-    // do: shut it up if it is shouting, hold it if it is running, and
-    // otherwise set one. Middle shuts it up too and otherwise throws away,
-    // which is the one action here that cannot be undone and so is the one
-    // nothing lands on by accident.
+    // The close hand, folding the way the music pill's next does. It throws
+    // the timer away, or shuts it up if it is ringing.
+    Item {
+        readonly property real full: Theme.mediaGap + close.implicitWidth
+
+        Layout.fillHeight: true
+        implicitWidth: root.handsOut ? full : 0
+        clip: width < full
+        opacity: width / full
+
+        Behavior on implicitWidth {
+            enabled: root.settled
+            NumberAnimation {
+                id: closeWidth
+                duration: Theme.foldMs
+                easing.type: Easing.InOutCubic
+            }
+        }
+
+        Glyph {
+            id: close
+            readonly property bool inkHovered: closeHover.hovered
+
+            HoverHandler { id: closeHover; enabled: root.handsOut }
+
+            x: Theme.mediaGap
+            height: parent.height
+            text: Theme.glyph.close
+            transform: Translate { y: closeTap.pressed ? Theme.pressDip : 0 }
+
+            TapHandler {
+                id: closeTap
+                enabled: root.handsOut
+                margin: Theme.pressDip
+                onTapped: root.dismiss()
+            }
+        }
+    }
+
+    // Right is the thing you came to do: shut it up if it is shouting, hold it
+    // if it is running, and otherwise set one. Middle shuts it up too and
+    // otherwise throws away, the close hand without reaching for it.
     actions: ({
             [Qt.RightButton]: () => {
                 if (root.ringing)
