@@ -3,10 +3,10 @@ import qs
 import qs.components
 import qs.services
 
-// The timer pill's popup: everything that is set, and a way to set something
-// else.
+// The timers popup, off the clock's time: everything that is set, and a way to
+// set something else.
 //
-// The pill itself only ever shows one timer — the one nearest its end — which
+// The timer pill only ever shows one timer — the one nearest its end — which
 // is the right answer to a glance and the wrong one to a question. This is the
 // question: all of them, each with the things that can be done to it.
 Popup {
