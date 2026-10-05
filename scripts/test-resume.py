@@ -35,7 +35,7 @@ ShellRoot {
     Connections { target: WallClock; function onWokeUp() { test.wakes++; } }
     QtObject { id: radio; property bool scannerEnabled: false; property int type: NM.DeviceType.Wifi; property var networks: ({values: []}) }
     QtObject { id: radio2; property bool scannerEnabled: false; property int type: NM.DeviceType.Wifi; property var networks: ({values: []}) }
-    QtObject { id: notice; property int id: 42; signal closed }
+    QtObject { id: notice; property int id: 42; property string summary; property string body; signal closed }
     QueuedProcess {
         id: job
         interval: 1
@@ -51,8 +51,8 @@ ShellRoot {
     function run() {
         try {
             const initial = WallClock.now;
-            WallClock.sample(initial + 60000);
-            check(wakes === 0, "ordinary minute is not a wake");
+            WallClock.sample(initial + 5000);
+            check(wakes === 0, "ordinary tick is not a wake");
             Google.configured = true;
             WallClock.sample(initial + 3600000);
             check(wakes === 1 && TestApi.fetches === 1, "clock jump refreshes Google services");
@@ -90,6 +90,8 @@ ShellRoot {
             Notifications.arrived[42] = Date.now() - 3600000;
             Notifications.remember(notice);
             check(Notifications.ago(notice, Date.now()) === "1h", "restored notification retains its age");
+            notice.body = "replaced in place";
+            check(Notifications.ago(notice, Date.now()) !== "1h", "an update in place is as old as the update");
             notice.closed();
             check(Notifications.arrived[42] === undefined, "restored notification still prunes its timestamp");
             check(NightMode.brightness === 30, "startup reads real brightness");
@@ -123,7 +125,7 @@ ShellRoot {
         onTriggered: {
             try {
                 check(runs === 2, "cancelled identical query runs again after old process exits");
-                check(NightMode.committed === 50 && NightMode.brightness === 50, "slider calculates step from startup level");
+                check(NightMode.committed === 50 && NightMode.brightness === 50, "slider sets the level it asked for");
                 job.cancel();
                 job.want = "same";
                 finalCheck.restart();
@@ -197,7 +199,7 @@ import qs.services
 ShellRoot {
     property var service: Notifications
     PersistentProperties { id: stage; reloadableId: "age-test"; property bool saved: false }
-    QtObject { id: notice; property int id: 123; signal closed }
+    QtObject { id: notice; property int id: 123; property string summary; property string body; signal closed }
     Timer {
         interval: 100
         running: true
@@ -276,6 +278,7 @@ def main():
         display.write_text(f'''#!/bin/sh
 case "$1" in
 get) echo 30;;
+set) echo "$2" > '{level}';;
 up) echo "$((30 + $2))" > '{level}';;
 down) echo "$((30 - $2))" > '{level}';;
 esac

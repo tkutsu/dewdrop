@@ -102,6 +102,16 @@ Singleton {
         precision: SystemClock.Minutes
     }
 
+    // Re-read at once after a wake, as the bar clock is (see Clock.qml).
+    Connections {
+        target: WallClock
+
+        function onWokeUp(): void {
+            clock.enabled = false;
+            clock.enabled = true;
+        }
+    }
+
     // --- requests ------------------------------------------------------------
     // One place that knows about headers and status codes. `then` is handed the
     // parsed body; anything that is not a 2xx goes to `fail` with a reason and

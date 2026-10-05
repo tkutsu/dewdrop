@@ -147,15 +147,15 @@ Singleton {
     readonly property string taskPrefix: ","
 
     readonly property var modes: [
-        { prefix: root.pathPrefix, title: "Files", hint: "files" },
-        { prefix: root.windowPrefix, title: "Windows", hint: "windows" },
-        { prefix: root.clipPrefix, title: "Clipboard", hint: "clipboard" },
-        { prefix: root.enginePrefix, title: "Web", hint: "web" },
-        { prefix: root.mailPrefix, title: "Mail", hint: "email" },
-        { prefix: root.taskPrefix, title: "Tasks and timers", hint: "tasks" },
-        { prefix: root.musicPrefix, title: "Music", hint: "music" },
-        { prefix: root.calcPrefix, title: "Calculator", hint: "calc" },
-        { prefix: root.cmdPrefix, title: "Commands", hint: "run" }
+        { prefix: root.pathPrefix, hint: "files" },
+        { prefix: root.windowPrefix, hint: "windows" },
+        { prefix: root.clipPrefix, hint: "clipboard" },
+        { prefix: root.enginePrefix, hint: "web" },
+        { prefix: root.mailPrefix, hint: "email" },
+        { prefix: root.taskPrefix, hint: "tasks" },
+        { prefix: root.musicPrefix, hint: "music" },
+        { prefix: root.calcPrefix, hint: "calc" },
+        { prefix: root.cmdPrefix, hint: "run" }
     ]
 
     // What the hint in the query line says. Normally the modes, assembled
@@ -219,6 +219,11 @@ Singleton {
     // LauncherMenu.qml folds itself shut when `shown` goes false, so the window
     // has to outlive the intent by the length of that. See qs.Linger.
     readonly property bool active: linger.active
+    // Once the window is gone, so is the question: left set, the last mode's
+    // bindings would keep answering it for nobody (every window title change
+    // re-ran `_`). show() starts from empty anyway.
+    onActiveChanged: if (!active)
+        root.query = ""
     property string query: ""
     property int index: 0
     onResultsChanged: if (root.index >= root.results.length)
@@ -419,8 +424,10 @@ Singleton {
         })
 
     readonly property var results: {
+        if (!root.active)
+            return [];
         const c = root.classification;
-        // Empty opens with frequent choices and modes; a space still lists apps.
+        // Empty opens with the most used; a space lists every match ranked alike.
         if (c.mode === "empty")
             return root.homeResults();
 
@@ -461,10 +468,32 @@ Singleton {
     //
     // Deliberately not e.id: Chrome PWAs are installed with ids like
     // "chrome-<hash>-Default", so every one of them would answer to "chrome".
-    readonly property var appIndex: DesktopEntries.applications.values.filter(e => !e.noDisplay).map(e => ({
+    //
+    // Each desktop action an app declares (Firefox's private window) is a row
+    // of its own, answering to its own name first and its app's second, so
+    // "fire priv" finds it. Settings.hiddenApps drops entries by id: Quickshell
+    // ignores OnlyShowIn, which is how blueman's XFCE-only one got in.
+    // A loop rather than flatMap, which Qt's JavaScript engine does not have.
+    readonly property var appIndex: {
+        const rows = [];
+        for (const e of DesktopEntries.applications.values) {
+            if (Settings.hiddenApps.includes(e.id))
+                continue;
+            rows.push({
+                id: e.id,
                 entry: e,
                 fields: root.prepFields([[e.name, 1], [e.genericName, 0.7]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
-            }))
+            });
+            for (const a of e.actions ?? [])
+                rows.push({
+                    id: e.id + ":" + a.id,
+                    entry: e,
+                    action: a,
+                    fields: root.prepFields([[a.name, 1], [e.name, 0.5]])
+                });
+        }
+        return rows;
+    }
 
     // Scored, not rendered: mainResults sorts these in with the power
     // commands, so the rows cannot be cut to maxResults yet.
@@ -473,7 +502,10 @@ Singleton {
 
         for (const a of root.appIndex) {
             const e = a.entry;
-            const f = root.frecency(e.id);
+            const f = root.frecency(a.id);
+            // An action is listed unasked only once it has been used.
+            if (a.action && !terms.length && !f)
+                continue;
             // Empty matches are ranked by history for the home list and space.
             let s = f;
 
@@ -490,10 +522,12 @@ Singleton {
                 s: s,
                 row: {
                     kind: "app",
+                    id: a.id,
                     entry: e,
-                    icon: e.icon,
-                    title: e.name,
-                    subtitle: ""
+                    action: a.action ?? null,
+                    icon: a.action?.icon || e.icon,
+                    title: a.action?.name ?? e.name,
+                    subtitle: a.action ? e.name : ""
                 }
             });
         }
@@ -571,13 +605,13 @@ Singleton {
         Bluetooth.activate(device);
     }
 
-    // Show frequently used apps and actions, then offer every prefix.
+    // The box opens full: what gets used most, then every other app by name.
+    // Desktop controls only once they have been used, so the list is not
+    // headed by toggles nobody asked for. The modes are in the hint line.
     function homeResults() {
-        const desktop = root.desktopMatches([]);
-        const frequent = root.appMatches([]).concat(desktop).filter(x => x.s > 0);
-        frequent.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
-        const rows = frequent.slice(0, 5).map(x => x.row);
-        return rows.concat(root.modes.map(mode => ({ kind: "mode", prefix: mode.prefix, title: mode.title, raw: true })));
+        const scored = root.appMatches([]).concat(root.desktopMatches([]).filter(x => x.s > 0));
+        scored.sort((a, b) => b.s - a.s || a.row.title.localeCompare(b.row.title));
+        return scored.slice(0, root.maxResults).map(x => x.row);
     }
 
     // --- power ---------------------------------------------------------------
@@ -1519,22 +1553,19 @@ Singleton {
                 r.action.run();
             },
             bluetooth: (r, i) => root.activateBluetooth(r),
-            mode: (r, i) => {
-                root.query = r.prefix;
-                root.queryReplaced(r.prefix);
-            },
             app: (r, i) => {
                 root.leave(i);
-                root.bump(r.entry.id);
+                root.bump(r.id);
                 // execute() ignores Terminal=true, so a TUI app would start
-                // with nowhere to draw.
+                // with nowhere to draw. An action runs in its app's terminal.
+                const run = r.action ?? r.entry;
                 if (r.entry.runInTerminal)
                     Quickshell.execDetached({
-                        command: Settings.inTerminal(r.entry.command, r.entry.name, false),
+                        command: Settings.inTerminal(run.command, run.name, false),
                         workingDirectory: r.entry.workingDirectory
                     });
                 else
-                    r.entry.execute();
+                    run.execute();
             },
             calc: (r, i) => {
                 root.leave(i);

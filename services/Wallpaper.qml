@@ -263,11 +263,14 @@ Singleton {
         root.measuredPath = "";
     }
 
+    // Both magick runs are bounded: a file it hangs on would otherwise hold
+    // the fade, which waits for them. Timed out, the answer is empty, and the
+    // image goes up plain.
     QueuedProcess {
         id: measure
         interval: 0
         want: root.current
-        command: ["magick", "identify", "-ping", "-format", "%w %h", arg + "[0]"]
+        command: ["timeout", "10", "magick", "identify", "-ping", "-format", "%w %h", arg + "[0]"]
 
         onResult: (path, text) => {
             if (path !== root.current)
@@ -283,7 +286,7 @@ Singleton {
         id: sample
         interval: 0
         want: root.current
-        command: ["magick", "-define", "jpeg:size=256x256", arg, "-resize", "64x64!", "-scale", "1x1!", "-format", "#%[hex:p{0,0}]", "info:"]
+        command: ["timeout", "10", "magick", "-define", "jpeg:size=256x256", arg, "-resize", "64x64!", "-scale", "1x1!", "-format", "#%[hex:p{0,0}]", "info:"]
 
         onResult: (path, text) => {
             if (path !== root.current)

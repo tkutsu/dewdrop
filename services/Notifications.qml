@@ -118,9 +118,11 @@ Singleton {
 
     // --- presentation helpers -------------------------------------------------
     // Markup is not advertised (bodyMarkupSupported), but some senders send it
-    // anyway; a line of text has no use for any of it.
+    // anyway; a line of text has no use for any of it. Only the tags the spec
+    // allows (and the br, p and span some send regardless) go, so plain text
+    // that compares two things, "2 < 3 and 5 > 4", keeps both sides.
     function plain(s) {
-        return String(s ?? "").replace(/<[^>]*>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+        return String(s ?? "").replace(/<\/?(?:br|p)\b[^>]*>/gi, " ").replace(/<\/?(?:b|i|u|a|img|span)\b[^>]*>/gi, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
     }
 
     // What AppIcon should look the sender up as: its desktop entry if it named
@@ -133,9 +135,13 @@ Singleton {
         return n.desktopEntry || (icon && !icon.includes("/") ? icon : "") || n.appName;
     }
 
-    // A file or image URL for a path, which senders send as either.
+    // A file or image URL for a path, which senders send as either. An
+    // image-path sent as a bare path reaches us as an icon request for it
+    // (image://icon//tmp/shot.png), which is a picture, not a theme icon.
     function url(s) {
         s = s ?? "";
+        if (s.startsWith("image://icon//"))
+            s = s.slice("image://icon/".length);
         return s.startsWith("/") ? "file://" + s : s;
     }
 
@@ -234,6 +240,17 @@ Singleton {
             return;
         root.observed[n.id] = n;
         retained.arrivalsJson = JSON.stringify(root.arrived);
+        // A sender updating one in place (replaces_id: progress, a changed
+        // song) changes this object rather than sending a new one, and
+        // Quickshell says nothing else about it. It is news again: shown, timed
+        // afresh, and as old as the update.
+        const updated = () => {
+            root.arrived[n.id] = Date.now();
+            retained.arrivalsJson = JSON.stringify(root.arrived);
+            root.announce(n);
+        };
+        n.summaryChanged.connect(updated);
+        n.bodyChanged.connect(updated);
         n.closed.connect(() => {
             delete root.arrived[n.id];
             delete root.passing[n.id];
@@ -259,7 +276,11 @@ Singleton {
         }
         if (root.isFleeting(n))
             root.passing[n.id] = true;
+        root.announce(n);
+    }
 
+    // On the bar beside the clock, unless do-not-disturb holds it back.
+    function announce(n) {
         // A sender that tags its notifications (the volume and mic toasts do,
         // with x-canonical-private-synchronous) means each one to replace the
         // last, not to pile up behind it.
@@ -279,7 +300,8 @@ Singleton {
         // The notice it replaces was only waiting on its time.
         if (root.latest && root.latest !== n)
             root.letGo(root.latest);
-        if (root.showing && !replacing)
+        // Nor is an update to the one on show.
+        if (root.showing && !replacing && root.latest !== n)
             root.burst++;
         root.latest = n;
         root.showing = true;

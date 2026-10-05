@@ -78,6 +78,12 @@
     // manager.
     "fileManager": "xdg-open",
 
+    // Desktop entries the launcher leaves out, by id (the file name without
+    // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
+    // desktop shows up unless it is listed here (blueman-adapters is
+    // OnlyShowIn=XFCE;MATE).
+    "hiddenApps": ["blueman-adapters"],
+
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.
 

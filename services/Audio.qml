@@ -86,6 +86,24 @@ Singleton {
         Pipewire.preferredDefaultAudioSink = node;
     }
 
+    // --- input -----------------------------------------------------------------
+    // The microphone, for the popup's last section: which one, how loud, and
+    // muted or not. Read from PipeWire like the output; volumecontrol.sh keeps
+    // the mic keys.
+    readonly property PwNode source: Pipewire.defaultAudioSource
+    readonly property var sources: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioSource).sort((a, b) => (a.description || a.name).localeCompare(b.description || b.name))
+    readonly property bool micMuted: source?.audio?.muted ?? false
+    readonly property int micVolume: Math.round((source?.audio?.volume ?? 0) * 100)
+
+    function setDefaultSource(node): void {
+        Pipewire.preferredDefaultAudioSource = node;
+    }
+
+    function toggleMic(): void {
+        if (source?.audio)
+            source.audio.muted = !source.audio.muted;
+    }
+
     // The name of the sink when there is one, whether or not anything is
     // plugged into it: an unplugged jack is still the output the machine would
     // use. (This was written as a conditional that returned `description` from
@@ -124,7 +142,30 @@ Singleton {
         objects: root.sink ? [root.sink] : []
     }
 
-    onSinkChanged: probe.reload()
+    // Say so when the sound moves to another device on its own: headphones
+    // connecting or dropping out is otherwise only the icon changing. Not on
+    // the first sink the shell sees, and not across a moment with none, which
+    // a Bluetooth handover can pass through. The new sink's name only arrives
+    // once the tracker below has bound it, so the move waits for that.
+    property int lastSink: -1
+    property bool sinkMoved: false
+
+    onSinkChanged: {
+        probe.reload();
+        if (!sink)
+            return;
+        root.sinkMoved = root.lastSink >= 0 && root.lastSink !== sink.id;
+        root.lastSink = sink.id;
+        root.announceSink();
+    }
+    onDescriptionChanged: root.announceSink()
+
+    function announceSink(): void {
+        if (!root.sinkMoved || !sink?.description)
+            return;
+        root.sinkMoved = false;
+        Quickshell.execDetached(["notify-send", "-e", "-a", "Bar", "-u", "low", "-h", "string:x-canonical-private-synchronous:audio-output", "Sound output", sink.description]);
+    }
 
     Process {
         id: probe

@@ -169,8 +169,9 @@ Singleton {
         }
     }
 
-    // So a finished upgrade can say so instead of the bar carrying a stale
-    // count until the next six-hourly check:  qs ipc call updates refresh
+    // A recount by hand: qs ipc call updates refresh. Upgrades need none, the
+    // pacman.log watch below catches them (taskbar-update.sh used to call this
+    // as well, which only checked twice).
     IpcHandler {
         target: "updates"
 

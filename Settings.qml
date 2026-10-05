@@ -35,6 +35,7 @@ Singleton {
     readonly property string terminal: root.values.terminal ?? "kitty"
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? "xdg-open"
+    readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters"]
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")

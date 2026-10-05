@@ -32,7 +32,9 @@ for src; do
     # never be handed a half-written file (see thumb.sh).
     if [[ ! -s $out ]]; then
         tmp=$(mktemp "$cache/.$key.XXXXXX") || continue
-        if timeout 10 magick "$src[0]" -auto-orient -thumbnail 512x512 -quality 85 "jpg:$tmp" 2>/dev/null; then
+        # Not -auto-orient: the desktop draws the file as stored, and the
+        # picker should show what it will get.
+        if timeout 10 magick "$src[0]" -thumbnail 512x512 -quality 85 "jpg:$tmp" 2>/dev/null; then
             mv -f "$tmp" "$out"
         else
             rm -f "$tmp"

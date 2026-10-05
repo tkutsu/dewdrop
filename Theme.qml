@@ -799,6 +799,9 @@ Singleton {
         // No output to play through reads as the same struck-out speaker as
         // muted, not the struck-out note it used to be (nf-md-volume_off).
         audioOff: fontCut("audio-volume-muted"),
+        // The input's row in the sound popup, and its mute.
+        mic: "\u{f036e}",            // nf-md-microphone_outline
+        micMuted: "\u{f036d}",       // nf-md-microphone_off
 
         playing: "\u{f040a}",
         paused: "\u{f03e4}",
