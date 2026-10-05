@@ -65,8 +65,15 @@ Singleton {
         // finishes a rescan, and the next "&" will ask. When it is open in
         // music mode, LauncherMusic sees `loaded` drop and asks at once.
         function onDatabaseChanged() {
-            root.loaded = false;
             root.stale = root.loading;
+            root.loaded = false;
+        }
+
+        function onConnectedChanged() {
+            root.stale = root.loading;
+            root.failed = false;
+            root.triedAt = 0;
+            root.loaded = false;
         }
     }
 

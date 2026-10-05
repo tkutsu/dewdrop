@@ -1,35 +1,20 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs
 import qs.services
 
-// The flat-colour wallpaper, drawn here rather than left to hyprpaper.
-//
-// hyprpaper does fade between wallpapers, but it takes the outgoing one down
-// before the incoming one is up: the screen dips about a fifth of the way to
-// black on the way past (measured against this build, hyprpaper 0.8.4, 2026-09)
-// and on a slider drag that reads as the background flashing. A colour drawn
-// here is interpolated straight from the old to the new, with nothing in the
-// middle that is neither.
-//
-// hyprpaper still gets every colour — services/Wallpaper.qml goes on writing
-// the one-pixel PNG — because it is what holds the wallpaper while the shell is
-// not running, and what shows through the instant this surface is torn down. It
-// does its dip underneath an opaque copy of the same colour, where nobody sees
-// it.
+// Keep the old wallpaper opaque until its replacement has loaded and faded in.
 PanelWindow {
     id: root
 
     required property var modelData
     screen: modelData
 
-    // Bottom, not Background: hyprpaper's own surface is on Background, and two
-    // surfaces on one layer are ordered by who got there first. Bottom is above
-    // all of Background and below every window, which is the whole of what a
-    // wallpaper has to be.
     WlrLayershell.namespace: "quickshell:backdrop"
-    WlrLayershell.layer: WlrLayer.Bottom
+    WlrLayershell.layer: WlrLayer.Background
 
     anchors {
         top: true
@@ -37,64 +22,157 @@ PanelWindow {
         left: true
         right: true
     }
-    // A wallpaper reserves nothing and is never clicked. Without the empty mask
-    // this would swallow every press that misses a window.
     exclusionMode: ExclusionMode.Ignore
     mask: Region {}
-    color: "transparent"
+    color: "black"
+    visible: root.ready
 
-    // Mapped only while there is a colour to draw or one still fading out.
-    // A surface left up under an image wallpaper is two full-screen buffers
-    // held for nothing and a transparent blend in every repaint on top of it.
-    // Taken off the rectangle's opacity rather than off Wallpaper.color, so
-    // the fade to an image finishes before the surface goes.
-    visible: shade.opacity > 0
-
-    // The colour to draw, which is not quite the colour that is set: it holds
-    // its value through the image that replaces it, so fading out is this
-    // colour going transparent rather than a slide through some other one on
-    // the way. Fading back in from the same place is what makes returning to a
-    // colour look like the image lifting off it.
-    property color shown: "transparent"
-
-    // Off `onScreen` rather than `color`: with drift on, the two differ by
-    // wherever the time of day has taken the colour (see Wallpaper.drift).
-    function adopt() {
-        if (Wallpaper.onScreen)
-            root.shown = Wallpaper.onScreen;
+    property bool ready: false
+    property var front: first
+    property var back: second
+    readonly property var wallpaperLayers: [first, second]
+    readonly property real progress: root.back.opacity
+    readonly property color average: {
+        const a = root.front.average, b = root.back.average, t = root.progress;
+        return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1);
     }
+    readonly property string wantedPath: Wallpaper.onScreen ? "" : Wallpaper.current
+    readonly property string wantedColor: Wallpaper.onScreen
 
-    Component.onCompleted: root.adopt()
+    // Coalesce the service's image/colour setters, which change two properties.
+    onWantedPathChanged: Qt.callLater(root.adopt)
+    onWantedColorChanged: Qt.callLater(root.adopt)
+    Component.onCompleted: {
+        Wallpaper.registerBackdrop(root.screen.name, root);
+        Qt.callLater(root.adopt);
+    }
+    Component.onDestruction: {
+        if (Wallpaper.backdrops[root.screen.name] === root)
+            Wallpaper.registerBackdrop(root.screen.name, null);
+    }
 
     Connections {
         target: Wallpaper
+        function onMeasuredPathChanged() { Qt.callLater(root.startFade); }
+        function onSampledPathChanged() { Qt.callLater(root.startFade); }
+    }
 
-        function onOnScreenChanged() {
-            root.adopt();
+    // While a fade runs, keep its layers intact and apply the latest choice next.
+    function adopt() {
+        if (fade.running || (!root.wantedPath && !root.wantedColor))
+            return;
+        if (root.ready && root.front.path === root.wantedPath) {
+            root.front.swatch = root.wantedColor;
+            root.back.path = "";
+            root.back.swatch = "";
+            return;
+        }
+        root.back.opacity = 0;
+        root.back.swatch = root.wantedColor;
+        root.back.path = root.wantedPath;
+        root.startFade();
+    }
+
+    // A stale load completion must not put a superseded wallpaper on screen.
+    function startFade() {
+        if (fade.running || root.back.path !== root.wantedPath || root.back.swatch !== root.wantedColor)
+            return;
+        if (!root.back.path && !root.back.swatch)
+            return;
+        if (root.back.path && root.back.status !== Image.Ready)
+            return;
+        if (root.back.path) {
+            if (Wallpaper.sampledPath !== root.back.path || Wallpaper.measuredPath !== root.back.path)
+                return;
+            root.back.natural = Wallpaper.currentSize;
+            root.back.sampled = Wallpaper.sampled || String(root.front.average);
+        }
+        const strip = Wallpaper.strips[root.screen.name];
+        if (root.ready && strip && !strip.readyFor(root.back))
+            return;
+        if (root.ready)
+            fade.start();
+        else
+            root.finishFade();
+    }
+
+    // Release the outgoing image after the incoming layer is fully opaque.
+    function finishFade() {
+        const previous = root.front;
+        root.front = root.back;
+        root.back = previous;
+        root.front.opacity = 1;
+        root.back.opacity = 0;
+        root.back.path = "";
+        root.back.swatch = "";
+        root.back.sampled = "";
+        root.back.natural = Qt.size(0, 0);
+        root.ready = true;
+        Qt.callLater(root.adopt);
+    }
+
+    component WallpaperLayer: Rectangle {
+        id: layer
+
+        property string path: ""
+        property string swatch: ""
+        property string sampled: ""
+        property size natural: Qt.size(0, 0)
+        // Whether the bar can cut its strip from this layer: an image whose
+        // size is known.
+        readonly property bool glass: layer.path !== "" && layer.natural.width > 0
+        readonly property color average: layer.path ? Qt.color(layer.sampled || "black") : layer.color
+        property alias status: image.status
+
+        anchors.fill: parent
+        // An image needs no backing rectangle: fading both would dim the blend.
+        color: layer.path ? "transparent" : layer.swatch || "black"
+        opacity: 0
+
+        Behavior on color {
+            enabled: root.ready && root.front === layer && !fade.running
+            ColorAnimation { duration: Theme.fadeMs }
+        }
+
+        Image {
+            id: image
+
+            anchors.fill: parent
+            source: layer.path ? "file://" + layer.path.split("/").map(encodeURIComponent).join("/") : ""
+            // Decode at the window's pixel size, including fractional scaling.
+            sourceSize: Qt.size(Math.ceil(root.width * root.devicePixelRatio), Math.ceil(root.height * root.devicePixelRatio))
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: false
+            onStatusChanged: {
+                if (status === Image.Ready)
+                    Qt.callLater(root.startFade);
+                else if (status === Image.Error) {
+                    console.warn("Could not load wallpaper:", layer.path);
+                    // Black rather than nothing when it is the first.
+                    root.ready = true;
+                }
+            }
         }
     }
 
-    Rectangle {
-        id: shade
+    WallpaperLayer {
+        id: first
+        z: root.front === first ? 0 : 1
+    }
 
-        anchors.fill: parent
-        color: root.shown
-        // Down to nothing while an image is up, so hyprpaper's wallpaper is
-        // what the screen shows and this is not in the way of it.
-        opacity: Wallpaper.color ? 1 : 0
+    WallpaperLayer {
+        id: second
+        z: root.front === second ? 0 : 1
+    }
 
-        // The fade the whole file is for. Same pace as everything else on the
-        // bar; a drag lands a new colour every 60ms and this trails it.
-        Behavior on color {
-            ColorAnimation {
-                duration: Theme.fadeMs
-            }
-        }
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.fadeMs
-            }
-        }
+    NumberAnimation {
+        id: fade
+        target: root.back
+        property: "opacity"
+        from: 0
+        to: 1
+        duration: Theme.fadeMs
+        onFinished: root.finishFade()
     }
 }

@@ -148,7 +148,7 @@ void main() {
 
     vec3 body = fill.rgb;
     float bodyA = fill.a * shape;
-    if (glass > 0.5) {
+    if (glass > 0.0) {
         // Which way the edge nearest p faces, and how far in p is: the
         // nearer the edge, the further in towards the middle the glass
         // looks, easing off to nothing at bendDepth.
@@ -160,8 +160,10 @@ void main() {
                       softened(p - shift).g,
                       softened(p - shift * (1.0 + dispersion)).b);
         c = clamp(mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, saturation), 0.0, 1.0);
-        body = mix(c, fill.rgb, tint);
-        bodyA = shape;
+        vec3 glassBody = mix(c, fill.rgb, tint);
+        float alpha = mix(fill.a, 1.0, glass);
+        body = mix(fill.rgb * fill.a, glassBody, glass) / max(alpha, 1e-6);
+        bodyA = alpha * shape;
     }
 
     // Rim over the body, premultiplied.

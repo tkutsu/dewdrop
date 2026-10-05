@@ -49,6 +49,24 @@ Singleton {
     property int wanted: -1
     property int committed: 100
 
+    // The temporary cache disappears at boot; get queries DDC when it is absent.
+    Component.onCompleted: initialLevel.running = true
+    Process {
+        id: initialLevel
+        command: [Paths.script("display.sh"), "get"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const value = parseInt(text);
+                if (isNaN(value))
+                    return;
+                root.committed = value;
+                if (root.wanted < 0)
+                    root.brightness = root.committed;
+            }
+        }
+        onExited: root.push()
+    }
+
     function setBrightness(value) {
         root.wanted = Math.round(Math.max(0, Math.min(100, value)));
         root.brightness = root.wanted;
@@ -56,7 +74,7 @@ Singleton {
     }
 
     function push() {
-        if (setter.running || root.wanted < 0)
+        if (initialLevel.running || setter.running || root.wanted < 0)
             return;
         const step = root.wanted - root.committed;
         root.wanted = -1;

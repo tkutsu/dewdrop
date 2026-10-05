@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import qs
+import qs.components
 
 // Wallpaper cycling.
 //
@@ -75,7 +76,6 @@ Singleton {
     // that going back to a colour is one click rather than mixing it again. It
     // outlives `color`, which is cleared the moment an image goes up.
     property string lastColor: ""
-    readonly property string colorPath: Paths.cache("wallpaper-color.png")
 
     // Whether a flat colour drifts with the time of day: warmer towards dusk,
     // darker through the night, itself again by mid-morning — the way a
@@ -142,10 +142,7 @@ Singleton {
     }
 
     // The colour the backdrop actually draws: the one that was set, or where
-    // the day has taken it. Empty while an image is up. hyprpaper is only ever
-    // given the colour as set — it is what shows while the shell is down, and
-    // re-rendering its PNG once a minute for a drift nobody would see there is
-    // a magick run a minute for nothing.
+    // the day has taken it. Empty while an image is up.
     readonly property string onScreen: {
         if (!root.color)
             return "";
@@ -159,19 +156,46 @@ Singleton {
     // reads as tinted glass over this particular desktop rather than as the
     // same black over any of them.
     property string sampled: ""
+    property string sampledPath: ""
 
-    readonly property string behind: root.onScreen || root.sampled
+    // Each screen shares its desktop fade with its bar's wallpaper strip.
+    property var backdrops: ({})
+    property var strips: ({})
+
+    function registerBackdrop(name, renderer) {
+        const next = Object.assign({}, root.backdrops);
+        if (renderer)
+            next[name] = renderer;
+        else
+            delete next[name];
+        root.backdrops = next;
+    }
+
+    function registerStrip(name, strip) {
+        const next = Object.assign({}, root.strips);
+        if (strip)
+            next[name] = strip;
+        else
+            delete next[name];
+        root.strips = next;
+    }
+
+    readonly property var presentation: Quickshell.screens.map(s => root.backdrops[s.name]).find(view => view?.ready) ?? null
+
+    readonly property string behind: root.presentation ? String(root.presentation.average) : root.onScreen || root.sampled
 
     // The surface colour itself: the hue of what is behind, kept to a near
     // black. Saturation is capped so a vivid wallpaper tints the glass rather
     // than dyeing it, and the lightness is fixed so white labels on it keep
     // exactly the contrast they had on black.
-    readonly property color tint: {
-        if (!root.behind)
-            return "black";
-        const c = Qt.color(root.behind);
+    function tintOf(behind) {
+        if (!behind)
+            return Qt.color("black");
+        const c = Qt.color(behind);
         return Qt.hsla(Math.max(0, c.hslHue), Math.min(c.hslSaturation, 0.5), 0.08, 1);
     }
+
+    readonly property color tint: root.tintOf(root.behind)
 
     Binding {
         target: Theme
@@ -192,7 +216,9 @@ Singleton {
     // near black so it still reads as an edge against a dark window.
     // decoration.lua keeps a neutral grey for while the shell is down, and a
     // config reload puts that grey back, so the border is sent again after one.
-    readonly property color border: Qt.hsla(Math.max(0, root.tint.hslHue), root.tint.hslSaturation, 0.38, 1)
+    // Keep border IPC tied to selection, rather than sending it every fade frame.
+    readonly property color borderTint: root.tintOf(root.onScreen || root.sampled)
+    readonly property color border: Qt.hsla(Math.max(0, root.borderTint.hslHue), root.borderTint.hslSaturation, 0.38, 1)
 
     function paintBorder() {
         const rgba = "rgba(" + String(root.border).slice(1) + "ff)";
@@ -211,52 +237,56 @@ Singleton {
     }
 
     // The image's own size, for the bar to cut out just the rows of it that
-    // are behind the bar (Bar.qml). Empty until known: read from the file's
-    // header (-ping), which takes no time, but the bar holds off until it has
-    // it rather than load the whole image first.
+    // are behind the bar (WallpaperStrip). Read from the file's header (-ping),
+    // which takes no time. `measuredPath` says the answer is in, whether or not
+    // it had a size in it: a file magick cannot read but Qt can still goes up,
+    // as plain wallpaper with no strip, rather than never.
     property size currentSize: Qt.size(0, 0)
+    property string measuredPath: ""
 
     onCurrentChanged: {
         root.sampled = "";
+        root.sampledPath = "";
         root.currentSize = Qt.size(0, 0);
-        if (root.current) {
-            sample.exec(["magick", "-define", "jpeg:size=256x256", root.current, "-resize", "64x64!", "-scale", "1x1!", "-format", "#%[hex:p{0,0}]", "info:"]);
-            measure.exec(["magick", "identify", "-ping", "-format", "%w %h %i", root.current + "[0]"]);
-        }
+        root.measuredPath = "";
     }
 
-    Process {
+    QueuedProcess {
         id: measure
+        interval: 0
+        want: root.current
+        command: ["magick", "identify", "-ping", "-format", "%w %h", arg + "[0]"]
 
-        // The path comes back with the size, so an answer that lands after the
-        // next wallpaper has gone up is recognised as the last one's.
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const [w, h, ...path] = text.trim().split(" ");
-                if (path.join(" ") === root.current && Number(w) > 0 && Number(h) > 0)
-                    root.currentSize = Qt.size(Number(w), Number(h));
-            }
+        onResult: (path, text) => {
+            if (path !== root.current)
+                return;
+            const [w, h] = text.trim().split(" ");
+            if (Number(w) > 0 && Number(h) > 0)
+                root.currentSize = Qt.size(Number(w), Number(h));
+            root.measuredPath = path;
         }
     }
 
-    Process {
+    QueuedProcess {
         id: sample
+        interval: 0
+        want: root.current
+        command: ["magick", "-define", "jpeg:size=256x256", arg, "-resize", "64x64!", "-scale", "1x1!", "-format", "#%[hex:p{0,0}]", "info:"]
 
-        stdout: StdioCollector {
-            onStreamFinished: {
-                const hex = text.trim();
-                if (/^#[0-9a-fA-F]{6}/.test(hex))
-                    root.sampled = hex.slice(0, 7);
-            }
+        onResult: (path, text) => {
+            if (path !== root.current)
+                return;
+            const hex = text.trim();
+            if (/^#[0-9a-fA-F]{6}/.test(hex))
+                root.sampled = hex.slice(0, 7);
+            root.sampledPath = path;
         }
     }
 
-    readonly property int index: files.indexOf(current)
+    readonly property int index: files.indexOf(root.current)
     readonly property string tooltip: "No wallpapers found"
 
-    // Every entry point rescans first, so a file added a second ago is already
-    // in the rotation. `find` over a few dozen images costs nothing next to the
-    // hyprpaper preload that follows it.
+    // Every entry point rescans first, so newly added files join the rotation.
     function next() {
         rescan(() => step(1));
     }
@@ -291,23 +321,14 @@ Singleton {
     function show(target) {
         if (target < 0 || target >= files.length)
             return;
-        debounce.stop();
-        root.color = "";
-        root.current = files[target];
+        root.adopt(files[target]);
         root.save();
-        apply(root.current);
     }
 
-    // hyprpaper knows about files, not colours, so the swatch is written out as
-    // a one-pixel PNG and set like any other wallpaper. It re-reads the file on
-    // every `wallpaper` call, so one fixed path serves every colour — naming
-    // the file after the hex would leave a cache entry behind for every notch
-    // of a slider drag.
     function setColor(hex) {
-        root.current = "";
-        root.color = hex;
         root.lastColor = hex;
-        debounce.restart();
+        root.adopt(hex);
+        root.save();
     }
 
     // Three lines: what is on screen — a path or a #rrggbb — the colour to
@@ -318,51 +339,15 @@ Singleton {
         state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n`);
     }
 
-    property string renderedColor: ""
-
-    function renderColor() {
-        if (!root.color || render.running)
-            return;
-        root.renderedColor = root.color;
-        render.exec(["magick", "-size", "1x1", "xc:" + root.color, root.colorPath]);
-    }
-
-    // A drag emits a value per pixel of travel. Without this each one would be
-    // its own magick run racing the last one to write the same file.
-    Timer {
-        id: debounce
-        interval: 60
-        onTriggered: {
-            root.save();
-            root.renderColor();
+    Connections {
+        target: WallClock
+        function onWokeUp(): void {
+            root.hour = root.hourNow();
         }
-    }
-
-    Process {
-        id: render
-        onExited: function (code) {
-            if (code === 0 && root.color && root.color === root.renderedColor)
-                root.apply(root.colorPath);
-            else if (root.color && root.color !== root.renderedColor)
-                debounce.restart();
-        }
-    }
-
-    function apply(path) {
-        // `wallpaper` reads the file itself. The `preload` that used to run
-        // first — and the `unload unused` that never worked — are both gone:
-        // this hyprpaper (0.8.4, checked 2026-09) answers "invalid hyprpaper
-        // request" to either, so the preload was a failed process racing the
-        // call that was doing the work anyway.
-        set.exec(["hyprctl", "hyprpaper", "wallpaper", "," + path]);
     }
 
     function openFolder() {
         Quickshell.execDetached(Settings.inTerminal(["yazi", root.dir]));
-    }
-
-    Process {
-        id: set
     }
 
     FileView {
@@ -446,15 +431,12 @@ Singleton {
         // waiting for a folder that may be empty would leave it unrestored.
         if (color) {
             restored = true;
-            renderColor();
             return;
         }
         if (files.length === 0)
             return;
         restored = true;
-        if (index >= 0)
-            apply(current);
-        else
+        if (index < 0)
             _random();
     }
 

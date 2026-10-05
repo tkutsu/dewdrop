@@ -251,7 +251,8 @@ Popup {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             visible: Weather.updatedAt > 0
-            text: `Updated ${Qt.formatDateTime(new Date(Weather.updatedAt * 1000), "HH:mm")}`
+            text: `Updated ${Qt.formatDateTime(new Date(Weather.updatedAt * 1000),
+                Qt.formatDate(new Date(Weather.updatedAt * 1000), "yyyy-MM-dd") === Qt.formatDate(new Date(Weather.now * 1000), "yyyy-MM-dd") ? "HH:mm" : "d MMM HH:mm")}`
             color: Theme.label2
             font.pixelSize: Theme.footnoteSize
             font.italic: true

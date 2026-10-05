@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import Quickshell.Wayland
 import qs
 import qs.components
 import qs.services
@@ -10,19 +11,25 @@ OverlayWindow {
 
     name: "powermenu"
     shown: Power.shown
-    color: root.closing ? "black" : "transparent"
+    color: "transparent"
     inputItem: menuClip
+    WlrLayershell.keyboardFocus: root.shown || Power.blackout ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     onDismissed: root.back()
 
     readonly property var menuActions: Power.actions
     readonly property int tileWidth: Math.max(96, Math.min(112, Math.floor((width - 64) / menuActions.length)))
     property var pending: null
+    property var confirmation: null
     property int index: -1
     property point pointer: Qt.point(-1, -1)
     property bool pointerLive: false
     property bool closing: false
     property string command: ""
-    property real reveal: root.opened ? 1 : 0
+    property bool captureFallback: false
+    readonly property bool backdropReady: desktop.hasContent || root.captureFallback
+    property real reveal: root.opened && root.backdropReady ? 1 : 0
+    property real backdropProgress: root.opened && root.backdropReady && !root.closing ? 1 : 0
+    property real shade: root.closing ? 1 : root.opened && root.backdropReady ? 0.12 : 0
     property real vertical: 1
     property real horizontal: 1
     property real flash: 0
@@ -40,11 +47,26 @@ OverlayWindow {
     ] : root.menuActions
 
     onEntriesChanged: root.pointerLive = false
+    onPendingChanged: if (root.pending) root.confirmation = root.pending
 
     Behavior on reveal {
         NumberAnimation {
             duration: Theme.revealMs
             easing.type: Easing.OutCubic
+        }
+    }
+
+    Behavior on backdropProgress {
+        NumberAnimation {
+            duration: Theme.fadeMs
+            easing.type: Easing.InOutCubic
+        }
+    }
+
+    Behavior on shade {
+        NumberAnimation {
+            duration: Theme.fadeMs
+            easing.type: Easing.InOutCubic
         }
     }
 
@@ -159,18 +181,40 @@ OverlayWindow {
         }
     }
 
-    // Outside the clip, so the shadow follows the folding edges.
-    RectangularShadow {
-        parent: inputSurface
-        x: menuClip.x
-        y: menuClip.y
-        width: menuClip.width
-        height: menuClip.height
-        visible: menuClip.height > 0
-        offset.y: Theme.shadowY
-        radius: Math.min(22, menuClip.height / 2)
-        blur: Theme.shadowBlur
-        color: Theme.shadow
+    // Capture before revealing the menu, avoiding feedback from our own overlay.
+    ScreencopyView {
+        id: desktop
+
+        anchors.fill: parent
+        captureSource: root.screen
+        live: false
+        paintCursor: false
+        visible: false
+    }
+
+    // Still allow the menu if the compositor cannot supply a desktop frame.
+    Timer {
+        interval: 150
+        running: true
+        onTriggered: root.captureFallback = true
+    }
+
+    MultiEffect {
+        anchors.fill: parent
+        source: desktop
+        autoPaddingEnabled: false
+        blurEnabled: true
+        blurMax: 32
+        blur: root.backdropProgress * 0.6
+        opacity: root.backdropProgress
+        visible: desktop.hasContent && opacity > 0
+    }
+
+    // Dim the entire desktop, then carry that shade into the CRT's black hold.
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+        opacity: root.shade
     }
 
     Item {
@@ -178,7 +222,7 @@ OverlayWindow {
 
         anchors.fill: parent
         focus: true
-        enabled: root.shown
+        enabled: root.shown || Power.blackout
         layer.enabled: root.closing
         transform: Scale {
             origin.x: inputSurface.width / 2
@@ -197,8 +241,12 @@ OverlayWindow {
 
         Keys.onPressed: function (event) {
             if (root.closing) {
-                if (event.key === Qt.Key_Escape)
-                    root.cancelCrt();
+                if (event.key === Qt.Key_Escape) {
+                    if (Power.blackout)
+                        Power.blackout = false;
+                    else
+                        root.cancelCrt();
+                }
                 event.accepted = true;
                 return;
             }
@@ -242,56 +290,72 @@ OverlayWindow {
         Item {
             id: menuClip
 
-            readonly property int topEdge: Math.round(menuContent.implicitHeight * (1 - root.reveal) / 2)
-            x: Math.round((root.width - width) / 2)
-            y: Math.round((root.height - menuContent.implicitHeight) / 2) + topEdge
-            width: menuContent.implicitWidth
-            height: Math.max(0, menuContent.implicitHeight - topEdge * 2)
+            readonly property int pillHeight: 44
+            readonly property int topEdge: Math.round(pillHeight * (1 - root.reveal) / 2)
+            x: (root.width - width) / 2
+            y: (root.height - pillHeight) / 2 + topEdge
+            width: (root.pending ? answers.implicitWidth : actions.implicitWidth)
+            height: Math.max(0, pillHeight - topEdge * 2)
             clip: true
+            opacity: root.closing ? 0 : 1
 
-            Column {
-                id: menuContent
-
-                y: -menuClip.topEdge
-                spacing: 32
-
-                ActionPill {
-                    id: actions
-
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: root.pending === null
-                    model: root.menuActions
+            // Clear the pill quickly; the final CRT line is drawn separately.
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 120
+                    easing.type: Easing.OutQuad
                 }
+            }
 
-                Column {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: root.pending !== null
-                    spacing: 28
+            Behavior on width {
+                enabled: root.completed && root.shown && !root.closing
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                    easing.type: Easing.InOutCubic
+                }
+            }
 
-                    Glyph {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        height: 48
-                        fontSize: 24
-                        text: root.pending?.glyph ?? ""
-                    }
+            Liquid {
+                y: -menuClip.topEdge
+                width: menuClip.width
+                height: menuClip.pillHeight
+                box0: Qt.vector4d(0, 0, width, height)
+                rimFrom: 0
+                rimTo: height
+                fill: Qt.vector4d(Theme.tint.r + 0.1, Theme.tint.g + 0.1, Theme.tint.b + 0.1, Theme.barBg.a)
+            }
 
-                    Text {
-                        width: Math.min(380, root.width - 64)
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.Wrap
-                        text: root.pending?.question ?? ""
-                        color: Theme.label
-                        font.family: Theme.bodyFont
-                        font.pixelSize: Theme.popupTextSize + 2
-                        lineHeight: 1.2
-                    }
+            ActionPill {
+                id: actions
 
-                    ActionPill {
-                        id: answers
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: -menuClip.topEdge
+                model: root.menuActions
+                enabled: root.pending === null && !root.closing
+                opacity: root.pending ? 0 : 1
+                visible: opacity > 0
 
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        model: root.pending ? root.entries : []
-                    }
+                Behavior on opacity {
+                    NumberAnimation { duration: Theme.fadeMs }
+                }
+            }
+
+            ActionPill {
+                id: answers
+
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: -menuClip.topEdge
+                // Retain the labels while confirmation fades back to the menu.
+                model: root.confirmation ? [
+                    { name: "Cancel", accept: false },
+                    { name: root.confirmation.name, accept: true }
+                ] : []
+                enabled: root.pending !== null && !root.closing
+                opacity: root.pending ? 1 : 0
+                visible: opacity > 0
+
+                Behavior on opacity {
+                    NumberAnimation { duration: Theme.fadeMs }
                 }
             }
 
@@ -303,13 +367,13 @@ OverlayWindow {
         }
     }
 
-    // One slab and a head/tail selector, using the workspace pill's material and motion.
+    // Crossfade action rows inside the same resizing pill.
     component ActionPill: Item {
         id: pill
 
         required property var model
         readonly property int pad: Theme.markInset
-        readonly property Item selected: root.index >= 0 ? buttons.itemAt(root.index) : null
+        readonly property Item selected: pill.enabled && root.index >= 0 ? buttons.itemAt(root.index) : null
         readonly property bool held: {
             for (const child of cells.children)
                 if (child.held === true)
@@ -322,14 +386,6 @@ OverlayWindow {
 
         function itemAt(i: int): Item {
             return buttons.itemAt(i);
-        }
-
-        Liquid {
-            anchors.fill: parent
-            box0: Qt.vector4d(0, 0, width, height)
-            rimFrom: 0
-            rimTo: height
-            fill: Qt.vector4d(Theme.tint.r + 0.1, Theme.tint.g + 0.1, Theme.tint.b + 0.1, Theme.barBg.a)
         }
 
         MouseArea {
@@ -481,7 +537,7 @@ OverlayWindow {
                 const arg = root.command;
                 root.command = "";
                 if (arg !== "")
-                    Power.run(arg);
+                    Power.run(arg, true);
                 else
                     root.cancelCrt();
             }

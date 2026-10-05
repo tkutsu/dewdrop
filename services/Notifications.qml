@@ -171,11 +171,17 @@ Singleton {
     // When each one came in, by id. The server does not record it.
     //
     // Mutated in place and pruned when the notification closes, never
-    // replaced: an arrival time is written before any card exists to read it
-    // and never changes afterwards, so there is nothing for a change signal to
-    // tell anyone — and replacing the object made every card's age re-run on
-    // every arrival, while never pruning grew it for the life of the session.
+    // replaced: replacing the object would re-run every card's age on every
+    // arrival. A hot reload starts a new engine, which cannot read the old
+    // one's objects, so a JSON copy carries the times across and is merged in
+    // once, the restored stamps winning over any taken while it loaded.
     readonly property var arrived: ({})
+    PersistentProperties {
+        id: retained
+        reloadableId: "notification-arrivals"
+        property string arrivalsJson: "{}"
+        onLoaded: Object.assign(root.arrived, JSON.parse(retained.arrivalsJson))
+    }
 
     // --- arrival ------------------------------------------------------------
     // Senders that only ever have something to say in the moment: shown as
@@ -218,15 +224,21 @@ Singleton {
     // The ids that go as soon as their notice has been seen. Only ever read
     // from functions, so it is mutated in place like `arrived`.
     readonly property var passing: ({})
+    readonly property var observed: ({})
 
     // Restore metadata for notices kept by the server through hot reload.
     function remember(n) {
-        if (root.arrived[n.id] !== undefined)
+        if (root.arrived[n.id] === undefined)
+            root.arrived[n.id] = Date.now();
+        if (root.observed[n.id] === n)
             return;
-        root.arrived[n.id] = Date.now();
+        root.observed[n.id] = n;
+        retained.arrivalsJson = JSON.stringify(root.arrived);
         n.closed.connect(() => {
             delete root.arrived[n.id];
             delete root.passing[n.id];
+            delete root.observed[n.id];
+            retained.arrivalsJson = JSON.stringify(root.arrived);
         });
     }
 
