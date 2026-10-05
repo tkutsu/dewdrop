@@ -64,6 +64,10 @@
     "font": "Inter",
     "monoFont": "IosevkaTerm Nerd Font Mono",
 
+    // Workspace parallax is toggled in the wallpaper popup. Extra zoom leaves
+    // room to pan; 1 disables travel. Motion follows the workspace glide spring.
+    "wallpaperParallaxZoom": 1.08,
+
     // --- apps it opens -----------------------------------------------------
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is

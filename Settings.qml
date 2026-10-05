@@ -37,6 +37,7 @@ Singleton {
     readonly property string fileManager: root.values.fileManager ?? "xdg-open"
     readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters"]
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
+    readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom) || 1.08)
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")

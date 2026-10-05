@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Hyprland
 import qs
 import qs.services
 
@@ -39,11 +40,105 @@ PanelWindow {
     readonly property string wantedPath: Wallpaper.onScreen ? "" : Wallpaper.current
     readonly property string wantedColor: Wallpaper.onScreen
 
+    property var monitor: Hyprland.monitorFor(root.screen)
+    readonly property var activeWorkspace: root.monitor?.activeWorkspace ?? null
+    property var panWorkspace: null
+    property real panPosition: 0.5
+    property real panFraction: 0.5
+    property real panStart: 0.5
+    property real panProgress: 1
+    property real panVelocity: 0
+    readonly property bool panAnimating: panMotion.running
+    readonly property real zoom: Wallpaper.parallax ? Settings.wallpaperParallaxZoom : 1
+    readonly property real offsetX: (0.5 - root.panFraction) * root.width * (root.zoom - 1)
+
+    // Hyprland's glide in hypr/configs/animation.lua: mass 1, stiffness
+    // 246.7, damping 31.42. Match its spring and normalized stop thresholds.
+    readonly property real panSlowRate: -15.71 + Math.sqrt(15.71 * 15.71 - 246.7)
+    readonly property real panFastRate: -15.71 - Math.sqrt(15.71 * 15.71 - 246.7)
+
+    FrameAnimation {
+        id: panMotion
+        onTriggered: root.advancePan(frameTime)
+    }
+
+    // Retarget from the current crop and carry velocity through rapid switches.
+    function animatePan(target) {
+        if (!root.ready || !Wallpaper.parallax) {
+            panMotion.stop();
+            root.panPosition = target;
+            root.panFraction = target;
+            return;
+        }
+        if (target === root.panPosition)
+            return;
+        const distance = target - root.panFraction;
+        root.panVelocity = panMotion.running && Math.abs(distance) > 0.000001
+            ? root.panVelocity * (root.panPosition - root.panStart) / distance : 0;
+        root.panStart = root.panFraction;
+        root.panPosition = target;
+        root.panProgress = 0;
+        panMotion.restart();
+    }
+
+    // Advance the same overdamped spring analytically, independent of refresh rate.
+    function advancePan(dt) {
+        const slow = root.panSlowRate, fast = root.panFastRate;
+        const displacement = root.panProgress - 1;
+        const a = (root.panVelocity - fast * displacement) / (slow - fast);
+        const b = displacement - a;
+        const x = a * Math.exp(slow * Math.max(0, dt));
+        const y = b * Math.exp(fast * Math.max(0, dt));
+        root.panProgress = 1 + x + y;
+        root.panVelocity = slow * x + fast * y;
+        if (Math.abs(1 - root.panProgress) <= 0.001 && Math.abs(root.panVelocity) <= 0.001) {
+            root.panProgress = 1;
+            root.panVelocity = 0;
+            panMotion.stop();
+        }
+        root.panFraction = Math.max(0, Math.min(1, root.panStart + (root.panPosition - root.panStart) * root.panProgress));
+    }
+
+    // Renumbering the same workspace must not move the current crop.
+    function updatePan(force = false) {
+        const active = root.activeWorkspace;
+        if (!active || active.id <= 0 || !/^\d+$/.test(active.name))
+            return;
+        if (!force && active === root.panWorkspace)
+            return;
+        const occupied = new Set(Hyprland.toplevels.values.map(t => t.workspace?.id));
+        // At startup, wait for the window model before counting the empty slot.
+        if (!root.panWorkspace && occupied.size === 0 && Hyprland.workspaces.values.some(w => w.lastIpcObject?.windows > 0))
+            return;
+        const numbered = Hyprland.workspaces.values.filter(w => w.id > 0 && /^\d+$/.test(w.name)
+            && (w === active || w.active || w.lastIpcObject?.ispersistent || occupied.has(w.id))).sort((a, b) => a.id - b.id);
+        const index = numbered.indexOf(active);
+        if (index < 0)
+            return;
+        root.panWorkspace = active;
+        // The keyboard ring always has an empty slot, even before it is created.
+        const slots = numbered.length + (numbered.some(w => !occupied.has(w.id)) ? 0 : 1);
+        root.animatePan(Wallpaper.parallax && slots > 1 ? index / (slots - 1) : 0.5);
+    }
+
+    onActiveWorkspaceChanged: Qt.callLater(root.updatePan)
+
+    Connections {
+        target: Hyprland.workspaces
+        function onValuesChanged() { Qt.callLater(root.updatePan); }
+    }
+
+    Connections {
+        target: Hyprland.toplevels
+        function onValuesChanged() { Qt.callLater(root.updatePan); }
+    }
+
     // Coalesce the service's image/colour setters, which change two properties.
     onWantedPathChanged: Qt.callLater(root.adopt)
     onWantedColorChanged: Qt.callLater(root.adopt)
     Component.onCompleted: {
         Wallpaper.registerBackdrop(root.screen.name, root);
+        Qt.callLater(root.updatePan);
         Qt.callLater(root.adopt);
     }
     Component.onDestruction: {
@@ -55,6 +150,7 @@ PanelWindow {
         target: Wallpaper
         function onMeasuredPathChanged() { Qt.callLater(root.startFade); }
         function onSampledPathChanged() { Qt.callLater(root.startFade); }
+        function onParallaxChanged() { Qt.callLater(() => root.updatePan(true)); }
     }
 
     // While a fade runs, keep its layers intact and apply the latest choice next.
@@ -137,12 +233,16 @@ PanelWindow {
         Image {
             id: image
 
-            anchors.fill: parent
+            width: root.width * root.zoom
+            height: root.height * root.zoom
+            x: (root.width - width) / 2 + root.offsetX
+            y: (root.height - height) / 2
             source: layer.path ? "file://" + layer.path.split("/").map(encodeURIComponent).join("/") : ""
             // Decode at the window's pixel size, including fractional scaling.
-            sourceSize: Qt.size(Math.ceil(root.width * root.devicePixelRatio), Math.ceil(root.height * root.devicePixelRatio))
+            sourceSize: Qt.size(Math.ceil(width * root.devicePixelRatio), Math.ceil(height * root.devicePixelRatio))
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
+            retainWhileLoading: true
             cache: false
             onStatusChanged: {
                 if (status === Image.Ready)

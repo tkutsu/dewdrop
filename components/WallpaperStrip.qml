@@ -14,6 +14,8 @@ ShaderEffectSource {
     readonly property real dpr: QsWindow.window?.devicePixelRatio ?? root.screen.devicePixelRatio ?? 1
     readonly property var renderer: Wallpaper.backdrops[root.screen.name] ?? null
     readonly property real progress: root.renderer?.progress ?? 0
+    readonly property real zoom: root.renderer?.zoom ?? 1
+    readonly property real offsetX: root.renderer?.offsetX ?? 0
     readonly property real glassWeight: root.renderer ? (root.renderer.front.glass ? 1 : 0) * (1 - root.progress) + (root.renderer.back.glass ? 1 : 0) * root.progress : 0
     readonly property var columns: root.glassWeight > 0 ? (first.columns.length ? first.columns : second.columns) : []
 
@@ -67,6 +69,7 @@ ShaderEffectSource {
         y: root.y
         width: root.width
         height: root.height
+        clip: true
 
         Strip { id: first; presentation: root.renderer?.wallpaperLayers[0] ?? null }
         Strip { id: second; presentation: root.renderer?.wallpaperLayers[1] ?? null }
@@ -101,15 +104,21 @@ ShaderEffectSource {
             // it is: at the top, or (a bar anchored to the bottom) at the foot.
             readonly property real stripTop: root.atTop ? 0 : root.screen.height - root.height
             readonly property size natural: strip.presentation?.natural ?? Qt.size(0, 0)
-            readonly property real cover: natural.width > 0 && natural.height > 0 ? Math.max(root.screen.width / natural.width, root.screen.height / natural.height) : 1
+            readonly property real cover: natural.width > 0 && natural.height > 0 ? Math.max(root.screen.width / natural.width, root.screen.height / natural.height) * root.zoom : 1
+            readonly property real cropLeft: (natural.width * cover - width) / 2
+            readonly property real cropTop: (natural.height * cover - root.screen.height) / 2 + stripTop
 
-            anchors.fill: parent
+            // Load the whole travel range once; only its position moves per frame.
+            width: root.screen.width * root.zoom
+            height: strip.height
+            x: (root.screen.width - width) / 2 + root.offsetX
             asynchronous: true
+            retainWhileLoading: true
             cache: false
             source: strip.path && natural.width > 0 ? "file://" + strip.path.split("/").map(encodeURIComponent).join("/") : ""
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(Math.ceil(root.screen.width * root.dpr), Math.ceil(root.screen.height * root.dpr))
-            sourceClipRect: Qt.rect(Math.round((natural.width * cover - root.screen.width) * root.dpr / 2), Math.round(((natural.height * cover - root.screen.height) / 2 + stripTop) * root.dpr), Math.ceil(root.width * root.dpr), Math.ceil(root.height * root.dpr))
+            sourceSize: Qt.size(Math.ceil(root.screen.width * root.zoom * root.dpr), Math.ceil(root.screen.height * root.zoom * root.dpr))
+            sourceClipRect: Qt.rect(Math.round(cropLeft * root.dpr), Math.round(cropTop * root.dpr), Math.ceil(width * root.dpr), Math.ceil(height * root.dpr))
 
             // Cache a small colour grid once per wallpaper or screen geometry.
             // Badges average their icon's region from it as the layout moves;
@@ -130,8 +139,8 @@ ShaderEffectSource {
                 if (!columns.length)
                     return strip.presentation?.average ?? Theme.backdrop;
                 const step = width / Math.max(1, columns.length);
-                const first = Math.max(0, Math.floor(from / step));
-                const last = Math.min(columns.length, Math.ceil(to / step));
+                const first = Math.max(0, Math.floor((from - image.x) / step));
+                const last = Math.min(columns.length, Math.ceil((to - image.x) / step));
                 let r = 0, g = 0, b = 0;
                 for (let i = first; i < last; i++) {
                     r += columns[i].r;
@@ -148,7 +157,7 @@ ShaderEffectSource {
                 if (!nx || !ny)
                     return strip.presentation?.average ?? Theme.backdrop;
                 const dx = width / nx, dy = height / ny;
-                const left = Math.max(0, area.x), right = Math.min(width, area.x + area.width);
+                const left = Math.max(0, area.x - image.x), right = Math.min(width, area.x + area.width - image.x);
                 const top = Math.max(0, area.y), bottom = Math.min(height, area.y + area.height);
                 let r = 0, g = 0, b = 0, weight = 0;
                 for (let y = Math.max(0, Math.floor(top / dy)); y < Math.min(ny, Math.ceil(bottom / dy)); y++) {
@@ -169,8 +178,8 @@ ShaderEffectSource {
                 if (!source.toString() || natural.width <= 0 || natural.height <= 0 || width <= 0 || height <= 0)
                     return "";
                 const inImage = v => Math.round(v / cover);
-                const left = inImage((natural.width * cover - root.screen.width) / 2);
-                const top = inImage((natural.height * cover - root.screen.height) / 2 + stripTop);
+                const left = inImage(cropLeft);
+                const top = inImage(cropTop);
                 return JSON.stringify([strip.path, `${Math.max(1, inImage(width))}x${Math.max(1, inImage(height))}+${left}+${top}`, Math.ceil(width / columnWidth), Math.ceil(height / rowHeight)]);
             }
 
