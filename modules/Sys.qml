@@ -8,6 +8,7 @@ import qs.services
 // custom/sys. A thermometer reading the CPU or the card — whichever was asked
 // for last — with the machine behind it in the popup.
 BarItem {
+    id: root
     // The figure the tube stands for, and which chip it is reading.
     tooltip: Sys.temp > 0 ? `CPU ${Math.round(Sys.temp)} °C` : "No temperature sensor"
     popup: SysPopup {}
@@ -66,7 +67,10 @@ BarItem {
         // strokes reach fg only in their core, with a quarter-strength pixel
         // softening each edge; a wall drawn without antialiasing is all hard
         // edge, and at the same alpha it read as the whitest icon on the bar.
-        readonly property color glass: Qt.rgba(1, 1, 1, 0.75)
+        property color glass: Theme.barInk(root, Qt.rgba(1, 1, 1, 0.75))
+        Behavior on glass {
+            ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+        }
 
         implicitWidth: bulb
         implicitHeight: join + bulb
@@ -129,7 +133,10 @@ BarItem {
                     width: size
                     height: Math.min(Sys.level, size)
                     visible: Sys.temp > 0
-                    color: Sys.hot ? Theme.warn : Theme.fg
+                    color: Theme.barInk(root, Sys.hot ? Theme.warn : Theme.fg)
+                    Behavior on color {
+                        ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+                    }
                 }
             }
         }
@@ -154,7 +161,10 @@ BarItem {
             visible: Sys.temp > 0
             // Past the last line the column stops being a reading and starts
             // being a warning. Pink is what the workspaces shout with.
-            color: Sys.hot ? Theme.warn : Theme.fg
+            color: Theme.barInk(root, Sys.hot ? Theme.warn : Theme.fg)
+            Behavior on color {
+                ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+            }
         }
     }
 

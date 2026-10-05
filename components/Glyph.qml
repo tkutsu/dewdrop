@@ -14,6 +14,11 @@ Item {
     property string text
     property int fontSize: Theme.glyphSize
     property color color: Theme.fg
+    property color inkColor: Theme.barInk(root, root.color)
+
+    Behavior on inkColor {
+        ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+    }
     property real nudge: 0
     property bool tightWidth: true
 
@@ -76,7 +81,7 @@ Item {
         box: size
         ink: Theme.glyphInk
         fitsInk: !root.fontCut
-        opacity: root.color.a
+        opacity: root.inkColor.a
     }
 
     // The next drawing, drawn unseen at the same size so InkProbe can measure

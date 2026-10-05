@@ -93,7 +93,10 @@ Item {
             id: art
 
             visible: root.hasIcon
-            opacity: root.inkOpacity
+            opacity: Theme.barInk(root, Qt.rgba(1, 1, 1, root.inkOpacity)).a
+            Behavior on opacity {
+                NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+            }
             y: Math.round((root.height - implicitHeight) / 2)
             source: root.iconName ? Quickshell.iconPath(root.iconName, true) : ""
             // The tray's line, found the same way (components/InkProbe.qml). The

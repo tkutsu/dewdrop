@@ -54,6 +54,7 @@ BarItem {
 
             required property var modelData
             required property int index
+            readonly property bool inkHovered: pointer.containsMouse && !root.pillDragging
 
             // A tray menu is one of the bar's popups like any other: one up at
             // a time, closed by a click elsewhere, handed over as the pointer
@@ -103,6 +104,10 @@ BarItem {
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !entry.glyph
                 source: entry.glyph ? "" : entry.modelData.icon
+                opacity: Theme.barInk(entry, Qt.rgba(1, 1, 1, 1)).a
+                Behavior on opacity {
+                    NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+                }
                 // Everything here used to be drawn at one size, on the theme's
                 // promise that a panel icon brings its own margin — with a
                 // guess knocked off for apps publishing a pixmap, which hand

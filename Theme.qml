@@ -278,6 +278,23 @@ Singleton {
     readonly property color label2: Qt.rgba(1, 1, 1, 0.55)
     readonly property color label3: Qt.rgba(1, 1, 1, 0.25)
     readonly property color fg: label
+
+    // Leave enough contrast at rest for a visible lift towards each ink's white.
+    function barInk(item, color) {
+        for (let p = item; p; p = p.parent) {
+            if (p.inkHovered === undefined)
+                continue;
+            if (!p.inkHovered)
+                return Qt.rgba(color.r, color.g, color.b, color.a * 0.8);
+            if (color.a === 0)
+                return color;
+            return Qt.rgba(color.r + (1 - color.r) * 0.65,
+                color.g + (1 - color.g) * 0.65,
+                color.b + (1 - color.b) * 0.65,
+                color.a + (1 - color.a) * 0.8);
+        }
+        return color;
+    }
     // A pill's fill: half black, and what the clear glass lays over the
     // wallpaper it draws (glassTint), rather than the near-opaque grey GTK
     // gave the bar. popupBg below is the popups' own. The fill has to stay
