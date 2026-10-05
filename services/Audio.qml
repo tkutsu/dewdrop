@@ -92,16 +92,17 @@ Singleton {
     // both of its branches.)
     readonly property string tooltip: sink ? description : "No audio output"
 
-    // One notch of the wheel, up or down. Through volumecontrol.sh rather than
-    // setVolume: the script owns the step-snapping and the media keys call it
-    // too, so there is one definition of what a step is.
+    // One notch of the wheel, up or down. Set on the node rather than through
+    // volumecontrol.sh: a fast flick is several notches in one event, and a
+    // script per notch reads the volume before the last one has written it,
+    // so steps were lost. The assignment lands at once, so notches add up.
     function step(up) {
-        Quickshell.execDetached([Paths.script("volumecontrol.sh"), up ? "--inc" : "--dec"]);
+        root.stepNode(root.sink, up);
     }
 
-    // The same step for one app's stream, which the script cannot reach (it
-    // only speaks to the default sink): up or down to the next multiple of
-    // five, unmuting on the way as the script does.
+    // Up or down to the next multiple of five, unmuting on the way: the same
+    // step volumecontrol.sh takes for the media keys, for the default sink
+    // and for any one app's stream.
     function stepNode(node, up: bool): void {
         const audio = node?.audio;
         if (!audio)

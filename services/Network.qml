@@ -26,7 +26,8 @@ Singleton {
     // times over; the one kept is the one in use, or else the loudest.
     // Hidden networks have no name to show and are left out.
     readonly property var networks: {
-        const best = {};
+        // No prototype, so a network called "constructor" is a name like any other.
+        const best = Object.create(null);
         for (const n of wifi?.networks.values ?? []) {
             if (!n.name)
                 continue;
@@ -80,6 +81,10 @@ Singleton {
         wifi.scannerEnabled = watchers > 0
 
     function join(network): void {
+        // A second tap while it is still coming up or going down would wire a
+        // second pair of handlers, and a failure would then ask twice.
+        if (network.stateChanging)
+            return;
         if (network.connected) {
             network.disconnect();
             return;

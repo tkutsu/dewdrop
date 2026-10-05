@@ -440,7 +440,7 @@ Singleton {
         // Gated on the sum being spotted rather than on qalc's row, which
         // arrives a beat later and would have the engines flash up first.
         if (!found.length && !c.math)
-            return root.engineResults(root.enginePrefix, c.text);
+            return root.engineResults(root.enginePrefix, c.text, false);
         return found;
     }
 
@@ -1188,6 +1188,10 @@ Singleton {
         const numbers = q.match(/[\d.]+/g) || [];
         if (numbers.some(n => /\d/.test(n) && !/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(n)))
             return false;
+        // Nor can a date or a phone number: "2026-10-05" is not 2011, and
+        // "210 1234567" is not their product. One hyphen ("10-3") still is.
+        if (/^\d+(?:-\d+){2,}$/.test(q) || /^\d+(?:\s+\d+)+$/.test(q))
+            return false;
         // A word against an open bracket is a call, and no application is
         // named like one: sqrt(2), log(10), sin(0).
         if (/^[a-z]+\(/i.test(q))
@@ -1458,14 +1462,16 @@ Singleton {
 
     // --- engines -------------------------------------------------------------
 
-    function engineResults(sym, rest) {
+    function engineResults(sym, rest, keyed = true) {
         const engines = root.engines;
         const m = rest.match(/^(\S+)(?:\s+(.*))?$/);
         let key = "";
         let q = rest.trim();
         // The first word is an engine key only if it actually names one, so
         // "%lofi" searches for lofi rather than looking for an engine "lofi".
-        if (m && engines.some(e => e.key === m[1])) {
+        // And only after the prefix: the unprefixed fallback is a question,
+        // where "c programming" is about C, not a message to ChatGPT.
+        if (keyed && m && engines.some(e => e.key === m[1])) {
             key = m[1];
             q = (m[2] || "").trim();
         }
@@ -1520,7 +1526,15 @@ Singleton {
             app: (r, i) => {
                 root.leave(i);
                 root.bump(r.entry.id);
-                r.entry.execute();
+                // execute() ignores Terminal=true, so a TUI app would start
+                // with nowhere to draw.
+                if (r.entry.runInTerminal)
+                    Quickshell.execDetached({
+                        command: Settings.inTerminal(r.entry.command, r.entry.name, false),
+                        workingDirectory: r.entry.workingDirectory
+                    });
+                else
+                    r.entry.execute();
             },
             calc: (r, i) => {
                 root.leave(i);
