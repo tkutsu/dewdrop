@@ -11,7 +11,10 @@ Popup {
     readonly property real cellWidth: 104
     readonly property real cellHeight: 58
     readonly property real gridWidth: columns * cellWidth + (columns - 1) * 4
-    readonly property real bodyWidth: Math.max(320, gridWidth)
+    // The lane beside the grid for the parallax height's track.
+    readonly property real laneWidth: 14
+    readonly property real laneGap: 8
+    readonly property real bodyWidth: Math.max(320, gridWidth + laneGap + laneWidth)
 
     // Everything in a channel row that is not the track, so the three tracks
     // can take whatever the thumbnails above them leave over.
@@ -189,52 +192,106 @@ Popup {
         text: Wallpaper.tooltip
     }
 
-    Grid {
-        x: (root.bodyWidth - width) / 2
-        columns: root.columns
-        spacing: 4
+    // The thumbnails, and beside them, under the parallax button, where the
+    // parallax crop sits up and down: a track the height of the grid that
+    // grows down out of the button while parallax is on. The lane is kept
+    // either way, since resizing a popup jerks it (see Popup.reserveHeight).
+    Item {
+        width: root.bodyWidth
+        height: grid.height
 
-        Repeater {
-            model: Wallpaper.files
+        Grid {
+            id: grid
 
-            delegate: Item {
-                id: cell
+            // Centred while the lane is empty, beside it once the track is out.
+            x: (root.bodyWidth - width - (Wallpaper.parallax ? root.laneGap + root.laneWidth : 0)) / 2
+            columns: root.columns
+            spacing: 4
 
-                required property string modelData
-                required property int index
-
-                readonly property bool current: cell.modelData === Wallpaper.current
-
-                width: root.cellWidth
-                height: root.cellHeight
-
-                Image {
-                    anchors.fill: parent
-                    // The kept thumbnail once there is one (Wallpaper.thumbs).
-                    source: "file://" + Wallpaper.thumbOf(cell.modelData)
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    // Decoded at cell size: the thumbnail is 512 wide, and
-                    // until it exists this is all that stands between a cell
-                    // and a full 4K wallpaper in memory.
-                    sourceSize.width: root.cellWidth * 2
-                    opacity: cell.current || hover.hovered ? 1 : 0.6
+            Behavior on x {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                    easing.type: Easing.InOutQuad
                 }
+            }
 
-                Rectangle {
-                    anchors.fill: parent
-                    color: "transparent"
-                    border.width: 1
-                    border.color: cell.current ? Theme.fg : (hover.hovered ? Theme.outlineHover : "transparent")
-                }
+            Repeater {
+                model: Wallpaper.files
 
-                HoverHandler {
-                    id: hover
-                }
+                delegate: Item {
+                    id: cell
 
-                TapHandler {
-                    onTapped: Wallpaper.show(cell.index)
+                    required property string modelData
+                    required property int index
+
+                    readonly property bool current: cell.modelData === Wallpaper.current
+
+                    width: root.cellWidth
+                    height: root.cellHeight
+
+                    Image {
+                        anchors.fill: parent
+                        // The kept thumbnail once there is one (Wallpaper.thumbs).
+                        source: "file://" + Wallpaper.thumbOf(cell.modelData)
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        // Decoded at cell size: the thumbnail is 512 wide, and
+                        // until it exists this is all that stands between a cell
+                        // and a full 4K wallpaper in memory.
+                        sourceSize.width: root.cellWidth * 2
+                        opacity: cell.current || hover.hovered ? 1 : 0.6
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        color: "transparent"
+                        border.width: 1
+                        border.color: cell.current ? Theme.fg : (hover.hovered ? Theme.outlineHover : "transparent")
+                    }
+
+                    HoverHandler {
+                        id: hover
+                    }
+
+                    TapHandler {
+                        onTapped: Wallpaper.show(cell.index)
+                    }
                 }
+            }
+        }
+
+        Item {
+            x: root.bodyWidth - root.laneWidth
+            width: root.laneWidth
+            height: Wallpaper.parallax ? grid.height : 0
+            opacity: Wallpaper.parallax ? 1 : 0
+            clip: true
+
+            Behavior on height {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                    easing.type: Easing.InOutQuad
+                }
+            }
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
+
+            // Turned a quarter so its start is the top, as the picture and
+            // the wheel both read. No fill: a height is a place, not an amount.
+            Slider {
+                x: (root.laneWidth - width) / 2
+                y: (grid.height - height) / 2
+                width: grid.height
+                height: root.laneWidth
+                rotation: 90
+                fill: Theme.sliderTrack
+                value: Wallpaper.parallaxY
+                wheelStep: 0.05
+                onMoved: v => Wallpaper.setParallaxY(v)
             }
         }
     }

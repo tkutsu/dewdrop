@@ -42,7 +42,7 @@ ShellRoot {
             }
             function run() {
                 tryVerify(() => Wallpaper.restored && desktop.ready, 5000);
-                check(!Wallpaper.parallax && !Wallpaper.drift, 'older state files default to stationary wallpaper');
+                check(!Wallpaper.parallax && !Wallpaper.drift && Wallpaper.parallaxY === 0.5, 'older state files default to stationary wallpaper');
                 Hyprland.workspaces.values = [root.one, root.two, root.three];
                 Hyprland.toplevels.values = [root.one, root.two, root.three].map(w => ({workspace: w}));
                 Hyprland.monitor.activeWorkspace = root.one;
@@ -67,6 +67,12 @@ ShellRoot {
                 check(right.b > left.b && right.r < left.r, 'glass colour sampling follows horizontal pan');
                 check(firstImage.sampleRequest === request && JSON.stringify(firstImage.sourceClipRect) === sourceClip, 'pan does not reload or resample the wallpaper strip');
                 check(near(firstImage.x, -32 * 2 / 3), 'strip uses the same travel as the desktop');
+                Wallpaper.setParallaxY(0.2);
+                wait(20);
+                check(near(desktop.front.offsetY, 0.3 * 200 * 0.08), 'height moves the desktop crop');
+                check(near(firstImage.y, 0.3 * 200 * 0.08 - 8), 'strip uses the same height as the desktop');
+                check(firstImage.sampleRequest === request && JSON.stringify(firstImage.sourceClipRect) === sourceClip, 'height does not reload or resample the wallpaper strip');
+                check(strip.averageRegion(Qt.rect(0, 0, 16, 24)).g < right.g && strip.average(0, 16).g < right.g, 'glass colour sampling follows the height');
                 desktop.grabToImage(result => { result.saveToFile(Quickshell.shellPath('desktop.png')); root.grabs++; });
                 strip.sourceItem.grabToImage(result => { result.saveToFile(Quickshell.shellPath('strip.png')); root.grabs++; });
                 tryVerify(() => root.grabs === 2, 1000);
@@ -200,6 +206,7 @@ ShellRoot {
         TestCase { id: test; when: false
             function buttons(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
+                if (item.wheelStep !== undefined && item.rotation === 90) found.height = item;
                 for (const child of item.children) buttons(child, found);
             }
             function run() {
@@ -213,6 +220,17 @@ ShellRoot {
                 verify(!Wallpaper.parallax && !controls.parallax.lit && controls.parallax.glyph === '', 'parallax button switches off');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
                 verify(Wallpaper.parallax && controls.parallax.glyph === Theme.glyph.check, 'parallax button switches on with standard check');
+                const lane = controls.height.parent;
+                tryVerify(() => lane.height === controls.height.width && lane.opacity === 1, 1000);
+                const button = controls.parallax.mapToItem(popup, controls.parallax.width, controls.parallax.height);
+                const track = lane.mapToItem(popup, lane.width / 2, 0);
+                verify(Math.abs(track.x + lane.width / 2 - button.x) < 2 && track.y > button.y, 'height track sits under the parallax button');
+                mouseClick(controls.height, controls.height.width * 0.25, controls.height.height / 2);
+                verify(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'clicking a quarter down the track puts the crop a quarter down');
+                mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
+                tryVerify(() => lane.height === 0, 1000);
+                mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
+                tryVerify(() => lane.height > 0, 1000);
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
                 verify(!Wallpaper.drift && !controls.drift.lit, 'drift button switches off');
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
@@ -245,8 +263,8 @@ ShellRoot {
     TestCase { id: test; when: false
         function run() {
             tryVerify(() => Wallpaper.restored, 5000);
-            if (Wallpaper.color !== '#8090a0' || !Wallpaper.drift || !Wallpaper.parallax)
-                throw new Error('saved colour, drift and parallax did not restore');
+            if (Wallpaper.color !== '#8090a0' || !Wallpaper.drift || !Wallpaper.parallax || Math.abs(Wallpaper.parallaxY - 0.2) > 0.001)
+                throw new Error('saved colour, drift, parallax and its height did not restore');
             console.log('PASS: wallpaper options survive restart');
         }
     }
@@ -322,14 +340,15 @@ QtObject {
 """)
         (target / 'Paths.qml').write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function cache(name) { return Quickshell.shellPath('cache/' + name); } }\n")
         # Real decoded images and ImageMagick colour grids, confined to fixtures.
+        # Green rises down the picture, so a vertical misplacement shows too.
         for name, gradient in (('a.png', 'red-blue'), ('b.png', 'green-yellow')):
-            subprocess.run(['magick', '-size', '200x432', 'gradient:' + gradient, '-rotate', '-90', str(target / 'wallpapers' / name)], check=True)
+            subprocess.run(['magick', '-size', '200x432', 'gradient:' + gradient, '-rotate', '-90', '(', '-size', '432x200', 'gradient:black-lime', ')', '-compose', 'plus', '-composite', str(target / 'wallpapers' / name)], check=True)
         (target / 'scripts').mkdir()
         shutil.copy(ROOT / 'scripts/wallpaper-thumbs', target / 'scripts/wallpaper-thumbs')
         (target / 'wallpapers/.current_wallpaper').write_text(str(target / 'wallpapers/a.png') + '\n\n\n')
         run_shell(target, SCENARIO)
         saved = (target / 'wallpapers/.current_wallpaper').read_text().splitlines()
-        assert saved == ['#8090a0', '#8090a0', 'drift', 'parallax'], saved
+        assert saved == ['#8090a0', '#8090a0', 'drift', 'parallax', '0.2'], saved
         run_shell(target, RELOAD)
         # Compare actual Qt-rendered desktop and bar pixels, not only crop formulas.
         from PIL import Image
