@@ -11,6 +11,7 @@ Popup {
     readonly property real cellWidth: 104
     readonly property real cellHeight: 58
     readonly property real gridWidth: columns * cellWidth + (columns - 1) * 4
+    readonly property real bodyWidth: Math.max(320, gridWidth)
 
     // Everything in a channel row that is not the track, so the three tracks
     // can take whatever the thumbnails above them leave over.
@@ -18,7 +19,7 @@ Popup {
     readonly property real labelWidth: 12
     readonly property real readoutWidth: 30
     readonly property real rowSpacing: 6
-    readonly property real sliderWidth: Math.max(140, gridWidth - swatchWidth - 8 - labelWidth - readoutWidth - rowSpacing * 2)
+    readonly property real sliderWidth: bodyWidth - swatchWidth - 8 - labelWidth - readoutWidth - rowSpacing * 2
 
     spacing: 8
 
@@ -170,7 +171,7 @@ Popup {
     }
 
     PopupHeader {
-        width: root.gridWidth
+        width: root.bodyWidth
         inset: 0
         title: "Wallpaper"
     }
@@ -181,6 +182,7 @@ Popup {
     }
 
     Grid {
+        x: (root.bodyWidth - width) / 2
         columns: root.columns
         spacing: 4
 
@@ -226,6 +228,29 @@ Popup {
                     onTapped: Wallpaper.show(cell.index)
                 }
             }
+        }
+    }
+
+    Rectangle {
+        width: root.bodyWidth
+        height: 1
+        color: Theme.stroke
+    }
+
+    PopupHeader {
+        width: root.bodyWidth
+        inset: 0
+        title: "Monochrome"
+
+        // Only a flat colour drifts, so the toggle goes quiet while an image
+        // is up, but stays: it is still the setting the next colour gets.
+        PopupButton {
+            opacity: Wallpaper.color ? 1 : 0.5
+            framed: true
+            lit: Wallpaper.drift
+            glyph: Wallpaper.drift ? Theme.glyph.check : ""
+            label: "drift"
+            onTapped: Wallpaper.setDrift(!Wallpaper.drift)
         }
     }
 
@@ -328,38 +353,6 @@ Popup {
                     }
                 }
             }
-        }
-    }
-
-    // The one thing to decide about a colour besides which colour: whether it
-    // stays put or drifts with the day (see Wallpaper.drift). Says so in the
-    // same two marks a task row uses for done and not done. Only a flat colour
-    // drifts, so the line goes quiet while an image is up, but stays where it
-    // is — it is still the setting the next colour will get.
-    Row {
-        spacing: 6
-        opacity: Wallpaper.color ? 1 : 0.5
-
-        PopupText {
-            anchors.verticalCenter: parent.verticalCenter
-            text: Wallpaper.drift ? Theme.glyph.taskDone : Theme.glyph.taskOpen
-            font.family: Theme.glyphFont
-            font.pixelSize: Theme.popupGlyphSize
-            color: Wallpaper.drift || driftHover.hovered ? Theme.fg : Theme.label2
-        }
-
-        PopupText {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "drift with the time of day"
-            color: Wallpaper.drift || driftHover.hovered ? Theme.fg : Theme.label2
-        }
-
-        HoverHandler {
-            id: driftHover
-        }
-
-        TapHandler {
-            onTapped: Wallpaper.setDrift(!Wallpaper.drift)
         }
     }
 }
