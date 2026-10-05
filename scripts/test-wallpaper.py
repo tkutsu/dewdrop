@@ -22,9 +22,9 @@ import qs.testing
 ShellRoot {
     id: root
     property int grabs: 0
-    property var one: ({ id: 1, name: '1' })
-    property var two: ({ id: 2, name: '2' })
-    property var three: ({ id: 3, name: '3' })
+    property var one: ({ id: 1, name: '1', monitor: Hyprland.monitor })
+    property var two: ({ id: 2, name: '2', monitor: Hyprland.monitor })
+    property var three: ({ id: 3, name: '3', monitor: Hyprland.monitor })
     Window {
         visible: true; width: 400; height: 220
         Backdrop { id: desktop; modelData: ({ name: 'fixture', width: 400, height: 200 }); width: 400; height: 200 }
@@ -34,10 +34,11 @@ ShellRoot {
             when: false
             function check(ok, message) { if (!ok) throw new Error(message); }
             function near(a, b) { return Math.abs(a - b) < 0.002; }
+            function faded() { return desktop.back.path === '' && desktop.back.swatch === ''; }
             function visit(workspace) {
                 Hyprland.monitor.activeWorkspace = workspace;
                 wait(20);
-                tryVerify(() => !desktop.panAnimating, 1500);
+                tryVerify(() => !desktop.pan.running, 1500);
             }
             function run() {
                 tryVerify(() => Wallpaper.restored && desktop.ready, 5000);
@@ -47,20 +48,21 @@ ShellRoot {
                 Hyprland.monitor.activeWorkspace = root.one;
                 Wallpaper.setParallax(true);
                 wait(20);
-                tryVerify(() => !desktop.panAnimating, 1500);
-                check(near(desktop.panFraction, 0), 'first workspace uses the start of the occupied-plus-empty ring');
+                tryVerify(() => !desktop.pan.running, 1500);
+                check(near(desktop.pan.fraction, 0), 'first workspace uses the start of the occupied-plus-empty ring');
+                tryVerify(() => desktop.front.zoom > 1 && faded(), 2000);
                 const firstImage = strip.stripFor(desktop.front).children[0];
                 tryVerify(() => strip.readyFor(desktop.front), 5000);
                 const request = firstImage.sampleRequest;
                 const sourceClip = JSON.stringify(firstImage.sourceClipRect);
                 const left = strip.averageRegion(Qt.rect(0, 0, 16, 24));
-                const panStart = desktop.panFraction;
+                const panStart = desktop.pan.fraction;
                 Hyprland.monitor.activeWorkspace = root.three;
                 wait(200);
-                const progress = (desktop.panFraction - panStart) / (2 / 3 - panStart);
+                const progress = (desktop.pan.fraction - panStart) / (2 / 3 - panStart);
                 check(progress > 0.76 && progress < 0.89, 'wallpaper follows the workspace glide spring at 200 ms');
-                tryVerify(() => !desktop.panAnimating, 1500);
-                check(near(desktop.panFraction, 2 / 3), 'direct jump leaves travel for the next workspace');
+                tryVerify(() => !desktop.pan.running, 1500);
+                check(near(desktop.pan.fraction, 2 / 3), 'direct jump leaves travel for the next workspace');
                 const right = strip.averageRegion(Qt.rect(0, 0, 16, 24));
                 check(right.b > left.b && right.r < left.r, 'glass colour sampling follows horizontal pan');
                 check(firstImage.sampleRequest === request && JSON.stringify(firstImage.sourceClipRect) === sourceClip, 'pan does not reload or resample the wallpaper strip');
@@ -68,39 +70,39 @@ ShellRoot {
                 desktop.grabToImage(result => { result.saveToFile(Quickshell.shellPath('desktop.png')); root.grabs++; });
                 strip.sourceItem.grabToImage(result => { result.saveToFile(Quickshell.shellPath('strip.png')); root.grabs++; });
                 tryVerify(() => root.grabs === 2, 1000);
-                const beforeNewRight = desktop.offsetX;
-                const newRight = {id: 4, name: '4'};
+                const beforeNewRight = desktop.front.offsetX;
+                const newRight = {id: 4, name: '4', monitor: Hyprland.monitor};
                 Hyprland.workspaces.values = [root.one, root.two, root.three, newRight];
                 visit(newRight);
-                check(near(desktop.offsetX - beforeNewRight, -32 / 3), 'entering the edge empty slot moves by a full workspace step');
+                check(near(desktop.front.offsetX - beforeNewRight, -32 / 3), 'entering the edge empty slot moves by a full workspace step');
                 visit(root.one);
-                check(near(desktop.panFraction, 0), 'empty-to-first wraps to the first crop');
+                check(near(desktop.pan.fraction, 0), 'empty-to-first wraps to the first crop');
                 visit(newRight);
-                check(near(desktop.panFraction, 1), 'first-to-empty wraps to the last crop');
+                check(near(desktop.pan.fraction, 1), 'first-to-empty wraps to the last crop');
                 Hyprland.workspaces.values = [root.one, root.two, root.three];
                 visit(root.three);
-                check(near(desktop.offsetX, beforeNewRight), 'removing the empty workspace restores the same occupied crop');
-                const current = desktop.panFraction;
+                check(near(desktop.front.offsetX, beforeNewRight), 'removing the empty workspace restores the same occupied crop');
+                const current = desktop.pan.fraction;
                 root.three.id = 2; root.three.name = '2';
                 Hyprland.toplevels.values = [root.one, root.three].map(w => ({workspace: w}));
                 Hyprland.workspaces.values = [root.one, root.three];
                 wait(100);
-                check(near(desktop.panFraction, current), 'compaction leaves the active crop in place');
-                Hyprland.workspaces.values = [root.one, root.three, {id: 3, name: '3'}];
+                check(near(desktop.pan.fraction, current), 'compaction leaves the active crop in place');
+                Hyprland.workspaces.values = [root.one, root.three, {id: 3, name: '3', monitor: Hyprland.monitor}];
                 wait(100);
-                check(near(desktop.panFraction, current), 'creation leaves the active crop in place');
+                check(near(desktop.pan.fraction, current), 'creation leaves the active crop in place');
                 visit({ id: -99, name: 'special:fixture' });
-                check(near(desktop.panFraction, current), 'special workspace retains underlying crop');
+                check(near(desktop.pan.fraction, current), 'special workspace retains underlying crop');
                 visit({ id: 90, name: 'named-fixture' });
-                check(near(desktop.panFraction, current), 'named workspace retains underlying crop');
+                check(near(desktop.pan.fraction, current), 'named workspace retains underlying crop');
                 visit(root.one);
-                check(near(desktop.panFraction, 0), 'last-to-first wraps across finite travel');
+                check(near(desktop.pan.fraction, 0), 'last-to-first wraps across finite travel');
                 Hyprland.monitor.activeWorkspace = root.three;
                 wait(20);
                 Hyprland.monitor.activeWorkspace = root.one;
                 wait(20);
-                tryVerify(() => !desktop.panAnimating, 1500);
-                check(near(desktop.panFraction, 0), 'rapid reversal settles at latest workspace');
+                tryVerify(() => !desktop.pan.running, 1500);
+                check(near(desktop.pan.fraction, 0), 'rapid reversal settles at latest workspace');
                 strip.atTop = false;
                 tryVerify(() => strip.readyFor(desktop.front), 5000);
                 check(firstImage.sourceClipRect.y > 150, 'bottom bar crops the bottom of the image');
@@ -108,24 +110,38 @@ ShellRoot {
                 Hyprland.monitor.activeWorkspace = root.three;
                 tryVerify(() => desktop.front.path === Wallpaper.current && strip.readyFor(desktop.front), 5000);
                 check(desktop.front.opacity === 1 && desktop.back.path === '', 'wallpaper change mid-pan finishes its crossfade');
+                tryVerify(() => !desktop.pan.running, 1500);
+                const zoomedCrop = desktop.front.offsetX;
                 Wallpaper.setParallax(false);
-                wait(100);
-                check(desktop.zoom === 1 && near(desktop.offsetX, 0), 'disabled parallax restores ordinary crop');
+                tryVerify(() => desktop.progress > 0, 1000);
+                check(desktop.front.zoom > 1 && near(desktop.front.offsetX, zoomedCrop), 'disabling parallax crossfades from the zoomed crop');
+                tryVerify(() => desktop.front.zoom === 1 && faded(), 2000);
+                check(near(desktop.front.offsetX, 0), 'disabled parallax restores ordinary crop');
                 Hyprland.toplevels.values = [{workspace: root.one}];
                 Hyprland.workspaces.values = [root.one];
                 Hyprland.monitor.activeWorkspace = root.one;
                 Wallpaper.setParallax(true);
                 wait(20);
-                tryVerify(() => !desktop.panAnimating, 1500);
-                check(near(desktop.panFraction, 0), 'one occupied workspace retains its virtual empty slot');
-                const loneCrop = desktop.offsetX;
+                tryVerify(() => !desktop.pan.running, 1500);
+                check(near(desktop.pan.fraction, 0), 'one occupied workspace retains its virtual empty slot');
+                tryVerify(() => desktop.front.zoom > 1 && faded(), 2000);
+                const loneCrop = desktop.front.offsetX;
                 Hyprland.workspaces.values = [root.one, root.two];
                 visit(root.two);
-                check(desktop.offsetX < loneCrop - 0.5, 'first newly created workspace moves away from the occupied crop');
+                check(desktop.front.offsetX < loneCrop - 0.5, 'first newly created workspace moves away from the occupied crop');
+                const elsewhere = {id: 7, name: '7', monitor: {}};
+                Hyprland.workspaces.values = [root.one, root.two, elsewhere];
+                Hyprland.toplevels.values = [{workspace: root.one}, {workspace: elsewhere}];
+                visit(root.one);
+                visit(root.two);
+                check(near(desktop.pan.fraction, 1), "another monitor's workspaces do not join the pan");
 
 
                 Wallpaper.setColor('#8090a0');
                 tryVerify(() => desktop.front.swatch !== '' && desktop.front.path === '', 5000);
+                Hyprland.monitor.activeWorkspace = root.one;
+                wait(20);
+                check(!desktop.pan.running && near(desktop.pan.fraction, 0), 'a flat colour jumps rather than animating an unseen pan');
                 Wallpaper.hour = (Wallpaper.hourNow() + 12) % 24;
                 Wallpaper.setDrift(true);
                 wait(30);
