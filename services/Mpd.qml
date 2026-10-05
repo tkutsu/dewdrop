@@ -517,6 +517,25 @@ Singleton {
         if (root.asked.includes("listplaylists"))
             root.playlists = root.names;
 
+        root.patchQueue();
+
+        // MPD can hold a queue with no song in it current — a `clear` and an
+        // `add` with no `play` leaves it that way — and currentsong then
+        // answers with nothing. Without a song the pill would sit there
+        // reading "Unknown" over a queue it knows the whole of, so it shows
+        // the one play would start, which is the first. songPos stays -1:
+        // the queue does not mark it as playing, because it is not.
+        const first = root.queue[0];
+        if (pending["file"] === undefined && first) {
+            root.title = first.title;
+            root.artist = first.artist;
+            root.album = first.album;
+            root.file = first.file;
+            root.duration = first.duration;
+        }
+    }
+
+    function patchQueue(): void {
         const version = parseInt(pending["playlist"] ?? "0");
         if (!root.asked.includes("plchanges")) {
             // A version that moved without `idle` saying so — a change that
@@ -537,6 +556,8 @@ Singleton {
                 pos: pos,
                 title: song["Title"] ?? song["Name"] ?? (song["file"] ? song["file"].split("/").pop() : ""),
                 artist: song["Artist"] ?? "",
+                album: song["Album"] ?? "",
+                file: song["file"],
                 duration: Math.round(parseFloat(song["Time"] ?? "0"))
             };
         }
