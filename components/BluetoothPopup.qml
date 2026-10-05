@@ -86,7 +86,9 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !forget.visible && text !== ""
                     text: root.detail(row.modelData)
-                    color: Theme.label2
+                    // Low enough to want charging before the next call.
+                    readonly property int battery: row.modelData.connected ? Bluetooth.battery(row.modelData) : -1
+                    color: battery >= 0 && battery < 20 ? Theme.warn : Theme.label2
                     font.pixelSize: Theme.captionSize
                 }
 

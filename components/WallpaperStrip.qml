@@ -185,7 +185,7 @@ ShaderEffectSource {
                     if (!arg)
                         return [];
                     const [path, crop, nx, ny] = JSON.parse(arg);
-                    return ["magick", path + "[0]", "-crop", crop, "+repage", "-scale", `${nx}x${ny}!`, "-depth", "8", "txt:-"];
+                    return ["timeout", "10", "magick", path + "[0]", "-crop", crop, "+repage", "-scale", `${nx}x${ny}!`, "-depth", "8", "txt:-"];
                 }
 
                 // An answer belongs to its request, even if the wallpaper changed

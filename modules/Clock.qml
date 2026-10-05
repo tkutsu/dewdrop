@@ -41,6 +41,18 @@ BarItem {
         precision: Settings.timeFormat.includes("s") ? SystemClock.Seconds : SystemClock.Minutes
     }
 
+    // Its countdown stops while the machine sleeps, so after a wake it still
+    // shows the time it went down at until that runs out. Turned off and on,
+    // it reads the clock again and schedules from now.
+    Connections {
+        target: WallClock
+
+        function onWokeUp(): void {
+            clock.enabled = false;
+            clock.enabled = true;
+        }
+    }
+
     // Which day, then what time — two facts rather than three, so the weekday
     // and the date are one label with a word space between them.
     // standalone names rather than dayName/monthName

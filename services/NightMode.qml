@@ -37,15 +37,15 @@ Singleton {
         Quickshell.execDetached([Paths.script("display.sh"), up ? "up" : "down"]);
     }
 
-    // The popup's slider. display.sh only steps, so a level goes to it as the
-    // step from wherever the last one left the panel. A drag asks for far
-    // more levels than DDC can take — each setvcp is a good fraction of a
-    // second — so one run at a time, and whatever was asked for last goes
-    // next. The ones in between were never going to be seen anyway.
+    // The popup's slider, as `display.sh set`. A drag asks for far more levels
+    // than DDC can take — each setvcp is a good fraction of a second — so one
+    // run at a time, and whatever was asked for last goes next. The ones in
+    // between were never going to be seen anyway.
     //
     // `brightness` follows the drag rather than the cache while that is going
     // on: read mid-drag, the cache holds a level the slider has already left,
-    // and the knob would jump back to it.
+    // and the knob would jump back to it. `committed` is the cache's level, for
+    // the knob to settle on once the drag is done.
     property int wanted: -1
     property int committed: 100
 
@@ -64,7 +64,6 @@ Singleton {
                     root.brightness = root.committed;
             }
         }
-        onExited: root.push()
     }
 
     function setBrightness(value) {
@@ -74,26 +73,24 @@ Singleton {
     }
 
     function push() {
-        if (initialLevel.running || setter.running || root.wanted < 0)
+        if (setter.running || root.wanted < 0)
             return;
-        const step = root.wanted - root.committed;
+        setter.command = [Paths.script("display.sh"), "set", String(root.wanted)];
         root.wanted = -1;
-        if (step === 0)
-            return;
-        setter.command = [Paths.script("display.sh"), step > 0 ? "up" : "down", String(Math.abs(step))];
         setter.running = true;
     }
 
     Process {
         id: setter
         onExited: function (code) {
-            // Reconcile the actual result before calculating another relative step.
-            level.reload();
-            level.waitForJob();
             if (code !== 0) {
                 console.warn("Could not set display brightness:", code);
                 root.wanted = -1;
             }
+            // The cache moved while this ran, and its change was not let
+            // through to the knob; read it now if nothing else is queued.
+            level.reload();
+            level.waitForJob();
             if (root.wanted < 0)
                 root.brightness = root.committed;
             root.push();

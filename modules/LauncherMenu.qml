@@ -239,8 +239,8 @@ OverlayWindow {
 
     // Tab opens and shuts a mail in mail mode and moves the selection
     // elsewhere. Music trees toggle with Right at the end of the query.
-    // Page keys page the file under the / list, and in music mode, where
-    // there is none, step a level of the tree instead.
+    // Page keys page the file under the / list, in music mode step a level
+    // of the tree, and elsewhere move the selection a screenful.
     function step(key, dir) {
         const tab = key === Qt.Key_Tab || key === Qt.Key_Backtab;
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
@@ -261,14 +261,19 @@ OverlayWindow {
             LauncherMusic.skip(dir);
             return;
         }
-        if (page) {
-            if (preview.item)
-                preview.item.scroll(dir);
+        // With no preview to page, the page keys move a screenful down the
+        // list, stopping at either end rather than wrapping like the arrows.
+        if (page && preview.item) {
+            preview.item.scroll(dir);
             return;
         }
+        const to = page ? Math.max(0, Math.min(Launcher.results.length - 1, Launcher.index + dir * root.visibleRows)) : Launcher.index + dir;
         if (dir > 0)
-            root.loadUnreadMore(Launcher.index + 1);
-        Launcher.move(dir);
+            root.loadUnreadMore(to);
+        if (page)
+            Launcher.index = to;
+        else
+            Launcher.move(dir);
     }
 
     // Fetch another screenful near the end of bare @, including a wheel

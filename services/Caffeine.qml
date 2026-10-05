@@ -2,12 +2,26 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 
 // The caffeine switch, one for the session so every bar's cup agrees. Each bar
 // holds its own inhibitor bound to it (modules/IdleInhibit.qml): an inhibitor
 // needs a window, and a bar's own follows that bar through hotplug and reload.
 Singleton {
+    id: root
+
     property alias active: state.active
+
+    // For the keybind (SUPER+J): the cup sits in the drawer while caffeine is
+    // off, so the mouse way in is two clicks deep.
+    //   qs ipc call caffeine toggle
+    IpcHandler {
+        target: "caffeine"
+
+        function toggle(): void {
+            root.active = !root.active;
+        }
+    }
 
     // Kept through a hot reload of the config. As a plain property it went
     // back to false on every reload, and with it the cup went back into the
