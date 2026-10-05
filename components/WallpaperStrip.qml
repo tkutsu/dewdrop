@@ -14,8 +14,6 @@ ShaderEffectSource {
     readonly property real dpr: QsWindow.window?.devicePixelRatio ?? root.screen.devicePixelRatio ?? 1
     readonly property var renderer: Wallpaper.backdrops[root.screen.name] ?? null
     readonly property real progress: root.renderer?.progress ?? 0
-    readonly property real zoom: root.renderer?.zoom ?? 1
-    readonly property real offsetX: root.renderer?.offsetX ?? 0
     readonly property real glassWeight: root.renderer ? (root.renderer.front.glass ? 1 : 0) * (1 - root.progress) + (root.renderer.back.glass ? 1 : 0) * root.progress : 0
     readonly property var columns: root.glassWeight > 0 ? (first.columns.length ? first.columns : second.columns) : []
 
@@ -80,6 +78,8 @@ ShaderEffectSource {
 
         property var presentation: null
         readonly property string path: strip.presentation?.path ?? ""
+        readonly property real zoom: strip.presentation?.zoom ?? 1
+        readonly property real offsetX: strip.presentation?.offsetX ?? 0
         readonly property var columns: image.columns
         readonly property int imageStatus: image.status
         readonly property bool sampleReady: image.sampleReady
@@ -104,20 +104,20 @@ ShaderEffectSource {
             // it is: at the top, or (a bar anchored to the bottom) at the foot.
             readonly property real stripTop: root.atTop ? 0 : root.screen.height - root.height
             readonly property size natural: strip.presentation?.natural ?? Qt.size(0, 0)
-            readonly property real cover: natural.width > 0 && natural.height > 0 ? Math.max(root.screen.width / natural.width, root.screen.height / natural.height) * root.zoom : 1
+            readonly property real cover: natural.width > 0 && natural.height > 0 ? Math.max(root.screen.width / natural.width, root.screen.height / natural.height) * strip.zoom : 1
             readonly property real cropLeft: (natural.width * cover - width) / 2
             readonly property real cropTop: (natural.height * cover - root.screen.height) / 2 + stripTop
 
             // Load the whole travel range once; only its position moves per frame.
-            width: root.screen.width * root.zoom
+            width: root.screen.width * strip.zoom
             height: strip.height
-            x: (root.screen.width - width) / 2 + root.offsetX
+            x: (root.screen.width - width) / 2 + strip.offsetX
             asynchronous: true
             retainWhileLoading: true
             cache: false
             source: strip.path && natural.width > 0 ? "file://" + strip.path.split("/").map(encodeURIComponent).join("/") : ""
             fillMode: Image.PreserveAspectCrop
-            sourceSize: Qt.size(Math.ceil(root.screen.width * root.zoom * root.dpr), Math.ceil(root.screen.height * root.zoom * root.dpr))
+            sourceSize: Qt.size(Math.ceil(root.screen.width * strip.zoom * root.dpr), Math.ceil(root.screen.height * strip.zoom * root.dpr))
             sourceClipRect: Qt.rect(Math.round(cropLeft * root.dpr), Math.round(cropTop * root.dpr), Math.ceil(width * root.dpr), Math.ceil(height * root.dpr))
 
             // Cache a small colour grid once per wallpaper or screen geometry.
