@@ -174,6 +174,14 @@ Popup {
         width: root.bodyWidth
         inset: 0
         title: "Wallpaper"
+
+        PopupButton {
+            framed: true
+            lit: Wallpaper.parallax
+            glyph: Wallpaper.parallax ? Theme.glyph.check : ""
+            label: "parallax"
+            onTapped: Wallpaper.setParallax(!Wallpaper.parallax)
+        }
     }
 
     PopupText {

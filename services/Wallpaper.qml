@@ -92,6 +92,14 @@ Singleton {
     // photographs. Remembered with the wallpaper.
     property bool drift: false
 
+    // Workspace motion is remembered even while a solid colour is selected.
+    property bool parallax: false
+
+    function setParallax(on) {
+        root.parallax = on;
+        root.save();
+    }
+
     function setDrift(on) {
         root.drift = on;
         root.save();
@@ -346,12 +354,10 @@ Singleton {
         root.save();
     }
 
-    // Three lines: what is on screen — a path or a #rrggbb — the colour to
-    // come back to, and whether a colour drifts. Each line is only ever added
-    // after the last, so a state written before one of them existed still
-    // reads.
+    // What is on screen, the last colour, drift, and workspace parallax.
+    // New lines follow the old ones so earlier state files still read.
     function save() {
-        state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n`);
+        state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n${root.parallax ? "parallax" : ""}\n`);
     }
 
     Connections {
@@ -382,6 +388,7 @@ Singleton {
                 const last = (lines[1] ?? "").trim();
                 root.lastColor = last || root.color;
                 root.drift = (lines[2] ?? "").trim() === "drift";
+                root.parallax = (lines[3] ?? "").trim() === "parallax";
             }
             root.stateKnown = true;
             root.restore();
