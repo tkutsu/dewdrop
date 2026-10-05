@@ -9,6 +9,9 @@ function recurring(entry) {
     return entry.kind === "alarm" && entry.days.length > 0;
 }
 
+// How long an event stays on the calendar after it goes off.
+const eventMs = 30 * 60000;
+
 function event(entry, timeZone) {
     const at = recurring(entry) ? entry.calendarStart : entry.endsAt;
     const body = {
@@ -16,7 +19,7 @@ function event(entry, timeZone) {
         summary: entry.label || (entry.kind === "alarm" ? "PC alarm" : "PC timer"),
         description: "Set in Quickshell.",
         start: {dateTime: new Date(at).toISOString()},
-        end: {dateTime: new Date(at + 60000).toISOString()},
+        end: {dateTime: new Date(at + eventMs).toISOString()},
         transparency: "transparent",
         visibility: "private",
         reminders: {useDefault: false, overrides: [{method: "popup", minutes: 0}]},
