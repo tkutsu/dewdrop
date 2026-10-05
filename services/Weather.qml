@@ -281,16 +281,13 @@ Singleton {
             root.refresh();
         }
     }
+    // Both timers above take their interval from `now`, so moving it after a
+    // sleep restarts them on what is really left: a deadline that passed in
+    // the night fires at once, and the minute tick renews a stale forecast.
     Connections {
         target: WallClock
         function onWokeUp(): void {
             root.now = Date.now() / 1000;
-            if (root.forecastRetryAt <= root.now)
-                root.forecastRetryAt = 0;
-            if (root.cooldownUntil <= root.now)
-                root.cooldownUntil = 0;
-            if (!root.loading)
-                root.refresh();
         }
     }
     Connections {

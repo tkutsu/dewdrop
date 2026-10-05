@@ -27,6 +27,9 @@ Process {
     property string arg: ""
     // How long `want` has to hold still before it is acted on.
     property int interval: 60
+    // The query emptied while a run was in flight: forget that run once it
+    // exits, so asking for the same thing again runs it afresh rather than
+    // matching `arg`. Not before, so its answer still carries what it was for.
     property bool cancelled: false
 
     signal result(string arg, string text)
@@ -39,15 +42,15 @@ Process {
     }
 
     onWantChanged: {
-        if (root.want)
+        if (root.want) {
             root.debounce.restart();
-        else {
-            root.debounce.stop();
-            if (root.running)
-                root.cancelled = true;
-            else
-                root.arg = "";
+            return;
         }
+        root.debounce.stop();
+        if (root.running)
+            root.cancelled = true;
+        else
+            root.arg = "";
     }
 
     // Only the debounce calls this. An exiting run that finds newer work
@@ -60,7 +63,6 @@ Process {
         if (root.running || root.want === root.arg)
             return;
         root.arg = root.want;
-        root.cancelled = false;
         if (root.arg)
             root.running = true;
     }
@@ -71,14 +73,9 @@ Process {
     function cancel(): void {
         root.want = "";
         root.debounce.stop();
-        if (root.running)
-            root.cancelled = true;
-        else
-            root.arg = "";
     }
 
     onExited: {
-        // Keep arg intact until its stdout is collected, then forget that run.
         if (root.cancelled) {
             root.arg = "";
             root.cancelled = false;

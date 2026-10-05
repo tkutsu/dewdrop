@@ -753,7 +753,7 @@ Singleton {
         command: ["timeout", "5", "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
 
         onResult: function (arg, text) {
-            if (!root.shown || arg !== fd.want || fd.cancelled)
+            if (!root.shown || arg !== fd.want)
                 return;
             root.fdHits = ({
                     q: arg,
@@ -1646,13 +1646,9 @@ Singleton {
     }
 
     // --- frecency ------------------------------------------------------------
+    // Read once per opening rather than live, so the list holds still while
+    // it is up but a launch from days ago has aged by the next one.
     property double rankingNow: Date.now()
-    Timer {
-        interval: 60000
-        running: root.shown
-        repeat: true
-        onTriggered: root.rankingNow = Date.now()
-    }
 
     // Usage, decayed by how long ago it was: something run twice this morning
     // outranks something run twice last month.

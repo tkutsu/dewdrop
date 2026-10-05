@@ -381,7 +381,7 @@ Singleton {
     function expire(): void {
         const due = root.entries.filter(e => e.running && e.endsAt <= root.now);
         for (const e of due) {
-            // A countdown tick can beat the shared wake signal after suspend.
+            // Past the grace (asleep when it came due), quietly, as adopt() does.
             if (root.now - e.endsAt <= root.graceMs)
                 root.fire(e);
             else if (e.kind === "alarm" && e.days.length > 0)
@@ -395,14 +395,6 @@ Singleton {
         const kept = root.ringing.filter(r => root.now - r.firedAt <= root.ringMs);
         if (kept.length !== root.ringing.length)
             root.ringing = kept;
-    }
-
-    Connections {
-        target: WallClock
-        function onWokeUp(): void {
-            root.tick();
-            root.arm();
-        }
     }
 
     function fire(e: var): void {

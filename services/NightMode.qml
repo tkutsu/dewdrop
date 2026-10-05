@@ -48,7 +48,6 @@ Singleton {
     // and the knob would jump back to it.
     property int wanted: -1
     property int committed: 100
-    property bool levelKnown: false
 
     // The temporary cache disappears at boot; get queries DDC when it is absent.
     Component.onCompleted: initialLevel.running = true
@@ -57,11 +56,10 @@ Singleton {
         command: [Paths.script("display.sh"), "get"]
         stdout: StdioCollector {
             onStreamFinished: {
-                const value = Number(text.trim());
-                if (!text.trim() || !Number.isFinite(value) || value < 0 || value > 100)
+                const value = parseInt(text);
+                if (isNaN(value))
                     return;
-                root.committed = Math.round(value);
-                root.levelKnown = true;
+                root.committed = value;
                 if (root.wanted < 0)
                     root.brightness = root.committed;
             }
@@ -76,7 +74,7 @@ Singleton {
     }
 
     function push() {
-        if (!root.levelKnown || initialLevel.running || setter.running || root.wanted < 0)
+        if (initialLevel.running || setter.running || root.wanted < 0)
             return;
         const step = root.wanted - root.committed;
         root.wanted = -1;
@@ -126,7 +124,6 @@ Singleton {
             if (isNaN(value))
                 return;
             root.committed = value;
-            root.levelKnown = true;
             if (!setter.running && root.wanted < 0)
                 root.brightness = value;
         }

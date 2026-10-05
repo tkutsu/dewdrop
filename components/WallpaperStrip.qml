@@ -14,7 +14,7 @@ ShaderEffectSource {
     readonly property real dpr: QsWindow.window?.devicePixelRatio ?? root.screen.devicePixelRatio ?? 1
     readonly property var renderer: Wallpaper.backdrops[root.screen.name] ?? null
     readonly property real progress: root.renderer?.progress ?? 0
-    readonly property real glassWeight: root.renderer ? (root.renderer.front.path ? 1 : 0) * (1 - root.progress) + (root.renderer.back.path ? 1 : 0) * root.progress : 0
+    readonly property real glassWeight: root.renderer ? (root.renderer.front.glass ? 1 : 0) * (1 - root.progress) + (root.renderer.back.glass ? 1 : 0) * root.progress : 0
     readonly property var columns: root.glassWeight > 0 ? (first.columns.length ? first.columns : second.columns) : []
 
     hideSource: true
@@ -25,10 +25,11 @@ ShaderEffectSource {
         return presentation === first.presentation ? first : second;
     }
 
-    // The desktop waits for both the image strip and its sampled colours.
+    // The desktop waits for both the image strip and its sampled colours,
+    // when there is a strip to wait for.
     function readyFor(presentation) {
         const strip = root.stripFor(presentation);
-        return !presentation.path || (strip.imageStatus === Image.Ready && strip.sampleReady);
+        return !presentation.glass || (strip.imageStatus === Image.Ready && strip.sampleReady);
     }
 
     function checkReady() {
@@ -173,12 +174,7 @@ ShaderEffectSource {
                 return JSON.stringify([strip.path, `${Math.max(1, inImage(width))}x${Math.max(1, inImage(height))}+${left}+${top}`, Math.ceil(width / columnWidth), Math.ceil(height / rowHeight)]);
             }
 
-            onSampleRequestChanged: {
-                sampleReady = !sampleRequest;
-                // A -> flat colour -> A still needs a fresh sample after clearing.
-                if (!stripSample.running)
-                    stripSample.arg = "";
-            }
+            onSampleRequestChanged: sampleReady = !sampleRequest
 
             QueuedProcess {
                 id: stripSample
