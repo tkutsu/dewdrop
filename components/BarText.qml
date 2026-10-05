@@ -19,6 +19,11 @@ Item {
     property string family: Theme.bodyFont
     property int weight: Theme.bodyWeight
     property color color: Theme.fg
+    property color inkColor: Theme.barInk(root, root.color)
+
+    Behavior on inkColor {
+        ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+    }
 
     // config.jsonc nudged every icon with a hand-picked Pango `rise` because the
     // Material Design glyphs sit high in a font box sized for Latin text. QML
@@ -129,7 +134,7 @@ Item {
         padding: root.inkPad
         text: shown.text
         font: metrics.font
-        color: root.color
+        color: root.inkColor
     }
 
     // Measure once per glyph, the first time it is drawn anywhere; every

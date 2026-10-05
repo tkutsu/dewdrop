@@ -36,6 +36,7 @@ ClickArea {
     readonly property Item pill: parent?.parent instanceof Pill ? parent.parent : null
     readonly property bool pillDragging: pill?.dragging ?? false
     readonly property bool reordering: pillDragging && pill.dragSource === root
+    readonly property bool inkHovered: containsMouse && !pillDragging
 
     function togglePopup(): void {
         OpenPopup.toggle(root);
