@@ -387,14 +387,14 @@ Singleton {
             else if (e.kind === "alarm" && e.days.length > 0)
                 root._patch(e.id, {endsAt: root.occurrence(e.hour, e.minute, e.days, root.now + 1000)});
             else
-                root._drop(e.id, true);
+                root._drop(e.id);
         }
         // Each ring gives up on its own clock. One hush for the lot would
         // silence a timer that just went off because an older one had been
         // ringing a minute.
         const kept = root.ringing.filter(r => root.now - r.firedAt <= root.ringMs);
         if (kept.length !== root.ringing.length)
-            root.ringing = kept;
+            root._unring(kept);
     }
 
     function fire(e: var): void {
@@ -414,7 +414,8 @@ Singleton {
             label: e.label,
             hour: e.hour,
             minute: e.minute,
-            firedAt: root.now
+            firedAt: root.now,
+            calendarEventId: CalendarParse.lingers(e) ? e.calendarEventId : ""
         };
         root.ringing = root.ringing.concat([ringingEntry]);
 
@@ -431,8 +432,15 @@ Singleton {
     // Dismiss locally and stop phone retries, including a receipt still on its
     // way back from sending.
     function hush(): void {
-        root.ringing = [];
+        root._unring([]);
         Pushover.dismiss();
+    }
+
+    // A ring that ends, answered or given up on, takes its calendar reminder
+    // with it: the phone has had its chance, and the event is no longer due.
+    function _unring(keep: var): void {
+        CalendarTimers.enqueue(root.ringing.filter(r => r.calendarEventId && !keep.includes(r)).map(r => CalendarParse.removal(r.calendarEventId)));
+        root.ringing = keep;
     }
 
     // Whatever emptied the ring — dismissed, or the whole list thrown away —
@@ -460,7 +468,7 @@ Singleton {
         target: Pushover
         function onFailed(reason: string): void { root.phoneFailed(reason); }
         function onAcknowledged(id: string, firedAt: real): void {
-            root.ringing = root.ringing.filter(entry => entry.id !== id || entry.firedAt !== firedAt);
+            root._unring(root.ringing.filter(entry => entry.id !== id || entry.firedAt !== firedAt));
         }
     }
 
@@ -617,6 +625,7 @@ Singleton {
         const now = Date.now();
         const kept = [];
         const late = [];
+        const stale = [];
         let top = 0;
 
         for (const raw of stored) {
@@ -641,6 +650,8 @@ Singleton {
             }
             if (now - e.endsAt <= root.graceMs)
                 late.push(e);
+            else
+                stale.push(e);
         }
 
         root.nextId = top + 1;
@@ -648,6 +659,7 @@ Singleton {
         root.restored = true;
         root.tick();
         root.save();
+        CalendarTimers.enqueue(stale.filter(CalendarParse.lingers).map(e => CalendarParse.removal(e.calendarEventId)));
         if (root.phoneBackend === "calendar")
             CalendarTimers.prepare();
     }
