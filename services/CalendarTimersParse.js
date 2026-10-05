@@ -35,8 +35,18 @@ function calendar(entry) {
     return entry.phoneBackend === "calendar" && !!entry.calendarEventId;
 }
 
-// Natural expiry leaves the event for the phone to announce; removal by the
-// user deletes it, including a repeating alarm's future occurrences.
+// A one-off reminder outlives its timer while it rings, so the phone can still
+// announce it; a repeating alarm's series stays for its next occurrence.
+function lingers(entry) {
+    return calendar(entry) && !recurring(entry);
+}
+
+function removal(id) {
+    return {id: id, operation: "delete"};
+}
+
+// Natural expiry leaves the event for the ring to retire (see lingers); removal
+// by the user deletes it, including a repeating alarm's future occurrences.
 function changes(before, after, now, expired) {
     const jobs = [];
     for (const old of before) {
@@ -44,7 +54,7 @@ function changes(before, after, now, expired) {
             continue;
         const next = after.find(entry => entry.calendarEventId === old.calendarEventId);
         if ((!next || !next.running) && !expired)
-            jobs.push({id: old.calendarEventId, operation: "delete"});
+            jobs.push(removal(old.calendarEventId));
     }
     for (const entry of after) {
         if (!calendar(entry) || !entry.running)
