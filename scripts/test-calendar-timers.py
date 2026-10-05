@@ -65,6 +65,24 @@ ShellRoot {
         try {
             check(Timers.restored && CalendarTimers.restored, "state restored");
             check(Timers.phoneBackend === "pushover", "Pushover remains default");
+            const instant = Date.now();
+            const overdue = (id, age, kind, days) => ({id, kind, days, running: true,
+                endsAt: instant - age, hour: 7, minute: 30, label: id, total: 1500000,
+                phoneBackend: "pushover"});
+            Timers.entries = [overdue("ancient", 3600000, "countdown", [])];
+            Timers.now = instant;
+            Timers.expire();
+            check(Timers.ringing.length === 0 && Timers.entries.length === 0,
+                "wake drops old countdown without ringing");
+            Timers.entries = [overdue("repeat", 3600000, "alarm", [1, 2, 3, 4, 5])];
+            Timers.expire();
+            check(Timers.ringing.length === 0 && Timers.entries[0].endsAt > instant,
+                "wake rearms old repeating alarm without ringing");
+            Timers.entries = [overdue("boundary", Timers.graceMs, "countdown", [])];
+            Timers.expire();
+            check(Timers.ringing.some(e => e.id === "boundary"), "five-minute grace remains inclusive");
+            Timers.hush();
+            Timers.entries = [];
             Timers.startCountdown(3600000, "existing Pushover timer");
             check(Google.calls.length === 0, "Pushover does not call Google");
             const pushover = Timers.entries[0];
@@ -253,7 +271,7 @@ def main():
         target = Path(folder)
         services = target / "services"
         services.mkdir()
-        for name in ("Timers.qml", "Pushover.qml", "Http.qml", "TimersParse.js", "CalendarTimers.qml", "CalendarTimersParse.js", "GoogleService.qml"):
+        for name in ("Timers.qml", "Pushover.qml", "Http.qml", "TimersParse.js", "CalendarTimers.qml", "CalendarTimersParse.js", "GoogleService.qml", "WallClock.qml"):
             source = (ROOT / "services" / name).read_text()
             if name == "Timers.qml":
                 source = source.replace('["pw-play", root.alarmSound]', '["/usr/bin/true"]')

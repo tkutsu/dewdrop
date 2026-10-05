@@ -93,15 +93,13 @@ Singleton {
         return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
     }
 
-    // Recomputed at midnight rather than per read, so a bar left up overnight
-    // does not still think yesterday is today. SystemClock at Hours is the
-    // cheapest thing that notices.
+    // Minute ticks catch midnight within a minute of waking from suspend.
     readonly property date now: clock.date
     readonly property string today: root.dayString(clock.date)
 
     SystemClock {
         id: clock
-        precision: SystemClock.Hours
+        precision: SystemClock.Minutes
     }
 
     // --- requests ------------------------------------------------------------

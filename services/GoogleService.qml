@@ -20,6 +20,7 @@ Singleton {
     property bool checkFailed: false
     readonly property bool loading: requests > 0
     readonly property bool retryable: trouble !== "" && !Google.needsConsent
+    readonly property bool stale: !loaded || trouble !== "" || Google.needsConsent
 
     Retry {
         id: recovery
@@ -184,6 +185,14 @@ Singleton {
         function onNeedsConsentChanged(): void {
             if (Google.needsConsent)
                 recovery.reset();
+        }
+    }
+
+    Connections {
+        target: WallClock
+        function onWokeUp(): void {
+            if (base.configured && base.polling && !Google.needsConsent)
+                base.refresh();
         }
     }
 

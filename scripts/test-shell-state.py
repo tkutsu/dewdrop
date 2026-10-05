@@ -240,7 +240,7 @@ def main():
         target = Path(folder)
         services = target / "services"
         services.mkdir()
-        for name in ("Weather.qml", "Pushover.qml", "Http.qml", "Google.qml", "GoogleService.qml"):
+        for name in ("Weather.qml", "Pushover.qml", "Http.qml", "Google.qml", "GoogleService.qml", "WallClock.qml"):
             source = (ROOT / "services" / name).read_text()
             if name in ("Http.qml", "Google.qml"):
                 source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")
@@ -260,7 +260,7 @@ def main():
         (target / "data/pushover.json").write_text(json.dumps({"token": "t" * 30, "user": "u" * 30}))
         notifications = (ROOT / "services/Notifications.qml").read_text()
         methods = "\n".join(re.findall(r'^    function (?:ago|remember)\([^\n]*\n.*?^    }', notifications, re.M | re.S))
-        (services / "Notifications.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nSingleton { id: root; property var list: []; property var centreFocus: null; property var arrived: ({}); property var passing: ({});\n" + methods + "\n}\n")
+        (services / "Notifications.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nSingleton { id: root; property var list: []; property var centreFocus: null; property var arrived: ({}); property var passing: ({}); property var observed: ({}); QtObject { id: retained; property string arrivalsJson: '{}' }\n" + methods + "\n}\n")
         popup = (ROOT / "components/NotificationsPopup.qml").read_text()
         start = popup.index("        required property string modelData", popup.index("component Group:"))
         end = popup.index("        width: ListView.view.width", start)

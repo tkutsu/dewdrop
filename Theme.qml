@@ -785,6 +785,7 @@ Singleton {
 
         playing: "\u{f040a}",
         paused: "\u{f03e4}",
+        stopped: "\u{f04db}",
         // The ones with the bar against them: these move to the track either
         // side rather than running the current one backwards or forwards, and
         // the bar is the difference between the two.

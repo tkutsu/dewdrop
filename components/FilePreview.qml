@@ -133,6 +133,8 @@ Item {
         // the swap has to be made here rather than waited for.
         if (img.status === Image.Ready)
             root.front = img;
+        else if (img.status === Image.Error)
+            root.front = null;
         else
             root.next = img;
     }
@@ -140,6 +142,9 @@ Item {
     function landed(img): void {
         if (root.next === img && img.status === Image.Ready) {
             root.front = img;
+            root.next = null;
+        } else if (root.next === img && img.status === Image.Error) {
+            root.front = null;
             root.next = null;
         }
     }

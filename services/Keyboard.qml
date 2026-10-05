@@ -16,8 +16,8 @@ Singleton {
     id: root
 
     property string layout: ""
-    // Which keyboard's layout the bar is showing. Read once at startup, because
-    // the activelayout event names a keyboard and only the main one counts.
+    // Which keyboard's layout the bar is showing. A different event source
+    // prompts a query because Hyprland may have selected a new main keyboard.
     property string mainKeyboard: ""
 
     // Every layout the main keyboard cycles through, in its order, as
@@ -143,16 +143,18 @@ Singleton {
                 return;
             // The event carries KEYBOARDNAME,LAYOUTNAME, so the layout is
             // already here and the hyprctl round trip that used to answer this
-            // is only needed to find out whose keyboard it is — once, at
-            // startup. parse(2) splits on the first comma alone, so a layout
+            // is needed when the main keyboard is unknown or changes.
+            // parse(2) splits on the first comma alone, so a layout
             // name keeps whatever punctuation it came with.
             if (!root.mainKeyboard) {
                 root.refresh();
                 return;
             }
             const parts = event.parse(2);
-            if (parts[0] !== root.mainKeyboard)
+            if (parts[0] !== root.mainKeyboard) {
+                root.refresh();
                 return;
+            }
             root.layout = parts[1];
             // A layout the list names differently from xkb's list: ask
             // Hyprland, which names the active one itself.

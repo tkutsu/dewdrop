@@ -282,6 +282,18 @@ Singleton {
         }
     }
     Connections {
+        target: WallClock
+        function onWokeUp(): void {
+            root.now = Date.now() / 1000;
+            if (root.forecastRetryAt <= root.now)
+                root.forecastRetryAt = 0;
+            if (root.cooldownUntil <= root.now)
+                root.cooldownUntil = 0;
+            if (!root.loading)
+                root.refresh();
+        }
+    }
+    Connections {
         target: Network
         function onOnlineChanged(): void {
             if (Network.online && root.trouble)

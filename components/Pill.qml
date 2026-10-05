@@ -286,7 +286,7 @@ Item {
 
     // The wallpaper, for the slab to be clear glass over it rather than a
     // tint (Liquid.backdrop). Null leaves it the tint.
-    property Image backdrop: null
+    property Item backdrop: null
 
     // The slab as one colour: the wallpaper under this pill as the glass
     // shows it, or the tint over the wallpaper's average before the strip has
