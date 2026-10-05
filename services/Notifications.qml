@@ -170,12 +170,17 @@ Singleton {
 
     // When each one came in, by id. The server does not record it.
     //
-    // Keep JSON across reloads: JavaScript objects belong to the old QML engine.
-    readonly property var arrived: JSON.parse(retained.arrivalsJson)
+    // Mutated in place and pruned when the notification closes, never
+    // replaced: replacing the object would re-run every card's age on every
+    // arrival. A hot reload starts a new engine, which cannot read the old
+    // one's objects, so a JSON copy carries the times across and is merged in
+    // once, the restored stamps winning over any taken while it loaded.
+    readonly property var arrived: ({})
     PersistentProperties {
         id: retained
         reloadableId: "notification-arrivals"
         property string arrivalsJson: "{}"
+        onLoaded: Object.assign(root.arrived, JSON.parse(retained.arrivalsJson))
     }
 
     // --- arrival ------------------------------------------------------------

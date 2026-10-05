@@ -74,9 +74,8 @@ ShellRoot {
             Notifications.list = [firstNote, secondNote];
             Notifications.centreFocus = secondNote;
             check(group.open, "focus still opens a group after its items changed");
-            const seenAt = Date.now();
-            Notifications.ago(firstNote, seenAt);
-            check(Notifications.ago(firstNote, seenAt + 120000) === "2m", "restored notification ages after first sight");
+            Notifications.ago(firstNote, Date.now());
+            check(Notifications.ago(firstNote, Notifications.arrived[1] + 120000) === "2m", "restored notification ages after first sight");
             Weather.now = 10000;
             Weather.days = [{date: "2026-10-03", hours: [
                 {at: 7200, severity: 8, description: "Thunderstorm", icon: "storm"},

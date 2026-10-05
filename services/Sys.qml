@@ -60,7 +60,8 @@ Singleton {
     property var topCpu: []
     property var topMem: []
 
-    // A failed probe pauses sampling; opening the popup or waking retries it.
+    // A failed probe pauses sampling; opening the popup, or 30 s with it
+    // open, tries again.
     property bool gpuPresent: true
 
     // Raised by whatever is showing the detail (components/SysPopup.qml) for as
@@ -678,10 +679,6 @@ Singleton {
         interval: 30000
         running: root.watchers > 0 && !root.gpuPresent
         onTriggered: root.gpuPresent = true
-    }
-    Connections {
-        target: WallClock
-        function onWokeUp(): void { root.gpuPresent = true; }
     }
 
     Process {

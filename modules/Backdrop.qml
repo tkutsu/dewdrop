@@ -53,7 +53,7 @@ PanelWindow {
 
     Connections {
         target: Wallpaper
-        function onCurrentSizeChanged() { Qt.callLater(root.startFade); }
+        function onMeasuredPathChanged() { Qt.callLater(root.startFade); }
         function onSampledPathChanged() { Qt.callLater(root.startFade); }
     }
 
@@ -82,7 +82,7 @@ PanelWindow {
         if (root.back.path && root.back.status !== Image.Ready)
             return;
         if (root.back.path) {
-            if (Wallpaper.sampledPath !== root.back.path || Wallpaper.currentSize.width <= 0)
+            if (Wallpaper.sampledPath !== root.back.path || Wallpaper.measuredPath !== root.back.path)
                 return;
             root.back.natural = Wallpaper.currentSize;
             root.back.sampled = Wallpaper.sampled || String(root.front.average);
@@ -118,6 +118,9 @@ PanelWindow {
         property string swatch: ""
         property string sampled: ""
         property size natural: Qt.size(0, 0)
+        // Whether the bar can cut its strip from this layer: an image whose
+        // size is known.
+        readonly property bool glass: layer.path !== "" && layer.natural.width > 0
         readonly property color average: layer.path ? Qt.color(layer.sampled || "black") : layer.color
         property alias status: image.status
 
@@ -144,8 +147,11 @@ PanelWindow {
             onStatusChanged: {
                 if (status === Image.Ready)
                     Qt.callLater(root.startFade);
-                else if (status === Image.Error)
+                else if (status === Image.Error) {
                     console.warn("Could not load wallpaper:", layer.path);
+                    // Black rather than nothing when it is the first.
+                    root.ready = true;
+                }
             }
         }
     }

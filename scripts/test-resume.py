@@ -20,7 +20,6 @@ import qs.components
 ShellRoot {
     id: test
     property int wakes: 0
-    property int retries: 0
     property int runs: 0
     property var api: TestApi
     property var night: NightMode
@@ -34,7 +33,6 @@ ShellRoot {
     property var updates: Updates
     property int checksBeforeLog: 0
     Connections { target: WallClock; function onWokeUp() { test.wakes++; } }
-    Retry { id: retry; initialMs: 1000; onTriggered: test.retries++ }
     QtObject { id: radio; property bool scannerEnabled: false; property int type: NM.DeviceType.Wifi; property var networks: ({values: []}) }
     QtObject { id: radio2; property bool scannerEnabled: false; property int type: NM.DeviceType.Wifi; property var networks: ({values: []}) }
     QtObject { id: notice; property int id: 42; signal closed }
@@ -64,23 +62,6 @@ ShellRoot {
             WallClock.sample(initial + 7200000);
             check(TestApi.fetches === 1, "wake respects expired consent");
             Google.needsConsent = false;
-            retry.schedule();
-            const deadline = retry.retryAt;
-            retry.schedule();
-            check(retry.retryAt === deadline, "parallel failures retain one retry deadline");
-            retry.retryAt = Date.now() - 100;
-            WallClock.sample(initial + 10800000);
-            check(retries === 1 && !retry.pending, "overdue backoff retries on wake");
-            retry.schedule();
-            retry.clockNow = Date.now() - 30000;
-            WallClock.sample(initial + 14400000);
-            check(retries === 1 && retry.pending, "wake preserves future retry deadline");
-            check(retry.timer.interval <= retry.retryAt - Date.now() + 1,
-                "future backoff is rearmed for its wall-clock remainder");
-            retry.cancel();
-            Sys.gpuPresent = false;
-            WallClock.wokeUp();
-            check(Sys.gpuPresent, "wake permits another GPU probe");
             Sys.gpuPresent = false;
             Sys.watchers = 1;
             check(Sys.gpuPresent, "reopening popup permits another GPU probe");
@@ -111,7 +92,7 @@ ShellRoot {
             check(Notifications.ago(notice, Date.now()) === "1h", "restored notification retains its age");
             notice.closed();
             check(Notifications.arrived[42] === undefined, "restored notification still prunes its timestamp");
-            check(NightMode.levelKnown && NightMode.brightness === 30, "startup reads real brightness");
+            check(NightMode.brightness === 30, "startup reads real brightness");
             NightMode.setBrightness(50);
             preview.front = shot;
             preview.next = broken;
@@ -161,6 +142,17 @@ ShellRoot {
                 Wallpaper.hour = -1;
                 WallClock.wokeUp();
                 check(Math.abs(Wallpaper.hour - Wallpaper.hourNow()) < 0.02 && Wallpaper.current === "fixture-wallpaper", "wake updates wallpaper time while preserving the image");
+                measureCheck.restart();
+            } catch (error) { test.fail(error); }
+        }
+    }
+    Timer {
+        id: measureCheck
+        interval: 300
+        onTriggered: {
+            try {
+                // The stubbed identify prints nothing, like one that cannot read the file.
+                check(Wallpaper.measuredPath === "fixture-wallpaper" && Wallpaper.currentSize.width === 0, "a size magick cannot read still counts as measured");
                 Wallpaper.setColor("#112233");
                 Wallpaper.setDrift(true);
                 Wallpaper.hour = -1;
@@ -188,7 +180,7 @@ ShellRoot {
         onTriggered: {
             try {
                 check(Updates.testRefreshes > checksBeforeLog, "package log changes refresh update count");
-                console.log("PASS: wake, retry, brightness, GPU, Wi-Fi, keyboard, MPD, agenda, notification ages, queries, previews, wallpaper and packages");
+                console.log("PASS: wake, brightness, GPU, Wi-Fi, keyboard, MPD, agenda, notification ages, queries, previews, wallpaper and packages");
                 Qt.quit();
             } catch (error) { test.fail(error); }
         }

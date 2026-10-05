@@ -345,7 +345,7 @@ BarItem {
                 model: ScriptModel {
                     // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
                     values: [...Hyprland.workspaces.values]
-                        .filter(w => w.id > 0)
+                        .filter(w => !w.name.startsWith("special:"))
                         .filter(w => w.active || w.lastIpcObject?.ispersistent
                             || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
                         .sort((a, b) => a.id - b.id)

@@ -237,19 +237,18 @@ Singleton {
     }
 
     // The image's own size, for the bar to cut out just the rows of it that
-    // are behind the bar (Bar.qml). Empty until known: read from the file's
-    // header (-ping), which takes no time, but the bar holds off until it has
-    // it rather than load the whole image first.
+    // are behind the bar (WallpaperStrip). Read from the file's header (-ping),
+    // which takes no time. `measuredPath` says the answer is in, whether or not
+    // it had a size in it: a file magick cannot read but Qt can still goes up,
+    // as plain wallpaper with no strip, rather than never.
     property size currentSize: Qt.size(0, 0)
+    property string measuredPath: ""
 
     onCurrentChanged: {
         root.sampled = "";
         root.sampledPath = "";
         root.currentSize = Qt.size(0, 0);
-        if (!sample.running)
-            sample.arg = "";
-        if (!measure.running)
-            measure.arg = "";
+        root.measuredPath = "";
     }
 
     QueuedProcess {
@@ -259,9 +258,12 @@ Singleton {
         command: ["magick", "identify", "-ping", "-format", "%w %h", arg + "[0]"]
 
         onResult: (path, text) => {
+            if (path !== root.current)
+                return;
             const [w, h] = text.trim().split(" ");
-            if (path === root.current && Number(w) > 0 && Number(h) > 0)
+            if (Number(w) > 0 && Number(h) > 0)
                 root.currentSize = Qt.size(Number(w), Number(h));
+            root.measuredPath = path;
         }
     }
 

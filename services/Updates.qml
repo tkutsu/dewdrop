@@ -188,14 +188,14 @@ Singleton {
     }
 
     // External pacman/yay transactions also invalidate the installed counts.
+    // Watched, never read: the log runs to megabytes and only the change
+    // matters.
     FileView {
         path: "/var/log/pacman.log"
+        preload: false
         watchChanges: root.polling
         printErrors: false
-        onFileChanged: {
-            reload();
-            packageChange.restart();
-        }
+        onFileChanged: packageChange.restart()
     }
 
     Timer {
