@@ -242,22 +242,21 @@ Singleton {
         });
     }
 
-    Component.onCompleted: {
-        for (const n of root.list) {
-            root.remember(n);
-            if (root.isFleeting(n)) {
-                root.passing[n.id] = true;
-                root.letGo(n);
-            }
-        }
-    }
-
     function receive(n) {
         // Kept by default; a fleeting one is kept too, just for as long as its
         // notice is up, since an untracked notification is closed the moment
         // this handler returns.
         n.tracked = true;
         root.remember(n);
+        // A hot reload hands every kept notification back through here, after
+        // the new generation is built. They were seen in the last one, so they
+        // go back in the list without a notice; a fleeting one was only ever
+        // the notice, so it goes.
+        if (n.lastGeneration) {
+            if (root.isFleeting(n))
+                n.expire();
+            return;
+        }
         if (root.isFleeting(n))
             root.passing[n.id] = true;
 
@@ -302,13 +301,14 @@ Singleton {
 
     // How long a notice stays up. The sender's own timeout when it gave one;
     // otherwise by urgency, the way swaync was set up to time its popups —
-    // low goes quickly, critical waits to be answered.
+    // low goes quickly, critical waits to be answered. expireTimeout is
+    // documented in seconds but holds the D-Bus value, which is milliseconds.
     readonly property int noticeMs: {
         const n = root.latest;
         if (!n)
             return 0;
         if (n.expireTimeout > 0)
-            return n.expireTimeout * 1000;
+            return n.expireTimeout;
         return n.urgency === NotificationUrgency.Low ? 3000 : n.urgency === NotificationUrgency.Critical ? 0 : 6000;
     }
 

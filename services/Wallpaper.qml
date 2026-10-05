@@ -32,23 +32,32 @@ Singleton {
         return root.thumbs[path] ?? path;
     }
 
-    // Every scan hands over a new array whether the files moved or not, and
-    // every scroll notch scans, so the script is only asked when the list
-    // itself changed. One that changes mid-run is caught by the next scan.
+    // Every scan hands over a new array whether anything moved or not, and
+    // every scroll notch scans, so the script is only asked when the listing
+    // changed. The listing carries each file's mtime and size, so a wallpaper
+    // replaced under the same name is a change too. One that changes while
+    // the script runs asks for another scan once it is done.
     property string thumbed: ""
+    property bool rethumb: false
 
-    onFilesChanged: {
-        if (!root.files.length)
+    function thumbnailAll(listing: string): void {
+        if (!root.files.length || listing === root.thumbed)
             return;
-        const list = root.files.join("\n");
-        if (list === root.thumbed || thumbnail.running)
+        if (thumbnail.running) {
+            root.rethumb = true;
             return;
-        root.thumbed = list;
+        }
+        root.thumbed = listing;
         thumbnail.exec([Quickshell.shellPath("scripts/wallpaper-thumbs"), root.thumbDir].concat(root.files));
     }
 
     Process {
         id: thumbnail
+
+        onExited: if (root.rethumb) {
+            root.rethumb = false;
+            root.rescan();
+        }
 
         stdout: StdioCollector {
             onStreamFinished: {
@@ -225,7 +234,10 @@ Singleton {
         Quickshell.execDetached(["hyprctl", "eval", `hl.config({ general = { col = { active_border = "${rgba}" } } })`]);
     }
 
-    onBorderChanged: root.paintBorder()
+    // Not while a new image is still being sampled: the tint is black for that
+    // moment, and Hyprland would animate to grey and back.
+    onBorderChanged: if (root.onScreen || root.sampled)
+        root.paintBorder()
 
     Connections {
         target: Hyprland
@@ -381,11 +393,15 @@ Singleton {
     // flat FolderListModel would see almost none of them.
     Process {
         id: scan
-        command: ["find", root.dir, "-type", "f", "(", "-iname", "*.jpg", "-o", "-iname", "*.jpeg", "-o", "-iname", "*.png", ")"]
+        // Path, mtime, size: the last two only for the thumbnails to notice a
+        // file replaced in place.
+        command: ["find", root.dir, "-type", "f", "(", "-iname", "*.jpg", "-o", "-iname", "*.jpeg", "-o", "-iname", "*.png", ")", "-printf", "%p\t%T@\t%s\n"]
 
         stdout: StdioCollector {
             onStreamFinished: {
-                root.files = text.split("\n").filter(l => l !== "").sort();
+                const listing = text.split("\n").filter(l => l !== "").sort();
+                root.files = listing.map(l => l.split("\t").slice(0, -2).join("\t"));
+                root.thumbnailAll(listing.join("\n"));
                 const queued = root._pending;
                 root._pending = [];
                 root.restore();
