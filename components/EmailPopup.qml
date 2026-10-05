@@ -122,8 +122,9 @@ Popup {
     PopupText {
         width: root.bodyWidth
         leftPadding: root.inset
-        visible: !Email.loaded || Email.total === 0
-        text: !Email.loaded ? Email.tooltip : "No unread mail"
+        visible: !Email.loaded || root.rows.length === 0
+        text: !Email.loaded ? Email.tooltip : Email.total === 0 ? "No unread mail"
+            : Email.trouble || (Email.loading ? "Reading mail..." : "Unread mail details unavailable")
         color: Theme.label2
         wrapMode: Text.WordWrap
     }

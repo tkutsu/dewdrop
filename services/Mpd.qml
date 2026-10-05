@@ -69,7 +69,7 @@ Singleton {
     // something playing: a stopped queue is still a queue, and the pill that
     // would start it should not be the thing that disappears when it stops.
     readonly property bool loaded: connected && (title !== "" || queue.length > 0)
-    readonly property string stateIcon: state === "play" ? Theme.glyph.playing : Theme.glyph.paused
+    readonly property string stateIcon: state === "play" ? Theme.glyph.playing : state === "pause" ? Theme.glyph.paused : Theme.glyph.stopped
     readonly property string label: title || "Unknown"
 
     // off → all → one. MPD has no repeat-one of its own: it is repeat and

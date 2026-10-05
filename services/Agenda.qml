@@ -66,11 +66,14 @@ GoogleService {
     }
 
     readonly property string thisMonth: root.today.slice(0, 7)
+    onThisMonthChanged: if (root.configured && root.polling && !Google.needsConsent) root.refresh()
 
     // --- reading -------------------------------------------------------------
     // The events on a day, soonest first, all-day ones ahead of the timed.
     function forDay(day: string, monthKey: var): var {
-        const month = root.months[monthKey || day.slice(0, 7)];
+        // Fetches include adjacent days; use them while the new month loads.
+        const month = root.months[monthKey || day.slice(0, 7)]
+            ?? Object.values(root.months).find(days => days[day] !== undefined);
         if (!month)
             return [];
         return month[day] ?? [];

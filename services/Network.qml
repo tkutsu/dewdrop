@@ -76,6 +76,8 @@ Singleton {
     property int watchers: 0
     onWatchersChanged: if (wifi)
         wifi.scannerEnabled = watchers > 0
+    onWifiChanged: if (wifi)
+        wifi.scannerEnabled = watchers > 0
 
     function join(network): void {
         if (network.connected) {

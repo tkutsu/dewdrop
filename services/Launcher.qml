@@ -322,15 +322,10 @@ Singleton {
 
     function show(): void {
         OpenPopup.dismiss();
+        root.rankingNow = Date.now();
         root.query = "";
         root.index = 0;
-        // The calculator's and fd's last answers are kept: each is tagged with
-        // the query it was for, so it can only ever show against that query —
-        // and it has to be kept, because QueuedProcess will not run the same
-        // query twice in a row. Clearing them here meant that reopening the
-        // box and typing the last expression again showed nothing at all.
-        // The clipboard is different: it has moved on since last time, and a
-        // row that is merely old is not worth the doubt.
+        // File and clipboard results are refreshed for each opening.
         root.clipEntries = [];
         clip.asked = false;
         fasd.asked = false;
@@ -348,6 +343,7 @@ Singleton {
 
     function hide(): void {
         root.shown = false;
+        root.fdHits = ({q: "", list: []});
         // Closing is not a keystroke, so route() never runs to stop the clocks
         // the modes keep; a run they started against a box that is gone would
         // be work nobody sees.
@@ -757,6 +753,8 @@ Singleton {
         command: ["timeout", "5", "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
 
         onResult: function (arg, text) {
+            if (!root.shown || arg !== fd.want)
+                return;
             root.fdHits = ({
                     q: arg,
                     // fd ends a directory with a slash, which is the only
@@ -996,7 +994,15 @@ Singleton {
             // Nothing unread: the inbox, newest first, which route() has
             // already asked for. The note stands in until it lands.
             const recent = Email.found;
-            if (!recent || recent.q !== root.recentMail || !recent.rows.length)
+            if (Email.trouble)
+                return note(Email.trouble);
+            if (Email.loading && !recent?.rows.length)
+                return note("reading inbox...");
+            if (!recent || recent.q !== root.recentMail)
+                return note("reading inbox...");
+            if (recent.trouble)
+                return note(recent.trouble);
+            if (!recent.rows.length)
                 return note("no unread mail");
             return recent.rows.map(root.mailRow);
         }
@@ -1085,7 +1091,7 @@ Singleton {
                 continue;
             // A window that opened since the last `hyprctl clients` has no IPC
             // object yet; its Wayland app id is the same name a moment early.
-            const cls = t.lastIpcObject?.class || t.wayland?.appId || "";
+            const cls = t.wayland?.appId || t.lastIpcObject?.class || "";
             const entry = cls ? DesktopEntries.heuristicLookup(cls) : null;
             const app = entry?.name || cls;
 
@@ -1640,6 +1646,9 @@ Singleton {
     }
 
     // --- frecency ------------------------------------------------------------
+    // Read once per opening rather than live, so the list holds still while
+    // it is up but a launch from days ago has aged by the next one.
+    property double rankingNow: Date.now()
 
     // Usage, decayed by how long ago it was: something run twice this morning
     // outranks something run twice last month.
@@ -1647,7 +1656,7 @@ Singleton {
         const r = root.db[id];
         if (!r)
             return 0;
-        const ageH = (Date.now() - r.last) / 3600000;
+        const ageH = (root.rankingNow - r.last) / 3600000;
         const w = ageH < 4 ? 4 : ageH < 24 ? 2 : ageH < 168 ? 1 : 0.5;
         return r.count * w;
     }

@@ -59,7 +59,7 @@ ShellRoot {
     }
 
     // Per screen for the same reason, and below everything else the shell puts
-    // up: this is the wallpaper when the wallpaper is a colour.
+    // up: images crossfade here, and solid colours follow their daily drift.
     Variants {
         model: Quickshell.screens
 
