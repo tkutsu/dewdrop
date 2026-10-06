@@ -9,7 +9,8 @@ import "RightPillOrder.js" as Order
 Singleton {
     id: root
 
-    readonly property var keys: Order.normalise(stored.order)
+    // JsonAdapter restores arrays as Qt sequences, which fail Array.isArray.
+    readonly property var keys: Order.normalise(Array.from(stored.order ?? []))
 
     function move(key, beforeKey, visibleKeys): bool {
         const next = Order.move(root.keys, key, beforeKey, visibleKeys);
