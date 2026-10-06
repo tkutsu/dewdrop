@@ -36,11 +36,10 @@ import webbrowser
 # gmail.modify rather than gmail.readonly: it reads everything readonly does,
 # and adds the label changes the bar's "mark read" button makes. It cannot
 # delete mail or send it.
-# Calendar timers write only calendars created by this app.
-# Agenda access remains read-only.
+# The agenda only reads the calendar.
 SCOPE = " ".join(
     "https://www.googleapis.com/auth/" + s
-    for s in ("tasks", "calendar.readonly", "calendar.app.created", "gmail.modify")
+    for s in ("tasks", "calendar.readonly", "gmail.modify")
 )
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
