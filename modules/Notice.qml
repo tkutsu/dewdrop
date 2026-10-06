@@ -30,7 +30,7 @@ BarItem {
     readonly property var current: Notifications.showing && entry ? {
         line: line,
         key: Notifications.keyOf(entry),
-        picture: Notifications.pictureOf(entry),
+        picture: picture.isIcon ? picture.source : Notifications.pictureOf(entry),
         burst: Notifications.burst
     } : null
     property var kept: ({ line: "", key: "", picture: "", burst: 0 })
@@ -63,6 +63,13 @@ BarItem {
 
     // The pointer resting on it keeps it up — see Notifications.held.
     onContainsMouseChanged: Notifications.held = containsMouse
+
+    // Its picture stands for the sender when it is a mark rather than
+    // content, as on its card in the centre.
+    NotificationPicture {
+        id: picture
+        notification: root.entry
+    }
 
     AppIcon {
         id: icon
