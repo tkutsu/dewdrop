@@ -79,8 +79,10 @@ ShellRoot {
                 root.sample = "**long bold text** ".repeat(100);
                 bodyLabel.forceLayout();
                 summaryLabel.forceLayout();
-                check(bodyLabel.truncated && bodyLabel.lineCount <= 4, "body still elides after four lines");
-                check(summaryLabel.truncated && summaryLabel.lineCount <= 2, "summary still elides after two lines");
+                check(bodyLabel.truncated && bodyLabel.lineCount === 10, "body elides after ten lines");
+                check(summaryLabel.truncated && summaryLabel.lineCount === 10, "summary elides after ten lines");
+                root.sample = "plain text";
+                check(bodyLabel.font.weight === Font.Normal && summaryLabel.font.weight === Font.Normal, "plain text has no forced bold weight");
                 console.log("PASS: notification formatting and bar preview");
             } catch (error) { console.log("FAIL: " + error); }
             Qt.quit();

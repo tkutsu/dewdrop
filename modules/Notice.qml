@@ -30,9 +30,10 @@ BarItem {
     readonly property var current: Notifications.showing && entry ? {
         line: line,
         key: Notifications.keyOf(entry),
+        picture: Notifications.pictureOf(entry),
         burst: Notifications.burst
     } : null
-    property var kept: ({ line: "", key: "", burst: 0 })
+    property var kept: ({ line: "", key: "", picture: "", burst: 0 })
 
     onCurrentChanged: if (current)
         kept = current
@@ -67,6 +68,7 @@ BarItem {
         id: icon
         Layout.alignment: Qt.AlignVCenter
         windowClass: root.kept.key
+        source: root.kept.picture
         fallbackGlyph: Theme.glyph.notif
     }
 
@@ -90,11 +92,10 @@ BarItem {
         color: Theme.label2
     }
 
-    // Left goes where it came from, as clicking its card in the centre does
-    // (Notifications.activate). One with nowhere to go opens in the centre
-    // instead, scrolled to and marked there, since activating it would only
-    // put it away. Anything else only waves the notice off, and the
-    // notification stays in the centre.
+    // Left runs its default action, as clicking its card in the centre does
+    // (Notifications.activate). One without a default opens in the centre
+    // instead, scrolled to and marked there. Anything else only waves the
+    // notice off, and the notification stays in the centre.
     actions: ({
             [Qt.LeftButton]: () => {
                 const n = root.entry;

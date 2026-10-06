@@ -25,6 +25,9 @@ Item {
     // What to draw when nothing resolves. A window, on the taskbar; the
     // notifications draw their own mark for a sender with no icon.
     property string fallbackGlyph: Theme.glyph.window
+    // A picture to draw instead of looking the class up, for a notification
+    // whose sender sent its icon as a file.
+    property string source: ""
     // The artwork's opacity, not the dot's: a dimmed icon keeps its dot as
     // legible as a lit one.
     property real inkOpacity: 1
@@ -98,7 +101,7 @@ Item {
                 NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
             }
             y: Math.round((root.height - implicitHeight) / 2)
-            source: root.iconName ? Quickshell.iconPath(root.iconName, true) : ""
+            source: root.source || (root.iconName ? Quickshell.iconPath(root.iconName, true) : "")
             // The tray's line, found the same way (components/InkProbe.qml). The
             // taskbar used to sit on a guess instead: application icons fill their
             // box edge to edge where the theme's panel icons keep margin inside
