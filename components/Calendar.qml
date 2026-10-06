@@ -36,7 +36,7 @@ Popup {
     // shrinks inside it as the pointer crosses the grid rather than the whole
     // popup resizing on every cell (see Popup.reserveHeight).
     readonly property int listRows: 4
-    readonly property int listRowHeight: 18
+    readonly property int listRowHeight: 20
     readonly property int dotSize: 3
 
     // The window is held at the height of a full list; the box stops under
@@ -46,7 +46,7 @@ Popup {
     readonly property var locale: Qt.locale()
     readonly property int firstDay: locale.firstDayOfWeek
 
-    readonly property real cell: 24
+    readonly property real cell: 28
 
     function step(months) {
         offset += months;
