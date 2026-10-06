@@ -9,24 +9,17 @@ import qs.modules
 import qs.services
 
 ShellRoot {
-    // The window list keeps itself current, but floating and fullscreen live in
-    // the IPC object beside it, which Quickshell only fills in on a refresh —
-    // so a refresh on the two events that change one, and on every window
-    // that opens. Without that last one a window that opened floating had no
-    // IPC object to say so, counted as tiled, and a lone dialog on an empty
-    // workspace had the bar reserve the gapless strip until something else
-    // refreshed.
-    //
-    // Here rather than in Bar.qml, which is built once per monitor: the refresh
-    // is one `hyprctl clients` for the whole session, and a copy per bar only
-    // buys a second one of those every time a window is floated.
+    // The window list keeps itself current, but an XWayland window's class lives
+    // in the IPC object beside it, which Quickshell only fills in on a refresh,
+    // so a refresh on every window that opens: the workspace icons and the
+    // launcher read the class from there.
     Connections {
         target: Hyprland
 
         function onRawEvent(event) {
             if (event.name === "changeworkspaceid")
                 workspaceRefresh.restart();
-            if (event.name === "openwindow" || event.name === "changefloatingmode" || event.name === "fullscreen")
+            if (event.name === "openwindow")
                 Hyprland.refreshToplevels();
         }
     }

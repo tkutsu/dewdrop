@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import qs
@@ -31,15 +30,16 @@ PanelWindow {
     // Hyprland's own window gap (general:gaps_out), the same gap that puts a
     // tiled window's left edge level with the left pill, so the bar reserves
     // only what that gap does not already give: the inset less the gap, which
-    // at a 5px inset and an 8px gap stops three pixels short of the pills' foot.
+    // at a 4px inset and an 8px gap stops four pixels short of the pills' foot.
     //
-    // Once the gaps are off (a lone window, which goes edge to edge on the
-    // other three sides) there is no window gap to lean on, and the bar
-    // reserves the whole strip the pills sit centred in. Either way the
-    // window's top edge ends up at the same line, so the pills keep the same
-    // air under them and nothing on the bar changes.
+    // A lone or fullscreen window goes edge to edge on the other three sides
+    // but keeps that top gap (the smart-gaps rules in hypr/configs/tags.lua),
+    // so every window's top edge lands on the same line and the reserve never
+    // changes. It used to, with the bar guessing which rule Hyprland applied,
+    // and a tooltip opening as a window of its own made it guess wrong for a
+    // frame and bounced the window under it.
     readonly property int stripHeight: Theme.barHeight + 2 * Theme.barInset
-    readonly property int reserved: bar.stripHeight - (bar.gapless ? 0 : Theme.barMargin)
+    readonly property int reserved: bar.stripHeight - Theme.barMargin
     exclusiveZone: bar.reserved
     // The whole strip, gaps or not: for the glass to bulge into as a drop
     // pours into its neighbour (bar.bulge). Clicks below the pills' foot go through to
@@ -50,42 +50,6 @@ PanelWindow {
         height: Math.max(bar.reserved, Theme.barInset + Theme.barHeight)
     }
     color: "transparent"
-
-    // Whether Hyprland has taken the gaps off the workspace this bar's monitor
-    // is showing. It does that for a lone tiled window and for a fullscreen one
-    // — the w[tv1] and f[1] workspace rules in hypr/configs/tags.lua — and the
-    // bar reserves the strip in place of the gap (see `reserved`).
-    //
-    // Re-derived rather than read: Hyprland will tell you the rules it holds
-    // (`hyprctl workspacerules`) but not which one matched a workspace, so this
-    // is a copy of that condition and has to be kept in step with tags.lua by
-    // hand. Per monitor, not per session — one screen can be down to its last
-    // window while the other is not.
-    readonly property var hlMonitor: Hyprland.monitors.values.find(m => m.name === bar.modelData.name) ?? null
-
-    readonly property bool gapless: {
-        const id = bar.hlMonitor?.activeWorkspace?.id;
-        if (id === undefined)
-            return false;
-
-        let tiled = 0;
-        for (const toplevel of Hyprland.toplevels.values) {
-            if (toplevel.workspace?.id !== id)
-                continue;
-
-            const client = toplevel.lastIpcObject;
-            if (client?.fullscreen)
-                return true;
-            // Whether a window floats is only known from the last `hyprctl
-            // clients` refresh, and one that opened since has no object to ask.
-            // Counting those as tiled is what closes the gaps' return to the
-            // moment a second window opens rather than a refresh later.
-            if (client && (client.floating || client.hidden))
-                continue;
-            tiled++;
-        }
-        return tiled === 1;
-    }
 
     // Anywhere on the bar, pills or the air between them. The drawer stays
     // open while the pointer is here or down in one of the bar's popups.
