@@ -383,8 +383,10 @@ Popup {
                 PopupText {
                     width: parent.width
                     visible: text !== ""
-                    text: Notifications.plain(card.n?.summary)
-                    textFormat: Text.PlainText
+                    text: Notifications.styled(card.n?.summary)
+                    textFormat: Text.StyledText
+                    linkColor: Theme.label2
+                    onLinkActivated: link => Notifications.openLink(link)
                     color: card.n?.urgency === NotificationUrgency.Critical ? Theme.warn : Theme.label
                     font.weight: Font.DemiBold
                     wrapMode: Text.Wrap
@@ -395,8 +397,10 @@ Popup {
                 PopupText {
                     width: parent.width
                     visible: text !== ""
-                    text: Notifications.plain(card.n?.body)
-                    textFormat: Text.PlainText
+                    text: Notifications.styled(card.n?.body)
+                    textFormat: Text.StyledText
+                    linkColor: Theme.label2
+                    onLinkActivated: link => Notifications.openLink(link)
                     color: Theme.label2
                     wrapMode: Text.Wrap
                     maximumLineCount: 4

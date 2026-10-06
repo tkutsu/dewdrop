@@ -117,12 +117,48 @@ Singleton {
     }
 
     // --- presentation helpers -------------------------------------------------
-    // Markup is not advertised (bodyMarkupSupported), but some senders send it
-    // anyway; a line of text has no use for any of it. Only the tags the spec
-    // allows (and the br, p and span some send regardless) go, so plain text
-    // that compares two things, "2 < 3 and 5 > 4", keeps both sides.
+    // Inline Markdown and notification HTML become StyledText, which keeps
+    // the cards' wrapping and ellipsis. Protect code and tags from Markdown
+    // replacements, and escape comparison signs in ordinary text.
+    function styled(s) {
+        const tokens = [];
+        const keep = value => "\u0001" + (tokens.push(value) - 1) + "\u0002";
+        const escape = value => value.replace(/&(?!(?:amp|lt|gt|quot|apos|nbsp|#\d+|#x[\da-f]+);)/gi, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        let text = String(s ?? "").replace(/(`+)([^`]*?)\1/g, (_, ticks, code) => keep("<font face=\"monospace\">" + escape(code) + "</font>"));
+        // Breaks and paragraphs become newlines, so "<p>a</p><p>b</p>" or a
+        // trailing newline does not open the card on (or end it with) a blank line.
+        text = text.replace(/<\/?(?:b|strong|i|em|u|s|del|a|br|p|span|img)\b[^>]*>/gi, tag => {
+            if (/^<\/?(?:span|img)\b/i.test(tag))
+                return "";
+            if (/^<\/?(?:br|p)\b/i.test(tag))
+                return "\n";
+            return keep(tag.replace(/<(\/?)(strong|em|del)\b/gi, (_, close, name) => "<" + close + ({strong: "b", em: "i", del: "s"})[name.toLowerCase()]));
+        });
+        text = escape(text.trim().replace(/\n{3,}/g, "\n\n"));
+        text = text.replace(/\[([^\]\n]+)\]\(([^\s)]+)\)/g, (_, label, url) => keep("<a href=\"" + url + "\">") + label + keep("</a>"));
+        // Emphasis needs text hugging its markers, as in Markdown, so "2 * 3 * 4" stays arithmetic.
+        text = text.replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, "<b>$1</b>").replace(/(^|\W)__(?=\S)([^\n]*?\S)__(?=$|\W)/g, "$1<b>$2</b>");
+        text = text.replace(/~~(?=\S)([^\n]*?\S)~~/g, "<s>$1</s>");
+        text = text.replace(/(^|[^*\w])\*(?=[^\s*])([^*\n]*?[^\s*])\*(?![*\w])/g, "$1<i>$2</i>").replace(/(^|\W)_(?=\S)([^_\n]*?\S)_(?=$|\W)/g, "$1<i>$2</i>");
+        text = text.replace(/\n/g, "<br>");
+        return text.replace(/\u0001(\d+)\u0002/g, (token, index) => tokens[Number(index)] ?? token);
+    }
+
+    // The bar has one line: use the same markup interpretation, then flatten it.
+    // Numeric entities too: senders that escape for markup send "it&#39;s".
     function plain(s) {
-        return String(s ?? "").replace(/<\/?(?:br|p)\b[^>]*>/gi, " ").replace(/<\/?(?:b|i|u|a|img|span)\b[^>]*>/gi, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+        const character = (_, code) => {
+            const point = /^x/i.test(code) ? parseInt(code.slice(1), 16) : Number(code);
+            return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : _;
+        };
+        return root.styled(s).replace(/<br>/gi, " ").replace(/<\/?(?:b|i|u|s|a|font)\b[^>]*>/gi, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/&#(x[\da-f]+|\d+);/gi, character).replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+    }
+
+    // Links in a card open in the browser; anything else (javascript:, file:)
+    // is not something a notification gets to launch.
+    function openLink(url) {
+        if (/^(?:https?|mailto):/i.test(url))
+            Qt.openUrlExternally(url);
     }
 
     // What AppIcon should look the sender up as: its desktop entry if it named
