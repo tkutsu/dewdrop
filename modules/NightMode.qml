@@ -22,6 +22,7 @@ BarItem {
             height: parent.height
             text: NightMode.icon
             fontSize: Theme.glyphSize - 1
+            nudge: -1
         }
         Glyph {
             id: onRuler
