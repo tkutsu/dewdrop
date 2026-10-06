@@ -104,8 +104,7 @@
     "mpdSocket": "$XDG_RUNTIME_DIR/mpd.sock",
 
     // Your own scripts, shared with the keybinds: power.sh, display.sh,
-    // volumecontrol.sh, thumb.sh, the pwa-*.sh launchers, the screenshot and
-    // update runners, and f/ignore, the launcher's file-search denylist.
+    // thumb.sh, the pwa-*.sh launchers, the screenshot and update runners, and f/ignore, the launcher's file-search denylist.
     "scriptsDir": "~/_scripts",
 
     // --- Google ------------------------------------------------------------
