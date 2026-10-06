@@ -48,11 +48,6 @@ Popup {
 
     readonly property real cell: 24
 
-    // Google Calendar, the same app the clock's own click opens (see
-    // ~/_scripts/pwa-gcalendar.sh, which holds this id too), but pointed at
-    // one day rather than at wherever it was left.
-    readonly property string calendarApp: "kjbdgfilnfhdoflbpgamdcdgpehopbep"
-
     function step(months) {
         offset += months;
     }
@@ -98,7 +93,9 @@ Popup {
     function openDay(day) {
         OpenPopup.dismiss();
         const url = `https://calendar.google.com/calendar/r/day/${day.getFullYear()}/${day.getMonth() + 1}/${day.getDate()}`;
-        Quickshell.execDetached(["chromium", "--profile-directory=Default", "--app-id=" + root.calendarApp, "--app-launch-url-for-shortcuts-menu-item=" + url]);
+        // The same app the clock's own click opens, pointed at one day rather
+        // than at wherever it was left.
+        Quickshell.execDetached([Paths.script("pwa-gcalendar.sh"), url]);
     }
 
     // The date in any cell of the grid, which starts on the week holding the
