@@ -171,5 +171,12 @@ void main() {
     vec3 rgb = rim.rgb * rimA + body * bodyA * (1.0 - rimA);
     float a = rimA + bodyA * (1.0 - rimA);
 
+    // The glass lays its antialiased edge over the wallpaper itself, opaque:
+    // a part-covered pixel would otherwise let Hyprland's blur through, which
+    // is darker than the wallpaper (brightness 0.8172), in a ragged ring
+    // wherever the edge's coverage crosses the bar's ignore_alpha.
+    rgb += behind(p) * (1.0 - a) * glass;
+    a += (1.0 - a) * glass;
+
     fragColor = vec4(rgb, a) * qt_Opacity;
 }
