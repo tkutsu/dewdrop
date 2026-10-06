@@ -545,12 +545,15 @@ Singleton {
     readonly property int foldMs: 360
 
     // The side pills use the music title's spring (Music.qml): the same
-    // stiffness and damping for workspace width changes and drawer folds.
-    // Drawer modules land first, then the glass settles (Pill.stretch).
-    // At 2.5 / 0.14, Qt's spring first reaches its target at about 160 ms.
+    // stiffness and damping for workspace width changes.
     readonly property real foldSpring: springStiffness
     readonly property real foldDamping: 0.14
-    readonly property int foldLandMs: 160
+    // The drawer folds on a softer one: a 19% overshoot rather than 30%.
+    // Drawer modules land first, then the glass settles (Pill.stretch).
+    // At 2.2 / 0.17, Qt's spring first reaches its target at about 192 ms.
+    readonly property real drawerSpring: 2.2
+    readonly property real drawerDamping: 0.17
+    readonly property int foldLandMs: 192
     // Before the drawer folds, the glass winds up the other way by this
     // much, in pixels, and lets go into the spring (Drawer.windup): drawn in
     // past shut before opening, out before shutting. Small beside the
