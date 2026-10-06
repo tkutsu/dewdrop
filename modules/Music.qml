@@ -138,7 +138,7 @@ BarItem {
     }
 
     property real swapOpacity: 1
-    contentAnimating: swap.running || titleFade.running || previousWidth.running || titleWidth.running || nextWidth.running
+    contentAnimating: swap.running || titleFade.running || previousWidth.running || slotWidth.running || titleWidth.running || nextWidth.running
 
     NumberAnimation {
         id: titleFade
@@ -301,9 +301,9 @@ BarItem {
         // Icon-sized and only just rounded, so it reads as part of the row
         // rather than as a second pill inside this one. With the hands out it
         // gives its place to a play or pause mark between them, so the three
-        // controls read as one row; at rest the picture is back. A folder
-        // with no sleeve shows the mark at rest too, so the slot is never
-        // empty. The gap after it presses with it.
+        // controls read as one row; at rest the picture is back. Without a
+        // sleeve, the slot and its gap fold away until the controls come out.
+        // The gap after it presses with it.
         Item {
             id: slot
             readonly property bool inkHovered: playHover.hovered
@@ -312,14 +312,14 @@ BarItem {
 
             readonly property int size: 14
             readonly property int air: (Theme.barHeight - size) / 2
-            // Nothing to show rather than something still decoding: a record
-            // whose picture is on its way fades straight into it.
+            readonly property int full: size + Theme.mediaGap
             readonly property bool bare: sleeve.status === Image.Null || sleeve.status === Image.Error
 
             Layout.fillHeight: true
-            implicitWidth: size + Theme.mediaGap
+            implicitWidth: root.handsOut || !bare ? full : 0
+            clip: width < full
             transform: Translate { y: playTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
-            opacity: root.swapOpacity
+            opacity: root.swapOpacity * width / full
             scale: 0.92 + 0.08 * root.swapOpacity
             layer.enabled: root.swapOpacity < 1
             layer.smooth: true
@@ -329,8 +329,18 @@ BarItem {
                 blur: 1 - root.swapOpacity
             }
 
+            Behavior on implicitWidth {
+                enabled: root.settled
+                NumberAnimation {
+                    id: slotWidth
+                    duration: Theme.foldMs
+                    easing.type: Easing.InOutCubic
+                }
+            }
+
             TapHandler {
                 id: playTap
+                enabled: root.handsOut || !slot.bare
                 margin: Theme.pressDip
                 onTapped: Mpd.toggle()
             }
@@ -370,7 +380,7 @@ BarItem {
                 x: Math.round((slot.size - width) / 2)
                 height: parent.height
                 text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
-                opacity: root.handsOut || slot.bare ? 1 : 0
+                opacity: root.handsOut ? 1 : 0
 
                 Behavior on opacity {
                     NumberAnimation {
