@@ -16,7 +16,7 @@ import qs.services
 // are three states of one thing, so they are one pill and not three modules.
 //
 // No popup: pointed at, it opens out the way the music pill does. The glyph
-// gives its place to a pause or play mark, and the timer's name and a close
+// gives its place to a close mark, and the timer's name and a pause or play
 // hand fold out after the label, so what can be done to the timer is on the
 // timer. The full list, and
 // the phone settings, are the clock's popup.
@@ -45,17 +45,14 @@ BarItem {
     // the popup's button always was.
     readonly property var target: Timers.focus ?? Timers.nextAlarm
 
+    // Ringing, the hands stand down and a click anywhere hushes (`actions`).
     function hold() {
-        if (root.ringing)
-            Timers.hush();
-        else if (root.target)
+        if (root.target)
             Timers.toggle(root.target.id);
     }
 
     function dismiss() {
-        if (root.ringing)
-            Timers.hush();
-        else if (root.target)
+        if (root.target)
             Timers.cancel(root.target.id);
     }
 
@@ -101,20 +98,20 @@ BarItem {
 
     Component.onCompleted: root.sync()
 
-    // Each part brings its own gap, so that the close hand can take its gap
+    // Each part brings its own gap, so that the pause hand can take its gap
     // with it as it folds.
     spacing: 0
-    // Each target presses in by itself.
-    dips: false
-    contentAnimating: nameWidth.running || closeWidth.running
+    // While ringing, the whole pill is one dismissal target.
+    dips: root.ringing
+    contentAnimating: nameWidth.running || holdWidth.running
 
     // Out only while the pill is pointed at.
     readonly property bool handsOut: root.containsMouse
 
-    // The glyph's slot, and the pause button once the hands are out: the
+    // The glyph's slot, and the close button once the hands are out: the
     // glyph fades to what pressing it will do, as the music pill's sleeve
-    // does. Ringing, there is nothing to pause, so it keeps hopping and a
-    // press shuts it up. Wide enough for either, so the swap moves nothing.
+    // does. Ringing, it keeps hopping and a press shuts it up. Wide enough
+    // for either, so the swap moves nothing.
     Item {
         id: slot
         readonly property bool inkHovered: slotHover.hovered
@@ -129,8 +126,9 @@ BarItem {
 
         TapHandler {
             id: slotTap
+            enabled: !root.ringing
             margin: Theme.pressDip
-            onTapped: root.hold()
+            onTapped: root.dismiss()
         }
 
         Glyph {
@@ -157,7 +155,7 @@ BarItem {
             id: mark
             x: Math.round((slot.width - Theme.mediaGap - width) / 2)
             height: parent.height
-            text: root.target?.running ? Theme.glyph.paused : Theme.glyph.playing
+            text: Theme.glyph.close
             opacity: slot.marked ? 1 : 0
 
             Behavior on opacity {
@@ -221,6 +219,7 @@ BarItem {
         implicitWidth: root.handsOut && root.shownName !== "" ? full : 0
         clip: width < full
         opacity: full > 0 ? width / full : 0
+        transform: Translate { y: nameTap.pressed ? Theme.pressDip : 0 }
 
         Behavior on implicitWidth {
             enabled: root.settled
@@ -238,15 +237,21 @@ BarItem {
             text: root.shownName
             color: Theme.label2
             maxWidth: Theme.mediaTitleWidth
+
+            TapHandler {
+                id: nameTap
+                enabled: !root.ringing && root.handsOut && root.shownName !== ""
+                onTapped: root.hold()
+            }
         }
     }
 
-    // The close hand, folding the way the music pill's next does. It throws
-    // the timer away, or shuts it up if it is ringing.
+    // The pause hand belongs to a pending timer, never a finished one.
     Item {
-        readonly property real full: Theme.mediaGap + close.implicitWidth
+        readonly property real full: Theme.mediaGap + hold.implicitWidth
 
         Layout.fillHeight: true
+        visible: !root.ringing
         implicitWidth: root.handsOut ? full : 0
         clip: width < full
         opacity: width / full
@@ -254,28 +259,28 @@ BarItem {
         Behavior on implicitWidth {
             enabled: root.settled
             NumberAnimation {
-                id: closeWidth
+                id: holdWidth
                 duration: Theme.foldMs
                 easing.type: Easing.InOutCubic
             }
         }
 
         Glyph {
-            id: close
-            readonly property bool inkHovered: closeHover.hovered
+            id: hold
+            readonly property bool inkHovered: holdHover.hovered
 
-            HoverHandler { id: closeHover; enabled: root.handsOut }
+            HoverHandler { id: holdHover; enabled: root.handsOut }
 
             x: Theme.mediaGap
             height: parent.height
-            text: Theme.glyph.close
-            transform: Translate { y: closeTap.pressed ? Theme.pressDip : 0 }
+            text: root.target?.running ? Theme.glyph.paused : Theme.glyph.playing
+            transform: Translate { y: holdTap.pressed ? Theme.pressDip : 0 }
 
             TapHandler {
-                id: closeTap
+                id: holdTap
                 enabled: root.handsOut
                 margin: Theme.pressDip
-                onTapped: root.dismiss()
+                onTapped: root.hold()
             }
         }
     }
@@ -284,6 +289,7 @@ BarItem {
     // if it is running, and otherwise set one. Middle shuts it up too and
     // otherwise throws away, the close hand without reaching for it.
     actions: ({
+            [Qt.LeftButton]: root.ringing ? () => Timers.hush() : null,
             [Qt.RightButton]: () => {
                 if (root.ringing)
                     Timers.hush();

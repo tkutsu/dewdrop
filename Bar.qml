@@ -350,6 +350,15 @@ PanelWindow {
         progress: countdown.progress
         rate: countdown.rate
         trackOpacity: contentOpacity
+        trackWidth: countdown.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
+
+        Behavior on trackWidth {
+            enabled: countdown.settled
+            NumberAnimation {
+                duration: Theme.foldMs
+                easing.type: Easing.InOutCubic
+            }
+        }
 
         Countdown {
             id: countdown
