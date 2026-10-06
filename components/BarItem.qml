@@ -140,8 +140,8 @@ ClickArea {
         enabled: root.folds && root._started
         SpringAnimation {
             id: foldSpring
-            spring: Theme.foldSpring
-            damping: Theme.foldDamping
+            spring: Theme.drawerSpring
+            damping: Theme.drawerDamping
             // Of the whole fold rather than a pixel: the drawer is a few
             // hundred pixels, and at the default 1% the last few of them
             // would snap into place.
