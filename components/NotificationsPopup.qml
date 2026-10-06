@@ -271,14 +271,13 @@ Popup {
         property var others: []
         signal openGroup
         readonly property var buttons: Notifications.buttons(card.n)
-        readonly property string icon: Notifications.iconFor(card.n)
-        // Mullvad's image payload is its logo, not a preview. Icon URLs and
-        // images matching the sender's icon likewise belong only on the left.
-        readonly property string image: {
-            if (!card.n || card.n.desktopEntry === "mullvad-vpn" || card.n.appName === "Mullvad VPN")
-                return "";
-            const url = Notifications.url(card.n.image);
-            return url.startsWith("image://icon/") || url === card.icon ? "" : url;
+        // Its picture on the left when that is a mark of the sender's (a
+        // logo, an avatar), else the app's icon; content goes under the text.
+        readonly property string icon: picture.isIcon ? picture.source : Notifications.iconFor(card.n)
+
+        NotificationPicture {
+            id: picture
+            notification: card.n
         }
 
         width: parent.width
@@ -330,19 +329,26 @@ Popup {
             width: parent.width - root.cardPad * 2
             implicitHeight: Math.max(iconBox.height, labels.implicitHeight)
 
-            // The app's icon, or a bell on a tile when it sent none.
+            // The app's icon, or a bell on a tile when it sent none. Rounded
+            // like the tile, so an avatar is not a hard-cornered square.
             Item {
                 id: iconBox
 
                 width: root.iconSize
                 height: root.iconSize
 
-                IconImage {
-                    id: appIcon
-
+                ClippingRectangle {
                     anchors.fill: parent
-                    source: card.icon
-                    visible: status === Image.Ready
+                    radius: root.iconRadius
+                    color: "transparent"
+                    visible: appIcon.status === Image.Ready
+
+                    IconImage {
+                        id: appIcon
+
+                        anchors.fill: parent
+                        source: card.icon
+                    }
                 }
 
                 Rectangle {
@@ -447,22 +453,22 @@ Popup {
                 Item {
                     width: parent.width
                     height: preview.height + 6
-                    visible: card.image !== "" && picture.status === Image.Ready
+                    visible: shot.status === Image.Ready
 
                     ClippingRectangle {
                         id: preview
 
                         y: 6
                         width: parent.width
-                        height: picture.implicitWidth > 0 ? width * picture.implicitHeight / picture.implicitWidth : 0
+                        height: shot.implicitWidth > 0 ? width * shot.implicitHeight / shot.implicitWidth : 0
                         radius: root.iconRadius
                         color: "transparent"
 
                         Image {
-                            id: picture
+                            id: shot
 
                             anchors.fill: parent
-                            source: card.image
+                            source: picture.isPreview ? picture.source : ""
                             fillMode: Image.PreserveAspectFit
                             sourceSize.width: Math.ceil(preview.width * 2)
                             asynchronous: true
