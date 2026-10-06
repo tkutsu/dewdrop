@@ -25,7 +25,7 @@ for (const bad of [null, {}, 'audio', 42]) equal(normalise(bad), defaults);
 const visible = ['audio', 'tasks', 'network'];
 const moved = Array.from(move(defaults, 'audio', null, visible));
 const expected = [...defaults];
-expected[0] = 'tasks'; expected[2] = 'network'; expected[12] = 'audio';
+expected[0] = 'tasks'; expected[2] = 'network'; expected[defaults.indexOf('network')] = 'audio';
 equal(moved, expected);
 equal(move(moved, 'audio', 'tasks', visible), defaults);
 equal(move(defaults, 'audio', 'tasks', visible), defaults);
@@ -217,6 +217,60 @@ QtObject {
 }
 
 
+RESTORED_LAYOUT = r"""
+import QtQuick
+import QtQuick.Window
+import QtTest
+import Quickshell
+import qs
+import qs.components
+ShellRoot {
+    id: root
+    Window {
+        visible: true; width: 1000; height: 250
+        Item {
+            id: host
+            width: 850; height: 100
+            Loader {
+                id: loader
+                sourceComponent: Pill {
+                    order: RightPillOrder.keys
+                    drawsSlab: false
+                    BarItem { Rectangle { implicitWidth: 12; implicitHeight: 20 } }
+                    BarItem { id: audio; pinKey: 'audio'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
+                    BarItem { id: network; settingsKey: 'network'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
+                    BarItem { id: language; pinKey: 'language'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
+                    BarItem { id: launcher; Rectangle { implicitWidth: 12; implicitHeight: 20 } }
+                    function checkPosition(why) {
+                        if (!(audio.x > language.x && audio.x < launcher.x))
+                            throw Error(why + ': volume reset from beside launcher to the left');
+                        if (JSON.stringify(RightPillOrder.keys) !== JSON.stringify(EXPECTED_ORDER))
+                            throw Error(why + ': saved order changed');
+                    }
+                }
+            }
+        }
+        TestCase {
+            id: test
+            when: false
+            function run() {
+                loader.item.checkPosition('restart');
+                host.visible = false; wait(30); host.visible = true; wait(30);
+                loader.item.checkPosition('bar restored');
+                Settings.disabled = ['audio', 'network', 'language']; wait(30);
+                Settings.disabled = []; wait(30);
+                loader.item.checkPosition('modules restored');
+                loader.active = false; wait(30); loader.active = true; wait(30);
+                loader.item.checkPosition('pill recreated');
+                console.log('PASS: restored volume stays beside launcher');
+            }
+        }
+    }
+    Timer { interval: 200; running: true; onTriggered: { try { test.run(); } catch (e) { console.log('FAIL: ' + e); } Qt.quit(); } }
+}
+"""
+
+
 def run_shell(target, source):
     (target / 'shell.qml').write_text(source)
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', XDG_RUNTIME_DIR=str(target / 'runtime'))
@@ -248,7 +302,7 @@ def main():
 import Quickshell
 import qs
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 15) console.log('FAIL: defaults');
+    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 14) console.log('FAIL: defaults');
     else if (RightPillOrder.move('audio', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();
@@ -272,6 +326,21 @@ ShellRoot { Timer { interval: 150; running: true; onTriggered: {
         output = run_shell(target, restart)
         assert 'ORDER:' + json.dumps(saved, separators=(',', ':')) in output, output
         print('PASS: order survives a fresh shell process')
+        # Keep a custom order on disk: the pointer checks above finish at defaults.
+        save_volume = """import QtQuick
+import Quickshell
+import qs
+ShellRoot { Timer { interval: 150; running: true; onTriggered: {
+    if (!RightPillOrder.move('audio', null, ['audio', 'network', 'language']))
+        console.log('FAIL: volume did not move');
+    else console.log('PASS: saved volume beside launcher');
+    Qt.quit();
+} } }"""
+        run_shell(target, save_volume)
+        saved = json.loads(state.read_text())['order']
+        assert saved[-1] == 'audio', 'fixture must save volume in the last visible slot'
+        run_shell(target, RESTORED_LAYOUT.replace('EXPECTED_ORDER', json.dumps(saved)))
+        assert json.loads(state.read_text())['order'] == saved, 'restoring the layout rewrote the order'
 
 
 if __name__ == '__main__':
