@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Notifications
 import qs
@@ -17,8 +18,16 @@ import qs
 Singleton {
     id: root
 
-    // Every notification being kept, newest first.
-    readonly property var list: [...server.trackedNotifications.values].reverse()
+    // Every notification being kept, newest first: by when it arrived or was
+    // last updated, since an update in place keeps its slot in the server's
+    // own order. One not stamped yet is arriving now. `arrived` is mutated
+    // in place, so `stamps` is what says it changed.
+    readonly property var list: {
+        root.stamps;
+        const at = n => root.arrived[n.id] ?? Number.MAX_SAFE_INTEGER;
+        return [...server.trackedNotifications.values].reverse().sort((a, b) => at(b) - at(a));
+    }
+    property int stamps: 0
     readonly property int count: list.length
 
     // Do not disturb: kept, counted, listed in the centre, never shown as they
@@ -94,20 +103,40 @@ Singleton {
     }
 
     // Clicking a notification is asking for what it is about: its default
-    // action when it has one. Either way it has been dealt with, so it goes.
+    // action when it has one, else the app that sent it. Either way it has
+    // been dealt with, so it goes.
     function activate(n) {
         const open = n.actions.find(a => a.identifier === "default");
         if (open)
-            root.run(open);
-        else if (!n.resident)
+            return root.run(open, n);
+        OpenPopup.dismiss();
+        root.focusSender(n);
+        n.dismiss();
+    }
+
+    // An action taken here clears its notification, resident or not: the
+    // click is the answer, and a card left behind would ask again. Quickshell
+    // already closes a non-resident one as it invokes, so only a resident one
+    // is still in the list by then.
+    function run(action, n) {
+        OpenPopup.dismiss();
+        action.invoke();
+        if (n && root.list.includes(n))
             n.dismiss();
     }
 
-    // An action is somewhere else to go, so whichever popup it was picked in
-    // puts itself away, the way the popups' own foot buttons do.
-    function run(action) {
-        OpenPopup.dismiss();
-        action.invoke();
+    // The sender's most recently used window, or the app itself when it
+    // named its desktop entry and has no window open. A sender that is
+    // neither (notify-send, a script) has nowhere to go.
+    function focusSender(n) {
+        const entry = n.desktopEntry ? DesktopEntries.byId(n.desktopEntry) : null;
+        const names = [n.desktopEntry, entry?.startupClass, n.appName].filter(s => s).map(s => s.toLowerCase());
+        const windows = Hyprland.toplevels.values.filter(t => names.includes((t.wayland?.appId || t.lastIpcObject?.class || "").toLowerCase()));
+        const recent = windows.sort((a, b) => (a.lastIpcObject?.focusHistoryID ?? 1e9) - (b.lastIpcObject?.focusHistoryID ?? 1e9))[0];
+        if (recent)
+            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${recent.address}" })`);
+        else
+            entry?.execute();
     }
 
     // The actions worth a button: everything but the default one, which is
@@ -181,17 +210,24 @@ Singleton {
         return s.startsWith("/") ? "file://" + s : s;
     }
 
+    // The icon the sender sent as a picture (a path or URL) rather than a
+    // theme name, which no lookup by name would find.
+    function pictureOf(n) {
+        const icon = n?.appIcon ?? "";
+        return icon.includes("/") || icon.includes(":") ? root.url(icon) : "";
+    }
+
     // The sender's icon as something an Image can load: the icon it sent —
-    // a path or a theme name — else its desktop entry's, else nothing, and
+    // a picture or a theme name — else its desktop entry's, else nothing, and
     // the card draws a mark of its own.
     function iconFor(n) {
         if (!n)
             return "";
-        const icon = n.appIcon ?? "";
-        if (icon.includes("/") || icon.includes(":"))
-            return root.url(icon);
+        const picture = root.pictureOf(n);
+        if (picture)
+            return picture;
         DesktopEntries.applications.values.length;
-        const name = icon || DesktopEntries.heuristicLookup(n.desktopEntry || n.appName)?.icon || "";
+        const name = n.appIcon || DesktopEntries.heuristicLookup(n.desktopEntry || n.appName)?.icon || "";
         return name ? Quickshell.iconPath(name, true) : "";
     }
 
@@ -222,7 +258,10 @@ Singleton {
         id: retained
         reloadableId: "notification-arrivals"
         property string arrivalsJson: "{}"
-        onLoaded: Object.assign(root.arrived, JSON.parse(retained.arrivalsJson))
+        onLoaded: {
+            Object.assign(root.arrived, JSON.parse(retained.arrivalsJson));
+            root.stamps++;
+        }
     }
 
     // --- arrival ------------------------------------------------------------
@@ -283,6 +322,7 @@ Singleton {
         const updated = () => {
             root.arrived[n.id] = Date.now();
             retained.arrivalsJson = JSON.stringify(root.arrived);
+            root.stamps++;
             root.announce(n);
         };
         n.summaryChanged.connect(updated);
@@ -365,7 +405,8 @@ Singleton {
         const n = root.latest;
         if (!n)
             return 0;
-        if (n.expireTimeout > 0)
+        // 0 is the sender saying never; -1 leaves it to us.
+        if (n.expireTimeout >= 0)
             return n.expireTimeout;
         return n.urgency === NotificationUrgency.Low ? 3000 : n.urgency === NotificationUrgency.Critical ? 0 : 6000;
     }
