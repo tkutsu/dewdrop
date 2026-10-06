@@ -1,4 +1,4 @@
-const defaults = ["audio", "email", "tasks", "updater", "bell", "weather", "satty", "idle",
+const defaults = ["audio", "email", "tasks", "updater", "bell", "satty", "idle",
     "wallpaper", "night", "sys", "bluetooth", "network", "tray", "language"];
 
 // Keep saved positions while accepting modules added since the last drop.
