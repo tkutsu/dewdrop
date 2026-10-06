@@ -6,7 +6,7 @@ import Quickshell.Io
 import qs
 
 // The one Google sign-in the bar has, shared by everything that talks to a
-// Google API (Tasks, Agenda, Email, and CalendarTimers).
+// Google API (Tasks, Agenda and Email).
 //
 // ~/_scripts/gtasks-setup walks the consent once and leaves a refresh token in
 // the file read below, granted for every scope the bar uses; scripts/gtasks-auth

@@ -5,7 +5,6 @@ import Quickshell
 import Quickshell.Io
 import qs
 import "TimersParse.js" as Parse
-import "CalendarTimersParse.js" as CalendarParse
 
 // Countdowns and alarms — one list, one clock, one place they are
 // written down.
@@ -74,19 +73,6 @@ Singleton {
     // overwrite the very thing being restored.
     property bool restored: false
     property int nextId: 1
-    property string phoneBackend: "pushover"
-    readonly property bool usesCalendar: root.phoneBackend === "calendar" || root.entries.some(e => e.phoneBackend === "calendar") || CalendarTimers.jobs.length > 0
-
-    // The choice is for new timers; existing ones keep their delivery method.
-    function selectPhoneBackend(backend: string): string {
-        if (backend !== "pushover" && backend !== "calendar")
-            return "Choose pushover or calendar";
-        root.phoneBackend = backend;
-        root.save();
-        if (backend === "calendar")
-            CalendarTimers.prepare();
-        return backend;
-    }
 
     // --- derived -------------------------------------------------------------
     readonly property var timers: root.entries.filter(e => e.kind !== "alarm")
@@ -232,37 +218,21 @@ Singleton {
     }
 
     // --- the list ------------------------------------------------------------
-    function _commit(list, expired) {
-        CalendarTimers.enqueue(CalendarParse.changes(root.entries, list, Date.now(), expired));
+    function _commit(list) {
         root.entries = list;
         root.save();
     }
 
     function _patch(id: string, changes: var): void {
-        root._commit(root.entries.map(e => {
-            if (e.id !== id)
-                return e;
-            const next = Object.assign({}, e, changes);
-            // Deleted event IDs cannot be reused when a timer resumes.
-            if (next.phoneBackend === "calendar" && !e.running && next.running) {
-                next.calendarEventId = CalendarParse.eventId();
-                next.calendarStart = next.endsAt;
-            }
-            return next;
-        }));
+        root._commit(root.entries.map(e => e.id === id ? Object.assign({}, e, changes) : e));
     }
 
-    function _drop(id, expired) {
-        root._commit(root.entries.filter(e => e.id !== id), expired);
+    function _drop(id) {
+        root._commit(root.entries.filter(e => e.id !== id));
     }
 
     function _add(entry: var): void {
         entry.id = String(root.nextId++);
-        entry.phoneBackend = root.phoneBackend;
-        if (entry.phoneBackend === "calendar") {
-            entry.calendarEventId = CalendarParse.eventId();
-            entry.calendarStart = entry.endsAt;
-        }
         root._commit(root.entries.concat([entry]));
     }
 
@@ -406,7 +376,7 @@ Singleton {
                 endsAt: root.occurrence(e.hour, e.minute, e.days, root.now + 1000)
             });
         else
-            root._drop(e.id, true);
+            root._drop(e.id);
 
         const ringingEntry = {
             id: e.id,
@@ -414,18 +384,14 @@ Singleton {
             label: e.label,
             hour: e.hour,
             minute: e.minute,
-            firedAt: root.now,
-            calendarEventId: CalendarParse.lingers(e) ? e.calendarEventId : ""
+            firedAt: root.now
         };
         root.ringing = root.ringing.concat([ringingEntry]);
 
         const title = e.kind === "alarm" ? "Alarm" : "Timer";
         const body = e.label !== "" ? e.label : (e.kind === "alarm" ? root.hhmm(e.hour, e.minute) : root.spell(e.total));
         root.beat();
-        if (e.phoneBackend !== "calendar")
-            Pushover.notifyPhone(title, body, ringingEntry);
-        else if (CalendarTimers.jobs.some(job => job.id === e.calendarEventId && job.operation === "upsert"))
-            root.phoneFailed("Calendar reminder was never synced");
+        Pushover.notifyPhone(title, body, ringingEntry);
     }
 
 
@@ -436,10 +402,7 @@ Singleton {
         Pushover.dismiss();
     }
 
-    // A ring that ends, answered or given up on, takes its calendar reminder
-    // with it: the phone has had its chance, and the event is no longer due.
     function _unring(keep: var): void {
-        CalendarTimers.enqueue(root.ringing.filter(r => r.calendarEventId && !keep.includes(r)).map(r => CalendarParse.removal(r.calendarEventId)));
         root.ringing = keep;
     }
 
@@ -452,14 +415,6 @@ Singleton {
 
     function notify(title: string, body: string, urgent: bool): void {
         Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", urgent ? "critical" : "normal", title, body]);
-    }
-
-    Connections {
-        target: CalendarTimers
-        function onMissedReminder(id: string): void {
-            if (root.entries.some(entry => entry.calendarEventId === id))
-                root.phoneFailed("Calendar reminder was never synced");
-        }
     }
 
     readonly property string phoneWarning: Pushover.phoneWarning
@@ -598,7 +553,6 @@ Singleton {
             id: adapter
 
             property list<var> entries: []
-            property string phoneBackend: "pushover"
         }
     }
 
@@ -606,7 +560,6 @@ Singleton {
         if (!root.restored)
             return;
         adapter.entries = root.entries;
-        adapter.phoneBackend = root.phoneBackend;
         file.writeAdapter();
     }
 
@@ -620,12 +573,10 @@ Singleton {
     // past, it is dropped without a sound, because a timer for something that
     // finished an hour ago has nothing left to say.
     function adopt(): void {
-        root.phoneBackend = adapter.phoneBackend === "calendar" ? "calendar" : "pushover";
         const stored = adapter.entries ?? [];
         const now = Date.now();
         const kept = [];
         const late = [];
-        const stale = [];
         let top = 0;
 
         for (const raw of stored) {
@@ -650,8 +601,6 @@ Singleton {
             }
             if (now - e.endsAt <= root.graceMs)
                 late.push(e);
-            else
-                stale.push(e);
         }
 
         root.nextId = top + 1;
@@ -659,9 +608,6 @@ Singleton {
         root.restored = true;
         root.tick();
         root.save();
-        CalendarTimers.enqueue(stale.filter(CalendarParse.lingers).map(e => CalendarParse.removal(e.calendarEventId)));
-        if (root.phoneBackend === "calendar")
-            CalendarTimers.prepare();
     }
 
     // qs ipc call timer …
@@ -696,12 +642,8 @@ Singleton {
             return root.tooltip;
         }
 
-        function backend(name: string): string {
-            return root.selectPhoneBackend(name);
-        }
-
         function phone(): string {
-            return root.phoneBackend === "calendar" ? CalendarTimers.status : (root.phoneWarning || "Pushover selected");
+            return root.phoneWarning || "Pushover ready";
         }
     }
 }
