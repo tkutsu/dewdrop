@@ -120,8 +120,8 @@ PanelWindow {
         visible: false
     }
 
-    // The clock's date/time gap sits on the centre line, not the
-    // pill around it: the labels either side change width through the
+    // Weather sits on the centre line between the date and time:
+    // the labels either side change width through the
     // week and the month, and centring the pill would have all of it shuffling
     // sideways under a fixed bar.
     // The glass of the clock and of everything that comes and goes beside it,
@@ -154,17 +154,31 @@ PanelWindow {
 
         drawsSlab: false
         side: Pill.Side.Centre
-        centreOn: clock.centreItem
+        centreOn: weather.here ? weather : null
 
         Clock {
             id: clock
+        }
+
+        Weather {
+            id: weather
+        }
+
+        BarItem {
+            popup: TimerPopup {}
+            actions: clock.actions
+
+            RollingText {
+                Layout.fillHeight: true
+                text: Qt.formatDateTime(clock.date, Settings.timeFormat)
+            }
         }
     }
 
     // Everything that comes and goes sits either side of the clock, placed off
     // where the clock pill actually ended up rather than given a Side of its
     // own: the centre pill is not where the centre is — it shifts itself so
-    // that the clock's date/time gap lands on the middle of the bar rather than the
+    // that weather lands on the middle of the bar rather than the
     // pill's own middle (see Pill.centreOn) — and the only honest way to sit
     // beside something that has moved is to read where it ended up. A spread
     // between each pair of neighbours, the same air all the way along.
@@ -421,7 +435,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [audio, email, tasks, updater, bell, weather, satty, idle, wallpaper, night, sys, language]
+        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, language]
 
         // The glass running on past the drawer as its spring carries it out,
         // or squeezing in past shut as it carries it in, and first winding up
@@ -467,12 +481,6 @@ PanelWindow {
         NotificationBell {
             id: bell
             pinKey: "bell"
-            stowed: !showsClosed && !drawer.out
-            marksPin: drawer.out
-        }
-        Weather {
-            id: weather
-            pinKey: "weather"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
