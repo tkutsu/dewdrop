@@ -548,12 +548,12 @@ Singleton {
     // stiffness and damping for workspace width changes.
     readonly property real foldSpring: springStiffness
     readonly property real foldDamping: 0.14
-    // The drawer folds on a softer one: a 19% overshoot rather than 30%.
+    // The drawer folds on a softer one: a 12% overshoot rather than 30%.
     // Drawer modules land first, then the glass settles (Pill.stretch).
-    // At 2.2 / 0.17, Qt's spring first reaches its target at about 192 ms.
+    // At 2.2 / 0.20, Qt's spring first reaches its target at about 208 ms.
     readonly property real drawerSpring: 2.2
-    readonly property real drawerDamping: 0.17
-    readonly property int foldLandMs: 192
+    readonly property real drawerDamping: 0.20
+    readonly property int foldLandMs: 208
     // Before the drawer folds, the glass winds up the other way by this
     // much, in pixels, and lets go into the spring (Drawer.windup): drawn in
     // past shut before opening, out before shutting. Small beside the
