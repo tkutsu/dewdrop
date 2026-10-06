@@ -3,11 +3,22 @@
 
 import os
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
+import zlib
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def png(width, height):
+    """A plain red PNG: rasters are what the picture rule measures."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    rows = b"".join(b"\0" + b"\xff\0\0" * width for _ in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
 
 
 def main():
@@ -28,7 +39,7 @@ def main():
         target = Path(folder)
         (target / "services").mkdir()
         (target / "NotificationsPopup.qml").write_text(popup)
-        for name in ("PopupButton", "PopupText", "PopupHeader"):
+        for name in ("PopupButton", "PopupText", "PopupHeader", "NotificationPicture"):
             (target / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
         (target / "Theme.qml").write_text('''pragma Singleton
 import QtQuick
@@ -82,7 +93,8 @@ QtObject {
     function url(s) { return s || ""; }
     function ago(n, now) { return "now"; }
 ''' + functions + "}\n")
-        (target / "preview.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="400"><rect width="200" height="400" fill="red"/></svg>')
+        (target / "preview.png").write_bytes(png(200, 400))
+        (target / "avatar.png").write_bytes(png(96, 96))
         (target / "shell.qml").write_text(r'''import QtQuick
 import QtQuick.Window
 import QtTest
@@ -97,7 +109,7 @@ ShellRoot {
         property string summary: "Summary ".repeat(30)
         property string body: "Detailed notification text ".repeat(100)
         property string desktopEntry: ""
-        property string image: Qt.resolvedUrl("preview.svg")
+        property string image: Qt.resolvedUrl("preview.png")
         property int urgency: 1
         property bool resident: false
         property var actions: []
@@ -153,7 +165,7 @@ ShellRoot {
                 notice.appName = "Card test";
                 notice.summary = "Summary ".repeat(100);
                 notice.body = "Detailed notification text ".repeat(100);
-                notice.image = Qt.resolvedUrl("preview.svg");
+                notice.image = Qt.resolvedUrl("preview.png");
                 Notifications.list = [notice]; wait(150);
                 card = named(popup, "notification-card");
                 const body = named(card, "body-label");
@@ -161,6 +173,13 @@ ShellRoot {
                 check(summary.lineCount === 10 && body.lineCount === 10, "long text shows ten lines before eliding");
                 check(summary.font.weight === Font.Normal && body.font.weight === Font.Normal, "plain notification text uses normal weight");
                 check(named(card, "preview").height > 140, "an image is shown whole");
+                check(card.icon === "", "content stays out of the icon slot");
+                // A small square picture is the sender's mark: on the left, never a preview.
+                notice.image = Qt.resolvedUrl("avatar.png"); wait(150);
+                check(card.icon === notice.image && !named(card, "preview").parent.visible, "a small square picture goes in the icon slot");
+                notice.image = "image://icon/dialog-information"; wait(150);
+                check(card.icon === notice.image && !named(card, "preview").parent.visible, "a theme icon goes in the icon slot");
+                notice.image = Qt.resolvedUrl("preview.png"); wait(150);
                 // A click with a default action runs it once and clears the card.
                 notice.actions = [{identifier: "default", text: " ", invoke: () => Notifications.invoked++}]; wait(130);
                 check(button(card, "open sender") === null && button(card, "default") === null, "the default action has no button of its own");
