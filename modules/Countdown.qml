@@ -16,8 +16,9 @@ import qs.services
 // are three states of one thing, so they are one pill and not three modules.
 //
 // No popup: pointed at, it opens out the way the music pill does. The glyph
-// gives its place to a pause or play mark and a close hand folds out after the
-// label, so what can be done to the timer is on the timer. The full list, and
+// gives its place to a pause or play mark, and the timer's name and a close
+// hand fold out after the label, so what can be done to the timer is on the
+// timer. The full list, and
 // the phone settings, are the clock's popup.
 BarItem {
     id: root
@@ -70,13 +71,19 @@ BarItem {
     // tick they agree.
     property string shownGlyph: ""
     property string shownLabel: ""
+    // The name, for the hover. Not while ringing, where the label already is
+    // the name.
+    property string shownName: ""
 
     function sync() {
         if (!Timers.loaded)
             return;
         root.shownGlyph = Timers.glyph;
         root.shownLabel = Timers.label;
+        root.shownName = root.ringing ? "" : root.target?.label ?? "";
     }
+
+    onTargetChanged: Qt.callLater(root.sync)
 
     Connections {
         target: Timers
@@ -99,7 +106,7 @@ BarItem {
     spacing: 0
     // Each target presses in by itself.
     dips: false
-    contentAnimating: closeWidth.running
+    contentAnimating: nameWidth.running || closeWidth.running
 
     // Out only while the pill is pointed at.
     readonly property bool handsOut: root.containsMouse
@@ -201,6 +208,36 @@ BarItem {
             visible: parent.figures
             text: parent.figures ? root.shownLabel : ""
             countsDown: true
+        }
+    }
+
+    // The name, folding out with the hands: the countdown says how long, this
+    // says what for. Secondary, since it is read after the figures. A timer
+    // with no name has nothing to fold out.
+    Item {
+        readonly property real full: Theme.mediaGap + name.implicitWidth
+
+        Layout.fillHeight: true
+        implicitWidth: root.handsOut && root.shownName !== "" ? full : 0
+        clip: width < full
+        opacity: full > 0 ? width / full : 0
+
+        Behavior on implicitWidth {
+            enabled: root.settled
+            NumberAnimation {
+                id: nameWidth
+                duration: Theme.foldMs
+                easing.type: Easing.InOutCubic
+            }
+        }
+
+        BarText {
+            id: name
+            x: Theme.mediaGap
+            height: parent.height
+            text: root.shownName
+            color: Theme.label2
+            maxWidth: Theme.mediaTitleWidth
         }
     }
 
