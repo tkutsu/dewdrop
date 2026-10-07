@@ -44,6 +44,10 @@
         "language": true,  // the keyboard layout (see layoutNames)
     },
 
+    // One icon per app on each workspace in the left pill, opened into one
+    // per window by a click. false gives every window its own icon.
+    "bunchApps": true,
+
     // The clock, as a Qt date format: "HH:mm" reads 14:05, "h:mm AP" reads
     // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
