@@ -29,13 +29,13 @@ OverlayWindow {
     readonly property bool backdropReady: desktop.hasContent || root.captureFallback
     property real reveal: root.opened && root.backdropReady ? 1 : 0
     property real backdropProgress: root.opened && root.backdropReady && !root.closing ? 1 : 0
-    property real shade: root.closing ? 1 : 0
+    property real shade: root.closing ? 1 : root.opened && root.backdropReady ? 0.2 : 0
     // The wallpaper as Backdrop draws it on this screen, and how far the
     // captured windows have faded back to let it through.
     readonly property var backdrop: Wallpaper.backdrops[root.screen?.name] ?? null
     readonly property var wallpaper: root.backdrop?.front ?? null
     readonly property bool wallpaperReady: !!root.backdrop?.ready && (!root.wallpaper.path || wallpaperImage.status === Image.Ready)
-    readonly property real windowAlpha: 0.25
+    readonly property real windowAlpha: 0.4
     property real clearing: root.opened && root.backdropReady && root.wallpaperReady && !root.closing ? 1 : 0
     property real vertical: 1
     property real horizontal: 1
@@ -213,13 +213,20 @@ OverlayWindow {
         onTriggered: root.captureFallback = true
     }
 
-    // The wallpaper, sharp, cropped and panned the way Backdrop has it, so
-    // the windows can fade back over it.
+    // The wallpaper, cropped and panned the way Backdrop has it and softened
+    // less than the windows, so they can fade back over it.
     Rectangle {
         anchors.fill: parent
         color: root.wallpaper?.path ? "black" : root.wallpaper?.color ?? "black"
         opacity: root.clearing
         visible: opacity > 0
+        layer.enabled: visible
+        layer.effect: MultiEffect {
+            autoPaddingEnabled: false
+            blurEnabled: true
+            blurMax: 32
+            blur: 0.3
+        }
 
         Image {
             id: wallpaperImage
@@ -250,7 +257,7 @@ OverlayWindow {
         visible: desktop.hasContent && opacity > 0
     }
 
-    // Leave the wallpaper undimmed while open; go black for the CRT's hold.
+    // Dim the entire desktop, then carry that shade into the CRT's black hold.
     Rectangle {
         anchors.fill: parent
         color: "black"
