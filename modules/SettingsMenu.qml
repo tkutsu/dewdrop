@@ -63,13 +63,13 @@ OverlayWindow {
             drives: { title: "Drives", glyph: Theme.glyph.drive, auto: "Out while something is plugged in." },
             bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth, auto: "Always out." },
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], auto: "Always out." },
-            tray: { title: "Tray", glyph: Theme.glyph.tray, auto: "Out while any of its icons is. Always brings out the ones kept in below." },
+            tray: { title: "Tray", glyph: Theme.glyph.tray, auto: "Out while any of its icons is. Pinned brings out the ones kept in below." },
             language: { title: "Keyboard layout", glyph: Theme.glyph.keyboard, auto: "In the drawer." }
         })
 
     readonly property var pinOptions: [
         { value: "auto", label: "Auto" },
-        { value: "always", label: "Always" },
+        { value: "pinned", label: "Pinned" },
         { value: "drawer", label: "Drawer" }
     ]
 
@@ -130,7 +130,7 @@ OverlayWindow {
             sections: [
                 {
                     title: "Right pill",
-                    text: "Where each icon stands while the drawer is closed. Auto lets the icon decide, as described under it. Always keeps it out, as a middle click on it does. Drawer keeps it behind the chevron even when it has something to show; opening the drawer still shows it.",
+                    text: "Where each icon stands while the drawer is closed. Auto lets the icon decide, as described under it. Pinned keeps it out, as a middle click on it does, and marks it with a pin in the open drawer. Drawer keeps it behind the chevron even when it has something to show; opening the drawer still shows it.",
                     rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
