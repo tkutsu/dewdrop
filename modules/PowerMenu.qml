@@ -401,7 +401,10 @@ OverlayWindow {
                 blur: root.reveal
                 maskEnabled: true
                 maskSource: pillShape
-                maskSpreadAtMin: 1
+                // Cut on the shape's antialiased edge; a spread of 1 here
+                // lets the square corners through.
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 0.5
             }
 
             Liquid {
