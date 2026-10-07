@@ -463,7 +463,7 @@ Singleton {
             rows.push({
                 id: e.id,
                 entry: e,
-                fields: root.prepFields([[e.name, 1], [e.genericName, 0.7]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
+                fields: root.prepFields([[e.name, 1], [e.genericName, 0.8]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
             });
             for (const a of e.actions ?? [])
                 rows.push({
