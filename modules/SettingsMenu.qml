@@ -128,6 +128,12 @@ OverlayWindow {
             title: "Bar",
             sections: [
                 {
+                    title: "Workspaces",
+                    rows: [
+                        { type: "toggle", id: "bunchApps", title: "Bunch apps", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.bunchApps, set: v => Settings.set("bunchApps", v) }
+                    ]
+                },
+                {
                     title: "Right pill",
                     text: "Auto shows an icon when it has something to show. Pinned always shows it. Drawer keeps it behind the chevron.",
                     rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))

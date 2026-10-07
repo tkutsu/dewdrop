@@ -28,6 +28,7 @@ Singleton {
     // --- values --------------------------------------------------------------
     readonly property var screens: root.values.screens ?? []
     readonly property var modules: root.values.modules ?? ({})
+    readonly property bool bunchApps: root.values.bunchApps ?? true
     readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
     readonly property var layoutNames: root.values.layoutNames ?? ({})
     readonly property string font: root.values.font ?? ""
