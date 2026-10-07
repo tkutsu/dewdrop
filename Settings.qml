@@ -36,6 +36,7 @@ Singleton {
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? "xdg-open"
     readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters", "libreoffice-startcenter"]
+    readonly property var hiddenTray: root.values.hiddenTray ?? []
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
@@ -46,6 +47,28 @@ Singleton {
     // BarItem.settingsKey; one the file does not mention is on.
     function moduleOn(key: string): bool {
         return key === "" || root.modules[key] !== false;
+    }
+
+    // The settings window's way in: one key into settings.json. The file is
+    // written back whole as plain JSON, so comments typed into it by hand go;
+    // every setting is documented in settings.default.json instead. Whatever
+    // the file already said wins over the defaults as before, and the watcher
+    // below reads the new file back like any other edit.
+    function set(key: string, value: var): void {
+        const user = Object.assign({}, root.user, { [key]: value });
+        root.user = user;
+        userFile.setText("// This machine's settings over settings.default.json, which documents\n// each one. The settings window (the gear) rewrites this file.\n" + JSON.stringify(user, null, 4) + "\n");
+    }
+
+    // A list setting with `item` put in or taken out.
+    function toggleIn(key: string, item: string): void {
+        const list = Array.from(root.values[key] ?? []);
+        const at = list.indexOf(item);
+        if (at >= 0)
+            list.splice(at, 1);
+        else
+            list.push(item);
+        root.set(key, list);
     }
 
     function screenOn(name: string): bool {
