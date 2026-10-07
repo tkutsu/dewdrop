@@ -9,7 +9,7 @@ import Quickshell.Io
 //
 //   auto    the module's own `quiet` decides: out while it has something
 //           to say, in the drawer while it does not. No entry.
-//   always  pinned out, whatever it has to say. `true`, and what a middle
+//   pinned  out, whatever it has to say. `true`, and what a middle
 //           click on the module toggles.
 //   drawer  kept in, even with something to say (night mode on, but out of
 //           sight). `false`. Opening the drawer still shows it.
@@ -29,12 +29,12 @@ Singleton {
     }
 
     function mode(key: string): string {
-        return root.pinned(key) ? "always" : root.kept(key) ? "drawer" : "auto";
+        return root.pinned(key) ? "pinned" : root.kept(key) ? "drawer" : "auto";
     }
 
     function setMode(key: string, mode: string): void {
         const pins = Object.assign({}, root.pins);
-        if (mode === "always")
+        if (mode === "pinned")
             pins[key] = true;
         else if (mode === "drawer")
             pins[key] = false;
@@ -46,7 +46,7 @@ Singleton {
 
     // The middle click: pinned goes back to auto, anything else is pinned.
     function toggle(key: string): void {
-        root.setMode(key, root.pinned(key) ? "auto" : "always");
+        root.setMode(key, root.pinned(key) ? "auto" : "pinned");
     }
 
     FileView {
