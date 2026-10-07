@@ -87,7 +87,7 @@
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
     // desktop shows up unless it is listed here (blueman-adapters is
     // OnlyShowIn=XFCE;MATE).
-    "hiddenApps": ["blueman-adapters"],
+    "hiddenApps": ["blueman-adapters", "libreoffice-startcenter"],
 
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.
