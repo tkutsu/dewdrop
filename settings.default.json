@@ -87,13 +87,21 @@
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
     // desktop shows up unless it is listed here (blueman-adapters is
     // OnlyShowIn=XFCE;MATE). A desktop action is hidden by "app:action", the
-    // id from its [Desktop Action ...] header: LibreOffice's "New Spreadsheet"
-    // and friends only open the app they hang off.
+    // id from its [Desktop Action ...] header. Hidden here are the ones that
+    // only open the app they hang off (LibreOffice's "New Spreadsheet", a
+    // browser's "New Window") or that the app's own window does better
+    // (Steam's pages, Telegram's Quit). Private windows stay.
     "hiddenApps": [
         "blueman-adapters", "libreoffice-startcenter",
         "libreoffice-writer:NewDocument", "libreoffice-calc:NewDocument",
         "libreoffice-impress:NewDocument", "libreoffice-draw:NewDocument",
-        "libreoffice-base:NewDocument", "libreoffice-math:NewDocument"
+        "libreoffice-base:NewDocument", "libreoffice-math:NewDocument",
+        "firefox:new-window", "chromium:new-window",
+        "code-oss:new-empty-window", "cursor:new-empty-window",
+        "org.telegram.desktop:quit",
+        "steam:Store", "steam:Community", "steam:Library", "steam:Servers",
+        "steam:Screenshots", "steam:News", "steam:Settings",
+        "steam:BigPicture", "steam:Friends"
     ],
 
     // --- where things are --------------------------------------------------
