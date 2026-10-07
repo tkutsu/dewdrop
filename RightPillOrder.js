@@ -1,5 +1,5 @@
 const defaults = ["audio", "email", "tasks", "updater", "bell", "satty", "idle",
-    "wallpaper", "night", "sys", "bluetooth", "network", "tray", "language"];
+    "wallpaper", "night", "sys", "settings", "bluetooth", "network", "tray", "language"];
 
 // Keep saved positions while accepting modules added since the last drop.
 function normalise(order) {

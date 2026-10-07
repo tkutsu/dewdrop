@@ -853,6 +853,13 @@ Singleton {
 
         // The mark on a module pinned out of the drawer (nf-md-pin). The
         // drawer's own chevron is drawn rather than a glyph (Drawer.qml).
-        pin: "\u{f0403}"
+        pin: "\u{f0403}",
+
+        // The settings window: its own module, and the right pill's rows for
+        // the modules that draw something other than one fixed glyph.
+        settings: "\u{f08bb}",       // nf-md-cog_outline
+        keyboard: "\u{f097b}",       // nf-md-keyboard_outline
+        tray: "\u{f1294}",           // nf-md-tray
+        gauge: "\u{f029a}"           // nf-md-gauge
     })
 }

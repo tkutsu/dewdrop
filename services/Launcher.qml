@@ -453,9 +453,9 @@ Singleton {
     // Each desktop action an app declares (Firefox's private window) is a row
     // of its own, answering to its own name first and its app's second, so
     // "fire priv" finds it. Settings.hiddenApps drops entries by id, and
-    // single actions by "app:action": Quickshell ignores OnlyShowIn, which is
-    // how blueman's XFCE-only one got in, and LibreOffice's "New Spreadsheet"
-    // and kin only reopen the app they belong to.
+    // single actions by their row id, "<app>:<action>": Quickshell ignores
+    // OnlyShowIn, which is how blueman's XFCE-only one got in, and
+    // LibreOffice's "New Spreadsheet" and kin only reopen the app they belong to.
     // A loop rather than flatMap, which Qt's JavaScript engine does not have.
     readonly property var appIndex: {
         const rows = [];
@@ -534,7 +534,7 @@ Singleton {
     function desktopMatches(terms) {
         const scored = [];
         for (const action of root.desktopCommands) {
-            if (action.available === false)
+            if (action.available === false || Settings.hiddenApps.includes("desktop:" + action.key))
                 continue;
             const m = terms.length ? root.matchScore(terms, [[action.title, 1], [action.aliases, 0.8]]) : 0;
             if (m === null)
@@ -637,6 +637,8 @@ Singleton {
 
         const scored = [];
         for (const a of root.powerCommands) {
+            if (Settings.hiddenApps.includes("power:" + a.key))
+                continue;
             // Aliases score just under the label, so a command found by its
             // real name outranks one found by a nickname.
             const m = root.matchScore(terms, [[a.label, 1]].concat((root.powerAliases[a.key] ?? "").split(" ").map(w => [w, 0.85])));
