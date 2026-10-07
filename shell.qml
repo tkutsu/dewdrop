@@ -17,31 +17,14 @@ ShellRoot {
         target: Hyprland
 
         function onRawEvent(event) {
-            if (event.name === "changeworkspaceid")
-                workspaceRefresh.restart();
             if (event.name === "openwindow")
                 Hyprland.refreshToplevels();
         }
     }
 
-    Connections {
-        target: Hyprland.workspaces
-        function onValuesChanged(): void {
-            if (Hyprland.workspaces.values.some(workspace => workspace.id === -1))
-                workspaceRefresh.restart();
-        }
-    }
-
-    // Coalesce a compaction pass so workspace IDs, app membership and focus agree.
-    Timer {
-        id: workspaceRefresh
-        interval: 50
-        onTriggered: {
-            Hyprland.refreshWorkspaces();
-            Hyprland.refreshToplevels();
-            Hyprland.refreshMonitors();
-        }
-    }
+    // Referenced here so compaction is followed whether or not a bar shows
+    // workspaces: the wallpaper's pan reads them too.
+    readonly property bool workspacesSettled: WorkspaceSync.settled
 
     Variants {
         // One bar per screen, rebuilt as monitors come and go — or only on the
