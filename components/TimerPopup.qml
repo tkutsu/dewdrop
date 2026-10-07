@@ -129,14 +129,10 @@ Popup {
         // Level with the rows' glyphs.
         inset: 2
         title: "Timers"
-
         // The way in to setting another: the launcher, which takes any
         // duration or time of day.
-        PopupButton {
-            framed: true
-            glyph: Theme.glyph.plus
-            onTapped: Launcher.openWith(Launcher.taskPrefix)
-        }
+        addable: true
+        onAdd: Launcher.openWith(Launcher.taskPrefix)
     }
 
     PopupText {

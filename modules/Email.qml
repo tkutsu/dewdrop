@@ -6,7 +6,7 @@ import qs.components
 import qs.services
 
 // Unread mail, with the threads themselves in the popup. A click on the icon
-// opens the mail popup; selecting a row opens its thread in Gmail.
+// opens the mail popup, a right click Gmail itself.
 BarItem {
     // #custom-email.loading { opacity: 0.55 }
     opacity: Email.stale ? Theme.dimOpacity : 1
@@ -24,6 +24,6 @@ BarItem {
 
     // Left is the popup (BarItem.popupButton).
     actions: ({
-            [Qt.RightButton]: () => Email.refresh()
+            [Qt.RightButton]: () => Email.openInbox()
         })
 }

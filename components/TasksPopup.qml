@@ -73,6 +73,8 @@ Popup {
     PopupHeader {
         width: root.bodyWidth
         title: "Tasks"
+        addable: Tasks.loaded
+        onAdd: Launcher.openWith(Launcher.taskPrefix)
 
         Repeater {
             model: Object.keys(Tasks.undoable)
@@ -91,12 +93,6 @@ Popup {
 
         RetryButton { service: Tasks }
 
-        PopupButton {
-            visible: Tasks.loaded
-            framed: true
-            glyph: Theme.glyph.plus
-            onTapped: Launcher.openWith(Launcher.taskPrefix)
-        }
     }
 
     // What went wrong since the list loaded. Before that, the line below
