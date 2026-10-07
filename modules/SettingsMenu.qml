@@ -60,6 +60,7 @@ OverlayWindow {
             night: { title: "Night mode", glyph: Theme.glyph.nightOff, auto: "Out while night mode is on." },
             sys: { title: "System", glyph: Theme.glyph.gauge, auto: "Out once a temperature runs hot." },
             settings: { title: "Settings", glyph: Theme.glyph.settings, auto: "A tool: in the drawer." },
+            drives: { title: "Drives", glyph: Theme.glyph.drive, auto: "Out while something is plugged in." },
             bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth, auto: "Always out." },
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], auto: "Always out." },
             tray: { title: "Tray", glyph: Theme.glyph.tray, auto: "Out while any of its icons is. Always brings out the ones kept in below." },
