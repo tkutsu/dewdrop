@@ -749,9 +749,9 @@ Singleton {
         // (nf-md-bluetooth, nf-md-bluetooth_off).
         bluetooth: "\u{f00af}",
         bluetoothOff: "\u{f00b2}",
-        // The drives module: a stick, outlined like the rest, and the eject
-        // that takes one out (nf-md-usb_flash_drive_outline, eject_outline).
-        drive: "\u{f129f}",
+        // The drives module: a simple USB symbol and an outlined eject
+        // for safe removal (nf-md-usb, nf-md-eject_outline).
+        drive: "\u{f0553}",
         eject: "\u{f0b91}",
 
         // The timer module. A countdown and an alarm are the same machine
