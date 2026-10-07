@@ -5,8 +5,8 @@ import qs.services
 
 // Unread mail: who, what about, and when, newest first. A click on a row
 // opens it in place to be read, and the two things to do with it come up in
-// its top line: open the thread in the Gmail app, or mark it read. The plus at the header's
-// right end writes a new one.
+// its top line: open the thread in the Gmail app, or mark it read. The plus at
+// the header's right end writes a new one.
 //
 // Two lines a row, the way Gmail's list reads: the sender and the time, then
 // the subject with as much of the opening as fits after it. Nothing wraps; a
@@ -83,34 +83,20 @@ Popup {
 
     spacing: 3
 
-    // Gmail itself, and a new mail at the right end, where every popup under
-    // the bar keeps its plus.
+    // A new mail at the right end, where every popup under the bar keeps its
+    // plus. Gmail itself is a right click on the bar icon.
     PopupHeader {
         width: root.bodyWidth
         title: "Mail"
+        addable: true
+        onAdd: {
+            OpenPopup.dismiss();
+            Email.compose("");
+        }
 
         ReconnectButton {}
 
         RetryButton { service: Email }
-
-        PopupButton {
-            framed: true
-            glyph: Theme.glyph.openApp
-            label: "inbox"
-            onTapped: {
-                OpenPopup.dismiss();
-                Email.openInbox();
-            }
-        }
-
-        PopupButton {
-            framed: true
-            glyph: Theme.glyph.plus
-            onTapped: {
-                OpenPopup.dismiss();
-                Email.compose("");
-            }
-        }
     }
 
     // What went wrong since the list loaded. Before that, the line below

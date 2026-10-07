@@ -4,8 +4,9 @@ import Quickshell
 import qs
 import qs.components
 
-// custom/satty. taskbar-satty.sh stays as-is — it owns the flock that makes the
-// keybind and the bar click toggle the same screenshot flow.
+// custom/satty. taskbar-satty.sh owns the flock that makes the keybind and the
+// bar click toggle the same screenshot flow, and the choice between a quick
+// copy and the editor: the button the region is dragged with.
 BarItem {
     readonly property string script: Paths.script("taskbar-satty.sh")
 
@@ -20,7 +21,6 @@ BarItem {
     }
 
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([script, "fast"]),
-            [Qt.RightButton]: () => Quickshell.execDetached([script])
+            [Qt.LeftButton]: () => Quickshell.execDetached([script])
         })
 }
