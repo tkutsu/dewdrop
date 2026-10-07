@@ -452,8 +452,10 @@ Singleton {
     //
     // Each desktop action an app declares (Firefox's private window) is a row
     // of its own, answering to its own name first and its app's second, so
-    // "fire priv" finds it. Settings.hiddenApps drops entries by id: Quickshell
-    // ignores OnlyShowIn, which is how blueman's XFCE-only one got in.
+    // "fire priv" finds it. Settings.hiddenApps drops entries by id, and
+    // single actions by "app:action": Quickshell ignores OnlyShowIn, which is
+    // how blueman's XFCE-only one got in, and LibreOffice's "New Spreadsheet"
+    // and kin only reopen the app they belong to.
     // A loop rather than flatMap, which Qt's JavaScript engine does not have.
     readonly property var appIndex: {
         const rows = [];
@@ -465,13 +467,17 @@ Singleton {
                 entry: e,
                 fields: root.prepFields([[e.name, 1], [e.genericName, 0.8]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
             });
-            for (const a of e.actions ?? [])
+            for (const a of e.actions ?? []) {
+                const id = e.id + ":" + a.id;
+                if (Settings.hiddenApps.includes(id))
+                    continue;
                 rows.push({
-                    id: e.id + ":" + a.id,
+                    id: id,
                     entry: e,
                     action: a,
                     fields: root.prepFields([[a.name, 1], [e.name, 0.5]])
                 });
+            }
         }
         return rows;
     }
