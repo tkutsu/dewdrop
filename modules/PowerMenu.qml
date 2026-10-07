@@ -25,18 +25,16 @@ OverlayWindow {
     property bool pointerLive: false
     property bool closing: false
     property string command: ""
-    property bool captureFallback: false
-    readonly property bool backdropReady: desktop.hasContent || root.captureFallback
-    property real reveal: root.opened && root.backdropReady ? 1 : 0
-    property real backdropProgress: root.opened && root.backdropReady && !root.closing ? 1 : 0
-    property real shade: root.closing ? 1 : root.opened && root.backdropReady ? 0.2 : 0
-    // The wallpaper as Backdrop draws it on this screen, and how far the
-    // captured windows have faded back to let it through.
+    // The wallpaper as Backdrop draws it on this screen.
     readonly property var backdrop: Wallpaper.backdrops[root.screen?.name] ?? null
     readonly property var wallpaper: root.backdrop?.front ?? null
     readonly property bool wallpaperReady: !!root.backdrop?.ready && (!root.wallpaper.path || wallpaperImage.status === Image.Ready)
     readonly property real windowAlpha: 0.4
-    property real clearing: root.opened && root.backdropReady && root.wallpaperReady && !root.closing ? 1 : 0
+    // The pill and the backdrop open together, once both frames are in hand.
+    property bool gaveUp: false
+    readonly property bool backdropReady: desktop.hasContent && root.wallpaperReady || root.gaveUp
+    property real reveal: root.opened && root.backdropReady ? 1 : 0
+    property real shade: root.closing ? 1 : 0.2
     property real vertical: 1
     property real horizontal: 1
     property real flash: 0
@@ -60,20 +58,6 @@ OverlayWindow {
         NumberAnimation {
             duration: Theme.revealMs
             easing.type: Easing.OutCubic
-        }
-    }
-
-    Behavior on backdropProgress {
-        NumberAnimation {
-            duration: Theme.fadeMs
-            easing.type: Easing.InOutCubic
-        }
-    }
-
-    Behavior on clearing {
-        NumberAnimation {
-            duration: Theme.fadeMs
-            easing.type: Easing.InOutCubic
         }
     }
 
@@ -206,62 +190,94 @@ OverlayWindow {
         visible: false
     }
 
-    // Still allow the menu if the compositor cannot supply a desktop frame.
+    // Still allow the menu if a frame never arrives.
     Timer {
-        interval: 150
+        interval: 300
         running: true
-        onTriggered: root.captureFallback = true
+        onTriggered: root.gaveUp = true
     }
 
-    // The wallpaper, cropped and panned the way Backdrop has it and softened
-    // less than the windows, so they can fade back over it.
-    Rectangle {
-        anchors.fill: parent
-        color: root.wallpaper?.path ? "black" : root.wallpaper?.color ?? "black"
-        opacity: root.clearing
-        visible: opacity > 0
-        layer.enabled: visible
-        layer.effect: MultiEffect {
-            autoPaddingEnabled: false
-            blurEnabled: true
-            blurMax: 32
-            blur: 0.3
+    // The finished backdrop, unfolding from the centre line with the pill.
+    Item {
+        id: veil
+
+        readonly property int topEdge: Math.round(root.height * (1 - root.reveal) / 2)
+
+        y: topEdge
+        width: root.width
+        height: root.height - topEdge * 2
+        clip: true
+        visible: height > 0
+
+        Item {
+            y: -veil.topEdge
+            width: root.width
+            height: root.height
+
+            // The wallpaper, cropped and panned the way Backdrop has it and
+            // softened less than the windows, so they can fade back over it.
+            Rectangle {
+                anchors.fill: parent
+                color: root.wallpaper?.path ? "black" : root.wallpaper?.color ?? "black"
+                opacity: root.wallpaperReady ? 1 : 0
+                visible: opacity > 0
+                layer.enabled: visible
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: false
+                    blurEnabled: true
+                    blurMax: 32
+                    blur: 0.3 * root.reveal
+                }
+
+                // Only a wallpaper that lands after the menu opened fades in.
+                Behavior on opacity {
+                    enabled: root.reveal > 0
+                    NumberAnimation { duration: Theme.fadeMs }
+                }
+
+                Image {
+                    id: wallpaperImage
+
+                    readonly property real zoom: root.wallpaper?.zoom ?? 1
+
+                    width: root.width * zoom
+                    height: root.height * zoom
+                    x: (root.width - width) / 2 + (root.wallpaper?.offsetX ?? 0)
+                    y: (root.height - height) / 2 + (root.wallpaper?.offsetY ?? 0)
+                    source: root.wallpaper?.path ? "file://" + root.wallpaper.path.split("/").map(encodeURIComponent).join("/") : ""
+                    sourceSize: Qt.size(Math.ceil(width * root.devicePixelRatio), Math.ceil(height * root.devicePixelRatio))
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    cache: false
+                }
+            }
+
+            // The windows, blurred and faded back over the wallpaper. The blur
+            // has to change after the capture lands, or MultiEffect never
+            // applies it, so both blurs grow with the reveal.
+            MultiEffect {
+                anchors.fill: parent
+                source: desktop
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blurMax: 32
+                blur: 0.6 * root.reveal
+                opacity: root.wallpaperReady ? root.windowAlpha : 1
+                visible: desktop.hasContent
+
+                Behavior on opacity {
+                    enabled: root.reveal > 0
+                    NumberAnimation { duration: Theme.fadeMs }
+                }
+            }
+
+            // Dim the desktop, then carry that shade into the CRT's black hold.
+            Rectangle {
+                anchors.fill: parent
+                color: "black"
+                opacity: root.shade
+            }
         }
-
-        Image {
-            id: wallpaperImage
-
-            readonly property real zoom: root.wallpaper?.zoom ?? 1
-
-            width: root.width * zoom
-            height: root.height * zoom
-            x: (root.width - width) / 2 + (root.wallpaper?.offsetX ?? 0)
-            y: (root.height - height) / 2 + (root.wallpaper?.offsetY ?? 0)
-            source: root.wallpaper?.path ? "file://" + root.wallpaper.path.split("/").map(encodeURIComponent).join("/") : ""
-            sourceSize: Qt.size(Math.ceil(width * root.devicePixelRatio), Math.ceil(height * root.devicePixelRatio))
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: false
-        }
-    }
-
-    // The windows, blurred and faded back once the wallpaper is under them.
-    MultiEffect {
-        anchors.fill: parent
-        source: desktop
-        autoPaddingEnabled: false
-        blurEnabled: true
-        blurMax: 32
-        blur: root.backdropProgress * 0.6
-        opacity: root.backdropProgress * (1 - root.clearing * (1 - root.windowAlpha))
-        visible: desktop.hasContent && opacity > 0
-    }
-
-    // Dim the entire desktop, then carry that shade into the CRT's black hold.
-    Rectangle {
-        anchors.fill: parent
-        color: "black"
-        opacity: root.shade
     }
 
     Item {
