@@ -115,11 +115,13 @@ function parse(text) {
     if (at) {
         let hour = parseInt(at[1]);
         const minute = at[2] === "" ? 0 : parseInt(at[2]);
+        // "23am" and "0pm" are not times; a suffixed hour runs 1 to 12.
+        const valid = at[3] ? hour >= 1 && hour <= 12 : hour < 24;
         if (at[3] === "pm" && hour < 12)
             hour += 12;
         if (at[3] === "am" && hour === 12)
             hour = 0;
-        if (hour < 24 && minute < 60)
+        if (valid && minute < 60)
             return {
                 ok: true,
                 kind: "alarm",
