@@ -43,6 +43,11 @@ GoogleService {
     // seconds is about how long it takes to see it and act.
     property var undoable: ({})
     readonly property int undoMs: 10000
+    // Completions still on their way to Google, keyed by task id, each holding
+    // the undo tapped meanwhile (or null). Two PATCHes for one task in flight
+    // at once can land in either order, and an undo that lands first leaves
+    // the task completed with nothing left to undo it, so restore waits here.
+    property var completing: ({})
 
     // --- days ----------------------------------------------------------------
     // Google stores a due date as an RFC 3339 instant pinned to midnight UTC,
@@ -241,7 +246,14 @@ GoogleService {
         // gone from the bar while it is still open on Google's side.
         root.snapshot = "";
 
+        root.completing[task.id] = null;
+        const settle = function () {
+            const undo = root.completing[task.id];
+            delete root.completing[task.id];
+            return undo;
+        };
         const failed = function (why, status) {
+            settle();
             root.fail(why, status);
             root.forget(task.id);
             if (!root.tasks.some(t => t.id === task.id))
@@ -250,7 +262,13 @@ GoogleService {
         };
         root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
             status: "completed"
-        }, () => root.fetchTasks(), failed);
+        }, () => {
+            const undo = settle();
+            if (undo)
+                undo();
+            else
+                root.fetchTasks();
+        }, failed);
     }
 
     // The counterpart, for the tick that was meant for the row above. Google
@@ -258,6 +276,10 @@ GoogleService {
     // not clear `hidden`, and a task left hidden is one that never comes back
     // into the list — so that goes too.
     function restore(task: var): void {
+        if (task.id in root.completing) {
+            root.completing[task.id] = () => root.restore(task);
+            return;
+        }
         root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
             status: "needsAction",
             completed: null,
