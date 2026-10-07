@@ -130,7 +130,7 @@ OverlayWindow {
                 {
                     title: "Workspaces",
                     rows: [
-                        { type: "toggle", id: "bunchApps", title: "Bunch apps", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.bunchApps, set: v => Settings.set("bunchApps", v) }
+                        { type: "toggle", id: "groupWindows", title: "Group windows by app", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) }
                     ]
                 },
                 {
