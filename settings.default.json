@@ -86,8 +86,15 @@
     // Desktop entries the launcher leaves out, by id (the file name without
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
     // desktop shows up unless it is listed here (blueman-adapters is
-    // OnlyShowIn=XFCE;MATE).
-    "hiddenApps": ["blueman-adapters", "libreoffice-startcenter"],
+    // OnlyShowIn=XFCE;MATE). A desktop action is hidden by "app:action", the
+    // id from its [Desktop Action ...] header: LibreOffice's "New Spreadsheet"
+    // and friends only open the app they hang off.
+    "hiddenApps": [
+        "blueman-adapters", "libreoffice-startcenter",
+        "libreoffice-writer:NewDocument", "libreoffice-calc:NewDocument",
+        "libreoffice-impress:NewDocument", "libreoffice-draw:NewDocument",
+        "libreoffice-base:NewDocument", "libreoffice-math:NewDocument"
+    ],
 
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.
