@@ -724,17 +724,18 @@ Singleton {
         // blob beside the outlined glyphs every other module carries). The
         // cable is in the same hand. See services/Network.qml.
         //
-        // One outlined cone filling from the bottom, empty to full
-        // (nf-md-wifi_strength_outline, then _1 .. _4), so the weak end stays
-        // as light as the glyphs beside it. Five of them because nm-applet
-        // quantised the signal to five buckets, and Network.bars still does —
-        // the bar has the steps it has, not the ones a percentage would
-        // suggest. Indexed from zero, so wifiStrength[0] is no signal at all.
-        wifiStrength: ["\u{f092f}", "\u{f091f}", "\u{f0922}", "\u{f0925}", "\u{f0928}"],
-        // The same cone struck through, outlined rather than filled so that
-        // losing the network does not make the icon the loudest thing on the
-        // bar (nf-md-wifi_strength_off_outline).
-        wifiOff: "\u{f092e}",
+        // Drawn after SF Symbols' wifi: a dot and three thin arcs about it,
+        // lit from the dot up with the rest left faint, the way the volume
+        // speaker's waves fade in, so every step stands the same size. The
+        // font's cone it replaces filled solid as the signal rose. Five
+        // because nm-applet quantised the signal to five buckets, and
+        // Network.bars still does — the bar has the steps it has, not the ones
+        // a percentage would suggest. Indexed from zero, so wifiStrength[0] is
+        // no signal at all.
+        wifiStrength: [0, 1, 2, 3, 4].map(n => panel("network-wireless-" + n)),
+        // The faint arcs struck through, so losing the network does not make
+        // the icon the loudest thing on the bar.
+        wifiOff: panel("network-wireless-off"),
         wired: "\u{f0200}",
         wiredOff: "\u{f0202}",
         // Mullvad, whose own icon is a solid padlock filling its box with a
