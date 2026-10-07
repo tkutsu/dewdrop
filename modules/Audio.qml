@@ -22,6 +22,10 @@ BarItem {
     // output turns up.
     quiet: !Audio.connected
 
+    // A pixel in from the left: beside the thin Wi-Fi arcs the full gap read
+    // as wider than the rest of the row.
+    Layout.leftMargin: -1
+
     // Off is dim, the same way a module that has nothing to say yet is:
     // muted, or no sink to play through. The glyph already changes for
     // both; the dim is what makes the change readable from across the bar.
