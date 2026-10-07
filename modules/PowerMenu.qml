@@ -29,13 +29,13 @@ OverlayWindow {
     readonly property bool backdropReady: desktop.hasContent || root.captureFallback
     property real reveal: root.opened && root.backdropReady ? 1 : 0
     property real backdropProgress: root.opened && root.backdropReady && !root.closing ? 1 : 0
-    property real shade: root.closing ? 1 : root.opened && root.backdropReady ? 0.12 : 0
+    property real shade: root.closing ? 1 : 0
     // The wallpaper as Backdrop draws it on this screen, and how far the
     // captured windows have faded back to let it through.
     readonly property var backdrop: Wallpaper.backdrops[root.screen?.name] ?? null
     readonly property var wallpaper: root.backdrop?.front ?? null
     readonly property bool wallpaperReady: !!root.backdrop?.ready && (!root.wallpaper.path || wallpaperImage.status === Image.Ready)
-    readonly property real windowAlpha: 0.4
+    readonly property real windowAlpha: 0.25
     property real clearing: root.opened && root.backdropReady && root.wallpaperReady && !root.closing ? 1 : 0
     property real vertical: 1
     property real horizontal: 1
@@ -250,7 +250,7 @@ OverlayWindow {
         visible: desktop.hasContent && opacity > 0
     }
 
-    // Dim the entire desktop, then carry that shade into the CRT's black hold.
+    // Leave the wallpaper undimmed while open; go black for the CRT's hold.
     Rectangle {
         anchors.fill: parent
         color: "black"
