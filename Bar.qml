@@ -421,7 +421,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, settings, language]
+        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, settings, bluetooth, network, tray, language]
 
         // The glass running on past the drawer as its spring carries it out,
         // or squeezing in past shut as it carries it in, and first winding up
@@ -430,7 +430,8 @@ PanelWindow {
 
         Drawer {
             id: drawer
-            holding: rightPill.drawable.some(m => m.here && !m.showsClosed)
+            // A tray icon kept in counts, though the tray itself is out.
+            holding: rightPill.drawable.some(m => m.here && !m.showsClosed) || (tray.here && tray.tucks)
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null
@@ -506,11 +507,26 @@ PanelWindow {
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
-        // Connectivity and the tray stay visible as the drawer folds away.
-        Bluetooth { id: bluetooth }
-        Network { id: network }
+        // Connectivity and the tray have always something to say, so they
+        // stay out as the drawer folds away unless kept in (DrawerPins).
+        Bluetooth {
+            id: bluetooth
+            pinKey: "bluetooth"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
+        Network {
+            id: network
+            pinKey: "network"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
         Tray {
-            settingsKey: "tray"
+            id: tray
+            pinKey: "tray"
+            drawerOut: drawer.out
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
         }
         // Every Glyph on the bar is laid out on its ink, but the language
         // label is text and keeps its advance, which leaves about a pixel

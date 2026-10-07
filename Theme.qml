@@ -857,7 +857,9 @@ Singleton {
 
         // The settings window: its own module, and the right pill's rows for
         // the modules that draw something other than one fixed glyph.
-        settings: "\u{f08bb}",       // nf-md-cog_outline
+        // Drawn to the launcher's magnifier: six teeth rather than Material's
+        // eight, which at bar size ran together into a flower.
+        settings: panel("settings"),
         keyboard: "\u{f097b}",       // nf-md-keyboard_outline
         tray: "\u{f1294}",           // nf-md-tray
         gauge: "\u{f029a}"           // nf-md-gauge
