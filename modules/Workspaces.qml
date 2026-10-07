@@ -55,6 +55,15 @@ BarItem {
         expandedWorkspaceObject = null;
     }
 
+    Connections {
+        target: Settings
+
+        function onBunchAppsChanged(): void {
+            root.collapse();
+            root.startFold();
+        }
+    }
+
     function windowClass(toplevel): string {
         return toplevel.wayland?.appId || toplevel.lastIpcObject?.class || "";
     }
@@ -457,11 +466,13 @@ BarItem {
                     // first are folded to nothing until the group is expanded. The first
                     // keeps its address as key across both states, so a press on it is not
                     // lost to a rebuild, and nothing is created or removed to animate.
+                    // With Settings.bunchApps off every group stays expanded.
                     readonly property var icons: {
                         const result = [];
                         for (const app of button.apps) {
-                            const expanded = root.expandedWorkspace === button.modelData.id
-                                && root.expandedClass === app.windowClass;
+                            const expanded = (!Settings.bunchApps && app.addresses.length > 1)
+                                || (root.expandedWorkspace === button.modelData.id
+                                    && root.expandedClass === app.windowClass);
                             app.addresses.forEach((address, i) => {
                                 result.push({
                                     key: address,
