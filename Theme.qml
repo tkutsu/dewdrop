@@ -862,9 +862,7 @@ Singleton {
 
         // The settings window: its own module, and the right pill's rows for
         // the modules that draw something other than one fixed glyph.
-        // A wrench drawn to the launcher's magnifier: the same 1.75px round
-        // stroke and ink size. Material's cogs ran together at bar size.
-        settings: panel("settings"),
+        settings: "\u{f425}",         // nf-oct-tools
         keyboard: "\u{f097b}",       // nf-md-keyboard_outline
         tray: "\u{f1294}",           // nf-md-tray
         gauge: "\u{f029a}"           // nf-md-gauge
