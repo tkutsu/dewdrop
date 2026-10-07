@@ -25,6 +25,7 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: Theme.glyph.drive
-        fontSize: Theme.trayGlyphSize
+        fontSize: Theme.trayGlyphSize - 1
+        nudge: -1
     }
 }
