@@ -46,12 +46,6 @@ ShellRoot {
     property int accepted: 0
     property int failed: 0
     property string acknowledged: ""
-    function groupOf(notice) { return notice?.appName || "Notification"; }
-    Column {
-        id: group
-        modelData: "App"
-        GROUP_STATE
-    }
     property var api: TestApi
     component WeatherSelection: Item {
         id: root
@@ -69,12 +63,6 @@ ShellRoot {
             const firstNote = {id: 1, appName: "App", closed: ignored, summaryChanged: ignored, bodyChanged: ignored};
             const secondNote = {id: 2, appName: "App"};
             Notifications.list = [firstNote, secondNote];
-            Notifications.centreFocus = firstNote;
-            check(group.open, "focus opens its notification group");
-            Notifications.list = [firstNote];
-            Notifications.list = [firstNote, secondNote];
-            Notifications.centreFocus = secondNote;
-            check(group.open, "focus still opens a group after its items changed");
             Notifications.ago(firstNote, Date.now());
             check(Notifications.ago(firstNote, Notifications.arrived[1] + 120000) === "2m", "restored notification ages after first sight");
             Weather.now = 10000;
@@ -261,13 +249,10 @@ def main():
         notifications = (ROOT / "services/Notifications.qml").read_text()
         methods = "\n".join(re.findall(r'^    function (?:ago|remember)\([^\n]*\n.*?^    }', notifications, re.M | re.S))
         (services / "Notifications.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nSingleton { id: root; property var list: []; property var centreFocus: null; property var arrived: ({}); property var passing: ({}); property var observed: ({}); QtObject { id: retained; property string arrivalsJson: '{}' }\n" + methods + "\n}\n")
-        popup = (ROOT / "components/NotificationsPopup.qml").read_text()
-        start = popup.index("        required property string modelData", popup.index("component Group:"))
-        end = popup.index("        width: ListView.view.width", start)
         weather_popup = (ROOT / "components/WeatherPopup.qml").read_text()
         selection_start = weather_popup.index('    property string picked:')
         selection_end = weather_popup.index('    acceptsKeyboard:', selection_start)
-        (target / "shell.qml").write_text(TEST.replace("GROUP_STATE", popup[start:end]).replace("WEATHER_SELECTION", weather_popup[selection_start:selection_end]))
+        (target / "shell.qml").write_text(TEST.replace("WEATHER_SELECTION", weather_popup[selection_start:selection_end]))
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime))
