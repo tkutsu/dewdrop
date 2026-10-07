@@ -84,4 +84,11 @@ ShellRoot {
         LauncherMenu {}
     }
 
+    // The settings window, on the same terms as the launcher.
+    LazyLoader {
+        active: Preferences.active
+
+        SettingsMenu {}
+    }
+
 }

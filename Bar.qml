@@ -421,7 +421,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, language]
+        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, settings, language]
 
         // The glass running on past the drawer as its spring carries it out,
         // or squeezing in past shut as it carries it in, and first winding up
@@ -497,6 +497,12 @@ PanelWindow {
         Sys {
             id: sys
             pinKey: "sys"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
+        SettingsButton {
+            id: settings
+            pinKey: "settings"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
