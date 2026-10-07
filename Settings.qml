@@ -35,7 +35,7 @@ Singleton {
     readonly property string terminal: root.values.terminal ?? "kitty"
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? "xdg-open"
-    readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters"]
+    readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters", "libreoffice-startcenter"]
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
