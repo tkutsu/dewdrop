@@ -46,7 +46,7 @@
 
     // One icon per app on each workspace in the left pill, opened into one
     // per window by a click. false gives every window its own icon.
-    "bunchApps": true,
+    "groupWindows": true,
 
     // The clock, as a Qt date format: "HH:mm" reads 14:05, "h:mm AP" reads
     // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
