@@ -543,8 +543,11 @@ BarItem {
                         // The strip's left padding belongs to the first workspace, not
                         // to the strip: an item may reach past its parent as long as
                         // nothing in the chain clips, and that is what turns the corner
-                        // of the screen into a click on workspace one.
-                        anchors.leftMargin: button.index === 0 ? -root.padLeft : 0
+                        // of the screen into a click on workspace one. Between workspaces
+                        // each takes half the gap, the way its mark reaches into it, and
+                        // the last takes the pill's right padding.
+                        anchors.leftMargin: button.index === 0 ? -root.padLeft : -Math.ceil(Theme.workspaceGap / 2)
+                        anchors.rightMargin: button.index === workspaces.count - 1 ? -root.padRight : -Math.floor(Theme.workspaceGap / 2)
                         onPressed: root.collapse()
                         onClicked: {
                             if (!button.active)
