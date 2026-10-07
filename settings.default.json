@@ -36,6 +36,7 @@
         "sys": true,       // CPU, memory and temperatures
         "settings": true,  // the settings window (this file, drawn)
         "tray": true,      // apps' status icons
+        "drives": true,    // USB drives: space, opening, safe removal
         "bluetooth": true, // the radio and its devices (bluez)
         "network": true,   // Wi-Fi and the cable (NetworkManager)
         "weather": true,   // next six hours, seven days, and hourly forecasts
