@@ -30,6 +30,13 @@ OverlayWindow {
     property real reveal: root.opened && root.backdropReady ? 1 : 0
     property real backdropProgress: root.opened && root.backdropReady && !root.closing ? 1 : 0
     property real shade: root.closing ? 1 : root.opened && root.backdropReady ? 0.12 : 0
+    // The wallpaper as Backdrop draws it on this screen, and how far the
+    // captured windows have faded back to let it through.
+    readonly property var backdrop: Wallpaper.backdrops[root.screen?.name] ?? null
+    readonly property var wallpaper: root.backdrop?.front ?? null
+    readonly property bool wallpaperReady: !!root.backdrop?.ready && (!root.wallpaper.path || wallpaperImage.status === Image.Ready)
+    readonly property real windowAlpha: 0.4
+    property real clearing: root.opened && root.backdropReady && root.wallpaperReady && !root.closing ? 1 : 0
     property real vertical: 1
     property real horizontal: 1
     property real flash: 0
@@ -57,6 +64,13 @@ OverlayWindow {
     }
 
     Behavior on backdropProgress {
+        NumberAnimation {
+            duration: Theme.fadeMs
+            easing.type: Easing.InOutCubic
+        }
+    }
+
+    Behavior on clearing {
         NumberAnimation {
             duration: Theme.fadeMs
             easing.type: Easing.InOutCubic
@@ -199,6 +213,32 @@ OverlayWindow {
         onTriggered: root.captureFallback = true
     }
 
+    // The wallpaper, sharp, cropped and panned the way Backdrop has it, so
+    // the windows can fade back over it.
+    Rectangle {
+        anchors.fill: parent
+        color: root.wallpaper?.path ? "black" : root.wallpaper?.color ?? "black"
+        opacity: root.clearing
+        visible: opacity > 0
+
+        Image {
+            id: wallpaperImage
+
+            readonly property real zoom: root.wallpaper?.zoom ?? 1
+
+            width: root.width * zoom
+            height: root.height * zoom
+            x: (root.width - width) / 2 + (root.wallpaper?.offsetX ?? 0)
+            y: (root.height - height) / 2 + (root.wallpaper?.offsetY ?? 0)
+            source: root.wallpaper?.path ? "file://" + root.wallpaper.path.split("/").map(encodeURIComponent).join("/") : ""
+            sourceSize: Qt.size(Math.ceil(width * root.devicePixelRatio), Math.ceil(height * root.devicePixelRatio))
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: false
+        }
+    }
+
+    // The windows, blurred and faded back once the wallpaper is under them.
     MultiEffect {
         anchors.fill: parent
         source: desktop
@@ -206,7 +246,7 @@ OverlayWindow {
         blurEnabled: true
         blurMax: 32
         blur: root.backdropProgress * 0.6
-        opacity: root.backdropProgress
+        opacity: root.backdropProgress * (1 - root.clearing * (1 - root.windowAlpha))
         visible: desktop.hasContent && opacity > 0
     }
 
