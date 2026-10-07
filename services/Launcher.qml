@@ -453,7 +453,8 @@ Singleton {
     // Each desktop action an app declares (Firefox's private window) is a row
     // of its own, answering to its own name first and its app's second, so
     // "fire priv" finds it. Settings.hiddenApps drops entries by id: Quickshell
-    // ignores OnlyShowIn, which is how blueman's XFCE-only one got in.
+    // ignores OnlyShowIn, which is how blueman's XFCE-only one got in. An
+    // action is dropped by its row id, "<app>:<action>".
     // A loop rather than flatMap, which Qt's JavaScript engine does not have.
     readonly property var appIndex: {
         const rows = [];
@@ -465,13 +466,16 @@ Singleton {
                 entry: e,
                 fields: root.prepFields([[e.name, 1], [e.genericName, 0.8]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
             });
-            for (const a of e.actions ?? [])
+            for (const a of e.actions ?? []) {
+                if (Settings.hiddenApps.includes(e.id + ":" + a.id))
+                    continue;
                 rows.push({
                     id: e.id + ":" + a.id,
                     entry: e,
                     action: a,
                     fields: root.prepFields([[a.name, 1], [e.name, 0.5]])
                 });
+            }
         }
         return rows;
     }
@@ -528,7 +532,7 @@ Singleton {
     function desktopMatches(terms) {
         const scored = [];
         for (const action of root.desktopCommands) {
-            if (action.available === false)
+            if (action.available === false || Settings.hiddenApps.includes("desktop:" + action.key))
                 continue;
             const m = terms.length ? root.matchScore(terms, [[action.title, 1], [action.aliases, 0.8]]) : 0;
             if (m === null)
@@ -631,6 +635,8 @@ Singleton {
 
         const scored = [];
         for (const a of root.powerCommands) {
+            if (Settings.hiddenApps.includes("power:" + a.key))
+                continue;
             // Aliases score just under the label, so a command found by its
             // real name outranks one found by a nickname.
             const m = root.matchScore(terms, [[a.label, 1]].concat((root.powerAliases[a.key] ?? "").split(" ").map(w => [w, 0.85])));

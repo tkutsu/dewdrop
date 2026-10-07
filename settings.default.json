@@ -32,6 +32,7 @@
         "wallpaper": true, // cycle the images in wallpaperDir
         "night": true,     // night mode and brightness
         "sys": true,       // CPU, memory and temperatures
+        "settings": true,  // the settings window (this file, drawn)
         "tray": true,      // apps' status icons
         "bluetooth": true, // the radio and its devices (bluez)
         "network": true,   // Wi-Fi and the cable (NetworkManager)
@@ -86,8 +87,15 @@
     // Desktop entries the launcher leaves out, by id (the file name without
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
     // desktop shows up unless it is listed here (blueman-adapters is
-    // OnlyShowIn=XFCE;MATE).
+    // OnlyShowIn=XFCE;MATE). Also takes an app's own action as
+    // "<app>:<action>" (firefox:new-private-window), and the launcher's
+    // controls and power commands as "desktop:<key>" and "power:<key>"
+    // (desktop:dnd, power:reboot).
     "hiddenApps": ["blueman-adapters", "libreoffice-startcenter"],
+
+    // Tray icons kept off the bar, by the id the app registers with. The
+    // settings window lists the ones running now.
+    "hiddenTray": [],
 
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.
