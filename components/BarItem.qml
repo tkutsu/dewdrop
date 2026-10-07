@@ -91,10 +91,14 @@ ClickArea {
     // go back to its own `quiet`. Empty for everything else, which keeps
     // middle click for itself.
     property string pinKey: ""
+    // Off for a module whose middle click is its own (the tray's icons):
+    // it is still in the drawer, but pinned only from the settings window.
+    property bool middlePins: true
     // Whether the module stands out of the drawer while it is closed: when
-    // it has something to say, is pinned, or owns the open popup. A quiet
-    // popup owner waits until its popup closes before folding away.
-    readonly property bool showsClosed: pinKey === "" || !quiet || DrawerPins.pinned(pinKey) || popupOpen
+    // it has something to say and is not kept in, is pinned, or owns the
+    // open popup. A quiet popup owner waits until its popup closes before
+    // folding away.
+    readonly property bool showsClosed: pinKey === "" || popupOpen || DrawerPins.pinned(pinKey) || (!quiet && !DrawerPins.kept(pinKey))
 
     // Whether to mark a pinned module as pinned. Set by the drawer's owner
     // while the drawer is open, which is when pinned and unpinned stand side
@@ -311,7 +315,7 @@ ClickArea {
         id: pin
         anchors.fill: span
         containmentMask: reach
-        enabled: root.pinKey !== ""
+        enabled: root.pinKey !== "" && root.middlePins
         acceptedButtons: Qt.MiddleButton
         cursorShape: Qt.ArrowCursor
         actions: ({
