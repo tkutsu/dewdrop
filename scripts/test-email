@@ -71,12 +71,13 @@ class EmailTests(unittest.TestCase):
         self.engine.rootContext().setContextProperty('Email', self.root)
         self.popup_state = self.create('import QtQuick\nItem { property bool shown: true; function dismiss() { shown = false; } function close(item) { dismiss(); } }')
         self.engine.rootContext().setContextProperty('OpenPopup', self.popup_state)
-        self.engine.rootContext().setContextProperty('Theme', {
+        self.theme = {
             'bodyFont': 'Sans Serif', 'captionSize': 12,
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
             'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'figures': {},
             'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r'},
-        })
+        }
+        self.engine.rootContext().setContextProperty('Theme', self.theme)
 
     def tearDown(self):
         self.engine.rootContext().setContextProperty('Email', None)
@@ -288,13 +289,15 @@ class EmailTests(unittest.TestCase):
         # Instantiate the full popup with its real row/text components, replacing
         # only window chrome, buttons and external services with offline stubs.
         self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
+        self.engine.rootContext().setContextProperty('Theme', dict(self.theme, foldMs=360))
         stubs = {
             'Popup.qml': """import QtQuick
                 Item { id: chrome; property real reserveHeight: 0; property var screen: null; property Item anchorItem
-                    readonly property real chromeHeight: column.implicitHeight
+                    property real vPadding: 6
+                    readonly property real chromeHeight: column.implicitHeight + vPadding * 2
                     default property alias content: column.data
                     property alias spacing: column.spacing
-                    implicitWidth: column.implicitWidth; implicitHeight: column.implicitHeight
+                    implicitWidth: column.implicitWidth; implicitHeight: Math.max(chromeHeight, reserveHeight)
                     width: implicitWidth; height: implicitHeight
                     Column { id: column }
                 }""",
@@ -317,7 +320,7 @@ class EmailTests(unittest.TestCase):
             self.components.append(component)
             self.js('''
                 var row=sut.rowOf({id:"t"},{messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});
-                sut.bodies={m:"Hello https://example.com\\nsecond line"};
+                sut.bodies={m:"Hello https://example.com\\nsecond line" + "\\nbody line".repeat(30)};
                 sut.threads=[row]; sut.total=1; sut.loaded=true;
             ''')
             popup = component.create()
@@ -327,8 +330,33 @@ class EmailTests(unittest.TestCase):
             window.resize(340, 800)
             popup.setParentItem(window.contentItem())
             window.show()
-            popup.setProperty('expanded', 't')
             QTest.qWait(30)
+            # Keep the Wayland surface size fixed while the drawn rows unfold.
+            reserved = popup.property('reserveHeight')
+            sizes = []
+            popup.implicitHeightChanged.connect(lambda: sizes.append(popup.implicitHeight()))
+            row = self.js('return popup.testList.itemAt(0);')
+            heights = []
+            row.heightChanged.connect(lambda: heights.append(row.height()))
+            popup.setProperty('expanded', 't')
+            QTest.qWait(400)
+            self.assertGreater(len(heights), 3)
+            self.assertEqual(heights, sorted(heights))
+            self.assertFalse(sizes, 'Popup window resized during expansion: ' + str(sizes))
+            self.assertEqual(popup.property('reserveHeight'), reserved)
+            heights.clear()
+            popup.setProperty('expanded', '')
+            QTest.qWait(400)
+            self.assertGreater(len(heights), 3)
+            self.assertEqual(heights, sorted(heights, reverse=True))
+            self.assertFalse(sizes, 'Popup window resized during collapse: ' + str(sizes))
+            popup.setProperty('expanded', 't')
+            QTest.qWait(100)
+            popup.setProperty('expanded', '')
+            QTest.qWait(100)
+            popup.setProperty('expanded', 't')
+            QTest.qWait(400)
+            self.assertFalse(sizes, 'Popup window resized when reversing the animation: ' + str(sizes))
             def items(parent):
                 for child in parent.childItems():
                     yield child
@@ -354,13 +382,21 @@ class EmailTests(unittest.TestCase):
                 for (var i=0; i<40; i++) {
                     const row=sut.rowOf({id:"t"+i},{messages:[{id:"m"+i,internalDate:40-i,labelIds:["UNREAD"]}]});
                     if (i<12) cache[row.id]={historyId:"1",row:row};
-                    bodies["m"+i]="Hello";
+                    bodies["m"+i]=i < 2 ? "body line\\n".repeat(30) : "Hello";
                 }
                 sut.bodies=bodies; sut.cache=cache;
                 sut.threads=Object.values(cache).map(t=>t.row); sut.total=40;
             ''')
             QTest.qWait(20)
             self.check('popup.testList.count === 8 && popup.testMore.visible')
+            sizes.clear()
+            popup.setProperty('expanded', 't0')
+            QTest.qWait(400)
+            popup.setProperty('expanded', 't1')
+            QTest.qWait(400)
+            popup.setProperty('expanded', '')
+            QTest.qWait(400)
+            self.assertFalse(sizes, 'Popup window resized when switching mails: ' + str(sizes))
             for count in (16,24,32,40):
                 more=next(item for item in items(popup) if item.objectName() == 'emailMore')
                 point=more.mapToScene(QPointF(20,more.height()/2)).toPoint()
