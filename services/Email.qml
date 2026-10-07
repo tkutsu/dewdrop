@@ -56,13 +56,16 @@ GoogleService {
     // in Gmail brings it back without a local suppression timeout.
     property var opened: ({})
 
-    // Message id → its text, read when a row is opened in the popup. Kept
-    // for the session: a mail does not change once sent.
+    // Message id → its text, read when a row is opened in the popup. A mail
+    // does not change once sent, so the newest bodyKeep are kept and an older
+    // one reopened is simply read again.
     property var bodies: ({})
+    readonly property int bodyKeep: 200
     property var reading: ({})
     property var readQueue: []
     property int bodyRequests: 0
     readonly property int bodyParallel: 4
+    readonly property int headerParallel: 6
 
     // Replies from an earlier poll that land after a later one began are
     // dropped, or a slow one could put an opened row back.
@@ -140,35 +143,15 @@ GoogleService {
                 const wanted = unread.slice(0, root.detailed);
                 const stale = wanted.filter(t => !t.historyId || root.cache[t.id]?.historyId !== t.historyId);
 
-                // Every stale thread asked for at once, and published together
-                // when the last one lands, for the reason GoogleService.gather
-                // gives: a list filled in reply by reply reorders itself under the
-                // pointer.
-                if (stale.length === 0) {
-                    root.publish(unread, wanted);
-                    return;
-                }
-                let outstanding = stale.length;
-                const landed = function () {
-                    outstanding--;
-                    if (outstanding === 0 && gen === root.generation)
-                        root.publish(unread, wanted);
-                };
-                for (const t of stale)
-                    root.send("GET", root.headersUrl(t.id), null, function (thread) {
-                        if (gen !== root.generation)
-                            return;
-                        root.cache[t.id] = {
-                            historyId: t.historyId,
-                            row: root.rowOf(t, thread)
-                        };
-                        landed();
-                    }, function (why, status) {
-                        if (gen !== root.generation)
-                            return;
-                        root.fail(why, status);
-                        landed();
-                    });
+                // Published together when the last one lands, for the reason
+                // GoogleService.gather gives: a list filled in reply by reply
+                // reorders itself under the pointer.
+                root.eachHeader(stale, function (t, thread) {
+                    root.cache[t.id] = {
+                        historyId: t.historyId,
+                        row: root.rowOf(t, thread)
+                    };
+                }, () => root.publish(unread, wanted), () => gen === root.generation);
             }, function (why, status) {
                 if (gen === root.generation)
                     root.fail(why, status);
@@ -350,27 +333,48 @@ GoogleService {
     // Listed threads to rows, in the order given, kept by slot rather than
     // by arrival. A thread the poll has already read costs nothing.
     function detail(listed: var, then: var): void {
-        const rows = listed.map(t => root.cache[t.id]?.historyId === t.historyId ? root.cache[t.id].row : null);
-        let outstanding = rows.filter(r => r === null).length;
+        const rows = listed.map(t => {
+            const c = root.cache[t.id];
+            return c && t.historyId && c.historyId === t.historyId ? c.row : null;
+        });
+        const missing = listed.filter((t, i) => rows[i] === null);
+        root.eachHeader(missing, (t, thread) => rows[listed.indexOf(t)] = root.rowOf(t, thread), () => then(rows.filter(r => r)), () => true);
+    }
+
+    // Each thread's headers, a few requests at a time: after "load more" a
+    // poll can find a couple of hundred threads stale. `done` runs once all
+    // have landed or failed, and nothing more is asked once `alive` goes false.
+    function eachHeader(threads: var, each: var, done: var, alive: var): void {
+        let next = 0;
+        let outstanding = threads.length;
         if (outstanding === 0) {
-            then(rows);
+            done();
             return;
         }
-        const landed = function () {
-            outstanding--;
-            if (outstanding === 0)
-                then(rows.filter(r => r));
-        };
-        listed.forEach((t, i) => {
-            if (rows[i] === null)
-                root.send("GET", root.headersUrl(t.id), null, function (thread) {
-                    rows[i] = root.rowOf(t, thread);
-                    landed();
-                }, function (why, status) {
+        const start = function () {
+            if (next >= threads.length || !alive())
+                return;
+            const t = threads[next++];
+            const settle = function () {
+                if (!alive())
+                    return;
+                if (--outstanding === 0)
+                    done();
+                else
+                    start();
+            };
+            root.send("GET", root.headersUrl(t.id), null, function (thread) {
+                if (alive())
+                    each(t, thread);
+                settle();
+            }, function (why, status) {
+                if (alive())
                     root.fail(why, status);
-                    landed();
-                });
-        });
+                settle();
+            });
+        };
+        for (let i = 0; i < root.headerParallel; i++)
+            start();
     }
 
     // --- reading one ---------------------------------------------------------
@@ -407,7 +411,10 @@ GoogleService {
             };
             root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
                 root.loadText(m.id, body?.payload, function (text) {
-                    const next = Object.assign({}, root.bodies);
+                    // A new object, so bindings on `bodies` see the change.
+                    const next = ({});
+                    for (const id of Object.keys(root.bodies).slice(1 - root.bodyKeep))
+                        next[id] = root.bodies[id];
                     next[m.id] = text || m.snippet;
                     root.bodies = next;
                     finished();

@@ -3,18 +3,10 @@ import Quickshell
 import qs
 import qs.components
 
-// What the file the / list is sitting on actually looks like.
-//
-// Every other mode answers in text, because what it is ranking is text. A
-// path list is not: two directories of photographs read identically written
-// down, and the only thing that tells them apart is the picture. So this
-// panel, and only in / mode — LauncherMenu.qml is where the box widens to
-// make room for it.
-//
-// ~/_scripts/thumb.sh does the rendering and the keeping; everything here is
-// about not asking it too often. Holding Down through forty files must not
-// leave forty ffmpegs behind it, so the ask is debounced and queued exactly
-// the way the launcher's other shelling-out modes are — see QueuedProcess.
+// A preview of the file the / list is on; only / mode shows it
+// (LauncherMenu.qml widens the box). ~/_scripts/thumb.sh renders and caches;
+// the ask is debounced through QueuedProcess so holding Down through forty
+// files does not leave forty ffmpegs behind.
 Item {
     id: root
 
@@ -24,37 +16,25 @@ Item {
 
     readonly property string script: Paths.script("thumb.sh")
 
-    // What the script said for a path: { kind, payload }. Kept for the life
-    // of the window rather than forever — the script has a real cache on
-    // disk, and this is only here so that arrowing back up a list does not
-    // shell out a second time.
-    //
-    // Written to in place, so nothing may bind to it. `kind` and `payload`
-    // below are the properties that move.
+    // Path → { kind, payload } for the life of the window, so arrowing back
+    // up does not shell out again (the script keeps the real cache). Written
+    // in place, so nothing may bind to it; bind to `kind` and `payload`.
     property var known: ({})
 
-    // The answer for the file on screen: "image" and something to draw, or
-    // "text" and the head of a file to set, or neither. Set rather than
-    // bound, because it arrives from a process.
+    // The file on screen: "image" and a path, "text" and its head, or "".
     property string kind: ""
     property string payload: ""
 
-    // file:// and a path that can contain anything. encodeURI leaves the
-    // slashes where they are and takes the spaces; # and ? it leaves behind,
-    // and a URL would read them as a fragment and a query.
+    // encodeURI leaves # and ?, which a URL would read as fragment and query.
     function fileUrl(p) {
         return "file://" + encodeURI(p).replace(/#/g, "%23").replace(/\?/g, "%3F");
     }
 
     onPathChanged: {
-        // Back to the top before anything else: the last file's scroll
-        // position means nothing in this one, cached or not.
         bodyView.contentY = 0;
         const hit = root.known[root.path];
         if (hit !== undefined) {
-            // Already asked. An empty kind is an answer too — the file has
-            // nothing to show — so this is a check against undefined rather
-            // than against "".
+            // An empty kind is an answer too: nothing to show.
             root.kind = hit.kind;
             root.payload = hit.payload;
             thumb.want = "";
@@ -69,8 +49,7 @@ Item {
     function scroll(dir): void {
         if (!bodyView.visible || bodyView.contentHeight <= bodyView.height)
             return;
-        // A page less two lines, so the lines being read carry over the jump
-        // rather than the page turning out from under them.
+        // A page less two lines, so the lines being read carry over.
         const step = Math.max(bodyView.height - body.font.pixelSize * 2, body.font.pixelSize);
         bodyView.contentY = Math.max(0, Math.min(bodyView.contentHeight - bodyView.height, bodyView.contentY + dir * step));
     }
@@ -78,17 +57,13 @@ Item {
     QueuedProcess {
         id: thumb
 
-        // Long enough to sit out a held arrow key, which repeats at about
-        // 30ms once it gets going, and short enough that landing on a row and
-        // stopping feels like the picture was already there.
+        // Sits out a held arrow key (~30ms repeat) without feeling late.
         interval: 160
         command: [root.script, thumb.arg]
 
         onResult: function (arg, text) {
-            // First line is what kind of answer this is, the rest is the
-            // answer. A path has the newline the script printed after it
-            // and nothing else worth keeping; a file's contents keep
-            // every newline they came with.
+            // First line is the kind, the rest the answer: an image path
+            // trimmed, a text head kept with its newlines.
             const cut = text.indexOf("\n");
             const kind = cut < 0 ? "" : text.slice(0, cut);
             const answer = ({
@@ -96,9 +71,7 @@ Item {
                     payload: kind === "image" ? text.slice(cut + 1).trim() : (kind === "text" ? text.slice(cut + 1) : "")
                 });
             root.known[arg] = answer;
-            // Only if it is still the file being looked at: a soffice
-            // render can land a second after the row it belongs to has
-            // gone by.
+            // A slow render (soffice) can land after its row has gone by.
             if (arg === root.path) {
                 root.kind = answer.kind;
                 root.payload = answer.payload;
@@ -108,12 +81,9 @@ Item {
 
     // --- the picture ---------------------------------------------------------
 
-    // Two Images taking turns rather than one changing source. An Image drops
-    // to Loading the moment its source moves, even to a file it decoded a
-    // second ago, so one Image meant the glyph flashing up between two
-    // pictures that were both already cached. Here the one on screen holds
-    // its frame until the other has the next file Ready, and only then do
-    // they swap.
+    // Two Images taking turns: an Image drops to Loading as soon as its
+    // source moves, so the one on screen holds its frame until the other is
+    // Ready with the next file, and only then do they swap.
     property Image front: null
     property Image next: null
 
@@ -129,8 +99,7 @@ Item {
             return;
         const img = root.front === shotA ? shotB : shotA;
         img.source = root.imageUrl;
-        // A source it already held decodes nothing and changes no status, so
-        // the swap has to be made here rather than waited for.
+        // A source it already held changes no status, so swap here.
         if (img.status === Image.Ready)
             root.front = img;
         else if (img.status === Image.Error)
@@ -149,20 +118,14 @@ Item {
         }
     }
 
-    // Nothing in here reaches for `root`: an inline component is its own
-    // scope, so what differs between the two is set where they are made.
+    // An inline component is its own scope: no `root` in here.
     component Shot: Image {
         anchors.fill: parent
         fillMode: Image.PreserveAspectFit
-        // The panel is small and the file may not be: decoded to twice the
-        // box it is drawn in, which is sharp on a scaled screen and still a
-        // fraction of what a full-size photograph would cost. Square on the
-        // width alone: the height animates with the list, and a decode size
-        // bound to it would re-decode the file on every frame of that.
+        // Decoded at twice the box, from the width alone: the height animates
+        // with the list and would re-decode the file every frame.
         sourceSize.width: Math.round(width * 2)
         sourceSize.height: Math.round(width * 2)
-        // Loaded off the render thread, so a slow decode cannot stall the
-        // list the arrow keys are moving.
         asynchronous: true
         smooth: true
         visible: opacity > 0
@@ -175,8 +138,7 @@ Item {
         }
     }
 
-    // Only a Ready image is ever made `front`, so a file that fails to decode
-    // leaves the glyph up rather than a hole where a picture was meant to be.
+    // Only a Ready image becomes `front`, so a failed decode leaves the glyph.
     Shot {
         id: shotA
 
@@ -191,16 +153,9 @@ Item {
         onStatusChanged: root.landed(shotB)
     }
 
-    // A text file is read rather than looked at, so it is set as text: the
-    // head of it in the mono font, at the size that fits the most of it while
-    // still being a size. Not wrapped — code is written in lines, and a line
-    // that runs off the edge says more about the file than the same line
-    // folded into three.
-    //
-    // In something that scrolls, because a panel holds twenty-odd lines and
-    // the script sends eighty. Vertically only: contentWidth is the panel's,
-    // so a long line stays cut off at the edge rather than letting the whole
-    // page drift sideways.
+    // A text file's head in the mono font, unwrapped: code is written in
+    // lines. Scrolls vertically only (the script sends eighty lines), so a
+    // long line is cut at the edge rather than the page drifting sideways.
     Flickable {
         id: bodyView
 
@@ -224,8 +179,7 @@ Item {
 
             width: bodyView.width
             text: root.payload
-            // Plain, always: this is someone else's file, and a markdown
-            // heading in it is a line starting with a hash, not a heading.
+            // Someone else's file: a markdown heading is just a line here.
             textFormat: Text.PlainText
             color: Theme.menuText
             font.family: Theme.monoFont
@@ -234,11 +188,8 @@ Item {
         }
     }
 
-    // What is there the rest of the time: while the render runs, for a
-    // directory, and for the files that have nothing to show either way.
-    // Deliberately the same weight as the rest of the box rather than a
-    // spinner — the panel filling in is already the only thing moving on that
-    // side.
+    // Shown while rendering, for a directory, and for files with nothing to
+    // show. Not a spinner: the panel filling in is motion enough.
     Glyph {
         anchors.centerIn: parent
         text: root.path === "" ? Theme.glyph.folder : Theme.glyph.file

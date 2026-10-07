@@ -44,6 +44,8 @@ STATE = '''
     property var readQueue: []
     property int bodyRequests: 0
     property int bodyParallel: 4
+    property int headerParallel: 6
+    property int bodyKeep: 200
     property string fixtureText: ""
     property var pending: []
     property int maxPending: 0
@@ -168,7 +170,7 @@ class EmailTests(unittest.TestCase):
             if (!sut.pending[0].url.includes("pageToken=page%20%2B%20%2F")) throw Error("unescaped token");
             sut.reply({threads:listed(499,500),nextPageToken:"last"});
             sut.reply({threads:listed(999,202)});
-            if (sut.pending.length !== 12 || sut.loaded) throw Error("wrong detail limit or partial publication");
+            if (sut.pending.length !== sut.headerParallel || sut.loaded) throw Error("wrong detail limit or partial publication");
             while (sut.pending.length) {
                 const id = sut.pending[0].url.match(/threads\\/(t\\d+)/)[1];
                 sut.reply({messages:[{id:"m"+id,internalDate:String(2000-Number(id.slice(1))),labelIds:["UNREAD"]}]});
@@ -196,6 +198,22 @@ class EmailTests(unittest.TestCase):
     def test_missing_history_id_fetches_details(self):
         self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t"}]});')
         self.check('sut.pending.length === 1 && sut.pending[0].url.includes("threads/t?")')
+
+    def test_uncached_thread_without_history_id_is_detailed(self):
+        self.js('sut.detail([{id:"t"}], rows => sut.found = rows);')
+        self.check('sut.pending.length === 1 && sut.found === null')
+        self.js('sut.reply({messages:[{id:"m",labelIds:["UNREAD"]}]});')
+        self.check('sut.found.length === 1')
+
+    def test_header_requests_are_bounded(self):
+        self.js('''
+            sut.detailed = 200;
+            sut.fetchThreads();
+            sut.reply({threads:Array.from({length:200}, (_,i)=>({id:"t"+i,historyId:"1"}))});
+            while (sut.pending.length)
+                sut.reply({messages:[{id:"m"+sut.pending.length,internalDate:"1",labelIds:["UNREAD"]}]});
+        ''')
+        self.check('sut.maxPending <= sut.headerParallel && sut.loaded && sut.total === 200')
 
     def test_repeated_token_and_failed_page_preserve_state(self):
         self.js('sut.total=77; sut.loaded=true; sut.fetchThreads(); sut.reply({threads:[{id:"t"}],nextPageToken:"same"}); sut.reply({nextPageToken:"same"});')
@@ -277,6 +295,12 @@ class EmailTests(unittest.TestCase):
         self.check('sut.bodyRequests === 0 && !sut.reading.m && sut.bodies.m === undefined')
         self.js('sut.read({messages:[{id:"m",snippet:"fallback"}]}); sut.reply({payload:null});')
         self.check('sut.bodies.m === "fallback"')
+
+    def test_body_cache_keeps_the_newest(self):
+        self.js('sut.bodyKeep = 3; for (const id of ["a", "b", "c", "d"]) { sut.read({messages:[{id:id,snippet:id}]}); sut.reply({payload:null}); }')
+        self.check('Object.keys(sut.bodies).join() === "b,c,d"')
+        self.js('sut.read({messages:[{id:"a",snippet:"a"}]});')
+        self.check('sut.pending.length === 1')
 
     def test_link_markup_and_escaping(self):
         self.check('sut.richText("<img src=x> https://example.com?a=1&b=2. www.example.com").includes("&lt;img src=x&gt;")')
