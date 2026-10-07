@@ -17,6 +17,9 @@ BarItem {
     // Only worth a place on the bar while it is holding the screen awake.
     quiet: !active
 
+    // A pixel less air on the left than the row gives (user's call).
+    Layout.leftMargin: -1
+
     // Bound rather than read once: the bar's window does not exist yet when
     // this item completes. One per bar is harmless; any of them holds it.
     IdleInhibitor {
