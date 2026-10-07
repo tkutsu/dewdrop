@@ -20,7 +20,9 @@
     // false takes a module off the bar altogether. To keep one out of sight
     // but within reach, leave it true: the quiet ones already sit in the
     // drawer behind the chevron, and a middle click on a module pins it out
-    // of the drawer or lets it go back.
+    // of the drawer or lets it go back. The settings window (the gear) can
+    // also keep any module, or one tray icon, in the drawer even while it
+    // has something to show.
     "modules": {
         "music": true,     // now playing, from mpd (see musicDir, mpdSocket)
         "email": true,     // unread Gmail (needs Google, see the end)
@@ -92,10 +94,6 @@
     // controls and power commands as "desktop:<key>" and "power:<key>"
     // (desktop:dnd, power:reboot).
     "hiddenApps": ["blueman-adapters", "libreoffice-startcenter"],
-
-    // Tray icons kept off the bar, by the id the app registers with. The
-    // settings window lists the ones running now.
-    "hiddenTray": [],
 
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.

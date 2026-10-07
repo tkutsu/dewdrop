@@ -18,8 +18,6 @@ BarItem {
         // starts it as the pairing agent), and its icon would be a second
         // Bluetooth rune in the row.
         .filter(item => !/^(blueman|nm-applet)/.test(item.id))
-        // And whatever the settings window was told to keep off the bar.
-        .filter(item => !Settings.hiddenTray.includes(item.id))
         // Registration order is whatever the race at login happened to produce;
         // sorting by service id keeps the bar stable across restarts.
         .sort((a, b) => a.id.localeCompare(b.id))
@@ -28,6 +26,16 @@ BarItem {
     // holding its gap in the row. It used to always have nm-applet and
     // blueman in it; now it can be empty.
     present: entries.length > 0
+
+    // Icons the settings window keeps in the drawer ("tray:<id>" in
+    // DrawerPins) fold out of the row while it is closed, one by one; with
+    // every icon kept in, the tray as a whole is quiet and folds with the
+    // rest. Pinning the tray brings them all out. Middle click stays the
+    // icons' own.
+    property bool drawerOut: false
+    readonly property bool tucks: entries.some(item => DrawerPins.kept("tray:" + item.id))
+    quiet: entries.every(item => DrawerPins.kept("tray:" + item.id))
+    middlePins: false
 
     // Where the theme's artwork is at odds with the bar, the bar draws its own
     // glyph in its place. (nm-applet and blueman were the first two; the bar
@@ -84,9 +92,23 @@ BarItem {
             // pressed in under the pointer, or both at once.
             readonly property real shift: bounce.offset + (pointer.acting ? Theme.pressDip : 0)
 
-            opacity: entry.off ? Theme.dimOpacity : 1
+            // Kept in the drawer and the drawer shut: folded out of the row.
+            readonly property bool tucked: DrawerPins.kept("tray:" + modelData.id) && !root.drawerOut && !DrawerPins.pinned(root.pinKey)
+            property real out: tucked ? 0 : 1
+
+            Behavior on out {
+                NumberAnimation {
+                    duration: Theme.foldMs
+                    easing.type: Easing.InOutCubic
+                }
+            }
+
+            visible: out > 0
+            clip: out < 1
+            opacity: (entry.off ? Theme.dimOpacity : 1) * out
 
             Behavior on opacity {
+                enabled: !entry.tucked && entry.out === 1
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
@@ -98,7 +120,7 @@ BarItem {
             // either side; blueman's drawing carries 4px, so the tray stood a
             // pixel further from its left neighbour than from its right.
             Layout.fillHeight: true
-            implicitWidth: entry.glyph ? substitute.implicitWidth : icon.inkWidth
+            implicitWidth: Math.round((entry.glyph ? substitute.implicitWidth : icon.inkWidth) * entry.out)
 
             FittedIcon {
                 id: icon
