@@ -56,9 +56,11 @@ GoogleService {
     // in Gmail brings it back without a local suppression timeout.
     property var opened: ({})
 
-    // Message id → its text, read when a row is opened in the popup. Kept
-    // for the session: a mail does not change once sent.
+    // Message id → its text, read when a row is opened in the popup. A mail
+    // does not change once sent, so the newest bodyKeep are kept and an older
+    // one reopened is simply read again.
     property var bodies: ({})
+    readonly property int bodyKeep: 200
     property var reading: ({})
     property var readQueue: []
     property int bodyRequests: 0
@@ -409,7 +411,10 @@ GoogleService {
             };
             root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
                 root.loadText(m.id, body?.payload, function (text) {
-                    const next = Object.assign({}, root.bodies);
+                    // A new object, so bindings on `bodies` see the change.
+                    const next = ({});
+                    for (const id of Object.keys(root.bodies).slice(1 - root.bodyKeep))
+                        next[id] = root.bodies[id];
                     next[m.id] = text || m.snippet;
                     root.bodies = next;
                     finished();

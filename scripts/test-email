@@ -45,6 +45,7 @@ STATE = '''
     property int bodyRequests: 0
     property int bodyParallel: 4
     property int headerParallel: 6
+    property int bodyKeep: 200
     property string fixtureText: ""
     property var pending: []
     property int maxPending: 0
@@ -294,6 +295,12 @@ class EmailTests(unittest.TestCase):
         self.check('sut.bodyRequests === 0 && !sut.reading.m && sut.bodies.m === undefined')
         self.js('sut.read({messages:[{id:"m",snippet:"fallback"}]}); sut.reply({payload:null});')
         self.check('sut.bodies.m === "fallback"')
+
+    def test_body_cache_keeps_the_newest(self):
+        self.js('sut.bodyKeep = 3; for (const id of ["a", "b", "c", "d"]) { sut.read({messages:[{id:id,snippet:id}]}); sut.reply({payload:null}); }')
+        self.check('Object.keys(sut.bodies).join() === "b,c,d"')
+        self.js('sut.read({messages:[{id:"a",snippet:"a"}]});')
+        self.check('sut.pending.length === 1')
 
     def test_link_markup_and_escaping(self):
         self.check('sut.richText("<img src=x> https://example.com?a=1&b=2. www.example.com").includes("&lt;img src=x&gt;")')
