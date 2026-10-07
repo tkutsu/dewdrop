@@ -6,14 +6,12 @@ import Quickshell.Io
 import qs.services
 import "../Fuzzy.js" as Fuzzy
 
-// MPD's database as the launcher's # mode has to see it: artists holding
-// albums holding tracks, with all three ranked against one query at once.
+// MPD's database for the launcher's music mode: artists holding albums
+// holding tracks, all three ranked against one query at once.
 //
-// A copy, and deliberately so. MPD can answer `search title "..."` itself, but
-// only as a round trip per keystroke, only on substrings, and never on three
-// kinds of thing at once — and the answer would still have to be assembled
-// into a tree here. Ten thousand tracks is a tenth of a second to read and a
-// few megabytes to hold, which is the cheaper end of that trade by a distance.
+// A local copy: MPD's own search is a round trip per keystroke, substring
+// only, and one kind at a time. Ten thousand tracks read in a tenth of a
+// second and hold in a few megabytes.
 Singleton {
     id: root
 
@@ -32,19 +30,15 @@ Singleton {
     // { file, title, raw, low, artist, album: albumIndex, time }
     property var tracks: []
 
-    // `raw` and `low` on all three are Fuzzy.prep's two halves, folded once
-    // here rather than ten thousand times per keystroke. That split is the
-    // whole reason the mode is usable — see the note in Fuzzy.js.
+    // `raw` and `low` are Fuzzy.prep's two halves, folded once here rather
+    // than per keystroke (see Fuzzy.js).
 
-    // Read on the first "&", not at startup. A tenth of a second of mpc and a
-    // parse is not worth paying at every login for a mode that may never be
-    // opened, and the one time it is paid there is a row on screen saying so.
+    // Read on the first "&", not at startup: the mode may never be opened.
     function ensure(): void {
         if (root.loaded || root.loading)
             return;
-        // Not straight back at a read that has just failed. Whoever asked
-        // hears `loading` drop and would ask again at once, and that was mpc
-        // spawned in a loop for as long as the # mode stayed open.
+        // Whoever asked hears `loading` drop and asks again at once, so a
+        // failed read waits before mpc is spawned again.
         if (root.failed && Date.now() - root.triedAt < 5000)
             return;
         root.triedAt = Date.now();
@@ -52,9 +46,7 @@ Singleton {
         dump.running = true;
     }
 
-    // A dump that was in flight when the database changed describes the
-    // library that was, and is thrown away when it lands rather than
-    // published as if it were the one that is.
+    // A dump in flight when the database changed is thrown away on landing.
     property bool stale: false
 
     Connections {
@@ -79,32 +71,17 @@ Singleton {
     Process {
         id: dump
 
-        // One line per song, tab separated, in the order MPD walks the
-        // directories — which is the order the files are numbered in on disk.
-        // That ordering is on purpose and is not %track%: one record here is
-        // tagged "A Radio Ready Version of the Album ...", with track numbers
-        // to match, while the filenames it was ripped to are right. Where the
-        // tags are good the two agree anyway.
-        //
-        // Deliberately not `listallinfo` over the socket. Same data, but it
-        // arrives as eighty thousand lines through SplitParser — a signal
-        // each — rather than one string to split.
-        //
-        // Under timeout, the same way the calculator and fd are: a dump that
-        // never exits (mpc waiting on an mpd that is up but not answering,
-        // mid-update or wedged) would leave `loading` set for the rest of
-        // the session, and "reading the library" on screen for as long. A
-        // real dump of this library is a tenth of a second.
-        // Over the same socket as services/Mpd.qml, not mpc's default TCP port,
-        // which mpd only happens to be listening on as well.
+        // One tab-separated line per song, in directory order: the files are
+        // numbered right on disk where some %track% tags are not. mpc rather
+        // than `listallinfo` over the socket, which would arrive as eighty
+        // thousand SplitParser signals instead of one string. Under timeout,
+        // so a wedged mpd cannot leave `loading` set for the session. Over
+        // the same socket as services/Mpd.qml.
         command: ["timeout", "15", "mpc", ...(Settings.mpdSocket ? ["--host", Settings.mpdSocket] : []), "-f", "%file%\t%albumartist%\t%artist%\t%album%\t%title%\t%date%\t%time%", "listall"]
 
-        // After the collector, which waits for the stream before letting the
-        // exit through. A dump that failed to spawn never closes its stdout,
-        // so this is the only signal that comes back — and without it
-        // `loading` would stay set and ensure() would never ask again. Built
-        // here rather than when the stream ends, so a dump that died halfway
-        // is not published as the library.
+        // Fires after the collector has the whole stream, and is the only
+        // signal from a dump that failed to spawn. Built here, on a clean
+        // exit, so a dump that died halfway is never published.
         onExited: code => {
             if (root.stale)
                 root.stale = false;
@@ -269,18 +246,10 @@ Singleton {
     // artist ever recorded ranks above the one actually named.
     readonly property real inherit: 0.5
 
-    // How many rows are worth ranking. The launcher's own cap is the same
-    // number and applies to what comes back from here.
-
-    // And how far below the best hit a row may score and still be worth a
-    // line. A subsequence matcher turned on ten thousand titles will always
-    // find something: "bohren" is in "Bigmouth Strikes Again" if you are
-    // willing to walk far enough between the letters, and fifty rows of that
-    // bury the two bands actually called it. An absolute threshold cannot do
-    // this — the scores a good match earns depend entirely on how long the
-    // query is — but the distance to whatever won can, and on everything
-    // tried here the real answers sit in the top third and the accidents fall
-    // off a cliff well below it.
+    // How far below the best hit a row may score and still be listed. A
+    // subsequence matcher always finds something ("bohren" is in "Bigmouth
+    // Strikes Again"), and scores depend on query length, so the cut is
+    // relative to the winner rather than absolute.
     readonly property real floor: 0.6
 
     // What the query turns up: the things that matched, ranked, as
@@ -371,15 +340,9 @@ Singleton {
             }
             if (k < n)
                 continue;
-            // Its artist is already a row, so it is hanging under that row an
-            // indent away and a second copy at the top level is the same
-            // record listed twice. Unconditional, where the tracks below get
-            // to keep a match of their own: an album title is long enough that
-            // a fuzzy query lands in one by accident constantly — "Under the
-            // Covers: Essential Red Hot Chili Peppers" matched "rhcp" and
-            // "pepper" on its own name and was drawn twice for both — and it
-            // is never more than one keystroke away underneath its artist
-            // anyway.
+            // Already under its artist's row, so not listed twice. Even with
+            // a match of its own: long album titles catch fuzzy queries by
+            // accident, and it is one keystroke away under the artist.
             if (shownArtist[parent])
                 continue;
             shownAlbum[i] = true;
@@ -437,13 +400,8 @@ Singleton {
         if (!hits.length)
             return hits;
 
-        // Cut first, sort what survives: a sort is the one thing here that
-        // costs more than a pass, and most of what it would have ordered is
-        // about to be dropped.
-        //
-        // Only while the winner is positive. A fraction of a score at or
-        // below zero is a bar above the winner itself, and a query that
-        // matched a handful of long titles late would list nothing.
+        // Cut first, then sort the survivors. Only while the winner is
+        // positive: a fraction of a score at or below zero is above it.
         let best = -Infinity;
         for (const h of hits)
             if (h.score > best)
