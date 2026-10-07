@@ -194,6 +194,21 @@ BarItem {
             }
         }
 
+        // A workspace that goes takes its slot with it at once, and everything
+        // after it would jump left while the pill's end springs in. Instead
+        // those workspaces are held out by the width the strip still has to
+        // lose, so they close up with the pill's end, on its spring.
+        property real closedAt: Infinity
+        readonly property real closing: strip.implicitWidth - buttons.implicitWidth
+
+        Connections {
+            target: stripResize
+            function onRunningChanged() {
+                if (!stripResize.running)
+                    strip.closedAt = Infinity;
+            }
+        }
+
         // Read focus directly: delegate active bindings update separately and
         // briefly leave no selection when moving towards an earlier workspace.
         readonly property Item selected: {
@@ -351,6 +366,12 @@ BarItem {
                         .sort((a, b) => a.id - b.id)
                 }
 
+                // Still at its old x here: the row lays out again afterwards.
+                onItemRemoved: (index, item) => {
+                    if (widthChange.enabled)
+                        strip.closedAt = Math.min(strip.closedAt, item.x);
+                }
+
                 delegate: Item {
                     id: button
 
@@ -435,6 +456,11 @@ BarItem {
 
                     Layout.fillHeight: true
                     implicitWidth: row.implicitWidth
+
+                    // See strip.closedAt.
+                    transform: Translate {
+                        x: button.x >= strip.closedAt - 0.5 ? strip.closing : 0
+                    }
 
                     // Where a window of `cls` would show up in this group, as an x
                     // between icons: after its app's icon if the app is here already,
