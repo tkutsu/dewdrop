@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import qs
 import qs.components
+import qs.services
 
 // One group per workspace, ordered by number, with one icon per app.
 // Groups expand in place; individual windows can be dragged to another workspace.
@@ -58,10 +59,49 @@ BarItem {
         return toplevel.wayland?.appId || toplevel.lastIpcObject?.class || "";
     }
 
+    // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
+    readonly property var liveWorkspaces: [...Hyprland.workspaces.values]
+        .filter(w => w.id !== -1 && !w.name.startsWith("special:"))
+        .filter(w => w.active || w.lastIpcObject?.ispersistent
+            || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
+        .sort((a, b) => a.id - b.id)
+
+    // While WorkspaceSync settles a renumbering, Quickshell's workspaces and
+    // windows disagree with each other, so the strip draws from the last state
+    // that was whole: which workspaces there were, which one had focus, and
+    // where each window was. Windows that close meanwhile still go at once.
+    property var frozen: null
+
+    Connections {
+        target: WorkspaceSync
+
+        function onSettledChanged(): void {
+            if (WorkspaceSync.settled) {
+                root.frozen = null;
+                return;
+            }
+            const placement = ({});
+            for (const t of Hyprland.toplevels.values)
+                placement[t.address] = t.workspace?.id;
+            root.frozen = {
+                workspaces: root.liveWorkspaces,
+                focused: Hyprland.focusedWorkspace?.id ?? -1,
+                placement: placement
+            };
+        }
+    }
+
+    readonly property var shownWorkspaces: frozen ? frozen.workspaces : liveWorkspaces
+    readonly property int focusedId: frozen ? frozen.focused : (Hyprland.focusedWorkspace?.id ?? -1)
+
+    function workspaceOf(toplevel) {
+        return root.frozen ? root.frozen.placement[toplevel.address] : toplevel.workspace?.id;
+    }
+
     readonly property bool expansionValid: expandedWorkspaceObject !== null
         && expandedWorkspaceObject.id === expandedWorkspace
-        && Hyprland.workspaces.values.includes(expandedWorkspaceObject)
-        && Hyprland.toplevels.values.filter(t => t.workspace?.id === expandedWorkspace
+        && root.shownWorkspaces.includes(expandedWorkspaceObject)
+        && Hyprland.toplevels.values.filter(t => root.workspaceOf(t) === expandedWorkspace
             && root.windowClass(t) === expandedClass).length > 1
     onExpansionValidChanged: if (!expansionValid) Qt.callLater(root.collapseInvalidExpansion)
 
@@ -209,12 +249,18 @@ BarItem {
             }
         }
 
+        Timer {
+            id: unclose
+            interval: 50
+            onTriggered: if (!stripResize.running) strip.closedAt = Infinity
+        }
+
         // Read focus directly: delegate active bindings update separately and
         // briefly leave no selection when moving towards an earlier workspace.
         readonly property Item selected: {
-            const focused = Hyprland.focusedWorkspace?.id;
+            const focused = root.focusedId;
             for (const child of buttons.children)
-                if (focused !== undefined && child.modelData?.id === focused)
+                if (focused !== -1 && child.modelData?.id === focused)
                     return child;
             return null;
         }
@@ -358,18 +404,17 @@ BarItem {
                 id: workspaces
 
                 model: ScriptModel {
-                    // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
-                    values: [...Hyprland.workspaces.values]
-                        .filter(w => !w.name.startsWith("special:"))
-                        .filter(w => w.active || w.lastIpcObject?.ispersistent
-                            || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
-                        .sort((a, b) => a.id - b.id)
+                    values: root.shownWorkspaces
                 }
 
                 // Still at its old x here: the row lays out again afterwards.
+                // Let go again if the strip does not resize after all, or the
+                // next resize would carry it.
                 onItemRemoved: (index, item) => {
-                    if (widthChange.enabled)
-                        strip.closedAt = Math.min(strip.closedAt, item.x);
+                    if (!widthChange.enabled)
+                        return;
+                    strip.closedAt = Math.min(strip.closedAt, item.x);
+                    unclose.restart();
                 }
 
                 delegate: Item {
@@ -377,7 +422,7 @@ BarItem {
 
                     required property var modelData
                     required property int index
-                    readonly property bool active: Hyprland.focusedWorkspace?.id === modelData.id
+                    readonly property bool active: root.focusedId === modelData.id
 
                     // One entry per window class, in the order the classes first appear,
                     // so an app does not jump along the row as its windows come and go.
@@ -385,7 +430,7 @@ BarItem {
                         const byClass = Object.create(null);
                         const order = [];
                         for (const toplevel of Hyprland.toplevels.values) {
-                            if (toplevel.workspace?.id !== modelData.id)
+                            if (root.workspaceOf(toplevel) !== modelData.id)
                                 continue;
                             // A window that opened since the last `hyprctl clients`
                             // refresh has an empty lastIpcObject, and every one of those
@@ -696,7 +741,7 @@ BarItem {
                 readonly property var modelData: null
 
                 visible: root.dragging && workspaces.model.values
-                    .every(w => Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
+                    .every(w => Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id))
                 Layout.fillHeight: true
                 implicitWidth: Math.round(Theme.iconSize * Theme.iconInk)
 
