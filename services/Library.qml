@@ -21,8 +21,7 @@ Singleton {
     // every path and tag in it a guess, and the flag is what goes false.
     property bool loaded: false
     property bool loading: false
-    // The last read came back with nothing, which is mpc failing rather than
-    // a library: see the end of build().
+    // The last read failed or came back empty; ensure() waits before retrying.
     property bool failed: false
     property real triedAt: 0
 
@@ -103,19 +102,25 @@ Singleton {
         // After the collector, which waits for the stream before letting the
         // exit through. A dump that failed to spawn never closes its stdout,
         // so this is the only signal that comes back — and without it
-        // `loading` would stay set and ensure() would never ask again.
-        onExited: root.loading = false
+        // `loading` would stay set and ensure() would never ask again. Built
+        // here rather than when the stream ends, so a dump that died halfway
+        // is not published as the library.
+        onExited: code => {
+            if (root.stale)
+                root.stale = false;
+            else if (code === 0)
+                root.build(collector.text);
+            else
+                root.failed = true;
+            root.loading = false;
+        }
 
         stdout: StdioCollector {
-            onStreamFinished: root.build(text)
+            id: collector
         }
     }
 
     function build(text): void {
-        if (root.stale) {
-            root.stale = false;
-            return;
-        }
 
         // Most titles fold to themselves, and one that does is kept as the
         // string it already is rather than as three equal copies of it.
@@ -239,14 +244,8 @@ Singleton {
         root.artists = artists;
         root.albums = albums;
         root.tracks = tracks;
-        // A dump that came back with nothing is a dump that failed. `mpc`
-        // puts its errors on stderr and exits nonzero, but stdout closes
-        // either way, so an mpd that was down reads here exactly like one
-        // that answered and had nothing to say. Latching `loaded` on that
-        // empty answer left the mode dead for the rest of the session --
-        // `ensure()` never asks twice. A library that really is empty costs
-        // a re-dump per "&", which is a tenth of a second nobody with no
-        // music will notice.
+        // An empty answer is not latched: `ensure()` never asks twice once
+        // `loaded` is set, and an empty library costs only a re-dump per "&".
         root.loaded = tracks.length > 0;
         root.failed = !root.loaded;
     }
