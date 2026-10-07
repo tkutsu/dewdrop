@@ -507,6 +507,7 @@ PanelWindow {
             marksPin: drawer.out
         }
         // Connectivity and the tray stay visible as the drawer folds away.
+        Drives {}
         Bluetooth { id: bluetooth }
         Network { id: network }
         Tray {

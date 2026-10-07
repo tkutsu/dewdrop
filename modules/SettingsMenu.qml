@@ -65,6 +65,7 @@ OverlayWindow {
             wallpaper: { title: "Wallpaper", glyph: Theme.glyph.wallpaper },
             night: { title: "Night mode", glyph: Theme.glyph.nightOff },
             sys: { title: "System", glyph: Theme.glyph.gauge },
+            drives: { title: "Drives", glyph: Theme.glyph.drive },
             bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth },
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] },
             tray: { title: "Tray", glyph: Theme.glyph.tray },
