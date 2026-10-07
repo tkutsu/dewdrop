@@ -18,6 +18,8 @@ BarItem {
         // starts it as the pairing agent), and its icon would be a second
         // Bluetooth rune in the row.
         .filter(item => !/^(blueman|nm-applet)/.test(item.id))
+        // And whatever the settings window was told to keep off the bar.
+        .filter(item => !Settings.hiddenTray.includes(item.id))
         // Registration order is whatever the race at login happened to produce;
         // sorting by service id keeps the bar stable across restarts.
         .sort((a, b) => a.id.localeCompare(b.id))

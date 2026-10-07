@@ -32,6 +32,7 @@
         "wallpaper": true, // cycle the images in wallpaperDir
         "night": true,     // night mode and brightness
         "sys": true,       // CPU, memory and temperatures
+        "settings": true,  // the settings window (this file, drawn)
         "tray": true,      // apps' status icons
         "bluetooth": true, // the radio and its devices (bluez)
         "network": true,   // Wi-Fi and the cable (NetworkManager)
@@ -90,7 +91,9 @@
     // id from its [Desktop Action ...] header. Hidden here are the ones that
     // only open the app they hang off (LibreOffice's "New Spreadsheet", a
     // browser's "New Window") or that the app's own window does better
-    // (Steam's pages, Telegram's Quit). Private windows stay.
+    // (Steam's pages, Telegram's Quit). Private windows stay. The launcher's
+    // controls and power commands hide as "desktop:<key>" and "power:<key>"
+    // (desktop:dnd, power:reboot).
     "hiddenApps": [
         "blueman-adapters", "libreoffice-startcenter",
         "libreoffice-writer:NewDocument", "libreoffice-calc:NewDocument",
@@ -103,6 +106,10 @@
         "steam:Screenshots", "steam:News", "steam:Settings",
         "steam:BigPicture", "steam:Friends"
     ],
+
+    // Tray icons kept off the bar, by the id the app registers with. The
+    // settings window lists the ones running now.
+    "hiddenTray": [],
 
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.
