@@ -7,21 +7,17 @@ import qs
 
 // Google Tasks, as a list the bar can show and tick things off.
 //
-// The bar speaks the REST API directly rather than shelling out to a client,
-// because there is no client to shell out to: nothing packaged here talks to
-// Tasks, and the whole protocol is a token refresh and three GETs. The sign-in
-// itself lives in services/Google.qml, shared with the calendar, and the
-// polling and gathering in GoogleService.qml, likewise.
+// The REST API directly: no packaged client talks to Tasks, and the protocol
+// is a token refresh and three GETs. Sign-in is services/Google.qml, polling
+// and gathering GoogleService.qml, both shared with the calendar.
 GoogleService {
     id: root
 
     readonly property string api: "https://tasks.googleapis.com/tasks/v1"
 
     service: "Tasks"
-    // Every two minutes. Tasks arrive from a phone rather than from this
-    // machine, so the bar is watching someone else's typing — often enough to
-    // be current when you look, far enough apart to be nothing on a quota of
-    // 50,000 requests a day.
+    // Tasks mostly arrive from the phone; two minutes is current enough and
+    // nothing against a quota of 50,000 requests a day.
     pollMs: 2 * 60000
     polling: Settings.moduleOn("tasks") || (Launcher.shown && Launcher.taskMode)
 
@@ -34,13 +30,9 @@ GoogleService {
     // that only proved nothing had. See fetchTasks.
     property string snapshot: ""
 
-    // What has just been ticked off, keyed by task id, each with the moment it
-    // went. This is what the popup's undo is offered from.
-    //
-    // Held on a clock rather than cleared when the refetch lands: the refetch
-    // is a couple of hundred milliseconds behind the tick, which is not long
-    // enough to notice the wrong row went, let alone reach for the undo. Ten
-    // seconds is about how long it takes to see it and act.
+    // Just ticked off, by task id with the moment it went: what the popup
+    // offers undo for. Held for ten seconds, long enough to notice the wrong
+    // row went, rather than cleared when the refetch lands.
     property var undoable: ({})
     readonly property int undoMs: 10000
     // Completions still on their way to Google, keyed by task id, each holding
@@ -50,13 +42,10 @@ GoogleService {
     property var completing: ({})
 
     // --- days ----------------------------------------------------------------
-    // Google stores a due date as an RFC 3339 instant pinned to midnight UTC,
-    // but it means a calendar day: "due Saturday" and nothing about what time.
-    // Reading it as an instant is the bug this comment exists to prevent —
-    // anywhere west of Greenwich, midnight UTC on the 26th is the evening of
-    // the 25th, and every task in the list would sit a day early. So the day is
-    // taken off the front of the string and compared as text, which is also why
-    // these are strings rather than dates (see Google.dayString).
+    // Google stores a due date as midnight UTC but means a calendar day. Read
+    // as an instant, every task sits a day early west of Greenwich, so the day
+    // is taken off the front of the string and compared as text (see
+    // Google.dayString).
     function dayOf(task: var): string {
         return task.due ? String(task.due).slice(0, 10) : "";
     }
@@ -81,16 +70,12 @@ GoogleService {
     readonly property var soon: root.tasks.filter(t => root.dayOf(t) > root.today).sort(root.byDay)
     readonly property var undated: root.tasks.filter(t => root.dayOf(t) === "").sort(root.byDay)
 
-    // One list, soonest first, undated last. The four groups above are still
-    // how the day is counted, but they are no longer how it is shown: headings
-    // spent a row each saying what the dates underneath already said, and a
-    // list read top to bottom is the same information without them.
+    // One list, soonest first, undated last; the groups count, they are not
+    // drawn as headings.
     readonly property var ordered: root.overdue.concat(root.due).concat(root.soon).concat(root.undated)
 
-    // How pressing a task is, as one of four words. The popup draws this as the
-    // colour of a dot rather than as text: it is the one thing about a row that
-    // has to be taken in without reading, and every row has it, so spelling it
-    // out puts the same word down the side of the list.
+    // How pressing a task is, as one of four words, drawn as a dot's colour:
+    // taken in without reading.
     function urgency(task: var): string {
         const day = root.dayOf(task);
         if (day === "")
@@ -108,12 +93,9 @@ GoogleService {
 
     readonly property string icon: Theme.glyph.tasks
 
-    // Deliberately one icon in one colour, however late things are. Warming it
-    // for "something is overdue" was the plan and is wrong in practice: a list
-    // kept over months is mostly overdue most of the time, so the warm state
-    // would be the resting state, and a colour that is always on points at
-    // nothing. The badge already counts what is late, the tooltip says how
-    // many, and the popup shows each task's due day and urgency.
+    // One icon in one colour, however late things are: a list kept for months
+    // is mostly overdue, so a warning colour would always be on. The badge,
+    // tooltip and popup say what is late.
     readonly property string label: !root.loaded || root.count === 0 ? "" : String(Math.min(root.count, 99))
 
     readonly property string tooltip: {
@@ -136,9 +118,7 @@ GoogleService {
         return parts.join("  ·  ");
     }
 
-    // How a day is said in a row: near ones by name, far ones by date. "Fri"
-    // means something for about a week and then stops — past that the number is
-    // the only thing that says how far off it really is.
+    // Near days by name, far ones by date: "Fri" means something for a week.
     function sayDay(day: string): string {
         if (day === "")
             return "";
@@ -146,10 +126,7 @@ GoogleService {
             return "today";
         if (day === root.tomorrow)
             return "tomorrow";
-        // A day gone by says which day it was, not that it has gone by. "12
-        // Sep" is a fact about the task; "overdue" is a judgement the dot
-        // beside it is already making, and written out down a whole column it
-        // stops being read at all.
+        // A past day as its date; the dot already says "overdue".
         if (day < root.today)
             return Qt.formatDate(new Date(day + "T12:00:00"), "d MMM");
         const at = new Date(day + "T12:00:00");
@@ -170,23 +147,17 @@ GoogleService {
         });
     }
 
-    // Every list, not only the default one: a list is how people separate work
-    // from the shopping, and a bar that showed one of the two would be wrong
-    // about the day in a way that is hard to notice.
-    //
-    // Gathered and published in one go (see GoogleService.gather); a list that
-    // could not be read keeps what was on screen rather than publishing a day
-    // with a whole list missing from it, and says so in `trouble`.
+    // Every list, not only the default. Gathered and published in one go (see
+    // GoogleService.gather); if any list fails, what is on screen stays and
+    // `trouble` says so.
     function fetchTasks(): void {
         const sources = root.lists.map(l => ({
                     url: `${root.api}/lists/${l.id}/tasks?showCompleted=false&showHidden=false&maxResults=100`,
                     list: l
                 }));
         root.gather("tasks", sources, function (item, source) {
-            // Google keeps subtasks in the same list with a parent id. They
-            // belong under their parent, and the bar has no room to draw a
-            // tree, so they stay out of it rather than appearing as loose tasks
-            // with no context.
+            // Subtasks share the list with a parent id; the bar draws no tree,
+            // so they stay out.
             if (item.parent)
                 return null;
             return {
@@ -201,24 +172,15 @@ GoogleService {
         }, function (gathered, failed) {
             if (failed.length > 0)
                 return;
-            // A row just ticked off may still be in a reply that Google built
-            // before the PATCH reached it. It is gone from the bar already;
-            // keeping it out until the undo window closes stops it flickering
-            // back for a poll.
+            // A reply built before the PATCH landed may still hold a ticked
+            // row; kept out until the undo window closes so it cannot flicker.
             const kept = gathered.filter(t => !root.undoable[t.id]);
-            // Sorted into a fixed order first, because the replies come back
-            // in whatever order the network gives them and the same list must
-            // not look different for that reason alone.
+            // A fixed order, whatever order the replies came back in.
             kept.sort((a, b) => a.listId !== b.listId ? (a.listId < b.listId ? -1 : 1) : a.position === b.position ? 0 : (a.position < b.position ? -1 : 1));
 
-            // Replaced only when something actually moved. Every poll builds a
-            // new array whether or not anything changed, and a new array is a
-            // new model: the popup's rows are destroyed and rebuilt, which
-            // drops whatever the pointer was hovering — and Qt does not work
-            // out what is under the pointer again until it moves, so the hover
-            // is left on whichever row took that position. Same fault the
-            // timer popup had once a second; here it would have been once
-            // every two minutes, which is rarer and no less baffling.
+            // Replaced only when something moved: a new array is a new model,
+            // the popup's rows are rebuilt, and Qt leaves the hover on
+            // whichever row took the pointer's place until it moves.
             const next = JSON.stringify(kept);
             if (next !== root.snapshot) {
                 root.snapshot = next;
@@ -229,9 +191,7 @@ GoogleService {
     }
 
     // --- writing -------------------------------------------------------------
-    // Ticked off here and then confirmed by the refetch. The row disappears at
-    // once rather than a second and a half later when Google gets back: the
-    // whole reason to tick something off from the bar is not to wait for it.
+    // The row goes at once and the refetch confirms it.
     function complete(task: var): void {
         const mark = Object.assign({}, root.undoable);
         mark[task.id] = {
@@ -240,10 +200,8 @@ GoogleService {
         };
         root.undoable = mark;
         root.tasks = root.tasks.filter(t => t.id !== task.id);
-        // The list on screen no longer matches the snapshot, so the next fetch
-        // must publish whatever it gets. Otherwise a PATCH that failed would
-        // refetch the same list, read as "nothing moved", and leave the row
-        // gone from the bar while it is still open on Google's side.
+        // The screen no longer matches the snapshot, so the next fetch must
+        // publish, or a failed PATCH would read as "nothing moved".
         root.snapshot = "";
 
         root.completing[task.id] = null;
@@ -271,10 +229,8 @@ GoogleService {
         }, failed);
     }
 
-    // The counterpart, for the tick that was meant for the row above. Google
-    // clears the completion date itself when the status goes back, but it does
-    // not clear `hidden`, and a task left hidden is one that never comes back
-    // into the list — so that goes too.
+    // Undo. Google clears the completion date itself but not `hidden`, and a
+    // hidden task never comes back into the list.
     function restore(task: var): void {
         if (task.id in root.completing) {
             root.completing[task.id] = () => root.restore(task);
@@ -360,9 +316,8 @@ GoogleService {
         if (/^\d{4}-\d{2}-\d{2}$/.test(word))
             return word;
 
-        // A weekday name means the next one of those, and never today: "mon"
-        // typed on a Monday is about the week coming, not the day that is
-        // nearly over.
+        // A weekday means the next one, never today: "mon" on a Monday is
+        // next week.
         const locale = Qt.locale();
         for (let ahead = 1; ahead <= 7; ahead++) {
             const at = new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + ahead);
@@ -382,9 +337,7 @@ GoogleService {
         return p.day === "" ? `Added ${p.title}` : `Added ${p.title} for ${root.sayDay(p.day)}`;
     }
 
-    // Ages the undos out. One second is finer than it needs to be, but it only
-    // runs while something is actually undoable, which is ten seconds after a
-    // tick and never otherwise.
+    // Ages the undos out; runs only while something is undoable.
     Timer {
         interval: 1000
         running: Object.keys(root.undoable).length > 0
