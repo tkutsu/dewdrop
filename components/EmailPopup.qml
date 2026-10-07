@@ -35,20 +35,27 @@ Popup {
     // The gutter an open thread's rail runs down, when it has several mails.
     readonly property int railWidth: 12
 
-    // How much the open mails add to the rows right now, mid-animation
-    // included — the one open and the one closing, when you move from one to
-    // the next.
-    readonly property real grown: {
-        let g = 0;
+    // Measure the closed rows directly: subtracting animated heights from
+    // the Column's delayed layout makes the reserved window size fluctuate.
+    readonly property real collapsedListHeight: {
+        let h = Math.max(0, list.count - 1) * root.spacing;
         for (let i = 0; i < list.count; i++)
-            g += list.itemAt(i)?.grown ?? 0;
-        return g;
+            h += list.itemAt(i)?.collapsedHeight ?? 0;
+        return h;
     }
 
     // The window is held at the height of a fully open mail, so a row opening
     // grows the box inside it rather than resizing the popup every frame of
-    // the animation (see Popup.reserveHeight).
-    reserveHeight: chromeHeight - threadList.height + Math.min(rowList.implicitHeight - grown + bodyMax + 12, root.listMax)
+    // the animation (see Popup.reserveHeight). The body adds 12 pixels of
+    // padding and one extra pixel of spacing below the subject.
+    reserveHeight: {
+        let h = root.vPadding * 2 + Math.min(root.collapsedListHeight + root.bodyMax + 13, root.listMax);
+        for (const item of root.content) {
+            if (item !== threadList && item.visible)
+                h += item.height + root.spacing;
+        }
+        return h;
+    }
 
     // The text of every row on show, asked for as the popup opens, so a row
     // opens straight to its full height instead of to the snippet and then
@@ -157,7 +164,7 @@ Popup {
 
                     width: root.bodyWidth
                     readonly property bool isOpen: root.expanded === row.modelData.id
-                    readonly property real grown: reveal.height
+                    readonly property real collapsedHeight: from.implicitHeight + subject.implicitHeight + lines.spacing + root.rowPad * 2
 
                     height: lines.implicitHeight + root.rowPad * 2
 

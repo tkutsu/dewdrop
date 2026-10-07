@@ -19,7 +19,20 @@ PanelWindow {
     // which is what keeps the blur to the pills instead of spreading it across
     // the transparent strip they float on.
     WlrLayershell.namespace: "quickshell:bar"
-    WlrLayershell.layer: WlrLayer.Top
+    // Below windows, so one dragged up over the bar passes over it; tiled
+    // windows never reach it anyway, the exclusive zone keeps them clear. The
+    // popups are xdg popups of this surface and share its layer, so while one
+    // is up, or the pointer is on the bar where a tooltip may open, the bar
+    // comes up to Top or the popups would drop behind the windows under them.
+    // A drag starts with a click, which closes the open popup first.
+    WlrLayershell.layer: raise.active ? WlrLayer.Top : WlrLayer.Bottom
+
+    // Held through a popup's fade out, which is drawn on this layer too.
+    Linger {
+        id: raise
+
+        shown: OpenPopup.owner !== null || barHover.hovered || PopupPointer.hovered > 0
+    }
 
     anchors {
         top: true
