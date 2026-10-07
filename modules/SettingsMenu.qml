@@ -46,25 +46,24 @@ OverlayWindow {
 
     // --- the pages -----------------------------------------------------------
 
-    // The right pill, in its own order. What "auto" means differs from one
-    // module to the next, so each says when it comes out by itself.
+    // The right pill, in its own order.
     readonly property var modules: ({
-            audio: { title: "Volume", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], auto: "Out while there is an output to play through." },
-            email: { title: "Mail", glyph: Theme.glyph.mailUnread, auto: "Out while there is unread mail." },
-            tasks: { title: "Tasks", glyph: Theme.glyph.tasks, auto: "Out while tasks are due." },
-            updater: { title: "Updates", glyph: Theme.glyph.update, auto: "Out while updates are waiting." },
-            bell: { title: "Notifications", glyph: Theme.glyph.notif, auto: "Out while notifications wait or do not disturb is on." },
-            satty: { title: "Screenshot", glyph: Theme.glyph.satty, auto: "A tool: in the drawer." },
-            idle: { title: "Caffeine", glyph: Theme.glyph.idleOff, auto: "Out while it keeps the screen awake." },
-            wallpaper: { title: "Wallpaper", glyph: Theme.glyph.wallpaper, auto: "A tool: in the drawer." },
-            night: { title: "Night mode", glyph: Theme.glyph.nightOff, auto: "Out while night mode is on." },
-            sys: { title: "System", glyph: Theme.glyph.gauge, auto: "Out once a temperature runs hot." },
-            settings: { title: "Settings", glyph: Theme.glyph.settings, auto: "A tool: in the drawer." },
-            drives: { title: "Drives", glyph: Theme.glyph.drive, auto: "Out while something is plugged in." },
-            bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth, auto: "Always out." },
-            network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], auto: "Always out." },
-            tray: { title: "Tray", glyph: Theme.glyph.tray, auto: "Out while any of its icons is. Pinned brings out the ones kept in below." },
-            language: { title: "Keyboard layout", glyph: Theme.glyph.keyboard, auto: "In the drawer." }
+            audio: { title: "Volume", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1] },
+            email: { title: "Mail", glyph: Theme.glyph.mailUnread },
+            tasks: { title: "Tasks", glyph: Theme.glyph.tasks },
+            updater: { title: "Updates", glyph: Theme.glyph.update },
+            bell: { title: "Notifications", glyph: Theme.glyph.notif },
+            satty: { title: "Screenshot", glyph: Theme.glyph.satty },
+            idle: { title: "Caffeine", glyph: Theme.glyph.idleOff },
+            wallpaper: { title: "Wallpaper", glyph: Theme.glyph.wallpaper },
+            night: { title: "Night mode", glyph: Theme.glyph.nightOff },
+            sys: { title: "System", glyph: Theme.glyph.gauge },
+            settings: { title: "Settings", glyph: Theme.glyph.settings },
+            drives: { title: "Drives", glyph: Theme.glyph.drive },
+            bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth },
+            network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] },
+            tray: { title: "Tray", glyph: Theme.glyph.tray },
+            language: { title: "Keyboard layout", glyph: Theme.glyph.keyboard }
         })
 
     readonly property var pinOptions: [
@@ -75,7 +74,7 @@ OverlayWindow {
 
     function placement(key: string): var {
         const m = root.modules[key];
-        return { type: "choice", id: "pin:" + key, title: m.title, text: m.auto, glyph: m.glyph, options: root.pinOptions, get: () => DrawerPins.mode(key), set: v => DrawerPins.setMode(key, v) };
+        return { type: "choice", id: "pin:" + key, title: m.title, glyph: m.glyph, options: root.pinOptions, get: () => DrawerPins.mode(key), set: v => DrawerPins.setMode(key, v) };
     }
 
     // Running now, and kept in but not running, so it can still be let out.
@@ -130,7 +129,7 @@ OverlayWindow {
             sections: [
                 {
                     title: "Right pill",
-                    text: "Where each icon stands while the drawer is closed. Auto lets the icon decide, as described under it. Pinned keeps it out, as a middle click on it does, and marks it with a pin in the open drawer. Drawer keeps it behind the chevron even when it has something to show; opening the drawer still shows it.",
+                    text: "Auto shows an icon when it has something to show. Pinned always shows it. Drawer keeps it behind the chevron.",
                     rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
