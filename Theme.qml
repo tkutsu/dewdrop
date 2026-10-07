@@ -861,8 +861,8 @@ Singleton {
 
         // The settings window: its own module, and the right pill's rows for
         // the modules that draw something other than one fixed glyph.
-        // Drawn to the launcher's magnifier: six teeth rather than Material's
-        // eight, which at bar size ran together into a flower.
+        // A wrench drawn to the launcher's magnifier: the same 1.75px round
+        // stroke and ink size. Material's cogs ran together at bar size.
         settings: panel("settings"),
         keyboard: "\u{f097b}",       // nf-md-keyboard_outline
         tray: "\u{f1294}",           // nf-md-tray
