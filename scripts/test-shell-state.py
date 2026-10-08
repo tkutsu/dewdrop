@@ -240,7 +240,7 @@ def main():
         (target / "components").mkdir()
         (target / "components/QueuedProcess.qml").write_text("import QtQuick\nQtObject { property string want: ''; property string arg: ''; property int interval: 0; property bool running: false; property var command: []; signal result(arg: string, text: string) }\n")
         (target / "Theme.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject {}\n")
-        (target / "Settings.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { function moduleOn(name) { return false; } function inTerminal(command) { return command; } }\n")
+        (target / "Settings.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { function inTerminal(command) { return command; } }\n")
         (target / "Paths.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath('state/' + name); } function data(name) { return Quickshell.shellPath('data/' + name); } function cache(name) { return Quickshell.shellPath('cache/' + name); } function script(name) { return name; } }\n")
         (target / "state").mkdir()
         (target / "data").mkdir()

@@ -143,11 +143,11 @@ ShellRoot {
                 mouseMove(pill, launcher.x - 1, 20, 20);
                 mouseMove(pill, launcher.x - 1, 20, 20);
                 root.check(pill.dragging, 'module drag starts');
-                Settings.disabled = ['email']; wait(30);
-                root.check(!pill.dragging, 'disabled source cancels');
+                email.stowed = true; wait(30);
+                root.check(!pill.dragging, 'stowed source cancels');
                 mouseRelease(pill, launcher.x - 1, 20, Qt.LeftButton);
                 root.check(JSON.stringify(RightPillOrder.keys) === saved, 'cancelled source writes nothing');
-                Settings.disabled = []; wait(30);
+                email.stowed = false; wait(30);
                 drag(audio, Qt.point(email.x, 20));
                 root.check(audio.x < email.x, 'last module moves back to first');
                 mousePress(tasks, tasks.width / 2, 20, Qt.LeftButton);
@@ -188,8 +188,8 @@ ShellRoot {
 """
 
 STUBS = {
-    'Settings.qml': "pragma Singleton\nimport QtQuick\nQtObject { property var disabled: []; function moduleOn(key) { return !disabled.includes(key); } }",
-    'DrawerPins.qml': "pragma Singleton\nimport QtQuick\nQtObject { property var pins: ({}); function pinned(k) { return pins[k] === true; } function toggle(k) { const next = Object.assign({}, pins); next[k] = !pinned(k); pins = next; } }",
+    'Settings.qml': "pragma Singleton\nimport QtQuick\nQtObject {}",
+    'DrawerPins.qml': "pragma Singleton\nimport QtQuick\nQtObject { property var pins: ({}); function pinned(k) { return pins[k] === true; } function kept(k) { return pins[k] === false; } function toggle(k) { const next = Object.assign({}, pins); next[k] = !pinned(k); pins = next; } }",
     'OpenPopup.qml': "pragma Singleton\nimport QtQuick\nQtObject { property Item owner: null; function dismiss() { owner = null; } function toggle(item) { owner = owner === item ? null : item; } function browse(item, hovered) {} }",
     'Theme.qml': """pragma Singleton
 import QtQuick
@@ -198,11 +198,12 @@ QtObject {
     property int barMargin: 5; property int pillPad: 6; property int pillRadius: 15
     property real pillTrack: 1; property real pillTrackFoot: 1; property real pillTrackRest: 0.2
     property color fg: 'white'; property color backdrop: 'black'; property color tint: 'black'; property color barBg: 'black'
-    property real foldSpring: 3; property real foldDamping: 0.4
+    property real drawerSpring: 3; property real drawerDamping: 0.4
     property int startMs: 10000; property int foldMs: 100; property int fadeMs: 120
     property int pressDip: 1; property int pinMarkSize: 6; property int pinGlyphSize: 6
     property color markRimTop: 'white'; property int iconSize: 12
-    property var glyph: ({pin: 'p'})
+    property int glyphSize: 16
+    property var glyph: ({pin: 'p', nightOn: 'on', nightOff: 'off'})
     function pillTop(height) { return (height - barHeight) / 2; }
     function mix(a, b, c) { return a; }
     function badgeBg(item) { return 'black'; }
@@ -211,7 +212,7 @@ QtObject {
     'Paths.qml': "pragma Singleton\nimport Quickshell\nSingleton { function state(name) { return Quickshell.shellPath('state/' + name); } }",
     'components/Liquid.qml': "import QtQuick\nItem { property var backdrop; property vector4d box0; property real rimFrom; property real rimTo }",
     'components/Rim.qml': "import QtQuick\nItem { property real radius; property real lineWidth; property color topColor; property color bottomColor }",
-    'components/Glyph.qml': "import QtQuick\nItem { property string text; property int fontSize; property color color }",
+    'components/Glyph.qml': "import QtQuick\nItem { property string text; property int fontSize; property color color; property real nudge: 0 }",
     'components/Badge.qml': "import QtQuick\nItem {}",
     'components/HoverPopup.qml': "import QtQuick\nItem { property Item anchorItem; property bool hovered; property bool pressed; property bool open; property string text; property Component popup; property var item: null }",
 }
@@ -241,6 +242,7 @@ ShellRoot {
                     BarItem { id: network; settingsKey: 'network'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
                     BarItem { id: language; pinKey: 'language'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
                     BarItem { id: launcher; Rectangle { implicitWidth: 12; implicitHeight: 20 } }
+                    function setPresent(value) { audio.present = network.present = language.present = value; }
                     function checkPosition(why) {
                         if (!(audio.x > language.x && audio.x < launcher.x))
                             throw Error(why + ': volume reset from beside launcher to the left');
@@ -257,8 +259,8 @@ ShellRoot {
                 loader.item.checkPosition('restart');
                 host.visible = false; wait(30); host.visible = true; wait(30);
                 loader.item.checkPosition('bar restored');
-                Settings.disabled = ['audio', 'network', 'language']; wait(30);
-                Settings.disabled = []; wait(30);
+                loader.item.setPresent(false); wait(30);
+                loader.item.setPresent(true); wait(30);
                 loader.item.checkPosition('modules restored');
                 loader.active = false; wait(30); loader.active = true; wait(30);
                 loader.item.checkPosition('pill recreated');
@@ -285,6 +287,63 @@ def run_shell(target, source):
     return output
 
 
+def check_placement(target):
+    # Real settings, saved placement, and night-mode module with a fake display service.
+    (target / 'modules').mkdir()
+    (target / 'services').mkdir()
+    for name in ('Settings.qml', 'DrawerPins.qml', 'modules/NightMode.qml'):
+        shutil.copyfile(ROOT / name, target / name)
+    (target / 'settings.default.json').write_text('{}')
+    (target / 'settings.json').write_text('{"modules":{"night":false,"audio":false}}')
+    (target / 'components/DisplayPopup.qml').write_text('import QtQuick\nItem {}\n')
+    (target / 'services/NightMode.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property bool on: false; property string icon: on ? 'on' : 'off'; property string tooltip: 'Night mode'; function toggle() { on = !on; } function nudge(up) {} }\n")
+    run_shell(target, r"""import QtQuick
+import QtQuick.Window
+import QtTest
+import Quickshell
+import qs
+import qs.components
+import qs.modules as Modules
+import qs.services as Services
+ShellRoot {
+    id: root
+    property bool drawerOpen: false
+    function check(ok, message) { if (!ok) throw Error(message); }
+    TestCase { id: test; when: false }
+    Window {
+        visible: true; width: 320; height: 100
+        Modules.NightMode { id: night; pinKey: 'night'; stowed: !showsClosed && !root.drawerOpen }
+        BarItem { id: audio; pinKey: 'audio'; quiet: true; stowed: !showsClosed && !root.drawerOpen }
+    }
+    Timer { interval: 200; running: true; onTriggered: {
+        try {
+            root.check(night.here && audio.here, 'legacy false settings cannot remove modules');
+            root.check(night.stowed && !night.visible, 'Auto folds night mode when off');
+            root.drawerOpen = true;
+            root.check(night.visible && audio.visible, 'drawer reveals quiet modules');
+            root.drawerOpen = false;
+            Services.NightMode.on = true;
+            root.check(night.visible && !night.stowed, 'Auto shows night mode when on');
+            DrawerPins.setMode('night', 'drawer');
+            test.wait(30);
+            root.check(night.here && night.stowed, 'Drawer keeps active night mode within reach');
+            root.drawerOpen = true;
+            root.check(night.visible, 'drawer reveals active night mode');
+            root.drawerOpen = false;
+            DrawerPins.setMode('night', 'pinned');
+            test.wait(30);
+            Services.NightMode.on = false;
+            root.check(night.visible && !night.stowed, 'Pinned shows night mode even when off');
+            night.present = false;
+            root.check(!night.here && !night.visible, 'absence still overrides placement');
+            console.log('PASS: legacy settings ignored; Auto, Pinned and Drawer preserve access');
+        } catch (e) { console.log('FAIL: ' + e); }
+        Qt.quit();
+    } }
+}
+""")
+
+
 def main():
     subprocess.run(['node', '-e', LOGIC, str(ROOT / 'RightPillOrder.js')], check=True)
     with tempfile.TemporaryDirectory(prefix='quickshell-right-pill-test-') as folder:
@@ -302,7 +361,7 @@ def main():
 import Quickshell
 import qs
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 14) console.log('FAIL: defaults');
+    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 16) console.log('FAIL: defaults');
     else if (RightPillOrder.move('audio', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();
@@ -341,6 +400,7 @@ ShellRoot { Timer { interval: 150; running: true; onTriggered: {
         assert saved[-1] == 'audio', 'fixture must save volume in the last visible slot'
         run_shell(target, RESTORED_LAYOUT.replace('EXPECTED_ORDER', json.dumps(saved)))
         assert json.loads(state.read_text())['order'] == saved, 'restoring the layout rewrote the order'
+        check_placement(target)
 
 
 if __name__ == '__main__':

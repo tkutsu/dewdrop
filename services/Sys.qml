@@ -750,7 +750,7 @@ Singleton {
     // nothing.
     Timer {
         interval: root.watchers > 0 ? 2000 : 5000
-        running: Settings.moduleOn("sys") || root.watchers > 0
+        running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: root.sample()

@@ -35,7 +35,6 @@ Singleton {
     property string aurTrouble: ""
     readonly property string trouble: [officialTrouble, aurTrouble].filter(s => s !== "").join(" · ")
     readonly property bool loading: checksRemaining > 0 || checkOfficial.running || checkAur.running
-    readonly property bool polling: Settings.moduleOn("updater")
     property bool refreshQueued: false
 
     onLoadingChanged: if (!root.loading && root.refreshQueued) Qt.callLater(root.flushRefresh)
@@ -44,16 +43,12 @@ Singleton {
         if (root.loading || !root.refreshQueued)
             return;
         root.refreshQueued = false;
-        if (root.polling)
-            root.refresh();
+        root.refresh();
     }
-
-    onPollingChanged: if (root.polling)
-        root.refresh()
 
     Retry {
         id: recovery
-        active: root.polling && !root.loading
+        active: !root.loading
         onTriggered: root.refresh()
     }
 
@@ -183,8 +178,7 @@ Singleton {
     Connections {
         target: WallClock
         function onWokeUp(): void {
-            if (root.polling)
-                root.refresh();
+            root.refresh();
         }
     }
 
@@ -194,7 +188,7 @@ Singleton {
     FileView {
         path: "/var/log/pacman.log"
         preload: false
-        watchChanges: root.polling
+        watchChanges: true
         printErrors: false
         onFileChanged: packageChange.restart()
     }
@@ -202,16 +196,15 @@ Singleton {
     Timer {
         id: packageChange
         interval: 2000
-        onTriggered: if (root.polling) root.refresh()
+        onTriggered: root.refresh()
     }
 
     Timer {
         interval: 6 * 60 * 60 * 1000
-        running: root.polling && !root.loading && !recovery.pending
+        running: !root.loading && !recovery.pending
         repeat: true
         onTriggered: root.refresh()
     }
 
-    Component.onCompleted: if (root.polling)
-        root.refresh()
+    Component.onCompleted: root.refresh()
 }

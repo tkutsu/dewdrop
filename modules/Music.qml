@@ -22,7 +22,7 @@ BarItem {
     // For the pill around it, which is this module and nothing else and so
     // is drawn into its neighbour with it when there is nothing to play: the
     // bar draws the pill off `reveal` (see Bar.drop), and nothing folds.
-    stowed: !Mpd.loaded || !Settings.moduleOn("music")
+    stowed: !Mpd.loaded
     folds: false
 
     // And the popup goes with it: mpd put down from the popup's own quit
