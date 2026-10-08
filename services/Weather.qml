@@ -25,7 +25,6 @@ Singleton {
     property string forecastRequest: ""
     property double cooldownUntil: 0
     property double forecastRetryAt: 0
-    readonly property bool enabled: Settings.moduleOn("weather")
     readonly property bool rateLimited: root.cooldownUntil > root.now
     readonly property double nextRetryAt: Math.max(root.cooldownUntil, root.forecastRetryAt)
     readonly property bool waitingForForecast: root.nextRetryAt > root.now
@@ -178,7 +177,7 @@ Singleton {
 
     function refresh(force): void {
         root.now = Date.now() / 1000;
-        if (!root.location || !root.enabled)
+        if (!root.location)
             return;
         if (root.waitingForForecast || (force && root.loading))
             return;
@@ -212,12 +211,6 @@ Singleton {
         root.trouble = root.waitingForForecast ? "Weather requests are paused until the retry time." : "";
         root.forecastRequest = "";
         root.refresh();
-    }
-    onEnabledChanged: {
-        if (root.enabled)
-            root.refresh();
-        else
-            root.forecastRequest = "";
     }
     onQueryChanged: {
         root.searchRevision++;
@@ -253,7 +246,7 @@ Singleton {
         // the wall clock: Qt timers stand still while the machine sleeps, so a
         // 15-minute countdown kept a stale forecast up long after every wake.
         interval: Math.max(1, 60000 - Math.floor(root.now * 1000) % 60000)
-        running: root.enabled
+        running: true
         repeat: true
         onTriggered: {
             root.now = Date.now() / 1000;
@@ -268,7 +261,7 @@ Singleton {
     Timer {
         id: retryWake
         interval: Math.max(1, Math.min(2147483647, Math.ceil((root.nextRetryAt - root.now) * 1000)))
-        running: root.enabled && root.nextRetryAt > 0
+        running: root.nextRetryAt > 0
         onTriggered: {
             root.now = Date.now() / 1000;
             if (root.now < root.nextRetryAt) {

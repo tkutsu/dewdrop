@@ -37,19 +37,15 @@ The collapsible group of quiet, unpinned modules in the right pill. Its handle r
 _Avoid_: Overflow menu, hidden modules menu
 
 **Present module**:
-A module that is available for inclusion on the bar in the current session. Presence is separate from the user's choice to enable it and from whether it is currently visible.
+A module that is available on the bar in the current session. A present module may be stowed in the drawer.
 _Avoid_: Visible module (for presence alone)
 
-**Enabled module**:
-A module allowed onto the bar by the user's settings. Enabling a module does not guarantee its presence or visibility.
-_Avoid_: Pinned module, visible module (for enabling alone)
-
 **Quiet module**:
-A module whose current state does not call for a place outside the closed drawer. A quiet module remains accessible through the drawer unless it is absent or disabled.
+A module whose current state does not call for a place outside the closed drawer. A present quiet module remains accessible through the drawer.
 _Avoid_: Disabled module, inactive module
 
 **Pinned module**:
-A drawer module the user has chosen to keep visible even when quiet and the drawer is closed. A pin persists across shell restarts, but does not override absence or disabling.
+A drawer module the user has chosen to keep visible even when quiet and the drawer is closed. A pin persists across shell restarts, but does not override absence.
 _Avoid_: Enabled module, always-on module
 
 **Stowed module**:

@@ -17,32 +17,9 @@
 
     // --- what the bar shows ----------------------------------------------
 
-    // false takes a module off the bar altogether. To keep one out of sight
-    // but within reach, leave it true: the quiet ones already sit in the
-    // drawer behind the chevron, and a middle click on a module pins it out
-    // of the drawer or lets it go back. The settings window (the gear) can
-    // also keep any module, or one tray icon, in the drawer even while it
-    // has something to show.
-    "modules": {
-        "music": true,     // now playing, from mpd (see musicDir, mpdSocket)
-        "email": true,     // unread Gmail (needs Google, see the end)
-        "tasks": true,     // Google Tasks (needs Google)
-        "updater": true,   // pending pacman and AUR updates
-        "bell": true,      // the notification centre and do not disturb
-        "satty": true,     // screenshot a region and annotate it with satty
-        "idle": true,      // caffeine: keep the screen awake
-        "wallpaper": true, // cycle the images in wallpaperDir
-        "night": true,     // night mode and brightness
-        "sys": true,       // CPU, memory and temperatures
-        "settings": true,  // the settings window (this file, drawn)
-        "tray": true,      // apps' status icons
-        "drives": true,    // USB drives: space, opening, safe removal
-        "bluetooth": true, // the radio and its devices (bluez)
-        "network": true,   // Wi-Fi and the cable (NetworkManager)
-        "weather": true,   // next six hours, seven days, and hourly forecasts
-        "audio": true,     // output volume
-        "language": true,  // the keyboard layout (see layoutNames)
-    },
+    // The settings window (the gear) places right pill modules as Auto,
+    // Pinned, or Drawer. Quiet modules stay behind the chevron in Auto;
+    // a middle click pins one outside the drawer or returns it to Auto.
 
     // One icon per app on each workspace in the left pill, opened into one
     // per window by a click. false gives every window its own icon.

@@ -26,7 +26,6 @@ GoogleService {
     service: "Gmail"
     // Mail is the one thing on the bar you might be sat waiting for.
     pollMs: 30000
-    polling: Settings.moduleOn("email") || (Launcher.shown && Launcher.mailMode)
 
     onFetch: root.fetchThreads()
 

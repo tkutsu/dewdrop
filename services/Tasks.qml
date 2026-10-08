@@ -19,7 +19,6 @@ GoogleService {
     // Tasks mostly arrive from the phone; two minutes is current enough and
     // nothing against a quota of 50,000 requests a day.
     pollMs: 2 * 60000
-    polling: Settings.moduleOn("tasks") || (Launcher.shown && Launcher.taskMode)
 
     onFetch: root.fetchLists()
 

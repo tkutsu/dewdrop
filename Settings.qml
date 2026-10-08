@@ -4,8 +4,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Everything that differs from one machine to the next: which monitors and
-// modules, the clock's format, fonts, the apps the bar opens, where the
+// Everything that differs from one machine to the next: which monitors,
+// the clock's format, fonts, the apps the bar opens, where the
 // wallpapers and the music are.
 //
 // Two files beside shell.qml. settings.default.json is in the repo: every
@@ -27,7 +27,6 @@ Singleton {
 
     // --- values --------------------------------------------------------------
     readonly property var screens: root.values.screens ?? []
-    readonly property var modules: root.values.modules ?? ({})
     readonly property bool groupWindows: root.values.groupWindows ?? true
     readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
     readonly property var layoutNames: root.values.layoutNames ?? ({})
@@ -42,12 +41,6 @@ Singleton {
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")
-
-    // A module off is gone from the bar, not put in the drawer. Keyed as
-    // BarItem.settingsKey; one the file does not mention is on.
-    function moduleOn(key: string): bool {
-        return key === "" || root.modules[key] !== false;
-    }
 
     // The settings window's way in: one key into settings.json. The file is
     // written back whole as plain JSON, so comments typed into it by hand go;
