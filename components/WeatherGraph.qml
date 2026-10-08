@@ -9,7 +9,10 @@ Item {
     id: graph
 
     property var hours: []
+    property var scaleHours: graph.hours
     property bool feelsLike: false
+    property real contentOffset: 0
+    property bool showAxes: true
     // The three measurements, in drawing order; the readout above the plots
     // takes its colours from here too.
     readonly property var series: [
@@ -43,55 +46,50 @@ Item {
         width: graph.width
         spacing: graph.spacing
 
-        Rectangle {
+        Item {
             width: graph.width
             height: 30
-            radius: Theme.selectionRadius
-            color: Theme.selection
+            clip: true
 
-            PopupText {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                verticalAlignment: Text.AlignVCenter
-                horizontalAlignment: Text.AlignHCenter
-                font.pixelSize: Theme.captionSize
-                visible: graph.selectedHour === null
-                color: Theme.label2
-                text: "Hover over a graph to see the hourly forecast"
-            }
+            Rectangle {
+                x: graph.contentOffset * graph.width / graph.plotWidth
+                width: graph.width
+                height: parent.height
+                radius: Theme.selectionRadius
+                color: Theme.selection
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 8
-                visible: graph.selectedHour !== null
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
+                    spacing: 8
+                    visible: graph.selectedHour !== null
 
-                PopupText {
-                    Layout.fillWidth: true
-                    text: graph.selectedHour ? `${graph.hoveredHour ? graph.selectedHour.time : "Now"}  ${graph.selectedHour.description}` : ""
-                    font.pixelSize: Theme.captionSize
-                    elide: Text.ElideRight
-                }
-                PopupText {
-                    Layout.preferredWidth: 100
-                    text: `${graph.feelsLike ? "feels like " : ""}${Weather.measure(graph.selectedHour?.[graph.series[0].key], "°C")}`
-                    color: graph.series[0].color
-                    font.pixelSize: Theme.captionSize
-                }
-                PopupText {
-                    Layout.preferredWidth: 80
-                    text: `Rain ${Weather.measure(graph.selectedHour?.rain, "%")}`
-                    color: graph.series[1].color
-                    font.pixelSize: Theme.captionSize
-                }
-                PopupText {
-                    Layout.preferredWidth: 160
-                    text: [Weather.windLabel(graph.selectedHour?.wind).toLowerCase(), graph.selectedHour?.wind >= 1 ? Weather.windBearing(graph.selectedHour?.windDirection) : "", Weather.measure(graph.selectedHour?.wind, " km/h")].filter(part => part !== "").join(" ")
-                    color: graph.series[2].color
-                    font.pixelSize: Theme.captionSize
-                    elide: Text.ElideRight
+                    PopupText {
+                        Layout.fillWidth: true
+                        text: graph.selectedHour ? `${graph.hoveredHour ? graph.selectedHour.time : "Now"}  ${graph.selectedHour.description}` : ""
+                        font.pixelSize: Theme.captionSize
+                        elide: Text.ElideRight
+                    }
+                    PopupText {
+                        Layout.preferredWidth: 100
+                        text: `${graph.feelsLike ? "feels like " : ""}${Weather.measure(graph.selectedHour?.[graph.series[0].key], "°C")}`
+                        color: graph.series[0].color
+                        font.pixelSize: Theme.captionSize
+                    }
+                    PopupText {
+                        Layout.preferredWidth: 80
+                        text: `Rain ${Weather.measure(graph.selectedHour?.rain, "%")}`
+                        color: graph.series[1].color
+                        font.pixelSize: Theme.captionSize
+                    }
+                    PopupText {
+                        Layout.preferredWidth: 160
+                        text: [Weather.windLabel(graph.selectedHour?.wind).toLowerCase(), graph.selectedHour?.wind >= 1 ? Weather.windBearing(graph.selectedHour?.windDirection) : "", Weather.measure(graph.selectedHour?.wind, " km/h")].filter(part => part !== "").join(" ")
+                        color: graph.series[2].color
+                        font.pixelSize: Theme.captionSize
+                        elide: Text.ElideRight
+                    }
                 }
             }
         }
@@ -100,13 +98,14 @@ Item {
             x: graph.plotLeft
             width: graph.plotWidth
             height: 22
+            clip: true
 
             Repeater {
                 model: graph.iconRanges
                 delegate: Item {
                     id: interval
                     required property var modelData
-                    x: 2 + (modelData.start - graph.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
+                    x: graph.contentOffset + 2 + (modelData.start - graph.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
                     width: (modelData.end - modelData.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
                     height: parent.height
                     readonly property bool hasRange: modelData.end - modelData.start > 3600
@@ -168,7 +167,7 @@ Item {
                     required property var modelData
                     width: graph.width
                     height: Math.max(plot.height + 4, seriesTitle.implicitWidth + 8)
-                    readonly property var values: graph.hours.map(hour => hour[series.modelData.key]).filter(value => typeof value === "number" && Number.isFinite(value))
+                    readonly property var values: graph.scaleHours.map(hour => hour[series.modelData.key]).filter(value => typeof value === "number" && Number.isFinite(value))
                     readonly property real low: Math.min(modelData.minimum, values.length ? Math.floor(Math.min(...values) / modelData.step) * modelData.step : modelData.minimum)
                     readonly property real high: Math.max(modelData.maximum, values.length ? Math.ceil(Math.max(...values) / modelData.step) * modelData.step : modelData.maximum)
                     readonly property var ticks: Array.from({length: Math.round((high - low) / modelData.step) + 1}, (_, index) => high - index * modelData.step)
@@ -186,6 +185,7 @@ Item {
 
                     PopupText {
                         id: seriesTitle
+                        visible: graph.showAxes
                         x: 10 - width / 2
                         y: (series.height - height) / 2
                         rotation: -90
@@ -198,9 +198,10 @@ Item {
                         model: series.ticks
                         delegate: PopupText {
                             required property real modelData
+                            visible: graph.showAxes
                             x: 20
                             width: 28
-                            y: plot.y + (series.high - modelData) / (series.high - series.low) * (plot.height - 4) - height / 2 + 2
+                            y: plot.parent.y + (series.high - modelData) / (series.high - series.low) * (plot.height - 4) - height / 2 + 2
                             text: Math.round(modelData)
                             horizontalAlignment: Text.AlignRight
                             color: Theme.label2
@@ -208,107 +209,115 @@ Item {
                         }
                     }
 
-                    Canvas {
-                        id: plot
+                    // Slide only the plot inside its viewport; axes stay outside it.
+                    Item {
                         x: graph.plotLeft
                         y: (series.height - height) / 2
                         width: graph.plotWidth
                         height: (series.high - series.low) * series.modelData.pixels + 4
-                        readonly property var hours: graph.hours
-                        readonly property double now: Weather.now
-                        readonly property color seriesColor: series.modelData.color
-                        readonly property color futureColor: Qt.rgba(seriesColor.r, seriesColor.g, seriesColor.b, 0.8)
-                        readonly property color pastColor: Qt.rgba(seriesColor.r * 0.65, seriesColor.g * 0.65, seriesColor.b * 0.65, 0.4)
-                        readonly property real passedX: graph.end > graph.start ? Math.max(0, Math.min(width, 2 + (now - graph.start) / (graph.end - graph.start) * (width - 4))) : now > graph.start ? width : 0
-                        readonly property real low: series.low
-                        readonly property real high: series.high
-                        readonly property color gridColor: Qt.rgba(Theme.stroke.r, Theme.stroke.g, Theme.stroke.b, Theme.stroke.a * 0.45)
-                        readonly property real pointerX: plotHover.point.position.x
-                        readonly property var hoveredHour: graph.hoveredHour
-                        readonly property var hoveredValue: hoveredHour ? hoveredHour[series.modelData.key] : null
-                        readonly property real hoverY: typeof hoveredValue === "number" && Number.isFinite(hoveredValue) ? 2 + (high - hoveredValue) / (high - low) * (height - 4) : height / 2
-                        readonly property real hoverX: hoveredHour && graph.end > graph.start ? 2 + (hoveredHour.at - graph.start) / (graph.end - graph.start) * (width - 4) : width / 2
-                        // Everything onPaint reads, so any change repaints once.
-                        readonly property var paintInputs: [hours, now, low, high, width, height, pastColor, futureColor, gridColor]
-                        onPaintInputsChanged: requestPaint()
+                        clip: true
 
-                        HoverHandler {
-                            id: plotHover
-                            onHoveredChanged: {
-                                if (hovered)
-                                    graph.hoveredPlot = plot;
-                                else if (graph.hoveredPlot === plot)
-                                    graph.hoveredPlot = null;
-                            }
-                        }
+                        Canvas {
+                            id: plot
+                            x: graph.contentOffset
+                            width: parent.width
+                            height: parent.height
+                            readonly property var hours: graph.hours
+                            readonly property double now: Weather.now
+                            readonly property color seriesColor: series.modelData.color
+                            readonly property color futureColor: Qt.rgba(seriesColor.r, seriesColor.g, seriesColor.b, 0.8)
+                            readonly property color pastColor: Qt.rgba(seriesColor.r * 0.65, seriesColor.g * 0.65, seriesColor.b * 0.65, 0.4)
+                            readonly property real passedX: graph.end > graph.start ? Math.max(0, Math.min(width, 2 + (now - graph.start) / (graph.end - graph.start) * (width - 4))) : now > graph.start ? width : 0
+                            readonly property real low: series.low
+                            readonly property real high: series.high
+                            readonly property color gridColor: Qt.rgba(Theme.stroke.r, Theme.stroke.g, Theme.stroke.b, Theme.stroke.a * 0.45)
+                            readonly property real pointerX: plotHover.point.position.x
+                            readonly property var hoveredHour: graph.hoveredHour
+                            readonly property var hoveredValue: hoveredHour ? hoveredHour[series.modelData.key] : null
+                            readonly property real hoverY: typeof hoveredValue === "number" && Number.isFinite(hoveredValue) ? 2 + (high - hoveredValue) / (high - low) * (height - 4) : height / 2
+                            readonly property real hoverX: hoveredHour && graph.end > graph.start ? 2 + (hoveredHour.at - graph.start) / (graph.end - graph.start) * (width - 4) : width / 2
+                            // Everything onPaint reads, so any change repaints once.
+                            readonly property var paintInputs: [hours, now, low, high, width, height, pastColor, futureColor, gridColor]
+                            onPaintInputsChanged: requestPaint()
 
-                        Rectangle {
-                            x: plot.hoverX - width / 2
-                            y: plot.hoverY - height / 2
-                            width: 6
-                            height: 6
-                            radius: 3
-                            color: series.modelData.color
-                            visible: graph.hoveredHour !== null && typeof plot.hoveredValue === "number" && Number.isFinite(plot.hoveredValue)
-                        }
-
-                        // Gaps stay gaps; epoch spacing keeps repeated DST hours distinct.
-                        onPaint: {
-                            const ctx = getContext("2d");
-                            ctx.reset();
-                            ctx.strokeStyle = gridColor;
-                            ctx.lineWidth = 1;
-                            for (const tick of series.ticks) {
-                                const y = 2 + (high - tick) / (high - low) * (height - 4);
-                                ctx.beginPath();
-                                ctx.moveTo(2, y);
-                                ctx.lineTo(width - 2, y);
-                                ctx.stroke();
-                            }
-                            // Keep the series hue on both sides of now, dimming elapsed time.
-                            function drawSeries(color) {
-                                ctx.strokeStyle = color;
-                                ctx.fillStyle = color;
-                                ctx.lineCap = "round";
-                                let previous = null;
-                                for (let index = 0; index < hours.length; index++) {
-                                    const hour = hours[index];
-                                    const value = hour[series.modelData.key];
-                                    if (typeof value !== "number" || !Number.isFinite(value)) {
-                                        previous = null;
-                                        continue;
-                                    }
-                                    const x = graph.end > graph.start ? 2 + (hour.at - graph.start) / (graph.end - graph.start) * (width - 4) : width / 2;
-                                    const y = 2 + (high - value) / (high - low) * (height - 4);
-                                    const severe = series.isSevere(value);
-                                    if (previous) {
-                                        ctx.lineWidth = severe || previous.severe ? 4 : 2;
-                                        ctx.beginPath();
-                                        ctx.moveTo(previous.x, previous.y);
-                                        ctx.lineTo(x, y);
-                                        ctx.stroke();
-                                    }
-                                    const isolated = !previous && !Number.isFinite(hours[index + 1]?.[series.modelData.key]);
-                                    if (severe || isolated) {
-                                        ctx.beginPath();
-                                        ctx.arc(x, y, severe ? 3 : 2, 0, Math.PI * 2);
-                                        ctx.fill();
-                                    }
-                                    previous = {x, y, severe};
+                            HoverHandler {
+                                id: plotHover
+                                onHoveredChanged: {
+                                    if (hovered)
+                                        graph.hoveredPlot = plot;
+                                    else if (graph.hoveredPlot === plot)
+                                        graph.hoveredPlot = null;
                                 }
                             }
-                            ctx.save();
-                            ctx.beginPath();
-                            ctx.rect(0, 0, passedX, height);
-                            ctx.clip();
-                            drawSeries(pastColor);
-                            ctx.restore();
-                            ctx.save();
-                            ctx.beginPath();
-                            ctx.rect(passedX, 0, width - passedX, height);
-                            ctx.clip();
-                            drawSeries(futureColor);
-                            ctx.restore();
+
+                            Rectangle {
+                                x: plot.hoverX - width / 2
+                                y: plot.hoverY - height / 2
+                                width: 6
+                                height: 6
+                                radius: 3
+                                color: series.modelData.color
+                                visible: graph.hoveredHour !== null && typeof plot.hoveredValue === "number" && Number.isFinite(plot.hoveredValue)
+                            }
+
+                            // Gaps stay gaps; epoch spacing keeps repeated DST hours distinct.
+                            onPaint: {
+                                const ctx = getContext("2d");
+                                ctx.reset();
+                                ctx.strokeStyle = gridColor;
+                                ctx.lineWidth = 1;
+                                for (const tick of series.ticks) {
+                                    const y = 2 + (high - tick) / (high - low) * (height - 4);
+                                    ctx.beginPath();
+                                    ctx.moveTo(2, y);
+                                    ctx.lineTo(width - 2, y);
+                                    ctx.stroke();
+                                }
+                                // Keep the series hue on both sides of now, dimming elapsed time.
+                                function drawSeries(color) {
+                                    ctx.strokeStyle = color;
+                                    ctx.fillStyle = color;
+                                    ctx.lineCap = "round";
+                                    let previous = null;
+                                    for (let index = 0; index < hours.length; index++) {
+                                        const hour = hours[index];
+                                        const value = hour[series.modelData.key];
+                                        if (typeof value !== "number" || !Number.isFinite(value)) {
+                                            previous = null;
+                                            continue;
+                                        }
+                                        const x = graph.end > graph.start ? 2 + (hour.at - graph.start) / (graph.end - graph.start) * (width - 4) : width / 2;
+                                        const y = 2 + (high - value) / (high - low) * (height - 4);
+                                        const severe = series.isSevere(value);
+                                        if (previous) {
+                                            ctx.lineWidth = severe || previous.severe ? 4 : 2;
+                                            ctx.beginPath();
+                                            ctx.moveTo(previous.x, previous.y);
+                                            ctx.lineTo(x, y);
+                                            ctx.stroke();
+                                        }
+                                        const isolated = !previous && !Number.isFinite(hours[index + 1]?.[series.modelData.key]);
+                                        if (severe || isolated) {
+                                            ctx.beginPath();
+                                            ctx.arc(x, y, severe ? 3 : 2, 0, Math.PI * 2);
+                                            ctx.fill();
+                                        }
+                                        previous = {x, y, severe};
+                                    }
+                                }
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.rect(0, 0, passedX, height);
+                                ctx.clip();
+                                drawSeries(pastColor);
+                                ctx.restore();
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.rect(passedX, 0, width - passedX, height);
+                                ctx.clip();
+                                drawSeries(futureColor);
+                                ctx.restore();
+                            }
                         }
                     }
                 }
@@ -317,7 +326,7 @@ Item {
     }
 
     Rectangle {
-        x: graph.hoveredPlot ? Math.round(graph.hoveredPlot.x + graph.hoveredPlot.hoverX) : 0
+        x: graph.hoveredPlot ? Math.round(graph.plotLeft + graph.contentOffset + graph.hoveredPlot.hoverX) : 0
         y: plots.y + 2
         width: 1
         height: Math.max(0, plots.height - 4)
@@ -327,11 +336,11 @@ Item {
     }
 
     Rectangle {
-        x: graph.plotLeft + graph.nowX
+        x: graph.plotLeft + graph.contentOffset + graph.nowX
         y: plots.y + 2
         width: 1
         height: Math.max(0, plots.height - 4)
-        visible: graph.showsNow
+        visible: graph.showsNow && x >= graph.plotLeft && x <= graph.plotLeft + graph.plotWidth
         color: Theme.label2
         opacity: 0.5
     }
