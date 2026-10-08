@@ -324,7 +324,7 @@ QtObject {
 ''')
         (services / "Mpd.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool connected: false; signal databaseChanged }\n')
         (target / "Fuzzy.js").write_text((ROOT / "Fuzzy.js").read_text())
-        (target / "Settings.qml").write_text(f'pragma Singleton\nimport QtQuick\nQtObject {{ property var layoutNames: ({{}}); property string wallpaperDir: "{target}"; function moduleOn(name) {{ return name === "updater"; }} }}\n')
+        (target / "Settings.qml").write_text(f'pragma Singleton\nimport QtQuick\nQtObject {{ property var layoutNames: ({{}}); property string wallpaperDir: "{target}"; }}\n')
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property color tint: "black"; property color backdrop: "black"; property var glyph: ({notif: "", notifDnd: "", nightOn: "", nightOff: "", wifiOff: "", wired: "", wifiStrength: [""], folder: "", file: "", update: ""}); property int fadeMs: 1; property int previewFontSize: 12; property string monoFont: "monospace"; property color menuText: "white"; property int previewTextSize: 12; property color label2: "grey"; property color label: "white"; property int iconSize: 16; property real glyphInk: 1 }\n')
         (target / "Paths.qml").write_text(f'pragma Singleton\nimport QtQuick\nQtObject {{ function state(name) {{ return "{target}/" + name; }} function cache(name) {{ return "{target}/" + name; }} function script(name) {{ return "{display}"; }} }}\n')
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
