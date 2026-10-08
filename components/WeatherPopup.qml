@@ -17,6 +17,8 @@ Popup {
     readonly property var hours: root.day?.hours ?? []
     acceptsKeyboard: root.choosing
     spacing: 8
+    onDayChanged: Qt.callLater(reel.syncDay)
+    onChoosingChanged: Qt.callLater(reel.syncDay)
 
     Component.onDestruction: Weather.query = ""
     Connections {
@@ -64,11 +66,80 @@ Popup {
         wrapMode: Text.WordWrap
     }
 
-    WeatherGraph {
+    Item {
+        id: reel
         width: root.bodyWidth
         visible: !root.choosing && root.hours.length > 0
-        hours: root.hours
-        feelsLike: Weather.feelsLike
+        clip: true
+        height: outgoing.implicitHeight
+        property var displayedDay: null
+        property var incomingDay: null
+        property int direction: 1
+        property real progress: 0
+        readonly property var scaleHours: (reel.displayedDay?.hours ?? []).concat(reel.incomingDay?.hours ?? [])
+
+        // Keep the old forecast intact until its replacement has slid into place.
+        function syncDay(): void {
+            const day = root.day;
+            if (!reel.visible || !reel.displayedDay?.hours.length || !day?.hours.length) {
+                slide.stop();
+                reel.displayedDay = day;
+                reel.incomingDay = null;
+                reel.progress = 0;
+                return;
+            }
+            // Rapid clicks settle at the latest selection after the current roll.
+            if (slide.running)
+                return;
+            if (day.date === reel.displayedDay.date) {
+                reel.displayedDay = day;
+                return;
+            }
+            reel.direction = day.date > reel.displayedDay.date ? 1 : -1;
+            reel.incomingDay = day;
+            reel.progress = 0;
+            slide.start();
+        }
+
+        Component.onCompleted: Qt.callLater(reel.syncDay)
+
+        WeatherGraph {
+            id: outgoing
+            contentOffset: -reel.direction * outgoing.plotWidth * reel.progress
+            width: reel.width
+            hours: reel.displayedDay?.hours ?? []
+            scaleHours: reel.scaleHours
+            feelsLike: Weather.feelsLike
+            enabled: !slide.running
+        }
+
+        WeatherGraph {
+            id: incoming
+            contentOffset: reel.direction * incoming.plotWidth * (1 - reel.progress)
+            width: reel.width
+            visible: reel.incomingDay !== null
+            hours: reel.incomingDay?.hours ?? []
+            scaleHours: reel.scaleHours
+            showAxes: false
+            feelsLike: Weather.feelsLike
+            enabled: false
+        }
+
+        NumberAnimation {
+            id: slide
+            target: reel
+            property: "progress"
+            from: 0
+            to: 1
+            duration: Theme.foldMs
+            easing.type: Easing.InOutCubic
+            onFinished: {
+                reel.displayedDay = reel.incomingDay;
+                reel.incomingDay = null;
+                reel.progress = 0;
+                Qt.callLater(reel.syncDay);
+            }
+        }
     }
 
     Item {
