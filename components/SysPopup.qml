@@ -163,21 +163,107 @@ Popup {
     // Always `rows` rows, filled or not: the list is rebuilt every second and a
     // popup that grew and shrank a row at a time as processes came and went
     // would move the things under the pointer while it was being read.
-    component Procs: Column {
+    //
+    // Each program keeps its own row from one sample to the next, so a change
+    // of rank is that row sliding to its new slot. One that drops out of the
+    // list fades where it stood, and one that comes in fades in once the slot
+    // has cleared, so two names are never drawn over each other.
+    component Procs: Item {
         id: procs
 
         property var model: []
         property bool byCpu: false
 
-        spacing: 1
+        readonly property real step: probe.implicitHeight + 1
+
+        width: root.w
+        implicitHeight: root.rows * step - 1
+
+        onModelChanged: sync()
+
+        // `shown` is in no particular order — `rank` places each row — and
+        // still holds the rows fading out, until they are gone.
+        function sync() {
+            const top = procs.model.slice(0, root.rows);
+            const kept = {};
+            for (let i = 0; i < shown.count; i++) {
+                const name = shown.get(i).name;
+                const rank = top.findIndex(p => p.name === name);
+                if (rank < 0) {
+                    shown.setProperty(i, "gone", true);
+                } else {
+                    shown.set(i, Object.assign({}, top[rank], { rank: rank, gone: false }));
+                    kept[name] = true;
+                }
+            }
+            top.forEach((p, rank) => {
+                if (!kept[p.name])
+                    shown.append(Object.assign({}, p, { rank: rank, gone: false }));
+            });
+        }
+
+        function drop(name) {
+            for (let i = 0; i < shown.count; i++) {
+                if (shown.get(i).name === name && shown.get(i).gone) {
+                    shown.remove(i);
+                    return;
+                }
+            }
+        }
+
+        ListModel {
+            id: shown
+        }
+
+        // A row's height, read off an empty one.
+        Line {
+            id: probe
+            visible: false
+        }
 
         Repeater {
-            model: root.rows
+            model: shown
 
             delegate: Line {
-                required property int index
+                id: row
 
-                readonly property var proc: procs.model[index] ?? null
+                required property string name
+                required property int n
+                required property real cpu
+                required property real rss
+                required property int rank
+                required property bool gone
+
+                property bool arrived: false
+
+                y: rank * procs.step
+                opacity: arrived && !gone ? 0.9 : 0
+
+                Behavior on y {
+                    NumberAnimation {
+                        duration: Theme.foldMs
+                        easing.type: Easing.InOutCubic
+                    }
+                }
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.fadeMs
+                    }
+                }
+
+                // Held back for as long as whatever stood here takes to fade.
+                Timer {
+                    running: true
+                    interval: Theme.fadeMs
+                    onTriggered: row.arrived = true
+                }
+
+                Timer {
+                    running: row.gone
+                    interval: Theme.fadeMs
+                    onTriggered: procs.drop(row.name)
+                }
 
                 // A bullet in front of the name, because these rows are the
                 // one part of the popup that is not a measurement: every other
@@ -188,12 +274,11 @@ Popup {
                 //
                 // A dozen web content processes are one entry with a count on
                 // it, so the name has to say how many it stands for.
-                label: proc ? "• " + (proc.n > 1 ? `${proc.name} ×${proc.n}` : proc.name) : ""
+                label: "• " + (n > 1 ? `${name} ×${n}` : name)
                 // A decimal under ten per cent: the bottom of this list is
                 // made of small numbers, and rounded to whole ones they are all
                 // the same number in a different order.
-                value: !proc ? "" : procs.byCpu ? `${root.num(proc.cpu * 100, proc.cpu < 0.1 ? 1 : 0)} %` : `${root.gib(proc.rss / 1024)} GiB`
-                opacity: 0.9
+                value: procs.byCpu ? `${root.num(cpu * 100, cpu < 0.1 ? 1 : 0)} %` : `${root.gib(rss / 1024)} GiB`
             }
         }
     }
