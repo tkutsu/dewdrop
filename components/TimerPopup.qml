@@ -57,6 +57,7 @@ Popup {
                 readout: "",
                 buttons: [
                     {
+                        name: "Dismiss ringing timers",
                         glyph: Theme.glyph.powerCancel,
                         act: () => Timers.hush()
                     }
@@ -84,10 +85,12 @@ Popup {
                 readout: "",
                 buttons: [
                     {
+                        name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
                         glyph: e.running ? Theme.glyph.paused : Theme.glyph.playing,
                         act: () => Timers.toggle(e.id)
                     },
                     {
+                        name: "Cancel " + (e.label || "timer"),
                         glyph: Theme.glyph.powerCancel,
                         act: () => Timers.cancel(e.id)
                     }
@@ -111,10 +114,12 @@ Popup {
                 readout: Timers.hhmm(e.hour, e.minute),
                 buttons: [
                     {
+                        name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
                         glyph: e.running ? Theme.glyph.paused : Theme.glyph.playing,
                         act: () => Timers.toggle(e.id)
                     },
                     {
+                        name: "Cancel " + (e.label || "timer"),
                         glyph: Theme.glyph.powerCancel,
                         act: () => Timers.cancel(e.id)
                     }
@@ -227,6 +232,7 @@ Popup {
 
                         width: root.buttonWidth
                         height: root.rowHeight
+                        name: modelData.name
                         glyph: modelData.glyph
                         onTapped: modelData.act()
                     }

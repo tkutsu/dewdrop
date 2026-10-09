@@ -30,6 +30,14 @@ Rectangle {
                 required property var modelData
                 readonly property bool chosen: modelData.value === root.current
 
+                Accessible.role: Accessible.RadioButton
+                Accessible.name: root.setting.title + ": " + option.modelData.label
+                Accessible.checked: option.chosen
+                Accessible.onPressAction: if (!option.chosen && option.enabled && option.visible)
+                    root.setting.set(option.modelData.value)
+                Accessible.onToggleAction: if (!option.chosen && option.enabled && option.visible)
+                    root.setting.set(option.modelData.value)
+
                 width: label.implicitWidth + 20
                 height: parent.height
                 radius: Theme.selectionRadius

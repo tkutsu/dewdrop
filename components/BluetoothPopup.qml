@@ -100,6 +100,7 @@ Popup {
 
                     anchors.verticalCenter: parent.verticalCenter
                     visible: row.hovered && row.modelData.paired
+                    name: "Forget " + row.text
                     glyph: Theme.glyph.close
                     glyphSize: Theme.captionSize
                     onTapped: {

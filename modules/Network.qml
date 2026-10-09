@@ -11,6 +11,7 @@ import qs.services
 // popup cannot do (enterprise Wi-Fi, static addresses, VPNs).
 BarItem {
     id: root
+    name: "Network"
 
     settingsKey: "network"
     tooltip: {

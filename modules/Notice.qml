@@ -15,6 +15,7 @@ import qs.services
 // is the moment of arrival and nothing after it (see services/Notifications.qml).
 BarItem {
     id: root
+    name: root.kept.line || "Notification"
 
     readonly property var entry: Notifications.latest
 

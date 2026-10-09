@@ -15,6 +15,8 @@ PopupRow {
     property string text
     property bool current: false
     property bool busy: false
+    name: root.text
+    Accessible.selected: root.current
 
     // The right edge, for status: a battery, a lock, a signal, a forget.
     default property alias trail: tail.data

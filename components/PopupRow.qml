@@ -11,6 +11,13 @@ Item {
     id: root
 
     default property alias content: body.data
+    property string name: ""
+
+    Accessible.role: Accessible.Button
+    Accessible.name: root.name
+    Accessible.ignored: root.name === ""
+    Accessible.onPressAction: if (root.enabled && root.visible)
+        root.tapped()
 
     readonly property bool hovered: hover.hovered
 

@@ -8,6 +8,11 @@ Item {
     id: root
 
     property real value: 0      // 0..1
+    property string name: ""
+    readonly property real minimumValue: 0
+    readonly property real maximumValue: 1
+    readonly property real stepSize: root.wheelStep > 0 ? root.wheelStep : 0.05
+
     property real trackHeight: 4
     // A track painted with the range it covers — a rainbow, a black-to-white
     // ramp. There is no "how much" on one of those, only "which", so the grown
@@ -32,6 +37,33 @@ Item {
 
     implicitWidth: 140
     implicitHeight: 14
+
+    // Qt's Value interface writes this proxy; model updates only refresh it.
+    Item {
+        id: accessibleValue
+        objectName: "accessibleValue"
+        anchors.fill: parent
+
+        property real value: root.value
+        readonly property real minimumValue: root.minimumValue
+        readonly property real maximumValue: root.maximumValue
+        readonly property real stepSize: root.stepSize
+        onValueChanged: {
+            if (value === root.value)
+                return;
+            if (root.enabled && root.visible)
+                root.moved(Math.max(minimumValue, Math.min(maximumValue, value)));
+            value = Qt.binding(() => root.value);
+        }
+
+        Accessible.role: Accessible.Slider
+        Accessible.name: root.name
+        Accessible.focusable: true
+        Accessible.onIncreaseAction: if (root.enabled && root.visible)
+            root.moved(Math.min(root.maximumValue, root.value + root.stepSize))
+        Accessible.onDecreaseAction: if (root.enabled && root.visible)
+            root.moved(Math.max(root.minimumValue, root.value - root.stepSize))
+    }
 
     Rectangle {
         id: track
