@@ -10,6 +10,7 @@ import qs.services
 // popup is the notification centre.
 BarItem {
     id: root
+    name: "Notifications"
 
     tooltip: Notifications.tooltip
     popup: NotificationsPopup {}

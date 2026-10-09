@@ -131,6 +131,7 @@ Popup {
                     // The speaker is the app's mute, the way the bar's is
                     // the output's: struck through while it is silenced.
                     VolumeRow {
+                        name: Audio.appName(app.modelData)
                         icon: Audio.level(app.volume, app.muted)
                         volume: app.volume
                         onMoved: value => {
@@ -182,6 +183,7 @@ Popup {
             VolumeRow {
                 readonly property var modelData: Audio.source
                 visible: !!Audio.source
+                name: "Microphone"
                 icon: Audio.micMuted ? Theme.glyph.micMuted : Theme.glyph.mic
                 volume: Audio.micVolume
                 onMoved: value => {
@@ -199,6 +201,7 @@ Popup {
 
         property string icon
         property int volume
+        property string name: "Output"
         signal moved(real value)
         signal iconTapped
 
@@ -224,6 +227,11 @@ Popup {
                 fontSize: Theme.popupTextSize
             }
 
+            Accessible.role: Accessible.Button
+            Accessible.name: "Toggle " + volumeRow.name.toLowerCase() + " mute"
+            Accessible.onPressAction: if (enabled && visible)
+                volumeRow.iconTapped()
+
             TapHandler {
                 gesturePolicy: TapHandler.ReleaseWithinBounds
                 onTapped: volumeRow.iconTapped()
@@ -232,6 +240,7 @@ Popup {
 
         Slider {
             anchors.verticalCenter: parent.verticalCenter
+            name: volumeRow.name + " volume"
             value: volumeRow.volume / 100
             // PipeWire takes the change directly — no pamixer round trip,
             // so the track keeps up with the drag.

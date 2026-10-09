@@ -23,6 +23,8 @@ ClickArea {
     // `popupItem` is the live instance, for modules that need to drive it
     // (scrolling the calendar through months).
     property string tooltip: ""
+    name: root.tooltip
+    Accessible.description: root.tooltip
     property Component popup: null
     readonly property var popupItem: clicked.item
 
@@ -31,6 +33,9 @@ ClickArea {
     // its own with togglePopup() (Music's title).
     property int popupButton: Qt.LeftButton
     readonly property bool popupOpen: OpenPopup.owner === root
+
+    // The popup hit area takes the left click before the module's own actions.
+    pressAction: root.stowed ? null : root.popup !== null && root.popupButton === Qt.LeftButton ? root.togglePopup : root.actions[Qt.LeftButton]
     // The pill whose row this module sits in, if it does: while the pill
     // drags a module to a new place, tooltips and popups keep still.
     readonly property Item pill: parent?.parent instanceof Pill ? parent.parent : null
@@ -311,6 +316,7 @@ ClickArea {
     // through to the module.
     ClickArea {
         id: pin
+        Accessible.ignored: true
         anchors.fill: span
         containmentMask: reach
         enabled: root.pinKey !== "" && root.middlePins
@@ -324,6 +330,7 @@ ClickArea {
     // The popup's button, taken the same way as the pin's above.
     ClickArea {
         id: opener
+        Accessible.ignored: true
         anchors.fill: span
         containmentMask: reach
         enabled: root.popup !== null && root.popupButton !== Qt.NoButton

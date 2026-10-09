@@ -266,6 +266,11 @@ Popup {
                 id: hover
             }
 
+            Accessible.role: Accessible.Button
+            Accessible.name: "Wallpaper " + cell.modelData.split("/").pop()
+            Accessible.onPressAction: if (enabled && visible)
+                Wallpaper.show(cell.index)
+
             TapHandler {
                 onTapped: Wallpaper.show(cell.index)
             }
@@ -417,6 +422,11 @@ Popup {
                 // back after an image has been on screen. Moving a slider is
                 // the other way to it, and a worse one — it changes the colour
                 // you were trying to return to.
+                Accessible.role: Accessible.Button
+                Accessible.name: "Wallpaper colour " + root.hex
+                Accessible.onPressAction: if (enabled && visible)
+                    Wallpaper.setColor(root.hex)
+
                 TapHandler {
                     onTapped: Wallpaper.setColor(root.hex)
                 }
@@ -470,6 +480,7 @@ Popup {
                     }
 
                     Slider {
+                        name: "Wallpaper " + channel.modelData.name
                         anchors.verticalCenter: parent.verticalCenter
                         // Sized off the grid so the block of tracks ends where
                         // the row of thumbnails above it does.

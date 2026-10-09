@@ -110,14 +110,17 @@ Popup {
                     Repeater {
                         model: [
                             {
+                                name: "Previous track",
                                 glyph: Theme.glyph.mediaPrev,
                                 act: () => Mpd.prev()
                             },
                             {
+                                name: Mpd.state === "play" ? "Pause music" : "Play music",
                                 glyph: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing,
                                 act: () => Mpd.toggle()
                             },
                             {
+                                name: "Next track",
                                 glyph: Theme.glyph.mediaNext,
                                 act: () => Mpd.next()
                             }
@@ -134,6 +137,11 @@ Popup {
                             HoverHandler {
                                 id: press
                             }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: modelData.name
+                            Accessible.onPressAction: if (enabled && visible)
+                                modelData.act()
+
                             TapHandler {
                                 onTapped: parent.modelData.act()
                             }
@@ -178,6 +186,7 @@ Popup {
                 // misses does not end anything.
                 PopupButton {
                     id: add
+                    name: "Choose music"
 
                     anchors.right: quit.left
                     anchors.rightMargin: 4
@@ -194,6 +203,7 @@ Popup {
                 // popup closes or the second press stops MPD.
                 PopupButton {
                     id: quit
+                    name: root.quitArmed ? "Confirm quit music player" : "Quit music player"
 
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -246,6 +256,11 @@ Popup {
 
                     // On the box rather than on the glyph: the ink is eight
                     // pixels of arrow and the box is the whole gutter.
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Repeat mode: " + Mpd.repeatMode
+                    Accessible.onPressAction: if (enabled && visible)
+                        Mpd.cycleRepeat()
+
                     TapHandler {
                         onTapped: Mpd.cycleRepeat()
                     }
@@ -254,6 +269,7 @@ Popup {
                 Slider {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
+                    name: "Playback position"
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
                     // A stream has no length to seek through.
                     enabled: Mpd.duration > 0
@@ -296,6 +312,11 @@ Popup {
                         opacity: Mpd.volume > 0 ? 0.75 : 1
                     }
 
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Toggle music mute"
+                    Accessible.onPressAction: if (enabled && visible)
+                        Mpd.toggleMute()
+
                     TapHandler {
                         onTapped: Mpd.toggleMute()
                     }
@@ -304,6 +325,7 @@ Popup {
                 Slider {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
+                    name: "Music volume"
                     value: Math.max(0, Mpd.volume) / 100
                     wheelStep: 0.05
                     onMoved: value => Mpd.setVolume(value)
@@ -347,6 +369,7 @@ Popup {
 
         PopupRow {
             id: head
+            name: "Show playlists"
 
             width: root.bodyWidth
             height: root.rowHeight
@@ -447,12 +470,14 @@ Popup {
                     Repeater {
                         model: [
                             {
+                                name: "Queue " + entry.modelData,
                                 glyph: Theme.glyph.playlistAppend,
                                 live: !entry.armed,
                                 warn: false,
                                 act: () => Mpd.loadPlaylist(entry.modelData, "queue")
                             },
                             {
+                                name: "Play " + entry.modelData,
                                 glyph: Theme.glyph.playlistLoad,
                                 live: !entry.armed,
                                 warn: false,
@@ -465,6 +490,7 @@ Popup {
                                 // that replaces it is "yes, that" — the same
                                 // pair the power menu puts up before it turns
                                 // the machine off.
+                                name: (entry.armed ? "Confirm delete " : "Delete ") + entry.modelData,
                                 glyph: entry.armed ? Theme.glyph.powerConfirm : Theme.glyph.playlistRemove,
                                 live: true,
                                 warn: entry.armed,
@@ -486,6 +512,7 @@ Popup {
 
                             width: root.buttonWidth
                             height: root.rowHeight
+                            name: modelData.name
                             glyph: modelData.glyph
                             live: modelData.live
                             warn: modelData.warn
@@ -749,6 +776,8 @@ Popup {
 
         delegate: PopupRow {
             id: row
+            name: "Play " + (row.modelData.title || "Track " + (row.index + 1))
+            onTapped: Mpd.playAt(row.modelData.pos)
 
             required property var modelData
             required property int index
@@ -851,6 +880,7 @@ Popup {
                     width: root.buttonWidth
                     height: root.rowHeight
                     visible: row.hovered
+                    name: "Remove " + (row.modelData.title || "track") + " from queue"
                     glyph: Theme.glyph.queueRemove
                     onTapped: Mpd.removeAt(row.modelData.pos)
                 }
