@@ -9,10 +9,6 @@ Item {
 
     property real value: 0      // 0..1
     property string name: ""
-    readonly property real minimumValue: 0
-    readonly property real maximumValue: 1
-    readonly property real stepSize: root.wheelStep > 0 ? root.wheelStep : 0.05
-
     property real trackHeight: 4
     // A track painted with the range it covers — a rainbow, a black-to-white
     // ramp. There is no "how much" on one of those, only "which", so the grown
@@ -38,21 +34,28 @@ Item {
     implicitWidth: 140
     implicitHeight: 14
 
-    // Qt's Value interface writes this proxy; model updates only refresh it.
+    // Qt's Value interface reads these properties by name and writes `value`.
+    // Writing the proxy instead of root keeps root's binding to its model;
+    // a write is passed on as `moved` and the proxy goes back to following.
     Item {
         id: accessibleValue
         objectName: "accessibleValue"
         anchors.fill: parent
 
         property real value: root.value
-        readonly property real minimumValue: root.minimumValue
-        readonly property real maximumValue: root.maximumValue
-        readonly property real stepSize: root.stepSize
+        readonly property real minimumValue: 0
+        readonly property real maximumValue: 1
+        readonly property real stepSize: root.wheelStep > 0 ? root.wheelStep : 0.05
+
+        function clamp(v: real): real {
+            return Math.max(minimumValue, Math.min(maximumValue, v));
+        }
+
         onValueChanged: {
             if (value === root.value)
                 return;
             if (root.enabled && root.visible)
-                root.moved(Math.max(minimumValue, Math.min(maximumValue, value)));
+                root.moved(clamp(value));
             value = Qt.binding(() => root.value);
         }
 
@@ -60,9 +63,9 @@ Item {
         Accessible.name: root.name
         Accessible.focusable: true
         Accessible.onIncreaseAction: if (root.enabled && root.visible)
-            root.moved(Math.min(root.maximumValue, root.value + root.stepSize))
+            root.moved(accessibleValue.clamp(root.value + accessibleValue.stepSize))
         Accessible.onDecreaseAction: if (root.enabled && root.visible)
-            root.moved(Math.max(root.minimumValue, root.value - root.stepSize))
+            root.moved(accessibleValue.clamp(root.value - accessibleValue.stepSize))
     }
 
     Rectangle {

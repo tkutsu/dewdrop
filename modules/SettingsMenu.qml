@@ -332,12 +332,12 @@ OverlayWindow {
 
                     PopupRow {
                         id: tab
-                        name: tab.modelData.title
 
                         required property var modelData
                         required property int index
                         readonly property bool open: root.page === index && !root.query
 
+                        name: tab.modelData.title
                         width: parent.width
                         height: 26
                         gesturePolicy: TapHandler.ReleaseWithinBounds

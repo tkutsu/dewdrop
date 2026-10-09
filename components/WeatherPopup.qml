@@ -205,8 +205,8 @@ Popup {
                 model: Weather.locations
                 delegate: PopupRow {
                     id: place
-                    name: place.modelData.label
                     required property var modelData
+                    name: place.modelData.label
                     width: root.bodyWidth
                     height: 32
                     onTapped: {
@@ -236,9 +236,9 @@ Popup {
                 model: Weather.days
                 delegate: PopupRow {
                     id: daily
-                    name: "Forecast for " + daily.modelData.date
                     required property var modelData
                     required property int index
+                    name: "Forecast for " + daily.modelData.date
                     width: Math.floor((root.bodyWidth - week.spacing * (Weather.days.length - 1)) / Math.max(1, Weather.days.length))
                     height: root.panelHeight
                     onTapped: root.picked = daily.modelData.date

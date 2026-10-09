@@ -274,6 +274,9 @@ Popup {
         // Then a click opens the group, and the ✕ clears all of them.
         property var others: []
         signal openGroup
+        function open(): void {
+            card.others.length > 0 ? card.openGroup() : Notifications.activate(card.n);
+        }
         readonly property var buttons: Notifications.buttons(card.n)
         // Its picture on the left when that is a mark of the sender's (a
         // logo, an avatar), else the app's icon; content goes under the text.
@@ -325,8 +328,8 @@ Popup {
             Accessible.role: Accessible.Button
             Accessible.name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
             Accessible.onPressAction: if (enabled && visible)
-                card.others.length > 0 ? card.openGroup() : Notifications.activate(card.n)
-            onClicked: card.others.length > 0 ? card.openGroup() : Notifications.activate(card.n)
+                card.open()
+            onClicked: card.open()
         }
 
         Item {

@@ -113,6 +113,9 @@ Popup {
                 function activate(): void {
                     if (row.modelData.isSeparator || !row.modelData.enabled || root.chosen !== null || !row.visible)
                         return;
+                    // A row with a submenu opens it, as it does on hover; a
+                    // click is how you ask for it when the hover did not
+                    // register, and it is what every other menu does.
                     if (row.modelData.hasChildren) {
                         row.submenuOpen = true;
                         return;
