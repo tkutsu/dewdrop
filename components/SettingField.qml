@@ -18,6 +18,7 @@ Rectangle {
 
     TextInput {
         id: input
+        Accessible.name: root.setting?.title ?? ""
 
         anchors.fill: parent
         anchors.leftMargin: 8

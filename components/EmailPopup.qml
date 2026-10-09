@@ -145,6 +145,7 @@ Popup {
 
                 delegate: PopupRow {
                     id: row
+                    name: row.modelData.subject || "Mail thread"
 
                     required property var modelData
 
@@ -442,6 +443,7 @@ Popup {
 
     PopupRow {
         id: more
+        name: "Load more mail"
         width: root.bodyWidth
         height: moreLabel.implicitHeight + root.rowPad * 2
         visible: Email.loaded && Email.total > root.rows.length && root.rows.length > 0

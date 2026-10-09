@@ -34,6 +34,7 @@ Row {
     }
 
     Slider {
+        name: root.setting?.title ?? ""
         anchors.verticalCenter: parent.verticalCenter
         width: 140
         value: (root.value - root.from) / (root.to - root.from)

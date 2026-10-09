@@ -13,6 +13,7 @@ import qs.services
 // gauge) and both were a whole island for a figure the ears already know.
 BarItem {
     id: root
+    name: "Audio"
 
     // The level the waves only hint at; which device is the popup's to say.
     tooltip: !Audio.connected ? "No output" : Audio.muted ? "Muted" : `Volume ${Audio.volume}%`

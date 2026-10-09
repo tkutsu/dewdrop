@@ -10,6 +10,7 @@ import qs.components
 // there is no process behind it at all.
 BarItem {
     id: root
+    name: "Caffeine"
 
     readonly property bool active: Caffeine.active
 

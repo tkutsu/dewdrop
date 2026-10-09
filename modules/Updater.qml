@@ -7,6 +7,7 @@ import qs.services
 // custom/updater. The upgrade itself still runs taskbar-update.sh in a kitty
 // window — that half of the script is the action, not bar plumbing.
 BarItem {
+    name: "Updates"
 
     tooltip: {
         if (Updates.trouble !== "")

@@ -182,6 +182,7 @@ BarItem {
             // than clicking on nothing.
             ClickArea {
                 id: pointer
+                name: entry.modelData.title || entry.modelData.tooltipTitle || entry.modelData.id || "Tray item"
                 anchors.fill: parent
                 anchors.leftMargin: -Theme.gap / 2
                 anchors.rightMargin: -Theme.gap / 2

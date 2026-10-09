@@ -284,6 +284,7 @@ OverlayWindow {
 
                     TextInput {
                         id: filter
+                        Accessible.name: "Search settings"
 
                         anchors.fill: parent
                         anchors.leftMargin: 26
@@ -331,6 +332,7 @@ OverlayWindow {
 
                     PopupRow {
                         id: tab
+                        name: tab.modelData.title
 
                         required property var modelData
                         required property int index

@@ -8,6 +8,7 @@ import qs.services
 // Unread mail, with the threads themselves in the popup. A click on the icon
 // opens the mail popup, a right click Gmail itself.
 BarItem {
+    name: "Mail"
     // #custom-email.loading { opacity: 0.55 }
     opacity: Email.stale ? Theme.dimOpacity : 1
 

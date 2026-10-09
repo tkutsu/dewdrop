@@ -85,6 +85,11 @@ Popup {
             id: arrowHover
         }
 
+        Accessible.role: Accessible.Button
+        Accessible.name: arrow.text === "‹" ? "Previous month" : "Next month"
+        Accessible.onPressAction: if (enabled && visible)
+            arrow.step()
+
         TapHandler {
             onTapped: arrow.step()
         }
@@ -136,6 +141,11 @@ Popup {
 
                 // Clicking the title comes back to the current month, which is
                 // otherwise a lot of arrow presses away.
+                Accessible.role: Accessible.Button
+                Accessible.name: "Current month"
+                Accessible.onPressAction: if (enabled && visible)
+                    root.offset = 0
+
                 TapHandler {
                     onTapped: root.offset = 0
                 }
@@ -206,6 +216,11 @@ Popup {
                                 root.hoverDay = "";
                         }
                     }
+
+                    Accessible.role: Accessible.Button
+                    Accessible.name: Qt.formatDateTime(dayCell.day, "dddd d MMMM yyyy")
+                    Accessible.onPressAction: if (enabled && visible)
+                        root.openDay(dayCell.day)
 
                     TapHandler {
                         onTapped: root.openDay(dayCell.day)

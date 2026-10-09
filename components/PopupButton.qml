@@ -15,6 +15,7 @@ Item {
 
     property string glyph: ""
     property string label: ""
+    property string name: root.label
     // Drawn but not answering. A control with nothing to do right now stays
     // where it is and goes faint, rather than leaving and letting its
     // neighbours slide under a pointer already on its way to them.
@@ -35,6 +36,12 @@ Item {
     readonly property bool hovered: hover.hovered
 
     signal tapped
+
+    Accessible.role: Accessible.Button
+    Accessible.name: root.name
+    Accessible.ignored: root.name === "" || !root.live
+    Accessible.onPressAction: if (root.live && root.enabled && root.visible)
+        root.tapped()
 
     // A run of plain controls is laid out on a fixed pitch so the columns line
     // up down a list; a framed one is as wide as what it says, and square
