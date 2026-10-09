@@ -9,7 +9,7 @@ Item {
     id: graph
 
     property var hours: []
-    property var scaleHours: graph.hours
+    property var scaleHours: graph.plotHours
     property bool feelsLike: false
     property real contentOffset: 0
     property bool showAxes: true
@@ -26,8 +26,11 @@ Item {
     implicitHeight: stack.implicitHeight
     readonly property double start: graph.hours[0]?.at ?? 0
     readonly property double end: graph.hours.length ? graph.hours[graph.hours.length - 1].at + 3600 : graph.start
+    // Midnight belongs to both plot edges, joining consecutive days at one point.
+    readonly property var nextHour: graph.hours.length ? Weather.allHours.find(hour => hour.at === graph.end) ?? null : null
+    readonly property var plotHours: graph.nextHour ? graph.hours.concat([graph.nextHour]) : graph.hours
     readonly property bool showsNow: graph.hours.length > 0 && Weather.now >= graph.start && Weather.now < graph.end
-    readonly property real nowX: 2 + Math.max(0, Math.min(1, (Weather.now - graph.start) / Math.max(1, graph.end - graph.start))) * (graph.plotWidth - 4)
+    readonly property real nowX: Math.max(0, Math.min(1, (Weather.now - graph.start) / Math.max(1, graph.end - graph.start))) * graph.plotWidth
     readonly property var iconRanges: Weather.hourRanges(graph.hours, "icon")
     property Item hoveredPlot: null
     readonly property var currentHour: graph.hours.includes(Weather.thisHour) ? Weather.thisHour : null
@@ -36,7 +39,7 @@ Item {
         if (!graph.hoveredPlot || !graph.hours.length)
             return null;
         const plot = graph.hoveredPlot;
-        const fraction = Math.max(0, Math.min(1, (plot.pointerX - 2) / Math.max(1, plot.width - 4)));
+        const fraction = Math.max(0, Math.min(1, plot.pointerX / Math.max(1, plot.width)));
         const at = graph.start + fraction * (graph.end - graph.start);
         return graph.hours.reduce((nearest, hour) => Math.abs(hour.at - at) < Math.abs(nearest.at - at) ? hour : nearest, graph.hours[0]);
     }
@@ -105,8 +108,8 @@ Item {
                 delegate: Item {
                     id: interval
                     required property var modelData
-                    x: graph.contentOffset + 2 + (modelData.start - graph.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
-                    width: (modelData.end - modelData.start) / Math.max(1, graph.end - graph.start) * (graph.plotWidth - 4)
+                    x: graph.contentOffset + (modelData.start - graph.start) / Math.max(1, graph.end - graph.start) * graph.plotWidth
+                    width: (modelData.end - modelData.start) / Math.max(1, graph.end - graph.start) * graph.plotWidth
                     height: parent.height
                     readonly property bool hasRange: modelData.end - modelData.start > 3600
                     opacity: modelData.end <= Weather.now ? 0.35 : 0.8
@@ -222,12 +225,12 @@ Item {
                             x: graph.contentOffset
                             width: parent.width
                             height: parent.height
-                            readonly property var hours: graph.hours
+                            readonly property var hours: graph.plotHours
                             readonly property double now: Weather.now
                             readonly property color seriesColor: series.modelData.color
                             readonly property color futureColor: Qt.rgba(seriesColor.r, seriesColor.g, seriesColor.b, 0.8)
                             readonly property color pastColor: Qt.rgba(seriesColor.r * 0.65, seriesColor.g * 0.65, seriesColor.b * 0.65, 0.4)
-                            readonly property real passedX: graph.end > graph.start ? Math.max(0, Math.min(width, 2 + (now - graph.start) / (graph.end - graph.start) * (width - 4))) : now > graph.start ? width : 0
+                            readonly property real passedX: graph.end > graph.start ? Math.max(0, Math.min(width, (now - graph.start) / (graph.end - graph.start) * width)) : now > graph.start ? width : 0
                             readonly property real low: series.low
                             readonly property real high: series.high
                             readonly property color gridColor: Qt.rgba(Theme.stroke.r, Theme.stroke.g, Theme.stroke.b, Theme.stroke.a * 0.45)
@@ -235,7 +238,7 @@ Item {
                             readonly property var hoveredHour: graph.hoveredHour
                             readonly property var hoveredValue: hoveredHour ? hoveredHour[series.modelData.key] : null
                             readonly property real hoverY: typeof hoveredValue === "number" && Number.isFinite(hoveredValue) ? 2 + (high - hoveredValue) / (high - low) * (height - 4) : height / 2
-                            readonly property real hoverX: hoveredHour && graph.end > graph.start ? 2 + (hoveredHour.at - graph.start) / (graph.end - graph.start) * (width - 4) : width / 2
+                            readonly property real hoverX: hoveredHour && graph.end > graph.start ? (hoveredHour.at - graph.start) / (graph.end - graph.start) * width : width / 2
                             // Everything onPaint reads, so any change repaints once.
                             readonly property var paintInputs: [hours, now, low, high, width, height, pastColor, futureColor, gridColor]
                             onPaintInputsChanged: requestPaint()
@@ -269,8 +272,8 @@ Item {
                                 for (const tick of series.ticks) {
                                     const y = 2 + (high - tick) / (high - low) * (height - 4);
                                     ctx.beginPath();
-                                    ctx.moveTo(2, y);
-                                    ctx.lineTo(width - 2, y);
+                                    ctx.moveTo(0, y);
+                                    ctx.lineTo(width, y);
                                     ctx.stroke();
                                 }
                                 // Keep the series hue on both sides of now, dimming elapsed time.
@@ -286,7 +289,7 @@ Item {
                                             previous = null;
                                             continue;
                                         }
-                                        const x = graph.end > graph.start ? 2 + (hour.at - graph.start) / (graph.end - graph.start) * (width - 4) : width / 2;
+                                        const x = graph.end > graph.start ? (hour.at - graph.start) / (graph.end - graph.start) * width : width / 2;
                                         const y = 2 + (high - value) / (high - low) * (height - 4);
                                         const severe = series.isSevere(value);
                                         if (previous) {
