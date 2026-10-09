@@ -6,6 +6,7 @@ import qs.services as Services
 
 // The strongest condition forecast in the next six hours, between date and time.
 BarItem {
+    name: "Weather"
     settingsKey: "weather"
     quiet: true
     tooltip: Services.Weather.tooltip

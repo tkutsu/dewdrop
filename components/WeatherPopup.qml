@@ -161,6 +161,7 @@ Popup {
 
                 TextInput {
                     id: search
+                    Accessible.name: "Weather location"
                     anchors.fill: parent
                     anchors.margins: 8
                     color: Theme.fg
@@ -204,6 +205,7 @@ Popup {
                 model: Weather.locations
                 delegate: PopupRow {
                     id: place
+                    name: place.modelData.label
                     required property var modelData
                     width: root.bodyWidth
                     height: 32
@@ -234,6 +236,7 @@ Popup {
                 model: Weather.days
                 delegate: PopupRow {
                     id: daily
+                    name: "Forecast for " + daily.modelData.date
                     required property var modelData
                     required property int index
                     width: Math.floor((root.bodyWidth - week.spacing * (Weather.days.length - 1)) / Math.max(1, Weather.days.length))

@@ -121,6 +121,7 @@ Popup {
 
         delegate: PopupRow {
             id: row
+            name: "Complete " + row.modelData.title
 
             required property var modelData
 

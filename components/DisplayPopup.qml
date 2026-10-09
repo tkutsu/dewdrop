@@ -37,6 +37,7 @@ Popup {
         Slider {
             width: root.bodyWidth - 8 - 10 - 34
             anchors.verticalCenter: parent.verticalCenter
+            name: "Brightness"
             value: NightMode.brightness / 100
             wheelStep: 0.05
             onMoved: value => NightMode.setBrightness(value * 100)
@@ -70,6 +71,7 @@ Popup {
 
         TimeDial {
             id: start
+            name: "Night mode start"
             minute: NightMode.startMinute
             other: end.draftMinute
             onEdited: NightMode.queueSchedule(start.value, end.value)
@@ -83,6 +85,7 @@ Popup {
 
         TimeDial {
             id: end
+            name: "Night mode end"
             minute: NightMode.endMinute
             other: start.draftMinute
             onEdited: NightMode.queueSchedule(start.value, end.value)
@@ -91,6 +94,7 @@ Popup {
 
     component TimeDial: Rectangle {
         id: dial
+        property string name: ""
         property int minute: 0
         property int draftMinute: minute
         property int other: -1
@@ -126,13 +130,18 @@ Popup {
         Column {
             id: arrows
             anchors.right: parent.right
-            TimeArrow { objectName: "increase"; direction: 1; onStepped: dial.step(direction) }
-            TimeArrow { objectName: "decrease"; direction: -1; onStepped: dial.step(direction) }
+            TimeArrow { name: "Increase " + dial.name.toLowerCase(); objectName: "increase"; direction: 1; onStepped: dial.step(direction) }
+            TimeArrow { name: "Decrease " + dial.name.toLowerCase(); objectName: "decrease"; direction: -1; onStepped: dial.step(direction) }
         }
     }
 
     component TimeArrow: Item {
         id: arrow
+        property string name: ""
+        Accessible.role: Accessible.Button
+        Accessible.name: arrow.name
+        Accessible.onPressAction: if (arrow.enabled && arrow.visible)
+            arrow.stepped()
         property int direction: 1
         property double heldSince: 0
         property real repeatDelay: 450

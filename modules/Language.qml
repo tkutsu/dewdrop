@@ -7,6 +7,7 @@ import qs.services
 // custom/language: left click lists the layouts, right click and the wheel
 // step through them.
 BarItem {
+    name: "Keyboard layout"
     tooltip: Keyboard.layout
     popup: LanguagePopup {}
 

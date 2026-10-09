@@ -104,6 +104,23 @@ Popup {
 
                 required property QsMenuEntry modelData
 
+                Accessible.role: Accessible.MenuItem
+                Accessible.name: row.modelData.text
+                Accessible.ignored: row.modelData.isSeparator
+                Accessible.onPressAction: row.activate()
+
+                // A click and an accessibility press share the submenu and blink.
+                function activate(): void {
+                    if (row.modelData.isSeparator || !row.modelData.enabled || root.chosen !== null || !row.visible)
+                        return;
+                    if (row.modelData.hasChildren) {
+                        row.submenuOpen = true;
+                        return;
+                    }
+                    root.chosen = row;
+                    blink.start();
+                }
+
                 // pad is the air on each side of a row's text, and half of it
                 // is the air above and below: a menu row is a target to point
                 // at rather than something to read around, and the tighter
@@ -219,17 +236,7 @@ Popup {
 
                 TapHandler {
                     enabled: !row.modelData.isSeparator && row.modelData.enabled && root.chosen === null
-                    onTapped: {
-                        // A row with a submenu opens it, as it does on hover;
-                        // a click is how you ask for it when the hover did not
-                        // register, and it is what every other menu does.
-                        if (row.modelData.hasChildren) {
-                            row.submenuOpen = true;
-                            return;
-                        }
-                        root.chosen = row;
-                        blink.start();
-                    }
+                    onTapped: row.activate()
                 }
 
                 // The Mac's acknowledgement of a choice: the row's highlight

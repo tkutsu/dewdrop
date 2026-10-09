@@ -1,4 +1,5 @@
 //@ pragma Env QSG_RENDER_LOOP=threaded
+//@ pragma Env QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 
 // Drive popup motion and fades at the display refresh rate.
 import QtQuick

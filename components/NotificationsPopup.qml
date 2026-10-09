@@ -202,6 +202,10 @@ Popup {
 
             MouseArea {
                 anchors.fill: parent
+                Accessible.role: Accessible.Button
+                Accessible.name: "Collapse " + group.modelData + " notifications"
+                Accessible.onPressAction: if (enabled && visible)
+                    root.expandedGroup = ""
                 onClicked: root.expandedGroup = ""
             }
 
@@ -318,6 +322,10 @@ Popup {
 
         MouseArea {
             anchors.fill: parent
+            Accessible.role: Accessible.Button
+            Accessible.name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
+            Accessible.onPressAction: if (enabled && visible)
+                card.others.length > 0 ? card.openGroup() : Notifications.activate(card.n)
             onClicked: card.others.length > 0 ? card.openGroup() : Notifications.activate(card.n)
         }
 
@@ -411,6 +419,7 @@ Popup {
 
                     PopupButton {
                         id: dismiss
+                        name: "Dismiss notification"
 
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter

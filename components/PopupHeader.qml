@@ -35,6 +35,11 @@ Item {
     Item {
         id: target
 
+        Accessible.role: Accessible.Button
+        Accessible.name: "Add " + root.title.toLowerCase()
+        Accessible.onPressAction: if (root.addable && root.enabled && root.visible)
+            root.add()
+
         visible: root.addable
         anchors.right: parent.right
         width: root.addOnly ? parent.width : plus.width

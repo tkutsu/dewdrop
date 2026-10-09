@@ -17,6 +17,14 @@ MouseArea {
     id: root
 
     property var actions: ({})
+    property string name: ""
+    property var pressAction: root.actions[Qt.LeftButton]
+
+    Accessible.role: Accessible.Button
+    Accessible.name: root.name
+    Accessible.ignored: root.name === "" || !(root.acceptedButtons & Qt.LeftButton) || !root.pressAction
+    Accessible.onPressAction: if (root.enabled && root.visible)
+        root.pressAction?.()
 
     readonly property bool acting: pressed && !!root.actions[pressedButtons]
 

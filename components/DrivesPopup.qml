@@ -38,6 +38,7 @@ Popup {
 
         delegate: PopupRow {
             id: row
+            name: row.modelData.name
 
             required property var modelData
             readonly property bool mounted: modelData.total > 0
@@ -86,6 +87,7 @@ Popup {
 
             PopupButton {
                 id: eject
+                name: "Eject " + row.modelData.name
 
                 anchors.right: parent.right
                 anchors.rightMargin: 4
