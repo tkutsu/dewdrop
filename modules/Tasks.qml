@@ -15,6 +15,7 @@ import qs.services
 // something that was never set up is one more thing to wonder about.
 BarItem {
     id: root
+    name: "Tasks"
 
     present: Tasks.configured
     quiet: Tasks.count === 0

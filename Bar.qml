@@ -142,6 +142,7 @@ PanelWindow {
         }
 
         BarItem {
+            name: "Timers"
             popup: TimerPopup {}
             actions: clock.actions
 

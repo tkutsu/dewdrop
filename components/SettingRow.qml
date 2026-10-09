@@ -28,6 +28,15 @@ Item {
 
     required property var setting
 
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: root.setting.title
+    Accessible.ignored: root.setting.type !== "toggle"
+    Accessible.checked: root.setting.type === "toggle" && root.setting.get() === true
+    Accessible.onPressAction: if (root.setting.type === "toggle" && root.enabled && root.visible)
+        root.setting.set(!root.setting.get())
+    Accessible.onToggleAction: if (root.setting.type === "toggle" && root.enabled && root.visible)
+        root.setting.set(!root.setting.get())
+
     readonly property var controls: ({
             toggle: "SettingSwitch.qml",
             choice: "SettingChoice.qml",

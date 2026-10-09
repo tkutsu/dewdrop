@@ -13,6 +13,7 @@ import qs.services
 // icon out of the row.
 BarItem {
     id: root
+    name: "Bluetooth"
 
     settingsKey: "bluetooth"
     present: Bluetooth.present

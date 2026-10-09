@@ -8,6 +8,7 @@ import qs.services
 // The date opens the calendar; the neighbouring time opens timers.
 BarItem {
     id: root
+    name: "Calendar"
 
     popup: Calendar {}
 
