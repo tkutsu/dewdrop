@@ -25,7 +25,7 @@ Popup {
     // only place where a whole machine has to fit under a pointer. The caption
     // size rather than a number of its own, so it moves when that does.
     readonly property int fontSize: Theme.captionSize
-    readonly property int rows: 5
+    readonly property int rows: 7
 
     // The service only samples processes and the card while someone is
     // looking. Counted in a beat after opening rather than at once: the first
