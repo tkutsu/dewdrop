@@ -76,7 +76,7 @@ Popup {
         property var incomingDay: null
         property int direction: 1
         property real progress: 0
-        readonly property var scaleHours: (reel.displayedDay?.hours ?? []).concat(reel.incomingDay?.hours ?? [])
+        readonly property var scaleHours: outgoing.plotHours.concat(incoming.plotHours)
 
         // Keep the old forecast intact until its replacement has slid into place.
         function syncDay(): void {
