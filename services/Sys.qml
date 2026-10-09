@@ -166,7 +166,12 @@ Singleton {
     // out between the first "(" and the last ")", and the numbered fields are
     // counted from what is left. ppid is field 4, utime + stime is 14 + 15, and
     // rss is 24.
-    readonly property string procScript: "awk '{n=$0;sub(/.*\\) /,\"\",n);split(n,f,\" \");c=$0;sub(/^[0-9]+ \\(/,\"\",c);sub(/\\)[^)]*$/,\"\",c);print $1,f[2],f[12]+f[13],f[22],c}' /proc/[0-9]*/stat 2>/dev/null"
+    //
+    // cat reads the files rather than awk: a process can exit between the
+    // glob and the open, and gawk takes a file it cannot open as fatal and
+    // stops there, dropping every pid above it from the sample. That was about
+    // one sample in a hundred, and it emptied the lists. cat skips the file.
+    readonly property string procScript: "cat /proc/[0-9]*/stat 2>/dev/null | awk '{n=$0;sub(/.*\\) /,\"\",n);split(n,f,\" \");c=$0;sub(/^[0-9]+ \\(/,\"\",c);sub(/\\)[^)]*$/,\"\",c);print $1,f[2],f[12]+f[13],f[22],c}'"
 
     // What each process is running, for the roll-up in rollUp. find rather
     // than a readlink per process: one command for all of them, and %l comes
