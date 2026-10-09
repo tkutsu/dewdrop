@@ -306,11 +306,15 @@ BarItem {
         property real closedAt: Infinity
         readonly property real closing: strip.implicitWidth - buttons.implicitWidth
 
+        // Let go once the spring is done, but not the moment it stops: a new
+        // target stops and restarts it. A window moved out of a workspace
+        // into another gives two at once, one for the workspace that goes
+        // and one for the icon that arrives.
         Connections {
             target: stripResize
             function onRunningChanged() {
                 if (!stripResize.running)
-                    strip.closedAt = Infinity;
+                    unclose.restart();
             }
         }
 
