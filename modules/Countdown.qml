@@ -22,6 +22,7 @@ import qs.services
 // the phone settings, are the clock's popup.
 BarItem {
     id: root
+    name: "Dismiss ringing timer"
 
     // For the pill around it, which is this module and nothing else and so
     // is drawn into the clock with it once nothing is set: the bar draws the
@@ -123,6 +124,11 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: Math.max(glyph.implicitWidth, mark.implicitWidth) + Theme.mediaGap
         transform: Translate { y: slotTap.pressed ? Theme.pressDip : 0 }
+
+        Accessible.role: Accessible.Button
+        Accessible.name: "Cancel timer"
+        Accessible.onPressAction: if (slotTap.enabled && enabled && visible)
+            root.dismiss()
 
         TapHandler {
             id: slotTap
@@ -238,6 +244,11 @@ BarItem {
             color: Theme.label2
             maxWidth: Theme.mediaTitleWidth
 
+            Accessible.role: Accessible.Button
+            Accessible.name: root.target?.running ? "Pause timer" : "Resume timer"
+            Accessible.onPressAction: if (nameTap.enabled && enabled && visible)
+                root.hold()
+
             TapHandler {
                 id: nameTap
                 enabled: !root.ringing && root.handsOut && root.shownName !== ""
@@ -275,6 +286,11 @@ BarItem {
             height: parent.height
             text: root.target?.running ? Theme.glyph.paused : Theme.glyph.playing
             transform: Translate { y: holdTap.pressed ? Theme.pressDip : 0 }
+
+            Accessible.role: Accessible.Button
+            Accessible.name: root.target?.running ? "Pause timer" : "Resume timer"
+            Accessible.onPressAction: if (holdTap.enabled && enabled && visible)
+                root.hold()
 
             TapHandler {
                 id: holdTap

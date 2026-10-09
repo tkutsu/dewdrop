@@ -626,6 +626,15 @@ BarItem {
 
                     MouseArea {
                         id: press
+                        Accessible.role: Accessible.Button
+                        Accessible.name: "Workspace " + button.modelData.id
+                        Accessible.onPressAction: {
+                            if (!enabled || !visible)
+                                return;
+                            root.collapse();
+                            if (!button.active)
+                                Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`);
+                        }
                         anchors.fill: parent
                         // The strip's left padding belongs to the first workspace, not
                         // to the strip: an item may reach past its parent as long as
@@ -758,6 +767,21 @@ BarItem {
 
                                 MouseArea {
                                     id: tap
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: app.icon.expanded
+                                        ? (Hyprland.toplevels.values.find(t => t.address === app.modelData)?.title || app.entry?.name || app.windowClass)
+                                        : (app.entry?.name || app.windowClass)
+                                    Accessible.onPressAction: {
+                                        if (!enabled || !visible)
+                                            return;
+                                        const addresses = app.icon.addresses;
+                                        if (addresses.length > 1)
+                                            root.expand(button.modelData, app.windowClass);
+                                        else if (!app.icon.expanded)
+                                            root.collapse();
+                                        if (addresses.length > 0)
+                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addresses[0]}" })`);
+                                    }
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     preventStealing: true

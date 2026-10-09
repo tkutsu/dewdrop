@@ -9,6 +9,7 @@ import qs.services
 // full each drive is and takes it out safely.
 BarItem {
     id: root
+    name: "Devices"
 
     settingsKey: "drives"
     present: Drives.present

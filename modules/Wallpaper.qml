@@ -6,6 +6,7 @@ import qs.services
 
 // Open the wallpaper picker and colour controls.
 BarItem {
+    name: "Wallpaper"
     tooltip: "Wallpaper"
     popup: WallpaperPopup {}
     // A tool, like the screenshot button: nothing about it is ever news.

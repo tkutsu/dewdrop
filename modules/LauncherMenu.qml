@@ -516,6 +516,7 @@ OverlayWindow {
 
             TextInput {
                 id: input
+                Accessible.name: "Launcher query"
 
                 width: parent.width
                 height: root.inputHeight
@@ -1019,6 +1020,11 @@ OverlayWindow {
                     MouseArea {
                         anchors.fill: parent
                         hoverEnabled: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: row.modelData.title || row.modelData.subtitle || "Launcher result"
+                        Accessible.ignored: row.modelData.kind === "note"
+                        Accessible.onPressAction: if (enabled && visible)
+                            Launcher.activate(row.index)
 
                         onPositionChanged: function (mouse) {
                             const p = mapToItem(null, mouse.x, mouse.y);

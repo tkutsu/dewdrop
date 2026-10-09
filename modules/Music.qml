@@ -269,6 +269,11 @@ BarItem {
             // cancelled the tap before the button came up. BarItem's own click
             // never had this: what dips there is the contents, not the
             // MouseArea.
+            Accessible.role: Accessible.Button
+            Accessible.name: "Previous track"
+            Accessible.onPressAction: if (prevTap.enabled && enabled && visible)
+                Mpd.prev()
+
             TapHandler {
                 id: prevTap
                 enabled: root.handsOut
@@ -337,6 +342,11 @@ BarItem {
                     easing.type: Easing.InOutCubic
                 }
             }
+
+            Accessible.role: Accessible.Button
+            Accessible.name: Mpd.state === "play" ? "Pause music" : "Play music"
+            Accessible.onPressAction: if (playTap.enabled && enabled && visible)
+                Mpd.toggle()
 
             TapHandler {
                 id: playTap
@@ -420,6 +430,11 @@ BarItem {
             implicitWidth: title.implicitWidth
             transform: Translate { y: popupTap.pressed ? Theme.pressDip : 0 }
 
+            Accessible.role: Accessible.Button
+            Accessible.name: "Music"
+            Accessible.onPressAction: if (enabled && visible)
+                root.togglePopup()
+
             TapHandler {
                 id: popupTap
                 margin: Theme.pressDip
@@ -492,6 +507,11 @@ BarItem {
             height: parent.height
             text: Theme.glyph.mediaNext
             transform: Translate { y: nextTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
+
+            Accessible.role: Accessible.Button
+            Accessible.name: "Next track"
+            Accessible.onPressAction: if (nextTap.enabled && enabled && visible)
+                Mpd.next()
 
             TapHandler {
                 id: nextTap

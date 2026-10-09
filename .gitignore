@@ -2,3 +2,6 @@
 settings.json
 
 __pycache__/
+
+# Scratch windows, private buses and tree dumps from accessibility checks.
+.a11y-test/

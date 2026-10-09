@@ -9,6 +9,7 @@ import qs.services
 // for last — with the machine behind it in the popup.
 BarItem {
     id: root
+    name: "System monitor"
     // The figure the tube stands for, and which chip it is reading.
     tooltip: Sys.temp > 0 ? `CPU ${Math.round(Sys.temp)} °C` : "No temperature sensor"
     popup: SysPopup {}
