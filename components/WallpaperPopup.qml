@@ -251,7 +251,7 @@ Popup {
                 // Decoded at cell size: the thumbnail is 512 wide, and
                 // until it exists this is all that stands between a cell
                 // and a full 4K wallpaper in memory.
-                sourceSize.width: root.cellWidth * 2
+                sourceSize.width: Math.ceil(root.cellWidth * root.devicePixelRatio)
                 opacity: cell.current || hover.hovered ? 1 : 0.6
             }
 
@@ -322,7 +322,7 @@ Popup {
                 source: Wallpaper.current ? "file://" + Wallpaper.thumbOf(Wallpaper.current) : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
-                sourceSize.width: preview.width * 2
+                sourceSize.width: Math.ceil(preview.width * root.devicePixelRatio)
                 opacity: 0.35
             }
 
@@ -344,7 +344,7 @@ Popup {
                     source: Wallpaper.current ? "file://" + Wallpaper.thumbOf(Wallpaper.current) : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
-                    sourceSize.width: preview.width * 2
+                    sourceSize.width: Math.ceil(preview.width * root.devicePixelRatio)
                 }
 
                 Rectangle {
