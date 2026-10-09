@@ -52,7 +52,7 @@ Singleton {
     property var drives: []
 
     // [{ name, n, cpu, rss }], a program and its workers added together under
-    // the program's name: a browser is a dozen processes and fills a five row
+    // the program's name: a browser is a dozen processes and fills a seven row
     // list on its own otherwise, under a name ("Isolated Web Co") that is not
     // even the one on the window. `cpu` is in cores, the way top counts it —
     // 1.5 is a thread and a half. `rss` is summed resident memory, so pages a
@@ -582,10 +582,10 @@ Singleton {
         const groups = Object.values(byName);
         // Half a per cent of one thread. High enough to keep the list off the
         // hundreds of processes that did nothing at all in the last second, low
-        // enough that an idle machine still fills its five rows rather than
+        // enough that an idle machine still fills its seven rows rather than
         // leaving four of them as a hole above the next section.
-        root.topCpu = groups.filter(g => g.cpu >= 0.005).sort((a, b) => b.cpu - a.cpu).slice(0, 5);
-        root.topMem = groups.filter(g => g.rss > 0).sort((a, b) => b.rss - a.rss).slice(0, 5);
+        root.topCpu = groups.filter(g => g.cpu >= 0.005).sort((a, b) => b.cpu - a.cpu).slice(0, 7);
+        root.topMem = groups.filter(g => g.rss > 0).sort((a, b) => b.rss - a.rss).slice(0, 7);
     }
 
     // The chip's own name for itself, read once — it is not going to change,
