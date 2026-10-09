@@ -482,7 +482,7 @@ Popup {
                             anchors.fill: parent
                             source: picture.isPreview ? picture.source : ""
                             fillMode: Image.PreserveAspectFit
-                            sourceSize.width: Math.ceil(preview.width * 2)
+                            sourceSize.width: Math.ceil(preview.width * (QsWindow.window?.devicePixelRatio ?? 1))
                             asynchronous: true
                         }
                     }

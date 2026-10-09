@@ -368,10 +368,10 @@ BarItem {
                     anchors.fill: parent
                     source: root.shownCover
                     fillMode: Image.PreserveAspectCrop
-                    // Decoded at twice the size it is drawn, not at the size of
-                    // the scan: some of these are 1400px across.
-                    sourceSize.width: parent.width * 2
-                    sourceSize.height: parent.height * 2
+                    // Decoded at the size it is drawn in screen pixels, not at
+                    // the size of the scan: some of these are 1400px across.
+                    sourceSize.width: Math.ceil(parent.width * (QsWindow.window?.devicePixelRatio ?? 1))
+                    sourceSize.height: Math.ceil(parent.height * (QsWindow.window?.devicePixelRatio ?? 1))
                     asynchronous: true
                     smooth: true
                     mipmap: true
