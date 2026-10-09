@@ -132,11 +132,15 @@ BarItem {
         dragWorkspaceId = -1;
     }
 
-    // Hit only workspace bodies, with the first one's screen-edge padding included.
-    function buttonAt(point): Item {
+    function inPill(point): bool {
         const local = root.mapFromItem(strip, point.x, point.y);
         const pillY = Theme.pillTop(root.height);
-        if (local.x < 0 || local.x >= root.width || local.y < pillY || local.y >= pillY + Theme.barHeight)
+        return local.x >= 0 && local.x < root.width && local.y >= pillY && local.y < pillY + Theme.barHeight;
+    }
+
+    // Hit only workspace bodies, with the first one's screen-edge padding included.
+    function buttonAt(point): Item {
+        if (!root.inPill(point))
             return null;
         for (let i = 0; i < workspaces.count; i++) {
             const button = workspaces.itemAt(i);
@@ -161,19 +165,71 @@ BarItem {
         return button && button.modelData !== dragWorkspace ? button : null;
     }
 
+    // An empty workspace is one icon's ink wide.
+    readonly property int emptyWidth: Math.round(Theme.iconSize * Theme.iconInk)
+
+    // The gap between two workspaces is a drop of its own: the window gets a
+    // workspace there, and the ones after it move up a number. Returns the
+    // index of the workspace after the gap, or -1. Not offered either side of
+    // a workspace the window has to itself, which would come back the same.
+    //
+    // Hovered, the gap opens an empty workspace (see `opening`) and reaches
+    // over it, but not on to where the next workspace has gone: only as far
+    // as that workspace will be once the gap closes again. Otherwise leaving
+    // the gap to the right would close it and send the workspace you were
+    // reaching for back past the pointer.
+    function gapAt(point): int {
+        if (!root.inPill(point))
+            return -1;
+        for (let i = 1; i < workspaces.count; i++) {
+            const before = workspaces.itemAt(i - 1);
+            const after = workspaces.itemAt(i);
+            if (!before || !after)
+                continue;
+            const closed = after.x - after.gapBefore;
+            const reach = after.opening * (Math.min(root.emptyWidth, after.width) - 1);
+            if (point.x < before.x + before.width || point.x >= closed + reach)
+                continue;
+            const alone = Hyprland.toplevels.values.filter(t => root.workspaceOf(t) === root.dragWorkspaceId).length === 1;
+            const from = workspaces.model.values.indexOf(root.dragWorkspace);
+            return alone && (i === from || i === from + 1) ? -1 : i;
+        }
+        return -1;
+    }
+
+    readonly property int insertAt: dragging ? root.gapAt(dragPoint) : -1
+    onInsertAtChanged: root.startFold()
+
+    // Where the drop line stands: in the middle of an opened gap, or between
+    // icons where the window will show up in the workspace it lands in.
+    readonly property real dropX: {
+        const before = workspaces.itemAt(root.insertAt - 1);
+        const after = workspaces.itemAt(root.insertAt);
+        if (root.insertAt !== -1 && before && after)
+            return (before.x + before.width + after.x) / 2;
+        return root.dropTarget !== null && root.dragSource !== null
+            ? root.dropTarget.x + root.dropTarget.slotX(root.dragSource.windowClass, root.dragAddress)
+            : NaN;
+    }
+
     // Capture the ID at release; membership follows the workspace object through compaction.
+    // A drop in a gap names the workspace after it, which makes way.
     function finishDrag(point): void {
-        const button = root.buttonAt(point);
+        const gap = root.gapAt(point);
+        const between = gap !== -1;
+        const button = between ? workspaces.itemAt(gap) : root.buttonAt(point);
         const fresh = button !== null && button === newWorkspace;
         const destination = button?.modelData ?? null;
         const id = fresh ? root.nextWorkspaceId() : destination?.id;
         const address = dragAddress;
-        const valid = dragging && dragValid && (fresh || destination !== dragWorkspace)
+        const valid = dragging && dragValid && (fresh || between || destination !== dragWorkspace)
             && Number.isInteger(id) && id > 0 && /^[0-9a-fA-F]+$/.test(address);
         cancelDrag();
         if (!valid)
             return;
-        Hyprland.dispatch(`move_window_to(${id}, "0x${address}")`);
+        Hyprland.dispatch(between
+            ? `insert_window_at(${id}, "0x${address}")`
+            : `move_window_to(${id}, "0x${address}")`);
     }
 
     HoverHandler {
@@ -510,7 +566,23 @@ BarItem {
                         return false;
                     }
 
+                    // How far an empty workspace has opened in front of this
+                    // one, 0..1, while a window is held over the gap before it
+                    // (see root.insertAt). It draws nothing, the way an empty
+                    // workspace does; the drop line stands in it.
+                    property real opening: root.insertAt === button.index ? 1 : 0
+
+                    Behavior on opening {
+                        NumberAnimation {
+                            duration: Theme.markMs * 0.6
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    readonly property int gapBefore: Math.round(button.opening * (root.emptyWidth + Theme.workspaceGap))
+
                     Layout.fillHeight: true
+                    Layout.leftMargin: button.gapBefore
                     implicitWidth: row.implicitWidth
 
                     // See strip.closedAt.
@@ -576,7 +648,7 @@ BarItem {
                         Item {
                             visible: button.apps.length === 0 && !emptyBounce.running
                             Layout.fillHeight: true
-                            implicitWidth: Math.round(Theme.iconSize * Theme.iconInk)
+                            implicitWidth: root.emptyWidth
                         }
 
                         // Urgency from ignored apps still needs a visible signal.
@@ -757,7 +829,7 @@ BarItem {
                 visible: root.dragging && workspaces.model.values
                     .every(w => Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id))
                 Layout.fillHeight: true
-                implicitWidth: Math.round(Theme.iconSize * Theme.iconInk)
+                implicitWidth: root.emptyWidth
 
                 function slotX(cls: string, address: string): real {
                     return width / 2;
@@ -767,9 +839,7 @@ BarItem {
 
         // Where the dragged window will land.
         DropLine {
-            target: root.dropTarget !== null && root.dragSource !== null
-                ? root.dropTarget.x + root.dropTarget.slotX(root.dragSource.windowClass, root.dragAddress)
-                : NaN
+            target: root.dropX
         }
 
         // Draw outside the layout so the ghost never changes workspace widths or takes input.
