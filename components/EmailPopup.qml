@@ -145,10 +145,10 @@ Popup {
 
                 delegate: PopupRow {
                     id: row
-                    name: row.modelData.subject || "Mail thread"
 
                     required property var modelData
 
+                    name: row.modelData.subject || "Mail thread"
                     width: root.bodyWidth
                     readonly property bool isOpen: root.expanded === row.modelData.id
                     readonly property real collapsedHeight: from.implicitHeight + subject.implicitHeight + lines.spacing + root.rowPad * 2

@@ -38,12 +38,12 @@ Popup {
 
         delegate: PopupRow {
             id: row
-            name: row.modelData.name
 
             required property var modelData
             readonly property bool mounted: modelData.total > 0
             readonly property bool ejecting: !!Drives.ejecting[modelData.disk]
 
+            name: row.modelData.name
             width: root.bodyWidth
             height: 40
             gesturePolicy: TapHandler.ReleaseWithinBounds

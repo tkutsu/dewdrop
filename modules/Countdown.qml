@@ -244,11 +244,8 @@ BarItem {
             color: Theme.label2
             maxWidth: Theme.mediaTitleWidth
 
-            Accessible.role: Accessible.Button
-            Accessible.name: root.target?.running ? "Pause timer" : "Resume timer"
-            Accessible.onPressAction: if (nameTap.enabled && enabled && visible)
-                root.hold()
-
+            // A second way to the pause beside it, so it is left out of the
+            // accessibility tree: one target there per action.
             TapHandler {
                 id: nameTap
                 enabled: !root.ringing && root.handsOut && root.shownName !== ""

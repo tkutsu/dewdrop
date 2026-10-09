@@ -58,6 +58,7 @@ Popup {
         id: arrow
 
         property alias text: glyph.text
+        property string name: ""
         signal step
 
         width: root.cell
@@ -86,7 +87,7 @@ Popup {
         }
 
         Accessible.role: Accessible.Button
-        Accessible.name: arrow.text === "‹" ? "Previous month" : "Next month"
+        Accessible.name: arrow.name
         Accessible.onPressAction: if (enabled && visible)
             arrow.step()
 
@@ -130,6 +131,7 @@ Popup {
             MonthStep {
                 anchors.left: parent.left
                 text: "‹"
+                name: "Previous month"
                 onStep: root.step(-1)
             }
 
@@ -154,6 +156,7 @@ Popup {
             MonthStep {
                 anchors.right: parent.right
                 text: "›"
+                name: "Next month"
                 onStep: root.step(1)
             }
         }
