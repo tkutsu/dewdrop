@@ -626,15 +626,6 @@ BarItem {
 
                     MouseArea {
                         id: press
-                        Accessible.role: Accessible.Button
-                        Accessible.name: "Workspace " + button.modelData.id
-                        Accessible.onPressAction: {
-                            if (!enabled || !visible)
-                                return;
-                            root.collapse();
-                            if (!button.active)
-                                Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`);
-                        }
                         anchors.fill: parent
                         // The strip's left padding belongs to the first workspace, not
                         // to the strip: an item may reach past its parent as long as
@@ -644,11 +635,20 @@ BarItem {
                         // the last takes the pill's right padding.
                         anchors.leftMargin: button.index === 0 ? -root.padLeft : -Math.ceil(Theme.workspaceGap / 2)
                         anchors.rightMargin: button.index === workspaces.count - 1 ? -root.padRight : -Math.floor(Theme.workspaceGap / 2)
-                        onPressed: root.collapse()
-                        onClicked: {
+                        function focusWorkspace(): void {
                             if (!button.active)
                                 Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`);
                         }
+
+                        Accessible.role: Accessible.Button
+                        Accessible.name: "Workspace " + button.modelData.id
+                        Accessible.onPressAction: if (enabled && visible) {
+                            root.collapse();
+                            press.focusWorkspace();
+                        }
+
+                        onPressed: root.collapse()
+                        onClicked: press.focusWorkspace()
                     }
 
                     RowLayout {
@@ -756,6 +756,7 @@ BarItem {
                                 // The app's name, the way the Dock labels its
                                 // icons.
                                 HoverPopup {
+                                    id: label
                                     anchorItem: app
                                     hovered: tap.containsMouse && !root.dragging
                                     pressed: tap.pressed || root.dragging
@@ -767,21 +768,6 @@ BarItem {
 
                                 MouseArea {
                                     id: tap
-                                    Accessible.role: Accessible.Button
-                                    Accessible.name: app.icon.expanded
-                                        ? (Hyprland.toplevels.values.find(t => t.address === app.modelData)?.title || app.entry?.name || app.windowClass)
-                                        : (app.entry?.name || app.windowClass)
-                                    Accessible.onPressAction: {
-                                        if (!enabled || !visible)
-                                            return;
-                                        const addresses = app.icon.addresses;
-                                        if (addresses.length > 1)
-                                            root.expand(button.modelData, app.windowClass);
-                                        else if (!app.icon.expanded)
-                                            root.collapse();
-                                        if (addresses.length > 0)
-                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addresses[0]}" })`);
-                                    }
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     preventStealing: true
@@ -789,18 +775,36 @@ BarItem {
                                     property string addressOnPress: ""
                                     property bool suppressClick: false
 
+                                    function focusWindow(address: string): void {
+                                        Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${address}" })`);
+                                    }
+
+                                    // The press's half: a bunched app opens out and its
+                                    // first window comes forward; anything else folds an
+                                    // open bunch away. True when a window is focused
+                                    // already, which leaves the click nothing to do.
+                                    function pressApp(): bool {
+                                        const addresses = app.icon.addresses;
+                                        if (addresses.length > 1) {
+                                            root.expand(button.modelData, app.windowClass);
+                                            tap.focusWindow(addresses[0]);
+                                            return true;
+                                        }
+                                        if (!app.icon.expanded)
+                                            root.collapse();
+                                        return false;
+                                    }
+
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: label.text
+                                    Accessible.onPressAction: if (enabled && visible && !tap.pressApp())
+                                        tap.focusWindow(app.icon.addresses[0])
+
                                     onPressed: mouse => {
-                                        suppressClick = false;
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
                                         const addresses = app.icon.addresses;
                                         addressOnPress = addresses.length === 1 ? addresses[0] : "";
-                                        if (addresses.length > 1) {
-                                            suppressClick = true;
-                                            root.expand(button.modelData, app.windowClass);
-                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${addresses[0]}" })`);
-                                        } else if (!app.icon.expanded) {
-                                            root.collapse();
-                                        }
+                                        suppressClick = tap.pressApp();
                                     }
 
                                     onPositionChanged: mouse => {
@@ -833,10 +837,8 @@ BarItem {
                                             root.cancelDrag();
                                     }
 
-                                    onClicked: {
-                                        if (!suppressClick)
-                                            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${app.icon.addresses[0]}" })`);
-                                    }
+                                    onClicked: if (!suppressClick)
+                                        tap.focusWindow(app.icon.addresses[0])
                                 }
                             }
                         }

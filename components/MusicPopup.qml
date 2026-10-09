@@ -776,16 +776,16 @@ Popup {
 
         delegate: PopupRow {
             id: row
-            name: "Play " + (row.modelData.title || "Track " + (row.index + 1))
-            onTapped: Mpd.playAt(row.modelData.pos)
 
             required property var modelData
             required property int index
 
             readonly property bool current: Mpd.songPos === row.index
 
+            name: "Play " + (row.modelData.title || "Track " + (row.index + 1))
             width: ListView.view.width
             height: root.rowHeight
+            onTapped: Mpd.playAt(row.modelData.pos)
             opacity: reorder.showing && row.index === reorder.from ? 0 : 1
             transform: Translate {
                 y: !reorder.showing ? 0 : row.index > reorder.from && row.index <= reorder.to ? -root.rowHeight : row.index < reorder.from && row.index >= reorder.to ? root.rowHeight : 0

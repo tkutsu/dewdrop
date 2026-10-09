@@ -121,10 +121,10 @@ Popup {
 
         delegate: PopupRow {
             id: row
-            name: "Complete " + row.modelData.title
 
             required property var modelData
 
+            name: "Complete " + row.modelData.title
             width: root.bodyWidth
             // As tall as the text it holds, never shorter than a single line's
             // worth of row. The text is what decides, and the dot and the day
