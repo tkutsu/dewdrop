@@ -1,5 +1,6 @@
 import QtQuick
 import Qt.labs.folderlistmodel
+import Quickshell
 import qs
 import qs.components
 
@@ -26,6 +27,7 @@ Item {
     // What to draw when the folder has no picture in it, so an artist with no
     // sleeve still gets the mark of what it is rather than an empty panel.
     property string glyph: ""
+    readonly property real dpr: QsWindow.window?.devicePixelRatio ?? 1
 
     // The four names first, and then whatever else is in there. Measured over
     // this library: 274 of the 760 folders holding music name their picture
@@ -105,11 +107,10 @@ Item {
                 anchors.fill: parent
                 source: root.cover
                 fillMode: Image.PreserveAspectCrop
-                // Decoded to twice the box it is drawn in, which is sharp on a
-                // scaled screen and still a fraction of what the 1400px scans
-                // in some of these folders would cost.
-                sourceSize.width: Math.round(root.width * 2)
-                sourceSize.height: Math.round(root.width * 2)
+                // Decoded at the box's size in screen pixels, a fraction of
+                // what the 1400px scans in some of these folders would cost.
+                sourceSize.width: Math.ceil(root.width * root.dpr)
+                sourceSize.height: Math.ceil(root.width * root.dpr)
                 // Off the render thread, so a slow decode cannot stall the
                 // list the arrow keys are moving.
                 asynchronous: true

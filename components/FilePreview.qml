@@ -122,10 +122,12 @@ Item {
     component Shot: Image {
         anchors.fill: parent
         fillMode: Image.PreserveAspectFit
-        // Decoded at twice the box, from the width alone: the height animates
-        // with the list and would re-decode the file every frame.
-        sourceSize.width: Math.round(width * 2)
-        sourceSize.height: Math.round(width * 2)
+        readonly property real dpr: QsWindow.window?.devicePixelRatio ?? 1
+        // Decoded at the box's size in screen pixels, from the width alone:
+        // the height animates with the list and would re-decode the file
+        // every frame.
+        sourceSize.width: Math.ceil(width * dpr)
+        sourceSize.height: Math.ceil(width * dpr)
         asynchronous: true
         smooth: true
         visible: opacity > 0
