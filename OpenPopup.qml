@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 
 // The bar item whose popup a click has opened, or null. One at a time, the
 // way a menu bar's menus are: opening one puts away whichever was up. Kept by
@@ -28,10 +29,14 @@ Singleton {
     // Clicks on a bar or in a popup are theirs to sort out.
     Connections {
         target: Hyprland
-        enabled: root.owner !== null
+        enabled: root.owner !== null || root.selected !== null
 
         function onRawEvent(event: HyprlandEvent): void {
             if (event.name === "custom" && event.data === "click" && PopupPointer.hovered === 0 && PopupPointer.bars === 0)
+                root.dismiss();
+            // Selection mode ends when another window takes focus, as one
+            // does when Return on an app icon brings its window forward.
+            else if (event.name === "activewindowv2" && root.selected !== null)
                 root.dismiss();
         }
     }
@@ -39,6 +44,11 @@ Singleton {
     function set(item: Item): void {
         root.switched = root.owner !== null && item !== null && root.owner !== item;
         root.cancelBrowse();
+        // A popup the pointer browses to takes the selection with it, and
+        // the keys are back on the bar whichever popup comes or goes.
+        if (root.selected !== null && item !== null)
+            root.selected = item;
+        root.inPopup = false;
         root.owner = item;
     }
 
@@ -87,7 +97,76 @@ Singleton {
 
     // Whichever is up: for a button in a popup that sends you somewhere else.
     function dismiss(): void {
+        root.deselect();
         root.set(null);
+    }
+
+    // --- selection mode ------------------------------------------------------
+    // The bar walked from the keyboard, the way a Mac's menu bar is from
+    // Ctrl+F2. It starts on the calendar with its popup open; Left and Right
+    // go from item to item, opening each one's popup the way browsing with
+    // the pointer does, Down goes into the popup and Up from its top row
+    // comes back out, Return presses an item with no popup, and Escape ends
+    // it. So does a click anywhere or another window taking focus.
+    //
+    // An item takes part by having a `keyPress` function, or `keyOpens` for
+    // one whose popup opens on it (BarItem, the tray's icons, the
+    // workspaces' app icons). Bar.qml walks them and takes the keyboard.
+    property Item selected: null
+    // Whether the keys are down in the selected item's popup.
+    property bool inPopup: false
+
+    signal selectRequested(screenName: string)
+
+    function select(item: Item): void {
+        // Selected first, so the bar holds on to the keyboard while the
+        // popup changes hands.
+        root.selected = item;
+        root.set(item?.keyOpens ? item : null);
+    }
+
+    function deselect(): void {
+        root.selected = null;
+        root.inPopup = false;
+    }
+
+    // Down into the open popup, onto its first control. Not when it has none
+    // to go to, or is not up yet; open again if it has been put away (a tray
+    // menu goes once one of its items is chosen).
+    function enter(): void {
+        if (root.owner !== root.selected) {
+            root.set(root.selected);
+            return;
+        }
+        const top = root.keyed[root.keyed.length - 1];
+        if (!top)
+            return;
+        root.inPopup = true;
+        top.key({ key: Qt.Key_Down });
+        if (!top.keyItem)
+            root.inPopup = false;
+    }
+
+    // Up past the popup's top row: back to the bar. Only from the popup
+    // itself, not a tray submenu over it.
+    function leave(popup: var): bool {
+        if (!root.inPopup || root.keyed[0] !== popup)
+            return false;
+        popup.setKey(null);
+        root.inPopup = false;
+        return true;
+    }
+
+    IpcHandler {
+        target: "bar"
+
+        // On the focused screen's bar, or off again (Super+Ctrl+J).
+        function select(): void {
+            if (root.selected !== null)
+                root.dismiss();
+            else
+                root.selectRequested(Hyprland.focusedMonitor?.name ?? "");
+        }
     }
 
     // The popups the keyboard drives, innermost last: an open popup, and a
