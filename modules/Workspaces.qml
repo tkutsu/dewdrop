@@ -805,8 +805,16 @@ BarItem {
                                     Accessible.name: label.text
                                     // Resting on an icon shows its window's title (ClickArea).
                                     Accessible.description: "Pointer: hover"
-                                    Accessible.onPressAction: if (enabled && visible && !tap.pressApp())
-                                        tap.focusWindow(app.icon.addresses[0])
+                                    Accessible.onPressAction: if (enabled && visible)
+                                        tap.keyPress()
+
+                                    // Return in the bar's selection mode (OpenPopup).
+                                    function keyPress(): void {
+                                        if (!tap.pressApp())
+                                            tap.focusWindow(app.icon.addresses[0]);
+                                    }
+
+                                    KeyRing {}
 
                                     onPressed: mouse => {
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
