@@ -330,9 +330,18 @@ BarItem {
             onTriggered: if (!stripResize.running) strip.closedAt = Infinity
         }
 
+        // The workspace selection mode is on, if it is on one of these.
+        readonly property Item keyed: OpenPopup.selected?.parent === buttons ? OpenPopup.selected : null
+
+        // Where the mark is: the focused workspace, or the one selection
+        // mode is on, the way a tab bar's lens follows the keys while the
+        // focused workspace keeps its icons lit (button.ink).
+        //
         // Read focus directly: delegate active bindings update separately and
         // briefly leave no selection when moving towards an earlier workspace.
         readonly property Item selected: {
+            if (strip.keyed)
+                return strip.keyed;
             const focused = root.focusedId;
             for (const child of buttons.children)
                 if (focused !== -1 && child.modelData?.id === focused)
@@ -390,6 +399,10 @@ BarItem {
         FlowMark {
             id: mark
             held: strip.held
+            // At the selection's pace while the keys move it.
+            spring: strip.keyed ? Theme.keyMarkSpring : Theme.springStiffness
+            damping: strip.keyed ? Theme.keyMarkDamping : Theme.markDamping
+            flowMs: strip.keyed ? Theme.keyMarkMs : Theme.markMs
             slabY: Theme.pillTop(strip.height)
             slabHeight: Theme.barHeight
             atFirst: strip.selected !== null && strip.selected.index === 0
@@ -498,6 +511,17 @@ BarItem {
                     required property var modelData
                     required property int index
                     readonly property bool active: root.focusedId === modelData.id
+
+                    // A stop in the bar's selection mode (OpenPopup): Return
+                    // goes to the workspace. The workspace mark comes over to
+                    // say it is selected (strip.selected), where a mark of the
+                    // selection's own would sit on top of it.
+                    readonly property bool marksSelection: true
+
+                    function keyPress(): void {
+                        root.collapse();
+                        press.focusWorkspace();
+                    }
 
                     // One entry per window class, in the order the classes first appear,
                     // so an app does not jump along the row as its windows come and go.
@@ -648,10 +672,8 @@ BarItem {
 
                         Accessible.role: Accessible.Button
                         Accessible.name: "Workspace " + button.modelData.id
-                        Accessible.onPressAction: if (enabled && visible) {
-                            root.collapse();
-                            press.focusWorkspace();
-                        }
+                        Accessible.onPressAction: if (enabled && visible)
+                            button.keyPress()
 
                         onPressed: root.collapse()
                         onClicked: press.focusWorkspace()
@@ -805,14 +827,9 @@ BarItem {
                                     Accessible.name: label.text
                                     // Resting on an icon shows its window's title (ClickArea).
                                     Accessible.description: "Pointer: hover"
-                                    Accessible.onPressAction: if (enabled && visible)
-                                        tap.keyPress()
+                                    Accessible.onPressAction: if (enabled && visible && !tap.pressApp())
+                                        tap.focusWindow(app.icon.addresses[0])
 
-                                    // Return in the bar's selection mode (OpenPopup).
-                                    function keyPress(): void {
-                                        if (!tap.pressApp())
-                                            tap.focusWindow(app.icon.addresses[0]);
-                                    }
                                     onPressed: mouse => {
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
                                         const addresses = app.icon.addresses;

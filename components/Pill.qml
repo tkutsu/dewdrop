@@ -474,8 +474,11 @@ Item {
     FlowMark {
         id: keyMark
 
-        // The selected item, when it is in this pill.
+        // The selected item, when it is in this pill and does not mark the
+        // selection itself (a workspace moves the workspace mark).
         readonly property Item target: {
+            if (OpenPopup.selected?.marksSelection)
+                return null;
             for (let p = OpenPopup.selected; p; p = p.parent)
                 if (p === root)
                     return OpenPopup.selected;
@@ -502,22 +505,35 @@ Item {
                 return;
             keyMark.resizing = keyMark.target === keyMark.placedOn;
             keyMark.placedOn = keyMark.target;
-            keyMark.wantLeft = keyMark.boxMid - keyMark.half;
-            keyMark.wantRight = keyMark.boxMid + keyMark.half;
+            // On the item at either end of the pill, the mark runs out to
+            // the end and rounds with it, the way the workspace mark does on
+            // the first and last workspace, rather than stopping short of
+            // the pill's round end or pressing against it.
+            const left = keyMark.boxMid - keyMark.half;
+            const right = keyMark.boxMid + keyMark.half;
+            keyMark.wantLeft = left < slab.x + Theme.pillPad ? keyMark.wallLeft : left;
+            keyMark.wantRight = right > slab.x + slab.width - Theme.pillPad ? keyMark.wallRight : right;
         }
 
         onBoxMidChanged: Qt.callLater(keyMark.retarget)
         onHalfChanged: Qt.callLater(keyMark.retarget)
+        onWallLeftChanged: Qt.callLater(keyMark.retarget)
+        onWallRightChanged: Qt.callLater(keyMark.retarget)
+
+        spring: Theme.keyMarkSpring
+        damping: Theme.keyMarkDamping
+        flowMs: Theme.keyMarkMs
 
         width: root.width
         height: root.height
         slabY: slab.y
         slabHeight: slab.height
-        // The pill's ends are walls wherever the item is.
+        // The pill's ends are walls wherever the item is, as far in as the
+        // mark keeps from its top and bottom.
         atFirst: true
         atLast: true
-        wallLeft: slab.x + Theme.pillBorder
-        wallRight: slab.x + slab.width - Theme.pillBorder
+        wallLeft: slab.x + Theme.pillBorder + Theme.markInset
+        wallRight: slab.x + slab.width - Theme.pillBorder - Theme.markInset
         resetWhenHidden: true
         opacity: target ? 1 : 0
         visible: opacity > 0

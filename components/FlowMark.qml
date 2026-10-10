@@ -12,6 +12,11 @@ Liquid {
 
     readonly property int inset: Theme.markInset
 
+    // How the ends run: the workspace mark's pace unless told otherwise.
+    property real spring: Theme.springStiffness
+    property real damping: Theme.markDamping
+    property int flowMs: Theme.markMs
+
     // How far the glass has come up off the pill, 0..1: a press held
     // on an icon lifts it a pixel towards the pill's edges and
     // lights it a step, and letting go drops it back on the spring.
@@ -94,16 +99,16 @@ Liquid {
         enabled: root.placed && !root._following
         SpringAnimation {
             id: leftSpring
-            spring: Theme.springStiffness
-            damping: Theme.markDamping
+            spring: root.spring
+            damping: root.damping
         }
     }
     Behavior on headRight {
         enabled: root.placed && !root._following
         SpringAnimation {
             id: rightSpring
-            spring: Theme.springStiffness
-            damping: Theme.markDamping
+            spring: root.spring
+            damping: root.damping
         }
     }
     FrameAnimation {
@@ -116,7 +121,7 @@ Liquid {
             const distance = root.apart / (root.thickness * 4);
             const shrink = 1 - root.blobHeight / root.thickness;
             const speed = (1 + 0.75 * distance * distance) * (1 + 0.75 * shrink);
-            root.tailProgress = Math.min(1, root.tailProgress + frameTime * 1000 * speed / (Theme.markMs * 1.1));
+            root.tailProgress = Math.min(1, root.tailProgress + frameTime * 1000 * speed / (root.flowMs * 1.1));
             const t = Math.max(0, (root.tailProgress - 0.2) / 0.8);
             const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
             const left = root.tailStart.x + (root.wantLeft - root.tailStart.x) * eased;
