@@ -237,18 +237,19 @@ PanelWindow {
     // the clock), and each pill's share of it is a box worked out by `drop`
     // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
-    // Going away, a pill first lets its contents go, then rushes at the
-    // neighbour on its inner side and takes hold of it, still a capsule. It
-    // stays a little way off from there, so that what joins the two stays a
-    // neck, and pours through it: it drains at an even rate, from its far end
-    // in, down to a bead, which the neighbour gulps (see bar.lip for the
-    // neighbour's side of it). Moving the whole pill in instead read as one
-    // bar getting shorter, a pill disappearing rather than going anywhere.
+    // Going away, a pill first lets its contents go, then gathers itself up
+    // off its far end into a bead, the way a stretched-out drop pulls round,
+    // and wobbles as it rounds. Only then does it fall into the neighbour: the
+    // neck fills out to the bead's height a frame or two after they touch, as
+    // water does, and the neighbour takes what came in as a swelling of its
+    // end that springs back (bar.lip, bar.bulge). It never stays joined by a
+    // waist: held there, it read as being sucked through a straw.
     //
     // Arriving is not the same run backwards: liquid joins in a hurry and
-    // parts reluctantly. The pill comes out of its neighbour round, the neck
-    // stretches out before it lets go, and only once it is free does it spring
-    // out to its width, past it, and back. `edge` is the neighbour's facing
+    // parts reluctantly. The neighbour's end swells and a bud grows out of
+    // it, the neck draws out and thins until it lets go, the freed bead rounds
+    // off, and only then does it spring out to its width, past it, and back,
+    // at rest before its contents come in. `edge` is the neighbour's facing
     // edge, `dir` which way the pill lies from it (1 right, -1 left), `width`
     // the pill at rest, `leaving` whether it is on its way in.
     function drop(edge, dir, width, reveal, leaving) {
@@ -256,76 +257,72 @@ PanelWindow {
             return Qt.vector4d(0, 0, 0, 0);
         const t = 1 - reveal;
         const height = Theme.barHeight;
+        const bead = bar.bead;
         // How far this side of the neighbour's edge the pill's inner end is.
-        let gap, w, h;
+        let gap, w, h, squash;
         if (leaving) {
-            const c = Math.max(0, Math.min(1, (t - bar.settle) / 0.2));
-            const close = 1 - (1 - c) * (1 - c);
-            // A capsule while there is enough of it for one, then a ball.
-            const full = width * height - (4 - Math.PI) * height * height / 4;
-            const bead = Math.PI * Math.pow(0.45 * height, 2) / 4;
-            const area = full + (bead - full) * bar.drained(t);
-            if (area >= Math.PI * height * height / 4) {
-                h = height;
-                w = (area + (4 - Math.PI) * height * height / 4) / height;
-            } else {
-                h = w = Math.sqrt(4 * area / Math.PI);
-            }
-            // Held off by not quite half the reach the neck is drawn with
-            // (bar.dropReach), which keeps it a waist; any closer and it
-            // fills out to the pill's height.
-            const hold = Theme.pillSpread * 0.6;
-            const g = Math.max(0, Math.min(1, (t - 0.78) / 0.14));
-            gap = hold + (Theme.pillSpread - hold) * (1 - close) - (height * 1.6 + hold) * g * g;
+            w = width + (bead - width) * bar.ease((t - bar.settle) / 0.3);
+            h = Math.min(height, Math.max(bead, w));
+            squash = bar.wobble((t - 0.42) / 0.3, 0.1);
+            const fall = Math.pow(Math.max(0, Math.min(1, (t - 0.5) / 0.2)), 2);
+            // All the way in: the bead ends up inside the neighbour's round end.
+            gap = Theme.pillSpread - (Theme.pillSpread + bead + 3) * fall;
         } else {
-            const close = bar.ease((t - 0.25) / 0.5);
-            const plunge = bar.ease((t - 0.65) / 0.35);
-            const shrink = 1 - 0.3 * plunge;
-            w = (height + (width - height) * bar.spring((0.5 - t) / 0.36)) * shrink;
-            h = height * shrink;
-            gap = Theme.pillSpread * (1 - close) - height * 1.6 * plunge;
+            const bud = 1 - Math.pow(1 - Math.min(1, reveal / 0.4), 2);
+            gap = -bead - 2 + (Theme.pillSpread + bead + 2) * bud;
+            // What is left of the spring by the time the contents come in is
+            // let go of, so they come in over glass at rest.
+            const grow = 1 + (bar.spring((reveal - 0.42) / 0.14) - 1) * (1 - bar.ease((reveal - 0.72) / 0.1));
+            w = bead + (width - bead) * grow;
+            h = bead + (height - bead) * Math.min(1, grow * 3);
+            squash = reveal < 0.55 ? bar.wobble((reveal - 0.3) / 0.25, 0.08) : 0;
         }
+        w *= 1 - squash;
+        h *= 1 + squash / 2;
+        if (!leaving)
+            w = Math.max(w, h);
         const inner = edge + dir * gap;
         return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barInset + (height - h) / 2, w, h);
     }
 
-    // How much of a leaving pill has poured into its neighbour, 0..1.
-    function drained(t) {
-        return Math.max(0, Math.min(1, (t - 0.25) / 0.55));
-    }
+    // A drop gathered up: a little shorter than a pill, so the neck that
+    // joins it to the neighbour is a neck and not a straight run of glass.
+    readonly property int bead: Math.round(Theme.barHeight * 0.8)
 
     // How far the neighbour's end is pushed out by a drop at a given
-    // `reveal`. Going in, it swells with what has poured into it, up to a few
-    // pixels, and springs back once the last of it is gulped. Letting go, it
-    // gives a little the other way.
+    // `reveal`. Going in, it is shoved out by the bead and wobbles back.
+    // Coming out, it is drawn out with the bud and snaps back past rest as
+    // the bud lets go.
     function lip(reveal, leaving) {
-        const t = 1 - reveal;
-        return leaving ? 3 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : bar.wobble((0.45 - t) / 0.3, -3);
+        if (leaving)
+            return bar.wobble((0.38 - reveal) / 0.38, 5);
+        const drawn = 1 - Math.pow(1 - Math.min(1, reveal / 0.2), 2);
+        return 3 * drawn * (1 - bar.ease((reveal - 0.2) / 0.12)) + bar.wobble((reveal - 0.3) / 0.35, -2.5);
     }
 
-    // Where the neighbour's glass bulges, above and below, as a drop pours
-    // into it: a round swelling at its end, a pill's height long, standing
-    // under a pixel proud of the slab by the time the last of the drop is in,
-    // and springing back with the end (bar.lip). `end` is the neighbour's end the drop is on,
-    // `dir` which way the drop lies from it, as for `drop`.
+    // Where the neighbour's glass bulges, above and below, at the end a drop
+    // goes into or comes out of: once, as the bead goes in or the bud swells,
+    // a pixel or so proud of the slab. `end` is the neighbour's end the drop
+    // is on, `dir` which way the drop lies from it, as for `drop`.
     function bulge(end, dir, reveal, leaving) {
-        const t = 1 - reveal;
-        const swell = leaving ? 0.75 * bar.drained(t) * (1 - bar.spring((t - 0.85) / 0.15)) : 0;
+        const x = leaving ? (0.36 - reveal) / 0.12 : reveal / 0.32;
+        const swell = (leaving ? 1.2 : 1.5) * Math.sin(Math.PI * Math.max(0, Math.min(1, x)));
         if (swell <= 0)
             return Qt.vector4d(0, 0, 0, 0);
-        const w = Theme.barHeight;
+        const w = Theme.barHeight * 1.2;
         return Qt.vector4d(dir > 0 ? end - w : end, Theme.barInset - swell, w, Theme.barHeight + 2 * swell);
     }
 
     // How far a drop reaches for its neighbour. At rest, the air between
-    // them, so the two are drawn exactly as they are. Half again as far while
-    // it is on the move, so the neck takes hold while the pill is still a
-    // capsule — as soon as it sets off, going in — and back to the air by the
-    // time it is inside, so nothing jumps when it goes.
+    // them, so the two are drawn exactly as they are. Going in, it lets go of
+    // the neighbour's end once the bead is inside it, or the end swelled out
+    // square against the top and bottom of the slab. Coming out, it reaches
+    // further while the bud is pinching off, so the neck draws out thin
+    // before it breaks.
     function dropReach(reveal, leaving) {
-        const t = 1 - reveal;
-        const reaching = leaving ? bar.ease((t - bar.settle) / 0.2) * (1 - bar.ease((t - 0.85) / 0.15)) : bar.ease((t - 0.25) / 0.3) * (1 - bar.ease((t - 0.8) / 0.2));
-        return Theme.pillSpread * (1 + 0.5 * reaching);
+        if (leaving)
+            return Theme.pillSpread * (1 - 0.8 * bar.ease((0.36 - reveal) / 0.08));
+        return Theme.pillSpread * (0.25 + 1.25 * bar.ease(reveal / 0.12) - 0.5 * bar.ease((reveal - 0.35) / 0.15));
     }
 
     // How much of a pill's contents show at a given `reveal`, and its outline
@@ -344,13 +341,15 @@ PanelWindow {
         return c * c * (3 - 2 * c);
     }
 
-    // 0 to 1 the way a spring gets there: past it by about 13%, back a touch
-    // short, and on it. Near the pill width spring (Theme.foldDamping).
+    // 0 to 1 the way a spring let go from rest gets there: slow off the
+    // mark, on it at 1, past it by about 13% at 1.5, and settled by 4.4.
+    // A spring that set off at speed jumped most of the way in one frame.
     function spring(x) {
-        if (x >= 1)
+        const c = Math.max(0, x) * 0.227;
+        if (c >= 1)
             return 1;
-        const c = Math.max(0, x);
-        return 1 - Math.exp(-6 * c) * Math.cos(3 * Math.PI * c);
+        const k = 3 * Math.PI;
+        return 1 - Math.exp(-6 * c) * (Math.cos(k * c) + 6 / k * Math.sin(k * c));
     }
 
     // A wobble of `size` over 0..1, at rest at both ends: out, back past

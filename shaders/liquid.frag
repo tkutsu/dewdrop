@@ -137,6 +137,20 @@ vec3 softened(vec2 p) {
 void main() {
     vec2 p = qt_TexCoord0 * size;
     float d = field(p);
+    if (d >= 0.5) {
+        fragColor = vec4(0.0);
+        return;
+    }
+
+    // Where two boxes are joined the smooth minimum is not a true distance:
+    // it falls off far slower than one across the neck, to next to nothing
+    // the moment they touch, and the rim, a pixel of it, was drawn several
+    // pixels thick there, a bright cross where the drop met its neighbour.
+    // Measured by how fast it does fall off, and only ever pushed further
+    // out, so nothing outside the glass comes in.
+    vec2 grad = vec2(field(p + vec2(0.5, 0.0)) - field(p - vec2(0.5, 0.0)),
+                     field(p + vec2(0.0, 0.5)) - field(p - vec2(0.0, 0.5)));
+    d /= clamp(length(grad), 0.2, 1.0);
 
     // A pixel of antialiasing across the edge, and the same across the rim's
     // inner edge, so the rim is the band between the two.
@@ -156,8 +170,7 @@ void main() {
         // Which way the edge nearest p faces, and how far in p is: the
         // nearer the edge, the further in towards the middle the glass
         // looks, easing off to nothing at bendDepth.
-        vec2 n = normalize(vec2(field(p + vec2(0.5, 0.0)) - field(p - vec2(0.5, 0.0)),
-                                field(p + vec2(0.0, 0.5)) - field(p - vec2(0.0, 0.5))) + 1e-6);
+        vec2 n = normalize(grad + 1e-6);
         // The edge is a rounded bevel seen from above: nearly flat for most
         // of the way in, then turning down steeply at the very rim, so the
         // bend stays out of the middle and piles up in the last few pixels.
