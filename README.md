@@ -1,4 +1,4 @@
-# quickshell_dark
+# dewdrop
 
 My Hyprland bar, launcher, notifications and popups, written for [Quickshell](https://quickshell.org). It is a personal config first. It runs on my Arch machine every day, and a few features still call scripts that live outside this repo (listed below). Without them those features do nothing, and the rest of the shell still works.
 
@@ -69,7 +69,7 @@ Scrolling over the workspaces and dragging a window onto one call three Lua func
 ## Install
 
 ```sh
-git clone https://github.com/tkutsu/quickshell_dark ~/.config/quickshell
+git clone https://github.com/tkutsu/dewdrop ~/.config/quickshell
 qs
 ```
 
