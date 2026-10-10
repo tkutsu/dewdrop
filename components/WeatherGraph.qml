@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Layouts
 import qs
 import qs.services
 
@@ -17,8 +16,7 @@ Item {
     property Item readoutSource: graph
     readonly property var readoutHour: graph.readoutSource.selectedHour
     property MouseArea cursor: plotHover
-    // The three measurements, in drawing order; the readout above the plots
-    // takes its colours from here too.
+    // The three measurements, in drawing order.
     readonly property var series: [
         {key: graph.feelsLike ? "feelsLike" : "temperature", label: graph.feelsLike ? "Feels like · °C" : "Celsius · °C", color: "#f2b36e", minimum: 0, maximum: 40, step: 10, pixels: 1.5},
         {key: "rain", label: "Rain chance · %", color: "#86b8f0", minimum: 0, maximum: 100, step: 25, pixels: 0.6},
@@ -47,58 +45,19 @@ Item {
         return graph.hours.reduce((nearest, hour) => Math.abs(hour.at - at) < Math.abs(nearest.at - at) ? hour : nearest, graph.hours[0]);
     }
 
+    // What a series reads at an hour, shown over its dot.
+    function reading(key: string, hour: var): string {
+        if (key === "rain")
+            return Weather.measure(hour.rain, "%");
+        if (key === "wind")
+            return [Weather.windLabel(hour.wind).toLowerCase(), hour.wind >= 1 ? Weather.windBearing(hour.windDirection) : "", Weather.measure(hour.wind, " km/h")].filter(part => part !== "").join(" ");
+        return Weather.measure(hour[key], "°");
+    }
+
     Column {
         id: stack
         width: graph.width
         spacing: graph.spacing
-
-        Item {
-            width: graph.width
-            height: 30
-            clip: true
-
-            Rectangle {
-                visible: graph.showReadout
-                width: graph.width
-                height: parent.height
-                radius: Theme.selectionRadius
-                color: Theme.selection
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 8
-                    visible: graph.readoutHour !== null
-
-                    PopupText {
-                        Layout.fillWidth: true
-                        text: graph.readoutHour ? `${graph.readoutSource.hoveredHour ? graph.readoutHour.time : "Now"}  ${graph.readoutHour.description}` : ""
-                        font.pixelSize: Theme.captionSize
-                        elide: Text.ElideRight
-                    }
-                    PopupText {
-                        Layout.preferredWidth: 100
-                        text: `${graph.feelsLike ? "feels like " : ""}${Weather.measure(graph.readoutHour?.[graph.series[0].key], "°C")}`
-                        color: graph.series[0].color
-                        font.pixelSize: Theme.captionSize
-                    }
-                    PopupText {
-                        Layout.preferredWidth: 80
-                        text: `Rain ${Weather.measure(graph.readoutHour?.rain, "%")}`
-                        color: graph.series[1].color
-                        font.pixelSize: Theme.captionSize
-                    }
-                    PopupText {
-                        Layout.preferredWidth: 160
-                        text: [Weather.windLabel(graph.readoutHour?.wind).toLowerCase(), graph.readoutHour?.wind >= 1 ? Weather.windBearing(graph.readoutHour?.windDirection) : "", Weather.measure(graph.readoutHour?.wind, " km/h")].filter(part => part !== "").join(" ")
-                        color: graph.series[2].color
-                        font.pixelSize: Theme.captionSize
-                        elide: Text.ElideRight
-                    }
-                }
-            }
-        }
 
         Item {
             id: strip
@@ -240,22 +199,32 @@ Item {
                             readonly property real low: series.low
                             readonly property real high: series.high
                             readonly property color gridColor: Qt.rgba(Theme.stroke.r, Theme.stroke.g, Theme.stroke.b, Theme.stroke.a * 0.45)
-                            readonly property var hoveredHour: graph.hoveredHour
-                            readonly property var hoveredValue: hoveredHour ? hoveredHour[series.modelData.key] : null
-                            readonly property real hoverY: typeof hoveredValue === "number" && Number.isFinite(hoveredValue) ? 2 + (high - hoveredValue) / (high - low) * (height - 4) : height / 2
-                            readonly property real hoverX: hoveredHour && graph.end > graph.start ? (hoveredHour.at - graph.start) / (graph.end - graph.start) * width : width / 2
+                            readonly property var selectedValue: graph.selectedHour?.[series.modelData.key] ?? null
+                            readonly property bool marked: typeof selectedValue === "number" && Number.isFinite(selectedValue)
+                            readonly property real markY: marked ? 2 + (high - selectedValue) / (high - low) * (height - 4) : height / 2
+                            readonly property real markX: graph.selectedHour && graph.end > graph.start ? (graph.selectedHour.at - graph.start) / (graph.end - graph.start) * width : width / 2
                             // Everything onPaint reads, so any change repaints once.
                             readonly property var paintInputs: [hours, now, low, high, width, height, pastColor, futureColor, gridColor]
                             onPaintInputsChanged: requestPaint()
 
                             Rectangle {
-                                x: plot.hoverX - width / 2
-                                y: plot.hoverY - height / 2
+                                x: plot.markX - width / 2
+                                y: plot.markY - height / 2
                                 width: 6
                                 height: 6
                                 radius: 3
                                 color: series.modelData.color
-                                visible: graph.hoveredHour !== null && typeof plot.hoveredValue === "number" && Number.isFinite(plot.hoveredValue)
+                                visible: plot.marked
+                            }
+                            // Over the dot, or under it where the plot's top
+                            // would cut it off; kept inside the plot's ends.
+                            PopupText {
+                                x: Math.max(0, Math.min(plot.width - width, plot.markX - width / 2))
+                                y: plot.markY - 6 - height >= 0 ? plot.markY - 6 - height : plot.markY + 6
+                                visible: plot.marked
+                                text: plot.marked ? graph.reading(series.modelData.key, graph.selectedHour) : ""
+                                color: series.modelData.color
+                                font.pixelSize: Theme.footnoteSize
                             }
 
                             // Gaps stay gaps; epoch spacing keeps repeated DST hours distinct.
@@ -323,7 +292,7 @@ Item {
         }
     }
 
-    // A single hover surface over the icons and the plots keeps the readout
+    // A single hover surface over the icons and the plots keeps the readings
     // active between them too.
     MouseArea {
         id: plotHover
@@ -354,5 +323,16 @@ Item {
         visible: graph.showsNow && x >= graph.plotLeft && x <= graph.plotLeft + graph.plotWidth
         color: Theme.label2
         opacity: 0.5
+    }
+
+    // The readings' hour, in the corner left of the icons; it stays put while
+    // the days slide, like the axes.
+    PopupText {
+        x: 8
+        y: stack.y + strip.y + (strip.height - height) / 2
+        visible: graph.showReadout
+        text: graph.readoutHour ? graph.readoutSource.hoveredHour ? graph.readoutHour.time : "Now" : ""
+        color: Theme.label2
+        font.pixelSize: Theme.captionSize
     }
 }
