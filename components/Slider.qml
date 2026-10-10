@@ -31,6 +31,11 @@ Item {
     property real _wheelAcc: 0
     signal moved(real value)
 
+    // Left and Right once the keys are on it (Popup.qml), a step at a time.
+    function keyStep(dir: int): void {
+        root.moved(accessibleValue.clamp(root.value + dir * accessibleValue.stepSize));
+    }
+
     implicitWidth: 140
     implicitHeight: 14
 

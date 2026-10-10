@@ -19,6 +19,8 @@ Popup {
     // A tag fades in where it is; only a popover grows out of its pill.
     grows: false
     probes: false
+    // Read, not used: a tag never takes the keyboard.
+    takesKeys: false
 
     // Nothing to point at, so the pointer goes through it: a tag is never in
     // the way of what is under it, and never holds itself open.

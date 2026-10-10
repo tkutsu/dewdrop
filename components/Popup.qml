@@ -168,8 +168,183 @@ PopupWindow {
     // Counted for the whole shell, so the right pill's drawer can tell a
     // pointer that has gone off to a popup from one that has left the bar.
     onHoveredChanged: PopupPointer.hovered += hovered ? 1 : -1
-    Component.onDestruction: if (hovered)
-        PopupPointer.hovered--
+    Component.onDestruction: {
+        if (hovered)
+            PopupPointer.hovered--;
+        OpenPopup.dropKeys(root);
+    }
+
+    // --- keyboard ------------------------------------------------------------
+    // The keys a Mac's menu-bar menus take: Escape puts the popup away, the
+    // arrows walk its controls and Return (or Space) presses the one they are
+    // on. Nothing is selected on opening; the first arrow picks the first
+    // control, the way a menu opened by a click waits for you.
+    //
+    // A control takes part by having a `keyPress` function (or `keyStep`, a
+    // slider's Left and Right), and draws its own highlight if it has a
+    // `keyed` property; anything without one gets the focus ring below.
+    // Up and Down go to the nearest control in the next row, keeping to the
+    // column where there is one; Left and Right stay in the row. The keys
+    // reach here from the bar, which takes the keyboard while its popup is up
+    // (Bar.qml): a popup's own surface has none unless it grabs, and a grab
+    // makes it a Qt popup that eats the hover the bar browses popups by.
+    property bool takesKeys: true
+    property Item keyItem: null
+    // Escape, and Left with nothing to the left: a submenu goes back to its
+    // menu (MenuPopup) rather than closing the whole menu.
+    property var closeKey: () => OpenPopup.dismiss()
+    property var backKey: null
+    // Select the first control as soon as the popup opens, for a submenu
+    // opened from the keyboard.
+    property bool keyFromStart: false
+
+    readonly property bool keysLive: root.takesKeys && root.opened
+    onKeysLiveChanged: {
+        if (!root.keysLive) {
+            OpenPopup.dropKeys(root);
+            root.setKey(null);
+            return;
+        }
+        OpenPopup.addKeys(root);
+        if (root.keyFromStart)
+            Qt.callLater(() => root.setKey(root.keyTargets()[0] ?? null));
+    }
+
+    function setKey(item: Item): void {
+        if (root.keyItem && root.keyItem.keyed !== undefined)
+            root.keyItem.keyed = false;
+        root.keyItem = item;
+        if (!item)
+            return;
+        if (item.keyed !== undefined)
+            item.keyed = true;
+        root.showKey(item);
+    }
+
+    // Scrolled into its list if the list has it out of sight, and the ring
+    // moved onto it.
+    function showKey(item: Item): void {
+        for (let p = item.parent; p && p !== body; p = p.parent) {
+            if (p.contentY === undefined || p.contentItem === undefined)
+                continue;
+            const y = item.mapToItem(p.contentItem, 0, 0).y;
+            if (y < p.contentY)
+                p.contentY = y;
+            else if (y + item.height > p.contentY + p.height)
+                p.contentY = y + item.height - p.height;
+        }
+        const r = item.mapToItem(chrome, 0, 0);
+        ring.rect = Qt.rect(r.x, r.y, item.width, item.height);
+    }
+
+    // Every control a key can reach, in reading order. Not one folded away:
+    // hidden, sized to nothing, under something at zero opacity, or clipped
+    // out by a box that is not a list (a list scrolls to it instead).
+    function keyTargets(): var {
+        const found = [];
+        const walk = item => {
+            for (const child of item.children) {
+                if (!child.visible || child.opacity === 0 || !child.enabled)
+                    continue;
+                if ((typeof child.keyPress === "function" || typeof child.keyStep === "function") && child.width > 0 && child.height > 0 && root.inView(child))
+                    found.push(child);
+                walk(child);
+            }
+        };
+        walk(body);
+        const at = new Map(found.map(t => [t, t.mapToItem(body, 0, 0)]));
+        found.sort((a, b) => at.get(a).y - at.get(b).y || at.get(a).x - at.get(b).x);
+        return found;
+    }
+
+    function inView(item: Item): bool {
+        for (let p = item.parent; p && p !== body; p = p.parent) {
+            if (!p.clip || p.contentY !== undefined)
+                continue;
+            const r = item.mapToItem(p, 0, 0);
+            if (r.y + item.height <= 0 || r.y >= p.height || r.x + item.width <= 0 || r.x >= p.width)
+                return false;
+        }
+        return true;
+    }
+
+    // The control a step away from the selected one, or null.
+    function neighbour(key: int): Item {
+        const all = root.keyTargets();
+        if (!all.length)
+            return null;
+        const cur = root.keyItem && all.includes(root.keyItem) ? root.keyItem : null;
+        const forward = key === Qt.Key_Down || key === Qt.Key_Right || key === Qt.Key_Tab;
+        if (!cur)
+            return forward ? all[0] : all[all.length - 1];
+        if (key === Qt.Key_Tab || key === Qt.Key_Backtab)
+            return all[all.indexOf(cur) + (forward ? 1 : -1)] ?? null;
+
+        const box = t => {
+            const p = t.mapToItem(body, 0, 0);
+            return { l: p.x, r: p.x + t.width, cx: p.x + t.width / 2, cy: p.y + t.height / 2, h: t.height };
+        };
+        const c = box(cur);
+        // In the same row: centres closer than half the shorter one's height.
+        const sameRow = b => Math.abs(b.cy - c.cy) < Math.min(b.h, c.h) / 2;
+        const others = all.filter(t => t !== cur).map(t => ({ t: t, b: box(t) }));
+
+        if (key === Qt.Key_Left || key === Qt.Key_Right) {
+            const side = others.filter(o => sameRow(o.b) && (forward ? o.b.cx > c.cx : o.b.cx < c.cx));
+            side.sort((a, b) => Math.abs(a.b.cx - c.cx) - Math.abs(b.b.cx - c.cx));
+            return side[0]?.t ?? null;
+        }
+
+        // The nearest row that way, then whatever in it overlaps the column
+        // (a full-width row overlaps every column), then the nearest centre.
+        const ahead = others.filter(o => !sameRow(o.b) && (forward ? o.b.cy > c.cy : o.b.cy < c.cy));
+        if (!ahead.length)
+            return null;
+        const nearest = ahead.reduce((m, o) => Math.abs(o.b.cy - c.cy) < Math.abs(m.b.cy - c.cy) ? o : m);
+        const row = ahead.filter(o => Math.abs(o.b.cy - nearest.b.cy) < Math.min(o.b.h, nearest.b.h) / 2);
+        const gap = b => Math.max(0, b.l - c.r, c.l - b.r);
+        row.sort((a, b) => gap(a.b) - gap(b.b) || Math.abs(a.b.cx - c.cx) - Math.abs(b.b.cx - c.cx));
+        return row[0].t;
+    }
+
+    function key(event: var): bool {
+        const k = event.key;
+        const t = root.keyItem;
+        switch (k) {
+        case Qt.Key_Escape:
+            root.closeKey();
+            return true;
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            if (typeof t?.keyPress === "function")
+                t.keyPress();
+            return true;
+        case Qt.Key_Left:
+        case Qt.Key_Right:
+            if (typeof t?.keyStep === "function") {
+                t.keyStep(k === Qt.Key_Right ? 1 : -1);
+                return true;
+            }
+            // A menu row's submenu opens on Right, the way it does on hover.
+            if (k === Qt.Key_Right && typeof t?.keyOpen === "function" && t.keyOpen())
+                return true;
+            break;
+        case Qt.Key_Up:
+        case Qt.Key_Down:
+        case Qt.Key_Tab:
+        case Qt.Key_Backtab:
+            break;
+        default:
+            return false;
+        }
+        const next = root.neighbour(k);
+        if (next)
+            root.setKey(next);
+        else if (k === Qt.Key_Left && root.backKey)
+            root.backKey();
+        return true;
+    }
 
     // Where the popup takes the pointer: the box, and the strip of air above
     // it up to the window's top edge. The bar's surface ends at the pill, and
@@ -188,6 +363,10 @@ PopupWindow {
 
         HoverHandler {
             id: pointer
+
+            // The pointer moving takes the selection back from the keys.
+            onPointChanged: if (root.keyItem)
+                root.setKey(null)
         }
 
         // Animate only the drawing; keep the hit area fixed.
@@ -239,6 +418,25 @@ PopupWindow {
                     id: body
                     x: root.hPadding
                     y: root.vPadding
+                }
+
+                // The keys' mark on a control that draws no highlight of its
+                // own: a ring round it, which is what a Mac draws when the
+                // keyboard rather than the pointer is on a control.
+                Rectangle {
+                    id: ring
+
+                    property rect rect
+                    visible: root.keyItem !== null && root.keyItem.keyed === undefined
+                    x: rect.x - 2
+                    y: rect.y - 2
+                    width: rect.width + 4
+                    height: rect.height + 4
+                    z: 2
+                    radius: Theme.selectionRadius
+                    color: "transparent"
+                    border.width: 1.5
+                    border.color: Theme.outlineHover
                 }
             }
         }

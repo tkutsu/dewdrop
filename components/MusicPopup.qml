@@ -141,6 +141,7 @@ Popup {
                             Accessible.name: modelData.name
                             Accessible.onPressAction: if (enabled && visible)
                                 modelData.act()
+                            readonly property var keyPress: modelData.act
 
                             TapHandler {
                                 onTapped: parent.modelData.act()
@@ -260,6 +261,7 @@ Popup {
                     Accessible.name: "Repeat mode: " + Mpd.repeatMode
                     Accessible.onPressAction: if (enabled && visible)
                         Mpd.cycleRepeat()
+                    readonly property var keyPress: () => Mpd.cycleRepeat()
 
                     TapHandler {
                         onTapped: Mpd.cycleRepeat()
@@ -316,6 +318,7 @@ Popup {
                     Accessible.name: "Toggle music mute"
                     Accessible.onPressAction: if (enabled && visible)
                         Mpd.toggleMute()
+                    readonly property var keyPress: () => Mpd.toggleMute()
 
                     TapHandler {
                         onTapped: Mpd.toggleMute()

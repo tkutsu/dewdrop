@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 
 // The top line of a popup: what it is on the left, and the things that act on
@@ -40,6 +41,11 @@ Item {
         Accessible.onPressAction: if (root.addable && root.enabled && root.visible)
             root.add()
 
+        // The keys (Popup.qml), lit the way the pointer lights it.
+        property bool keyed: false
+        readonly property var keyPress: () => root.add()
+        readonly property bool lit: QsWindow.window?.keyItem ? target.keyed : hover.hovered
+
         visible: root.addable
         anchors.right: parent.right
         width: root.addOnly ? parent.width : plus.width
@@ -49,7 +55,7 @@ Item {
             anchors.fill: parent
             visible: root.addOnly
             radius: Theme.selectionRadius
-            color: hover.hovered ? Theme.selection : "transparent"
+            color: target.lit ? Theme.selection : "transparent"
         }
 
         // On the pitch of a row's controls, so it heads their column.
@@ -65,7 +71,7 @@ Item {
                 implicitHeight: parent.height
                 text: Theme.glyph.plus
                 fontSize: Theme.popupTextSize
-                opacity: hover.hovered ? 1 : 0.6
+                opacity: target.lit ? 1 : 0.6
             }
         }
 

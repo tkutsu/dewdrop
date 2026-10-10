@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 
 // A control inside a popup: a glyph, a word, or both, on a target the size of a
@@ -33,7 +34,10 @@ Item {
     property int glyphSize: framed ? Theme.captionSize : Theme.popupTextSize
     property int textSize: Theme.captionSize
 
-    readonly property bool hovered: hover.hovered
+    // Lit under the pointer or when the keys reach it (PopupRow says how).
+    property bool keyed: false
+    readonly property var keyPress: root.live && root.name !== "" ? () => root.tapped() : null
+    readonly property bool hovered: QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     signal tapped
 

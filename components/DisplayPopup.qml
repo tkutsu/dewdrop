@@ -142,6 +142,7 @@ Popup {
         Accessible.name: arrow.name
         Accessible.onPressAction: if (arrow.enabled && arrow.visible)
             arrow.stepped()
+        readonly property var keyPress: () => arrow.stepped()
         property int direction: 1
         property double heldSince: 0
         property real repeatDelay: 450

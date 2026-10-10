@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 import qs.services
 
@@ -252,14 +253,14 @@ Popup {
                 // until it exists this is all that stands between a cell
                 // and a full 4K wallpaper in memory.
                 sourceSize.width: Math.ceil(root.cellWidth * root.devicePixelRatio)
-                opacity: cell.current || hover.hovered ? 1 : 0.6
+                opacity: cell.current || cell.lit ? 1 : 0.6
             }
 
             Rectangle {
                 anchors.fill: parent
                 color: "transparent"
                 border.width: 1
-                border.color: cell.current ? Theme.fg : (hover.hovered ? Theme.outlineHover : "transparent")
+                border.color: cell.current ? Theme.fg : (cell.lit ? Theme.outlineHover : "transparent")
             }
 
             HoverHandler {
@@ -270,6 +271,11 @@ Popup {
             Accessible.name: "Wallpaper " + cell.modelData.split("/").pop()
             Accessible.onPressAction: if (enabled && visible)
                 Wallpaper.show(cell.index)
+
+            // The keys (Popup.qml) light a thumbnail as the pointer does.
+            property bool keyed: false
+            readonly property var keyPress: () => Wallpaper.show(cell.index)
+            readonly property bool lit: QsWindow.window?.keyItem ? cell.keyed : hover.hovered
 
             TapHandler {
                 onTapped: Wallpaper.show(cell.index)
@@ -426,6 +432,7 @@ Popup {
                 Accessible.name: "Wallpaper colour " + root.hex
                 Accessible.onPressAction: if (enabled && visible)
                     Wallpaper.setColor(root.hex)
+                readonly property var keyPress: () => Wallpaper.setColor(root.hex)
 
                 TapHandler {
                     onTapped: Wallpaper.setColor(root.hex)

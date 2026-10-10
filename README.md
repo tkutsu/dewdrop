@@ -8,7 +8,7 @@ My Hyprland bar, launcher, notifications and popups, written for [Quickshell](ht
 
 - Clear glass pills that bend the wallpaper at the rim; pills beside the clock merge into it like drops
 - One icon per app on each workspace, drag a window to another workspace, scroll to switch
-- Popups grow from their item and switch on hover once one is open
+- Popups grow from their item and switch on hover once one is open; the arrows walk an open popup, Return presses, Escape closes
 - Quiet modules fold into a drawer; pin any of them from settings or with a middle click
 - Wallpaper pans as you change workspace; the window border takes its colour
 - Settings window with search, including macOS's Reduce motion and Reduce transparency

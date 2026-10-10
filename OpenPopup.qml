@@ -89,4 +89,26 @@ Singleton {
     function dismiss(): void {
         root.set(null);
     }
+
+    // The popups the keyboard drives, innermost last: an open popup, and a
+    // tray menu's submenus over it. The bar that owns the open popup takes
+    // the keyboard (Bar.qml) and hands each key to the last of these, so the
+    // arrows walk the submenu a Right opened rather than the menu under it.
+    property var keyed: []
+
+    function addKeys(popup: var): void {
+        if (!root.keyed.includes(popup))
+            root.keyed = [...root.keyed, popup];
+    }
+
+    function dropKeys(popup: var): void {
+        if (root.keyed.includes(popup))
+            root.keyed = root.keyed.filter(p => p !== popup);
+    }
+
+    // Whether the key was taken.
+    function key(event: var): bool {
+        const top = root.keyed[root.keyed.length - 1];
+        return top ? top.key(event) : false;
+    }
 }
