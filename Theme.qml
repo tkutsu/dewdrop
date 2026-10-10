@@ -305,7 +305,7 @@ Singleton {
     // compositor stops blurring what is behind it — that threshold is also
     // what keeps the gaps between the pills unblurred, so this is the one
     // number both ends depend on.
-    readonly property color barBg: Qt.rgba(tint.r, tint.g, tint.b, 0.35)
+    readonly property color barBg: reduceTransparency ? solid : Qt.rgba(tint.r, tint.g, tint.b, 0.35)
     // What hangs off the bar — tooltips, popups, menus, the launcher and the
     // power menu — is frosted glass rather than the bar's clear glass: a thin
     // fill at little more than the 0.3 the blur rule ignores, so most of what
@@ -317,7 +317,13 @@ Singleton {
     // anything bright down, so the white labels on it keep their contrast
     // whatever it opens over. Half the tint's saturation, so it reads as frost
     // with a cast of the wallpaper rather than as a coloured sheet.
-    readonly property color popupBg: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
+    readonly property color popupBg: reduceTransparency ? solid : Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
+
+    // Reduce transparency (Settings): the frost's own colour made opaque, for
+    // the pills and the popups alike, so nothing behind a surface shows
+    // through it. Liquid.qml stops drawing the wallpaper into the glass too.
+    readonly property bool reduceTransparency: Settings.reduceTransparency
+    readonly property color solid: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 1)
 
     // popupBg over something bright, for a box that knows what it is opening
     // over (components/BackdropProbe.qml), and popupBg itself for one that
@@ -528,7 +534,7 @@ Singleton {
     // pill's extra bounce: the overshoot is a share of the distance run, and
     // at 16% a jump across the strip would carry the mark most of a
     // workspace past the one it is going to.
-    readonly property real markDamping: 0.26
+    readonly property real markDamping: reduceMotion ? calmDamping : 0.26
     // The mark running into an end of the pill: how far past the wall the
     // spring has to carry it to press it flat, and how much taller the glass
     // piled against the wall stands, each side, once it is. Held to what
@@ -556,19 +562,19 @@ Singleton {
     // The side pills use the music title's spring (Music.qml): the same
     // stiffness and damping for workspace width changes.
     readonly property real foldSpring: springStiffness
-    readonly property real foldDamping: 0.14
+    readonly property real foldDamping: reduceMotion ? calmDamping : 0.14
     // The drawer folds on a softer one: a 12% overshoot rather than 30%.
     // Drawer modules land first, then the glass settles (Pill.stretch).
     // At 2.2 / 0.20, Qt's spring first reaches its target at about 208 ms.
-    readonly property real drawerSpring: 2.2
-    readonly property real drawerDamping: 0.20
+    readonly property real drawerSpring: reduceMotion ? calmSpring : 2.2
+    readonly property real drawerDamping: reduceMotion ? calmDamping : 0.20
     readonly property int foldLandMs: 208
     // Before the drawer folds, the glass winds up the other way by this
     // much, in pixels, and lets go into the spring (Drawer.windup): drawn in
     // past shut before opening, out before shutting. Small beside the
     // twenty-odd pixels the spring runs past by, and quick, so it reads as
     // the glass loading up rather than as a false start.
-    readonly property real windup: 5
+    readonly property real windup: reduceMotion ? 0 : 5
     readonly property int windupMs: 110
     // How long after the bar starts the drawer folds without the spring
     // (BarItem): long enough for its modules' services to answer, which
@@ -587,7 +593,18 @@ Singleton {
     readonly property int dropMs: 620
 
     // Stiffness shared by the pill and selection springs; each uses its own damping.
-    readonly property real springStiffness: 2.5
+    readonly property real springStiffness: reduceMotion ? calmSpring : 2.5
+
+    // Reduce motion (Settings): every spring above swaps to this one, which
+    // never runs past its target and lands about when the bouncy ones first
+    // reach theirs (257 ms against 241, measured 2026-10-10; Qt's damping
+    // 0.5 at the old stiffness also stops short of overshoot, but crawls in
+    // over 800 ms). The attention hop, the drawer's wind-up and the
+    // wallpaper's parallax stop, and popups, the launcher and the power menu
+    // open where they stand rather than sliding or wiping in. Fades stay.
+    readonly property bool reduceMotion: Settings.reduceMotion
+    readonly property real calmSpring: 8
+    readonly property real calmDamping: 0.6
 
     // Figures rolling to their next value (RollingText): SwiftUI's default
     // duration, which the roll runs 1.45 times over while its spring settles

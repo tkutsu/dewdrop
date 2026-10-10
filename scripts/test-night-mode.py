@@ -330,7 +330,7 @@ fi
         # Pin the clock while pointer tests wait; samples still exercise real wake detection.
         clock = target / 'services/WallClock.qml'
         clock.write_text(clock.read_text().replace('running: true', 'running: false'))
-        (target / 'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace" }\n')
+        (target / 'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }\n')
         (target / 'Paths.qml').write_text('''pragma Singleton
 import QtQuick
 import Quickshell

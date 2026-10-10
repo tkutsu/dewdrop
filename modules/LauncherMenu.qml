@@ -29,7 +29,10 @@ OverlayWindow {
     // number moving, and the list resizing the box is not a reveal at all.
     property real reveal: root.opened ? 1 : 0
 
+    // Under Reduce motion the box is simply there, and simply gone: it cannot
+    // fade instead (see the exit, below), so it does neither.
     Behavior on reveal {
+        enabled: !Theme.reduceMotion
         NumberAnimation {
             duration: Theme.revealMs
             easing.type: Easing.OutCubic
@@ -113,8 +116,9 @@ OverlayWindow {
                 list.pointerLive = false;
                 return;
             }
-            // Dismissed rather than used: the reveal has it.
-            if (Launcher.chosen < 0)
+            // Dismissed rather than used: the reveal has it. So does a choice
+            // under Reduce motion, which closes without closing onto the row.
+            if (Launcher.chosen < 0 || Theme.reduceMotion)
                 return;
             root.focus = root.rowTop(Launcher.chosen);
             // Assigned rather than left bound, which breaks the binding on
