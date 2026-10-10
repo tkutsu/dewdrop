@@ -57,13 +57,47 @@ Popup {
         }
     }
 
-    PopupText {
+    // Now: the temperature, and beside it the sky with the next six hours.
+    Row {
         x: 6
         width: root.bodyWidth - 12
         visible: !root.choosing && Weather.days.length > 0
-        text: `Next 6 hours:\n${Weather.nextSixHours}`
-        color: Theme.label2
-        wrapMode: Text.WordWrap
+        spacing: 14
+
+        Column {
+            id: current
+            anchors.verticalCenter: parent.verticalCenter
+
+            PopupText {
+                text: Weather.measure(Weather.thisHour?.[Weather.feelsLike ? "feelsLike" : "temperature"], "°")
+                font.pixelSize: Theme.figureTextSize
+            }
+            PopupText {
+                visible: Weather.feelsLike
+                text: "feels like"
+                color: Theme.label2
+                font.pixelSize: Theme.footnoteSize
+            }
+        }
+
+        Column {
+            width: parent.width - current.width - parent.spacing
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
+
+            Glyph {
+                height: 24
+                text: Weather.thisHour?.icon ?? Weather.icon
+                color: Weather.tint(text)
+                fontSize: Theme.iconSize
+            }
+            PopupText {
+                width: parent.width
+                text: `Next 6 hours: ${Weather.nextSixHours}`
+                color: Theme.label2
+                wrapMode: Text.WordWrap
+            }
+        }
     }
 
     Item {
@@ -280,6 +314,7 @@ Popup {
                         anchors.horizontalCenter: parent.horizontalCenter
                         height: 20
                         text: daily.modelData.icon
+                        color: Weather.tint(daily.modelData.icon)
                         fontSize: Theme.popupGlyphSize
                     }
                     PopupText {

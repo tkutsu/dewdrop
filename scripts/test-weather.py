@@ -209,6 +209,13 @@ class WeatherTemperatures(unittest.TestCase):
         self.assertIsNone(days[1]["hours"][0]["windDirection"])
         self.assertEqual(days[3]["hours"][0]["windDirection"], 180)
 
+    def test_strong_wind_shows_on_dry_hours_only(self):
+        self.body["hourly"]["wind_speed_10m"] = [38, 39, 45, 45, None, 15, 15]
+        self.body["hourly"]["weather_code"] = [0, 0, 3, 61, 0, 0, 0]
+        hours = [day["hours"][0] for day in weather.normalize(self.body)["days"]]
+        self.assertEqual([hour["icon"] for hour in hours[:5]], ["\U000f0599", "\U000f059d", "\U000f059d", "\U000f0597", "\U000f0599"])
+        self.assertEqual((hours[1]["description"], hours[1]["severity"]), ("Clear", 0))
+
     def test_forecast_requests_hourly_wind_direction(self):
         with patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(self.body))) as opened:
             weather.fetch("forecast", ["37.98", "23.73", "Europe/Athens"])

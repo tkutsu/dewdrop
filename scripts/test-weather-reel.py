@@ -18,7 +18,7 @@ def main():
         components.mkdir()
         services.mkdir()
         source = (ROOT / "components/WeatherPopup.qml").read_text()
-        for name in ("reel", "outgoing", "incoming", "slide", "daily"):
+        for name in ("reel", "outgoing", "incoming", "slide", "daily", "current"):
             source = source.replace(f"id: {name}\n", f'id: {name}\n        objectName: "{name}"\n')
         (components / "WeatherPopup.qml").write_text(source)
         for name in ("WeatherGraph.qml", "PopupText.qml", "PopupRow.qml"):
@@ -67,7 +67,8 @@ import QtQuick
 QtObject {
     property int foldMs: 360; property int selectionRadius: 4; property int pillBorder: 1
     property int captionSize: 12; property int footnoteSize: 10; property int popupTextSize: 14
-    property int popupGlyphSize: 16; property string bodyFont: "sans-serif"
+    property int popupGlyphSize: 16; property int iconSize: 20; property int figureTextSize: 34
+    property string bodyFont: "sans-serif"
     property var figures: ({}); property color fg: "white"; property color label2: "grey"
     property color selection: "#333333"; property color selectionStrong: "#444444"
     property color stroke: "#666666"; property color warn: "orange"
@@ -210,8 +211,12 @@ ShellRoot {
                 const reel = named(popup, "reel");
                 check(reel.displayedDay.date === "2026-10-08" && reel.progress === 0, "initial day appears without sliding");
                 midnightLines(named(reel, "outgoing"));
+                const current = named(popup, "current");
+                check(current.children[0].text === "20°" && !current.children[1].visible, "header leads with the current temperature");
                 Weather.feelsLike = true;
                 wait(40);
+                check(current.children[0].text === "18°" && current.children[1].visible, "header switches to feels like and says so");
+                check(Qt.colorEqual(Weather.tint("\\u{f0597}"), "#86b8f0") && Qt.colorEqual(Weather.tint(""), Theme.fg), "icons take their weather's colour, unknown ones stay plain");
                 midnightLines(named(reel, "outgoing"));
                 Weather.feelsLike = false;
                 wait(40);
@@ -311,7 +316,7 @@ ShellRoot {
                 Weather.days = [Weather.days[0], missing];
                 wait(60);
                 missingMidnight(named(reel, "outgoing"));
-                console.log("PASS: weather reel, graph and gap scrolling, fixed cursor readout, continuous curves, fixed axes, rapid clicks, refresh and midnight rollover");
+                console.log("PASS: weather header, weather reel, graph and gap scrolling, fixed cursor readout, continuous curves, fixed axes, rapid clicks, refresh and midnight rollover");
             }
         }
     }
