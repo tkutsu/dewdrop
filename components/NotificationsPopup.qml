@@ -206,6 +206,7 @@ Popup {
                 Accessible.name: "Collapse " + group.modelData + " notifications"
                 Accessible.onPressAction: if (enabled && visible)
                     root.expandedGroup = ""
+                readonly property var keyPress: () => root.expandedGroup = ""
                 onClicked: root.expandedGroup = ""
             }
 
@@ -329,6 +330,7 @@ Popup {
             Accessible.name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
             Accessible.onPressAction: if (enabled && visible)
                 card.open()
+            readonly property var keyPress: () => card.open()
             onClicked: card.open()
         }
 

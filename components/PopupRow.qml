@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 
 // A row in a popup's list: the rounded fill that lights under the pointer, and
@@ -19,7 +20,13 @@ Item {
     Accessible.onPressAction: if (root.enabled && root.visible)
         root.tapped()
 
-    readonly property bool hovered: hover.hovered
+    // Whether the row is lit: under the pointer, or reached by the keys
+    // (Popup.qml), which hold the selection until the pointer moves again.
+    // Read by the rows that show their buttons only when lit, so the keys
+    // bring those out too.
+    property bool keyed: false
+    readonly property var keyPress: root.name !== "" ? () => root.tapped() : null
+    readonly property bool hovered: QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     // Inside a Flickable the press has to stay grabbable by the flick, so the
     // default policy is kept there; a row in a fixed list can ask for the
