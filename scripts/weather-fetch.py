@@ -17,6 +17,10 @@ from urllib.request import urlopen
 from zoneinfo import ZoneInfo
 
 
+# km/h, where the six-hour summary starts saying "Strong winds".
+WINDY = 39
+
+
 def condition(code, daylight=True):
     """Map WMO conditions to the Material Design glyphs used by the bar."""
     if code == 0:
@@ -54,12 +58,17 @@ def normalize(body):
         local = datetime.fromtimestamp(stamp, zone)
         code = hourly["weather_code"][i]
         description, icon, severity = condition(code, hourly["is_day"][i] == 1)
+        wind = number(hourly["wind_speed_10m"][i])
+        # Strong wind outshows a dry sky; the description and severity keep
+        # the sky for the six-hour summary.
+        if 0 <= severity <= 2 and wind is not None and wind >= WINDY:
+            icon = "\U000f059d"
         hours_by_day.setdefault(local.date().isoformat(), []).append({
             "at": stamp, "time": local.strftime("%H:%M"),
             "temperature": number(hourly["temperature_2m"][i]),
             "feelsLike": number(hourly["apparent_temperature"][i]),
             "rain": number(hourly["precipitation_probability"][i]),
-            "wind": number(hourly["wind_speed_10m"][i]),
+            "wind": wind,
             "windDirection": number(hourly["wind_direction_10m"][i]),
             "description": description, "icon": icon, "severity": severity,
         })

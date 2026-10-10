@@ -231,11 +231,14 @@ Singleton {
     // size a popup read as a paragraph of the bar rather than as a note beside
     // it — and an app's tray menu as a list of sentences.
     readonly property int popupTextSize: 12
-    // The launcher's query line: the largest text the shell draws. Spotlight,
+    // The launcher's query line: the largest line of text the shell draws. Spotlight,
     // Alfred and Raycast all make the thing being typed the biggest thing on
     // screen; at the rows' own 12 an open launcher read as a prompt over a
     // list rather than as a question with answers under it.
     readonly property int queryTextSize: 18
+    // A lone figure read at a glance, like the weather popup's temperature,
+    // which the weather apps all lead with.
+    readonly property int figureTextSize: 34
 
     // The escape hatch for the taskbar: a window class does not always resolve
     // to the best icon the theme has. Keyed by window class, and it should stay

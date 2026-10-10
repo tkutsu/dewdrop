@@ -115,6 +115,7 @@ Item {
                     width: (modelData.end - modelData.start) / Math.max(1, graph.end - graph.start) * graph.plotWidth
                     height: parent.height
                     readonly property bool hasRange: modelData.end - modelData.start > 3600
+                    readonly property color tint: Weather.tint(modelData.hour.icon)
                     opacity: modelData.end <= Weather.now ? 0.35 : 0.8
 
                     Glyph {
@@ -122,7 +123,7 @@ Item {
                         x: (interval.width - width) / 2
                         height: 22
                         text: modelData.hour.icon
-                        color: Theme.fg
+                        color: interval.tint
                         fontSize: Theme.popupGlyphSize
                     }
                     Rectangle {
@@ -131,7 +132,7 @@ Item {
                         width: Math.max(0, rangeIcon.x - x - 4)
                         height: 1
                         visible: interval.hasRange
-                        color: Theme.label2
+                        color: interval.tint
                     }
                     Rectangle {
                         x: rangeIcon.x + rangeIcon.width + 4
@@ -139,7 +140,7 @@ Item {
                         width: Math.max(0, parent.width - x - 2)
                         height: 1
                         visible: interval.hasRange
-                        color: Theme.label2
+                        color: interval.tint
                     }
                     Rectangle {
                         x: 2
@@ -147,7 +148,7 @@ Item {
                         width: 1
                         height: 5
                         visible: interval.hasRange
-                        color: Theme.label2
+                        color: interval.tint
                     }
                     Rectangle {
                         x: interval.width - 3
@@ -155,7 +156,7 @@ Item {
                         width: 1
                         height: 5
                         visible: interval.hasRange
-                        color: Theme.label2
+                        color: interval.tint
                     }
                 }
             }
