@@ -813,9 +813,6 @@ BarItem {
                                         if (!tap.pressApp())
                                             tap.focusWindow(app.icon.addresses[0]);
                                     }
-
-                                    KeyRing {}
-
                                     onPressed: mouse => {
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
                                         const addresses = app.icon.addresses;

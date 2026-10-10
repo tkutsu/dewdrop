@@ -182,8 +182,6 @@ BarItem {
             readonly property bool keyOpens: modelData.hasMenu
             readonly property var keyPress: modelData.hasMenu ? null : () => modelData.activate()
 
-            KeyRing {}
-
             // Cover half the gap either side, like a module's own padding:
             // the gap between two tray icons is split between them rather
             // than clicking on nothing.
