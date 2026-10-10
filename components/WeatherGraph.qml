@@ -13,10 +13,14 @@ Item {
     property bool feelsLike: false
     property real contentOffset: 0
     property bool showAxes: true
+    property bool showReadout: true
+    property Item readoutSource: graph
+    readonly property var readoutHour: graph.readoutSource.selectedHour
+    property MouseArea cursor: plotHover
     // The three measurements, in drawing order; the readout above the plots
     // takes its colours from here too.
     readonly property var series: [
-        {key: graph.feelsLike ? "feelsLike" : "temperature", label: graph.feelsLike ? "Feels like · °C" : "Temperature · °C", color: "#f2b36e", minimum: 10, maximum: 30, step: 5, pixels: 3.2},
+        {key: graph.feelsLike ? "feelsLike" : "temperature", label: graph.feelsLike ? "Feels like · °C" : "Temperature · °C", color: "#f2b36e", minimum: 0, maximum: 35, step: 5, pixels: 3.2},
         {key: "rain", label: "Rain chance · %", color: "#86b8f0", minimum: 0, maximum: 100, step: 25, pixels: 0.6},
         {key: "wind", label: "Wind · km/h", color: "#b4cfa0", minimum: 0, maximum: 40, step: 10, pixels: 1.5}
     ]
@@ -32,14 +36,13 @@ Item {
     readonly property bool showsNow: graph.hours.length > 0 && Weather.now >= graph.start && Weather.now < graph.end
     readonly property real nowX: Math.max(0, Math.min(1, (Weather.now - graph.start) / Math.max(1, graph.end - graph.start))) * graph.plotWidth
     readonly property var iconRanges: Weather.hourRanges(graph.hours, "icon")
-    property Item hoveredPlot: null
+    readonly property real pointerX: graph.cursor.mouseX - graph.contentOffset
     readonly property var currentHour: graph.hours.includes(Weather.thisHour) ? Weather.thisHour : null
     readonly property var selectedHour: graph.hoveredHour ?? graph.currentHour
     readonly property var hoveredHour: {
-        if (!graph.hoveredPlot || !graph.hours.length)
+        if (!graph.cursor.containsMouse || !graph.hours.length || graph.pointerX < 0 || graph.pointerX > graph.plotWidth)
             return null;
-        const plot = graph.hoveredPlot;
-        const fraction = Math.max(0, Math.min(1, plot.pointerX / Math.max(1, plot.width)));
+        const fraction = graph.pointerX / graph.plotWidth;
         const at = graph.start + fraction * (graph.end - graph.start);
         return graph.hours.reduce((nearest, hour) => Math.abs(hour.at - at) < Math.abs(nearest.at - at) ? hour : nearest, graph.hours[0]);
     }
@@ -55,7 +58,7 @@ Item {
             clip: true
 
             Rectangle {
-                x: graph.contentOffset * graph.width / graph.plotWidth
+                visible: graph.showReadout
                 width: graph.width
                 height: parent.height
                 radius: Theme.selectionRadius
@@ -66,29 +69,29 @@ Item {
                     anchors.leftMargin: 8
                     anchors.rightMargin: 8
                     spacing: 8
-                    visible: graph.selectedHour !== null
+                    visible: graph.readoutHour !== null
 
                     PopupText {
                         Layout.fillWidth: true
-                        text: graph.selectedHour ? `${graph.hoveredHour ? graph.selectedHour.time : "Now"}  ${graph.selectedHour.description}` : ""
+                        text: graph.readoutHour ? `${graph.readoutSource.hoveredHour ? graph.readoutHour.time : "Now"}  ${graph.readoutHour.description}` : ""
                         font.pixelSize: Theme.captionSize
                         elide: Text.ElideRight
                     }
                     PopupText {
                         Layout.preferredWidth: 100
-                        text: `${graph.feelsLike ? "feels like " : ""}${Weather.measure(graph.selectedHour?.[graph.series[0].key], "°C")}`
+                        text: `${graph.feelsLike ? "feels like " : ""}${Weather.measure(graph.readoutHour?.[graph.series[0].key], "°C")}`
                         color: graph.series[0].color
                         font.pixelSize: Theme.captionSize
                     }
                     PopupText {
                         Layout.preferredWidth: 80
-                        text: `Rain ${Weather.measure(graph.selectedHour?.rain, "%")}`
+                        text: `Rain ${Weather.measure(graph.readoutHour?.rain, "%")}`
                         color: graph.series[1].color
                         font.pixelSize: Theme.captionSize
                     }
                     PopupText {
                         Layout.preferredWidth: 160
-                        text: [Weather.windLabel(graph.selectedHour?.wind).toLowerCase(), graph.selectedHour?.wind >= 1 ? Weather.windBearing(graph.selectedHour?.windDirection) : "", Weather.measure(graph.selectedHour?.wind, " km/h")].filter(part => part !== "").join(" ")
+                        text: [Weather.windLabel(graph.readoutHour?.wind).toLowerCase(), graph.readoutHour?.wind >= 1 ? Weather.windBearing(graph.readoutHour?.windDirection) : "", Weather.measure(graph.readoutHour?.wind, " km/h")].filter(part => part !== "").join(" ")
                         color: graph.series[2].color
                         font.pixelSize: Theme.captionSize
                         elide: Text.ElideRight
@@ -234,7 +237,6 @@ Item {
                             readonly property real low: series.low
                             readonly property real high: series.high
                             readonly property color gridColor: Qt.rgba(Theme.stroke.r, Theme.stroke.g, Theme.stroke.b, Theme.stroke.a * 0.45)
-                            readonly property real pointerX: plotHover.point.position.x
                             readonly property var hoveredHour: graph.hoveredHour
                             readonly property var hoveredValue: hoveredHour ? hoveredHour[series.modelData.key] : null
                             readonly property real hoverY: typeof hoveredValue === "number" && Number.isFinite(hoveredValue) ? 2 + (high - hoveredValue) / (high - low) * (height - 4) : height / 2
@@ -242,16 +244,6 @@ Item {
                             // Everything onPaint reads, so any change repaints once.
                             readonly property var paintInputs: [hours, now, low, high, width, height, pastColor, futureColor, gridColor]
                             onPaintInputsChanged: requestPaint()
-
-                            HoverHandler {
-                                id: plotHover
-                                onHoveredChanged: {
-                                    if (hovered)
-                                        graph.hoveredPlot = plot;
-                                    else if (graph.hoveredPlot === plot)
-                                        graph.hoveredPlot = null;
-                                }
-                            }
 
                             Rectangle {
                                 x: plot.hoverX - width / 2
@@ -328,12 +320,24 @@ Item {
         }
     }
 
+    // A single hover surface keeps the readout active between the plots too.
+    MouseArea {
+        id: plotHover
+        x: graph.plotLeft
+        y: plots.y
+        width: graph.plotWidth
+        height: plots.height
+        enabled: graph.cursor === plotHover && graph.enabled
+        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
+    }
+
     Rectangle {
-        x: graph.hoveredPlot ? Math.round(graph.plotLeft + graph.contentOffset + graph.hoveredPlot.hoverX) : 0
+        x: graph.hoveredHour ? Math.round(graph.plotLeft + graph.contentOffset + (graph.hoveredHour.at - graph.start) / Math.max(1, graph.end - graph.start) * graph.plotWidth) : 0
         y: plots.y + 2
         width: 1
         height: Math.max(0, plots.height - 4)
-        visible: graph.hoveredHour !== null
+        visible: graph.hoveredHour !== null && x >= graph.plotLeft && x <= graph.plotLeft + graph.plotWidth
         color: Theme.stroke
         opacity: 0.7
     }
