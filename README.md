@@ -11,7 +11,7 @@ My Hyprland bar, launcher, notifications and popups, written for [Quickshell](ht
 - Popups grow from their item and switch on hover once one is open
 - Quiet modules fold into a drawer; pin any of them from settings or with a middle click
 - Wallpaper pans as you change workspace; the window border takes its colour
-- Settings window with search
+- Settings window with search, including macOS's Reduce motion and Reduce transparency
 - Power menu: sleep, restart, shut down, log out, kill a window
 
 ### Launcher

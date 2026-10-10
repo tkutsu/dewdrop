@@ -82,6 +82,8 @@ Item {
         id: artwork
 
         anchors.fill: parent
+        // Under Reduce motion the bounce dims the artwork instead (Bounce.fade).
+        opacity: bounce.fade
         layer.enabled: root.dotShown > 0
         layer.effect: MultiEffect {
             autoPaddingEnabled: false

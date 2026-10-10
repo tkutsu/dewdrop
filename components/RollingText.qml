@@ -109,7 +109,8 @@ Row {
             }
 
             onChChanged: {
-                if (rolls(ch) && rolls(shown) && root.visible) {
+                // Under Reduce motion a figure is swapped rather than rolled.
+                if (rolls(ch) && rolls(shown) && root.visible && !Theme.reduceMotion) {
                     was = shown;
                     shown = ch;
                     roll.restart();

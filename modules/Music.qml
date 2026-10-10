@@ -447,7 +447,8 @@ BarItem {
                     id: titleWidth
                     spring: Theme.springStiffness
                     // Give the second rebound enough travel to read as a bounce.
-                    damping: 0.14
+                    // The side pills' damping, which Reduce motion calms too.
+                    damping: Theme.foldDamping
                     epsilon: 0.25
                 }
             }
