@@ -163,7 +163,7 @@ A desktop message from an application or the shell, possibly carrying actions an
 _Avoid_: Notice (for the underlying message), unread mail
 
 **Notice**:
-The temporary presentation of an arriving notification beside the clock. Closing a notice leaves a retained notification available in the notification centre.
+The temporary presentation of an arriving notification beside the right pill. Closing a notice leaves a retained notification available in the notification centre.
 _Avoid_: Notification (when referring only to its bar presentation), popup
 
 **Notification centre**:

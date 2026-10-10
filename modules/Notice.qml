@@ -5,11 +5,10 @@ import qs
 import qs.components
 import qs.services
 
-// A notification as it arrives: who sent it and one line of what it said, on an
-// pill of its own beside the clock, folding away again once it has been
-// seen. The bar's own version of the pill a phone grows around its camera
-// for the same thing, and the one place on screen a glance already goes to
-// read the time.
+// A notification as it arrives: who sent it and one line of what it said, on a
+// pill of its own that comes out of the right pill, where the bell is,
+// folding back into it once it has been seen. The Mac puts its banners in
+// that corner too.
 //
 // The notification itself stays in the centre after this has folded away; this
 // is the moment of arrival and nothing after it (see services/Notifications.qml).
@@ -20,7 +19,7 @@ BarItem {
     readonly property var entry: Notifications.latest
 
     // What the notice says (its line, icon and count), kept as it was while
-    // it is drawn back into the clock. Letting go of a notice can close its
+    // it is drawn back into the right pill. Letting go of a notice can close its
     // notification (a fleeting one expires on the spot), which empties the
     // entry and zeroes the count the moment it starts to go.
     //
@@ -52,11 +51,12 @@ BarItem {
     }
 
     // How wide the whole notice may get, which the bar sets from the room
-    // between the clock (or the timer beside it) and the right pill. The line takes whatever the icon,
+    // between the clock (or the timer beside it) and the right pill (or the
+    // recording pill beside that). The line takes whatever the icon,
     // the count and the padding leave of it, and elides past that.
     property int room: 0
 
-    // Comes out of the clock and is drawn back into it; the bar draws the
+    // Comes out of the right pill and is drawn back into it; the bar draws the
     // pill off `reveal` (see Bar.drop), and nothing folds.
     stowed: !Notifications.showing
     folds: false
