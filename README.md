@@ -20,13 +20,14 @@ Apps by default, ranked by match and frecency. Sums get answered, and anything e
 
 | Prefix | Mode |
 | --- | --- |
-| `/` | Files, with preview |
+| `/` | Files, with preview. Ctrl+Enter shows the file in its folder, Ctrl+C copies its path |
 | `_` | Open windows |
 | `"` | Clipboard history |
 | `%` | Web search (`%y lofi` for YouTube, also ChatGPT, Claude, Translate, Maps) |
 | `@` | Gmail: unread, read in place, search |
 | `,` | Google task, or a timer/alarm if it starts with a duration or time |
 | `#` | MPD library and playlists |
+| `:` | Emoji, by name or keyword (`:lol`), typed into the window underneath |
 | `=` | Calculator |
 | `>` | Shell command |
 
@@ -85,6 +86,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket` |
 | Launcher file search | `fd` |
 | Calculator | `qalc` |
+| Typing emoji (without it they are only copied) | `wtype` |
 | Clipboard history | `cliphist`, `wl-clipboard`, and `wl-paste --watch cliphist store` running in your session |
 | Package updates | Arch only: `checkupdates` (pacman-contrib) and `yay` |
 | GPU stats | NVIDIA only: `nvidia-smi` |
@@ -98,4 +100,4 @@ Some actions run scripts from `scriptsDir` (`~/_scripts` by default): `power.sh`
 
 ## License
 
-The code is under the MIT license (see `LICENSE`). Any copy or derivative work has to keep the copyright notice. The icons and the alarm sound come from other projects and keep their own licenses. `icons/README.md` says where each icon comes from.
+The code is under the MIT license (see `LICENSE`). Any copy or derivative work has to keep the copyright notice. The icons and the alarm sound come from other projects and keep their own licenses. `icons/README.md` says where each icon comes from. `data/emoji.tsv` is built by `scripts/emoji-build.py` from Unicode's emoji data and CLDR's English keywords, under the [Unicode License](https://www.unicode.org/license.txt).

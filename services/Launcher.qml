@@ -130,6 +130,9 @@ Singleton {
     // Tasks and timers share a comma: plain text writes down a task, while a
     // leading duration or time of day sets a timer or alarm.
     readonly property string taskPrefix: ","
+    // Emoji, by name or by the words people use for them ("lol" finds 😂).
+    // The colon that starts a :shortcode: in chat, and starts nothing else here.
+    readonly property string emojiPrefix: ":"
 
     readonly property var modes: [
         { prefix: root.pathPrefix, hint: "files" },
@@ -139,6 +142,7 @@ Singleton {
         { prefix: root.mailPrefix, hint: "email" },
         { prefix: root.taskPrefix, hint: "tasks" },
         { prefix: root.musicPrefix, hint: "music" },
+        { prefix: root.emojiPrefix, hint: "emoji" },
         { prefix: root.calcPrefix, hint: "calc" },
         { prefix: root.cmdPrefix, hint: "run" }
     ]
@@ -183,6 +187,10 @@ Singleton {
             return "tab read  ·  ctrl+enter new mail  ·  from:  subject:  has:attachment";
         if (root.taskMode)
             return Tasks.syntax + "   " + Timers.syntax;
+        if (root.pathMode)
+            return "→ at end complete  ·  ctrl+enter show in folder  ·  ctrl+c copy path";
+        if (root.emojiMode)
+            return root.canType ? "enter types it  ·  ctrl+c copies" : "enter copies";
         if (root.classification.mode === "empty")
             return root.prefixHint;
         if (root.classification.mode === root.enginePrefix && !root.classification.text)
@@ -207,8 +215,17 @@ Singleton {
     // Once the window is gone, so is the question: left set, the last mode's
     // bindings would keep answering it for nobody (every window title change
     // re-ran `_`). show() starts from empty anyway.
-    onActiveChanged: if (!active)
-        root.query = ""
+    //
+    // A pending emoji is typed then too, a beat late so Hyprland has handed
+    // the focus back to the window underneath.
+    onActiveChanged: {
+        if (active)
+            return;
+        root.query = "";
+        if (root.typeOnClose)
+            Quickshell.execDetached(["sh", "-c", "sleep 0.05; exec wtype -- \"$1\"", "sh", root.typeOnClose]);
+        root.typeOnClose = "";
+    }
     property string query: ""
     property int index: 0
     onResultsChanged: if (root.index >= root.results.length)
@@ -229,6 +246,7 @@ Singleton {
     readonly property bool musicMode: root.classification.mode === root.musicPrefix
     readonly property bool mailMode: root.classification.mode === root.mailPrefix
     readonly property bool taskMode: root.classification.mode === root.taskPrefix
+    readonly property bool emojiMode: root.classification.mode === root.emojiPrefix
 
     // Classify without starting work or building rows. route() calls this
     // directly: onQueryChanged can run before the classification binding updates.
@@ -402,7 +420,8 @@ Singleton {
             [root.windowPrefix]: rest => root.windowResults(rest),
             [root.musicPrefix]: rest => LauncherMusic.results(rest),
             [root.mailPrefix]: rest => root.mailResults(rest),
-            [root.taskPrefix]: rest => root.taskResults(rest)
+            [root.taskPrefix]: rest => root.taskResults(rest),
+            [root.emojiPrefix]: rest => root.emojiResults(rest)
         })
 
     readonly property var results: {
@@ -1195,6 +1214,11 @@ Singleton {
             clip.asked = true;
             clip.running = true;
         }
+        // Read on first use and kept: the list is the same every time.
+        if (c.mode === root.emojiPrefix && !emojiFile.path) {
+            emojiFile.path = Quickshell.shellPath("data/emoji.tsv");
+            typer.running = true;
+        }
     }
 
     // --- calculator ----------------------------------------------------------
@@ -1471,6 +1495,110 @@ Singleton {
         }
     }
 
+    // --- emoji ---------------------------------------------------------------
+
+    // data/emoji.tsv, built by scripts/emoji-build.py: the emoji, its name,
+    // its keywords and its group, in Unicode's order.
+    property var emojis: []
+    property bool emojiMissing: false
+
+    // With nothing typed, the ones used lately and then the rest in Unicode's
+    // order, which keeps faces with faces.
+    //
+    // Typed, by whole words rather than the fuzzy matcher the apps use: as a
+    // subsequence "lol" is in "lollipop" and "love letter", which buried the
+    // face whose keyword it is. Each word typed has to start a word of the
+    // emoji's. A whole word of the name counts most, then a whole keyword,
+    // then the start of either, so "heart" lists the hearts before the faces
+    // that merely have one, and "lol" finds 😂 before the lollipop.
+    function emojiScore(term, e) {
+        let best = null;
+        const at = (words, whole, start) => {
+            for (const w of words)
+                if (w === term)
+                    best = Math.max(best ?? 0, whole);
+                else if (w.startsWith(term))
+                    best = Math.max(best ?? 0, start);
+        };
+        at(e.nameWords, 4, 2);
+        at(e.keyWords, 3, 1);
+        at(e.groupWords, 0.5, 0.5);
+        return best;
+    }
+
+    function emojiResults(query) {
+        if (!root.emojis.length)
+            return root.emojiMissing ? [root.noteRow(Theme.glyph.window, "no emoji list", "data/emoji.tsv is missing")] : [];
+
+        const terms = root.emojiWords(query);
+        const scored = [];
+        for (let i = 0; i < root.emojis.length; i++) {
+            const e = root.emojis[i];
+            const used = root.frecency("emoji:" + e.emoji);
+            let s = used * 1000 - i;
+            if (terms.length) {
+                s = 0;
+                for (const term of terms) {
+                    const m = root.emojiScore(term, e);
+                    if (m === null) {
+                        s = null;
+                        break;
+                    }
+                    s += m;
+                }
+                if (s === null)
+                    continue;
+                s += used - i * 0.0001;
+            }
+            scored.push({ s: s, e: e });
+        }
+        scored.sort((a, b) => b.s - a.s);
+        return scored.slice(0, root.maxResults).map(x => ({
+                    kind: "emoji",
+                    emoji: x.e.emoji,
+                    glyph: x.e.emoji,
+                    title: x.e.name,
+                    subtitle: x.e.group
+                }));
+    }
+
+    FileView {
+        id: emojiFile
+        printErrors: false
+        onLoadFailed: root.emojiMissing = true
+        onLoaded: root.emojis = emojiFile.text().split("\n").filter(l => l).map(l => {
+            const [emoji, name, words, group] = l.split("\t");
+            return {
+                emoji: emoji,
+                name: name,
+                group: group,
+                nameWords: root.emojiWords(name),
+                keyWords: root.emojiWords(words),
+                groupWords: root.emojiWords(group)
+            };
+        })
+    }
+
+    // Lowercased words, split at spaces and the punctuation names carry
+    // ("flag: Greece", "heart-eyes"), keeping "+1" and "it's" whole.
+    function emojiWords(text) {
+        return Fuzzy.fold(text || "").toLowerCase().split(/[\s\-:,.!()“”"&]+/).filter(w => w);
+    }
+
+    // Typing the emoji into the window the launcher was opened over, the way
+    // the macOS picker inserts it, needs wtype. Without it Enter only copies.
+    property bool canType: false
+
+    Process {
+        id: typer
+        command: ["sh", "-c", "command -v wtype"]
+        onExited: code => root.canType = code === 0
+    }
+
+    // Typed once the launcher's window is gone, so the keys reach the window
+    // underneath rather than the query line. See onActiveChanged.
+    property string typeOnClose: ""
+
     // --- selection -----------------------------------------------------------
 
     function move(dir): void {
@@ -1613,6 +1741,13 @@ Singleton {
                 root.leave(i);
                 Quickshell.execDetached(["xdg-open", r.url]);
             },
+            emoji: (r, i) => {
+                root.leave(i);
+                root.bump("emoji:" + r.emoji);
+                root.copy(r.emoji);
+                if (root.canType)
+                    root.typeOnClose = r.emoji;
+            },
             mail: (r, i) => {
                 root.leave(i);
                 Email.open(r.thread);
@@ -1637,7 +1772,8 @@ Singleton {
             }
         })
 
-    // Ctrl+Enter requests play for music or compose for mail; Enter queues music.
+    // Ctrl+Enter requests play for music, compose for mail, or the folder for
+    // a file; Enter queues music.
     function activate(i, mode): void {
         const r = root.results[i];
         // Ctrl+Enter in mail mode writes a new one, whatever row is selected
@@ -1656,12 +1792,40 @@ Singleton {
         // and closing the launcher would take the message with it.
         if (r.kind === "note")
             return;
+        // Ctrl+Enter on a file is Spotlight's ⌘↵: show it where it lives.
+        if (r.kind === "path" && mode === "play") {
+            root.reveal(r, i);
+            return;
+        }
         if (r.kind.indexOf("music-") === 0) {
             if (LauncherMusic.activate(r, mode))
                 root.leave(i);
             return;
         }
         root.actions[r.kind](r, i);
+    }
+
+    // The file's folder, opened with the file selected. Through the
+    // FileManager1 interface rather than a flag of one file manager's own:
+    // Dolphin, Nautilus and Nemo all answer it, and D-Bus starts one if none
+    // is running. Each part of the path is escaped, so a "#" or a space in a
+    // name stays part of the name.
+    function reveal(r, i): void {
+        root.leave(i);
+        Quickshell.execDetached(["fasd", "-A", r.path]);
+        const uri = "file://" + r.path.split("/").map(encodeURIComponent).join("/");
+        Quickshell.execDetached(["busctl", "--user", "call", "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1", "ShowItems", "ass", "1", uri, ""]);
+    }
+
+    // Ctrl+C with nothing selected in the query line: the row's own text,
+    // which for a file is its full path and for an emoji is the emoji.
+    function copyRow(i): void {
+        const r = root.results[i];
+        const text = r?.kind === "path" ? r.path : r?.kind === "emoji" ? r.emoji : "";
+        if (!text)
+            return;
+        root.leave(i);
+        root.copy(text);
     }
 
     // Ctrl+Delete. Only the clipboard has anything to forget: an app you
