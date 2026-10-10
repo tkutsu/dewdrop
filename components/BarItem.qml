@@ -67,6 +67,8 @@ ClickArea {
     // opens on it, or Return presses it.
     readonly property bool keyOpens: popup !== null
     readonly property var keyPress: keyOpens ? null : pressAction
+    // What the selection's mark goes round: the contents, not the gap padding.
+    readonly property Item keyBox: layout
 
     // With another module's popup up, resting here opens this one in its
     // place (OpenPopup.browse). Only where the whole module is the popup's
@@ -383,10 +385,6 @@ ClickArea {
         hovered: root.containsMouse && !root.pillDragging
         pressed: root.pressed || pin.pressed || opener.pressed
         text: root.tooltip
-    }
-
-    KeyRing {
-        box: layout
     }
 
     HoverPopup {

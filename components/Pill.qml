@@ -464,6 +464,71 @@ Item {
     // module at the start of the fold and again at the end.
     // A grid of one row rather than a RowLayout: its columns (arrange) put
     // the right pill's modules in their saved order without recreating them.
+    // The bar's selection mode (OpenPopup.selected) marks its item here in
+    // the workspaces' glass (FlowMark), over the slab and under the contents,
+    // and keeps it marked while the keys are down in its popup, the way a
+    // menu bar title stays lit while its menu is open. It flows from item to
+    // item along the pill with its ends on springs, so it stretches to each
+    // one's width and settles there. It does not cross the air into another
+    // pill: it fades out here and comes up there.
+    FlowMark {
+        id: keyMark
+
+        // The selected item, when it is in this pill.
+        readonly property Item target: {
+            for (let p = OpenPopup.selected; p; p = p.parent)
+                if (p === root)
+                    return OpenPopup.selected;
+            return null;
+        }
+        readonly property Item box: target?.keyBox ?? target
+        // Where its box is along the pill, read through every parent so the
+        // mark follows the item as the pill's contents move (the drawer).
+        readonly property real boxMid: {
+            if (!box)
+                return 0;
+            let x = box.x + box.width / 2;
+            for (let p = box.parent; p && p !== root; p = p.parent)
+                x += p.x;
+            return x;
+        }
+        readonly property real half: box ? Math.max(box.width + Theme.gap, Theme.keyMarkWidth) / 2 : 0
+        // The item the mark was last sent to: one that moves or changes
+        // width under it is followed, not flowed to.
+        property Item placedOn: null
+
+        function retarget(): void {
+            if (!keyMark.target)
+                return;
+            keyMark.resizing = keyMark.target === keyMark.placedOn;
+            keyMark.placedOn = keyMark.target;
+            keyMark.wantLeft = keyMark.boxMid - keyMark.half;
+            keyMark.wantRight = keyMark.boxMid + keyMark.half;
+        }
+
+        onBoxMidChanged: Qt.callLater(keyMark.retarget)
+        onHalfChanged: Qt.callLater(keyMark.retarget)
+
+        width: root.width
+        height: root.height
+        slabY: slab.y
+        slabHeight: slab.height
+        // The pill's ends are walls wherever the item is.
+        atFirst: true
+        atLast: true
+        wallLeft: slab.x + Theme.pillBorder
+        wallRight: slab.x + slab.width - Theme.pillBorder
+        resetWhenHidden: true
+        opacity: target ? 1 : 0
+        visible: opacity > 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.fadeMs
+            }
+        }
+    }
+
     GridLayout {
         id: row
         anchors.fill: parent
