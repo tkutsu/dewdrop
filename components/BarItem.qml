@@ -35,7 +35,10 @@ ClickArea {
     // An accessibility press is a left click, and the popup takes that before
     // the module's own actions do, as its hit area does.
     name: root.tooltip
-    Accessible.description: root.tooltip === root.name ? "" : root.tooltip
+    hint: root.tooltip === root.name ? "" : root.tooltip
+    // The pin's middle click and a popup on another button, taken by the
+    // layers on top (below), are this module's to name.
+    moreButtons: [pin.enabled ? Qt.MiddleButton : Qt.NoButton, opener.enabled ? root.popupButton : Qt.NoButton]
     // A module with a tooltip is somewhere to hover even when a click does
     // nothing. One that turns the wheel sets `scrolls` and answers the
     // scroll actions itself (Audio, Workspaces...): Qt lists an action for

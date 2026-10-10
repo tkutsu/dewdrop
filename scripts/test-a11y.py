@@ -51,6 +51,19 @@ ShellRoot {
                 Accessible.onScrollUpAction: win.wheelSteps++
                 Accessible.onScrollDownAction: win.wheelSteps--
             }
+            ClickArea {
+                id: sideButtons; name: "Side buttons"; width: 100; height: 20
+                actions: ({[Qt.RightButton]: () => win.rights++, [Qt.MiddleButton]: () => win.rights++})
+            }
+            ClickArea {
+                id: idle; name: "Nothing right now"; width: 100; height: 20
+                actions: ({[Qt.LeftButton]: null, [Qt.RightButton]: null})
+            }
+            BarItem {
+                id: layered; tooltip: "Layered"; pinKey: "test-layered"; popupButton: Qt.RightButton
+                width: 100; height: 38
+                popup: Component { Item { property var anchorItem } }
+            }
             BarItem {
                 id: bar; name: "Bar action"; width: 100; height: 38
                 actions: ({[Qt.LeftButton]: () => win.barClicks++})
@@ -100,6 +113,12 @@ ShellRoot {
                 check(!wheel.Accessible.ignored, "a wheel area stays in the tree");
                 wheel.Accessible.scrollUpAction(); wheel.Accessible.scrollUpAction(); wheel.Accessible.scrollDownAction();
                 check(win.wheelSteps === 1, "scroll actions reach the wheel area's handlers");
+                check(click.Accessible.description === "Pointer: right click", "a right action is named on the pointer line");
+                check(hoverOnly.Accessible.description === "Pointer: hover" && wheel.Accessible.description === "Pointer: scroll", "hover and wheel are named");
+                check(!sideButtons.Accessible.ignored && sideButtons.Accessible.role === Accessible.StaticText
+                      && sideButtons.Accessible.description === "Pointer: right click, middle click", "right and middle alone keep an area in the tree");
+                check(idle.Accessible.ignored && idle.Accessible.description === "", "buttons mapped to null are not named");
+                check(layered.Accessible.description === "Pointer: right click, middle click, hover", "BarItem names its pin and popup layers' buttons");
                 mouseClick(bar, 50, 15); bar.Accessible.pressAction();
                 check(win.barClicks === 2, "BarItem press activates once, not twice through inheritance");
                 mouseClick(popup, 50, 15);
