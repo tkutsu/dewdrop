@@ -363,16 +363,22 @@ Singleton {
 
     // The clock's glass over an image wallpaper: clear rather than frosted,
     // drawing the wallpaper itself (Liquid.backdrop, shaders/liquid.frag).
-    // Near the edge it looks glassBend pixels further in, easing off to
-    // nothing by glassBendDepth, the way the rim of a lens pulls what is under
-    // it towards the middle. Red bends glassDispersion less than that and
-    // blue as much more, so the edge fringes with colour. A touch of blur and
-    // a lift in colour, then barBg's near-black laid over it at glassTint so
-    // labels still read. glassBendDepth is half the pill: any deeper and the
-    // bends from the top and bottom edges would meet in the middle in a seam.
-    readonly property real glassBend: 7
-    readonly property real glassBendDepth: 12
-    readonly property real glassDispersion: 0.2
+    // At the edge it looks glassBend pixels further in, the way the rim of a
+    // lens pulls what is under it towards the middle. The edge is a rounded
+    // bevel, so the bend is near nothing for most of the way in and piles up
+    // over the last few pixels before the rim; glassBendDepth is where it
+    // starts, the pill's whole half-height, since the bevel is flat by the
+    // middle and the bends from the top and bottom never meet there. Round
+    // the ends, which curve both ways, it bends glassCapBend times as much
+    // again, and the rim is brightened by up to glassGlow where it bends.
+    // Red bends glassDispersion less and blue as much more, so the edge
+    // fringes with colour. A touch of blur and a lift in colour, then
+    // barBg's near-black laid over it at glassTint so labels still read.
+    readonly property real glassBend: 14
+    readonly property real glassBendDepth: pillRadius
+    readonly property real glassCapBend: 1.2
+    readonly property real glassGlow: 0.2
+    readonly property real glassDispersion: 0.3
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3
