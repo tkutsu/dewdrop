@@ -143,6 +143,8 @@ Popup {
 
             Accessible.role: Accessible.Chart
             Accessible.name: "Forecast graphs"
+            // Resting on the plots reads out that hour (ClickArea).
+            Accessible.description: "Pointer: hover, scroll"
             Accessible.onScrollUpAction: step(-1)
             Accessible.onScrollDownAction: step(1)
 

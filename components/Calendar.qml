@@ -230,6 +230,8 @@ Popup {
 
                     Accessible.role: Accessible.Button
                     Accessible.name: Qt.formatDateTime(dayCell.day, "dddd d MMMM yyyy")
+                    // Resting on a day lists its agenda below (ClickArea).
+                    Accessible.description: "Pointer: hover"
                     Accessible.onPressAction: if (enabled && visible)
                         root.openDay(dayCell.day)
 

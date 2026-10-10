@@ -803,6 +803,8 @@ BarItem {
 
                                     Accessible.role: Accessible.Button
                                     Accessible.name: label.text
+                                    // Resting on an icon shows its window's title (ClickArea).
+                                    Accessible.description: "Pointer: hover"
                                     Accessible.onPressAction: if (enabled && visible && !tap.pressApp())
                                         tap.focusWindow(app.icon.addresses[0])
 
