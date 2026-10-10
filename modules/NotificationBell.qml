@@ -16,8 +16,9 @@ BarItem {
     popup: NotificationsPopup {}
     // Do-not-disturb is something true right now even with nothing waiting,
     // so the bell only goes in the drawer when it is both empty and ordinary —
-    // and never while its popup hangs off it.
-    quiet: Notifications.count === 0 && !Notifications.dnd && !root.popupOpen
+    // and never while its popup hangs off it. Empty means nothing waiting: a
+    // notice still on show beside the clock has not reached the bell yet.
+    quiet: Notifications.waiting === 0 && !Notifications.dnd && !root.popupOpen
 
     BadgedGlyph {
         Layout.fillHeight: true
