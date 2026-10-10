@@ -91,9 +91,9 @@ Singleton {
     // And how it moves: quicker than the workspace mark, which moves once
     // for a switch, where the keys step this one along several items in a
     // row and each step has to have landed before the next.
-    readonly property real keyMarkSpring: reduceMotion ? calmSpring : 6
-    readonly property real keyMarkDamping: reduceMotion ? calmDamping : 0.4
-    readonly property int keyMarkMs: 200
+    readonly property real keyMarkSpring: reduceMotion ? calmSpring : 9
+    readonly property real keyMarkDamping: reduceMotion ? calmDamping : 0.45
+    readonly property int keyMarkMs: 150
 
     // One gap between things that stand on their own: modules and tray icons.
     // Measured icon to icon — a badge floats in the gap rather than claiming
