@@ -81,6 +81,13 @@ Singleton {
         return [root.terminal, ...(title ? ["--title=" + title] : []), "-e", ...run];
     }
 
+    // A Google web app through its PWA wrapper in scriptsDir when the machine
+    // has one, the default browser when it does not. Without a url the
+    // wrapper focuses the app where it was left, and the browser opens `home`.
+    function webApp(script: string, url: string, home: string): var {
+        return ["sh", "-c", 'w=$1 page=$2; shift 2; [ -x "$w" ] && exec "$w" "$@"; exec xdg-open "$page"', "sh", `${root.scriptsDir}/${script}`, url || home, ...(url ? [url] : [])];
+    }
+
     // --- the files -----------------------------------------------------------
     // JSON plus // comments and trailing commas. The comment stripper walks
     // the text rather than using a regex so that a "//" inside a string — a
