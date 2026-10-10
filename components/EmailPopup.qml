@@ -441,6 +441,9 @@ Popup {
                                                     MouseArea {
                                                         anchors.fill: parent
                                                         acceptedButtons: Qt.RightButton
+                                                        Accessible.role: Accessible.StaticText
+                                                        Accessible.name: "Message text"
+                                                        Accessible.description: "Pointer: right click"
                                                         cursorShape: messageText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
                                                         onClicked: {
                                                             if (messageText.selectedText === "")
