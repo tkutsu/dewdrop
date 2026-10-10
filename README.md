@@ -4,49 +4,49 @@ My Hyprland bar, launcher, notifications and popups, written for [Quickshell](ht
 
 ## Features
 
-### The bar
+### Bar
 
-- The bar is three pills of clear glass: workspaces on the left, music, clock and timers in the middle, and status and controls on the right. The glass bends the wallpaper behind it at the rim like a lens, and the pills that come and go beside the clock merge into it like drops.
-- Each workspace shows one icon per app. A click opens an app's group into one icon per window, an urgent window marks its app, and you can drag a window onto another workspace. Scrolling over the workspaces steps through them.
-- Popups grow out of the item that opened them. While one is open, resting the pointer on another item switches to that item's popup. Tooltips appear when the pointer rests and stay away while a popup is open.
-- Quiet modules fold into a drawer behind a chevron in the right pill and come back when they have something to show. You can pin any of them outside the drawer from the settings window, or with a middle click.
-- The wallpaper pans with a spring as you change workspace, and Hyprland's active border takes its colour from the wallpaper.
-- The gear opens a settings window with a search box. It writes `settings.json` for you.
-- The power menu covers sleep, restart, shut down, log out, and kill a window by clicking it.
+- Clear glass pills that bend the wallpaper at the rim; pills beside the clock merge into it like drops
+- One icon per app on each workspace, drag a window to another workspace, scroll to switch
+- Popups grow from their item and switch on hover once one is open
+- Quiet modules fold into a drawer; pin any of them from settings or with a middle click
+- Wallpaper pans as you change workspace; the window border takes its colour
+- Settings window with search
+- Power menu: sleep, restart, shut down, log out, kill a window
 
-### The launcher
+### Launcher
 
-One box for everything. Typed on its own, a query finds apps, ranked by how well they match and how often and recently you picked them. A sum gets an answer, and a query that finds nothing is offered as a web search. A leading character picks a mode:
+Apps by default, ranked by match and frecency. Sums get answered, and anything else falls back to a web search.
 
 | Prefix | Mode |
 | --- | --- |
-| `/` | Files, with a preview of the selected file or folder |
-| `_` | Open windows, to jump to one |
+| `/` | Files, with preview |
+| `_` | Open windows |
 | `"` | Clipboard history |
-| `%` | Web search. `%lofi` searches Google, and a one-letter engine first picks another: `%y lofi` for YouTube, then ChatGPT, Claude, Translate, Maps and more |
-| `@` | Gmail: unread mail, readable in place, or a search of the whole mailbox |
-| `,` | A new Google task, or a timer or alarm when the text starts with a duration or a time of day |
-| `#` | The MPD library by artist, album and track, plus stored playlists |
+| `%` | Web search (`%y lofi` for YouTube, also ChatGPT, Claude, Translate, Maps) |
+| `@` | Gmail: unread, read in place, search |
+| `,` | Google task, or a timer/alarm if it starts with a duration or time |
+| `#` | MPD library and playlists |
 | `=` | Calculator |
-| `>` | Run a shell command |
+| `>` | Shell command |
 
-### What it does on its own
+### Built in
 
-- Notifications: the shell is the notification server. A new one appears beside the clock, and the bell holds the rest, with actions, images and do not disturb.
-- Timers and alarms: countdowns you can pause and adjust, and alarms that can repeat on chosen weekdays. They survive a restart and can also ring your phone through Pushover.
-- Google: the Tasks count and list, the Calendar agenda inside the clock's calendar, and the Gmail unread count with mark-as-read.
-- Weather from Open-Meteo between the date and the time, with an hourly graph and a city search. No account needed.
-- Music: an MPD client with the cover, a seek bar, volume, and a queue you can reorder.
-- Audio: pick the output, set the volume, and set each app's volume.
-- Wi-Fi and Bluetooth: scan, connect and disconnect from their popups.
-- Removable drives show up while plugged in, with how full each one is and a safe eject. So do wired devices that report a battery, such as a mouse on a USB receiver.
-- System: CPU or GPU temperature on the bar, and a popup with memory, top processes and the graphics card.
-- Package updates (Arch): the pending count, the list, and a button that runs the upgrade.
-- Wallpapers: a picker with every image in your folder.
-- Night mode: warmer colour and a dimmed monitor, on a schedule or by hand.
-- Caffeine to keep the screen awake, a screenshot button, the keyboard layout, and a system tray with its menus.
+- Notification server, with a notification centre and do not disturb
+- Timers and repeating alarms, with optional Pushover phone alerts
+- Google Tasks, Calendar agenda, Gmail unread
+- Weather (Open-Meteo, no account)
+- MPD player with cover, seek and an editable queue
+- Audio output and per-app volume
+- Wi-Fi and Bluetooth
+- Removable drives with safe eject, device batteries
+- CPU/GPU temperature, memory, top processes
+- Arch package updates
+- Wallpaper picker
+- Night mode with schedule
+- Caffeine, screenshots, keyboard layout, tray
 
-Most of it can be driven from keybinds too: `qs ipc call launcher toggle`, `qs ipc call timer toggle`, and similar targets for `power`, `notifications`, `tasks`, `email`, `agenda`, `updates`, `caffeine` and `settings`.
+Keybinds can drive it over IPC: `qs ipc call launcher toggle`, plus targets for `timer`, `power`, `notifications`, `tasks`, `email`, `agenda`, `updates`, `caffeine`, `settings`.
 
 ## What it needs
 
