@@ -294,6 +294,11 @@ Item {
     // (Theme.badgeBg).
     readonly property color surface: backdrop?.columns?.length ? Theme.glassOver(backdrop.average(x + slab.x, x + slab.x + slab.width)) : Theme.mix(Theme.backdrop, Theme.tint, Theme.barBg.a)
 
+    // Where the glass is in the bar, stretch and all, for a bar that draws
+    // this pill's glass itself while something pours out of it
+    // (Bar.qml, the recording pill).
+    readonly property rect slabRect: Qt.rect(root.x + slab.x, root.y + slab.y, slab.width, slab.height)
+
     Item {
         id: slab
 

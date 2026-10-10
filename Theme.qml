@@ -495,6 +495,10 @@ Singleton {
     readonly property color badgeFg: "white"
 
     readonly property color warn: "#ff88aa"
+    // Something is listening or watching (modules/Recording.qml): the
+    // system red macOS draws its recording dot in, rather than warn's pink,
+    // which says "look at this" and not "this is on".
+    readonly property color recording: "#ff453a"
 
     // The dot at the head of a task row, which is how the list says when
     // something is due without spending a column on saying it. Three steps and
@@ -836,6 +840,7 @@ Singleton {
         // The input's row in the sound popup, and its mute.
         mic: "\u{f036e}",            // nf-md-microphone_outline
         micMuted: "\u{f036d}",       // nf-md-microphone_off
+        screenShare: "\u{f1483}",    // nf-md-monitor_share
 
         playing: "\u{f040a}",
         paused: "\u{f03e4}",
