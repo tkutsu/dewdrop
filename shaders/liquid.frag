@@ -8,8 +8,8 @@
 //
 // Given what is behind it (glass = 1), it is clear glass rather than a tint:
 // it draws the wallpaper itself, bent in towards the middle near the edge the
-// way the rim of a lens pulls what is under it, softened a little and
-// brightened in colour. Red bends a little less and blue a little more, as
+// way the rim of a lens pulls what is under it, hardest round the round ends,
+// softened a little and brightened in colour. Red bends a little less and blue a little more, as
 // they do through real glass, so the edge fringes with colour. Opaque, so Hyprland's blur underneath never shows.
 //
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o liquid.frag.qsb liquid.frag
@@ -61,6 +61,10 @@ layout(std140, binding = 0) uniform buf {
     float tint;
     // How much less red bends, and how much more blue, than green does.
     float dispersion;
+    // How much harder the glass bends round a pill's round ends than along
+    // its top and bottom, and how much brighter the rim is where it bends.
+    float capBend;
+    float glow;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -154,12 +158,22 @@ void main() {
         // looks, easing off to nothing at bendDepth.
         vec2 n = normalize(vec2(field(p + vec2(0.5, 0.0)) - field(p - vec2(0.5, 0.0)),
                                 field(p + vec2(0.0, 0.5)) - field(p - vec2(0.0, 0.5))) + 1e-6);
+        // The edge is a rounded bevel seen from above: nearly flat for most
+        // of the way in, then turning down steeply at the very rim, so the
+        // bend stays out of the middle and piles up in the last few pixels.
         float t = clamp(1.0 + d / bendDepth, 0.0, 1.0);
-        vec2 shift = n * bend * t * t;
+        float lens = 1.0 - sqrt(1.0 - t * t);
+        // Along the top and bottom the glass curves one way; round a pill's
+        // end it curves both ways, like a lens, and bends harder. How far
+        // round the end p is shows in how sideways the edge faces.
+        lens *= 1.0 + capBend * abs(n.x);
+        vec2 shift = n * bend * lens;
         vec3 c = vec3(softened(p - shift * (1.0 - dispersion)).r,
                       softened(p - shift).g,
                       softened(p - shift * (1.0 + dispersion)).b);
         c = clamp(mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, saturation), 0.0, 1.0);
+        // What the rim gathers from further out, it gives back brighter.
+        c = min(c * (1.0 + glow * lens), 1.0);
         vec3 glassBody = mix(c, fill.rgb, tint);
         float alpha = mix(fill.a, 1.0, glass);
         body = mix(fill.rgb * fill.a, glassBody, glass) / max(alpha, 1e-6);
