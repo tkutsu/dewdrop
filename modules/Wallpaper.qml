@@ -42,6 +42,9 @@ BarItem {
             }
         })
 
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: Wallpaper.next()
     onScrollDown: Wallpaper.prev()
 }

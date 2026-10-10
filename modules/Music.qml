@@ -523,6 +523,9 @@ BarItem {
         }
     }
 
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: Mpd.seek(-10)
     onScrollDown: Mpd.seek(10)
 }

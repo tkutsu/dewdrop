@@ -160,6 +160,11 @@ Item {
     // long line is cut at the edge rather than the page drifting sideways.
     Flickable {
         id: bodyView
+        // In the accessibility tree as a list to scroll, half a view a step.
+        Accessible.role: Accessible.List
+        Accessible.name: "Preview"
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
         anchors.fill: parent
         contentHeight: body.implicitHeight

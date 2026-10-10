@@ -133,6 +133,11 @@ Popup {
     // --- the cards --------------------------------------------------------------
     ListView {
         id: cards
+        // In the accessibility tree as a list to scroll, half a view a step.
+        Accessible.role: Accessible.List
+        Accessible.name: "Notifications"
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
         visible: count > 0
         width: root.bodyWidth

@@ -125,6 +125,16 @@ Popup {
     Flickable {
         id: threadList
 
+        // In the accessibility tree as a list to scroll, half a view a step.
+
+        Accessible.role: Accessible.List
+
+        Accessible.name: "Mail"
+
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
+
         width: root.bodyWidth
         height: Math.min(rowList.implicitHeight, root.listMax)
         contentHeight: rowList.implicitHeight
@@ -309,6 +319,16 @@ Popup {
 
                             Flickable {
                                 id: mail
+
+                                // In the accessibility tree as a list to scroll, half a view a step.
+
+                                Accessible.role: Accessible.List
+
+                                Accessible.name: "Message"
+
+                                Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+
+                                Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
                                 y: 6
                                 width: parent.width

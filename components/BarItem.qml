@@ -36,6 +36,11 @@ ClickArea {
     // the module's own actions do, as its hit area does.
     name: root.tooltip
     Accessible.description: root.tooltip === root.name ? "" : root.tooltip
+    // A module with a tooltip is somewhere to hover even when a click does
+    // nothing. One that turns the wheel sets `scrolls` and answers the
+    // scroll actions itself (Audio, Workspaces...): Qt lists an action for
+    // every handler connected, so a handler here would put one on them all.
+    hovers: root.tooltip !== ""
     pressAction: {
         if (root.stowed)
             return null;

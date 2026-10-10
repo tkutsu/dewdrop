@@ -267,6 +267,12 @@ BarItem {
     // which is why these read as function calls rather than bare dispatchers.
     // Down is the next one: the strip lies across the wheel like a Slider,
     // so it goes the way a slider does rather than the way an icon does.
+    // Named so the strip is in the accessibility tree as the area the
+    // wheel cycles through workspaces on; each workspace is its own button.
+    name: "Workspaces"
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: if (!root.dragging) Hyprland.dispatch('workspace_cycle(-1)')
     onScrollDown: if (!root.dragging) Hyprland.dispatch('workspace_cycle(1)')
 

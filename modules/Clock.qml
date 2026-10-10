@@ -16,6 +16,9 @@ BarItem {
 
     // Up is the next month and down the one before, the way round every
     // wheel on the bar goes.
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: if (popupItem)
         popupItem.offset++
     onScrollDown: if (popupItem)

@@ -24,6 +24,9 @@ BarItem {
             [Qt.RightButton]: () => Keyboard.next()
         })
 
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: Keyboard.next()
     onScrollDown: Keyboard.prev()
 }

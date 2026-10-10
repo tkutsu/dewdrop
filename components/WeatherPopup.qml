@@ -129,10 +129,22 @@ Popup {
         Component.onCompleted: Qt.callLater(reel.syncDay)
 
         // Accumulate wheel notches across the graphs, keeping forecast bounds.
+        // Also the graphs' place in the accessibility tree: an area to hover
+        // for the hour under the pointer and to scroll through the days.
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
             property real acc: 0
+
+            function step(days: int): void {
+                const index = Math.max(0, Math.min(Weather.days.length - 1, root.selected + days));
+                root.picked = Weather.days[index].date;
+            }
+
+            Accessible.role: Accessible.Chart
+            Accessible.name: "Forecast graphs"
+            Accessible.onScrollUpAction: step(-1)
+            Accessible.onScrollDownAction: step(1)
 
             onWheel: function (wheel) {
                 acc -= wheel.angleDelta.y;

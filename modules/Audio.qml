@@ -79,6 +79,9 @@ BarItem {
             [Qt.RightButton]: () => Audio.toggleMute()
         })
 
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: Audio.step(true)
     onScrollDown: Audio.step(false)
 }
