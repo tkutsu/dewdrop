@@ -20,7 +20,7 @@ Item {
     // The three measurements, in drawing order; the readout above the plots
     // takes its colours from here too.
     readonly property var series: [
-        {key: graph.feelsLike ? "feelsLike" : "temperature", label: graph.feelsLike ? "Feels like · °C" : "Temperature · °C", color: "#f2b36e", minimum: 0, maximum: 35, step: 5, pixels: 3.2},
+        {key: graph.feelsLike ? "feelsLike" : "temperature", label: graph.feelsLike ? "Feels like · °C" : "Temperature · °C", color: "#f2b36e", minimum: 0, maximum: 40, step: 10, pixels: 3.2},
         {key: "rain", label: "Rain chance · %", color: "#86b8f0", minimum: 0, maximum: 100, step: 25, pixels: 0.6},
         {key: "wind", label: "Wind · km/h", color: "#b4cfa0", minimum: 0, maximum: 40, step: 10, pixels: 1.5}
     ]
