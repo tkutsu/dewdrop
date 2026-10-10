@@ -45,7 +45,9 @@ PanelWindow {
     readonly property var activeWorkspace: root.monitor?.activeWorkspace ?? null
     // Parallax zooms in to leave room to pan. Each layer keeps the zoom it was
     // adopted with, so switching parallax crossfades like a new wallpaper.
-    readonly property real wantedZoom: Wallpaper.parallax ? Settings.wallpaperParallaxZoom : 1
+    // Reduce motion turns parallax off whatever the wallpaper popup says.
+    readonly property bool parallax: Wallpaper.parallax && !Theme.reduceMotion
+    readonly property real wantedZoom: root.parallax ? Settings.wallpaperParallaxZoom : 1
 
     // Where the crop sits along this monitor's numbered workspaces, from 0 at
     // the first to 1 at the last, and the spring that carries it there.
@@ -109,7 +111,7 @@ PanelWindow {
         // Renumbering the same workspace must not move the current crop.
         function follow(jump) {
             const active = root.activeWorkspace;
-            if (!Wallpaper.parallax || !active || active.id <= 0 || !/^\d+$/.test(active.name))
+            if (!root.parallax || !active || active.id <= 0 || !/^\d+$/.test(active.name))
                 return;
             if (!jump && active === pan.workspace)
                 return;

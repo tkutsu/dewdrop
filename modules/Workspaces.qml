@@ -672,7 +672,7 @@ BarItem {
                             text: "\u25cb"
                             fontSize: Theme.textSize
                             color: Theme.fg
-                            opacity: emptyBounce.running ? 1 : button.ink
+                            opacity: emptyBounce.running ? emptyBounce.fade : button.ink
 
                             transform: Translate { y: emptyBounce.offset }
                         }

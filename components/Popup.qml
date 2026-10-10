@@ -141,7 +141,8 @@ PopupWindow {
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.revealProgress
     property real revealProgress: root.opened ? 1 : 0
-    property real slideOffset: root.opened ? 0 : -6
+    // Under Reduce motion a popup only fades: it opens where it will stand.
+    property real slideOffset: root.opened || Theme.reduceMotion ? 0 : -6
 
     // On from `visible`, which is set before the surface maps, not from
     // backingWindowVisible: that flips `opened` and the guard in the same

@@ -182,6 +182,10 @@ ShellRoot {
                 Wallpaper.setColor('#8090a0');
                 Wallpaper.setParallax(true);
                 Wallpaper.setDrift(true);
+                Settings.reduceMotion = true;
+                check(!desktop.parallax && desktop.wantedZoom === 1, 'reduce motion turns parallax off');
+                Settings.reduceMotion = false;
+                check(desktop.parallax && desktop.wantedZoom > 1, 'parallax returns with motion');
                 wait(150);
                 console.log('PASS: workspace pan, compaction, wrapping, glass sampling, crossfades and colour drift');
             }
@@ -354,6 +358,8 @@ QtObject {
     readonly property real wallpaperParallaxZoom: 1.08
     readonly property string font: 'Sans'
     readonly property string monoFont: 'Monospace'
+    property bool reduceMotion: false
+    property bool reduceTransparency: false
     function inTerminal(command) { return command; }
 }
 """)

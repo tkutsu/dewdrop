@@ -38,6 +38,8 @@ Singleton {
     readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters", "libreoffice-startcenter"]
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
+    readonly property bool reduceMotion: root.values.reduceMotion ?? false
+    readonly property bool reduceTransparency: root.values.reduceTransparency ?? false
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")

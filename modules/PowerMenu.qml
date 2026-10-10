@@ -71,6 +71,7 @@ OverlayWindow {
     // Every open, including a reopen during dismissal, starts unselected.
     function adopt(): void {
         crt.stop();
+        calm.stop();
         root.closing = false;
         root.command = "";
         root.vertical = 1;
@@ -110,12 +111,33 @@ OverlayWindow {
         }
         root.command = arg;
         root.closing = true;
-        crt.start();
+        // Reduce motion: no collapse, only the shade going to black.
+        if (Theme.reduceMotion)
+            calm.start();
+        else
+            crt.start();
+    }
+
+    // The end of either exit: the command, or the menu back if it was taken.
+    function finish(): void {
+        const arg = root.command;
+        root.command = "";
+        if (arg !== "")
+            Power.run(arg, true);
+        else
+            root.cancelCrt();
+    }
+
+    Timer {
+        id: calm
+        interval: Theme.fadeMs
+        onTriggered: root.finish()
     }
 
     // Escape restores the menu and cancels a command still waiting to run.
     function cancelCrt(): void {
         crt.stop();
+        calm.stop();
         root.command = "";
         root.vertical = 1;
         root.horizontal = 1;
@@ -174,6 +196,7 @@ OverlayWindow {
             } else if (root.closing) {
                 // An external IPC close cancels the queued action.
                 crt.stop();
+                calm.stop();
                 root.command = "";
             }
         }
@@ -344,7 +367,9 @@ OverlayWindow {
             id: menuClip
 
             readonly property int pillHeight: 44
-            readonly property int topEdge: Math.round(pillHeight * (1 - root.reveal) / 2)
+            // Wiped open from the centre line, or under Reduce motion there at
+            // its full height while the backdrop fades in behind it.
+            readonly property int topEdge: Theme.reduceMotion ? 0 : Math.round(pillHeight * (1 - root.reveal) / 2)
             x: (root.width - width) / 2
             y: (root.height - pillHeight) / 2 + topEdge
             width: (root.pending ? answers.implicitWidth : actions.implicitWidth)
@@ -625,14 +650,7 @@ OverlayWindow {
             duration: 40
         }
         ScriptAction {
-            script: {
-                const arg = root.command;
-                root.command = "";
-                if (arg !== "")
-                    Power.run(arg, true);
-                else
-                    root.cancelCrt();
-            }
+            script: root.finish()
         }
     }
 }

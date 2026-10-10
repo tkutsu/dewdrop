@@ -176,6 +176,18 @@ OverlayWindow {
                     rows: root.powerRows
                 }
             ]
+        },
+        {
+            title: "Accessibility",
+            sections: [
+                {
+                    title: "Display",
+                    rows: [
+                        { type: "toggle", id: "reduceMotion", title: "Reduce motion", text: "Springs settle without a bounce, an icon asking for attention dims instead of hopping, and wallpaper parallax stops. Popups, the launcher and the power menu open in place rather than sliding or wiping in.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) },
+                        { type: "toggle", id: "reduceTransparency", title: "Reduce transparency", text: "The pills, popups, the launcher and the power menu are drawn on a solid dark surface instead of glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
+                    ]
+                }
+            ]
         }
     ]
 

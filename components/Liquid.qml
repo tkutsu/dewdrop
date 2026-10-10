@@ -74,7 +74,9 @@ ShaderEffect {
     readonly property point origin: backdrop ? Qt.point(windowPos.x - backdrop.x, windowPos.y - backdrop.y) : Qt.point(0, 0)
     readonly property size backdropSize: backdrop ? Qt.size(backdrop.width, backdrop.height) : Qt.size(1, 1)
 
-    readonly property real glass: backdrop?.glassWeight ?? (backdrop?.status === Image.Ready ? 1 : 0)
+    // None under Reduce transparency: the shader then lays Theme.barBg, which
+    // is opaque in that mode, rather than the wallpaper.
+    readonly property real glass: Theme.reduceTransparency ? 0 : backdrop?.glassWeight ?? (backdrop?.status === Image.Ready ? 1 : 0)
     property real bend: Theme.glassBend
     property real bendDepth: Theme.glassBendDepth
     property real soften: Theme.glassSoften
