@@ -180,15 +180,16 @@ Item {
                     readonly property real high: Math.max(modelData.maximum, values.length ? Math.ceil(Math.max(...values) / modelData.step) * modelData.step : modelData.maximum)
                     readonly property var ticks: Array.from({length: Math.round((high - low) / modelData.step) + 1}, (_, index) => high - index * modelData.step)
 
-                    // Emphasize uncomfortable temperatures, likely rain, and strong wind.
+                    // Emphasize what the six-hour summary calls freezing, hot, rain
+                    // likely and strong winds (the windy icon's limit too).
                     function isSevere(value: var): bool {
                         if (typeof value !== "number" || !Number.isFinite(value))
                             return false;
                         if (modelData.key === "rain")
                             return value >= 70;
                         if (modelData.key === "wind")
-                            return value >= 40;
-                        return value <= 5 || value >= 35;
+                            return value >= 39;
+                        return value <= 0 || value >= 35;
                     }
 
                     PopupText {
