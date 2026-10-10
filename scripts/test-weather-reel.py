@@ -26,6 +26,10 @@ def main():
             if name == "WeatherGraph.qml":
                 for item in ("seriesTitle", "plot"):
                     source = source.replace(f"id: {item}\n", f'id: {item}\n                        objectName: "{item}"\n')
+                source = source.replace('color: Theme.selection\n', 'objectName: "readout"\n                color: Theme.selection\n')
+                source = source.replace('Layout.fillWidth: true\n', 'objectName: "readoutTime"\n                        Layout.fillWidth: true\n', 1)
+                source = source.replace('y: plots.y + 2\n', 'objectName: "cursorLine"\n        y: plots.y + 2\n', 1)
+                source = source.replace('id: plots\n', 'id: plots\n            objectName: "plots"\n')
                 source = source.replace('text: Math.round(modelData)', 'objectName: "axisTick"\n                            text: Math.round(modelData)')
             (components / name).write_text(source)
         (components / "Popup.qml").write_text('''import QtQuick
@@ -139,6 +143,16 @@ ShellRoot {
                     for (const offset of [-1, 0, 1])
                         check(coloredAt(image, seam + offset, y), key + " curve stays unbroken across the moving day seam");
                 }
+                const plots = named(outgoing, "plots");
+                const firstSeries = named(outgoing, "plot").parent.parent;
+                const gapY = firstSeries.y + firstSeries.height + outgoing.spacing / 2;
+                for (const graph of [outgoing, incoming]) {
+                    mouseMove(plots, graph.plotLeft + (graph.plotWidth + graph.contentOffset) / 2, gapY);
+                    wait(20);
+                    check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "cursor line follows the forecast under the pointer during the slide");
+                    check(outgoing.readoutSource === graph && outgoing.readoutHour === graph.hoveredHour, "stationary readout follows the forecast under the pointer during the slide");
+                    check(named(outgoing, "readoutTime").text === graph.hoveredHour.time + "  " + graph.hoveredHour.description, "readout text updates to the cursor's hour during the slide");
+                }
                 slide.resume();
             }
             function missingMidnight(graph) {
@@ -166,6 +180,7 @@ ShellRoot {
                 check(direction * outgoing.contentOffset < 0 && direction * incoming.contentOffset > 0, "old day exits as new day enters from the opposite edge");
                 check(Math.abs(Math.abs(incoming.contentOffset - outgoing.contentOffset) - outgoing.plotWidth) < 0.01, "plots form a continuous reel with no gap");
                 check(outgoing.x === 0 && incoming.x === 0, "graph frames stay in place");
+                check(named(outgoing, "readout").x === 0 && named(outgoing, "readout").visible && !named(incoming, "readout").visible, "one stationary grey readout stays visible during the slide");
                 const title = named(outgoing, "seriesTitle"), tick = named(outgoing, "axisTick");
                 const titlePosition = title.mapToItem(reel, 0, 0), tickPosition = tick.mapToItem(reel, 0, 0);
                 check(title.visible && tick.visible && !named(incoming, "seriesTitle").visible && !named(incoming, "axisTick").visible, "one stationary set of Y-axis labels is visible");
@@ -176,7 +191,7 @@ ShellRoot {
                 wait(70);
                 check(title.mapToItem(reel, 0, 0).x === titlePosition.x && title.mapToItem(reel, 0, 0).y === titlePosition.y, "Y-axis legend does not move during the slide");
                 check(tick.mapToItem(reel, 0, 0).x === tickPosition.x && tick.mapToItem(reel, 0, 0).y === tickPosition.y, "Y-axis tick labels do not move during the slide");
-                check(reel.clip && !outgoing.enabled && !incoming.enabled, "moving graphs stay clipped and ignore hover");
+                check(reel.clip && outgoing.enabled && incoming.cursor === outgoing.cursor, "moving graphs stay clipped and share cursor tracking");
                 check(reel.height > 0 && Number.isFinite(reel.height), "transition retains a valid popup height");
                 joinedLines(reel, outgoing, incoming);
             }
@@ -200,6 +215,55 @@ ShellRoot {
                 midnightLines(named(reel, "outgoing"));
                 Weather.feelsLike = false;
                 wait(40);
+                const graph = named(reel, "outgoing");
+                const plots = named(graph, "plots");
+                const firstPlot = namedAll(graph, "plot")[0];
+                const firstSeries = firstPlot.parent.parent;
+                const gapY = firstSeries.y + firstSeries.height + graph.spacing / 2;
+                const secondSeries = namedAll(graph, "plot")[1].parent.parent;
+                mouseMove(plots, graph.plotLeft + graph.plotWidth / 3, secondSeries.y + secondSeries.height + graph.spacing / 2);
+                wait(30);
+                check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gap between rain and wind retains the cursor readout and vertical line");
+                mouseMove(plots, graph.plotLeft + graph.plotWidth / 2, gapY);
+                wait(30);
+                check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gaps between graphs retain the cursor readout and vertical line");
+                mouseWheel(plots, graph.plotLeft + graph.plotWidth / 2, gapY, 0, -120, Qt.NoButton);
+                check(popup.selected === 1, "scrolling between graphs selects the next day");
+                wait(70);
+                moving(reel, 1, "2026-10-08", "2026-10-09");
+                settled(reel, "2026-10-09");
+                check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "stationary cursor in a gap remains active after changing days");
+                mouseWheel(plots, graph.plotLeft + graph.plotWidth / 2, gapY, 0, 120, Qt.NoButton);
+                settled(reel, "2026-10-08");
+                for (const plot of namedAll(graph, "plot")) {
+                    mouseWheel(plot, plot.width / 2, plot.height / 2, 0, 120, Qt.NoButton);
+                    check(popup.selected === 0, "scroll up stays at the first forecast day");
+                    mouseWheel(plot, plot.width / 2, plot.height / 2, 0, -120, Qt.NoButton);
+                    check(popup.selected === 1, "scroll down over each graph selects the next day");
+                    settled(reel, "2026-10-09");
+                    mouseWheel(plot, plot.width / 2, plot.height / 2, 0, 120, Qt.NoButton);
+                    check(popup.selected === 0, "scroll up over each graph selects the previous day");
+                    settled(reel, "2026-10-08");
+                }
+                const plot = named(graph, "plot");
+                mouseMove(plot, plot.width / 2, plot.height / 2);
+                wait(30);
+                check(graph.hoveredHour !== null, "wheel area preserves graph hover readouts");
+                for (let i = 0; i < 2; i++) {
+                    mouseWheel(plot, plot.width / 2, plot.height / 2, 0, -40, Qt.NoButton);
+                    check(popup.selected === 0, "partial wheel notches do not skip days");
+                }
+                mouseWheel(plot, plot.width / 2, plot.height / 2, 0, -40, Qt.NoButton);
+                wait(70);
+                moving(reel, 1, "2026-10-08", "2026-10-09");
+                mouseWheel(reel, reel.width / 2, reel.height / 2, 0, -120, Qt.NoButton);
+                check(popup.selected === 2, "wheel input continues during a slide");
+                mouseWheel(reel, reel.width / 2, reel.height / 2, 0, -120, Qt.NoButton);
+                check(popup.selected === 2, "scroll down stays at the last forecast day");
+                wait(760);
+                check(reel.displayedDay.date === "2026-10-10" && reel.incomingDay === null, "rapid scrolling settles on the latest selection");
+                mouseWheel(plot, plot.width / 2, plot.height / 2, 0, 240, Qt.NoButton);
+                settled(reel, "2026-10-08");
                 clickDay(1);
                 moving(reel, 1, "2026-10-08", "2026-10-09");
                 settled(reel, "2026-10-09");
@@ -247,7 +311,7 @@ ShellRoot {
                 Weather.days = [Weather.days[0], missing];
                 wait(60);
                 missingMidnight(named(reel, "outgoing"));
-                console.log("PASS: weather reel, continuous curves, fixed axes, rapid clicks, refresh and midnight rollover");
+                console.log("PASS: weather reel, graph and gap scrolling, fixed cursor readout, continuous curves, fixed axes, rapid clicks, refresh and midnight rollover");
             }
         }
     }

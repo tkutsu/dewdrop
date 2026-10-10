@@ -103,6 +103,23 @@ Popup {
 
         Component.onCompleted: Qt.callLater(reel.syncDay)
 
+        // Accumulate wheel notches across the graphs, keeping forecast bounds.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.NoButton
+            property real acc: 0
+
+            onWheel: function (wheel) {
+                acc -= wheel.angleDelta.y;
+                const steps = Math.trunc(acc / 120);
+                if (!steps)
+                    return;
+                acc -= steps * 120;
+                const index = Math.max(0, Math.min(Weather.days.length - 1, root.selected + steps));
+                root.picked = Weather.days[index].date;
+            }
+        }
+
         WeatherGraph {
             id: outgoing
             contentOffset: -reel.direction * outgoing.plotWidth * reel.progress
@@ -110,7 +127,7 @@ Popup {
             hours: reel.displayedDay?.hours ?? []
             scaleHours: reel.scaleHours
             feelsLike: Weather.feelsLike
-            enabled: !slide.running
+            readoutSource: incoming.hoveredHour !== null ? incoming : outgoing
         }
 
         WeatherGraph {
@@ -121,7 +138,9 @@ Popup {
             hours: reel.incomingDay?.hours ?? []
             scaleHours: reel.scaleHours
             showAxes: false
+            showReadout: false
             feelsLike: Weather.feelsLike
+            cursor: outgoing.cursor
             enabled: false
         }
 
