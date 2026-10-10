@@ -569,14 +569,14 @@ GoogleService {
     }
 
     // --- opening -------------------------------------------------------------
-    // The PWA on the thread itself, and an unread row gone at once: Gmail
+    // Gmail on the thread itself, and an unread row gone at once: Gmail
     // marks it read on open, and the poll that confirms that is up to 30s
     // away. A read one, which only a search turns up, was never counted;
     // the cache is the poll's unread, whatever its labels say.
     function open(thread: var): void {
         if (thread.unread || root.cache[thread.id])
             root.drop(thread);
-        Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}#inbox/${thread.id}`]);
+        Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", `${root.web}#inbox/${thread.id}`, root.web));
     }
 
     // Read without opening it: the UNREAD label off every message in the
@@ -614,14 +614,14 @@ GoogleService {
     }
 
     function openInbox(): void {
-        Quickshell.execDetached([Paths.script("pwa-gmail.sh")]);
+        Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", "", root.web));
     }
 
-    // A new mail, in its own Gmail app window, with the subject filled in
+    // A new mail, in its own Gmail window, with the subject filled in
     // when there is one (the launcher's ctrl+enter).
     function compose(subject: string): void {
         const su = subject ? `&su=${encodeURIComponent(subject)}` : "";
-        Quickshell.execDetached([Paths.script("pwa-gmail.sh"), `${root.web}?view=cm&fs=1${su}`]);
+        Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", `${root.web}?view=cm&fs=1${su}`, root.web));
     }
 
     // qs ipc call email …

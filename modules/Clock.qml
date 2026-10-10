@@ -60,7 +60,7 @@ BarItem {
     actions: ({
             [Qt.RightButton]: () => {
                 OpenPopup.dismiss();
-                Quickshell.execDetached([Paths.script("pwa-gcalendar.sh")]);
+                Quickshell.execDetached(Settings.webApp("pwa-gcalendar.sh", "", "https://calendar.google.com/"));
             },
             [Qt.MiddleButton]: () => {
                 // was: t=$(date '+%F %T'); wl-copy; notify-send
