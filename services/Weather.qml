@@ -40,6 +40,25 @@ Singleton {
     readonly property string summary: root.summarize(root.upcoming)
     readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
+    // The popup's icons in the colour of their weather. Rain and wind share
+    // the graph's hues for those series.
+    readonly property var tints: ({
+            "\u{f0599}": "#f5cf5f", // sun
+            "\u{f0595}": "#eedb9e", // sun and cloud
+            "\u{f0594}": "#d5dbf0", // moon
+            "\u{f0f31}": "#bcc3da", // moon and cloud
+            "\u{f0590}": "#a9afba", // overcast
+            "\u{f0591}": "#bfc4c9", // fog
+            "\u{f0597}": "#86b8f0", // rain
+            "\u{f0596}": "#5f9cf2", // pouring
+            "\u{f067f}": "#a3dcf2", // freezing rain
+            "\u{f0598}": "#ffffff", // snow
+            "\u{f067e}": "#c5a3f5", // thunderstorm
+            "\u{f059d}": "#b4cfa0"  // wind
+        })
+    function tint(icon: string): color {
+        return root.tints[icon] ?? Theme.fg;
+    }
     // The six-hour line the bar and popup share: the summary, marked when it
     // is a cached forecast, or why there is none yet.
     readonly property string nextSixHours: root.upcoming.length ? `${root.stale ? "Last forecast: " : ""}${root.summary}` : root.trouble || "Loading weather..."
