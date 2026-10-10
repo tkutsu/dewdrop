@@ -101,6 +101,7 @@ Item {
         }
 
         Item {
+            id: strip
             x: graph.plotLeft
             width: graph.plotWidth
             height: 22
@@ -321,13 +322,14 @@ Item {
         }
     }
 
-    // A single hover surface keeps the readout active between the plots too.
+    // A single hover surface over the icons and the plots keeps the readout
+    // active between them too.
     MouseArea {
         id: plotHover
         x: graph.plotLeft
-        y: plots.y
+        y: strip.y
         width: graph.plotWidth
-        height: plots.height
+        height: plots.y + plots.height - strip.y
         enabled: graph.cursor === plotHover && graph.enabled
         acceptedButtons: Qt.NoButton
         hoverEnabled: true

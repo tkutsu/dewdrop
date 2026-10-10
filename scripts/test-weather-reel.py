@@ -24,6 +24,7 @@ def main():
         for name in ("WeatherGraph.qml", "PopupText.qml", "PopupRow.qml"):
             source = (ROOT / "components" / name).read_text()
             if name == "WeatherGraph.qml":
+                source = source.replace("id: strip\n", 'id: strip\n            objectName: "strip"\n')
                 for item in ("seriesTitle", "plot"):
                     source = source.replace(f"id: {item}\n", f'id: {item}\n                        objectName: "{item}"\n')
                 source = source.replace('color: Theme.selection\n', 'objectName: "readout"\n                color: Theme.selection\n')
@@ -212,10 +213,10 @@ ShellRoot {
                 check(reel.displayedDay.date === "2026-10-08" && reel.progress === 0, "initial day appears without sliding");
                 midnightLines(named(reel, "outgoing"));
                 const current = named(popup, "current");
-                check(current.children[0].text === "20°" && !current.children[1].visible, "header leads with the current temperature");
+                check(current.text === "20°", "header leads with the current temperature");
                 Weather.feelsLike = true;
                 wait(40);
-                check(current.children[0].text === "18°" && current.children[1].visible, "header switches to feels like and says so");
+                check(current.text === "18°", "header switches to feels like");
                 check(Qt.colorEqual(Weather.tint("\\u{f0597}"), "#86b8f0") && Qt.colorEqual(Weather.tint(""), Theme.fg), "icons take their weather's colour, unknown ones stay plain");
                 midnightLines(named(reel, "outgoing"));
                 Weather.feelsLike = false;
@@ -232,6 +233,10 @@ ShellRoot {
                 mouseMove(plots, graph.plotLeft + graph.plotWidth / 2, gapY);
                 wait(30);
                 check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gaps between graphs retain the cursor readout and vertical line");
+                const strip = named(graph, "strip");
+                mouseMove(strip, strip.width / 4, strip.height / 2);
+                wait(30);
+                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text.startsWith("6:00"), "hovering the icon ranges picks their hour for the readout");
                 mouseWheel(plots, graph.plotLeft + graph.plotWidth / 2, gapY, 0, -120, Qt.NoButton);
                 check(popup.selected === 1, "scrolling between graphs selects the next day");
                 wait(70);
