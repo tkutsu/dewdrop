@@ -35,8 +35,11 @@ Singleton {
             if (event.name === "custom" && event.data === "click" && PopupPointer.hovered === 0 && PopupPointer.bars === 0)
                 root.dismiss();
             // Selection mode ends when another window takes focus, as one
-            // does when Return on an app icon brings its window forward.
-            else if (event.name === "activewindowv2" && root.selected !== null)
+            // does when Return on a workspace brings its window forward. Not
+            // on the event alone: Hyprland sends it again for the same window
+            // every time its title changes, and a terminal with a spinner in
+            // its title changes it several times a second.
+            else if (event.name === "activewindowv2" && root.selected !== null && event.data !== root._window)
                 root.dismiss();
         }
     }
@@ -110,15 +113,20 @@ Singleton {
     // it. So does a click anywhere or another window taking focus.
     //
     // An item takes part by having a `keyPress` function, or `keyOpens` for
-    // one whose popup opens on it (BarItem, the tray's icons, the
-    // workspaces' app icons). Bar.qml walks them and takes the keyboard.
+    // one whose popup opens on it (BarItem, the tray's icons, each
+    // workspace). Bar.qml walks them and takes the keyboard.
     property Item selected: null
     // Whether the keys are down in the selected item's popup.
     property bool inPopup: false
 
     signal selectRequested(screenName: string)
 
+    // The window that had focus when selection mode started.
+    property string _window: ""
+
     function select(item: Item): void {
+        if (root.selected === null)
+            root._window = Hyprland.activeToplevel?.address ?? "";
         // Selected first, so the bar holds on to the keyboard while the
         // popup changes hands.
         root.selected = item;
