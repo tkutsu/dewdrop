@@ -14,8 +14,10 @@ Popup {
     property QsMenuHandle handle
     signal dismissed
 
-    // A menu drops whole, as the Mac's do; only a popover grows.
+    // A menu drops whole and at once, as the Mac's do, and fades only on
+    // its way out; only a popover grows.
     grows: false
+    fadesIn: false
 
     // Up once its rows are in, not before. QsMenuOpener asks the app for them
     // over DBus each time a menu opens, so a menu shown at once was a window
