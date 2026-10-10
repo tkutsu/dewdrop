@@ -343,6 +343,8 @@ PopupWindow {
             root.setKey(next);
         else if (k === Qt.Key_Left && root.backKey)
             root.backKey();
+        else if (k === Qt.Key_Up)
+            OpenPopup.leave(root);
         return true;
     }
 

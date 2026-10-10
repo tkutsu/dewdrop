@@ -39,13 +39,73 @@ PanelWindow {
     // without a grab. Exclusive rather than on-demand because the click that
     // opened the popup has already happened by the time this turns on; the
     // window under the bar has its keyboard back the moment the popup goes.
-    readonly property bool keyed: OpenPopup.keyed.length > 0 && OpenPopup.owner?.QsWindow.window === bar
+    // And while the bar itself is walked from the keyboard (selection mode,
+    // OpenPopup.selected), down in a popup or not.
+    readonly property bool keyed: (OpenPopup.keyed.length > 0 && OpenPopup.owner?.QsWindow.window === bar) || OpenPopup.selected?.QsWindow.window === bar
     WlrLayershell.keyboardFocus: bar.keyed ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     Item {
         focus: true
-        Keys.onPressed: event => event.accepted = OpenPopup.key(event)
+        Keys.onPressed: event => event.accepted = OpenPopup.selected !== null && !OpenPopup.inPopup ? bar.selectKey(event) : OpenPopup.key(event)
     }
+
+    // Selection mode's keys while they are on the bar rather than in a popup
+    // (see OpenPopup.select).
+    function selectKey(event: var): bool {
+        const item = OpenPopup.selected;
+        switch (event.key) {
+        case Qt.Key_Escape:
+            OpenPopup.dismiss();
+            return true;
+        case Qt.Key_Left:
+        case Qt.Key_Right:
+            {
+                // Round from one end to the other, the way a menu bar goes.
+                const stops = bar.stops();
+                const step = event.key === Qt.Key_Right ? 1 : -1;
+                const at = stops.indexOf(item);
+                const next = at < 0 ? stops[step > 0 ? 0 : stops.length - 1] : stops[(at + step + stops.length) % stops.length];
+                if (next)
+                    OpenPopup.select(next);
+                return true;
+            }
+        case Qt.Key_Down:
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            if (item.keyOpens)
+                OpenPopup.enter();
+            else if (event.key !== Qt.Key_Down)
+                item.keyPress();
+            return true;
+        }
+        return false;
+    }
+
+    // The items selection mode stops at, left to right: whatever has a
+    // popup to open or a press to make (OpenPopup.select), and is on the
+    // bar rather than folded away.
+    function stops(): var {
+        const found = [];
+        const walk = item => {
+            for (const child of item.children) {
+                if (!child.visible || child.opacity === 0)
+                    continue;
+                if ((child.keyOpens === true || typeof child.keyPress === "function") && child.width > 0)
+                    found.push(child);
+                walk(child);
+            }
+        };
+        walk(bar.contentItem);
+        const at = new Map(found.map(s => [s, s.mapToItem(bar.contentItem, s.width / 2, 0).x]));
+        return found.sort((a, b) => at.get(a) - at.get(b));
+    }
+
+    // The launcher puts popups away as it opens; the power menu and the
+    // settings window want the keyboard as well, so they end selection mode.
+    readonly property bool overlayUp: Services.Power.active || Services.Preferences.active
+    onOverlayUpChanged: if (overlayUp && OpenPopup.selected?.QsWindow.window === bar)
+        OpenPopup.dismiss()
 
     anchors {
         top: true
@@ -493,7 +553,7 @@ PanelWindow {
             holding: rightPill.drawable.some(m => m.here && !m.showsClosed) || (tray.here && tray.tucks)
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
-            pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null
+            pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null || OpenPopup.selected !== null
         }
 
         // A pixel less air on its right than the row gives: the speaker's
@@ -632,6 +692,16 @@ PanelWindow {
         }
     }
 
+    // Selection mode starts on the calendar, popup open.
+    Connections {
+        target: OpenPopup
+
+        function onSelectRequested(screenName: string): void {
+            if (bar.modelData.name === screenName)
+                OpenPopup.select(clock);
+        }
+    }
+
     // Anchor a requested popup after its drawer slot has finished unfolding.
     Timer {
         id: controlOpen
@@ -656,14 +726,16 @@ PanelWindow {
     // A popup a click opened goes the same way, on a click anywhere but its
     // own module. That click still reaches whatever it landed on, so a click
     // on another module's icon goes straight from one popup to the next.
+    // Any click on the bar ends selection mode, and hands it the pointer.
     MouseArea {
         anchors.fill: parent
         z: 1
-        enabled: drawer.open || OpenPopup.owner !== null
+        enabled: drawer.open || OpenPopup.owner !== null || OpenPopup.selected !== null
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         onPressed: function (mouse) {
             mouse.accepted = false;
+            OpenPopup.deselect();
             if (drawer.open && !rightPill.contains(mapToItem(rightPill, mouse.x, mouse.y)))
                 drawer.open = false;
             const owner = OpenPopup.owner;

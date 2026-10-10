@@ -177,6 +177,13 @@ BarItem {
             // would have opened one doing nothing.
             readonly property var toggleMenu: modelData.hasMenu ? () => OpenPopup.toggle(entry) : null
 
+            // In the bar's selection mode the menu opens on the icon, the way
+            // the pointer browses to it; Return activates one without a menu.
+            readonly property bool keyOpens: modelData.hasMenu
+            readonly property var keyPress: modelData.hasMenu ? null : () => modelData.activate()
+
+            KeyRing {}
+
             // Cover half the gap either side, like a module's own padding:
             // the gap between two tray icons is split between them rather
             // than clicking on nothing.

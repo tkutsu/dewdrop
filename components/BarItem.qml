@@ -63,6 +63,11 @@ ClickArea {
         OpenPopup.toggle(root);
     }
 
+    // A stop in the bar's selection mode (OpenPopup.selected): the popup
+    // opens on it, or Return presses it.
+    readonly property bool keyOpens: popup !== null
+    readonly property var keyPress: keyOpens ? null : pressAction
+
     // With another module's popup up, resting here opens this one in its
     // place (OpenPopup.browse). Only where the whole module is the popup's
     // button: Music's popup belongs to its title, which browses for itself,
@@ -378,6 +383,10 @@ ClickArea {
         hovered: root.containsMouse && !root.pillDragging
         pressed: root.pressed || pin.pressed || opener.pressed
         text: root.tooltip
+    }
+
+    KeyRing {
+        box: layout
     }
 
     HoverPopup {
