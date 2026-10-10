@@ -210,6 +210,11 @@ BarItem {
                     if (wheel.angleDelta.x !== 0)
                         entry.modelData.scroll(wheel.angleDelta.x, true);
                 }
+
+                // One notch each way, as the wheel sends it.
+                scrolls: true
+                Accessible.onScrollUpAction: entry.modelData.scroll(120, false)
+                Accessible.onScrollDownAction: entry.modelData.scroll(-120, false)
             }
 
             Loader {

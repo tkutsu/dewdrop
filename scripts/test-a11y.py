@@ -35,6 +35,7 @@ ShellRoot {
         property int taps: 0
         property int rows: 0
         property int moves: 0
+        property int wheelSteps: 0
         property int changes: 0
         property bool settingValue: false
         property int choiceValue: 0
@@ -42,6 +43,13 @@ ShellRoot {
             ClickArea {
                 id: click; name: "Click"; width: 100; height: 30
                 actions: ({[Qt.LeftButton]: () => win.clicks++, [Qt.RightButton]: () => win.rights++})
+            }
+            ClickArea { id: hoverOnly; name: "Hover only"; width: 100; height: 20; hovers: true }
+            ClickArea { id: silent; name: "Nothing to do"; width: 100; height: 20 }
+            ClickArea {
+                id: wheel; name: "Wheel"; width: 100; height: 20; scrolls: true
+                Accessible.onScrollUpAction: win.wheelSteps++
+                Accessible.onScrollDownAction: win.wheelSteps--
             }
             BarItem {
                 id: bar; name: "Bar action"; width: 100; height: 38
@@ -86,6 +94,12 @@ ShellRoot {
                 check(win.clicks === 2 && win.rights === 0, "ClickArea press matches one left click");
                 mouseClick(click, 50, 15, Qt.RightButton);
                 check(win.clicks === 2 && win.rights === 1, "right action stays separate");
+                check(click.Accessible.role === Accessible.Button && !click.Accessible.ignored, "a press is a button");
+                check(!hoverOnly.Accessible.ignored && hoverOnly.Accessible.role === Accessible.StaticText, "a hover-only area stays in the tree as text");
+                check(silent.Accessible.ignored, "an area with nothing to press, hover or scroll stays out");
+                check(!wheel.Accessible.ignored, "a wheel area stays in the tree");
+                wheel.Accessible.scrollUpAction(); wheel.Accessible.scrollUpAction(); wheel.Accessible.scrollDownAction();
+                check(win.wheelSteps === 1, "scroll actions reach the wheel area's handlers");
                 mouseClick(bar, 50, 15); bar.Accessible.pressAction();
                 check(win.barClicks === 2, "BarItem press activates once, not twice through inheritance");
                 mouseClick(popup, 50, 15);

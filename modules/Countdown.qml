@@ -323,6 +323,9 @@ BarItem {
     // A minute a notch, on whichever timer the pill is showing. The commonest
     // correction to a timer is that it was set a bit short, and this is the one
     // gesture that does not involve opening anything.
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: if (Timers.focus)
         Timers.bump(Timers.focus.id, 60000)
     onScrollDown: if (Timers.focus)

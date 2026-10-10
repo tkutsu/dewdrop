@@ -207,6 +207,16 @@ Popup {
     GridView {
         id: grid
 
+        // In the accessibility tree as a list to scroll, half a view a step.
+
+        Accessible.role: Accessible.List
+
+        Accessible.name: "Wallpapers"
+
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
+
         readonly property int rows: Math.ceil(count / root.columns)
 
         x: (root.bodyWidth - root.gridWidth) / 2

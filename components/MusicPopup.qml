@@ -537,6 +537,16 @@ Popup {
     ListView {
         id: list
 
+        // In the accessibility tree as a list to scroll, half a view a step.
+
+        Accessible.role: Accessible.List
+
+        Accessible.name: "Queue"
+
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
+
         width: root.bodyWidth
         // A short queue draws short rather than padding itself out with empty
         // rows, the same way the launcher's list does.
