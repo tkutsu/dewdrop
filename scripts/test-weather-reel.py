@@ -27,8 +27,8 @@ def main():
                 source = source.replace("id: strip\n", 'id: strip\n            objectName: "strip"\n')
                 for item in ("seriesTitle", "plot"):
                     source = source.replace(f"id: {item}\n", f'id: {item}\n                        objectName: "{item}"\n')
-                source = source.replace('color: Theme.selection\n', 'objectName: "readout"\n                color: Theme.selection\n')
-                source = source.replace('Layout.fillWidth: true\n', 'objectName: "readoutTime"\n                        Layout.fillWidth: true\n', 1)
+                source = source.replace('text: graph.readoutHour ?', 'objectName: "readoutTime"\n        text: graph.readoutHour ?')
+                source = source.replace('text: plot.marked ?', 'objectName: "reading"\n                                text: plot.marked ?')
                 source = source.replace('y: plots.y + 2\n', 'objectName: "cursorLine"\n        y: plots.y + 2\n', 1)
                 source = source.replace('id: plots\n', 'id: plots\n            objectName: "plots"\n')
                 source = source.replace('text: Math.round(modelData)', 'objectName: "axisTick"\n                            text: Math.round(modelData)')
@@ -153,7 +153,7 @@ ShellRoot {
                     wait(20);
                     check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "cursor line follows the forecast under the pointer during the slide");
                     check(outgoing.readoutSource === graph && outgoing.readoutHour === graph.hoveredHour, "stationary readout follows the forecast under the pointer during the slide");
-                    check(named(outgoing, "readoutTime").text === graph.hoveredHour.time + "  " + graph.hoveredHour.description, "readout text updates to the cursor's hour during the slide");
+                    check(named(outgoing, "readoutTime").text === graph.hoveredHour.time, "corner time updates to the cursor's hour during the slide");
                 }
                 slide.resume();
             }
@@ -182,7 +182,7 @@ ShellRoot {
                 check(direction * outgoing.contentOffset < 0 && direction * incoming.contentOffset > 0, "old day exits as new day enters from the opposite edge");
                 check(Math.abs(Math.abs(incoming.contentOffset - outgoing.contentOffset) - outgoing.plotWidth) < 0.01, "plots form a continuous reel with no gap");
                 check(outgoing.x === 0 && incoming.x === 0, "graph frames stay in place");
-                check(named(outgoing, "readout").x === 0 && named(outgoing, "readout").visible && !named(incoming, "readout").visible, "one stationary grey readout stays visible during the slide");
+                check(named(outgoing, "readoutTime").x === 8 && named(outgoing, "readoutTime").visible && !named(incoming, "readoutTime").visible, "one stationary corner time stays visible during the slide");
                 const title = named(outgoing, "seriesTitle"), tick = named(outgoing, "axisTick");
                 const titlePosition = title.mapToItem(reel, 0, 0), tickPosition = tick.mapToItem(reel, 0, 0);
                 check(title.visible && tick.visible && !named(incoming, "seriesTitle").visible && !named(incoming, "axisTick").visible, "one stationary set of Y-axis labels is visible");
@@ -236,7 +236,13 @@ ShellRoot {
                 const strip = named(graph, "strip");
                 mouseMove(strip, strip.width / 4, strip.height / 2);
                 wait(30);
-                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text.startsWith("6:00"), "hovering the icon ranges picks their hour for the readout");
+                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text === "6:00", "hovering the icon ranges picks their hour for the corner time");
+                check(namedAll(graph, "reading").length === 3, "every plot has a reading");
+                for (const reading of namedAll(graph, "reading")) {
+                    const plot = reading.parent;
+                    check(reading.visible && reading.text === graph.reading(plot.parent.parent.modelData.key, graph.hours[6]), "each plot reads the hovered hour");
+                    check(reading.y + reading.height <= plot.markY - 3 || reading.y >= plot.markY + 3, "a reading stays clear of its dot");
+                }
                 mouseWheel(plots, graph.plotLeft + graph.plotWidth / 2, gapY, 0, -120, Qt.NoButton);
                 check(popup.selected === 1, "scrolling between graphs selects the next day");
                 wait(70);
