@@ -134,6 +134,9 @@ PopupWindow {
     // blur mask's alpha cutoff; keep the surface alive through its exit.
     // Tooltips and menus fade without moving their content.
     property bool grows: true
+    // A menu is there the moment it is asked for and only fades on its way
+    // out, as the Mac's do; everything else fades in too.
+    property bool fadesIn: true
     property bool requestedVisible: true
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.revealProgress
@@ -148,7 +151,7 @@ PopupWindow {
     Behavior on revealProgress {
         enabled: root.visible
         NumberAnimation {
-            duration: root.opened ? (root.grows ? 220 : 140) : 140
+            duration: root.opened ? (root.grows ? 220 : root.fadesIn ? 140 : 0) : 140
             easing.type: root.opened ? Easing.BezierSpline : Easing.InOutQuad
             easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1]
         }
