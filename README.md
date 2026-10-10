@@ -2,6 +2,52 @@
 
 My Hyprland bar, launcher, notifications and popups, written for [Quickshell](https://quickshell.org). It is a personal config first. It runs on my Arch machine every day, and a few features still call scripts that live outside this repo (listed below). Without them those features do nothing, and the rest of the shell still works.
 
+## Features
+
+### The bar
+
+- The bar is three pills of clear glass: workspaces on the left, music, clock and timers in the middle, and status and controls on the right. The glass bends the wallpaper behind it at the rim like a lens, and the pills that come and go beside the clock merge into it like drops.
+- Each workspace shows one icon per app. A click opens an app's group into one icon per window, an urgent window marks its app, and you can drag a window onto another workspace. Scrolling over the workspaces steps through them.
+- Popups grow out of the item that opened them. While one is open, resting the pointer on another item switches to that item's popup. Tooltips appear when the pointer rests and stay away while a popup is open.
+- Quiet modules fold into a drawer behind a chevron in the right pill and come back when they have something to show. You can pin any of them outside the drawer from the settings window, or with a middle click.
+- The wallpaper pans with a spring as you change workspace, and Hyprland's active border takes its colour from the wallpaper.
+- The gear opens a settings window with a search box. It writes `settings.json` for you.
+- The power menu covers sleep, restart, shut down, log out, and kill a window by clicking it.
+
+### The launcher
+
+One box for everything. Typed on its own, a query finds apps, ranked by how well they match and how often and recently you picked them. A sum gets an answer, and a query that finds nothing is offered as a web search. A leading character picks a mode:
+
+| Prefix | Mode |
+| --- | --- |
+| `/` | Files, with a preview of the selected file or folder |
+| `_` | Open windows, to jump to one |
+| `"` | Clipboard history |
+| `%` | Web search. `%lofi` searches Google, and a one-letter engine first picks another: `%y lofi` for YouTube, then ChatGPT, Claude, Translate, Maps and more |
+| `@` | Gmail: unread mail, readable in place, or a search of the whole mailbox |
+| `,` | A new Google task, or a timer or alarm when the text starts with a duration or a time of day |
+| `#` | The MPD library by artist, album and track, plus stored playlists |
+| `=` | Calculator |
+| `>` | Run a shell command |
+
+### What it does on its own
+
+- Notifications: the shell is the notification server. A new one appears beside the clock, and the bell holds the rest, with actions, images and do not disturb.
+- Timers and alarms: countdowns you can pause and adjust, and alarms that can repeat on chosen weekdays. They survive a restart and can also ring your phone through Pushover.
+- Google: the Tasks count and list, the Calendar agenda inside the clock's calendar, and the Gmail unread count with mark-as-read.
+- Weather from Open-Meteo between the date and the time, with an hourly graph and a city search. No account needed.
+- Music: an MPD client with the cover, a seek bar, volume, and a queue you can reorder.
+- Audio: pick the output, set the volume, and set each app's volume.
+- Wi-Fi and Bluetooth: scan, connect and disconnect from their popups.
+- Removable drives show up while plugged in, with how full each one is and a safe eject. So do wired devices that report a battery, such as a mouse on a USB receiver.
+- System: CPU or GPU temperature on the bar, and a popup with memory, top processes and the graphics card.
+- Package updates (Arch): the pending count, the list, and a button that runs the upgrade.
+- Wallpapers: a picker with every image in your folder.
+- Night mode: warmer colour and a dimmed monitor, on a schedule or by hand.
+- Caffeine to keep the screen awake, a screenshot button, the keyboard layout, and a system tray with its menus.
+
+Most of it can be driven from keybinds too: `qs ipc call launcher toggle`, `qs ipc call timer toggle`, and similar targets for `power`, `notifications`, `tasks`, `email`, `agenda`, `updates`, `caffeine` and `settings`.
+
 ## What it needs
 
 - Quickshell 0.3.2 or newer, built against the Qt you have installed. I run it on Qt 6.12.
