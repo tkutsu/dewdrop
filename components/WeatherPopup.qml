@@ -64,20 +64,11 @@ Popup {
         visible: !root.choosing && Weather.days.length > 0
         spacing: 14
 
-        Column {
+        PopupText {
             id: current
             anchors.verticalCenter: parent.verticalCenter
-
-            PopupText {
-                text: Weather.measure(Weather.thisHour?.[Weather.feelsLike ? "feelsLike" : "temperature"], "°")
-                font.pixelSize: Theme.figureTextSize
-            }
-            PopupText {
-                visible: Weather.feelsLike
-                text: "feels like"
-                color: Theme.label2
-                font.pixelSize: Theme.footnoteSize
-            }
+            text: Weather.measure(Weather.thisHour?.[Weather.feelsLike ? "feelsLike" : "temperature"], "°")
+            font.pixelSize: Theme.figureTextSize
         }
 
         Column {
