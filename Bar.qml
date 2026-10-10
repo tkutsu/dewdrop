@@ -417,7 +417,48 @@ PanelWindow {
             id: notice
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
-            room: rightPill.x - Theme.pillSpread - (bar.noticeEdge + Theme.pillSpread)
+            room: (recording.reveal > 0 ? recordingPill.x : rightPill.x) - Theme.pillSpread - (bar.noticeEdge + Theme.pillSpread)
+        }
+    }
+
+    // The recording pill comes out of the right pill the way the clock's
+    // neighbours come out of the clock (bar.drop). The right pill draws its
+    // own glass, which ends at its edge, so while the recording pill is out
+    // the bar draws the two as one surface here instead, and the right pill
+    // stands its own slab down (drawsSlab below). Declared before both, so
+    // it lies under their contents.
+    readonly property rect rightGlass: rightPill.slabRect
+    readonly property vector4d recordingDrop: bar.drop(bar.rightGlass.x, -1, recordingPill.width, recording.reveal, recording.stowed)
+
+    Liquid {
+        anchors.fill: parent
+        visible: recording.reveal > 0
+
+        backdrop: wallpaperImage
+
+        readonly property real lip: bar.lip(recording.reveal, recording.stowed)
+
+        box0: Qt.vector4d(bar.rightGlass.x - lip, Theme.barInset, bar.rightGlass.width + lip, Theme.barHeight)
+        box1: bar.recordingDrop
+        bulge0: bar.bulge(bar.rightGlass.x - lip, -1, recording.reveal, recording.stowed)
+        reaches: Qt.vector4d(0, bar.dropReach(recording.reveal, recording.stowed), 0, 0)
+    }
+
+    Pill {
+        id: recordingPill
+
+        edges: false
+        drawsSlab: false
+        contentOpacity: bar.contents(recording.reveal)
+
+        side: Pill.Side.Right
+        edgeOffset: bar.width - bar.rightGlass.x + Theme.pillSpread
+        visible: recording.reveal > 0
+
+        Recording {
+            id: recording
+            foldDuration: Theme.dropMs
+            foldEasing: Easing.Linear
         }
     }
 
@@ -426,6 +467,7 @@ PanelWindow {
 
         side: Pill.Side.Right
         backdrop: wallpaperImage
+        drawsSlab: recording.reveal <= 0
         order: RightPillOrder.keys
         readonly property bool languageAtLauncher: shown[shown.length - 2] === language
 

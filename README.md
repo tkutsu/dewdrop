@@ -39,6 +39,7 @@ Apps by default, ranked by match and frecency. Sums get answered, and anything e
 - Weather (Open-Meteo, no account)
 - MPD player with cover, seek and an editable queue
 - Audio output and per-app volume
+- Recording indicator: while an app uses a microphone or shares the screen, a pill with a red dot comes out of the right pill; its popup mutes an app's mic or stops the share
 - Wi-Fi and Bluetooth
 - Removable drives with safe eject, device batteries
 - CPU/GPU temperature, memory, top processes
