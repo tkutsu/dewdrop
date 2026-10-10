@@ -123,20 +123,16 @@ PanelWindow {
         backdrop: wallpaperImage
 
         // The clock's ends give as a drop goes into them or lets go of them
-        // (bar.lip). The notice only touches the clock with no timer set.
+        // (bar.lip).
         readonly property real leftLip: bar.lip(music.reveal, music.stowed)
-        readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
+        readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed)
 
         box0: Qt.vector4d(clockPill.x - leftLip, Theme.barInset, clockPill.width + leftLip + rightLip, Theme.barHeight)
-        // The notice after the timer, since that is what it joins.
         box1: bar.countdownDrop
-        box2: bar.noticeDrop
         box3: bar.musicDrop
         bulge0: bar.bulge(clockPill.x - leftLip, -1, music.reveal, music.stowed)
-        // Whichever is pouring in on the right: the timer into the clock, or
-        // the notice into the timer if one is set and the clock if not.
-        bulge1: countdown.stowed && countdown.reveal > 0 ? bar.bulge(bar.clockRight + rightLip, 1, countdown.reveal, true) : bar.bulge(countdown.reveal > 0 ? bar.noticeEdge : bar.clockRight + rightLip, 1, notice.reveal, notice.stowed)
-        reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal, countdown.stowed), bar.dropReach(notice.reveal, notice.stowed), bar.dropReach(music.reveal, music.stowed))
+        bulge1: bar.bulge(bar.clockRight + rightLip, 1, countdown.reveal, countdown.stowed)
+        reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal, countdown.stowed), 0, bar.dropReach(music.reveal, music.stowed))
     }
 
     Pill {
@@ -309,12 +305,6 @@ PanelWindow {
 
     readonly property vector4d musicDrop: bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed)
     readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed)
-    // The notice is placed off the timer's glass rather than the clock's, so
-    // it goes into the timer while one is set and follows it in as it goes.
-    // Once the timer is inside the clock its far edge is too, and the clock's
-    // edge is the one to go by.
-    readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
-    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal, notice.stowed)
 
     // The player, alone on the clock's left. What it carries is a song title —
     // text from somewhere else, as long as whoever named the track made it —
@@ -362,8 +352,8 @@ PanelWindow {
     // The timer, immediately right of the clock. It is a clock of another kind
     // and reads as one while the two are neighbours. Anchored by its left edge,
     // so it grows away from the clock. Its label only changes width when its
-    // format does — the figures are tabular — so the notice beside it is not
-    // shoved along once a second.
+    // format does — the figures are tabular — so it does not twitch once a
+    // second.
     Pill {
         id: countdownPill
 
@@ -394,54 +384,39 @@ PanelWindow {
         }
     }
 
-    // A notification as it comes in, outermost on this side: right of the
-    // timer when one is set, of the clock when not. Placed off the timer's
-    // glass (bar.noticeEdge), so the two arrive and leave in step. Anchored by
-    // its left edge, so it grows away from the clock, and it may run as far as
-    // a spread short of the right pill: someone else's text, but read once and
-    // then gone, so it gets all the room there is rather than a fixed ceiling.
-    Pill {
-        id: noticePill
-
-        edges: false
-        drawsSlab: false
-        contentOpacity: bar.contents(notice.reveal)
-
-        side: Pill.Side.Left
-        edgeOffset: bar.noticeEdge + Theme.pillSpread
-        // Off the module's `reveal`, never its visibility (see the music pill
-        // above).
-        visible: notice.reveal > 0
-
-        Notice {
-            id: notice
-            foldDuration: Theme.dropMs
-            foldEasing: Easing.Linear
-            room: (recording.reveal > 0 ? recordingPill.x : rightPill.x) - Theme.pillSpread - (bar.noticeEdge + Theme.pillSpread)
-        }
-    }
-
-    // The recording pill comes out of the right pill the way the clock's
-    // neighbours come out of the clock (bar.drop). The right pill draws its
-    // own glass, which ends at its edge, so while the recording pill is out
-    // the bar draws the two as one surface here instead, and the right pill
-    // stands its own slab down (drawsSlab below). Declared before both, so
-    // it lies under their contents.
+    // The recording pill and the notice come out of the right pill the way
+    // the clock's neighbours come out of the clock (bar.drop). The right pill
+    // draws its own glass, which ends at its edge, so while either is out the
+    // bar draws them all as one surface here instead, and the right pill
+    // stands its own slab down (drawsSlab below). Declared before all three,
+    // so it lies under their contents.
     readonly property rect rightGlass: rightPill.slabRect
+    readonly property bool rightPouring: recording.reveal > 0 || notice.reveal > 0
     readonly property vector4d recordingDrop: bar.drop(bar.rightGlass.x, -1, recordingPill.width, recording.reveal, recording.stowed)
+    // The notice is placed off the recording pill's glass while it is out, so
+    // it goes into that pill and follows it in as it goes; once that pill is
+    // inside the right one, the right pill's edge is the one to go by.
+    readonly property real noticeEdge: recording.reveal > 0 ? Math.min(bar.rightGlass.x, recordingDrop.x) : bar.rightGlass.x
+    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, -1, noticePill.width, notice.reveal, notice.stowed)
 
     Liquid {
         anchors.fill: parent
-        visible: recording.reveal > 0
+        visible: bar.rightPouring
 
         backdrop: wallpaperImage
 
-        readonly property real lip: bar.lip(recording.reveal, recording.stowed)
+        // The right pill's end gives as a drop goes into it (bar.lip). The
+        // notice only touches it with the recording pill away.
+        readonly property real lip: bar.lip(recording.reveal, recording.stowed) + (recording.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
 
         box0: Qt.vector4d(bar.rightGlass.x - lip, Theme.barInset, bar.rightGlass.width + lip, Theme.barHeight)
         box1: bar.recordingDrop
-        bulge0: bar.bulge(bar.rightGlass.x - lip, -1, recording.reveal, recording.stowed)
-        reaches: Qt.vector4d(0, bar.dropReach(recording.reveal, recording.stowed), 0, 0)
+        box2: bar.noticeDrop
+        // Whichever is pouring in: the recording pill into the right pill,
+        // or the notice into the recording pill if it is out and the right
+        // pill if not.
+        bulge0: recording.stowed && recording.reveal > 0 ? bar.bulge(bar.rightGlass.x - lip, -1, recording.reveal, true) : bar.bulge(recording.reveal > 0 ? bar.noticeEdge : bar.rightGlass.x - lip, -1, notice.reveal, notice.stowed)
+        reaches: Qt.vector4d(0, bar.dropReach(recording.reveal, recording.stowed), bar.dropReach(notice.reveal, notice.stowed), 0)
     }
 
     Pill {
@@ -462,12 +437,40 @@ PanelWindow {
         }
     }
 
+    // A notification as it comes in, outermost on this side: left of the
+    // recording pill when one is out, of the right pill when not. Placed off
+    // that glass (bar.noticeEdge), so the two arrive and leave in step.
+    // Anchored by its right edge, so it grows away from the right pill, and
+    // it may run as far as a spread short of the clock or the timer beside
+    // it: someone else's text, but read once and then gone, so it gets all
+    // the room there is rather than a fixed ceiling.
+    Pill {
+        id: noticePill
+
+        edges: false
+        drawsSlab: false
+        contentOpacity: bar.contents(notice.reveal)
+
+        side: Pill.Side.Right
+        edgeOffset: bar.width - bar.noticeEdge + Theme.pillSpread
+        // Off the module's `reveal`, never its visibility (see the music pill
+        // above).
+        visible: notice.reveal > 0
+
+        Notice {
+            id: notice
+            foldDuration: Theme.dropMs
+            foldEasing: Easing.Linear
+            room: bar.noticeEdge - Theme.pillSpread - ((countdown.reveal > 0 ? countdownPill.x + countdownPill.width : bar.clockRight) + Theme.pillSpread)
+        }
+    }
+
     Pill {
         id: rightPill
 
         side: Pill.Side.Right
         backdrop: wallpaperImage
-        drawsSlab: recording.reveal <= 0
+        drawsSlab: !bar.rightPouring
         order: RightPillOrder.keys
         readonly property bool languageAtLauncher: shown[shown.length - 2] === language
 
