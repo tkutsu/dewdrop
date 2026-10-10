@@ -143,11 +143,26 @@ Popup {
                 // are inside should stay marked as the way you came.
                 readonly property bool pointerNear: hover.hovered || row.submenuHovered
 
+                // The keys (Popup.qml): Return chooses the row, and Right
+                // opens its submenu with the submenu's first row selected.
+                // A submenu the keys opened goes when the keys move on.
+                property bool keyed: false
+                readonly property var keyPress: row.modelData.isSeparator || !row.modelData.enabled ? null : row.activate
+                function keyOpen(): bool {
+                    if (!row.modelData.hasChildren || !row.modelData.enabled)
+                        return false;
+                    row.submenuOpen = true;
+                    return true;
+                }
+                onKeyedChanged: if (!row.keyed && !row.pointerNear)
+                    row.submenuOpen = false
+
                 // Whether the row is drawn selected. Once a row has been
                 // chosen it alone is, through its blink, wherever the pointer
-                // has gone since: the menu is saying which row it took.
+                // has gone since: the menu is saying which row it took. While
+                // the keys hold the selection, it is the row they are on.
                 property bool blinkOn: true
-                readonly property bool lit: root.chosen !== null ? root.chosen === row && row.blinkOn : row.pointerNear
+                readonly property bool lit: root.chosen !== null ? root.chosen === row && row.blinkOn : root.keyItem ? row.keyed : row.pointerNear
 
                 // Held open by a handler rather than bound, so that reading
                 // the submenu's own hover to decide whether the submenu exists
@@ -299,6 +314,12 @@ Popup {
                         // vertically, since the anchoring row can be anywhere.
                         item.anchor.adjustment = PopupAdjustment.FlipX | PopupAdjustment.SlideY;
                         item.dismissed.connect(root.dismissed);
+                        // From the keys, it opens with its first row
+                        // selected, and Escape or Left takes it away again,
+                        // leaving the menu it came from.
+                        item.keyFromStart = row.keyed;
+                        item.closeKey = () => row.submenuOpen = false;
+                        item.backKey = item.closeKey;
                     }
                 }
             }

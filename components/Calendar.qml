@@ -90,6 +90,7 @@ Popup {
         Accessible.name: arrow.name
         Accessible.onPressAction: if (enabled && visible)
             arrow.step()
+        readonly property var keyPress: () => arrow.step()
 
         TapHandler {
             onTapped: arrow.step()
@@ -147,6 +148,7 @@ Popup {
                 Accessible.name: "Current month"
                 Accessible.onPressAction: if (enabled && visible)
                     root.offset = 0
+                readonly property var keyPress: () => root.offset = 0
 
                 TapHandler {
                     onTapped: root.offset = 0
@@ -206,18 +208,24 @@ Popup {
                         width: root.cell - 4
                         height: width
                         radius: width / 2
-                        visible: dayHover.hovered && !dayCell.isToday
+                        visible: dayCell.lit && !dayCell.isToday
                         color: Theme.selection
+                    }
+
+                    // The keys (Popup.qml) light a day and list its events
+                    // the way the pointer does, and Return opens it.
+                    property bool keyed: false
+                    readonly property var keyPress: () => root.openDay(dayCell.day)
+                    readonly property bool lit: QsWindow.window?.keyItem ? dayCell.keyed : dayHover.hovered
+                    onLitChanged: {
+                        if (dayCell.lit)
+                            root.hoverDay = dayCell.dayKey;
+                        else if (root.hoverDay === dayCell.dayKey)
+                            root.hoverDay = "";
                     }
 
                     HoverHandler {
                         id: dayHover
-                        onHoveredChanged: {
-                            if (hovered)
-                                root.hoverDay = dayCell.dayKey;
-                            else if (root.hoverDay === dayCell.dayKey)
-                                root.hoverDay = "";
-                        }
                     }
 
                     Accessible.role: Accessible.Button

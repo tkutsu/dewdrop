@@ -231,6 +231,7 @@ Popup {
             Accessible.name: "Toggle " + volumeRow.name.toLowerCase() + " mute"
             Accessible.onPressAction: if (enabled && visible)
                 volumeRow.iconTapped()
+            readonly property var keyPress: () => volumeRow.iconTapped()
 
             TapHandler {
                 gesturePolicy: TapHandler.ReleaseWithinBounds
