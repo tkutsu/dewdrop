@@ -101,7 +101,7 @@ Popup {
         const url = `https://calendar.google.com/calendar/r/day/${day.getFullYear()}/${day.getMonth() + 1}/${day.getDate()}`;
         // The same app the clock's own click opens, pointed at one day rather
         // than at wherever it was left.
-        Quickshell.execDetached([Paths.script("pwa-gcalendar.sh"), url]);
+        Quickshell.execDetached(Settings.webApp("pwa-gcalendar.sh", url, url));
     }
 
     // The date in any cell of the grid, which starts on the week holding the

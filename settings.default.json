@@ -107,6 +107,7 @@
 
     // Your own scripts, shared with the keybinds: power.sh, display.sh,
     // thumb.sh, the pwa-*.sh launchers, the screenshot and update runners, and f/ignore, the launcher's file-search denylist.
+    // Without pwa-gmail.sh and pwa-gcalendar.sh, Gmail and Calendar open in the browser.
     "scriptsDir": "~/_scripts",
 
     // --- Google ------------------------------------------------------------
