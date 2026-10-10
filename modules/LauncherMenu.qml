@@ -699,6 +699,16 @@ OverlayWindow {
             ListView {
                 id: list
 
+                // In the accessibility tree as a list to scroll, half a view a step.
+
+                Accessible.role: Accessible.List
+
+                Accessible.name: "Results"
+
+                Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+
+                Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
+
                 // Out to both edges of the box, less the hairline of border
                 // on the right. The white rule down the selected row is the
                 // row's own left edge and sits on the box's; the far end has
@@ -1066,6 +1076,11 @@ OverlayWindow {
             // its usual size. Only while one is open (see Launcher.mailOpen).
             Flickable {
                 id: reader
+                // In the accessibility tree as a list to scroll, half a view a step.
+                Accessible.role: Accessible.List
+                Accessible.name: "Mail reader"
+                Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+                Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
                 function scroll(by) {
                     reader.contentY = Math.max(0, Math.min(reader.contentHeight - reader.height, reader.contentY + by));

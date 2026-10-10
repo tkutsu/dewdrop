@@ -388,6 +388,16 @@ OverlayWindow {
             ListView {
                 id: list
 
+                // In the accessibility tree as a list to scroll, half a view a step.
+
+                Accessible.role: Accessible.List
+
+                Accessible.name: "Settings"
+
+                Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+
+                Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
+
                 x: root.sideWidth + Theme.pillBorder + root.boxPad - Theme.selectionInset
                 // The whole height, padded inside rather than out, so the
                 // list scrolls on under the box's edges instead of stopping

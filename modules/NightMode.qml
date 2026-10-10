@@ -43,6 +43,9 @@ BarItem {
             [Qt.RightButton]: () => NightMode.toggle()
         })
 
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
     onScrollUp: NightMode.nudge(true)
     onScrollDown: NightMode.nudge(false)
 }
