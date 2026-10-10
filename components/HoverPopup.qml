@@ -74,7 +74,7 @@ Item {
         onTriggered: root.settled = true
     }
 
-    // Keep the surface through the 120 ms exit and its final frame.
+    // Keep the surface through the 140 ms exit and its final frame.
     Linger {
         id: lifetime
         shown: root.wanted
