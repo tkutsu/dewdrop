@@ -138,21 +138,26 @@ PopupWindow {
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.revealProgress
     property real revealProgress: root.opened ? 1 : 0
-    property real slideOffset: root.opened ? 0 : -4
+    property real slideOffset: root.opened ? 0 : -6
 
+    // On from `visible`, which is set before the surface maps, not from
+    // backingWindowVisible: that flips `opened` and the guard in the same
+    // tick, and when the guard lost the race the reveal jumped to 1 on the
+    // first frame, which was every time. The exit stays inside the 160 ms
+    // the loaders keep the surface for.
     Behavior on revealProgress {
-        enabled: root.backingWindowVisible
+        enabled: root.visible
         NumberAnimation {
-            duration: root.opened ? (root.grows ? 180 : 120) : 120
-            easing.type: root.opened ? Easing.BezierSpline : Easing.InQuad
+            duration: root.opened ? (root.grows ? 220 : 140) : 140
+            easing.type: root.opened ? Easing.BezierSpline : Easing.InOutQuad
             easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1]
         }
     }
     Behavior on slideOffset {
-        enabled: root.backingWindowVisible
+        enabled: root.visible
         NumberAnimation {
-            duration: root.opened ? 220 : 120
-            easing.type: Easing.OutCubic
+            duration: root.opened ? 280 : 140
+            easing.type: root.opened ? Easing.OutCubic : Easing.InQuad
         }
     }
 
