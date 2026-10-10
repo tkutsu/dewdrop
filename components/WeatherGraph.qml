@@ -31,8 +31,6 @@ Item {
     // Midnight belongs to both plot edges, joining consecutive days at one point.
     readonly property var nextHour: graph.hours.length ? Weather.allHours.find(hour => hour.at === graph.end) ?? null : null
     readonly property var plotHours: graph.nextHour ? graph.hours.concat([graph.nextHour]) : graph.hours
-    readonly property bool showsNow: graph.hours.length > 0 && Weather.now >= graph.start && Weather.now < graph.end
-    readonly property real nowX: Math.max(0, Math.min(1, (Weather.now - graph.start) / Math.max(1, graph.end - graph.start))) * graph.plotWidth
     readonly property var iconRanges: Weather.hourRanges(graph.hours, "icon")
     readonly property real pointerX: graph.cursor.mouseX - graph.contentOffset
     readonly property var currentHour: graph.hours.includes(Weather.thisHour) ? Weather.thisHour : null
@@ -313,16 +311,6 @@ Item {
         visible: graph.hoveredHour !== null && x >= graph.plotLeft && x <= graph.plotLeft + graph.plotWidth
         color: Theme.stroke
         opacity: 0.7
-    }
-
-    Rectangle {
-        x: graph.plotLeft + graph.contentOffset + graph.nowX
-        y: plots.y + 2
-        width: 1
-        height: Math.max(0, plots.height - 4)
-        visible: graph.showsNow && x >= graph.plotLeft && x <= graph.plotLeft + graph.plotWidth
-        color: Theme.label2
-        opacity: 0.5
     }
 
     // The readings' hour, in the corner left of the icons; it stays put while
