@@ -595,8 +595,13 @@ OverlayWindow {
                 // keys are ours and everything else still types.
                 Keys.onPressed: function (event) {
                     // Use the platform's editing shortcuts before launcher navigation.
+                    // With nothing selected in the line, the row is what gets
+                    // copied: a file's path, an emoji.
                     if (event.matches(StandardKey.Copy)) {
-                        input.copy();
+                        if (input.selectedText)
+                            input.copy();
+                        else
+                            Launcher.copyRow(Launcher.index);
                         event.accepted = true;
                         return;
                     }
@@ -623,8 +628,8 @@ OverlayWindow {
                         break;
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
-                        // Only the music rows and mail's ctrl+enter read the
-                        // modifier; see Launcher.hint for what each one means.
+                        // Only music, mail and file rows read the modifier;
+                        // see Launcher.hint for what each one means.
                         Launcher.activate(Launcher.index, ctrl ? "play" : "queue");
                         break;
                     // Drop the row rather than act on it. Only the clipboard

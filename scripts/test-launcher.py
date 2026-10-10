@@ -351,6 +351,44 @@ ShellRoot {
             Launcher.activate(off);
             check(Power.armed?.key === "shutdown", "power confirmation preserved");
 
+            // The emoji list loads on first use; checkEmoji runs once it has.
+            Launcher.db = ({});
+            Launcher.show();
+            Launcher.query = ":";
+        } catch (error) {
+            fail(error);
+        }
+    }
+
+    Connections {
+        target: Launcher
+        // Later, so the results binding has heard of the list first.
+        function onEmojisChanged() { Qt.callLater(test.checkEmoji); }
+    }
+
+    function checkEmoji() {
+        try {
+            check(Launcher.emojis.length > 1000, "emoji list loaded");
+            Launcher.query = ":";
+            check(Launcher.results.length === Launcher.maxResults && Launcher.results[0].emoji === "😀", "bare emoji mode lists in Unicode order");
+            check(Launcher.hint.includes("enter"), "emoji mode has a hint");
+            Launcher.query = ":lol";
+            check(Launcher.results.slice(0, 5).some(r => r.emoji === "😂"), "keywords find emoji");
+            Launcher.query = ":greece";
+            check(Launcher.results[0]?.emoji === "🇬🇷", "flags found by country");
+            Launcher.query = ":heart";
+            check(Launcher.results[0]?.title.includes("heart"), "names outrank keywords");
+            Launcher.query = ":lol";
+            const joy = Launcher.results.findIndex(r => r.emoji === "😂");
+            Launcher.activate(joy);
+            check(!Launcher.shown && Launcher.db["emoji:😂"]?.count === 1, "enter picks an emoji and ranks it");
+            Launcher.show();
+            Launcher.query = ":";
+            check(Launcher.results[0].emoji === "😂", "used emoji lead the bare list");
+            check(!Launcher.results.slice(1).some(r => r.emoji === "😂"), "used emoji are not listed twice");
+            Launcher.query = "/";
+            check(Launcher.hint.includes("show in folder"), "file mode hints its keys");
+
             console.log("PASS: launcher discovery, ranking, prefixes and direct actions");
             Qt.quit();
         } catch (error) {
@@ -380,7 +418,8 @@ def main():
         (services / "Launcher.qml").write_text(source)
         for name, body in MOCKS.items():
             (services / (name + ".qml")).write_text("pragma Singleton\nimport QtQuick\nQtObject {\n" + body + "\n}\n")
-        for name in ("Fuzzy.js", "Linger.qml"):
+        for name in ("Fuzzy.js", "Linger.qml", "data/emoji.tsv"):
+            (target / name).parent.mkdir(exist_ok=True)
             (target / name).write_text((ROOT / name).read_text())
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property string home: "/tmp"; function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path; } }\n')
