@@ -83,6 +83,11 @@ Singleton {
     // sits in its track: at three the mark was a chip floating in the pill,
     // and exactly as tall as the app icons it holds.
     readonly property int markInset: 2
+    // The bar selection's mark (Pill.qml) on an icon, whatever the icon's
+    // own width: every glyph on the bar fits inside it with air either side,
+    // so the mark is the same size from one icon to the next, and only text
+    // wider than an icon stretches it.
+    readonly property int keyMarkWidth: 32
 
     // One gap between things that stand on their own: modules and tray icons.
     // Measured icon to icon — a badge floats in the gap rather than claiming
