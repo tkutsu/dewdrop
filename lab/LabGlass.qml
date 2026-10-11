@@ -5,7 +5,6 @@ import qs.components
 // a lamp, and a glow under the pointer. All off by default, which draws
 // exactly what Liquid draws.
 Liquid {
-    property vector4d press: Qt.vector4d(0, 0, 1, 0)
     property vector4d light: Qt.vector4d(0, 0, 1, 0)
     property vector4d hover: Qt.vector4d(0, 0, 1, 0)
 
