@@ -87,6 +87,8 @@ Popup {
     // plus. Gmail itself is a right click on the bar icon.
     PopupHeader {
         width: root.bodyWidth
+        // Over the threads, which run on under it (ScrollUnder).
+        z: 1
         title: "Mail"
         addable: true
         onAdd: {
@@ -139,9 +141,11 @@ Popup {
         height: Math.min(rowList.implicitHeight, root.listMax)
         contentHeight: rowList.implicitHeight
         clip: true
-        layer.enabled: contentHeight > height
-        layer.effect: ScrollEdges {
+
+        ScrollUnder {
+            parent: threadList
             view: threadList
+            box: root.chromeItem
         }
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
