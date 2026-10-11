@@ -23,6 +23,90 @@ BarItem {
     property var dragWorkspace: null
     property int dragWorkspaceId: -1
     property point dragPoint: Qt.point(0, 0)
+    property bool markGrabbed: false
+    property bool markDragging: false
+    property point markPressPoint: Qt.point(0, 0)
+    property real markPressLeft: 0
+    property real markDragLeft: 0
+    property real markDragWidth: 0
+    property var markOrigin: null
+    property Item markDestination: null
+
+    readonly property bool markDragValid: !markGrabbed || (WorkspaceSync.settled
+        && root.shownWorkspaces.some(w => w.workspace === root.markOrigin))
+    onMarkDragValidChanged: if (!markDragValid) Qt.callLater(root.cancelMarkDrag)
+
+    // Pick up the visible mark from the workspace background; icons keep their own drag.
+    function beginMarkDrag(point): bool {
+        const p = mark.mapFromItem(strip, point.x, point.y);
+        if (!root.enabled || root.dragging || !mark.visible || !strip.selected
+            || p.x < mark.frontLeft || p.x > mark.frontRight
+            || p.y < mark.slabTop || p.y > mark.slabTop + mark.thickness)
+            return false;
+        root.markOrigin = strip.selected.workspaceInfo.workspace;
+        root.markPressPoint = point;
+        root.markPressLeft = mark.frontLeft;
+        root.markDragLeft = mark.frontLeft;
+        root.markDragWidth = mark.frontRight - mark.frontLeft;
+        root.markGrabbed = true;
+        return true;
+    }
+
+    // Follow the pointer directly, clamped to the pill, after the normal drag threshold.
+    function moveMarkDrag(point, threshold: real): void {
+        if (!root.markGrabbed || !root.markDragValid)
+            return;
+        const delta = point.x - root.markPressPoint.x;
+        if (!root.markDragging && Math.abs(delta) < threshold)
+            return;
+        root.markDragging = true;
+        root.markDragLeft = Math.max(Theme.markInset,
+            Math.min(mark.width - root.markDragWidth - Theme.markInset, root.markPressLeft + delta));
+        mark.retarget();
+    }
+
+    // Restore the real selection on cancellation; the release snaps on the slower spring.
+    function cancelMarkDrag(): void {
+        if (!root.markGrabbed)
+            return;
+        root.markGrabbed = false;
+        root.markDragging = false;
+        root.markOrigin = null;
+        mark.placedOn = null;
+        Qt.callLater(mark.retarget);
+    }
+
+    // Commit only once, on release inside the pill, to the workspace nearest the mark's center.
+    function finishMarkDrag(point): void {
+        let destination = null;
+        if (root.markDragging && root.markDragValid && root.inPill(point)) {
+            const centre = mark.x + (mark.frontLeft + mark.frontRight) / 2;
+            let distance = Infinity;
+            for (let i = 0; i < workspaces.count; i++) {
+                const button = workspaces.itemAt(i);
+                const d = Math.abs(centre - button.drawnX - button.width / 2);
+                if (d < distance) {
+                    destination = button;
+                    distance = d;
+                }
+            }
+        }
+        root.cancelMarkDrag();
+        if (destination && destination.workspaceInfo.id !== root.focusedId) {
+            root.markDestination = destination;
+            markCommit.restart();
+            Hyprland.dispatch(`hl.dsp.focus({ workspace = ${destination.workspaceInfo.id} })`);
+        }
+    }
+
+    Timer {
+        id: markCommit
+        interval: 600
+        onTriggered: root.markDestination = null
+    }
+
+    onEnabledChanged: if (!enabled) root.cancelMarkDrag()
+    onVisibleChanged: if (!visible) root.cancelMarkDrag()
 
     // True while a group opens or folds. The icons animate their own widths
     // then, and the strip follows them exactly rather than chasing them with
@@ -34,7 +118,7 @@ BarItem {
     // and draws nothing.
     readonly property Item markItem: mark
     property bool drawsMark: true
-    contentAnimating: folding || stripResize.running || mark.animating
+    contentAnimating: folding || stripResize.running || mark.animating || root.markDragging
 
     Timer {
         id: foldTimer
@@ -100,6 +184,8 @@ BarItem {
                 return;
             }
             root.cancelDrag();
+            root.cancelMarkDrag();
+            root.markDestination = null;
             if (root.lastWhole !== null) {
                 root.frozen = root.lastWhole;
                 return;
@@ -118,7 +204,12 @@ BarItem {
     readonly property var shownWorkspaces: frozen ? frozen.workspaces : liveWorkspaces
     onShownWorkspacesChanged: positionsDirty = true
     readonly property int focusedId: frozen ? frozen.focused : (Hyprland.focusedWorkspace?.id ?? -1)
-    onFocusedIdChanged: positionsDirty = true
+    onFocusedIdChanged: {
+        positionsDirty = true;
+        root.cancelMarkDrag();
+        if (root.markDestination?.workspaceInfo.id === root.focusedId)
+            root.markDestination = null;
+    }
 
     function workspaceOf(toplevel) {
         return root.frozen ? root.frozen.placement[toplevel.address] : toplevel.workspace?.id;
@@ -306,8 +397,8 @@ BarItem {
     scrolls: true
     Accessible.onScrollUpAction: scrollUp()
     Accessible.onScrollDownAction: scrollDown()
-    onScrollUp: if (!root.dragging) Hyprland.dispatch('workspace_cycle(-1)')
-    onScrollDown: if (!root.dragging) Hyprland.dispatch('workspace_cycle(1)')
+    onScrollUp: if (!root.dragging && !root.markGrabbed) Hyprland.dispatch('workspace_cycle(-1)')
+    onScrollDown: if (!root.dragging && !root.markGrabbed) Hyprland.dispatch('workspace_cycle(1)')
 
     // One strip rather than a run of loose workspaces, because the selection is
     // drawn across it rather than by each workspace for itself.
@@ -375,6 +466,8 @@ BarItem {
         readonly property Item selected: {
             if (strip.keyed)
                 return strip.keyed;
+            if (root.markDestination)
+                return root.markDestination;
             const focused = root.focusedId;
             for (const child of buttons.children)
                 if (focused !== -1 && child.workspaceInfo?.id === focused)
@@ -386,6 +479,8 @@ BarItem {
         // way `selected` is, rather than off a handler of the strip's own,
         // which would have to share the press with the areas that act on it.
         readonly property bool held: {
+            if (root.markGrabbed)
+                return true;
             if (root.dragging)
                 return false;
             for (const child of buttons.children)
@@ -423,14 +518,15 @@ BarItem {
         FlowMark {
             id: mark
             held: strip.held
-            // At the selection's pace while the keys move it.
-            spring: strip.keyed ? Theme.keyMarkSpring : Theme.markSpring
+            trackingPointer: root.markDragging
+            // Keep keyboard steps quick; workspace switches take a gentler spring.
+            spring: strip.keyed ? Theme.keyMarkSpring : Theme.markSpring * (Theme.reduceMotion ? 1 : 0.55)
             damping: strip.keyed ? Theme.keyMarkDamping : Theme.markDamping
             slabY: Theme.pillTop(strip.height)
             slabHeight: Theme.barHeight
-            atFirst: strip.selected !== null && strip.selected.index === 0
-            atLast: strip.selected !== null && strip.selected.index === workspaces.count - 1
-            wallLeft: wantLeft - inset + Theme.pillBorder
+            atFirst: root.markDragging ? wantLeft <= inset : strip.selected !== null && strip.selected.index === 0
+            atLast: root.markDragging ? wantRight >= width - inset : strip.selected !== null && strip.selected.index === workspaces.count - 1
+            wallLeft: Theme.pillBorder
             wallRight: strip.width + Theme.pillPad * 2 - Theme.pillBorder
             visible: hasSelection
             x: -Theme.pillPad
@@ -450,6 +546,12 @@ BarItem {
                 mark.hasSelection = strip.selected !== null;
                 if (!mark.hasSelection)
                     return;
+                if (root.markDragging) {
+                    mark.resizing = false;
+                    mark.wantLeft = root.markDragLeft;
+                    mark.wantRight = root.markDragLeft + root.markDragWidth;
+                    return;
+                }
                 // Layout changes update the same destination rather than
                 // starting another selection move.
                 mark.resizing = strip.selected === mark.placedOn;
@@ -676,6 +778,8 @@ BarItem {
 
                     MouseArea {
                         id: press
+                        property bool markPress: false
+                        property bool suppressClick: false
                         anchors.fill: parent
                         // The strip's left padding belongs to the first workspace, not
                         // to the strip: an item may reach past its parent as long as
@@ -695,8 +799,28 @@ BarItem {
                         Accessible.onPressAction: if (enabled && visible)
                             button.keyPress()
 
-                        onPressed: root.collapse()
-                        onClicked: press.focusWorkspace()
+                        onPressed: mouse => {
+                            root.collapse();
+                            suppressClick = false;
+                            markPress = root.beginMarkDrag(press.mapToItem(strip, mouse.x, mouse.y));
+                        }
+                        onPositionChanged: mouse => {
+                            if (pressed && markPress) {
+                                root.moveMarkDrag(press.mapToItem(strip, mouse.x, mouse.y), drag.threshold);
+                                suppressClick = suppressClick || root.markDragging;
+                            }
+                        }
+                        onReleased: mouse => {
+                            if (markPress)
+                                root.finishMarkDrag(press.mapToItem(strip, mouse.x, mouse.y));
+                            markPress = false;
+                        }
+                        onCanceled: {
+                            suppressClick = true;
+                            markPress = false;
+                            root.cancelMarkDrag();
+                        }
+                        onClicked: if (!suppressClick) press.focusWorkspace()
                     }
 
                     RowLayout {

@@ -75,13 +75,15 @@
     // "bead", and Reduce transparency keeps the plain knob.
     "sliderKnob": "bead",
 
-    // Diagonal border sheen, with quiet top-right and bottom-left regions:
-    // "soft", "wide" (fainter), "steep", "skim" (visible edge),
-    // "rim" (diffuse inner light), or "halo" (light outside the edge).
-    "pillSheen": "soft",
+    // The workspace selection: "bead" swells into clear glass on the move;
+    // "grey" stays low, with a grey tint and distortion around its rim.
+    "workspaceMark": "bead",
+
     // Press the bar's glass inward over a broad area, then let it settle.
     // Disabled under Reduce motion. The style sets its depth and spread.
     "pillPressMorph": false,
+    // Also compress horizontally toward the press. Off keeps the vertical dent.
+    "pillPressHorizontal": true,
     "pillPressStyle": "fabric",
 
     // --- apps it opens -----------------------------------------------------

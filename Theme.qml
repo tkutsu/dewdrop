@@ -386,6 +386,9 @@ Singleton {
     // over a window, and needs less edge to read as one.
     readonly property color pillRimTop: Qt.rgba(1, 1, 1, 0.15)
 
+    // Wide satin border light shared by pills and workspace glass.
+    readonly property vector4d pillSheen: Qt.vector4d(-0.707, -0.707, 0.10, 0.075)
+
     // The clock's glass over an image wallpaper: clear rather than frosted,
     // drawing the wallpaper itself (Liquid.backdrop, shaders/liquid.frag).
     // At the edge it looks glassBend pixels further in, the way the rim of a

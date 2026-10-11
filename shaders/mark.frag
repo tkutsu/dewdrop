@@ -2,7 +2,7 @@
 
 // The workspace mark as a bead of glass (components/BeadMark.qml): a capsule
 // over the left pill and the wallpaper round it, seen through glass that
-// leaves the middle nearly true and pulls hard round the rim. `clear` runs
+// keeps the straight middle undistorted and bends only the round ends. `clear` runs
 // from the mark at rest (0), a capsule inside the pill with a breath of
 // white, to the bead (1) it swells into on the move, as tall as the bar's
 // window and clear.
@@ -23,15 +23,19 @@ layout(std140, binding = 0) uniform buf {
     float clear;
     // How far in the very rim looks, in pixels; how far in from the rim the
     // pull reaches, as a share of the half height; how steeply it falls off
-    // towards the middle; and how much the middle is magnified as a bead.
+    // towards the middle of each rounded end.
     float bend;
     float depth;
     float steep;
-    float zoom;
     float dispersion;
-    // The white laid in the glass at rest and as a bead.
+    // The tint laid in the glass at rest and while moving.
     float restTint;
     float beadTint;
+    vec3 tintColor;
+    float lineWidth;
+    vec4 rimTop;
+    vec4 rimBottom;
+    vec4 sheen;
     // Where the wallpaper's texture lies in this item, and its size.
     vec2 wallOrigin;
     vec2 wallSize;
@@ -59,6 +63,9 @@ void main() {
     vec2 p = qt_TexCoord0 * size;
     float d = capsule(p);
     float shape = clamp(0.5 - d, 0.0, 1.0);
+    vec2 around = (p - box.xy - box.zw * 0.5) / max(box.zw * 0.5, vec2(1.0));
+    float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
+    float shine = smoothstep(sheen.z, 0.96, diagonal);
     if (shape <= 0.0 || box.z <= 0.0) {
         fragColor = vec4(0.0);
         return;
@@ -69,21 +76,27 @@ void main() {
     float reach = max(min(box.z, box.w) * 0.5 * depth, 1.0);
     float lens = pow(clamp(1.0 + d / reach, 0.0, 1.0), steep);
     vec2 centre = box.xy + box.zw * 0.5;
-    vec2 seen = centre + (p - centre) / mix(1.0, zoom, clear);
+    // Fade the bend in beyond the straight section, keeping its contents
+    // at their original coordinates even along the top and bottom edges.
+    float radius = min(box.z, box.w) * 0.5;
+    float cap = smoothstep(0.0, max(radius * 0.35, 1.0), abs(p.x - centre.x) - (box.z * 0.5 - radius));
+    lens *= cap;
+    vec2 seen = p;
     vec2 shift = n * bend * lens;
     vec3 glass = vec3(under(seen - shift * (1.0 - dispersion)).r,
                       under(seen - shift).g,
                       under(seen - shift * (1.0 + dispersion)).b);
     float white = mix(restTint, beadTint, clear) + 0.18 * lens * clear;
-    glass = mix(glass, vec3(1.0), white);
-    // The rim: a pixel, lit from the top left and faint round the far side,
-    // brighter as a bead.
-    float band = shape - clamp(0.5 - (d + 1.0), 0.0, 1.0);
-    float lit = mix(0.22, 0.3, clear) + mix(0.1, 0.45, clear) * max(dot(-n, normalize(vec2(1.0, 1.0))), 0.0);
-    glass = mix(glass, vec3(1.0), band * lit);
+    glass = mix(glass, tintColor, white);
+    float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
+    vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
+        : mix(rimTop, rimBottom, clamp((p.y - box.y) / max(box.w, 1.0), 0.0, 1.0));
+    // Apply coverage once, after the body is laid over the underlying pill.
+    vec3 covered = mix(under(p), glass, shape);
+    covered = mix(covered, rim.rgb, band * rim.a);
 
     // Opaque, the antialiased edge laid over what is under it: a part-covered
     // pixel would let Hyprland's blur through, which is darker than the
     // wallpaper, in a ring round the bead.
-    fragColor = vec4(mix(under(p), glass, shape), 1.0) * qt_Opacity;
+    fragColor = vec4(covered, 1.0) * qt_Opacity;
 }
