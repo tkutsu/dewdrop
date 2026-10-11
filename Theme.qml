@@ -65,6 +65,10 @@ Singleton {
     // module's box and the box reaches into the margin the pill claims for
     // clicks — which put every menu a click's width away from the click.
     readonly property int popupGap: 2
+    // How far in from a scrolling list's edge what runs on past it fades out
+    // (components/ScrollEdges.qml): about one row, so the row going under
+    // reads as going under and the one after it is whole.
+    readonly property int scrollEdge: 20
     readonly property int selectionRadius: 4
     readonly property int selectionInset: 5
     // A menu's corner runs parallel to the highlight inside it: the
