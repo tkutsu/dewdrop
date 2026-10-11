@@ -8,8 +8,8 @@ import qs.components
 //   A   a bead: as the mark sets off it swells into clear glass taller than
 //       the pill, magnifying a little and pulling hard round its rim, runs
 //       stretched by its speed, and settles back into the capsule at rest
-//   B   the mark as it is (FlowMark: the head springs, the tail pours after
-//       it), drawn as glass over the pill and its icons rather than a fill
+//   B   the spring-driven mark (FlowMark), drawn as glass over the pill
+//       and its icons rather than a fill
 //
 // The pill, its icons and the wallpaper are drawn once (`world`) and taken
 // as a texture, which both kinds of mark are glass over.

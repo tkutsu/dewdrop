@@ -34,6 +34,8 @@ Item {
 
     // Bar.morph and Bar.morphContents, as the bar has them.
     function shape(box, s) {
+        if (s >= 2)
+            return Qt.vector4d(0, 0, 0, 0);
         if (s === 0 || box.z <= 0)
             return box;
         const gather = Math.min(1, s);

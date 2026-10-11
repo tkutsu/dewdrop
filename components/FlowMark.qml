@@ -1,21 +1,20 @@
 import QtQuick
 import qs
 
-// Shared head-and-tail motion and glass geometry for horizontal selections.
+// Spring motion and glass geometry for horizontal selections.
 Liquid {
     id: root
     property bool held: false
     property bool resetWhenHidden: false
-    readonly property bool animating: liftSpring.running || leftSpring.running || rightSpring.running || tailMotion.running
+    readonly property bool animating: liftSpring.running || leftSpring.running || rightSpring.running
     property real slabY: 0
     required property real slabHeight
 
     readonly property int inset: Theme.markInset
 
     // How the ends run: the workspace mark's pace unless told otherwise.
-    property real spring: Theme.springStiffness
+    property real spring: Theme.markSpring
     property real damping: Theme.markDamping
-    property int flowMs: Theme.markMs
 
     // How far the glass has come up off the pill, 0..1: a press held
     // on an icon lifts it a pixel towards the pill's edges and
@@ -27,7 +26,7 @@ Liquid {
     Behavior on lift {
         SpringAnimation {
             id: liftSpring
-            spring: Theme.springStiffness
+            spring: Theme.markSpring
             damping: Theme.markDamping
         }
     }
@@ -45,55 +44,22 @@ Liquid {
     // than snapping them together first. Not until the mark has been
     // placed once, or it would flow in from the screen's edge.
     property bool placed: false
-    onPlacedChanged: if (placed) {
-        tailLeft = wantLeft;
-        tailRight = wantRight;
-        tailProgress = 1;
-        roundness = 0;
-    }
 
     // A hidden power selector resets; workspaces retain motion through IPC gaps.
     onVisibleChanged: {
         if (visible && !placed)
             Qt.callLater(() => { if (root.visible) root.placed = true; });
-        else if (!visible && root.resetWhenHidden) {
+        else if (!visible && root.resetWhenHidden)
             root.placed = false;
-            root.followTail();
-        }
     }
 
     property real headLeft: wantLeft
     property real headRight: wantRight
-    property real tailLeft: wantLeft
-    property real tailRight: wantRight
-    property point tailStart: Qt.point(wantLeft, wantRight)
-    property real tailProgress: 1
-    property real roundness: 0
 
-    // Set by the owner when the destination is the same place changing size,
-    // not a new place: at rest the ends follow the new edges exactly instead
-    // of flowing to them, and a flow already under way keeps going, since it
-    // heads for wherever the destination is now.
+    // Follow layout changes directly at rest; an ongoing spring keeps moving
+    // towards the updated destination.
     property bool resizing: false
-    readonly property bool _following: resizing && tailProgress >= 1
-
-    // A new destination keeps the tail wherever the previous move left it.
-    function followTail(): void {
-        if (!root.placed || root._following) {
-            root.tailLeft = root.wantLeft;
-            root.tailRight = root.wantRight;
-            root.tailProgress = 1;
-            root.roundness = 0;
-            return;
-        }
-        if (root.resizing)
-            return;
-        root.tailStart = Qt.point(root.tailLeft, root.tailRight);
-        root.tailProgress = 0;
-    }
-
-    onWantLeftChanged: followTail()
-    onWantRightChanged: followTail()
+    readonly property bool _following: resizing && !leftSpring.running && !rightSpring.running
 
     Behavior on headLeft {
         enabled: root.placed && !root._following
@@ -109,33 +75,6 @@ Liquid {
             id: rightSpring
             spring: root.spring
             damping: root.damping
-        }
-    }
-    FrameAnimation {
-        id: tailMotion
-        running: root.visible && root.placed && (root.tailProgress < 1 || root.roundness > 0)
-
-        // Distance and the tail's shrinking size accelerate the same cubic flow.
-        onTriggered: {
-            const previousMid = root.tailMid;
-            const distance = root.apart / (root.thickness * 4);
-            const shrink = 1 - root.blobHeight / root.thickness;
-            const speed = (1 + 0.75 * distance * distance) * (1 + 0.75 * shrink);
-            root.tailProgress = Math.min(1, root.tailProgress + frameTime * 1000 * speed / (root.flowMs * 1.1));
-            const t = Math.max(0, (root.tailProgress - 0.2) / 0.8);
-            const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-            const left = root.tailStart.x + (root.wantLeft - root.tailStart.x) * eased;
-            const right = root.tailStart.y + (root.wantRight - root.tailStart.y) * eased;
-            const velocity = root.tailProgress < 1 && frameTime > 0 ? Math.abs((left + right) / 2 - previousMid) / frameTime : 0;
-            root.tailLeft = left;
-            root.tailRight = right;
-            // Ease into a ball as flow speeds up, and back into a pill at rest.
-            const pace = Math.min(1, velocity / (root.thickness * 24));
-            const round = pace * pace * (3 - 2 * pace);
-            const roundingTime = round > root.roundness ? 0.025 : 0.05;
-            root.roundness += (round - root.roundness) * (1 - Math.exp(-frameTime / roundingTime));
-            if (round === 0 && root.roundness < 0.001)
-                root.roundness = 0;
         }
     }
 
@@ -173,31 +112,14 @@ Liquid {
     readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
     readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
 
-    readonly property real headMid: (frontLeft + frontRight) / 2
-    readonly property real tailMid: (tailLeft + tailRight) / 2
-    readonly property real apart: Math.abs(headMid - tailMid)
-    // Full thickness while the ends overlap, down to 40% of it once
-    // they are three thicknesses apart: a neighbour's mark only
-    // stretches, a long way off it pours through a thread.
-    readonly property real neck: thickness * (1 - 0.6 * Math.pow(Math.min(1, apart / (thickness * 3)), 2))
-    readonly property real tailWidth: tailRight - tailLeft + lift * 2
-    readonly property real blobWidth: tailWidth + (neck - tailWidth) * roundness
-    readonly property real blobHeight: thickness + (neck - thickness) * roundness
-
-    box0: Qt.vector4d(tailMid - blobWidth / 2, slabTop + (thickness - blobHeight) / 2, blobWidth, blobHeight)
-    box1: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
-    box2: Qt.vector4d(Math.min(headMid, tailMid), slabTop + (thickness - neck) / 2, apart, neck)
-
-    // At rest the head lies on the tail, and a reach would swell the
-    // two into something fatter than either; it comes up only as they
-    // part.
-    reach: Theme.pillSpread * Math.min(1, apart / thickness)
-    box3: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
+    box0: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
+    box1: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
+    reach: 0
     // The bulb joins the head with a small reach of its own: enough
     // to round the step between the two, and short enough that the
     // swell a join adds (a quarter of the reach) stays inside the
     // pixel between the wall and the pill's edge.
-    reaches: Qt.vector4d(reach, reach, reach, 3 * press)
+    reaches: Qt.vector4d(0, 3 * press, 0, 0)
     // The strong step, not a popup row's hover: on a pill this thin
     // over a bright wallpaper, the row fill was barely there.
     fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
