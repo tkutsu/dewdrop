@@ -25,7 +25,8 @@ PanelWindow {
             underedge: Qt.size(1200, 290),
             realslider: Qt.size(400, 140),
             reallight: Qt.size(400, 80),
-            realpopup: Qt.size(500, 330)
+            realpopup: Qt.size(500, 330),
+            accent: Qt.size(360, 120)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
