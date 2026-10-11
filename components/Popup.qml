@@ -79,6 +79,9 @@ PopupWindow {
 
     // How tall the box is drawn, which is not always how tall the window is.
     readonly property real chromeHeight: Math.max(1, body.implicitHeight + vPadding * 2)
+    // The box itself, for a list that runs on under its header to draw out
+    // to the box's edges (ScrollUnder).
+    readonly property Item chromeItem: chrome
 
     // Room to keep below the box, for a popup whose content folds open and
     // shut. Resizing a popup is a reposition round trip with the compositor,
@@ -141,8 +144,42 @@ PopupWindow {
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.revealProgress
     property real revealProgress: root.opened ? 1 : 0
-    // Under Reduce motion a popup only fades: it opens where it will stand.
-    property real slideOffset: root.opened || Theme.reduceMotion ? 0 : -6
+    // A popover grows out of its item from nine tenths of its size, and its
+    // bottom edge, which is furthest from the pill, hangs back like gel: it
+    // sags, flicks up past flat and settles. Closing, it sags a touch and
+    // shrinks as it fades. Under Reduce motion a popup only fades: it opens
+    // where it will stand.
+    readonly property bool moves: root.grows && !Theme.reduceMotion && !OpenPopup.switched
+    property real grow: root.opened || Theme.reduceMotion ? 1 : 0.9
+    property real sag: 0
+    onOpenedChanged: {
+        sagOpen.stop();
+        sagClose.stop();
+        if (root.moves && root.visible)
+            (root.opened ? sagOpen : sagClose).start();
+    }
+    SequentialAnimation {
+        id: sagOpen
+        NumberAnimation { target: root; property: "sag"; to: 9; duration: 180; easing.type: Easing.OutQuad }
+        NumberAnimation { target: root; property: "sag"; to: -3; duration: 170; easing.type: Easing.InOutSine }
+        NumberAnimation { target: root; property: "sag"; to: 0; duration: 210; easing.type: Easing.InOutSine }
+    }
+    // Inside the 140 ms the exit has before the loaders let the surface go.
+    SequentialAnimation {
+        id: sagClose
+        NumberAnimation { target: root; property: "sag"; to: 4; duration: 60; easing.type: Easing.OutQuad }
+        NumberAnimation { target: root; property: "sag"; to: 0; duration: 80; easing.type: Easing.InQuad }
+    }
+    // Where the item is, across the popup's window: what it grows out of.
+    readonly property real growX: {
+        const item = root.anchorItem;
+        if (!root.visible || !item || !root.screen)
+            return root.width / 2;
+        const p = item.mapToItem(null, item.width / 2, 0);
+        const win = item.QsWindow.window;
+        const base = win?.windowOnScreen ?? Qt.point(0, 0);
+        return Math.max(0, Math.min(root.width, base.x + p.x - root.windowOnScreen.x));
+    }
 
     // On from `visible`, which is set before the surface maps, not from
     // backingWindowVisible: that flips `opened` and the guard in the same
@@ -157,11 +194,11 @@ PopupWindow {
             easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1]
         }
     }
-    Behavior on slideOffset {
+    Behavior on grow {
         enabled: root.visible
         NumberAnimation {
-            duration: root.opened ? 280 : 140
-            easing.type: root.opened ? Easing.OutCubic : Easing.InQuad
+            duration: root.opened ? 250 : 140
+            easing.type: root.opened ? Easing.OutCubic : Easing.InCubic
         }
     }
 
@@ -375,8 +412,11 @@ PopupWindow {
         Item {
             anchors.fill: parent
 
-            transform: Translate {
-                y: root.grows && !OpenPopup.switched ? root.slideOffset : 0
+            transform: Scale {
+                origin.x: root.growX
+                origin.y: root.shadowTop
+                xScale: root.moves ? root.grow : 1
+                yScale: xScale
             }
 
             // Under the box rather than round it: the fill is translucent, so
@@ -390,36 +430,43 @@ PopupWindow {
                 color: Theme.shadow
             }
 
-            Rectangle {
+            Item {
                 id: chrome
 
                 y: root.shadowTop
                 width: parent.width
                 height: root.chromeHeight
+                property real radius: root.radius
                 // Thickened over a bright screen (BackdropProbe), and eased
                 // there: the reading lands a few frames after the box. Only
                 // ever up from popupBg, so the blur stays.
-                color: Theme.frostOver(under.luma)
+                property color color: Theme.frostOver(under.luma)
 
                 Behavior on color {
                     ColorAnimation {
                         duration: Theme.revealMs
                     }
                 }
-                radius: root.radius
 
-                Rim {
-                    anchors.fill: parent
-                    radius: chrome.radius
-                    // Above the rows, which run edge to edge in a menu and
-                    // would otherwise paint over it where the pointer is.
+                // The frost under the rows, and its rim over them: the rows
+                // run edge to edge in a menu and would otherwise paint over
+                // the rim where the pointer is.
+                Frost {
+                    sag: root.sag
+                    showFill: 1
+                }
+                Frost {
+                    sag: root.sag
+                    showRim: 1
                     z: 1
                 }
 
                 Column {
                     id: body
                     x: root.hPadding
-                    y: root.vPadding
+                    // The contents ride the sag a little, as gel would carry
+                    // them.
+                    y: root.vPadding + root.sag * 0.4
                 }
 
                 // The keys' mark on a control that draws no highlight of its
