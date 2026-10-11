@@ -15,7 +15,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: height / 2
-        color: root.on ? Theme.label : Theme.sliderTrack
+        color: root.on ? Theme.accent : Theme.sliderTrack
 
         Behavior on color {
             ColorAnimation {
@@ -30,7 +30,7 @@ Item {
         radius: width / 2
         y: 2
         x: root.on ? root.width - width - 2 : 2
-        color: root.on ? Theme.calTodayText : Theme.fg
+        color: root.on ? Theme.accentInk : Theme.fg
 
         Behavior on x {
             NumberAnimation {

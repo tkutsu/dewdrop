@@ -20,7 +20,7 @@ Item {
     // Flat, as Apple draws them: the fill in its colour, the rest of the track
     // the same grey every slider's is.
     property bool knob: true
-    property color fill: Theme.fg
+    property color fill: Theme.accent
     // How far one notch of the wheel moves the value. Zero leaves the wheel
     // to whatever is underneath — the sound popup has one handler for all
     // its rows, which a slider taking the wheel for itself would cut short.

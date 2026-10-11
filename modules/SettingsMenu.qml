@@ -128,8 +128,9 @@ OverlayWindow {
             title: "Bar",
             sections: [
                 {
-                    title: "Glass",
+                    title: "Appearance",
                     rows: [
+                        { type: "choice", id: "accent", title: "Accent colour", text: "Colours a switch that is on, a slider's fill, today in the calendar, selected text and the keys' focus ring. White keeps the shell one colour.", options: Object.keys(Theme.accents).map(k => ({ value: k, label: k[0].toUpperCase() + k.slice(1), swatch: Theme.accents[k] })), get: () => Settings.accent, set: v => Settings.set("accent", v) },
                         { type: "choice", id: "sliderKnob", title: "Slider knob when held", text: "Bead turns the knob into a bead of glass the track shows through. Gel is the same bead, trailing a short tail as you drag. With Reduce motion on it is the bead; with Reduce transparency, the plain knob.", options: [{ value: "bead", label: "Bead" }, { value: "gel", label: "Gel" }], get: () => Settings.sliderKnob, set: v => Settings.set("sliderKnob", v) }
                     ]
                 },
@@ -310,7 +311,7 @@ OverlayWindow {
                         verticalAlignment: TextInput.AlignVCenter
                         clip: true
                         color: Theme.fg
-                        selectionColor: Theme.selection
+                        selectionColor: Theme.textSelection
                         selectedTextColor: Theme.fg
                         selectByMouse: true
                         font.family: Theme.bodyFont

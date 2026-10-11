@@ -26,7 +26,7 @@ Rectangle {
         verticalAlignment: TextInput.AlignVCenter
         clip: true
         color: Theme.fg
-        selectionColor: Theme.selection
+        selectionColor: Theme.textSelection
         selectedTextColor: Theme.fg
         selectByMouse: true
         font.family: Theme.bodyFont
