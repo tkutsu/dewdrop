@@ -68,11 +68,13 @@ layout(std140, binding = 0) uniform buf {
     // Lab: a press lighting the glass from where it landed (x, y), spreading
     // `z` pixels, at strength `w` (0 at rest).
     vec4 press;
-    // Lab: the pointer's light (x, y) at strength `z`, drawn the way `w`
-    // picks: 1 lights the rim nearest the pointer, 2 lights the rim facing
-    // it (and a little the far side, where the light leaves), 3 lays a broad
-    // faint sheen over the body under it.
+    // Lab: the pointer as a lamp (x, y), `z` pixels above the screen, at
+    // strength `w`. It catches the bevel round the rim where the bevel turns
+    // towards it, and a little where its light leaves on the far side.
     vec4 light;
+    // Lab: a soft glow in the glass under the pointer (x, y), `z` pixels
+    // across, at strength `w`, the way visionOS lights what is looked at.
+    vec4 hover;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -123,8 +125,18 @@ float field(vec2 p) {
     // bar's window ends at the slabs' bottom edge. Held to the slab's height,
     // so a join only ever fills out sideways. A bulge is let through, and
     // what its blend rounds it out by.
-    float proud = max(s0 + k0 * 0.25, s1 + k1 * 0.25);
-    return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
+    // Lab: above and below apart, so a bulge can hang below the slab
+    // without growing above it.
+    float up = 0.0, down = 0.0;
+    if (bulge0.z > 0.0) {
+        up = max(up, rimFrom - bulge0.y + k0 * 0.25);
+        down = max(down, bulge0.y + bulge0.w - rimTo + k0 * 0.25);
+    }
+    if (bulge1.z > 0.0) {
+        up = max(up, rimFrom - bulge1.y + k1 * 0.25);
+        down = max(down, bulge1.y + bulge1.w - rimTo + k1 * 0.25);
+    }
+    return max(d, max(rimFrom - up - p.y, p.y - rimTo - down));
 }
 
 // The wallpaper under p.
@@ -209,21 +221,31 @@ void main() {
     float pressLit = press.w * exp(-(pd * pd) / max(press.z * press.z, 1.0));
     body = mix(body, vec3(1.0), pressLit * 0.4);
     float edge = pressLit * 0.5;
-    if (light.z > 0.0) {
-        if (light.w < 1.5) {
-            float ld = length(p - light.xy);
-            edge += light.z * 0.35 * exp(-(ld * ld) / (36.0 * 36.0));
-        } else if (light.w < 2.5) {
-            vec2 centre = box0.xy + box0.zw * 0.5;
-            float f = dot(facing, normalize(light.xy - centre + 1e-6));
-            edge += light.z * (0.6 * pow(max(f, 0.0), 3.0) + 0.2 * pow(max(-f, 0.0), 3.0));
-        } else {
-            float sx = (p.x - light.x) / 50.0;
-            body = mix(body, vec3(1.0), light.z * 0.1 * exp(-sx * sx));
-            float ld = length(p - light.xy);
-            edge += light.z * 0.25 * exp(-(ld * ld) / (60.0 * 60.0));
-        }
+
+    // The bevel: flat inside, turning down over the last 4px to the edge.
+    // Its surface faces up and out, more out the nearer the edge.
+    float s = clamp(1.0 + d / 4.0, 0.0, 1.0);
+    vec3 normal = normalize(vec3(facing * s, 1.0 - 0.6 * s));
+    float sheen = 0.0;
+    if (light.w > 0.0) {
+        // Blinn-Phong with the viewer straight above: bright where the
+        // bevel turns towards the lamp, and a weaker glint where the light
+        // comes back out through the far side.
+        vec3 toLamp = normalize(vec3(light.xy - p, light.z));
+        vec3 outFar = normalize(vec3(p - light.xy, light.z));
+        float near = pow(max(dot(normal, normalize(toLamp + vec3(0.0, 0.0, 1.0))), 0.0), 8.0);
+        float far = pow(max(dot(normal, normalize(outFar + vec3(0.0, 0.0, 1.0))), 0.0), 8.0);
+        sheen += light.w * (near + 0.35 * far) * s;
     }
+    if (hover.w > 0.0) {
+        float hd = length(p - hover.xy) / hover.z;
+        float g = hover.w * exp(-hd * hd);
+        body = mix(body, vec3(1.0), g * 0.12);
+        sheen += g * 0.5 * s;
+    }
+    body = mix(body, vec3(1.0), clamp(sheen * 0.5, 0.0, 1.0));
+    edge += sheen;
+
     body = mix(body, vec3(1.0), clamp(edge * 0.35 * exp(min(d, 0.0) / 2.0), 0.0, 1.0));
     rim = vec4(mix(rim.rgb, vec3(1.0), clamp(edge, 0.0, 1.0)), clamp(rim.a + edge, 0.0, 1.0));
 

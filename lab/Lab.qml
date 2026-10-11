@@ -15,9 +15,11 @@ PanelWindow {
     readonly property var sizes: ({
             press: Qt.size(640, 300),
             popup: Qt.size(1200, 300),
-            bead: Qt.size(560, 270),
-            light: Qt.size(700, 290),
-            edges: Qt.size(540, 270)
+            bead: Qt.size(560, 440),
+            light: Qt.size(1200, 290),
+            edges: Qt.size(540, 270),
+            popupgel: Qt.size(1200, 300),
+            popupdew: Qt.size(1200, 300)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
