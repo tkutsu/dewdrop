@@ -73,46 +73,137 @@ Item {
             root.moved(accessibleValue.clamp(root.value - accessibleValue.stepSize))
     }
 
-    Rectangle {
-        id: track
+    // --- the bead -----------------------------------------------------------
+    // Held, the knob turns into a bead of glass the track shows through, bent
+    // hard round its rim (shaders/bead.frag), and back into the knob when let
+    // go. With sliderKnob "gel" the bead trails a tail on a firm spring, which
+    // grows with the drag's speed and catches up when it stops. Under Reduce
+    // motion it is the plain bead, grown without running past; under Reduce
+    // transparency there is no glass, only the knob.
+    readonly property bool beads: knob && !trackGradient && !Theme.reduceTransparency
+    readonly property bool trails: Settings.sliderKnob === "gel" && !Theme.reduceMotion
+    readonly property int knobSize: height - 2
+    readonly property int beadSize: 22
+    // Room round the slider for the bead, and the knob's middle.
+    readonly property int room: (beadSize - knobSize) / 2
+    readonly property real knobX: Math.max(0, Math.min(width - knobSize, value * width - knobSize / 2)) + knobSize / 2
 
-        readonly property bool swollen: !root.knob && (hover.hovered || area.pressed)
-
-        anchors.verticalCenter: parent.verticalCenter
-        width: parent.width
-        height: root.trackGradient ? root.height : swollen ? 2 * root.trackHeight : root.trackHeight
-        radius: height / 2
-        color: root.trackGradient ? "transparent" : Theme.sliderTrack
-        gradient: root.trackGradient
-
-        Behavior on height {
-            NumberAnimation {
-                duration: Theme.fadeMs
-                easing.type: Easing.InOutQuad
-            }
+    property real beadR: area.pressed && beads ? beadSize / 2 : knobSize / 2
+    Behavior on beadR {
+        SpringAnimation {
+            spring: 6
+            damping: Theme.reduceMotion ? 1 : 0.4
+            epsilon: 0.02
         }
+    }
+    property real tailX: knobX
+    Behavior on tailX {
+        enabled: root.trails
+        SpringAnimation {
+            spring: 9
+            damping: 0.6
+            epsilon: 0.05
+        }
+    }
+    // How far the tail trails, easing into 10px rather than stopping at it,
+    // so a faster drag always pulls it a little further.
+    readonly property real lag: trails ? 10 * Math.tanh((tailX - knobX) / 10) : 0
+    readonly property real tailR: Math.min(beadR, beadR * 0.75 + beadR * 0.25 * Math.max(0, 1 - Math.abs(lag) / 6))
+    property real clear: area.pressed && beads ? 1 : 0
+    Behavior on clear {
+        NumberAnimation {
+            duration: area.pressed ? 140 : 200
+            easing.type: Easing.OutQuad
+        }
+    }
+    // Drawn by the shader only while there is glass to draw; at rest the
+    // track and knob below are the slider.
+    readonly property bool glassy: beads && (clear > 0.001 || Math.abs(beadR - knobSize / 2) > 0.05 || Math.abs(lag) > 0.05)
 
-        // Cut off square where the value is rather than rounded there, so
-        // the end of the fill is the value and not half a cap past it.
-        Item {
-            visible: !root.trackGradient
-            width: track.width * Math.max(0, Math.min(1, root.value))
-            height: parent.height
-            clip: true
+    ShaderEffectSource {
+        id: trackTexture
 
-            Rectangle {
-                width: track.width
+        sourceItem: trackLayer
+        hideSource: root.glassy
+        live: root.glassy
+        visible: false
+    }
+
+    ShaderEffect {
+        visible: root.glassy
+        x: trackLayer.x
+        y: trackLayer.y
+        width: trackLayer.width
+        height: trackLayer.height
+
+        property var source: trackTexture
+        readonly property size size: Qt.size(width, height)
+        readonly property vector4d head: Qt.vector4d(root.room + root.knobX, height / 2, root.beadR, 0)
+        readonly property vector4d tail: Qt.vector4d(root.room + root.knobX + root.lag, height / 2, root.tailR, 0)
+        readonly property real clear: root.clear
+        readonly property real bend: 11 * root.clear
+        readonly property real depth: 0.4
+        readonly property real steep: 1.5
+        readonly property real dispersion: Theme.glassDispersion
+        readonly property vector4d knob: Qt.vector4d(Theme.fg.r, Theme.fg.g, Theme.fg.b, Theme.fg.a)
+        readonly property vector4d knobEdge: Qt.vector4d(Theme.knobEdge.r, Theme.knobEdge.g, Theme.knobEdge.b, Theme.knobEdge.a)
+
+        fragmentShader: Qt.resolvedUrl("../shaders/bead.frag.qsb")
+    }
+
+    // The track, in a layer as big as the bead can reach, for the shader to
+    // draw through it.
+    Item {
+        id: trackLayer
+
+        x: -root.room
+        y: -root.room
+        width: root.width + 2 * root.room
+        height: root.height + 2 * root.room
+
+        Rectangle {
+            id: track
+
+            readonly property bool swollen: !root.knob && (hover.hovered || area.pressed)
+
+            x: root.room
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.width
+            height: root.trackGradient ? root.height : swollen ? 2 * root.trackHeight : root.trackHeight
+            radius: height / 2
+            color: root.trackGradient ? "transparent" : Theme.sliderTrack
+            gradient: root.trackGradient
+
+            Behavior on height {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                    easing.type: Easing.InOutQuad
+                }
+            }
+
+            // Cut off square where the value is rather than rounded there, so
+            // the end of the fill is the value and not half a cap past it.
+            Item {
+                visible: !root.trackGradient
+                width: track.width * Math.max(0, Math.min(1, root.value))
                 height: parent.height
-                radius: track.radius
-                color: root.fill
+                clip: true
+
+                Rectangle {
+                    width: track.width
+                    height: parent.height
+                    radius: track.radius
+                    color: root.fill
+                }
             }
         }
     }
 
     // The knob. A system slider always has one — the fill alone says how
-    // much, the knob says where to take hold.
+    // much, the knob says where to take hold. The bead draws it while there
+    // is glass.
     Rectangle {
-        visible: root.knob && !root.trackGradient
+        visible: root.knob && !root.trackGradient && !root.glassy
         anchors.verticalCenter: parent.verticalCenter
         width: root.height - 2
         height: width

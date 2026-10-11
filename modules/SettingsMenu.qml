@@ -130,7 +130,8 @@ OverlayWindow {
                 {
                     title: "Glass",
                     rows: [
-                        { type: "choice", id: "pressFeedback", title: "When clicked", text: "Swell lights the glass from where you click and swells the pill under the icon, which springs back like gel. Light only lights it. With Reduce motion on it only lights.", options: [{ value: "swell", label: "Swell" }, { value: "light", label: "Light" }], get: () => Settings.pressFeedback, set: v => Settings.set("pressFeedback", v) }
+                        { type: "choice", id: "pressFeedback", title: "When clicked", text: "Swell lights the glass from where you click and swells the pill under the icon, which springs back like gel. Light only lights it. With Reduce motion on it only lights.", options: [{ value: "swell", label: "Swell" }, { value: "light", label: "Light" }], get: () => Settings.pressFeedback, set: v => Settings.set("pressFeedback", v) },
+                        { type: "choice", id: "sliderKnob", title: "Slider knob when held", text: "Bead turns the knob into a bead of glass the track shows through. Gel is the same bead, trailing a short tail as you drag. With Reduce motion on it is the bead; with Reduce transparency, the plain knob.", options: [{ value: "bead", label: "Bead" }, { value: "gel", label: "Gel" }], get: () => Settings.sliderKnob, set: v => Settings.set("sliderKnob", v) }
                     ]
                 },
                 {
