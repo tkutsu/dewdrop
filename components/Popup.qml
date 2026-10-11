@@ -142,7 +142,7 @@ PopupWindow {
     property bool fadesIn: true
     property bool requestedVisible: true
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
-    HyprlandWindow.opacity: root.revealProgress
+    HyprlandWindow.opacity: root.morphRun ? root.morphShown : root.revealProgress
     property real revealProgress: root.opened ? 1 : 0
     // A popover grows out of its item from 86% of its size on two springs,
     // like gel: the width settles straight in, the height is looser and runs
@@ -163,8 +163,18 @@ PopupWindow {
     }
     onOpenedChanged: {
         shrink.stop();
+        morphOpen.stop();
+        morphClose.stop();
         root.springs = false;
-        if (!root.moves || !root.visible) {
+        if (root.morphs) {
+            root.growX = root.growY = 1;
+            if (root.opened)
+                root.morphRun = root.moves && root.visible;
+            if (root.morphRun)
+                (root.opened ? morphOpen : morphClose).start();
+            else
+                root.ink = 1;
+        } else if (!root.moves || !root.visible) {
             root.growX = root.growY = 1;
         } else if (root.opened) {
             root.growX = root.growY = 0.86;
@@ -183,6 +193,97 @@ PopupWindow {
         duration: 140
         easing.type: Easing.InCubic
     }
+
+    // Or a pill whose popover is all it does turns into it, as a control does
+    // in the morph reel: the pill gathers itself into a drop and sinks into
+    // the bar (Bar.qml, Morph.qml), and here the drop comes out under it and
+    // swells into the box, foot first the way a hanging drop does, as the
+    // contents blur in. Closing runs back into the drop, which goes back up
+    // into the pill. The box is drawn by Drop then, as a Rectangle and a Rim
+    // cannot bend. Under Reduce motion, or handed over from another popup,
+    // it fades like any other.
+    property bool morphs: false
+    // Whether this showing runs the morph, settled as it opens.
+    property bool morphRun: false
+    // The drop, in the box's pixels: where it is, its corner, how much it
+    // narrows to its top; the contents' share of the way in; and the window,
+    // which goes once the drop is back in the pill.
+    readonly property real dropW: Theme.barHeight * 1.3
+    readonly property real dropH: Theme.barHeight * 0.8
+    readonly property real dropX: root.growFrom - root.shadowSide - root.dropW / 2
+    property real boxX: 0
+    property real boxW: 0
+    property real boxH: 0
+    property real boxR: root.radius
+    property real bell: 0
+    property real ink: 1
+    property real morphShown: 1
+    // Drawn as the box itself rather than the drop, once it has landed.
+    property bool landed: true
+    // How long the window outlives a close (HoverPopup): the morph back
+    // into the drop, or the fade.
+    readonly property int exitMs: root.morphs ? Theme.morphCloseMs + 60 : 160
+
+    SequentialAnimation {
+        id: morphOpen
+        ScriptAction {
+            script: {
+                root.landed = false;
+                root.morphShown = 1;
+                root.ink = 0;
+                root.boxW = 0;
+            }
+        }
+        // While the pill gathers itself up into the drop.
+        PauseAnimation { duration: Theme.morphGatherMs }
+        ScriptAction {
+            script: {
+                root.boxX = root.dropX;
+                root.boxW = root.dropW;
+                root.boxH = root.dropH;
+                root.boxR = root.dropH / 2;
+                root.bell = 0.7;
+            }
+        }
+        ParallelAnimation {
+            NumberAnimation { target: root; property: "boxH"; to: root.chromeHeight; duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.3 }
+            NumberAnimation { target: root; property: "boxX"; to: 0; duration: 360; easing.type: Easing.OutBack; easing.overshoot: 1 }
+            NumberAnimation { target: root; property: "boxW"; to: chrome.width; duration: 360; easing.type: Easing.OutBack; easing.overshoot: 1 }
+            NumberAnimation { target: root; property: "boxR"; to: root.radius; duration: 260 }
+            NumberAnimation { target: root; property: "bell"; to: 0; duration: 300; easing.type: Easing.OutQuad }
+            SequentialAnimation {
+                PauseAnimation { duration: 160 }
+                NumberAnimation { target: root; property: "ink"; to: 1; duration: 260; easing.type: Easing.OutQuad }
+            }
+        }
+        PropertyAction { target: root; property: "landed"; value: true }
+    }
+    // Inside Theme.morphCloseMs, after which the pill takes the drop back.
+    SequentialAnimation {
+        id: morphClose
+        ScriptAction {
+            script: {
+                if (root.landed) {
+                    root.boxX = 0;
+                    root.boxW = chrome.width;
+                    root.boxH = root.chromeHeight;
+                    root.boxR = root.radius;
+                    root.bell = 0;
+                }
+                root.landed = false;
+            }
+        }
+        NumberAnimation { target: root; property: "ink"; to: 0; duration: 90 }
+        ParallelAnimation {
+            NumberAnimation { target: root; property: "boxH"; to: root.dropH; duration: 240; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "boxX"; to: root.dropX; duration: 240; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "boxW"; to: root.dropW; duration: 240; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "boxR"; to: root.dropH / 2; duration: 240 }
+            NumberAnimation { target: root; property: "bell"; to: 0.5; duration: 240 }
+        }
+        NumberAnimation { target: root; property: "morphShown"; to: 0; duration: 50 }
+    }
+
     // Where the item is, across the popup's window: what it grows out of.
     readonly property real growFrom: {
         const item = root.anchorItem;
@@ -434,6 +535,14 @@ PopupWindow {
                 radius: chrome.radius
                 blur: root.shadowBlur
                 color: Theme.shadow
+                // Not under a drop on its way in or out.
+                opacity: root.landed ? 1 : 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.fadeMs
+                    }
+                }
             }
 
             Rectangle {
@@ -446,15 +555,17 @@ PopupWindow {
                 // Thickened over a bright screen (BackdropProbe), and eased
                 // there: the reading lands a few frames after the box. Only
                 // ever up from popupBg, so the blur stays.
-                color: Theme.frostOver(under.luma)
+                property color frost: Theme.frostOver(under.luma)
+                color: root.morphs ? "transparent" : frost
 
-                Behavior on color {
+                Behavior on frost {
                     ColorAnimation {
                         duration: Theme.revealMs
                     }
                 }
 
                 Rim {
+                    visible: !root.morphs
                     anchors.fill: parent
                     radius: chrome.radius
                     // Above the rows, which run edge to edge in a menu and
@@ -462,10 +573,50 @@ PopupWindow {
                     z: 1
                 }
 
+                // A morphing popover's box, the fill under the rows and the
+                // rim over them, reaching below the box for the drop's
+                // swell to run past it.
+                Item {
+                    visible: root.morphs
+                    width: parent.width
+                    height: parent.height + 16
+                    z: 1
+
+                    Drop {
+                        box: root.landed ? Qt.vector4d(0, 0, chrome.width, chrome.height) : Qt.vector4d(root.boxX, 0, root.boxW, root.boxH)
+                        radius: root.landed ? chrome.radius : root.boxR
+                        bell: root.landed ? 0 : root.bell
+                        color: chrome.frost
+                        showRim: 1
+                    }
+                }
+                Item {
+                    visible: root.morphs
+                    width: parent.width
+                    height: parent.height + 16
+                    z: -1
+
+                    Drop {
+                        box: root.landed ? Qt.vector4d(0, 0, chrome.width, chrome.height) : Qt.vector4d(root.boxX, 0, root.boxW, root.boxH)
+                        radius: root.landed ? chrome.radius : root.boxR
+                        bell: root.landed ? 0 : root.bell
+                        color: chrome.frost
+                        showFill: 1
+                    }
+                }
+
                 Column {
                     id: body
                     x: root.hPadding
                     y: root.vPadding
+                    // Blurring in as the drop swells into the box.
+                    opacity: root.ink
+                    layer.enabled: root.ink < 1
+                    layer.effect: MultiEffect {
+                        blurEnabled: true
+                        blur: 1 - root.ink
+                        blurMax: 32
+                    }
                 }
 
                 // The keys' mark on a control that draws no highlight of its
