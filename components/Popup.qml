@@ -144,34 +144,47 @@ PopupWindow {
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.revealProgress
     property real revealProgress: root.opened ? 1 : 0
-    // A popover grows out of its item from nine tenths of its size, and its
-    // bottom edge, which is furthest from the pill, hangs back like gel: it
-    // sags, flicks up past flat and settles. Closing, it sags a touch and
-    // shrinks as it fades. Under Reduce motion a popup only fades: it opens
-    // where it will stand.
+    // A popover grows out of its item from 86% of its size on two springs,
+    // like gel: the width settles straight in, the height is looser and runs
+    // a touch past before it settles. Closing, it shrinks to nine tenths as
+    // it fades. Under Reduce motion a popup only fades: it opens where it
+    // will stand.
     readonly property bool moves: root.grows && !Theme.reduceMotion && !OpenPopup.switched
-    property real grow: root.opened || Theme.reduceMotion ? 1 : 0.9
-    property real sag: 0
-    onOpenedChanged: {
-        sagOpen.stop();
-        sagClose.stop();
-        if (root.moves && root.visible)
-            (root.opened ? sagOpen : sagClose).start();
+    property real growX: 1
+    property real growY: 1
+    property bool springs: false
+    Behavior on growX {
+        enabled: root.springs
+        SpringAnimation { spring: 5; damping: 0.6; epsilon: 0.001 }
     }
-    SequentialAnimation {
-        id: sagOpen
-        NumberAnimation { target: root; property: "sag"; to: 9; duration: 180; easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "sag"; to: -3; duration: 170; easing.type: Easing.InOutSine }
-        NumberAnimation { target: root; property: "sag"; to: 0; duration: 210; easing.type: Easing.InOutSine }
+    Behavior on growY {
+        enabled: root.springs
+        SpringAnimation { spring: 5; damping: 0.34; epsilon: 0.001 }
+    }
+    onOpenedChanged: {
+        shrink.stop();
+        root.springs = false;
+        if (!root.moves || !root.visible) {
+            root.growX = root.growY = 1;
+        } else if (root.opened) {
+            root.growX = root.growY = 0.86;
+            root.springs = true;
+            root.growX = root.growY = 1;
+        } else {
+            shrink.start();
+        }
     }
     // Inside the 140 ms the exit has before the loaders let the surface go.
-    SequentialAnimation {
-        id: sagClose
-        NumberAnimation { target: root; property: "sag"; to: 4; duration: 60; easing.type: Easing.OutQuad }
-        NumberAnimation { target: root; property: "sag"; to: 0; duration: 80; easing.type: Easing.InQuad }
+    NumberAnimation {
+        id: shrink
+        target: root
+        properties: "growX,growY"
+        to: 0.9
+        duration: 140
+        easing.type: Easing.InCubic
     }
     // Where the item is, across the popup's window: what it grows out of.
-    readonly property real growX: {
+    readonly property real growFrom: {
         const item = root.anchorItem;
         if (!root.visible || !item || !root.screen)
             return root.width / 2;
@@ -192,13 +205,6 @@ PopupWindow {
             duration: root.opened ? (root.grows ? 220 : root.fadesIn ? 140 : 0) : 140
             easing.type: root.opened ? Easing.BezierSpline : Easing.InOutQuad
             easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1]
-        }
-    }
-    Behavior on grow {
-        enabled: root.visible
-        NumberAnimation {
-            duration: root.opened ? 250 : 140
-            easing.type: root.opened ? Easing.OutCubic : Easing.InCubic
         }
     }
 
@@ -413,10 +419,10 @@ PopupWindow {
             anchors.fill: parent
 
             transform: Scale {
-                origin.x: root.growX
+                origin.x: root.growFrom
                 origin.y: root.shadowTop
-                xScale: root.moves ? root.grow : 1
-                yScale: xScale
+                xScale: root.growX
+                yScale: root.growY
             }
 
             // Under the box rather than round it: the fill is translucent, so
@@ -430,17 +436,17 @@ PopupWindow {
                 color: Theme.shadow
             }
 
-            Item {
+            Rectangle {
                 id: chrome
 
                 y: root.shadowTop
                 width: parent.width
                 height: root.chromeHeight
-                property real radius: root.radius
+                radius: root.radius
                 // Thickened over a bright screen (BackdropProbe), and eased
                 // there: the reading lands a few frames after the box. Only
                 // ever up from popupBg, so the blur stays.
-                property color color: Theme.frostOver(under.luma)
+                color: Theme.frostOver(under.luma)
 
                 Behavior on color {
                     ColorAnimation {
@@ -448,25 +454,18 @@ PopupWindow {
                     }
                 }
 
-                // The frost under the rows, and its rim over them: the rows
-                // run edge to edge in a menu and would otherwise paint over
-                // the rim where the pointer is.
-                Frost {
-                    sag: root.sag
-                    showFill: 1
-                }
-                Frost {
-                    sag: root.sag
-                    showRim: 1
+                Rim {
+                    anchors.fill: parent
+                    radius: chrome.radius
+                    // Above the rows, which run edge to edge in a menu and
+                    // would otherwise paint over it where the pointer is.
                     z: 1
                 }
 
                 Column {
                     id: body
                     x: root.hPadding
-                    // The contents ride the sag a little, as gel would carry
-                    // them.
-                    y: root.vPadding + root.sag * 0.4
+                    y: root.vPadding
                 }
 
                 // The keys' mark on a control that draws no highlight of its
