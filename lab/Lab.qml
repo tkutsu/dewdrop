@@ -19,7 +19,9 @@ PanelWindow {
             light: Qt.size(1200, 290),
             edges: Qt.size(540, 270),
             popupgel: Qt.size(1200, 300),
-            popupdew: Qt.size(1200, 300)
+            popupdew: Qt.size(1200, 300),
+            realpress: Qt.size(400, 180),
+            compile: Qt.size(10, 10)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
