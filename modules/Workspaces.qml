@@ -752,7 +752,7 @@ BarItem {
 
                             delegate: AppIcon {
                                 id: app
-                                readonly property bool inkHovered: tap.containsMouse && !root.dragging
+                                readonly property bool inkLit: true
 
                                 required property string modelData
                                 required property int index

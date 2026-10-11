@@ -210,9 +210,7 @@ BarItem {
 
         Glyph {
             id: prev
-            readonly property bool inkHovered: prevHover.hovered
-
-            HoverHandler { id: prevHover; enabled: root.handsOut }
+            readonly property bool inkLit: true
 
             anchors.right: parent.right
             anchors.rightMargin: Theme.mediaGap
@@ -265,9 +263,7 @@ BarItem {
         // The gap after it presses with it.
         Item {
             id: slot
-            readonly property bool inkHovered: playHover.hovered
-
-            HoverHandler { id: playHover }
+            readonly property bool inkLit: true
 
             readonly property int size: 14
 
@@ -308,9 +304,7 @@ BarItem {
         // And the popup's button, which presses in by itself.
         Item {
             id: titleRoom
-            readonly property bool inkHovered: titleHover.hovered
-
-            HoverHandler { id: titleHover }
+            readonly property bool inkLit: true
 
             // The cap's horizontal room at the text's height, inside the track.
             // A little vertical air also covers hinted strokes and descenders.
@@ -406,9 +400,7 @@ BarItem {
 
         Glyph {
             id: next
-            readonly property bool inkHovered: nextHover.hovered
-
-            HoverHandler { id: nextHover; enabled: root.handsOut }
+            readonly property bool inkLit: true
 
             x: Theme.mediaGap
             height: parent.height

@@ -68,9 +68,6 @@ layout(std140, binding = 0) uniform buf {
     // A press on this glass (GlassPress.qml): where it landed (x, y), how
     // far its light spreads (z), and how lit it is now (w, 0 at rest).
     vec4 press;
-    // And the swell under the pressed icon: a box taller than the slab that
-    // the glass grows into, like a bulge. A width of zero is none.
-    vec4 pressSwell;
     // The pointer as a lamp (GlassLight.qml): where it is (x, y), how far
     // above the screen (z), and how strong (w, 0 with no pointer on the bar).
     vec4 light;
@@ -114,13 +111,10 @@ float field(vec2 p) {
     float s1 = swell(bulge1);
     float k0 = min(8.0, s0 * 3.0);
     float k1 = min(8.0, s1 * 3.0);
-    float s2 = swell(pressSwell);
-    float k2 = min(8.0, s2 * 3.0);
 
     float d = box(p, box0);
     d = smin(d, box(p, bulge0), k0);
     d = smin(d, box(p, bulge1), k1);
-    d = smin(d, box(p, pressSwell), k2);
     d = smin(d, box(p, box1), reaches.y);
     d = smin(d, box(p, box2), reaches.z);
     d = smin(d, box(p, box3), reaches.w);
@@ -128,9 +122,9 @@ float field(vec2 p) {
     // The smooth minimum swells a join out in every direction, which made
     // the glass taller than a pill wherever two met, and only on top: the
     // bar's window ends at the slabs' bottom edge. Held to the slab's height,
-    // so a join only ever fills out sideways. A bulge or a press's swell is
-    // let through, and what its blend rounds it out by.
-    float proud = max(max(s0 + k0 * 0.25, s1 + k1 * 0.25), s2 + k2 * 0.25);
+    // so a join only ever fills out sideways. A bulge is let through, and
+    // what its blend rounds it out by.
+    float proud = max(s0 + k0 * 0.25, s1 + k1 * 0.25);
     return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
 }
 

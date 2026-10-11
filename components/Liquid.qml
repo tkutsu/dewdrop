@@ -88,12 +88,6 @@ ShaderEffect {
         return [box0, box1, box2, box3].some(b => b.z > 0 && p.x >= b.x && p.x <= b.x + b.z && p.y >= b.y - 2 && p.y <= b.y + b.w + 2);
     }
     property vector4d press: pressed ? Qt.vector4d(pressAt.x, pressAt.y, 24, GlassPress.lit) : Qt.vector4d(0, 0, 1, 0)
-    // The swell: 40px of the slab under the icon, 3px taller above and
-    // below at the press's full spring, which runs past and back.
-    readonly property real _swell: 3 * GlassPress.pop
-    property vector4d pressSwell: pressed && GlassPress.swells && _swell > 0.05
-        ? Qt.vector4d(GlassPress.box.x - windowPos.x + GlassPress.box.width / 2 - 20, rimFrom - _swell, 40, rimTo - rimFrom + 2 * _swell)
-        : Qt.vector4d(0, 0, 0, 0)
 
     // The pointer's light (GlassLight), for glass in the window the pointer
     // is over.
