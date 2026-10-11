@@ -95,9 +95,8 @@ Singleton {
     // And how it moves: quicker than the workspace mark, which moves once
     // for a switch, where the keys step this one along several items in a
     // row and each step has to have landed before the next.
-    readonly property real keyMarkSpring: reduceMotion ? calmSpring : 9
+    readonly property real keyMarkSpring: reduceMotion ? calmSpring : 14
     readonly property real keyMarkDamping: reduceMotion ? calmDamping : 0.45
-    readonly property int keyMarkMs: 150
 
     // One gap between things that stand on their own: modules and tray icons.
     // Measured icon to icon — a badge floats in the gap rather than claiming
@@ -567,17 +566,10 @@ Singleton {
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
-    // The workspace mark flowing from one workspace to the next: its back end
-    // lets go a fifth of the way into this and is drawn in over the rest,
-    // behind a front end that runs on a spring (markDamping).
-    readonly property int markMs: 420
-    // That spring: springStiffness with SwiftUI's plain .bouncy damping,
-    // which arrives in about 250 ms — when the front end used to — and
-    // overshoots 4.7% before it settles (measured, 2026-09-29). Not the music
-    // pill's extra bounce: the overshoot is a share of the distance run, and
-    // at 16% a jump across the strip would carry the mark most of a
-    // workspace past the one it is going to.
-    readonly property real markDamping: reduceMotion ? calmDamping : 0.26
+    // Workspace icon fades and group folding keep pace with the selection spring.
+    readonly property int markMs: 220
+    readonly property real markSpring: reduceMotion ? calmSpring : 9
+    readonly property real markDamping: reduceMotion ? calmDamping : 0.45
     // The mark running into an end of the pill: how far past the wall the
     // spring has to carry it to press it flat, and how much taller the glass
     // piled against the wall stands, each side, once it is. Held to what

@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Shapes
+import Quickshell
 import qs
 
 // One of the bar's three islands: a row of modules on its own rounded slab.
@@ -47,6 +47,7 @@ Item {
     Component.onCompleted: {
         arrange();
         Tooltips.setMoving(root, animating);
+        trackReveal = trackReady ? 1 : 0;
     }
 
     readonly property var _movable: shown.filter(item => order.includes(item.settingsKey))
@@ -138,6 +139,10 @@ Item {
     // fade them by `contentOpacity` as the glass under them runs away.
     property bool drawsSlab: true
     property real contentOpacity: 1
+    property real contentScale: 1
+    property real contentSink: 0
+    property bool interactive: true
+    enabled: interactive && contentOpacity > 0.01
 
     // How far the glass runs on past the pill's inner end, in pixels: the
     // right pill's drawer springing past its own width as it opens, or past
@@ -163,37 +168,9 @@ Item {
                 item.shift = item.visible && span > 0 ? dir * stretch * from(item) / span : 0;
     }
 
-    // The outline as a single line around the pill, starting from the left and
-    // going clockwise. Its measurements, in the slab's own coordinates: the
-    // stroke is centred on the path it follows, so the path is half a stroke
-    // inside the slab and the line's outer edge lands exactly on the pill's.
-    // Half a pixel further out than the stroke's own half-width would put it.
-    // A rounded rectangle is drawn with its edge antialiased over the pixel
-    // outside itself, and that fringe is the pill's dark grey: sitting the
-    // line exactly on the edge leaves a hairline of pill showing around the
-    // outside of it. Half a pixel of bleed covers the fringe and costs no
-    // height — it is inside the margin the pill already claims.
-    readonly property real trackBleed: 0.5
-    readonly property real trackInset: root.trackWidth / 2 - trackBleed
-    // Except along the foot, where the bar's surface ends on the slab's edge
-    // and anything past it is cut: the bleed there was cut with it, and left
-    // the line a pixel wide along the bottom and half again that along the
-    // top. There is no fringe for it to cover at a cut edge, so the line
-    // stands wholly inside instead.
-    readonly property real trackFootInset: root.trackWidth / 2
-    // The slab's own corner, brought in by the path's insets so the line
-    // stays concentric with the edge it stands inside: by the mean of the two,
-    // top and foot, which on fully round ends is the circle through both.
-    // Read from the constant rather than from the height: the two agree only
-    // while the pills are fully round, and the ends are where they would come
-    // apart — a squarer slab with a lozenge drawn round it. Clamped to the
-    // half height Qt clamps the slab's own radius to, so neither can outrun it.
-    readonly property real trackRadius: Math.min(Theme.pillRadius, slab.height / 2) - (trackInset + trackFootInset) / 2
-    readonly property real trackMiddle: (trackInset + slab.height - trackFootInset) / 2
-    // The four straight edges and the four corners, which between them are one
-    // circle. Fully round ends take the two vertical edges to nothing and
-    // leave a line up each side of length zero.
-    readonly property real trackLength: 2 * (slab.width - 2 * trackInset - 2 * trackRadius) + 2 * (slab.height - trackInset - trackFootInset - 2 * trackRadius) + 2 * Math.PI * trackRadius
+    // Clockwise distance along the middle of the track, for its progress clock.
+    readonly property real trackRadius: Math.min(slab.width, slab.height) / 2 - trackWidth / 2
+    readonly property real trackLength: 2 * Math.abs(slab.width - slab.height) + 2 * Math.PI * trackRadius
 
     // How fast `progress` runs on its own, per second, while whatever it
     // measures is running; 0 while it stands still. The owner only says where
@@ -324,137 +301,61 @@ Item {
         }
     }
 
-    // The pill's outline, lit from the left and travelling clockwise as the
-    // track plays: a position read off the thing that is playing rather than
-    // off a bar somewhere else, and it costs the bar no room — the line is the
-    // pill's own edge, inside its own height.
-    //
-    // One stroke along a path, dashed so that the first dash is everything
-    // played and the gap is everything left. Drawn as a line rather than as a
-    // shape revealed by a clip, so it goes round the ends the way a line
-    // around a pill has to, instead of filling in from both edges at once.
-    //
-    // And shaded as the rims are, with the light from above: bright along the
-    // top and faint along the foot. A stroke cannot take a gradient, so the
-    // line is drawn into a layer and the shading is laid over that
-    // (shaders/track.frag). A pixel of
-    // room all round, because the line bleeds half a pixel past the slab and a
-    // layer keeps only what is inside its item.
-    Item {
+    // Tracks wait for the glass to settle; disappear immediately when it moves.
+    property bool trackReady: true
+    property real trackReveal: 0
+    onTrackReadyChanged: {
+        trackFade.stop();
+        if (trackReady && !Theme.reduceMotion) {
+            trackReveal = 0;
+            trackFade.start();
+        }
+        else
+            trackReveal = trackReady ? 1 : 0;
+    }
+    NumberAnimation {
+        id: trackFade
+        target: root; property: "trackReveal"; to: 1
+        duration: 240; easing.type: Easing.InOutCubic
+    }
+
+    // The track follows the glass's broad compression at the contact.
+    readonly property vector4d fabric: {
+        let x = 0, y = 0;
+        for (let item = root; item; item = item.parent) {
+            x += item.x;
+            y += item.y;
+        }
+        const at = Qt.point(GlassPress.at.x - x, GlassPress.at.y - y);
+        const here = Settings.pillPressMorph && !Theme.reduceMotion
+            && GlassPress.window !== null && GlassPress.window === root.QsWindow.window
+            && at.x >= slab.x - GlassPress.dentSpread * 3
+            && at.x <= slab.x + slab.width + GlassPress.dentSpread * 3
+            && at.y >= slab.y - 2 && at.y <= slab.y + slab.height + 2;
+        return Qt.vector4d(at.x, slab.y + slab.height / 2,
+            GlassPress.dentSpread, here ? GlassPress.dent * GlassPress.dentDepth : 0);
+    }
+
+    // Use the glass's rounded-box distance directly, avoiding a second curve renderer.
+    ShaderEffect {
         id: track
-
         readonly property int room: 1
-
         x: slab.x - room
         y: slab.y - room
         width: slab.width + 2 * room
         height: slab.height + 2 * room
         visible: root.progress >= 0 && opacity > 0
-        opacity: root.trackOpacity
-
-        layer.enabled: visible
-        layer.effect: ShaderEffect {
-            property real foot: Theme.pillTrackFoot
-
-            fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
-        }
-
-        // What is still to play: the whole line again, faint, under the part
-        // that has played. The light goes on after the two are laid together,
-        // so where they overlap the played line covers this one rather than
-        // adding to it. A ring on the same edges as the stroke: out by the
-        // bleed but for the foot, and as wide as the line.
-        Rim {
-            x: track.room - root.trackBleed
-            y: track.room - root.trackBleed
-            width: slab.width + 2 * root.trackBleed
-            height: slab.height + root.trackBleed
-            radius: root.trackRadius + root.trackWidth / 2
-            lineWidth: root.trackWidth
-            topColor: Qt.rgba(root.trackColor.r, root.trackColor.g, root.trackColor.b, Theme.pillTrackRest)
-            bottomColor: topColor
-        }
-
-        Shape {
-            x: track.room
-            y: track.room
-            width: slab.width
-            height: slab.height
-            visible: root.lit > 0
-            // The curve renderer, because this is a line on a curve and the
-            // triangulated one leaves steps on the ends.
-            preferredRendererType: Shape.CurveRenderer
-
-            ShapePath {
-                strokeColor: root.trackColor
-                strokeWidth: root.trackWidth
-                fillColor: "transparent"
-                // Rounded tips stay smooth as the line thickens on hover.
-                capStyle: ShapePath.RoundCap
-                strokeStyle: root.lit >= root.trackLength ? ShapePath.SolidLine : ShapePath.DashLine
-                // In multiples of the stroke width, which is what a dash pattern
-                // is measured in. Never zero: a zero-length gap is not a dash
-                // pattern Qt will draw.
-                dashPattern: [Math.max(0.001, root.lit / root.trackWidth), Math.max(0.001, (root.trackLength - root.lit) / root.trackWidth)]
-
-                // Nine o'clock, and clockwise from there: up the left edge and
-                // round its corner, along the top, down the right edge, back along
-                // the bottom and up to where it started. Four corners with a
-                // straight between each pair, which at a fully round end is a
-                // straight of no length and the same two semicircles as before.
-                startX: root.trackInset
-                startY: root.trackMiddle
-
-                PathLine {
-                    x: root.trackInset
-                    y: root.trackInset + root.trackRadius
-                }
-                PathArc {
-                    x: root.trackInset + root.trackRadius
-                    y: root.trackInset
-                    radiusX: root.trackRadius
-                    radiusY: root.trackRadius
-                    direction: PathArc.Clockwise
-                }
-                PathLine {
-                    x: slab.width - root.trackInset - root.trackRadius
-                    y: root.trackInset
-                }
-                PathArc {
-                    x: slab.width - root.trackInset
-                    y: root.trackInset + root.trackRadius
-                    radiusX: root.trackRadius
-                    radiusY: root.trackRadius
-                    direction: PathArc.Clockwise
-                }
-                PathLine {
-                    x: slab.width - root.trackInset
-                    y: slab.height - root.trackFootInset - root.trackRadius
-                }
-                PathArc {
-                    x: slab.width - root.trackInset - root.trackRadius
-                    y: slab.height - root.trackFootInset
-                    radiusX: root.trackRadius
-                    radiusY: root.trackRadius
-                    direction: PathArc.Clockwise
-                }
-                PathLine {
-                    x: root.trackInset + root.trackRadius
-                    y: slab.height - root.trackFootInset
-                }
-                PathArc {
-                    x: root.trackInset
-                    y: slab.height - root.trackFootInset - root.trackRadius
-                    radiusX: root.trackRadius
-                    radiusY: root.trackRadius
-                    direction: PathArc.Clockwise
-                }
-                PathLine {
-                    x: root.trackInset
-                    y: root.trackMiddle
-                }
-            }
-        }
+        opacity: root.trackOpacity * root.trackReveal
+        property size size: Qt.size(width, height)
+        property size slabSize: Qt.size(slab.width, slab.height)
+        property real lineWidth: root.trackWidth
+        property real played: root.lit / Math.max(root.trackLength, 1)
+        property color ink: root.trackColor
+        property real rest: Theme.pillTrackRest
+        property real foot: Theme.pillTrackFoot
+        property vector4d deform: Qt.vector4d(root.fabric.x - x, root.fabric.y - y,
+            root.fabric.z, root.fabric.w)
+        fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
     }
 
     // No spacing of the row's own: each module carries half the gap to its
@@ -524,7 +425,6 @@ Item {
 
         spring: Theme.keyMarkSpring
         damping: Theme.keyMarkDamping
-        flowMs: Theme.keyMarkMs
 
         width: root.width
         height: root.height
@@ -552,6 +452,10 @@ Item {
         anchors.fill: parent
         columnSpacing: 0
         opacity: root.contentOpacity
+        transform: [
+            Scale { origin.x: row.width / 2; xScale: root.contentScale },
+            Translate { y: root.contentSink }
+        ]
         onChildrenChanged: root.arrange()
     }
 
