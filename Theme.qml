@@ -392,13 +392,14 @@ Singleton {
     // the ends, which curve both ways, it bends glassCapBend times as much
     // again, and the rim is brightened by up to glassGlow where it bends.
     // Red bends glassDispersion less and blue as much more, so the edge
-    // fringes with colour. A touch of blur and a lift in colour, then
+    // fringes with colour, faintly: at 0.3 the round ends wore a rainbow,
+    // where Apple's glass shows next to none. A touch of blur and a lift in colour, then
     // barBg's near-black laid over it at glassTint so labels still read.
     readonly property real glassBend: 14
     readonly property real glassBendDepth: pillRadius
     readonly property real glassCapBend: 1.2
     readonly property real glassGlow: 0.2
-    readonly property real glassDispersion: 0.3
+    readonly property real glassDispersion: 0.1
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3
