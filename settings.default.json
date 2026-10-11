@@ -68,6 +68,12 @@
     // like gel; "light" only lights it. Reduce motion makes it "light".
     "pressFeedback": "swell",
 
+    // What a slider's knob turns into while it is held: "bead" is a bead of
+    // glass the track shows through, bent round its rim; "gel" is the same
+    // bead trailing a short tail as it is dragged. Reduce motion makes it
+    // "bead", and Reduce transparency keeps the plain knob.
+    "sliderKnob": "bead",
+
     // --- apps it opens -----------------------------------------------------
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is
