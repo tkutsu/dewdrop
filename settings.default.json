@@ -75,6 +75,15 @@
     // "bead", and Reduce transparency keeps the plain knob.
     "sliderKnob": "bead",
 
+    // Diagonal border sheen, with quiet top-right and bottom-left regions:
+    // "soft", "wide" (fainter), "steep", "skim" (visible edge),
+    // "rim" (diffuse inner light), or "halo" (light outside the edge).
+    "pillSheen": "soft",
+    // Press the bar's glass inward over a broad area, then let it settle.
+    // Disabled under Reduce motion. The style sets its depth and spread.
+    "pillPressMorph": false,
+    "pillPressStyle": "fabric",
+
     // --- apps it opens -----------------------------------------------------
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is

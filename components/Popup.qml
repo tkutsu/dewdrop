@@ -17,6 +17,7 @@ PopupWindow {
     // Not `required`: the loaders that create these set it immediately after
     // construction, and a required property warns on every instantiation.
     property Item anchorItem
+    readonly property Item hostedAnchor: BarPopupAnchor { owner: root.anchorItem }
     // Keep keyboard entry available for the weather location search.
     property bool acceptsKeyboard: false
     property bool probes: true
@@ -35,7 +36,7 @@ PopupWindow {
     property alias spacing: body.spacing
 
     anchor {
-        item: root.anchorItem
+        item: root.hostedAnchor.host ? root.hostedAnchor : root.anchorItem
         edges: Edges.Bottom
         gravity: Edges.Bottom
         // Let the compositor slide a popup along the bar rather than letting it
@@ -104,7 +105,7 @@ PopupWindow {
     // for a flip as well. Only asked while shown, and asked again on each
     // show: mapToItem gives the binding nothing to re-run on.
     readonly property point windowOnScreen: {
-        const item = root.anchorItem;
+        const item = root.anchor.item;
         const win = item?.QsWindow.window;
         if (!root.visible || !win || !root.screen)
             return Qt.point(0, 0);
@@ -172,8 +173,11 @@ PopupWindow {
                 root.morphRun = root.moves && root.visible;
             if (root.morphRun)
                 (root.opened ? morphOpen : morphClose).start();
-            else
+            else {
                 root.ink = 1;
+                if (root.opened)
+                    root.landed = true;
+            }
         } else if (!root.moves || !root.visible) {
             root.growX = root.growY = 1;
         } else if (root.opened) {
@@ -219,7 +223,8 @@ PopupWindow {
     property real ink: 1
     property real morphShown: 1
     // Drawn as the box itself rather than the drop, once it has landed.
-    property bool landed: true
+    property bool landed: !root.morphs
+    onVisibleChanged: if (!root.visible && root.morphs) root.landed = false
     // How long the window outlives a close (HoverPopup): the morph back
     // into the drop, or the fade.
     readonly property int exitMs: root.morphs ? Theme.morphCloseMs + 60 : 160
@@ -535,6 +540,7 @@ PopupWindow {
                 radius: chrome.radius
                 blur: root.shadowBlur
                 color: Theme.shadow
+                visible: !root.morphs || root.landed
                 // Not under a drop on its way in or out.
                 opacity: root.landed ? 1 : 0
 
