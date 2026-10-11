@@ -2,8 +2,11 @@ import QtQuick
 import qs
 import qs.components
 
-// A slider's knob turning into a bead of glass while it is held (reel 4),
-// three ways, on one script: take hold, drag right, drag left, let go.
+// A slider's knob turning into a bead of glass while it is held (reel 4).
+// B: a round bead, bent hard round its rim and nearly true in the middle, at
+// three strengths. C: the same bead with a tail that trails it like gel, on
+// three springs. One script for all, changing speed on purpose: a slow drag,
+// a fast one, a stop, a flick back, a slow drift, let go.
 Item {
     id: scene
 
@@ -17,15 +20,17 @@ Item {
         running: true
         loops: Animation.Infinite
 
-        PauseAnimation { duration: 500 }
+        PauseAnimation { duration: 400 }
         PropertyAction { target: scene; property: "down"; value: true }
-        PauseAnimation { duration: 350 }
-        NumberAnimation { target: scene; property: "value"; to: 0.8; duration: 750; easing.type: Easing.InOutSine }
-        PauseAnimation { duration: 300 }
-        NumberAnimation { target: scene; property: "value"; to: 0.3; duration: 950; easing.type: Easing.InOutSine }
-        PauseAnimation { duration: 350 }
+        PauseAnimation { duration: 250 }
+        NumberAnimation { target: scene; property: "value"; to: 0.45; duration: 700 }
+        NumberAnimation { target: scene; property: "value"; to: 0.85; duration: 300; easing.type: Easing.InOutQuad }
+        PauseAnimation { duration: 450 }
+        NumberAnimation { target: scene; property: "value"; to: 0.5; duration: 220; easing.type: Easing.OutQuad }
+        NumberAnimation { target: scene; property: "value"; to: 0.3; duration: 800; easing.type: Easing.InOutSine }
+        PauseAnimation { duration: 400 }
         PropertyAction { target: scene; property: "down"; value: false }
-        PauseAnimation { duration: 800 }
+        PauseAnimation { duration: 700 }
     }
 
     // The sound popup's frost, standing still.
@@ -52,21 +57,35 @@ Item {
 
     Column {
         x: 40
-        y: 40
-        spacing: 22
+        y: 34
+        spacing: 12
 
-        BeadRow { variant: "A"; title: "A · capsule lens" }
-        BeadRow { variant: "B"; title: "B · round magnifier" }
-        BeadRow { variant: "C"; title: "C · liquid: stretches with the drag" }
+        BeadRow { title: "B1 · rim pulls in 11px"; bend: 11; depth: 0.4; steep: 1.5 }
+        BeadRow { title: "B2 · rim pulls in 15px: the track curls round the rim"; bend: 15; depth: 0.5; steep: 1.8 }
+        BeadRow { title: "B3 · rim pulls in 20px"; bend: 20; depth: 0.6; steep: 2.2 }
+        BeadRow { title: "C1 · gel tail, firm"; trails: true; spring: 9; damping: 0.6; tailShare: 0.75; reach: 10 }
+        BeadRow { title: "C2 · gel tail, soft, the head thins as it pulls"; trails: true; spring: 5; damping: 0.45; tailShare: 0.6; thins: true; reach: 16 }
+        BeadRow { title: "C3 · gel tail, wobbly: runs past and back on a stop"; trails: true; spring: 4; damping: 0.22; tailShare: 0.8; reach: 14 }
     }
 
     component BeadRow: Column {
         id: row
 
-        required property string variant
         required property string title
+        // B2's lens unless a row says otherwise.
+        property real bend: 15
+        property real depth: 0.5
+        property real steep: 1.8
+        property bool trails: false
+        property real spring: 6
+        property real damping: 0.4
+        property real tailShare: 1
+        property bool thins: false
+        // The longest the tail gets, in pixels: it eases towards this rather
+        // than stopping at it, so a faster drag always pulls it a little more.
+        property real reach: 14
 
-        spacing: 6
+        spacing: 4
 
         Text {
             text: row.title
@@ -78,50 +97,44 @@ Item {
         Item {
             id: slider
 
-            // The real Slider's size; the item is taller so the bead has
-            // room to stand above and below the track.
+            // The real Slider's track and knob; the item is taller so the
+            // bead has room above and below the track.
             readonly property int trackHeight: 4
             readonly property int knob: 12
+            readonly property real bead: 22
             width: 300
             height: 32
 
             readonly property real cx: Math.max(knob / 2, Math.min(width - knob / 2, scene.value * width))
 
-            // How big the bead is when held, and how it bends.
-            readonly property size held: row.variant === "B" ? Qt.size(22, 22) : Qt.size(34, 20)
-            readonly property real bend: row.variant === "B" ? 3 : 4
-            readonly property real magnify: row.variant === "B" ? 2.2 : 1.6
-
-            // How fast the knob is going, in pixels a second, eased so that
-            // the stretch follows the drag without shivering.
-            property real speed: 0
-            property real last: scene.value
-            FrameAnimation {
-                running: row.variant === "C"
-                onTriggered: {
-                    const v = (scene.value - slider.last) * slider.width / Math.max(frameTime, 0.001);
-                    slider.last = scene.value;
-                    slider.speed += (v - slider.speed) * 0.3;
-                }
-            }
-            readonly property real stretch: row.variant === "C" && scene.down ? Math.min(16, Math.abs(speed) * 0.03) : 0
-
-            property real bw: scene.down ? held.width + stretch : knob
-            property real bh: scene.down ? held.height - stretch * 0.35 : knob
-            Behavior on bw {
+            // The head's radius: the knob's at rest, the bead's when held,
+            // on a spring that runs a little past.
+            property real r: scene.down ? bead / 2 : knob / 2
+            Behavior on r {
                 SpringAnimation {
                     spring: 6
-                    damping: row.variant === "C" ? 0.22 : 0.4
+                    damping: 0.4
+                    epsilon: 0.02
+                }
+            }
+            // The tail: where the head was a moment ago, on a spring, so it
+            // trails further the faster the head goes and catches up when it
+            // stops.
+            property real tailX: cx
+            Behavior on tailX {
+                enabled: row.trails
+                SpringAnimation {
+                    spring: row.spring
+                    damping: row.damping
                     epsilon: 0.05
                 }
             }
-            Behavior on bh {
-                SpringAnimation {
-                    spring: 6
-                    damping: row.variant === "C" ? 0.22 : 0.4
-                    epsilon: 0.05
-                }
-            }
+            // How far the tail trails, eased into its reach.
+            readonly property real lag: row.reach * Math.tanh((tailX - cx) / row.reach)
+            readonly property real pull: Math.abs(lag)
+            readonly property real headR: r * (row.thins ? 1 - 0.18 * Math.min(1, pull / bead) : 1)
+            readonly property real tailR: row.trails ? Math.min(headR, r * row.tailShare + (r - r * row.tailShare) * Math.max(0, 1 - pull / 6)) : headR
+
             property real clear: scene.down ? 1 : 0
             Behavior on clear {
                 NumberAnimation {
@@ -171,10 +184,13 @@ Item {
 
                 property var source: trackTexture
                 readonly property size size: Qt.size(width, height)
-                readonly property vector4d bead: Qt.vector4d(slider.cx - slider.bw / 2, (height - slider.bh) / 2, slider.bw, slider.bh)
+                readonly property vector4d head: Qt.vector4d(slider.cx, height / 2, slider.headR, 0)
+                readonly property vector4d tail: Qt.vector4d(slider.cx + slider.lag, height / 2, slider.tailR, 0)
                 readonly property real clear: slider.clear
-                readonly property real bend: slider.bend
-                readonly property real magnify: 1 + (slider.magnify - 1) * slider.clear
+                readonly property real bend: row.bend * slider.clear
+                readonly property real depth: row.depth
+                readonly property real steep: row.steep
+                readonly property real magnify: 1
                 readonly property real dispersion: Theme.glassDispersion
                 readonly property vector4d knob: Qt.vector4d(Theme.fg.r, Theme.fg.g, Theme.fg.b, Theme.fg.a)
                 readonly property vector4d knobEdge: Qt.vector4d(Theme.knobEdge.r, Theme.knobEdge.g, Theme.knobEdge.b, Theme.knobEdge.a)
@@ -184,7 +200,7 @@ Item {
 
             Cursor {
                 x: slider.cx + 3
-                y: slider.height / 2 + 3
+                y: slider.height / 2 + 4
                 down: scene.down
             }
         }
