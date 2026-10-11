@@ -102,6 +102,8 @@ Popup {
 
     PopupHeader {
         width: root.bodyWidth
+        // Over the cards, which run on under it (ScrollUnder).
+        z: 1
         title: "Notifications"
 
         PopupButton {
@@ -144,6 +146,12 @@ Popup {
         height: Math.min(contentHeight, root.listMax)
         interactive: contentHeight > height
         clip: true
+
+        ScrollUnder {
+            parent: cards
+            view: cards
+            box: root.chromeItem
+        }
         spacing: root.cardGap
         boundsBehavior: Flickable.StopAtBounds
 
