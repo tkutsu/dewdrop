@@ -1,26 +1,25 @@
 import QtQuick
 import qs
 
-// One of a few: the options side by side in a well, the one in force lifted
-// out of it. An option with a swatch is drawn as a dot of that colour rather
-// than named.
+// Options in a well, wrapping when the row is narrow. An option with a
+// swatch is drawn as a dot of that colour rather than named.
 Rectangle {
     id: root
 
     property var setting: null
     readonly property var current: root.setting?.get()
 
-    implicitWidth: options.implicitWidth + 4
-    implicitHeight: 22
+    implicitWidth: options.children.reduce((total, child) => total + (child.modelData ? child.width : 0), 4)
+    implicitHeight: Math.max(22, options.implicitHeight + 4)
     radius: Theme.selectionRadius + 2
     color: Theme.well
 
-    Row {
+    Flow {
         id: options
 
         x: 2
         y: 2
-        height: parent.height - 4
+        width: parent.width - 4
 
         Repeater {
             model: root.setting?.options ?? []
@@ -39,8 +38,8 @@ Rectangle {
                 Accessible.onToggleAction: if (!option.chosen && option.enabled && option.visible)
                     root.setting.set(option.modelData.value)
 
-                width: option.modelData.swatch ? parent.height + 4 : label.implicitWidth + 20
-                height: parent.height
+                width: option.modelData.swatch ? height + 4 : label.implicitWidth + 20
+                height: 18
                 radius: Theme.selectionRadius
                 color: option.chosen ? Theme.selectionStrong : hover.hovered ? Theme.selection : "transparent"
 

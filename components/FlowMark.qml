@@ -6,6 +6,7 @@ Liquid {
     id: root
     property bool held: false
     property bool resetWhenHidden: false
+    property bool trackingPointer: false
     readonly property bool animating: liftSpring.running || leftSpring.running || rightSpring.running
     property real slabY: 0
     required property real slabHeight
@@ -62,7 +63,7 @@ Liquid {
     readonly property bool _following: resizing && !leftSpring.running && !rightSpring.running
 
     Behavior on headLeft {
-        enabled: root.placed && !root._following
+        enabled: root.placed && !root._following && !root.trackingPointer
         SpringAnimation {
             id: leftSpring
             spring: root.spring
@@ -70,7 +71,7 @@ Liquid {
         }
     }
     Behavior on headRight {
-        enabled: root.placed && !root._following
+        enabled: root.placed && !root._following && !root.trackingPointer
         SpringAnimation {
             id: rightSpring
             spring: root.spring

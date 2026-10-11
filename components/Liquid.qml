@@ -34,19 +34,7 @@ ShaderEffect {
     property vector4d reaches: Qt.vector4d(reach, reach, reach, reach)
     property real lineWidth: Theme.pillBorder
     // Direction, quiet-region cutoff and strength of the two diagonal lobes.
-    property vector4d sheen: !backdrop ? Qt.vector4d(0, -1, 0, 0)
-        : Settings.pillSheen === "skim" ? Qt.vector4d(-0.60, -0.80, 0.15, 0.28)
-        : Settings.pillSheen === "rim" ? Qt.vector4d(-0.60, -0.80, 0.08, 0.34)
-        : Settings.pillSheen === "halo" ? Qt.vector4d(-0.60, -0.80, 0.12, 0.30)
-        : Settings.pillSheen === "wide" ? Qt.vector4d(-0.707, -0.707, 0.10, 0.075)
-        : Settings.pillSheen === "steep" ? Qt.vector4d(-0.42, -0.907, 0.24, 0.09)
-        : Qt.vector4d(-0.60, -0.80, 0.18, 0.10)
-
-    property vector4d sheenBloom: !backdrop ? Qt.vector4d(0, 1, 0, 1)
-        : Settings.pillSheen === "skim" ? Qt.vector4d(0.045, 2.5, 0.012, 1.8)
-        : Settings.pillSheen === "rim" ? Qt.vector4d(0.10, 4.5, 0.015, 2.0)
-        : Settings.pillSheen === "halo" ? Qt.vector4d(0.07, 3.5, 0.055, 2.5)
-        : Qt.vector4d(0, 1, 0, 1)
+    property vector4d sheen: backdrop ? Theme.pillSheen : Qt.vector4d(0, -1, 0, 0)
 
     // The colours a Pill's own slab and Rim would have used, straight alpha.
     // Settable for glass that is not a pill: the workspace mark is a lighter
@@ -106,6 +94,7 @@ ShaderEffect {
     property vector4d deform: pressed && Settings.pillPressMorph && !Theme.reduceMotion
         ? Qt.vector4d(pressAt.x, pressAt.y, GlassPress.dentSpread, GlassPress.dent * GlassPress.dentDepth)
         : Qt.vector4d(0, 0, 1, 0)
+    property real horizontalCompression: Settings.pillPressHorizontal ? 1 : 0
 
     // The pointer's light (GlassLight), for glass in the window the pointer
     // is over.

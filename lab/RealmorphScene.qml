@@ -39,7 +39,7 @@ Item {
         if (s === 0 || box.z <= 0)
             return box;
         const gather = Math.min(1, s);
-        const sink = Math.max(0, s - 1);
+        const sink = Math.max(0, (s - 0.5) / 1.5);
         const mid = box.x + box.z / 2;
         const w = box.z + (Theme.barHeight * 1.3 - box.z) * gather;
         return Qt.vector4d(mid - w / 2, box.y + box.w * sink, w, box.w);

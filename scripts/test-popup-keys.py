@@ -136,6 +136,8 @@ def main():
         target = Path(folder)
         files = subprocess.check_output(["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard"], text=True)
         for name in files.splitlines():
+            if not (ROOT / name).is_file():
+                continue
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)

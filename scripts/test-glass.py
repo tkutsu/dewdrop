@@ -40,7 +40,6 @@ ShellRoot {
     Morph { id: morph; open: bar.isOpen }
     FloatingWindow {
         id: barWindow
-        readonly property var popupHost: hostWindow
         implicitWidth: 600; implicitHeight: 80
         Pill {
             id: pill
@@ -58,7 +57,6 @@ ShellRoot {
         Item { id: anchor; x: 140; y: 4; width: 40; height: 30 }
         TestCase { id: test; when: false }
     }
-    FloatingWindow { id: hostWindow; implicitWidth: 600; implicitHeight: 80 }
     Popup {
         id: popup
         visible: false; requestedVisible: false
@@ -82,12 +80,12 @@ ShellRoot {
             test.mouseClick(button, 90, 15);
             check(bar.clicks === 1 && !pill.enabled, "hidden pill rejects clicks");
             check(!popup.landed, "unmapped morph popup has no full-size shadow to flash");
-            check(popup.anchor.item.QsWindow.window === hostWindow, "bar popup belongs to its separate host");
+            check(popup.anchor.item === anchor && popup.anchor.item.QsWindow.window === barWindow, "bar popup anchors directly to its original window");
             check(popup.anchor.item.x === anchor.x && popup.anchor.item.y === anchor.y,
-                "hosted anchor keeps the original bar position");
+                "popup anchor keeps the original bar position");
             anchor.x = 220; anchor.width = 70; test.wait(20);
             check(popup.anchor.item.x === 220 && popup.anchor.item.width === 70,
-                "hosted anchor follows moving and resizing modules");
+                "popup anchor follows moving and resizing modules");
             bar.isOpen = true;
             test.wait(60);
             check(pill.trackReveal === 0, "track hides immediately before the glass morphs");
@@ -113,7 +111,9 @@ ShellRoot {
             check(popup.opened && popup.landed && popup.ink === 1, "Reduce motion opens a complete popup without the drop animation");
             Settings.user = {pillPressMorph: true}; test.wait(20);
             GlassPress.press(button, button.mapToItem(null, 90, 15));
-            GlassPress.release(button); test.wait(70);
+            GlassPress.release(button); test.wait(60);
+            check(GlassPress.dent > 0 && GlassPress.dent < 0.8, "fabric press eases through an intermediate dent");
+            test.wait(90);
             check(pill.fabric.w > 0, "track reads the fabric deformation");
             check(GlassPress.dent > 0.8, "a quick tap still completes the broad shrink");
             test.wait(340);

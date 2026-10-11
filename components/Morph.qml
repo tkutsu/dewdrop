@@ -2,7 +2,7 @@ import QtQuick
 import qs
 
 // How far a pill has gone into the popover it turns into (Popup.morphs):
-// 0 the pill, 1 gathered into a drop at its middle, 2 sunk out of the bar
+// 0 the pill, 1 gathered into a drop and partly sunk, 2 sunk out of the bar
 // into the popover coming out under it. Bar.qml draws the pill's glass off
 // it (Bar.morph). Opening, the pill goes first and the popover waits for it;
 // closing, the popover goes back into the drop first and the pill waits for
