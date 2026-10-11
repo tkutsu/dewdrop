@@ -24,11 +24,14 @@ PanelWindow {
             compile: Qt.size(10, 10),
             underedge: Qt.size(1200, 290),
             realslider: Qt.size(400, 140),
-            reallight: Qt.size(400, 80)
+            reallight: Qt.size(400, 80),
+            realpopup: Qt.size(500, 330)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
-    WlrLayershell.namespace: "quickshell:lab"
+    // The bar's name for the real popup, so Hyprland blurs behind it as it does
+    // behind the bar's popups (wrules.lua's blur_popups).
+    WlrLayershell.namespace: scene === "realpopup" ? "quickshell:bar" : "quickshell:lab"
     WlrLayershell.layer: WlrLayer.Overlay
     exclusionMode: ExclusionMode.Ignore
     anchors.bottom: true
