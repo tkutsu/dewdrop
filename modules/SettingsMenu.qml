@@ -407,6 +407,10 @@ OverlayWindow {
                 topMargin: root.boxPad
                 bottomMargin: root.boxPad
                 clip: true
+                layer.enabled: contentHeight + topMargin + bottomMargin > height
+                layer.effect: ScrollEdges {
+                    view: list
+                }
                 boundsBehavior: Flickable.StopAtBounds
 
                 // A page, and a new search, start at their top.

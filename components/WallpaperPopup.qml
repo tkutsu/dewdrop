@@ -227,6 +227,10 @@ Popup {
         cellWidth: root.cellWidth + 4
         cellHeight: root.cellHeight + 4
         clip: true
+        layer.enabled: contentHeight > height
+        layer.effect: ScrollEdges {
+            view: grid
+        }
         model: Wallpaper.files
         // Scrolls only when there is more than fits, so the wheel otherwise
         // falls through to whatever is underneath.

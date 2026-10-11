@@ -552,6 +552,10 @@ Popup {
         // rows, the same way the launcher's list does.
         height: Math.min(count, root.visibleRows) * root.rowHeight
         clip: true
+        layer.enabled: contentHeight > height
+        layer.effect: ScrollEdges {
+            view: list
+        }
         model: reorder.showing ? reorder.queue : Mpd.queue
         interactive: !reorder.showing
         // Nothing here scrolls with momentum; a flick that overshoots the ends
