@@ -254,9 +254,11 @@ Popup {
                             maskEnabled: true
                             maskInverted: true
                             maskSource: marks
-                            // Linear over the numeral's antialiased edge.
-                            maskThresholdMin: 0
-                            maskSpreadAtMin: 1
+                            // Cut on the numeral's antialiased edge. A
+                            // threshold of 0 cuts the whole disc away, and a
+                            // spread of 1 thins the dot to nothing.
+                            maskThresholdMin: 0.5
+                            maskSpreadAtMin: 0.5
                         }
 
                         Rectangle {
