@@ -209,7 +209,12 @@ void main() {
         // end it curves both ways, like a lens, and bends harder. How far
         // round the end p is shows in how sideways the edge faces.
         lens *= 1.0 + capBend * abs(n.x);
-        vec2 shift = n * bend * lens;
+        // Round the ends that bent further than p is from the middle of the
+        // end, so a ring of pixels a couple in from the rim all looked at its
+        // centre, a line round the end in whatever colour lay there, and those
+        // outside it looked through to the far side. Held short of the middle,
+        // the rim shows a smaller copy of what is round it instead.
+        vec2 shift = n * min(bend * lens, 0.7 * (bendDepth + d));
         vec3 c = vec3(softened(p - shift * (1.0 - dispersion)).r,
                       softened(p - shift).g,
                       softened(p - shift * (1.0 + dispersion)).b);
