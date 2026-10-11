@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import qs
 import qs.services
@@ -241,38 +242,65 @@ Popup {
 
                     // Today gets a filled pill rather than an underline: at this
                     // size an underline is one grey pixel.
-                    // Today is a filled disc with the number cut out of it,
-                    // the way the system's calendar marks it.
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: root.cell - 4
-                        height: width
-                        radius: width / 2
+                    // Today is a filled disc with the number and its dot cut
+                    // out of it, the way the system's calendar marks it: the
+                    // popup's glass shows through them.
+                    Item {
+                        anchors.fill: parent
                         visible: dayCell.isToday
-                        color: Theme.calToday
+                        layer.enabled: visible
+                        layer.effect: MultiEffect {
+                            autoPaddingEnabled: false
+                            maskEnabled: true
+                            maskInverted: true
+                            maskSource: marks
+                            // Linear over the numeral's antialiased edge.
+                            maskThresholdMin: 0
+                            maskSpreadAtMin: 1
+                        }
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: root.cell - 4
+                            height: width
+                            radius: width / 2
+                            color: Theme.calToday
+                        }
                     }
 
-                    PopupText {
-                        anchors.centerIn: parent
-                        text: dayCell.day.getDate()
-                        // The days either side are context, not padding — worth
-                        // showing, faintly, so a month boundary reads at a glance.
-                        color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.fg : Theme.label3)
-                        font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
-                    }
+                    // The numeral and its dot: drawn on any other day, and on
+                    // today only the shape cut out of the disc, so opaque.
+                    Item {
+                        id: marks
 
-                    // Something is on that day. One dot whether it is one
-                    // thing or six: the list below says how many, and a
-                    // count under every numeral would be a second grid.
-                    Rectangle {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 1
-                        width: root.dotSize
-                        height: width
-                        radius: width / 2
-                        visible: dayCell.busy
-                        color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.label2 : Theme.label3)
+                        anchors.fill: parent
+                        visible: !dayCell.isToday
+                        layer.enabled: dayCell.isToday
+
+                        PopupText {
+                            anchors.centerIn: parent
+                            text: dayCell.day.getDate()
+                            // The days either side are context, not padding — worth
+                            // showing, faintly, so a month boundary reads at a glance.
+                            color: dayCell.isToday ? "white" : (dayCell.thisMonth ? Theme.fg : Theme.label3)
+                            font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
+                        }
+
+                        // Something is on that day. One dot whether it is one
+                        // thing or six: the list below says how many, and a
+                        // count under every numeral would be a second grid.
+                        // On today it rises to fall inside the disc, or the
+                        // cut would notch the disc's rim rather than leave a dot.
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: dayCell.isToday ? 4 : 1
+                            width: root.dotSize
+                            height: width
+                            radius: width / 2
+                            visible: dayCell.busy
+                            color: dayCell.isToday ? "white" : (dayCell.thisMonth ? Theme.label2 : Theme.label3)
+                        }
                     }
                 }
             }
