@@ -144,6 +144,10 @@ Popup {
         height: Math.min(contentHeight, root.listMax)
         interactive: contentHeight > height
         clip: true
+        layer.enabled: interactive
+        layer.effect: ScrollEdges {
+            view: cards
+        }
         spacing: root.cardGap
         boundsBehavior: Flickable.StopAtBounds
 

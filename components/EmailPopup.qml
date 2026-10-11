@@ -139,6 +139,10 @@ Popup {
         height: Math.min(rowList.implicitHeight, root.listMax)
         contentHeight: rowList.implicitHeight
         clip: true
+        layer.enabled: contentHeight > height
+        layer.effect: ScrollEdges {
+            view: threadList
+        }
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
         acceptedButtons: Qt.NoButton
@@ -335,6 +339,10 @@ Popup {
                                 height: Math.min(chain.implicitHeight, root.bodyMax)
                                 contentHeight: chain.implicitHeight
                                 clip: true
+                                layer.enabled: contentHeight > height
+                                layer.effect: ScrollEdges {
+                                    view: mail
+                                }
                                 boundsBehavior: Flickable.StopAtBounds
                                 acceptedButtons: Qt.NoButton
 
