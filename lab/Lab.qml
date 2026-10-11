@@ -28,7 +28,8 @@ PanelWindow {
             realpopup: Qt.size(500, 330),
             accent: Qt.size(360, 120),
             mark: Qt.size(500, 248),
-            morph: Qt.size(1020, 250)
+            morph: Qt.size(1020, 250),
+            refract: Qt.size(1020, 200)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
