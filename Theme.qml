@@ -297,13 +297,13 @@ Singleton {
     readonly property color label3: Qt.rgba(1, 1, 1, 0.25)
     readonly property color fg: label
 
-    // Leave enough contrast at rest for a visible lift towards each ink's white.
+    // The ink of anything on the bar you can click (inkLit), lifted most of
+    // the way to white. It used to rest a step dimmer and come up under the
+    // pointer; now it is always up, and the glass answers the pointer instead.
     function barInk(item, color) {
         for (let p = item; p; p = p.parent) {
-            if (p.inkHovered === undefined)
+            if (!p.inkLit)
                 continue;
-            if (!p.inkHovered)
-                return Qt.rgba(color.r, color.g, color.b, color.a * 0.8);
             if (color.a === 0)
                 return color;
             return Qt.rgba(color.r + (1 - color.r) * 0.65,
@@ -403,7 +403,7 @@ Singleton {
     readonly property real glassBendDepth: pillRadius
     readonly property real glassCapBend: 1.2
     readonly property real glassGlow: 0.2
-    readonly property real glassDispersion: 0.1
+    readonly property real glassDispersion: 0.08
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3

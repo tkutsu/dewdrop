@@ -40,7 +40,6 @@ Singleton {
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
     readonly property bool reduceMotion: root.values.reduceMotion ?? false
     readonly property bool reduceTransparency: root.values.reduceTransparency ?? false
-    readonly property string pressFeedback: root.values.pressFeedback === "light" ? "light" : "swell"
     readonly property string sliderKnob: root.values.sliderKnob === "gel" ? "gel" : "bead"
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")

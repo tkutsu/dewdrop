@@ -64,7 +64,7 @@ BarItem {
 
             required property var modelData
             required property int index
-            readonly property bool inkHovered: pointer.containsMouse && !root.pillDragging
+            readonly property bool inkLit: true
 
             // A tray menu is one of the bar's popups like any other: one up at
             // a time, closed by a click elsewhere, handed over as the pointer

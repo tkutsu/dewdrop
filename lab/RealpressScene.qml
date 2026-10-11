@@ -3,9 +3,8 @@ import qs
 import qs.components
 
 // The real thing, not a prototype: a Pill of BarItems over the wallpaper,
-// pressed through GlassPress the way PressGlass presses it, with whatever
-// pressFeedback settings.json says. Two pills, so a press on one is seen not
-// to light the other.
+// pressed through GlassPress the way PressGlass presses it. Two pills, so a
+// press on one is seen not to light the other.
 Item {
     id: scene
 
@@ -49,7 +48,7 @@ Item {
     Tag {
         x: 20
         y: 20
-        text: "real Pill + BarItem · pressFeedback: " + Settings.pressFeedback
+        text: "real Pill + BarItem"
     }
 
     Item {

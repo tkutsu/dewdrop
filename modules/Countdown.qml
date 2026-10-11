@@ -115,9 +115,7 @@ BarItem {
     // for either, so the swap moves nothing.
     Item {
         id: slot
-        readonly property bool inkHovered: slotHover.hovered
-
-        HoverHandler { id: slotHover }
+        readonly property bool inkLit: true
 
         readonly property bool marked: root.handsOut && !root.ringing
 
@@ -288,9 +286,7 @@ BarItem {
 
         Glyph {
             id: hold
-            readonly property bool inkHovered: holdHover.hovered
-
-            HoverHandler { id: holdHover; enabled: root.handsOut }
+            readonly property bool inkLit: true
 
             x: Theme.mediaGap
             height: parent.height

@@ -57,7 +57,7 @@ ClickArea {
     readonly property Item pill: parent?.parent instanceof Pill ? parent.parent : null
     readonly property bool pillDragging: pill?.dragging ?? false
     readonly property bool reordering: pillDragging && pill.dragSource === root
-    readonly property bool inkHovered: containsMouse && !pillDragging
+    readonly property bool inkLit: true
 
     function togglePopup(): void {
         OpenPopup.toggle(root);
@@ -86,7 +86,7 @@ ClickArea {
     property int padRight: 0
 
     // The click's press-in: while a button with something to do is held, the
-    // glass under the contents lights (and swells) and the contents pop
+    // glass under the contents lights and the contents pop
     // (PressGlass). A module that answers to several targets inside itself
     // (Music) turns this off and presses each target on its own instead.
     property bool dips: true

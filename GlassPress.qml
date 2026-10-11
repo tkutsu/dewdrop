@@ -8,8 +8,7 @@ import Quickshell
 // the glass has taken it: `lit` comes up at once and goes slowly, `pop` is a
 // gel spring that runs past on the way back. Every piece of glass in that
 // window reads this and draws the press if it landed on it (Liquid.qml): the
-// glass lights from where the press landed and, with pressFeedback "swell",
-// swells under the icon.
+// glass lights from where the press landed.
 //
 // A press is made and let go by PressGlass, which every pressable icon in the
 // bar has.
@@ -22,11 +21,9 @@ Singleton {
     property rect box: Qt.rect(0, 0, 0, 0)
     property bool down: false
 
-    // "swell" or "light". Under Reduce motion the glass only lights: a swell
-    // is motion, and so is the icon's pop.
-    readonly property bool swells: Settings.pressFeedback === "swell" && !Theme.reduceMotion
+    // Under Reduce motion the glass still lights, but the icon does not pop.
     readonly property bool pops: !Theme.reduceMotion
-    readonly property real iconLift: swells ? 0.1 : 0.08
+    readonly property real iconLift: 0.08
 
     property real lit: down ? 1 : 0
     Behavior on lit {
