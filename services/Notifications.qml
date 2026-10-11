@@ -43,8 +43,13 @@ Singleton {
 
     readonly property string icon: dnd ? Theme.glyph.notifDnd : Theme.glyph.notif
 
+    // What the bell counts: everything kept but the one on show beside the
+    // clock, which is being read right now. It joins the count as its notice
+    // folds, and a fleeting one, gone by then, never does.
+    readonly property int waiting: count - (showing && latest && list.includes(latest) ? 1 : 0)
+
     // Hidden at 0, held at 99.
-    readonly property string label: count === 0 ? "" : String(Math.min(count, 99))
+    readonly property string label: waiting === 0 ? "" : String(Math.min(waiting, 99))
 
     readonly property string tooltip: {
         const n = count === 0 ? "No notifications" : count === 1 ? "1 notification" : `${count} notifications`;
