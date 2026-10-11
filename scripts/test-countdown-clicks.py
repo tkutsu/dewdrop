@@ -20,6 +20,10 @@ def main():
             countdown = countdown.replace(f"id: {name}\n", f'id: {name}\n            objectName: "{name}"\n')
         (target / "Countdown.qml").write_text(countdown)
         (target / "components/ClickArea.qml").write_text((ROOT / "components/ClickArea.qml").read_text())
+        (target / "components/PressGlass.qml").write_text('''import QtQuick
+QtObject { required property Item icon; required property var area; property bool down: false; property real scale: 1 }
+''')
+        (target / "components/TimerPopup.qml").write_text('import QtQuick\nItem { property bool morphs: false }\n')
         (target / "components/BarItem.qml").write_text('''import QtQuick
 import QtQuick.Layouts
 ClickArea {
@@ -27,6 +31,8 @@ ClickArea {
     signal scrollDown
     property bool stowed: false; property bool folds: false; property bool dips: false
     property bool contentAnimating: false; property real reveal: 1
+    property Component popup: null; property int popupButton: Qt.NoButton
+    property bool popupOpen: false; function togglePopup() {}
     property alias spacing: layout.spacing
     default property alias content: layout.data
     hoverEnabled: true; implicitWidth: layout.implicitWidth + 24; height: 36

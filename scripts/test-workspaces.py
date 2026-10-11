@@ -49,7 +49,16 @@ implicitWidth: 16; implicitHeight: 30 }
 import qs
 Item { property bool held; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
 property real wallLeft; property real wallRight; property real wantLeft; property real wantRight; property bool resizing
-property real spring; property real damping; property int flowMs; property int inset: Theme.markInset; property bool animating: false }''')
+property real spring; property real damping; property int inset: Theme.markInset; property bool animating: false }''')
+if '--marks' in sys.argv:
+    (target/'components/FlowMark.qml').write_text((root/'components/FlowMark.qml').read_text())
+    # Inspect the real animation's shader geometry without requiring a GPU.
+    (target/'components/Liquid.qml').write_text('''import QtQuick
+Item {
+ property vector4d box0; property vector4d box1; property vector4d box2; property vector4d box3
+ property real reach; property vector4d reaches; property vector4d fill; property vector4d rimTop
+ property real rimFrom; property real rimTo
+}''')
 (target/'components/BarText.qml').write_text('import QtQuick\nText { property bool tightWidth; property int fontSize }')
 (target/'components/Bounce.qml').write_text((root/'components/Bounce.qml').read_text())
 (target/'components/DropLine.qml').write_text((root/'components/DropLine.qml').read_text())
@@ -76,6 +85,8 @@ src=src.replace('id: root','''id: root
     property alias auditGhost: ghost
     property alias auditTracker: positionTracker
     property alias auditNewWorkspace: newWorkspace''',1)
+if '--marks' in sys.argv:
+    src=src.replace('id: root', 'id: root\n    property alias auditMark: mark', 1)
 src=src.replace('id: button\n','id: button\n                    property alias auditRow: row\n',1)
 (target/'Workspaces.qml').write_text(src)
 
@@ -212,6 +223,70 @@ ShellRoot {
  } }
 }
 """
+if '--marks' in sys.argv:
+    shell_source=shell_source.replace('import qs.services', 'import qs.services\nimport qs.components', 1)
+    shell_source=shell_source.replace(' property var failures: []', ''' property var failures: []
+ Component { id: sharedMark; FlowMark { width: 600; height: 38; slabHeight: Theme.barHeight; wallLeft: 0; wallRight: 600; wantLeft: 30; wantRight: 60 } }
+''', 1)
+    start=shell_source.index(" const w1=ws(1)")
+    end=shell_source.index(" console.log(failures.length", start)
+    shell_source=shell_source[:start]+r'''
+ const w1=ws(1),w2=ws(2),w3=ws(3),empty=ws(4);
+ const a=win('a',w1,'first'),b=win('b',w2,'second'),c=win('c',w3,'third');
+ reset([a,b,c],[w1,w2,w3]);
+ const mark=pill.auditMark;
+ empty.active=true;w1.active=false;
+ Hyprland.workspaces.values=[w1,w2,w3,empty];Hyprland.focusedWorkspace=empty;
+ let extraMarks=0,maxError=0;
+ for(let ms=0;ms<600;ms+=10) {
+   test.wait(10);
+   if(mark.box2.z!==0 || mark.box3.z!==0 || Math.abs(mark.box0.x-mark.frontLeft)>0.001 || Math.abs(mark.box1.z-mark.bulbWidth)>0.001) extraMarks++;
+   if(ms>=300) maxError=Math.max(maxError,Math.abs(mark.headLeft-mark.wantLeft),Math.abs(mark.headRight-mark.wantRight));
+ }
+ console.log('TRACE: new empty workspace: extra mark samples='+extraMarks+', error after 300ms='+maxError.toFixed(2));
+ check(extraMarks===0,'first-to-last jump draws only the active mark and wall bulge');
+ check(maxError<1,'workspace mark settles within 300ms');
+ check(mark.placedOn===button(4),'new empty workspace receives the mark');
+
+ // Adjacent moves and interrupted reversals retain spring motion.
+ empty.active=false;w3.active=true;Hyprland.focusedWorkspace=w3;test.wait(60);
+ check(mark.animating,'adjacent workspace change retains spring motion');
+ check(mark.box2.z===0 && mark.box3.z===0,'adjacent workspace change has no trailing mark or connector');
+ test.wait(300);
+ check(Math.abs(mark.headLeft-mark.wantLeft)<1 && Math.abs(mark.headRight-mark.wantRight)<1,'mark follows layout after removing the empty slot');
+ empty.active=true;w3.active=false;Hyprland.focusedWorkspace=empty;test.wait(60);
+ w3.active=true;empty.active=false;Hyprland.focusedWorkspace=w3;test.wait(300);
+ check(Math.abs(mark.headRight-mark.wantRight)<1 && Math.abs(mark.headLeft-mark.wantLeft)<1,'interrupted adjacent move settles promptly');
+ Settings.reduceMotion=true;Hyprland.focusedWorkspace=w1;test.wait(300);
+ check(Math.abs(mark.headLeft-mark.wantLeft)<1 && Math.abs(mark.headRight-mark.wantRight)<1,'reduced motion reaches its destination promptly');
+ Settings.reduceMotion=false;
+ const power=sharedMark.createObject(scene),keys=sharedMark.createObject(scene,{spring:Theme.keyMarkSpring,damping:Theme.keyMarkDamping});
+ test.wait(50);power.placed=true;keys.placed=true;
+ power.wantLeft=160;power.wantRight=190;keys.wantLeft=160;keys.wantRight=190;
+ test.wait(280);
+ check(Math.abs(power.headLeft-power.wantLeft)<1 && Math.abs(power.headRight-power.wantRight)<1,'shared power selector motion settles promptly');
+ check(Math.abs(keys.headLeft-keys.wantLeft)<1 && Math.abs(keys.headRight-keys.wantRight)<1,'keyboard selection motion settles promptly');
+
+ // Overshoot still compresses the mark against the pill's ends.
+ const edge=sharedMark.createObject(scene,{atLast:true,wallRight:190});test.wait(50);
+ edge.placed=true;
+ edge.wantLeft=160;edge.wantRight=190;
+ let peakPress=0,escaped=false;
+ for(let ms=0;ms<300;ms+=10) {
+   test.wait(10);peakPress=Math.max(peakPress,edge.press);
+   escaped=escaped || edge.frontRight>edge.wallRight;
+ }
+ check(peakPress>0 && !escaped,'spring overshoot keeps the right-wall bounce inside the pill');
+ edge.atLast=false;edge.atFirst=true;edge.wantLeft=0;edge.wantRight=30;
+ peakPress=0;escaped=false;
+ for(let ms=0;ms<300;ms+=10) {
+   test.wait(10);peakPress=Math.max(peakPress,edge.press);
+   escaped=escaped || edge.frontLeft<edge.wallLeft;
+ }
+ check(peakPress>0 && !escaped,'spring overshoot keeps the left-wall bounce inside the pill');
+ console.log(failures.length ? 'FAIL: '+failures.length+' mark checks' : 'PASS: workspace mark geometry and timing');
+ Qt.quit();return;
+''' + shell_source[end:]
 if '--regressions' in sys.argv:
     shell_source=shell_source.replace(' property var failures: []', ''' property var failures: []
  property string captureAddress: ""
