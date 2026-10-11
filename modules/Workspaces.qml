@@ -12,6 +12,8 @@ import qs.services
 BarItem {
     id: root
 
+    enabled: WorkspaceSync.settled
+
     property string expandedClass: ""
     property int expandedWorkspace: -1
     property var expandedWorkspaceObject: null
@@ -74,12 +76,14 @@ BarItem {
         .filter(w => w.active || w.lastIpcObject?.ispersistent
             || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
         .sort((a, b) => a.id - b.id)
+        .map(w => ({ id: w.id, name: w.name, urgent: w.urgent, workspace: w }))
 
     // While WorkspaceSync settles a renumbering, Quickshell's workspaces and
     // windows disagree with each other, so the strip draws from the last state
     // that was whole: which workspaces there were, which one had focus, and
     // where each window was. Windows that close meanwhile still go at once.
     property var frozen: null
+    property var lastWhole: null
 
     Connections {
         target: WorkspaceSync
@@ -87,6 +91,11 @@ BarItem {
         function onSettledChanged(): void {
             if (WorkspaceSync.settled) {
                 root.frozen = null;
+                return;
+            }
+            root.cancelDrag();
+            if (root.lastWhole !== null) {
+                root.frozen = root.lastWhole;
                 return;
             }
             const placement = ({});
@@ -101,15 +110,17 @@ BarItem {
     }
 
     readonly property var shownWorkspaces: frozen ? frozen.workspaces : liveWorkspaces
+    onShownWorkspacesChanged: positionsDirty = true
     readonly property int focusedId: frozen ? frozen.focused : (Hyprland.focusedWorkspace?.id ?? -1)
+    onFocusedIdChanged: positionsDirty = true
 
     function workspaceOf(toplevel) {
         return root.frozen ? root.frozen.placement[toplevel.address] : toplevel.workspace?.id;
     }
 
     readonly property bool expansionValid: expandedWorkspaceObject !== null
-        && expandedWorkspaceObject.id === expandedWorkspace
-        && root.shownWorkspaces.includes(expandedWorkspaceObject)
+        && (root.frozen !== null || expandedWorkspaceObject.id === expandedWorkspace)
+        && root.shownWorkspaces.some(w => w.workspace === expandedWorkspaceObject)
         && Hyprland.toplevels.values.filter(t => root.workspaceOf(t) === expandedWorkspace
             && root.windowClass(t) === expandedClass).length > 1
     onExpansionValidChanged: if (!expansionValid) Qt.callLater(root.collapseInvalidExpansion)
@@ -144,8 +155,8 @@ BarItem {
             return null;
         for (let i = 0; i < workspaces.count; i++) {
             const button = workspaces.itemAt(i);
-            if (button && point.x >= button.x - (i === 0 ? root.padLeft : 0)
-                && point.x < button.x + button.width)
+            if (button && point.x >= button.drawnX - (i === 0 ? root.padLeft : 0)
+                && point.x < button.drawnX + button.width)
                 return button;
         }
         if (newWorkspace.visible && point.x >= newWorkspace.x - Theme.workspaceGap)
@@ -156,13 +167,13 @@ BarItem {
     // The number a new workspace takes: compaction keeps them contiguous,
     // so it is the one after the last.
     function nextWorkspaceId(): int {
-        return (workspaces.itemAt(workspaces.count - 1)?.modelData.id ?? 0) + 1;
+        return (workspaces.itemAt(workspaces.count - 1)?.workspaceInfo.id ?? 0) + 1;
     }
 
     // The workspace a release would move the window to, or null.
     readonly property Item dropTarget: {
         const button = dragging ? root.buttonAt(dragPoint) : null;
-        return button && button.modelData !== dragWorkspace ? button : null;
+        return button && button.workspaceInfo?.workspace !== dragWorkspace ? button : null;
     }
 
     // An empty workspace is one icon's ink wide.
@@ -186,12 +197,12 @@ BarItem {
             const after = workspaces.itemAt(i);
             if (!before || !after)
                 continue;
-            const closed = after.x - after.gapBefore;
+            const closed = after.drawnX - after.gapBefore;
             const reach = after.opening * (Math.min(root.emptyWidth, after.width) - 1);
-            if (point.x < before.x + before.width || point.x >= closed + reach)
+            if (point.x < before.drawnX + before.width || point.x >= closed + reach)
                 continue;
             const alone = Hyprland.toplevels.values.filter(t => root.workspaceOf(t) === root.dragWorkspaceId).length === 1;
-            const from = workspaces.model.values.indexOf(root.dragWorkspace);
+            const from = root.shownWorkspaces.findIndex(w => w.workspace === root.dragWorkspace);
             return alone && (i === from || i === from + 1) ? -1 : i;
         }
         return -1;
@@ -206,9 +217,9 @@ BarItem {
         const before = workspaces.itemAt(root.insertAt - 1);
         const after = workspaces.itemAt(root.insertAt);
         if (root.insertAt !== -1 && before && after)
-            return (before.x + before.width + after.x) / 2;
+            return (before.drawnX + before.width + after.drawnX) / 2;
         return root.dropTarget !== null && root.dragSource !== null
-            ? root.dropTarget.x + root.dropTarget.slotX(root.dragSource.windowClass, root.dragAddress)
+            ? (root.dropTarget.drawnX ?? root.dropTarget.x) + root.dropTarget.slotX(root.dragSource.windowClass, root.dragAddress)
             : NaN;
     }
 
@@ -219,7 +230,7 @@ BarItem {
         const between = gap !== -1;
         const button = between ? workspaces.itemAt(gap) : root.buttonAt(point);
         const fresh = button !== null && button === newWorkspace;
-        const destination = button?.modelData ?? null;
+        const destination = button?.workspaceInfo?.workspace ?? null;
         const id = fresh ? root.nextWorkspaceId() : destination?.id;
         const address = dragAddress;
         const valid = dragging && dragValid && (fresh || between || destination !== dragWorkspace)
@@ -230,6 +241,22 @@ BarItem {
         Hyprland.dispatch(between
             ? `insert_window_at(${id}, "0x${address}")`
             : `move_window_to(${id}, "0x${address}")`);
+    }
+
+    property bool positionsDirty: true
+    // Retain the last consistent placement for workspace ID compaction.
+    FrameAnimation {
+        id: positionTracker
+        running: root.visible && (root.positionsDirty || root.folding || stripResize.running || root.dragging)
+        onTriggered: {
+            root.positionsDirty = false;
+            if (WorkspaceSync.settled) {
+                const placement = ({});
+                for (const toplevel of Hyprland.toplevels.values)
+                    placement[toplevel.address] = toplevel.workspace?.id;
+                root.lastWhole = { workspaces: root.shownWorkspaces, focused: root.focusedId, placement };
+            }
+        }
     }
 
     HoverHandler {
@@ -344,7 +371,7 @@ BarItem {
                 return strip.keyed;
             const focused = root.focusedId;
             for (const child of buttons.children)
-                if (focused !== -1 && child.modelData?.id === focused)
+                if (focused !== -1 && child.workspaceInfo?.id === focused)
                     return child;
             return null;
         }
@@ -417,8 +444,8 @@ BarItem {
             // The workspace the mark was last sent to.
             property Item placedOn: null
 
-            readonly property real targetLeft: strip.selected ? strip.selected.x + inset : wantLeft
-            readonly property real targetRight: strip.selected ? strip.selected.x + strip.selected.width + Theme.pillPad * 2 - inset : wantRight
+            readonly property real targetLeft: strip.selected ? strip.selected.drawnX + inset : wantLeft
+            readonly property real targetRight: strip.selected ? strip.selected.drawnX + strip.selected.width + Theme.pillPad * 2 - inset : wantRight
             property bool hasSelection: false
 
             // Focus, delegate removal, and layout can change separately in one update.
@@ -492,12 +519,9 @@ BarItem {
                 id: workspaces
 
                 model: ScriptModel {
-                    values: root.shownWorkspaces
+                    values: root.shownWorkspaces.map(w => w.id)
                 }
 
-                // Still at its old x here: the row lays out again afterwards.
-                // Let go again if the strip does not resize after all, or the
-                // next resize would carry it.
                 onItemRemoved: (index, item) => {
                     if (!widthChange.enabled)
                         return;
@@ -508,9 +532,15 @@ BarItem {
                 delegate: Item {
                     id: button
 
-                    required property var modelData
+                    required property int modelData
                     required property int index
-                    readonly property bool active: root.focusedId === modelData.id
+                    readonly property var workspaceInfo: root.shownWorkspaces.find(w => w.id === modelData)
+                        ?? ({ id: modelData, urgent: false, workspace: null })
+                    readonly property var iconItems: row.children.filter(c => c.icon !== undefined)
+                    onIconItemsChanged: root.positionsDirty = true
+                    onXChanged: root.positionsDirty = true
+                    onDrawnXChanged: root.positionsDirty = true
+                    readonly property bool active: root.focusedId === button.workspaceInfo.id
 
                     // A stop in the bar's selection mode (OpenPopup): Return
                     // goes to the workspace. The workspace mark comes over to
@@ -519,6 +549,8 @@ BarItem {
                     readonly property bool marksSelection: true
 
                     function keyPress(): void {
+                        if (!WorkspaceSync.settled)
+                            return;
                         root.collapse();
                         press.focusWorkspace();
                     }
@@ -529,7 +561,7 @@ BarItem {
                         const byClass = Object.create(null);
                         const order = [];
                         for (const toplevel of Hyprland.toplevels.values) {
-                            if (root.workspaceOf(toplevel) !== modelData.id)
+                            if (root.workspaceOf(toplevel) !== button.workspaceInfo.id)
                                 continue;
                             // A window that opened since the last `hyprctl clients`
                             // refresh has an empty lastIpcObject, and every one of those
@@ -561,7 +593,7 @@ BarItem {
                         const result = [];
                         for (const app of button.apps) {
                             const expanded = (!Settings.groupWindows && app.addresses.length > 1)
-                                || (root.expandedWorkspace === button.modelData.id
+                                || (root.expandedWorkspace === button.workspaceInfo.id
                                     && root.expandedClass === app.windowClass);
                             app.addresses.forEach((address, i) => {
                                 result.push({
@@ -619,39 +651,31 @@ BarItem {
                     Layout.leftMargin: button.gapBefore
                     implicitWidth: row.implicitWidth
 
-                    // See strip.closedAt.
-                    transform: Translate {
-                        x: button.x >= strip.closedAt - 0.5 ? strip.closing : 0
-                    }
+                    // Keep collapse on the strip's original width spring.
+                    readonly property real drawnX: x + (x >= strip.closedAt - 0.5 ? strip.closing : 0)
+                    transform: Translate { x: button.drawnX - button.x }
 
-                    // Where a window of `cls` would show up in this group, as an x
-                    // between icons: after its app's icon if the app is here already,
-                    // otherwise where the app's first window falls in Hyprland's
-                    // window order, which is how `apps` orders the row.
+                    // A folded app receives the window into its icon; expanded apps preserve window order.
                     function slotX(cls: string, address: string): real {
-                        const shown = [];
-                        for (const child of row.children)
-                            if (child.visible && child.icon !== undefined)
-                                shown.push(child);
+                        const shown = button.iconItems.filter(app => app.visible && !app.icon.folded);
                         if (shown.length === 0)
                             return row.implicitWidth / 2;
                         shown.sort((a, b) => a.x - b.x);
-                        let slot = -1;
-                        for (let i = 0; i < shown.length; i++)
-                            if (shown[i].windowClass === cls)
-                                slot = i + 1;
-                        if (slot === -1) {
-                            const order = Hyprland.toplevels.values.map(t => t.address);
-                            const at = order.indexOf(address);
-                            slot = shown.findIndex((icon, i) => (i === 0 || shown[i - 1].windowClass !== icon.windowClass)
-                                && order.indexOf(icon.modelData) > at);
-                            if (slot === -1)
-                                slot = shown.length;
-                        }
-                        if (slot === 0)
-                            return shown[0].x - Theme.appIconGap / 2;
-                        const before = shown[slot - 1];
-                        return before.x + before.width * before.scale + Theme.appIconGap / 2;
+                        const matching = shown.filter(app => app.windowClass === cls);
+                        const expanded = !Settings.groupWindows || (root.expandedWorkspace === button.workspaceInfo.id
+                            && root.expandedClass === cls);
+                        if (matching.length && !expanded)
+                            return matching[0].drawnX + matching[0].width * matching[0].scale / 2;
+                        const order = Hyprland.toplevels.values.map(t => t.address);
+                        const at = order.indexOf(address);
+                        const next = matching.length
+                            ? matching.find(app => order.indexOf(app.modelData) > at)
+                            : shown.find((app, i) => (i === 0 || shown[i - 1].windowClass !== app.windowClass)
+                                && order.indexOf(app.modelData) > at);
+                        if (next)
+                            return next.drawnX - Theme.appIconGap / 2;
+                        const before = matching.length ? matching[matching.length - 1] : shown[shown.length - 1];
+                        return before.drawnX + before.width * before.scale + Theme.appIconGap / 2;
                     }
 
                     MouseArea {
@@ -667,11 +691,11 @@ BarItem {
                         anchors.rightMargin: button.index === workspaces.count - 1 ? -root.padRight : -Math.floor(Theme.workspaceGap / 2)
                         function focusWorkspace(): void {
                             if (!button.active)
-                                Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.modelData.id} })`);
+                                Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.workspaceInfo.id} })`);
                         }
 
                         Accessible.role: Accessible.Button
-                        Accessible.name: "Workspace " + button.modelData.id
+                        Accessible.name: "Workspace " + button.workspaceInfo.id
                         Accessible.onPressAction: if (enabled && visible)
                             button.keyPress()
 
@@ -713,7 +737,7 @@ BarItem {
                         // Otherwise a shouting app would move twice over.
                         Bounce {
                             id: emptyBounce
-                            running: button.modelData.urgent && !button.apps.some(a => root.anyUrgent(a.addresses))
+                            running: button.workspaceInfo.urgent && !button.apps.some(a => root.anyUrgent(a.addresses))
                         }
 
                         Repeater {
@@ -779,6 +803,11 @@ BarItem {
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
 
+                                readonly property real drawnX: x
+                                onXChanged: root.positionsDirty = true
+                                onYChanged: root.positionsDirty = true
+                                onIconChanged: root.positionsDirty = true
+                                onRevealChanged: root.positionsDirty = true
                                 Component.onDestruction: if (root.dragSource === app) root.cancelDrag()
 
                                 // The app's name, the way the Dock labels its
@@ -814,7 +843,7 @@ BarItem {
                                     function pressApp(): bool {
                                         const addresses = app.icon.addresses;
                                         if (addresses.length > 1) {
-                                            root.expand(button.modelData, app.windowClass);
+                                            root.expand(button.workspaceInfo.workspace, app.windowClass);
                                             tap.focusWindow(addresses[0]);
                                             return true;
                                         }
@@ -845,8 +874,8 @@ BarItem {
                                             suppressClick = true;
                                             root.dragSource = app;
                                             root.dragAddress = addressOnPress;
-                                            root.dragWorkspace = button.modelData;
-                                            root.dragWorkspaceId = button.modelData.id;
+                                            root.dragWorkspace = button.workspaceInfo.workspace;
+                                            root.dragWorkspaceId = button.workspaceInfo.id;
                                             root.dragging = true;
                                         }
                                         if (root.dragging && root.dragSource === app) {
@@ -886,7 +915,7 @@ BarItem {
 
                 readonly property var modelData: null
 
-                visible: root.dragging && workspaces.model.values
+                visible: root.dragging && root.shownWorkspaces
                     .every(w => Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id))
                 Layout.fillHeight: true
                 implicitWidth: root.emptyWidth
@@ -902,8 +931,9 @@ BarItem {
             target: root.dropX
         }
 
-        // Draw outside the layout so the ghost never changes workspace widths or takes input.
+        // The drag preview ends at release; workspace membership draws the moved icon.
         AppIcon {
+            id: ghost
             z: 10
             visible: root.dragging
             windowClass: root.dragSource?.windowClass ?? ""
