@@ -30,7 +30,8 @@ PanelWindow {
             mark: Qt.size(500, 248),
             morph: Qt.size(1020, 250),
             refract: Qt.size(1020, 200),
-            realmorph: Qt.size(420, 240)
+            realmorph: Qt.size(420, 240),
+            realmark: Qt.size(360, 80)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
