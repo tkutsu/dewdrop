@@ -138,11 +138,18 @@ PanelWindow {
     color: "transparent"
 
     // Anywhere on the bar, pills or the air between them. The drawer stays
-    // open while the pointer is here or down in one of the bar's popups.
+    // open while the pointer is here or down in one of the bar's popups, and
+    // the glass catches its light (GlassLight).
     HoverHandler {
         id: barHover
 
-        onHoveredChanged: PopupPointer.bars += hovered ? 1 : -1
+        onPointChanged: if (hovered)
+            GlassLight.track(bar, point.position)
+        onHoveredChanged: {
+            PopupPointer.bars += hovered ? 1 : -1;
+            if (!hovered)
+                GlassLight.leave(bar);
+        }
         Component.onDestruction: if (hovered)
             PopupPointer.bars--
     }

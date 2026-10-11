@@ -170,6 +170,10 @@ Item {
         contentHeight: body.implicitHeight
         contentWidth: width
         clip: true
+        layer.enabled: contentHeight > height
+        layer.effect: ScrollEdges {
+            view: bodyView
+        }
         boundsBehavior: Flickable.StopAtBounds
         visible: opacity > 0
         opacity: root.kind === "text" ? 0.75 : 0

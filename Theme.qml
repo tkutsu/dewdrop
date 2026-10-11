@@ -65,6 +65,10 @@ Singleton {
     // module's box and the box reaches into the margin the pill claims for
     // clicks — which put every menu a click's width away from the click.
     readonly property int popupGap: 2
+    // How far in from a scrolling list's edge what runs on past it fades out
+    // (components/ScrollEdges.qml): about one row, so the row going under
+    // reads as going under and the one after it is whole.
+    readonly property int scrollEdge: 20
     readonly property int selectionRadius: 4
     readonly property int selectionInset: 5
     // A menu's corner runs parallel to the highlight inside it: the
@@ -392,16 +396,25 @@ Singleton {
     // the ends, which curve both ways, it bends glassCapBend times as much
     // again, and the rim is brightened by up to glassGlow where it bends.
     // Red bends glassDispersion less and blue as much more, so the edge
-    // fringes with colour. A touch of blur and a lift in colour, then
+    // fringes with colour, faintly: at 0.3 the round ends wore a rainbow,
+    // where Apple's glass shows next to none. A touch of blur and a lift in colour, then
     // barBg's near-black laid over it at glassTint so labels still read.
     readonly property real glassBend: 14
     readonly property real glassBendDepth: pillRadius
     readonly property real glassCapBend: 1.2
     readonly property real glassGlow: 0.2
-    readonly property real glassDispersion: 0.3
+    readonly property real glassDispersion: 0.1
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3
+    // The pointer's light on the glass (GlassLight): a lamp glassLampHeight
+    // above the screen at glassLamp's strength, lighting the bevel round the
+    // rim, and a glow glassHoverSpread across under the pointer. Both kept
+    // soft: the rim catches the light, it does not shine.
+    readonly property real glassLamp: 0.4
+    readonly property real glassLampHeight: 140
+    readonly property real glassHover: 0.45
+    readonly property real glassHoverSpread: 40
 
     // The soft shadow under everything that floats over a window: popups, the
     // launcher, the power menu. Not the pills, which sit on the wallpaper
@@ -658,10 +671,11 @@ Singleton {
     // It is the one part of this that is animation rather than physics.
     readonly property int jumpCrouch: 1
     readonly property int jumpCrouchMs: 110
-    // A click pushes what it lands on down by this much for as long as the
-    // button is held. It is the same pixel as the crouch above, gathering under
-    // a finger rather than before a jump, and it does not animate: a press is
-    // a state, not a motion, and one pixel has nowhere to travel through.
+    // A click on a workspace's app icon pushes it down by this much for as
+    // long as the button is held: the same pixel as the crouch above,
+    // gathering under a finger rather than before a jump. Everything else in
+    // the bar answers a click through its glass instead (GlassPress), and
+    // keeps this as its tap handlers' margin.
     readonly property int pressDip: jumpCrouch
     // One bounce end to end, landing to landing, rest included. Three seconds
     // because that is the interval the alarm beats at (Timers.beatMs), and the

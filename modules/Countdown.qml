@@ -123,7 +123,13 @@ BarItem {
 
         Layout.fillHeight: true
         implicitWidth: Math.max(glyph.implicitWidth, mark.implicitWidth) + Theme.mediaGap
-        transform: Translate { y: slotTap.pressed ? Theme.pressDip : 0 }
+        scale: slotPress.scale
+
+        PressGlass {
+            id: slotPress
+            icon: slot
+            area: slotTap
+        }
 
         Accessible.role: Accessible.Button
         Accessible.name: "Cancel timer"
@@ -219,13 +225,20 @@ BarItem {
     // says what for. Secondary, since it is read after the figures. A timer
     // with no name has nothing to fold out.
     Item {
+        id: nameBox
         readonly property real full: Theme.mediaGap + name.implicitWidth
 
         Layout.fillHeight: true
         implicitWidth: root.handsOut && root.shownName !== "" ? full : 0
         clip: width < full
         opacity: full > 0 ? width / full : 0
-        transform: Translate { y: nameTap.pressed ? Theme.pressDip : 0 }
+        scale: namePress.scale
+
+        PressGlass {
+            id: namePress
+            icon: nameBox
+            area: nameTap
+        }
 
         Behavior on implicitWidth {
             enabled: root.settled
@@ -282,7 +295,13 @@ BarItem {
             x: Theme.mediaGap
             height: parent.height
             text: root.target?.running ? Theme.glyph.paused : Theme.glyph.playing
-            transform: Translate { y: holdTap.pressed ? Theme.pressDip : 0 }
+            scale: holdPress.scale
+
+            PressGlass {
+                id: holdPress
+                icon: hold
+                area: holdTap
+            }
 
             Accessible.role: Accessible.Button
             Accessible.name: root.target?.running ? "Pause timer" : "Resume timer"

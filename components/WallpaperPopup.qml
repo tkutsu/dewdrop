@@ -179,7 +179,10 @@ Popup {
 
     // The header, and under it while parallax is on, the framing. One block
     // so the framing's gap opens with it instead of jumping in at the start.
+    // Over the grid, which runs on under it (ScrollUnder).
     Column {
+        z: 1
+
         PopupHeader {
             width: root.bodyWidth
             inset: 0
@@ -227,6 +230,12 @@ Popup {
         cellWidth: root.cellWidth + 4
         cellHeight: root.cellHeight + 4
         clip: true
+
+        ScrollUnder {
+            parent: grid
+            view: grid
+            box: root.chromeItem
+        }
         model: Wallpaper.files
         // Scrolls only when there is more than fits, so the wheel otherwise
         // falls through to whatever is underneath.

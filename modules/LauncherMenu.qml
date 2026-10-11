@@ -722,6 +722,10 @@ OverlayWindow {
                 // out with empty rows the way a fixed height would.
                 height: Math.min(count, root.visibleRows) * root.rowHeight
                 clip: true
+                layer.enabled: contentHeight > height
+                layer.effect: ScrollEdges {
+                    view: list
+                }
                 model: Launcher.results
 
                 // Where the pointer was when it last actually moved, in scene
@@ -1092,6 +1096,10 @@ OverlayWindow {
                 contentHeight: body.implicitHeight + root.contentGap
                 boundsBehavior: Flickable.StopAtBounds
                 clip: true
+                layer.enabled: contentHeight > height
+                layer.effect: ScrollEdges {
+                    view: reader
+                }
 
                 Text {
                     id: body

@@ -128,6 +128,13 @@ OverlayWindow {
             title: "Bar",
             sections: [
                 {
+                    title: "Glass",
+                    rows: [
+                        { type: "choice", id: "pressFeedback", title: "When clicked", text: "Swell lights the glass from where you click and swells the pill under the icon, which springs back like gel. Light only lights it. With Reduce motion on it only lights.", options: [{ value: "swell", label: "Swell" }, { value: "light", label: "Light" }], get: () => Settings.pressFeedback, set: v => Settings.set("pressFeedback", v) },
+                        { type: "choice", id: "sliderKnob", title: "Slider knob when held", text: "Bead turns the knob into a bead of glass the track shows through. Gel is the same bead, trailing a short tail as you drag. With Reduce motion on it is the bead; with Reduce transparency, the plain knob.", options: [{ value: "bead", label: "Bead" }, { value: "gel", label: "Gel" }], get: () => Settings.sliderKnob, set: v => Settings.set("sliderKnob", v) }
+                    ]
+                },
+                {
                     title: "Workspaces",
                     rows: [
                         { type: "toggle", id: "groupWindows", title: "Group windows by app", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) }
@@ -407,6 +414,10 @@ OverlayWindow {
                 topMargin: root.boxPad
                 bottomMargin: root.boxPad
                 clip: true
+                layer.enabled: contentHeight + topMargin + bottomMargin > height
+                layer.effect: ScrollEdges {
+                    view: list
+                }
                 boundsBehavior: Flickable.StopAtBounds
 
                 // A page, and a new search, start at their top.
