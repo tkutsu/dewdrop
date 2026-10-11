@@ -2,7 +2,7 @@ import QtQuick
 import qs
 import qs.components
 
-// The real Popup, opening (G2), scrolling its list under its header
+// The real Popup, opening (G4), scrolling its list under its header
 // (ScrollUnder) and closing, anchored to a pill in the lab's window. The lab
 // borrows the bar's layer name for this scene (Lab.qml), so Hyprland blurs
 // behind the popup as it does behind the bar's.
