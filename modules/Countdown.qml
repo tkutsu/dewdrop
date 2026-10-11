@@ -15,11 +15,11 @@ import qs.services
 // running, and the fact that something has gone off when something has. Those
 // are three states of one thing, so they are one pill and not three modules.
 //
-// No popup: pointed at, it opens out the way the music pill does. The glyph
-// gives its place to a close mark, and the timer's name and a pause or play
-// hand fold out after the label, so what can be done to the timer is on the
-// timer. The full list, and
-// the phone settings, are the clock's popup.
+// Pointed at, it opens out the way the music pill does. The glyph gives its
+// place to a close mark, and the timer's name and a pause or play hand fold
+// out after the label, so what can be done to the timer is on the timer. The
+// label opens the full list, the clock's timers popup, which the pill turns
+// into the way the music pill turns into its player (Popup.morphs).
 BarItem {
     id: root
     name: "Dismiss ringing timer"
@@ -29,6 +29,13 @@ BarItem {
     // pill off `reveal` (see Bar.drop), and nothing folds.
     stowed: !Timers.loaded
     folds: false
+
+    popup: TimerPopup {
+        morphs: true
+    }
+    // The label opens it (below), not the whole pill: the hands either side
+    // of it are buttons of their own.
+    popupButton: Qt.NoButton
 
     // Whether a hover is run rather than set: only for a pill at rest (see
     // Music.settled).
@@ -186,12 +193,39 @@ BarItem {
 
     // The time left rolls from one second to the next (RollingText); a timer
     // that has gone off shows its name instead, which is words and is drawn
-    // whole.
+    // whole. And the popup's button, which presses in by itself; ringing, a
+    // click anywhere hushes instead (`actions`).
     Item {
+        id: labelBox
         readonly property bool figures: /^[0-9:]+$/.test(root.shownLabel)
 
         Layout.fillHeight: true
         implicitWidth: figures ? rolling.implicitWidth : words.implicitWidth
+        scale: labelPress.scale
+
+        PressGlass {
+            id: labelPress
+            icon: labelBox
+            area: labelTap
+        }
+
+        Accessible.role: Accessible.Button
+        Accessible.name: "Timers"
+        Accessible.onPressAction: if (labelTap.enabled && enabled && visible)
+            root.togglePopup()
+
+        TapHandler {
+            id: labelTap
+            enabled: !root.ringing
+            margin: Theme.pressDip
+            onTapped: root.togglePopup()
+        }
+
+        // With another module's popup up, resting on the label opens this
+        // one in its place, as the music pill's title does.
+        HoverHandler {
+            onHoveredChanged: OpenPopup.browse(root, hovered)
+        }
         // A paused timer is the label gone quiet, the same way a paused song
         // is — the glyph beside it already says which of the two it is, and a
         // second mark saying so again would be the loudest thing in the pill.

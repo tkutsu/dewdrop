@@ -660,6 +660,13 @@ Singleton {
     // of a second of shutter before the first keystroke can land reads as the
     // launcher being slow to come up rather than as it arriving.
     readonly property int revealMs: 160
+    // A pill turning into its popover (Popup.morphs, Morph.qml): how long the
+    // pill takes to gather itself into a drop, which the popover waits out
+    // before the drop comes out under it; and how long the popover takes
+    // going back into the drop, which the pill waits out before taking it
+    // back.
+    readonly property int morphGatherMs: 150
+    readonly property int morphCloseMs: 330
     // The launcher's selection sliding from one row to the next. Shorter than
     // the reveal: that one is a box opening and this one is a 28px step, and
     // a step drawn over a tenth of a second is already a long step.

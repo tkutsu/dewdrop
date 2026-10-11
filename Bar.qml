@@ -360,8 +360,39 @@ PanelWindow {
     readonly property real clockLeft: clockPill.x
     readonly property real clockRight: clockPill.x + clockPill.width
 
-    readonly property vector4d musicDrop: bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed)
-    readonly property vector4d countdownDrop: bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed)
+    readonly property vector4d musicDrop: bar.morph(bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed), musicMorph.value)
+    readonly property vector4d countdownDrop: bar.morph(bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed), countdownMorph.value)
+
+    // The music and timer pills turn into their popovers rather than opening
+    // them (Popup.morphs): the pill's contents go, its glass gathers into a
+    // drop at its middle and sinks out through the slab's foot, which is as
+    // far as the bar's glass goes, into the popover coming out under it.
+    // Closing, the drop comes back up and springs out to the pill. `s` is
+    // Morph.value, 0 the pill, 1 the drop, 2 gone; a little under 0 as the
+    // pill springs past its width on the way back.
+    function morph(box, s) {
+        if (s === 0 || box.z <= 0)
+            return box;
+        const gather = Math.min(1, s);
+        const sink = Math.max(0, s - 1);
+        const mid = box.x + box.z / 2;
+        const w = box.z + (Theme.barHeight * 1.3 - box.z) * gather;
+        return Qt.vector4d(mid - w / 2, box.y + box.w * sink, w, box.w);
+    }
+    // How much of a pill's contents show as it does: gone by halfway to the
+    // drop, and back in as it springs out.
+    function morphContents(s) {
+        return Math.max(0, Math.min(1, 1 - 2 * s));
+    }
+
+    Morph {
+        id: musicMorph
+        open: music.popupOpen
+    }
+    Morph {
+        id: countdownMorph
+        open: countdown.popupOpen
+    }
     // Follow the timer's glass as it arrives or leaves, falling back to the
     // clock's right edge once the timer is inside it.
     readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
@@ -380,7 +411,7 @@ PanelWindow {
 
         edges: false
         drawsSlab: false
-        contentOpacity: bar.contents(music.reveal)
+        contentOpacity: bar.contents(music.reveal) * bar.morphContents(musicMorph.value)
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
@@ -420,7 +451,7 @@ PanelWindow {
 
         edges: false
         drawsSlab: false
-        contentOpacity: bar.contents(countdown.reveal)
+        contentOpacity: bar.contents(countdown.reveal) * bar.morphContents(countdownMorph.value)
 
         side: Pill.Side.Left
         edgeOffset: bar.clockRight + Theme.pillSpread

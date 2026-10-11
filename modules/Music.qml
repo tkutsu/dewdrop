@@ -169,8 +169,11 @@ BarItem {
     // Each part brings its own gap, so that the hands can take theirs with
     // them as they fold.
     spacing: 0
+    // The pill turns into it rather than opening it (Popup.morphs): it is
+    // where everything the pill does lives.
     popup: MusicPopup {
         accent: root.accent
+        morphs: true
     }
     // The title opens it (below), not the whole pill.
     popupButton: Qt.NoButton
