@@ -134,7 +134,7 @@ ShellRoot {
 def main():
     with tempfile.TemporaryDirectory(prefix="quickshell-popup-keys-") as folder:
         target = Path(folder)
-        files = subprocess.check_output(["git", "-C", str(ROOT), "ls-files"], text=True)
+        files = subprocess.check_output(["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard"], text=True)
         for name in files.splitlines():
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)

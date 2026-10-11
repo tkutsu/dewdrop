@@ -42,6 +42,9 @@ Singleton {
     readonly property bool reduceTransparency: root.values.reduceTransparency ?? false
     readonly property string accent: root.values.accent ?? "white"
     readonly property string sliderKnob: root.values.sliderKnob === "gel" ? "gel" : "bead"
+    readonly property string pillSheen: ["soft", "wide", "steep", "skim", "rim", "halo"].includes(root.values.pillSheen) ? root.values.pillSheen : "soft"
+    readonly property bool pillPressMorph: root.values.pillPressMorph ?? false
+    readonly property string pillPressStyle: ["cushion", "fabric", "deep"].includes(root.values.pillPressStyle) ? root.values.pillPressStyle : "fabric"
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")

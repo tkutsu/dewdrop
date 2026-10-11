@@ -408,15 +408,6 @@ BarItem {
         // from the slab's edge on both sides left one dark pixel above the
         // mark and two below it, which looked like the mark riding high.
         //
-        // The move is the state change, and it moves the way a drop does along
-        // a surface: the mark's front end runs ahead to the workspace you are
-        // on, stretching it out of the one you left, then its back end lets go
-        // and is drawn along after it. Two slabs of glass, the head and the
-        // tail, joined by a neck that thins the further apart they are, all
-        // one surface (Liquid, the same glass the pills beside the clock are).
-        // The glass reaches a pad past either end of the strip, because the
-        // mark does.
-        //
         // The head runs on a spring, so it carries a little past the
         // workspace and comes back, and the mark stands a touch long for a
         // moment before it settles, the way a drop's momentum does. At the
@@ -427,9 +418,8 @@ BarItem {
             id: mark
             held: strip.held
             // At the selection's pace while the keys move it.
-            spring: strip.keyed ? Theme.keyMarkSpring : Theme.springStiffness
+            spring: strip.keyed ? Theme.keyMarkSpring : Theme.markSpring
             damping: strip.keyed ? Theme.keyMarkDamping : Theme.markDamping
-            flowMs: strip.keyed ? Theme.keyMarkMs : Theme.markMs
             slabY: Theme.pillTop(strip.height)
             slabHeight: Theme.barHeight
             atFirst: strip.selected !== null && strip.selected.index === 0
@@ -454,10 +444,9 @@ BarItem {
                 mark.hasSelection = strip.selected !== null;
                 if (!mark.hasSelection)
                     return;
-                // Still on the same workspace while a group opens or folds: its
-                // edges moved under it, and the mark follows them rather than
-                // flowing as if focus had moved.
-                mark.resizing = root.folding && strip.selected === mark.placedOn;
+                // Layout changes update the same destination rather than
+                // starting another selection move.
+                mark.resizing = strip.selected === mark.placedOn;
                 mark.placedOn = strip.selected;
                 mark.wantLeft = mark.targetLeft;
                 mark.wantRight = mark.targetRight;
@@ -608,8 +597,7 @@ BarItem {
                         return result;
                     }
 
-                    // How far the mark has come onto this workspace, 0..1: in
-                    // as its head arrives, back out as its tail lets go.
+                    // Bring the focused workspace's icons forward with the mark.
                     property real lit: button.active ? 1 : 0
 
                     Behavior on lit {
