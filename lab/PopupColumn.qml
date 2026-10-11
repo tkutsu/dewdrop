@@ -12,6 +12,7 @@ import qs.components
 //   G1  B, and the height runs past and settles like gel
 //   G2  B, and the bottom edge sags and springs back
 //   G3  B on two springs, the height looser than the width
+//   G4  G1's shape on springs: the width settles, the height runs past once
 //   E1  the pill bulges, drops a dew, the dew falls and blooms into the box
 //   E2  the pill bulges and pours: the dew spreads into the box while joined
 //   E3  the dew falls further and splashes: squashes, then spreads up and out
@@ -75,11 +76,11 @@ Item {
     property bool springs: false
     Behavior on xs {
         enabled: col.springs
-        SpringAnimation { spring: 5.5; damping: 0.38; epsilon: 0.001 }
+        SpringAnimation { spring: col.variant === "G4" ? 5 : 5.5; damping: col.variant === "G4" ? 0.6 : 0.38; epsilon: 0.001 }
     }
     Behavior on ys {
         enabled: col.springs
-        SpringAnimation { spring: 5.5; damping: 0.2; epsilon: 0.001 }
+        SpringAnimation { spring: col.variant === "G4" ? 5 : 5.5; damping: col.variant === "G4" ? 0.34 : 0.2; epsilon: 0.001 }
     }
 
     readonly property bool scales: variant === "B" || variant.startsWith("G")
@@ -111,7 +112,7 @@ Item {
             if (variant === "B") openB.start();
             else if (variant === "G1") openG1.start();
             else if (variant === "G2") openG2.start();
-            else if (variant === "G3") {
+            else if (variant === "G3" || variant === "G4") {
                 springs = false;
                 xs = ys = 0.86;
                 springs = true;
@@ -127,7 +128,7 @@ Item {
             if (variant === "B") closeB.start();
             else if (variant === "G1") closeG1.start();
             else if (variant === "G2") closeG2.start();
-            else if (variant === "G3") closeG3.start();
+            else if (variant === "G3" || variant === "G4") closeG3.start();
             else if (variant === "E1") closeE1.start();
             else if (variant === "E2") closeE2.start();
             else if (variant === "E3") closeE3.start();

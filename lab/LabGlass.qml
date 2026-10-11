@@ -1,12 +1,9 @@
 import QtQuick
 import qs.components
 
-// Liquid with the lab's extra lights (lab/glass.frag): a press, the pointer as
-// a lamp, and a glow under the pointer. All off by default, which draws
-// exactly what Liquid draws.
+// Liquid drawn with the lab's copy of its shader (lab/glass.frag), which the
+// prototypes change freely. Its press, light and hover are Liquid's own,
+// which the scenes set by hand.
 Liquid {
-    property vector4d light: Qt.vector4d(0, 0, 1, 0)
-    property vector4d hover: Qt.vector4d(0, 0, 1, 0)
-
     fragmentShader: Qt.resolvedUrl("glass.frag.qsb")
 }
