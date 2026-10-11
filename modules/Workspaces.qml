@@ -28,6 +28,12 @@ BarItem {
     // then, and the strip follows them exactly rather than chasing them with
     // its spring, which would leave the pill's end behind (see widthChange).
     property bool folding: false
+
+    // The mark, for the bar to draw as a bead of glass over the pill
+    // (BeadMark), which it does unless told otherwise; then it moves here
+    // and draws nothing.
+    readonly property Item markItem: mark
+    property bool drawsMark: true
     contentAnimating: folding || stripResize.running || mark.animating
 
     Timer {
@@ -464,8 +470,10 @@ BarItem {
                 }
             }
 
+            opacity: root.drawsMark ? 1 : 0
+
             // Keep the liquid inside the pill's current rounded rim as both animate.
-            layer.enabled: true
+            layer.enabled: root.drawsMark
             layer.effect: MultiEffect {
                 autoPaddingEnabled: false
                 maskEnabled: true
