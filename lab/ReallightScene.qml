@@ -36,7 +36,7 @@ Item {
     Tag {
         x: 20
         y: 10
-        text: "real Pill · GlassLight (lamp " + Theme.glassLamp + ", glow " + Theme.glassHover + ")"
+        text: "real Pill · GlassLight (glow " + Theme.glassHover + ")"
     }
 
     Item {
