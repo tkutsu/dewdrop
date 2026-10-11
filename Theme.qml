@@ -605,7 +605,7 @@ Singleton {
     // out (Bar.drop). Longer than a fold: it is three moves in a row, the
     // contents going, the pill rounding up and the drop travelling in, and
     // each of them needs time enough to read as a move of its own.
-    readonly property int dropMs: 620
+    readonly property int dropMs: 670
 
     // Stiffness shared by the pill and selection springs; each uses its own damping.
     readonly property real springStiffness: reduceMotion ? calmSpring : 2.5
