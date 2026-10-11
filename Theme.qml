@@ -407,6 +407,14 @@ Singleton {
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
     readonly property real glassTint: 0.3
+    // The pointer's light on the glass (GlassLight): a lamp glassLampHeight
+    // above the screen at glassLamp's strength, lighting the bevel round the
+    // rim, and a glow glassHoverSpread across under the pointer. Both kept
+    // soft: the rim catches the light, it does not shine.
+    readonly property real glassLamp: 0.4
+    readonly property real glassLampHeight: 140
+    readonly property real glassHover: 0.45
+    readonly property real glassHoverSpread: 40
 
     // The soft shadow under everything that floats over a window: popups, the
     // launcher, the power menu. Not the pills, which sit on the wallpaper
