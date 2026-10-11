@@ -538,12 +538,30 @@ Singleton {
     readonly property color taskSoon: Qt.rgba(1, 1, 1, 0.45)
     readonly property color taskUndated: Qt.rgba(1, 1, 1, 0.22)
 
-    // The calendar. Today is a filled disc with the numeral cut out of it in
-    // the surface colour — the system's own mark, drawn without the system's
-    // red so the popup stays one colour like the rest of the bar. Everything
+    // The accent (Settings.accent): what is on or chosen. White by default,
+    // which keeps the shell one colour, or one of macOS's accent colours in
+    // their dark-appearance shades. accentInk is what is drawn on it.
+    readonly property var accents: ({
+            white: label,
+            blue: "#0a84ff",
+            purple: "#bf5af2",
+            pink: "#ff375f",
+            red: "#ff453a",
+            orange: "#ff9f0a",
+            yellow: "#ffd60a",
+            green: "#30d158",
+            graphite: "#98989d"
+        })
+    readonly property bool accented: Settings.accent !== "white" && Settings.accent in accents
+    readonly property color accent: accented ? accents[Settings.accent] : label
+    readonly property color accentInk: accented ? "white" : "black"
+    // Selected text: the accent laid thin under it, as a Mac does.
+    readonly property color textSelection: accented ? Qt.rgba(accent.r, accent.g, accent.b, 0.45) : selection
+
+    // The calendar. Today is a filled disc in the accent with the numeral cut
+    // out of it in the surface colour, the system's own mark. Everything
     // else on it is a step of label.
-    readonly property color calToday: label
-    readonly property color calTodayText: "black"
+    readonly property color calToday: accent
 
     // --- opacity -------------------------------------------------------------
     readonly property real dimOpacity: 0.55   // .stale / .loading

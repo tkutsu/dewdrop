@@ -63,6 +63,12 @@
     "reduceMotion": false,
     "reduceTransparency": false,
 
+    // The colour of what is on or chosen: a switch that is on, a slider's
+    // fill, today in the calendar, selected text and the keys' focus ring.
+    // "white" keeps the shell one colour; or "blue", "purple", "pink",
+    // "red", "orange", "yellow", "green", "graphite".
+    "accent": "white",
+
     // What a slider's knob turns into while it is held: "bead" is a bead of
     // glass the track shows through, bent round its rim; "gel" is the same
     // bead trailing a short tail as it is dragged. Reduce motion makes it

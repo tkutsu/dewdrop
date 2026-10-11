@@ -434,7 +434,7 @@ Popup {
                                                     font.family: Theme.bodyFont
                                                     font.pixelSize: Theme.captionSize
                                                     color: link.fetched !== undefined ? Theme.label : Theme.label3
-                                                    selectionColor: Theme.selection
+                                                    selectionColor: Theme.textSelection
                                                     selectedTextColor: Theme.label
                                                     readOnly: true
                                                     selectByMouse: true
