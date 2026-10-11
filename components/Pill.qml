@@ -355,6 +355,7 @@ Item {
         property real foot: Theme.pillTrackFoot
         property vector4d deform: Qt.vector4d(root.fabric.x - x, root.fabric.y - y,
             root.fabric.z, root.fabric.w)
+        property real horizontalCompression: Settings.pillPressHorizontal ? 1 : 0
         fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
     }
 

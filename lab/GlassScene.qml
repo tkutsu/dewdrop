@@ -15,7 +15,7 @@ Item {
         running: true; loops: Animation.Infinite
         PauseAnimation { duration: 850 }
         PropertyAction { target: scene; property: "down"; value: true }
-        NumberAnimation { target: scene; property: "dent"; to: 1; duration: 55; easing.type: Easing.OutCubic }
+        NumberAnimation { target: scene; property: "dent"; to: 1; duration: 160; easing.type: Easing.InOutCubic }
         PauseAnimation { duration: 130 }
         PropertyAction { target: scene; property: "down"; value: false }
         NumberAnimation { target: scene; property: "dent"; to: 0; duration: 310; easing.type: Easing.OutBack; easing.overshoot: 0.6 }
@@ -24,9 +24,9 @@ Item {
 
     Repeater {
         model: [
-            {title: "S1  Soft diagonal", detail: "Broad, quiet highlights", sheen: Qt.vector4d(-0.60, -0.80, 0.18, 0.10), press: "P1  Cushion", spread: 160, depth: 0.07},
-            {title: "S2  Wide satin", detail: "Widest and faintest", sheen: Qt.vector4d(-0.707, -0.707, 0.10, 0.075), press: "P2  Fabric", spread: 115, depth: 0.18},
-            {title: "S3  Steep diagonal", detail: "More vertical light", sheen: Qt.vector4d(-0.42, -0.907, 0.24, 0.09), press: "P3  Deep fabric", spread: 150, depth: 0.24}
+            {title: "P1  Cushion", detail: "Soft, broad press", spread: 160, depth: 0.07},
+            {title: "P2  Fabric", detail: "Deeper dent", spread: 115, depth: 0.18},
+            {title: "P3  Deep fabric", detail: "Strongest response", spread: 150, depth: 0.24}
         ]
         delegate: Item {
             id: col
@@ -43,7 +43,6 @@ Item {
                 backdrop: scene.backdrop; takesPress: false
                 box0: Qt.vector4d(6, 6, 312, 30)
                 rimFrom: 6; rimTo: 36
-                sheen: col.modelData.sheen
             }
             Text {
                 x: 24; y: 86; width: 312; height: 30
@@ -54,20 +53,19 @@ Item {
             Liquid {
                 x: 18; y: 137; width: 324; height: 66
                 backdrop: null; takesPress: false
+                sheen: Theme.pillSheen
                 fill: Qt.vector4d(0.06, 0.075, 0.08, 1)
                 lineWidth: 1.8
                 box0: Qt.vector4d(6, 6, 312, 54)
                 rimFrom: 6; rimTo: 60
-                sheen: col.modelData.sheen
             }
-            Tag { x: 24; y: 229; text: col.modelData.press }
+            Tag { x: 24; y: 229; text: "Press response" }
             Liquid {
                 id: pressedGlass
                 x: 18; y: 270; width: 324; height: 42
                 backdrop: scene.backdrop; takesPress: false
                 box0: Qt.vector4d(6, 6, 312, 30)
                 rimFrom: 6; rimTo: 36
-                sheen: Qt.vector4d(-0.60, -0.80, 0.18, 0.10)
                 deform: Qt.vector4d(119, 21, col.modelData.spread, scene.dent * col.modelData.depth)
             }
             Row {
@@ -79,7 +77,7 @@ Item {
                 }
             }
             Cursor { x: 137; y: 306; visible: scene.down }
-            Tag { x: 24; y: 338; text: "55 ms in, 310 ms to settle" }
+            Tag { x: 24; y: 338; text: "160 ms in, 310 ms to settle" }
         }
     }
 }

@@ -17,7 +17,6 @@ PopupWindow {
     // Not `required`: the loaders that create these set it immediately after
     // construction, and a required property warns on every instantiation.
     property Item anchorItem
-    readonly property Item hostedAnchor: BarPopupAnchor { owner: root.anchorItem }
     // Keep keyboard entry available for the weather location search.
     property bool acceptsKeyboard: false
     property bool probes: true
@@ -36,7 +35,7 @@ PopupWindow {
     property alias spacing: body.spacing
 
     anchor {
-        item: root.hostedAnchor.host ? root.hostedAnchor : root.anchorItem
+        item: root.anchorItem
         edges: Edges.Bottom
         gravity: Edges.Bottom
         // Let the compositor slide a popup along the bar rather than letting it

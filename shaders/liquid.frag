@@ -73,9 +73,8 @@ layout(std140, binding = 0) uniform buf {
     // bar).
     vec4 hover;
     vec4 sheen;
-    // Inner light strength/spread, outer halo strength/spread. Static, independent of the pointer.
-    vec4 sheenBloom;
     vec4 deform;
+    float horizontalCompression;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -107,12 +106,14 @@ float swell(vec4 b) {
 
 // How far p is outside the glass (negative inside).
 float field(vec2 p) {
-    // Compress a broad patch toward its middle, with a small downward give.
+    // Compress a broad patch on both axes, with a small downward give.
     // The inverse warp leaves the same distance field in charge of the rim.
     float spread = (p.x - deform.x) / max(deform.z, 1.0);
     float dent = deform.w * exp(-spread * spread);
+    float squeeze = max(1.0 - dent, 0.5);
     float centre = (rimFrom + rimTo) * 0.5;
-    p.y = centre + (p.y - centre - dent * 5.0) / max(1.0 - dent, 0.5);
+    p.x = deform.x + (p.x - deform.x) / max(1.0 - dent * horizontalCompression, 0.5);
+    p.y = centre + (p.y - centre - dent * 5.0) / squeeze;
     // A bulge is blended in by as much as it stands out, so it grows out of
     // the slab from nothing and goes back into it without a jump.
     float s0 = swell(bulge0);
@@ -164,9 +165,8 @@ void main() {
     vec2 around = (p - nearest.xy - nearest.zw * 0.5) / max(nearest.zw * 0.5, vec2(1.0));
     float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
     float shine = smoothstep(sheen.z, 0.96, diagonal);
-    float halo = shine * sheenBloom.z * exp(-max(d, 0.0) / max(sheenBloom.w, 0.01));
     if (d >= 0.5) {
-        fragColor = vec4(vec3(halo), halo) * qt_Opacity;
+        fragColor = vec4(0.0);
         return;
     }
 
@@ -221,9 +221,6 @@ void main() {
         body = mix(fill.rgb * fill.a, glassBody, glass) / max(alpha, 1e-6);
         bodyA = alpha * shape;
     }
-
-    // The resting light spreads inward from the diagonal rim, without pointer input.
-    body = mix(body, vec3(1.0), shine * sheenBloom.x * exp(min(d, 0.0) / max(sheenBloom.y, 0.01)));
 
     // A press lights the glass from where it landed, brightest there and
     // spreading `press.z`, and the rim near it with it. The rim is a pixel,

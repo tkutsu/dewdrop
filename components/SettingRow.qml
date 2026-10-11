@@ -46,8 +46,10 @@ Item {
 
     readonly property bool hasMark: !!(root.setting.icon || root.setting.glyph)
     readonly property int lead: root.hasMark ? 32 : 8
+    readonly property bool stacked: control.implicitWidth > (root.width - root.lead - 24) / 2
 
-    implicitHeight: Math.max(28, words.implicitHeight + (root.setting.text ? 12 : 8))
+    implicitHeight: Math.max(28, words.implicitHeight + (root.setting.text ? 12 : 8),
+        root.stacked ? words.implicitHeight + control.height + 20 : control.height + 12)
 
     Rectangle {
         anchors.fill: parent
@@ -97,8 +99,8 @@ Item {
         id: words
 
         x: root.lead
-        anchors.verticalCenter: parent.verticalCenter
-        width: control.x - 16 - x
+        y: root.stacked ? 6 : Math.round((root.height - height) / 2)
+        width: root.stacked ? root.width - x - 8 : control.x - 16 - x
         spacing: 2
 
         PopupText {
@@ -123,9 +125,9 @@ Item {
     Loader {
         id: control
 
-        anchors.right: parent.right
-        anchors.rightMargin: 8
-        anchors.verticalCenter: parent.verticalCenter
+        x: root.stacked ? root.lead : root.width - width - 8
+        y: root.stacked ? words.y + words.height + 8 : Math.round((root.height - height) / 2)
+        width: Math.min(implicitWidth, root.width - root.lead - 8)
         source: root.controls[root.setting.type] ?? ""
         onLoaded: item.setting = Qt.binding(() => root.setting)
     }

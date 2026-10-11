@@ -15,13 +15,16 @@ layout(std140, binding = 0) uniform buf {
     float rest;
     float foot;
     vec4 deform;
+    float horizontalCompression;
 };
 
 void main() {
     vec2 p = qt_TexCoord0 * size;
     float offset = (p.x - deform.x) / max(deform.z, 1.0);
     float dent = deform.w * exp(-offset * offset);
-    p.y = deform.y + (p.y - deform.y - dent * 5.0) / max(1.0 - dent, 0.5);
+    float squeeze = max(1.0 - dent, 0.5);
+    p.x = deform.x + (p.x - deform.x) / max(1.0 - dent * horizontalCompression, 0.5);
+    p.y = deform.y + (p.y - deform.y - dent * 5.0) / squeeze;
     // A pixel of room around the slab, matching the glass's pixel-centred coverage.
     p -= vec2(1.0);
     vec2 halfSize = slabSize * 0.5;

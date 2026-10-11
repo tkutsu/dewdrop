@@ -31,7 +31,7 @@ Singleton {
 
     NumberAnimation {
         id: indent
-        target: root; property: "dent"; to: 1; duration: 55; easing.type: Easing.OutCubic
+        target: root; property: "dent"; to: 1; duration: 160; easing.type: Easing.InOutCubic
         onFinished: if (!root.down) recover.start()
     }
     NumberAnimation {
