@@ -22,7 +22,7 @@ Item {
 
     Row {
         Repeater {
-            model: [["B", "B · scale (round one)"], ["G1", "G1 · height runs past, settles"], ["G2", "G2 · bottom sags, springs back"], ["G3", "G3 · two springs, height looser"]]
+            model: [["B", "B · both axes overshoot"], ["G1", "G1 · height overshoots (keyframed)"], ["G2", "G2 · bottom edge sags"], ["G3", "G3 · springs, height wobbles"], ["G4", "G4 · springs, height runs past once"]]
 
             PopupColumn {
                 required property var modelData
