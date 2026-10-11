@@ -19,20 +19,9 @@ PanelWindow {
     // which is what keeps the blur to the pills instead of spreading it across
     // the transparent strip they float on.
     WlrLayershell.namespace: "quickshell:bar"
-    // Below windows, so one dragged up over the bar passes over it; tiled
-    // windows never reach it anyway, the exclusive zone keeps them clear. The
-    // popups are xdg popups of this surface and share its layer, so while one
-    // is up, or the pointer is on the bar where a tooltip may open, the bar
-    // comes up to Top or the popups would drop behind the windows under them.
-    // A drag starts with a click, which closes the open popup first.
-    WlrLayershell.layer: raise.active ? WlrLayer.Top : WlrLayer.Bottom
-
-    // Held through a popup's fade out, which is drawn on this layer too.
-    Linger {
-        id: raise
-
-        shown: OpenPopup.owner !== null || barHover.hovered || PopupPointer.hovered > 0
-    }
+    // Floating windows and their shadows stay over the pills. Popups use a
+    // separate Top host, so hovering never changes how this rim is composed.
+    WlrLayershell.layer: WlrLayer.Bottom
 
     // The keyboard, while one of this bar's popups is open, for the popup to
     // be driven from (Popup.qml): the popup's own surface gets no keys
@@ -42,11 +31,25 @@ PanelWindow {
     // And while the bar itself is walked from the keyboard (selection mode,
     // OpenPopup.selected), down in a popup or not.
     readonly property bool keyed: (OpenPopup.keyed.length > 0 && OpenPopup.owner?.QsWindow.window === bar) || OpenPopup.selected?.QsWindow.window === bar
-    WlrLayershell.keyboardFocus: bar.keyed ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    Item {
-        focus: true
-        Keys.onPressed: event => event.accepted = OpenPopup.selected !== null && !OpenPopup.inPopup ? bar.selectKey(event) : OpenPopup.key(event)
+    readonly property var popupHost: popupLayer
+    PanelWindow {
+        id: popupLayer
+        screen: bar.screen
+        anchors { top: true; left: true; right: true }
+        implicitHeight: bar.stripHeight
+        exclusionMode: ExclusionMode.Ignore
+        color: "transparent"
+        mask: Region {}
+        WlrLayershell.namespace: "quickshell:bar"
+        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.keyboardFocus: bar.keyed ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+        Item {
+            focus: true
+            Keys.onPressed: event => event.accepted = OpenPopup.selected !== null && !OpenPopup.inPopup ? bar.selectKey(event) : OpenPopup.key(event)
+        }
     }
 
     // Selection mode's keys while they are on the bar rather than in a popup
@@ -89,7 +92,7 @@ PanelWindow {
         const found = [];
         const walk = item => {
             for (const child of item.children) {
-                if (!child.visible || child.opacity === 0)
+                if (!child.visible || !child.enabled || child.opacity === 0)
                     continue;
                 if ((child.keyOpens === true || typeof child.keyPress === "function") && child.width > 0)
                     found.push(child);
@@ -305,7 +308,10 @@ PanelWindow {
     // `end` is the neighbour's end the drop is on, `dir` which way the drop
     // lies from it, as for `drop`.
     function bulge(end, dir, reveal, leaving) {
-        const swell = leaving ? 1.2 * Math.sin(Math.PI * Math.max(0, Math.min(1, (0.36 - reveal) / 0.12))) : 0;
+        const phase = (0.36 - reveal) / 0.12;
+        if (!leaving || phase <= 0 || phase >= 1)
+            return Qt.vector4d(0, 0, 0, 0);
+        const swell = 1.2 * Math.sin(Math.PI * phase);
         if (swell <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const w = Theme.barHeight * 1.2;
@@ -371,6 +377,8 @@ PanelWindow {
     // Morph.value, 0 the pill, 1 the drop, 2 gone; a little under 0 as the
     // pill springs past its width on the way back.
     function morph(box, s) {
+        if (s >= 2)
+            return Qt.vector4d(0, 0, 0, 0);
         if (s === 0 || box.z <= 0)
             return box;
         const gather = Math.min(1, s);
@@ -412,6 +420,9 @@ PanelWindow {
         edges: false
         drawsSlab: false
         contentOpacity: bar.contents(music.reveal) * bar.morphContents(musicMorph.value)
+        contentScale: bar.morph(Qt.vector4d(0, 0, width, Theme.barHeight), musicMorph.value).z / Math.max(width, 1)
+        contentSink: Theme.barHeight * Math.max(0, musicMorph.value - 1)
+        interactive: !music.popupOpen && musicMorph.value <= 0
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
@@ -424,6 +435,7 @@ PanelWindow {
         rate: music.rate
         trackColor: music.accent
         trackOpacity: contentOpacity
+        trackReady: music.reveal === 1 && musicMorph.value === 0 && !music.popupOpen
         trackWidth: music.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {
@@ -452,6 +464,9 @@ PanelWindow {
         edges: false
         drawsSlab: false
         contentOpacity: bar.contents(countdown.reveal) * bar.morphContents(countdownMorph.value)
+        contentScale: bar.morph(Qt.vector4d(0, 0, width, Theme.barHeight), countdownMorph.value).z / Math.max(width, 1)
+        contentSink: Theme.barHeight * Math.max(0, countdownMorph.value - 1)
+        interactive: !countdown.popupOpen && countdownMorph.value <= 0
 
         side: Pill.Side.Left
         edgeOffset: bar.clockRight + Theme.pillSpread
@@ -459,6 +474,7 @@ PanelWindow {
         progress: countdown.progress
         rate: countdown.rate
         trackOpacity: contentOpacity
+        trackReady: countdown.reveal === 1 && countdownMorph.value === 0 && !countdown.popupOpen
         trackWidth: countdown.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {

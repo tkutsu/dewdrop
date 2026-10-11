@@ -20,8 +20,14 @@ Item {
     onOpenChanged: {
         gather.stop();
         release.stop();
-        if (root.open && (Theme.reduceMotion || OpenPopup.switched))
+        if (root.open && (Theme.reduceMotion || OpenPopup.switched)) {
+            root.value = 2;
             return;
+        }
+        if (!root.open && Theme.reduceMotion) {
+            root.value = 0;
+            return;
+        }
         if (root.open)
             gather.start();
         else if (root.value !== 0)

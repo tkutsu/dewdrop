@@ -72,6 +72,10 @@ layout(std140, binding = 0) uniform buf {
     // how far it spreads (z), and how strong (w, 0 with no pointer on the
     // bar).
     vec4 hover;
+    vec4 sheen;
+    // Inner light strength/spread, outer halo strength/spread. Static, independent of the pointer.
+    vec4 sheenBloom;
+    vec4 deform;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -103,6 +107,12 @@ float swell(vec4 b) {
 
 // How far p is outside the glass (negative inside).
 float field(vec2 p) {
+    // Compress a broad patch toward its middle, with a small downward give.
+    // The inverse warp leaves the same distance field in charge of the rim.
+    float spread = (p.x - deform.x) / max(deform.z, 1.0);
+    float dent = deform.w * exp(-spread * spread);
+    float centre = (rimFrom + rimTo) * 0.5;
+    p.y = centre + (p.y - centre - dent * 5.0) / max(1.0 - dent, 0.5);
     // A bulge is blended in by as much as it stands out, so it grows out of
     // the slab from nothing and goes back into it without a jump.
     float s0 = swell(bulge0);
@@ -144,8 +154,19 @@ vec3 softened(vec2 p) {
 void main() {
     vec2 p = qt_TexCoord0 * size;
     float d = field(p);
+    // Shade each pill in its own proportions, so a long top edge also loses
+    // its light toward the top-right corner. Two broad opposing lobes.
+    vec4 nearest = box0;
+    float nearestD = box(p, box0);
+    if (box(p, box1) < nearestD) { nearest = box1; nearestD = box(p, box1); }
+    if (box(p, box2) < nearestD) { nearest = box2; nearestD = box(p, box2); }
+    if (box(p, box3) < nearestD) { nearest = box3; }
+    vec2 around = (p - nearest.xy - nearest.zw * 0.5) / max(nearest.zw * 0.5, vec2(1.0));
+    float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
+    float shine = smoothstep(sheen.z, 0.96, diagonal);
+    float halo = shine * sheenBloom.z * exp(-max(d, 0.0) / max(sheenBloom.w, 0.01));
     if (d >= 0.5) {
-        fragColor = vec4(0.0);
+        fragColor = vec4(vec3(halo), halo) * qt_Opacity;
         return;
     }
 
@@ -169,7 +190,8 @@ void main() {
     float inner = clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     float band = shape - inner;
 
-    vec4 rim = mix(rimTop, rimBottom, clamp((p.y - rimFrom) / (rimTo - rimFrom), 0.0, 1.0));
+    vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
+        : mix(rimTop, rimBottom, clamp((p.y - rimFrom) / (rimTo - rimFrom), 0.0, 1.0));
 
     vec3 body = fill.rgb;
     float bodyA = fill.a * shape;
@@ -199,6 +221,9 @@ void main() {
         body = mix(fill.rgb * fill.a, glassBody, glass) / max(alpha, 1e-6);
         bodyA = alpha * shape;
     }
+
+    // The resting light spreads inward from the diagonal rim, without pointer input.
+    body = mix(body, vec3(1.0), shine * sheenBloom.x * exp(min(d, 0.0) / max(sheenBloom.y, 0.01)));
 
     // A press lights the glass from where it landed, brightest there and
     // spreading `press.z`, and the rim near it with it. The rim is a pixel,
