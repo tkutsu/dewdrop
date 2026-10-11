@@ -663,10 +663,11 @@ Singleton {
     // It is the one part of this that is animation rather than physics.
     readonly property int jumpCrouch: 1
     readonly property int jumpCrouchMs: 110
-    // A click pushes what it lands on down by this much for as long as the
-    // button is held. It is the same pixel as the crouch above, gathering under
-    // a finger rather than before a jump, and it does not animate: a press is
-    // a state, not a motion, and one pixel has nowhere to travel through.
+    // A click on a workspace's app icon pushes it down by this much for as
+    // long as the button is held: the same pixel as the crouch above,
+    // gathering under a finger rather than before a jump. Everything else in
+    // the bar answers a click through its glass instead (GlassPress), and
+    // keeps this as its tap handlers' margin.
     readonly property int pressDip: jumpCrouch
     // One bounce end to end, landing to landing, rest included. Three seconds
     // because that is the interval the alarm beats at (Timers.beatMs), and the

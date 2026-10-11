@@ -85,10 +85,18 @@ ClickArea {
     property int padLeft: 0
     property int padRight: 0
 
-    // The click's press-in: the contents dip a pixel while the button is held.
-    // A module that answers to several targets inside itself (Music) turns
-    // this off and dips each target on its own instead.
+    // The click's press-in: while a button with something to do is held, the
+    // glass under the contents lights (and swells) and the contents pop
+    // (PressGlass). A module that answers to several targets inside itself
+    // (Music) turns this off and presses each target on its own instead.
     property bool dips: true
+
+    PressGlass {
+        id: press
+        icon: layout
+        area: root
+        down: root.dips && (root.acting || pin.acting || opener.acting)
+    }
 
     // Wheel events arrive in 1/8-degree units and a single notch is 120 of
     // them. Free-spinning wheels and touchpads send fractions, so accumulate
@@ -293,9 +301,7 @@ ClickArea {
         // together rather than one after the other.
         opacity: root._fold * (root.reordering ? 0.35 : 1)
         spacing: Theme.gap
-        transform: Translate {
-            y: root.dips && (root.acting || pin.acting || opener.acting) ? Theme.pressDip : 0
-        }
+        scale: press.scale
     }
 
     // The pin mark: the badge's disc on the lower right corner, where the

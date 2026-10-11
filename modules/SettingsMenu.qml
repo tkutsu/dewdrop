@@ -128,6 +128,12 @@ OverlayWindow {
             title: "Bar",
             sections: [
                 {
+                    title: "Glass",
+                    rows: [
+                        { type: "choice", id: "pressFeedback", title: "When clicked", text: "Swell lights the glass from where you click and swells the pill under the icon, which springs back like gel. Light only lights it. With Reduce motion on it only lights.", options: [{ value: "swell", label: "Swell" }, { value: "light", label: "Light" }], get: () => Settings.pressFeedback, set: v => Settings.set("pressFeedback", v) }
+                    ]
+                },
+                {
                     title: "Workspaces",
                     rows: [
                         { type: "toggle", id: "groupWindows", title: "Group windows by app", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) }

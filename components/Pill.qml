@@ -312,13 +312,15 @@ Item {
         visible: root.drawsSlab
 
         // The same glass as the clock's, one box of it, with the edge lit
-        // from above like every other surface the shell draws.
+        // from above like every other surface the shell draws. Out past the
+        // slab by the bar's inset all round, for a press to swell it into.
         Liquid {
             anchors.fill: parent
+            anchors.margins: -Theme.barInset
             backdrop: root.backdrop
-            box0: Qt.vector4d(0, 0, width, height)
-            rimFrom: 0
-            rimTo: height
+            box0: Qt.vector4d(Theme.barInset, Theme.barInset, slab.width, slab.height)
+            rimFrom: Theme.barInset
+            rimTo: Theme.barInset + slab.height
         }
     }
 
