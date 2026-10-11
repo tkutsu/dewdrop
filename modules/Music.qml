@@ -214,8 +214,7 @@ BarItem {
     }
     // The title opens it (below), not the whole pill.
     popupButton: Qt.NoButton
-    // Each target presses in by itself, and the title, which opens the
-    // popup and so stands for the whole pill, presses them all in with it.
+    // Each target presses in by itself, the title included (PressGlass).
     dips: false
 
     actions: ({
@@ -260,15 +259,20 @@ BarItem {
             anchors.rightMargin: Theme.mediaGap
             height: parent.height
             text: Theme.glyph.mediaPrev
-            transform: Translate { y: prevTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
+            scale: prevPress.scale
 
-            // A margin of the dip's own depth, on every target. Each presses
-            // in by moving the item its handler hangs off, and a pointer on
-            // the screen's top pixel — the cheapest place on the bar to click
-            // — was left a pixel above the item it had pressed, which
-            // cancelled the tap before the button came up. BarItem's own click
-            // never had this: what dips there is the contents, not the
-            // MouseArea.
+            PressGlass {
+                id: prevPress
+                icon: prev
+                area: prevTap
+            }
+
+            // A pixel of margin on every target. Targets used to press in by
+            // dipping the item their handler hangs off, which left a pointer
+            // on the screen's top pixel — the cheapest place on the bar to
+            // click — above the item it had pressed and cancelled the tap.
+            // They grow from their middle now (PressGlass), but the margin
+            // keeps a press on that pixel landing whatever the press does.
             Accessible.role: Accessible.Button
             Accessible.name: "Previous track"
             Accessible.onPressAction: if (prevTap.enabled && enabled && visible)
@@ -323,9 +327,15 @@ BarItem {
             Layout.fillHeight: true
             implicitWidth: root.handsOut || !bare ? full : 0
             clip: width < full
-            transform: Translate { y: playTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
             opacity: root.swapOpacity * width / full
-            scale: 0.92 + 0.08 * root.swapOpacity
+            // Shrunk a little through the sleeve's swap, and popped by a press.
+            scale: (0.92 + 0.08 * root.swapOpacity) * playPress.scale
+
+            PressGlass {
+                id: playPress
+                icon: slot
+                area: playTap
+            }
             layer.enabled: root.swapOpacity < 1
             layer.smooth: true
             layer.effect: MultiEffect {
@@ -428,7 +438,13 @@ BarItem {
 
             Layout.fillHeight: true
             implicitWidth: title.implicitWidth
-            transform: Translate { y: popupTap.pressed ? Theme.pressDip : 0 }
+            scale: titlePress.scale
+
+            PressGlass {
+                id: titlePress
+                icon: titleRoom
+                area: popupTap
+            }
 
             Accessible.role: Accessible.Button
             Accessible.name: "Music"
@@ -507,7 +523,13 @@ BarItem {
             x: Theme.mediaGap
             height: parent.height
             text: Theme.glyph.mediaNext
-            transform: Translate { y: nextTap.pressed || popupTap.pressed ? Theme.pressDip : 0 }
+            scale: nextPress.scale
+
+            PressGlass {
+                id: nextPress
+                icon: next
+                area: nextTap
+            }
 
             Accessible.role: Accessible.Button
             Accessible.name: "Next track"

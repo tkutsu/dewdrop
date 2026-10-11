@@ -63,6 +63,11 @@
     "reduceMotion": false,
     "reduceTransparency": false,
 
+    // How the bar's glass answers a click: "swell" lights it from where the
+    // click landed and swells the pill under the icon, which springs back
+    // like gel; "light" only lights it. Reduce motion makes it "light".
+    "pressFeedback": "swell",
+
     // --- apps it opens -----------------------------------------------------
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is
