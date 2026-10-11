@@ -92,7 +92,6 @@ ShaderEffect {
     // The pointer's light (GlassLight), for glass in the window the pointer
     // is over.
     readonly property bool lit: takesPress && GlassLight.window !== null && GlassLight.window === QsWindow.window && GlassLight.presence > 0
-    property vector4d light: lit ? Qt.vector4d(GlassLight.x - windowPos.x, GlassLight.y - windowPos.y, Theme.glassLampHeight, Theme.glassLamp * GlassLight.presence) : Qt.vector4d(0, 0, 1, 0)
     property vector4d hover: lit ? Qt.vector4d(GlassLight.x - windowPos.x, GlassLight.y - windowPos.y, Theme.glassHoverSpread, Theme.glassHover * GlassLight.presence) : Qt.vector4d(0, 0, 1, 0)
 
     // None under Reduce transparency: the shader then lays Theme.barBg, which

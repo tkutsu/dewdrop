@@ -8,8 +8,7 @@ import Quickshell
 // and how present it is, coming up as the pointer reaches the bar and going
 // as it leaves. The shell only hears of the pointer while it is over a bar,
 // so that is where the light is. Each piece of glass in that window draws it
-// (Liquid.qml): the bevel round its rim catches it, and the glass glows a
-// little under the pointer. Kept by Bar.qml.
+// (Liquid.qml) as a faint glow under the pointer. Kept by Bar.qml.
 Singleton {
     id: root
 

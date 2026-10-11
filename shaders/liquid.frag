@@ -68,11 +68,9 @@ layout(std140, binding = 0) uniform buf {
     // A press on this glass (GlassPress.qml): where it landed (x, y), how
     // far its light spreads (z), and how lit it is now (w, 0 at rest).
     vec4 press;
-    // The pointer as a lamp (GlassLight.qml): where it is (x, y), how far
-    // above the screen (z), and how strong (w, 0 with no pointer on the bar).
-    vec4 light;
-    // A glow in the glass under the pointer: where (x, y), how far it
-    // spreads (z), and how strong (w).
+    // A glow in the glass under the pointer (GlassLight.qml): where (x, y),
+    // how far it spreads (z), and how strong (w, 0 with no pointer on the
+    // bar).
     vec4 hover;
 };
 
@@ -214,27 +212,16 @@ void main() {
         rim = vec4(mix(rim.rgb, vec3(1.0), edge), clamp(rim.a + edge, 0.0, 1.0));
     }
 
-    // The pointer's light. The last 4px before the edge are a bevel, flat
-    // inside and turning out towards the edge; a lamp at the pointer catches
-    // it where it turns towards the lamp (Blinn-Phong, seen from straight
-    // above), and glints a little where its light leaves on the far side.
-    // Under the pointer the glass glows faintly too.
-    if (light.w > 0.0 || hover.w > 0.0) {
-        vec2 out_ = normalize(grad + 1e-6);
-        float s = clamp(1.0 + d / 4.0, 0.0, 1.0);
-        vec3 normal = normalize(vec3(out_ * s, 1.0 - 0.6 * s));
-        vec3 toLamp = normalize(vec3(light.xy - p, light.z));
-        vec3 outFar = normalize(vec3(p - light.xy, light.z));
-        float near = pow(max(dot(normal, normalize(toLamp + vec3(0.0, 0.0, 1.0))), 0.0), 8.0);
-        float far = pow(max(dot(normal, normalize(outFar + vec3(0.0, 0.0, 1.0))), 0.0), 8.0);
-        float sheen = light.w * (near + 0.35 * far) * s;
+    // The pointer's light: the glass glows faintly under the pointer, and
+    // the last 4px before the edge, a bevel turning out to the rim, catch a
+    // little more of it, with the rim near it.
+    if (hover.w > 0.0) {
         vec2 off = (p - hover.xy) / max(hover.z, 1.0);
         float g = hover.w * exp(-dot(off, off));
-        body = mix(body, vec3(1.0), g * 0.12);
-        sheen += g * 0.5 * s;
-        body = mix(body, vec3(1.0), clamp(sheen * 0.5, 0.0, 1.0));
-        body = mix(body, vec3(1.0), clamp(sheen * 0.35 * exp(min(d, 0.0) / 2.0), 0.0, 1.0));
-        rim = vec4(mix(rim.rgb, vec3(1.0), clamp(sheen, 0.0, 1.0)), clamp(rim.a + sheen, 0.0, 1.0));
+        float s = clamp(1.0 + d / 4.0, 0.0, 1.0);
+        body = mix(body, vec3(1.0), g * (0.12 + 0.25 * s));
+        float edge = g * 0.5 * s;
+        rim = vec4(mix(rim.rgb, vec3(1.0), edge), clamp(rim.a + edge, 0.0, 1.0));
     }
 
     // Rim over the body, premultiplied.
