@@ -1,8 +1,6 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Widgets
 import qs
 import qs.components
 import qs.services
@@ -10,7 +8,7 @@ import qs.services
 // The music pill: what is playing, and when pointed at, a hand either side of
 // it. The title opens the popup — it is the widest thing in the pill and the
 // one you are already looking at, so it is also the cheapest to hit. The
-// sleeve's slot is play/pause, and so is a right click anywhere on the pill.
+// glyph beside it is play/pause, and so is a right click anywhere on the pill.
 //
 // The four left targets are TapHandlers rather than the BarItem's own click,
 // which only has the right button here: one module, four targets, and a
@@ -86,7 +84,6 @@ BarItem {
     // The track's colour, taken off the sleeve the way Apple Music tints what
     // is playing: the record's most vivid colour, lifted to read on dark
     // glass. A grey or colourless sleeve, or none, leaves the line white.
-    // Off the shown sleeve, so it turns with the swap rather than ahead of it.
     ColorQuantizer {
         id: palette
         source: root.shownCover
@@ -121,24 +118,22 @@ BarItem {
         }
     }
 
-    // The sleeve changes while faded out; the titles overlap as the pill
-    // springs to the arriving title's width.
+    // The titles overlap as the pill springs to the arriving title's width.
     function follow() {
         if (!Mpd.loaded || (Mpd.label === root.shownLabel && Mpd.cover === root.shownCover))
             return;
-        if (root.settled) {
-            swap.restart();
-        } else {
+        if (Mpd.label !== root.shownLabel) {
             titleFade.stop();
-            root.outgoingLabel = "";
-            root.titleMix = 1;
+            root.outgoingLabel = root.settled ? root.shownLabel : "";
             root.shownLabel = Mpd.label;
-            root.shownCover = Mpd.cover;
+            root.titleMix = 1;
+            if (root.outgoingLabel)
+                titleFade.restart();
         }
+        root.shownCover = Mpd.cover;
     }
 
-    property real swapOpacity: 1
-    contentAnimating: swap.running || titleFade.running || previousWidth.running || slotWidth.running || titleWidth.running || nextWidth.running
+    contentAnimating: titleFade.running || previousWidth.running || titleWidth.running || nextWidth.running
 
     NumberAnimation {
         id: titleFade
@@ -149,41 +144,6 @@ BarItem {
         duration: Theme.foldMs
         easing.type: Easing.InOutCubic
         onFinished: root.outgoingLabel = ""
-    }
-
-    SequentialAnimation {
-        id: swap
-
-        NumberAnimation {
-            target: root
-            property: "swapOpacity"
-            to: 0
-            duration: Theme.fadeMs / 2
-            easing.type: Easing.InQuad
-        }
-        ScriptAction {
-            script: {
-                if (!Mpd.loaded)
-                    return;
-                if (root.shownLabel !== Mpd.label) {
-                    titleFade.stop();
-                    root.outgoingLabel = root.shownLabel;
-                    root.shownLabel = Mpd.label;
-                    if (root.outgoingLabel)
-                        titleFade.restart();
-                    else
-                        root.titleMix = 1;
-                }
-                root.shownCover = Mpd.cover;
-            }
-        }
-        NumberAnimation {
-            target: root
-            property: "swapOpacity"
-            to: 1
-            duration: Theme.foldMs
-            easing.type: Easing.OutCubic
-        }
     }
 
     Connections {
@@ -221,9 +181,8 @@ BarItem {
             [Qt.RightButton]: () => Mpd.toggle()
         })
 
-    // The controls, out only while the pill is pointed at: at rest it is the
-    // sleeve and the title, and reached for it opens out into prev, play and
-    // next. Held out while the popup is up, which the pointer leaves the pill
+    // The hands, out only while the pill is pointed at: at rest it is play
+    // and the title, and reached for it opens out into prev, play and next. Held out while the popup is up, which the pointer leaves the pill
     // to get to — folding then would slide the popup out from under it.
     readonly property bool handsOut: root.containsMouse || root.popupOpen
 
@@ -287,11 +246,9 @@ BarItem {
         }
     }
 
-    // The sleeve blurs and fades through its swap; the title crossfades
-    // separately so the width's rebound never blanks the whole row.
     RowLayout {
         Layout.fillHeight: true
-        // The sleeve brings the gap after it, so the two come and go together.
+        // The play button brings the gap after it.
         spacing: 0
 
         // With another module's popup up, resting on the title opens this
@@ -301,17 +258,10 @@ BarItem {
             onHoveredChanged: OpenPopup.browse(root, hovered)
         }
 
-        // The sleeve, as the title's own icon and the pill's play button. It
-        // is the one spot of colour on a bar that is otherwise white on dark,
-        // and it changes with every record — the thing that says which album
-        // this is before the title has been read. The popup already had the
-        // picture; this is a thumbnail of the same file.
-        //
-        // Icon-sized and only just rounded, so it reads as part of the row
-        // rather than as a second pill inside this one. With the hands out it
-        // gives its place to a play or pause mark between them, so the three
-        // controls read as one row; at rest the picture is back. Without a
-        // sleeve, the slot and its gap fold away until the controls come out.
+        // The pill's play button. Out at rest too, so pausing takes one click
+        // rather than a reach for the pill first; with the hands out it sits
+        // between them, and the three controls read as one row. The sleeve
+        // lives in the popup, and still tints the line (accent above).
         // The gap after it presses with it.
         Item {
             id: slot
@@ -320,79 +270,26 @@ BarItem {
             HoverHandler { id: playHover }
 
             readonly property int size: 14
-            readonly property int air: (Theme.barHeight - size) / 2
-            readonly property int full: size + Theme.mediaGap
-            readonly property bool bare: sleeve.status === Image.Null || sleeve.status === Image.Error
 
             Layout.fillHeight: true
-            implicitWidth: root.handsOut || !bare ? full : 0
-            clip: width < full
-            opacity: root.swapOpacity * width / full
-            // Shrunk a little through the sleeve's swap, and popped by a press.
-            scale: (0.92 + 0.08 * root.swapOpacity) * playPress.scale
+            implicitWidth: size + Theme.mediaGap
+            scale: playPress.scale
 
             PressGlass {
                 id: playPress
                 icon: slot
                 area: playTap
             }
-            layer.enabled: root.swapOpacity < 1
-            layer.smooth: true
-            layer.effect: MultiEffect {
-                blurEnabled: true
-                blurMax: 12
-                blur: 1 - root.swapOpacity
-            }
-
-            Behavior on implicitWidth {
-                enabled: root.settled
-                NumberAnimation {
-                    id: slotWidth
-                    duration: Theme.foldMs
-                    easing.type: Easing.InOutCubic
-                }
-            }
 
             Accessible.role: Accessible.Button
             Accessible.name: Mpd.state === "play" ? "Pause music" : "Play music"
-            Accessible.onPressAction: if (playTap.enabled && enabled && visible)
+            Accessible.onPressAction: if (enabled && visible)
                 Mpd.toggle()
 
             TapHandler {
                 id: playTap
-                enabled: root.handsOut || !slot.bare
                 margin: Theme.pressDip
                 onTapped: Mpd.toggle()
-            }
-
-            ClippingRectangle {
-                y: Theme.pillTop(parent.height) + parent.air
-                width: parent.size
-                height: parent.size
-                radius: 3
-                color: "transparent"
-
-                Image {
-                    id: sleeve
-
-                    anchors.fill: parent
-                    source: root.shownCover
-                    fillMode: Image.PreserveAspectCrop
-                    // Decoded at the size it is drawn in screen pixels, not at
-                    // the size of the scan: some of these are 1400px across.
-                    sourceSize.width: Math.ceil(parent.width * (QsWindow.window?.devicePixelRatio ?? 1))
-                    sourceSize.height: Math.ceil(parent.height * (QsWindow.window?.devicePixelRatio ?? 1))
-                    asynchronous: true
-                    smooth: true
-                    mipmap: true
-                    opacity: status === Image.Ready && !root.handsOut ? 1 : 0
-
-                    Behavior on opacity {
-                        NumberAnimation {
-                            duration: Theme.fadeMs
-                        }
-                    }
-                }
             }
 
             // What pressing it will do, as the popup's own button shows it.
@@ -400,13 +297,6 @@ BarItem {
                 x: Math.round((slot.size - width) / 2)
                 height: parent.height
                 text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
-                opacity: root.handsOut ? 1 : 0
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: Theme.fadeMs
-                    }
-                }
             }
         }
 
