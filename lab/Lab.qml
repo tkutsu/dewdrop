@@ -18,10 +18,13 @@ PanelWindow {
             bead: Qt.size(560, 440),
             light: Qt.size(1200, 290),
             edges: Qt.size(540, 270),
-            popupgel: Qt.size(1200, 300),
+            popupgel: Qt.size(1500, 300),
             popupdew: Qt.size(1200, 300),
             realpress: Qt.size(400, 180),
-            compile: Qt.size(10, 10)
+            compile: Qt.size(10, 10),
+            underedge: Qt.size(1200, 290),
+            realslider: Qt.size(400, 140),
+            reallight: Qt.size(400, 80)
         })
     readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
 
@@ -31,8 +34,14 @@ PanelWindow {
     anchors.bottom: true
     implicitWidth: sizes[scene].width
     implicitHeight: sizes[scene].height
-    mask: Region {}
+    // No input, but for a scene that asks for it (a real control under a
+    // synthetic pointer).
+    mask: win.scene === "realslider" ? null : noInput
     color: "black"
+
+    Region {
+        id: noInput
+    }
 
     Item {
         id: stage
