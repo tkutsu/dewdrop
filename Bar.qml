@@ -116,7 +116,7 @@ PanelWindow {
     // Hyprland's own window gap (general:gaps_out), the same gap that puts a
     // tiled window's left edge level with the left pill, so the bar reserves
     // only what that gap does not already give: the inset less the gap, which
-    // at a 4px inset and an 8px gap stops four pixels short of the pills' foot.
+    // at a 5px inset and an 8px gap stops three pixels short of the pills' foot.
     //
     // A lone or fullscreen window goes edge to edge on the other three sides
     // but keeps that top gap (the smart-gaps rules in hypr/configs/tags.lua),
@@ -165,7 +165,19 @@ PanelWindow {
         side: Pill.Side.Left
         backdrop: wallpaperImage
 
-        Workspaces {}
+        Workspaces {
+            id: workspaces
+            drawsMark: !beadMark.active
+        }
+    }
+
+    // The workspace mark's glass, over the pill it moves in, which it bends.
+    BeadMark {
+        id: beadMark
+        anchors.fill: parent
+        mark: workspaces.markItem
+        pillItem: leftPill
+        wallpaperItem: wallpaperImage
     }
 
     // Glass and badge colours follow the desktop's exact wallpaper blend.
