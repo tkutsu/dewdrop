@@ -88,9 +88,16 @@ BarItem {
             readonly property bool off: /disabled|offline|no-connection|-off\b/.test(String(modelData.icon))
                 || glyph === Theme.glyph.vpnOff
 
-            // Where the icon is drawn against its line: bouncing for attention,
-            // pressed in under the pointer, or both at once.
-            readonly property real shift: bounce.offset + (pointer.acting ? Theme.pressDip : 0)
+            // Where the icon is drawn against its line, bouncing for attention.
+            readonly property real shift: bounce.offset
+
+            // A click lights the glass under it and pops the icon.
+            PressGlass {
+                id: press
+                icon: entry
+                area: pointer
+                down: pointer.acting
+            }
 
             // Kept in the drawer and the drawer shut: folded out of the row.
             readonly property bool tucked: DrawerPins.kept("tray:" + modelData.id) && !root.drawerOut && !DrawerPins.pinned(root.pinKey)
@@ -139,6 +146,7 @@ BarItem {
                 // is measured now, so the guess and the exception both go: an
                 // icon that fills its box is drawn smaller whoever sent it.
                 ink: Theme.iconInk
+                scale: press.scale
                 transform: Translate {
                     y: entry.shift
                 }
@@ -154,6 +162,7 @@ BarItem {
                 text: entry.glyph
                 fontSize: Theme.trayGlyphSize - (entry.glyph === Theme.glyph.vpn || entry.glyph === Theme.glyph.vpnOff ? 1 : 0)
                 nudge: entry.glyph === Theme.glyph.vpn || entry.glyph === Theme.glyph.vpnOff ? -1 : 0
+                scale: press.scale
                 transform: Translate {
                     y: entry.shift
                 }

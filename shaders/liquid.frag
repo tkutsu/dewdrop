@@ -65,6 +65,18 @@ layout(std140, binding = 0) uniform buf {
     // its top and bottom, and how much brighter the rim is where it bends.
     float capBend;
     float glow;
+    // A press on this glass (GlassPress.qml): where it landed (x, y), how
+    // far its light spreads (z), and how lit it is now (w, 0 at rest).
+    vec4 press;
+    // And the swell under the pressed icon: a box taller than the slab that
+    // the glass grows into, like a bulge. A width of zero is none.
+    vec4 pressSwell;
+    // The pointer as a lamp (GlassLight.qml): where it is (x, y), how far
+    // above the screen (z), and how strong (w, 0 with no pointer on the bar).
+    vec4 light;
+    // A glow in the glass under the pointer: where (x, y), how far it
+    // spreads (z), and how strong (w).
+    vec4 hover;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -102,10 +114,13 @@ float field(vec2 p) {
     float s1 = swell(bulge1);
     float k0 = min(8.0, s0 * 3.0);
     float k1 = min(8.0, s1 * 3.0);
+    float s2 = swell(pressSwell);
+    float k2 = min(8.0, s2 * 3.0);
 
     float d = box(p, box0);
     d = smin(d, box(p, bulge0), k0);
     d = smin(d, box(p, bulge1), k1);
+    d = smin(d, box(p, pressSwell), k2);
     d = smin(d, box(p, box1), reaches.y);
     d = smin(d, box(p, box2), reaches.z);
     d = smin(d, box(p, box3), reaches.w);
@@ -113,9 +128,9 @@ float field(vec2 p) {
     // The smooth minimum swells a join out in every direction, which made
     // the glass taller than a pill wherever two met, and only on top: the
     // bar's window ends at the slabs' bottom edge. Held to the slab's height,
-    // so a join only ever fills out sideways. A bulge is let through, and
-    // what its blend rounds it out by.
-    float proud = max(s0 + k0 * 0.25, s1 + k1 * 0.25);
+    // so a join only ever fills out sideways. A bulge or a press's swell is
+    // let through, and what its blend rounds it out by.
+    float proud = max(max(s0 + k0 * 0.25, s1 + k1 * 0.25), s2 + k2 * 0.25);
     return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
 }
 
@@ -191,6 +206,41 @@ void main() {
         float alpha = mix(fill.a, 1.0, glass);
         body = mix(fill.rgb * fill.a, glassBody, glass) / max(alpha, 1e-6);
         bodyA = alpha * shape;
+    }
+
+    // A press lights the glass from where it landed, brightest there and
+    // spreading `press.z`, and the rim near it with it. The rim is a pixel,
+    // so its light also spills a couple of pixels in from the edge.
+    if (press.w > 0.0) {
+        vec2 off = p - press.xy;
+        float lit = press.w * exp(-dot(off, off) / max(press.z * press.z, 1.0));
+        body = mix(body, vec3(1.0), lit * 0.4);
+        float edge = lit * 0.5;
+        body = mix(body, vec3(1.0), clamp(edge * 0.35 * exp(min(d, 0.0) / 2.0), 0.0, 1.0));
+        rim = vec4(mix(rim.rgb, vec3(1.0), edge), clamp(rim.a + edge, 0.0, 1.0));
+    }
+
+    // The pointer's light. The last 4px before the edge are a bevel, flat
+    // inside and turning out towards the edge; a lamp at the pointer catches
+    // it where it turns towards the lamp (Blinn-Phong, seen from straight
+    // above), and glints a little where its light leaves on the far side.
+    // Under the pointer the glass glows faintly too.
+    if (light.w > 0.0 || hover.w > 0.0) {
+        vec2 out_ = normalize(grad + 1e-6);
+        float s = clamp(1.0 + d / 4.0, 0.0, 1.0);
+        vec3 normal = normalize(vec3(out_ * s, 1.0 - 0.6 * s));
+        vec3 toLamp = normalize(vec3(light.xy - p, light.z));
+        vec3 outFar = normalize(vec3(p - light.xy, light.z));
+        float near = pow(max(dot(normal, normalize(toLamp + vec3(0.0, 0.0, 1.0))), 0.0), 8.0);
+        float far = pow(max(dot(normal, normalize(outFar + vec3(0.0, 0.0, 1.0))), 0.0), 8.0);
+        float sheen = light.w * (near + 0.35 * far) * s;
+        vec2 off = (p - hover.xy) / max(hover.z, 1.0);
+        float g = hover.w * exp(-dot(off, off));
+        body = mix(body, vec3(1.0), g * 0.12);
+        sheen += g * 0.5 * s;
+        body = mix(body, vec3(1.0), clamp(sheen * 0.5, 0.0, 1.0));
+        body = mix(body, vec3(1.0), clamp(sheen * 0.35 * exp(min(d, 0.0) / 2.0), 0.0, 1.0));
+        rim = vec4(mix(rim.rgb, vec3(1.0), clamp(sheen, 0.0, 1.0)), clamp(rim.a + sheen, 0.0, 1.0));
     }
 
     // Rim over the body, premultiplied.
