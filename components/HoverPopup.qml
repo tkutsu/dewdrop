@@ -74,11 +74,12 @@ Item {
         onTriggered: root.settled = true
     }
 
-    // Keep the surface through the 140 ms exit and its final frame.
+    // Keep the surface through the exit and its final frame: the 140 ms
+    // fade, or a popover's morph back into its pill (Popup.exitMs).
     Linger {
         id: lifetime
         shown: root.wanted
-        hold: 160
+        hold: loader.item?.exitMs ?? 160
     }
 
     Loader {
