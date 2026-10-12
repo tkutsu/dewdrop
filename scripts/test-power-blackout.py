@@ -2,7 +2,6 @@
 """Exercise power menu dismissal and the CRT handoff with harmless commands."""
 
 from pathlib import Path
-import os
 import runpy
 import shutil
 import tempfile
@@ -25,6 +24,8 @@ QtObject {
     property string bodyFont: "sans-serif"
     property int labelSize: 14
     property int bodyWeight: Font.Normal
+    property real switchSpring: 2.5
+    property real switchDamping: 0.14
     property var glyph: ({powerSuspend: "", powerReboot: "", powerShutdown: "", powerLogout: "", powerKill: ""})
 }''',
     'Paths.qml': '''pragma Singleton
@@ -57,6 +58,7 @@ Item { property vector4d box0; property real rimFrom; property real rimTo; prope
     'components/FlowMark.qml': '''import QtQuick
 Item {
     property bool resetWhenHidden; property bool held; property real slabHeight
+    property real spring; property real damping
     property real wantLeft; property real wantRight; property bool atFirst; property bool atLast
     property real wallLeft; property real wallRight
 }''',
@@ -77,13 +79,14 @@ ShellRoot {
             id: test
             when: false
             function check(ok, message) { if (!ok) throw Error(message); }
+            // The entrance waits on the wallpaper, so poll rather than guess its length.
+            function settle(ok) { for (let t = 0; t < 2000 && !ok(); t += 20) wait(20); return ok(); }
             function open() {
                 Power.blackout = false;
                 Power.shown = true;
-                wait(600);
-                check(menu.item !== null && menu.item.reveal === 1, "menu finishes appearing");
+                check(settle(() => menu.item !== null && menu.item.reveal === 1), "menu finishes appearing");
                 check(menu.item.shade === 0, "wallpaper stays visible before an action");
-                check(menu.item.widthRatio === 1 && menu.item.contentAlpha === 1, "launcher-style entrance settles");
+                check(settle(() => menu.item.contentAlpha === 1), "popover-style entrance settles");
             }
             function checkPointer() {
                 open();
@@ -106,12 +109,10 @@ ShellRoot {
             function run() {
                 open();
                 menu.item.execute("--suspend");
-                wait(950);
-                check(!Power.shown && Power.blackout && menu.item !== null, "Sleep keeps the desktop covered after the CRT and queued request");
-                check(menu.item.reveal === 1 && menu.item.shade === 1, "Sleep keeps the final frame black");
-                wait(1300);
-                check(!Power.blackout && !Power.active && menu.item === null, "wake signal restores the desktop");
-                console.log("PASS: Sleep holds black until the wake signal");
+                check(!Power.shown && !Power.blackout && menu.item.shade === 0, "Sleep closes the menu at once, without the CRT");
+                wait(300);
+                check(!Power.active && menu.item === null, "nothing stays mapped through Sleep");
+                console.log("PASS: Sleep holds no surface across suspend");
                 for (const reduced of [false, true]) {
                     Theme.reduceMotion = reduced;
                     for (const action of reduced ? ["--logout"] : ["--logout", "--reboot", "--poweroff"]) {
@@ -161,10 +162,6 @@ def main():
         for name in ('components', 'modules', 'services'):
             (target / name).mkdir()
         (target / 'runtime').mkdir(mode=0o700)
-        (target / 'bin').mkdir()
-        monitor = target / 'bin/gdbus'
-        monitor.write_text('#!/bin/sh\nsleep 1.2\nprintf "%s\\n" "/org/freedesktop/login1: org.freedesktop.login1.Manager.PrepareForSleep (false,)"\nsleep 1\n')
-        monitor.chmod(0o700)
         for name in ('Linger.qml', 'services/Power.qml'):
             shutil.copyfile(ROOT / name, target / name)
         # Offscreen Qt has no layer shell; only replace the platform window/focus.
@@ -173,13 +170,8 @@ def main():
         (target / 'modules/PowerMenu.qml').write_text(source)
         for name, source in STUBS.items():
             (target / name).write_text(source)
-        original_path = os.environ['PATH']
-        try:
-            os.environ['PATH'] = str(target / 'bin') + ':' + original_path
-            support['run_shell'](target, SCENARIO.replace('test.run();', 'test.checkPointer();'))
-            support['run_shell'](target, SCENARIO)
-        finally:
-            os.environ['PATH'] = original_path
+        support['run_shell'](target, SCENARIO.replace('test.run();', 'test.checkPointer();'))
+        support['run_shell'](target, SCENARIO)
 
 
 if __name__ == '__main__':
