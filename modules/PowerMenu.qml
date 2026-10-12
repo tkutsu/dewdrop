@@ -28,11 +28,15 @@ OverlayWindow {
     readonly property var backdrop: Wallpaper.backdrops[root.screen?.name] ?? null
     readonly property var wallpaper: root.backdrop?.front ?? null
     readonly property bool wallpaperReady: !!root.backdrop?.ready && (!root.wallpaper.path || wallpaperImage.status === Image.Ready)
-    // The pill and the backdrop open together, once the wallpaper is ready.
+    // The backdrop opens once the wallpaper is ready, and the pill after it.
     property bool gaveUp: false
     readonly property bool backdropReady: root.wallpaperReady || root.gaveUp
     // Keep the final black frame opaque until the compositor exits.
-    property real reveal: (root.opened || Power.blackout) && root.backdropReady ? 1 : 0
+    readonly property bool revealed: (root.opened || Power.blackout) && root.backdropReady
+    property real reveal: root.revealed ? 1 : 0
+    // The wallpaper crossfades over the desktop on its way in, slow enough
+    // to read as a crossfade rather than a cut; it leaves at the reveal's pace.
+    readonly property int crossfadeMs: 300
     property real shade: root.closing ? 1 : 0
     property real vertical: 1
     property real horizontal: 1
@@ -59,7 +63,7 @@ OverlayWindow {
 
     SequentialAnimation {
         id: entrance
-        PauseAnimation { duration: Theme.revealMs }
+        PauseAnimation { duration: root.crossfadeMs }
         ParallelAnimation {
             NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1] }
             NumberAnimation { target: root; property: "contentShift"; to: 0; duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1] }
@@ -91,8 +95,8 @@ OverlayWindow {
 
     Behavior on reveal {
         NumberAnimation {
-            duration: Theme.revealMs
-            easing.type: Easing.OutCubic
+            duration: root.revealed ? root.crossfadeMs : Theme.revealMs
+            easing.type: root.revealed ? Easing.InOutQuad : Easing.OutCubic
         }
     }
 
@@ -283,7 +287,7 @@ OverlayWindow {
         Rectangle {
             anchors.fill: parent
             color: "black"
-            opacity: 0.15
+            opacity: 0.25
         }
 
         // Fade to black for the CRT exit and hold through session teardown.
