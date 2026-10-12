@@ -14,13 +14,15 @@ import qs
 ShaderEffect {
     required property Flickable view
     property real reach: Theme.scrollEdge
+    property real topReach: reach
+    property real bottomReach: reach
 
     readonly property real span: height
     // How far the content has run on past each edge, margins and all: a view
     // padded inside (SettingsMenu's) softens as soon as a row enters the
     // padding rather than once it has crossed it.
-    readonly property real fadeTop: Math.min(reach, Math.max(0, view.contentY - view.originY + view.topMargin))
-    readonly property real fadeBottom: Math.min(reach, Math.max(0, view.originY + view.contentHeight + view.bottomMargin - view.height - view.contentY))
+    readonly property real fadeTop: Math.min(topReach, Math.max(0, view.contentY - view.originY + view.topMargin))
+    readonly property real fadeBottom: Math.min(bottomReach, Math.max(0, view.originY + view.contentHeight + view.bottomMargin - view.height - view.contentY))
 
     fragmentShader: Qt.resolvedUrl("../shaders/edge.frag.qsb")
 }

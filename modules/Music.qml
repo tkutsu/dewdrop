@@ -334,7 +334,8 @@ BarItem {
 
             TapHandler {
                 id: popupTap
-                margin: Theme.pressDip
+                // Keep the top screen pixel inside the target as it shrinks.
+                margin: Theme.barInset
                 onTapped: root.togglePopup()
             }
 

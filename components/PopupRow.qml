@@ -35,23 +35,33 @@ Item {
 
     signal tapped
 
-    Rectangle {
-        anchors.fill: parent
-        radius: Theme.selectionRadius
-        color: root.hovered ? Theme.selection : "transparent"
-    }
-
     HoverHandler {
         id: hover
     }
 
     TapHandler {
+        id: tap
         gesturePolicy: root.gesturePolicy
         onTapped: root.tapped()
+    }
+
+    PressGlass {
+        id: press
+        icon: body
+        area: tap
+        down: root.name !== "" && tap.pressed
     }
 
     Item {
         id: body
         anchors.fill: parent
+        // Keep the hit area fixed while the selection and contents press in.
+        scale: press.scale
+
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.selectionRadius
+            color: root.hovered ? Theme.selection : "transparent"
+        }
     }
 }

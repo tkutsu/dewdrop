@@ -76,12 +76,9 @@ Item {
     // --- the bead -----------------------------------------------------------
     // Held, the knob turns into a bead of glass the track shows through, bent
     // hard round its rim (shaders/bead.frag), and back into the knob when let
-    // go. With sliderKnob "gel" the bead trails a tail on a firm spring, which
-    // grows with the drag's speed and catches up when it stops. Under Reduce
-    // motion it is the plain bead, grown without running past; under Reduce
+    // go. Under Reduce motion it grows without running past; under Reduce
     // transparency there is no glass, only the knob.
     readonly property bool beads: knob && !trackGradient && !Theme.reduceTransparency
-    readonly property bool trails: Settings.sliderKnob === "gel" && !Theme.reduceMotion
     readonly property int knobSize: height - 2
     readonly property int beadSize: 22
     // Room round the slider for the bead, and the knob's middle.
@@ -96,19 +93,6 @@ Item {
             epsilon: 0.02
         }
     }
-    property real tailX: knobX
-    Behavior on tailX {
-        enabled: root.trails
-        SpringAnimation {
-            spring: 9
-            damping: 0.6
-            epsilon: 0.05
-        }
-    }
-    // How far the tail trails, easing into 10px rather than stopping at it,
-    // so a faster drag always pulls it a little further.
-    readonly property real lag: trails ? 10 * Math.tanh((tailX - knobX) / 10) : 0
-    readonly property real tailR: Math.min(beadR, beadR * 0.75 + beadR * 0.25 * Math.max(0, 1 - Math.abs(lag) / 6))
     property real clear: area.pressed && beads ? 1 : 0
     Behavior on clear {
         NumberAnimation {
@@ -118,7 +102,7 @@ Item {
     }
     // Drawn by the shader only while there is glass to draw; at rest the
     // track and knob below are the slider.
-    readonly property bool glassy: beads && (clear > 0.001 || Math.abs(beadR - knobSize / 2) > 0.05 || Math.abs(lag) > 0.05)
+    readonly property bool glassy: beads && (clear > 0.001 || Math.abs(beadR - knobSize / 2) > 0.05)
 
     ShaderEffectSource {
         id: trackTexture
@@ -139,7 +123,6 @@ Item {
         property var source: trackTexture
         readonly property size size: Qt.size(width, height)
         readonly property vector4d head: Qt.vector4d(root.room + root.knobX, height / 2, root.beadR, 0)
-        readonly property vector4d tail: Qt.vector4d(root.room + root.knobX + root.lag, height / 2, root.tailR, 0)
         readonly property real clear: root.clear
         readonly property real bend: 11 * root.clear
         readonly property real depth: 0.4
