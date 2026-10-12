@@ -29,6 +29,7 @@ Singleton {
     readonly property var screens: root.values.screens ?? []
     readonly property bool groupWindows: root.values.groupWindows ?? true
     readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
+    readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
     readonly property string font: root.values.font ?? ""
     readonly property string monoFont: root.values.monoFont ?? ""
@@ -36,11 +37,11 @@ Singleton {
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? "xdg-open"
     readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters", "libreoffice-startcenter"]
+    readonly property bool showDesktopActions: root.values.showDesktopActions ?? false
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
     readonly property bool reduceMotion: root.values.reduceMotion ?? false
     readonly property bool reduceTransparency: root.values.reduceTransparency ?? false
-    readonly property string sliderKnob: root.values.sliderKnob === "gel" ? "gel" : "bead"
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")
@@ -54,6 +55,12 @@ Singleton {
         const user = Object.assign({}, root.user, { [key]: value });
         root.user = user;
         userFile.setText("// This machine's settings over settings.default.json, which documents\n// each one. The settings window (the gear) rewrites this file.\n" + JSON.stringify(user, null, 4) + "\n");
+    }
+
+    // Switch the clock and alarms together, keeping seconds if they are shown.
+    function setTwelveHour(enabled: bool): void {
+        const seconds = root.timeFormat.includes("s");
+        root.set("timeFormat", enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm"));
     }
 
     // A list setting with `item` put in or taken out.

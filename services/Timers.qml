@@ -155,7 +155,7 @@ Singleton {
     }
 
     function hhmm(h: int, m: int): string {
-        return Parse.hhmm(h, m);
+        return Parse.hhmm(h, m, Settings.twelveHour);
     }
 
     // Rounded up, so a 25 minute timer reads 25:00 for its first second rather
@@ -460,7 +460,7 @@ Singleton {
     }
 
     function brief(text: string, parsed: var): string {
-        return Parse.brief(text, parsed);
+        return Parse.brief(text, parsed, Settings.twelveHour);
     }
 
     // Parse and act. The one entry point the prompt and the IPC both use, so

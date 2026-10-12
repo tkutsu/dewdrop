@@ -28,6 +28,7 @@ Rectangle {
         color: Theme.fg
         selectionColor: Theme.textSelection
         selectedTextColor: Theme.fg
+        cursorDelegate: TextCaret { textInput: input }
         selectByMouse: true
         font.family: Theme.bodyFont
         font.pixelSize: Theme.captionSize

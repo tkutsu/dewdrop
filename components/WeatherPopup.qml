@@ -223,6 +223,7 @@ Popup {
                     anchors.fill: parent
                     anchors.margins: 8
                     color: Theme.fg
+                    cursorDelegate: TextCaret { textInput: search }
                     font.family: Theme.bodyFont
                     font.pixelSize: Theme.captionSize
                     selectByMouse: true
