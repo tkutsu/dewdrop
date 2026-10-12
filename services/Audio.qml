@@ -103,12 +103,6 @@ Singleton {
             source.audio.muted = !source.audio.muted;
     }
 
-    // The name of the sink when there is one, whether or not anything is
-    // plugged into it: an unplugged jack is still the output the machine would
-    // use. (This was written as a conditional that returned `description` from
-    // both of its branches.)
-    readonly property string tooltip: sink ? description : "No audio output"
-
     // One notch of the wheel, up or down. Set on the node rather than through
     // a script: a fast flick is several notches in one event, and a
     // script per notch reads the volume before the last one has written it,

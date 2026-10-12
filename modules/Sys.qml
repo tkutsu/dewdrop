@@ -59,11 +59,6 @@ BarItem {
         // straight down into the bulb and the walls run into the ring, the way
         // the glass does.
         readonly property int join: 6
-        // From the inside of the cap down to the ball: the whole run the
-        // column has, which is where the service's steps land. It is a row
-        // longer than the tube, because it runs on through the ring's missing
-        // top row to reach the ball.
-        readonly property int bore: join + 2 - wall
         // The glass is a step dimmer than the glyphs' Theme.fg. The font's
         // strokes reach fg only in their core, with a quarter-strength pixel
         // softening each edge; a wall drawn without antialiasing is all hard

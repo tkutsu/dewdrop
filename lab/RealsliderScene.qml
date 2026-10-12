@@ -27,7 +27,7 @@ Item {
     Text {
         x: 40
         y: 36
-        text: "real Slider · sliderKnob: " + Settings.sliderKnob
+        text: "real Slider"
         color: Theme.label2
         font.family: Settings.font
         font.pixelSize: 12

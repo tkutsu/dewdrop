@@ -8,9 +8,7 @@
 // water. `clear` runs from the solid knob (0) to the bead (1), so the glass
 // comes on as the knob is taken hold of rather than fading in finished.
 //
-// The bead is a head where the knob is and a tail that trails it, joined
-// into one teardrop (an uneven capsule); with the tail on the head it is
-// round.
+// The bead is a circle centred on the knob.
 //
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o bead.frag.qsb bead.frag
 // A hot reload keeps drawing with the shader it already loaded, so restart
@@ -23,9 +21,8 @@ layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
     vec2 size;
-    // Centres and radii: head (x, y, r) and tail (x, y, r).
+    // Centre and radius: head (x, y, r).
     vec4 head;
-    vec4 tail;
     float clear;
     // How far in the very rim looks, in pixels; how far in from the rim the
     // pull reaches, as a share of the radius; and how steeply it falls off
@@ -42,23 +39,9 @@ layout(std140, binding = 0) uniform buf {
 
 layout(binding = 1) uniform sampler2D source;
 
-// Distance to two circles and the hull between them (iq's uneven capsule).
+// Distance to the bead's circular edge.
 float drop(vec2 p) {
-    vec2 axis = tail.xy - head.xy;
-    float h = length(axis);
-    float r1 = head.z, r2 = tail.z;
-    if (h < abs(r1 - r2) + 1e-3)
-        return min(length(p - head.xy) - r1, length(p - tail.xy) - r2);
-    vec2 u = axis / h;
-    vec2 q = vec2(abs(dot(p - head.xy, vec2(-u.y, u.x))), dot(p - head.xy, u));
-    float b = (r1 - r2) / h;
-    float a = sqrt(1.0 - b * b);
-    float k = dot(q, vec2(-b, a));
-    if (k < 0.0)
-        return length(q) - r1;
-    if (k > a * h)
-        return length(q - vec2(0.0, h)) - r2;
-    return dot(q, vec2(a, b)) - r1;
+    return length(p - head.xy) - head.z;
 }
 
 vec4 track(vec2 p) {
