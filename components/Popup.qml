@@ -640,7 +640,7 @@ PopupWindow {
                     radius: Theme.selectionRadius
                     color: "transparent"
                     border.width: 1.5
-                    border.color: Theme.accented ? Theme.accent : Theme.outlineHover
+                    border.color: Theme.outlineHover
                 }
             }
         }

@@ -5,8 +5,8 @@ import qs
 import qs.components
 import qs.services
 
-// The music pill: what is playing, and when pointed at, a hand either side of
-// it. The title opens the popup — it is the widest thing in the pill and the
+// The music pill: what is playing, with previous and next shown on hover.
+// The title opens the popup — it is the widest thing in the pill and the
 // one you are already looking at, so it is also the cheapest to hit. The
 // glyph beside it is play/pause, and so is a right click anywhere on the pill.
 //
@@ -184,12 +184,13 @@ BarItem {
             [Qt.RightButton]: () => Mpd.toggle()
         })
 
-    // The hands, out only while the pill is pointed at: at rest it is play
-    // and the title, and reached for it opens out into prev, play and next. Held out while the popup is up, which the pointer leaves the pill
-    // to get to — folding then would slide the popup out from under it.
+    // At rest it is the title and play; on hover, previous and next appear
+    // before the title. Held out while the popup is up, which the pointer
+    // leaves the pill to get to — folding then would slide the popup out
+    // from under it.
     readonly property bool handsOut: root.containsMouse || root.popupOpen
 
-    // A hand either side, folding the way a module goes into the drawer: its
+    // The previous control folds the way a module goes into the drawer: its
     // room closes on the fold's own curve, with no bounce — the pill opening
     // to a hover is the pill answering, not a new title arriving — and the
     // pill's edge passes over the glyph, which stays put beside the title. Its tap is off while folded, where the glyph sits
@@ -249,7 +250,7 @@ BarItem {
 
     RowLayout {
         Layout.fillHeight: true
-        // The play button brings the gap after it.
+        // The next button brings the gap after it.
         spacing: 0
 
         // With another module's popup up, resting on the title opens this
@@ -259,69 +260,62 @@ BarItem {
             onHoveredChanged: OpenPopup.browse(root, hovered)
         }
 
-        // The pill's play button. Out at rest too, so pausing takes one click
-        // rather than a reach for the pill first; with the hands out it sits
-        // between them, and the three controls read as one row. The sleeve
-        // lives in the popup, and still tints the line (accent above).
-        // The gap after it presses with it.
         Item {
-            id: slot
-            readonly property bool inkLit: true
+            id: nextRoom
 
-            readonly property int size: 14
+            readonly property real full: Theme.mediaGap + next.implicitWidth
 
             Layout.fillHeight: true
-            implicitWidth: size + Theme.mediaGap
-            scale: playPress.scale
+            implicitWidth: root.handsOut ? full : 0
+            clip: width < full
+            opacity: width / full
 
-            PressGlass {
-                id: playPress
-                icon: slot
-                area: playTap
+            Behavior on implicitWidth {
+                enabled: root.settled
+                NumberAnimation {
+                    id: nextWidth
+                    duration: Theme.foldMs
+                    easing.type: Easing.InOutCubic
+                }
             }
 
-            Accessible.role: Accessible.Button
-            Accessible.name: Mpd.state === "play" ? "Pause music" : "Play music"
-            Accessible.onPressAction: if (enabled && visible)
-                Mpd.toggle()
-
-            TapHandler {
-                id: playTap
-                margin: Theme.pressDip
-                onTapped: Mpd.toggle()
-            }
-
-            // What pressing it will do, as the popup's own button shows it.
             Glyph {
-                x: Math.round((slot.size - width) / 2)
+                id: next
+                readonly property bool inkLit: true
+
+                x: 0
                 height: parent.height
-                text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
+                text: Theme.glyph.mediaNext
+                scale: nextPress.scale
+
+                PressGlass {
+                    id: nextPress
+                    icon: next
+                    area: nextTap
+                }
+
+                Accessible.role: Accessible.Button
+                Accessible.name: "Next track"
+                Accessible.onPressAction: if (nextTap.enabled && enabled && visible)
+                    Mpd.next()
+
+                TapHandler {
+                    id: nextTap
+                    enabled: root.handsOut
+                    margin: Theme.pressDip
+                    onTapped: Mpd.next()
+                }
             }
         }
 
         // The title's room, which is what sizes the pill: it springs to the
         // new title's width rather than jumping there, and the glass drawn off
-        // the pill goes with it. The title can enter the end's padding, but
-        // stays inside the curve and clear of the next control.
+        // the pill goes with it. The title stays clear of the play control.
         //
         // And the popup's button, which presses in by itself.
         Item {
             id: titleRoom
             readonly property bool inkLit: true
-
-            // The cap's horizontal room at the text's height, inside the track.
-            // A little vertical air also covers hinted strokes and descenders.
-            readonly property real endRoom: Math.max(0, root.padRight - Theme.pillTrack - Theme.pillRadius
-                + Math.sqrt(Math.max(0, Theme.pillRadius * Theme.pillRadius - Math.pow((title.fontSize + 4) / 2, 2))))
-            readonly property real availableWidth: width + Math.min(endRoom,
-                Theme.mediaGap + Math.max(0, endRoom - nextRoom.width))
-            property real playbackOpacity: Mpd.state === "play" ? 1 : Theme.dimOpacity
-
-            Behavior on playbackOpacity {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                }
-            }
 
             Layout.fillHeight: true
             implicitWidth: title.implicitWidth
@@ -359,74 +353,60 @@ BarItem {
             BarText {
                 id: title
 
-                width: Math.min(implicitWidth, titleRoom.availableWidth)
+                width: Math.min(implicitWidth, titleRoom.width)
                 height: parent.height
                 clip: true
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
-                // Paused is the title gone quiet rather than a second icon
-                // saying so: an icon that only reports would be the one thing
-                // in the pill that cannot be pressed.
-                opacity: titleRoom.playbackOpacity * root.titleMix
+                opacity: root.titleMix
             }
 
             BarText {
-                width: Math.min(implicitWidth, titleRoom.availableWidth)
+                width: Math.min(implicitWidth, titleRoom.width)
                 height: parent.height
                 clip: true
                 text: root.outgoingLabel
                 maxWidth: Theme.mediaTitleWidth
                 visible: root.titleMix < 1 && text !== ""
-                opacity: titleRoom.playbackOpacity * (1 - root.titleMix)
+                opacity: 1 - root.titleMix
             }
         }
     }
 
+    // Play/pause stays visible to the right of the title, with its gap
+    // before it. The previous and next controls appear on hover.
     Item {
-        id: nextRoom
-
-        readonly property real full: Theme.mediaGap + next.implicitWidth
+        id: slot
+        readonly property bool inkLit: true
 
         Layout.fillHeight: true
-        implicitWidth: root.handsOut ? full : 0
-        clip: width < full
-        opacity: width / full
+        implicitWidth: play.implicitWidth + Theme.mediaGap
+        scale: playPress.scale
 
-        Behavior on implicitWidth {
-            enabled: root.settled
-            NumberAnimation {
-                id: nextWidth
-                duration: Theme.foldMs
-                easing.type: Easing.InOutCubic
-            }
+        PressGlass {
+            id: playPress
+            icon: slot
+            area: playTap
         }
 
+        Accessible.role: Accessible.Button
+        Accessible.name: Mpd.state === "play" ? "Pause music" : "Play music"
+        Accessible.onPressAction: if (enabled && visible)
+            Mpd.toggle()
+
+        TapHandler {
+            id: playTap
+            margin: Theme.pressDip
+            onTapped: Mpd.toggle()
+        }
+
+        // What pressing it will do, as the popup's own button shows it.
         Glyph {
-            id: next
-            readonly property bool inkLit: true
+            id: play
 
             x: Theme.mediaGap
             height: parent.height
-            text: Theme.glyph.mediaNext
-            scale: nextPress.scale
-
-            PressGlass {
-                id: nextPress
-                icon: next
-                area: nextTap
-            }
-
-            Accessible.role: Accessible.Button
-            Accessible.name: "Next track"
-            Accessible.onPressAction: if (nextTap.enabled && enabled && visible)
-                Mpd.next()
-
-            TapHandler {
-                id: nextTap
-                enabled: root.handsOut
-                margin: Theme.pressDip
-                onTapped: Mpd.next()
-            }
+            text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
         }
     }
 

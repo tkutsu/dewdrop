@@ -12,7 +12,7 @@ QtObject {
     required property Item icon
     required property var area
     property bool down: area.pressed
-    readonly property real scale: 1 + GlassPress.popOf(icon) * GlassPress.iconLift
+    readonly property real scale: 1 - Math.max(0, Math.min(1, GlassPress.popOf(icon))) * GlassPress.iconShrink
 
     // Where the pointer is, in the window's pixels: under a MouseArea's
     // pointer, at a TapHandler's point, or else the icon's middle.

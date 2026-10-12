@@ -32,6 +32,8 @@ ShaderEffect {
     // box reaches for the ones before it, so a box goes after the one it
     // joins. The first number is unused.
     property vector4d reaches: Qt.vector4d(reach, reach, reach, reach)
+    // Boxes allowed past the slab's height, for pills sinking into popovers.
+    property vector4d overflow: Qt.vector4d(0, 0, 0, 0)
     property real lineWidth: Theme.pillBorder
     // Direction, quiet-region cutoff and strength of the two diagonal lobes.
     property vector4d sheen: backdrop ? Theme.pillSheen : Qt.vector4d(0, -1, 0, 0)
@@ -45,8 +47,8 @@ ShaderEffect {
 
     // The rim is lit over the slab's own height, not over the height of a drop
     // that has shrunk inside it, so a drop on its way in stays lit like the
-    // pill it came from. Nothing is drawn above or below these either, so
-    // glass inset inside a pill moves them in with it.
+    // pill it came from. These also clip the glass, except bulges and boxes
+    // opted into overflow, so glass inset inside a pill moves them in with it.
     property real rimFrom: Theme.barInset
     property real rimTo: Theme.barInset + Theme.barHeight
 
@@ -90,11 +92,6 @@ ShaderEffect {
         return [box0, box1, box2, box3].some(b => b.z > 0 && p.x >= b.x && p.x <= b.x + b.z && p.y >= b.y - 2 && p.y <= b.y + b.w + 2);
     }
     property vector4d press: pressed ? Qt.vector4d(pressAt.x, pressAt.y, 24, GlassPress.lit * 0.25) : Qt.vector4d(0, 0, 1, 0)
-    // A broad dent, independent of the small pool of light at the contact.
-    property vector4d deform: pressed && Settings.pillPressMorph && !Theme.reduceMotion
-        ? Qt.vector4d(pressAt.x, pressAt.y, GlassPress.dentSpread, GlassPress.dent * GlassPress.dentDepth)
-        : Qt.vector4d(0, 0, 1, 0)
-    property real horizontalCompression: Settings.pillPressHorizontal ? 1 : 0
 
     // The pointer's light (GlassLight), for glass in the window the pointer
     // is over.

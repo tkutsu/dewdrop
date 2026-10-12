@@ -56,12 +56,6 @@ ShellRoot {
                 expect(words.x + words.width <= control.x || words.y + words.height <= control.y, "text does not overlap selector");
                 expect(words.y >= 0 && words.y + words.height <= row.height, "row contains description height");
                 expect(control.y >= 0 && control.y + control.height <= row.height, "row contains selector height");
-                if (row.setting.id === "pillPressHorizontal") {
-                    const before = row.setting.get();
-                    pointer.mouseClick(row, row.width / 2, row.height / 2);
-                    expect(row.setting.get() === !before && Settings.user.pillPressHorizontal === !before,
-                        "horizontal compression toggle updates the saved setting");
-                }
                 if (row.setting.type === "choice") {
                     const options = control.item.children[0];
                     for (const option of options.children.filter(c => c.modelData !== undefined)) {

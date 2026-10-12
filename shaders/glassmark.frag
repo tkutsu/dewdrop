@@ -1,15 +1,8 @@
 #version 440
 
-// The workspace mark as a bead of glass (components/BeadMark.qml): a capsule
-// over the left pill and the wallpaper round it, seen through glass that
-// keeps the straight middle undistorted and bends only the round ends. `clear` runs
-// from the mark at rest (0), a capsule inside the pill with a breath of
-// white, to the bead (1) it swells into on the move, as tall as the bar's
-// window and clear.
-//
-// Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o mark.frag.qsb mark.frag
-// A hot reload keeps drawing with the shader it already loaded, so restart
-// Quickshell after recompiling.
+// Grey workspace glass: the straight middle stays undistorted while the
+// rounded caps bend the pill and icons beneath them.
+// Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -20,7 +13,7 @@ layout(std140, binding = 0) uniform buf {
     vec2 size;
     // The capsule: x, y, width, height, fully round at the ends.
     vec4 box;
-    float clear;
+    float motion;
     // How far in the very rim looks, in pixels; how far in from the rim the
     // pull reaches, as a share of the half height; how steeply it falls off
     // towards the middle of each rounded end.
@@ -28,9 +21,8 @@ layout(std140, binding = 0) uniform buf {
     float depth;
     float steep;
     float dispersion;
-    // The tint laid in the glass at rest and while moving.
-    float restTint;
-    float beadTint;
+    // Grey tint, eased with movement and held presses.
+    float tint;
     vec3 tintColor;
     float lineWidth;
     vec4 rimTop;
@@ -86,7 +78,7 @@ void main() {
     vec3 glass = vec3(under(seen - shift * (1.0 - dispersion)).r,
                       under(seen - shift).g,
                       under(seen - shift * (1.0 + dispersion)).b);
-    float white = mix(restTint, beadTint, clear) + 0.18 * lens * clear;
+    float white = tint + 0.18 * lens * motion;
     glass = mix(glass, tintColor, white);
     float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
@@ -97,6 +89,6 @@ void main() {
 
     // Opaque, the antialiased edge laid over what is under it: a part-covered
     // pixel would let Hyprland's blur through, which is darker than the
-    // wallpaper, in a ring round the bead.
+    // wallpaper, in a ring round the mark.
     fragColor = vec4(covered, 1.0) * qt_Opacity;
 }
