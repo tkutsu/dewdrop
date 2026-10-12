@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the CRT handoff with real menu/service code and harmless commands."""
+"""Exercise power menu dismissal and the CRT handoff with harmless commands."""
 
 from pathlib import Path
 import os
@@ -43,6 +43,7 @@ Window {
     required property bool shown
     required property string name
     required property Item inputItem
+    property bool dismissOnOutsidePress: true
     signal dismissed
     property bool completed: false
     readonly property bool opened: completed && shown
@@ -81,7 +82,26 @@ ShellRoot {
                 Power.shown = true;
                 wait(600);
                 check(menu.item !== null && menu.item.reveal === 1, "menu finishes appearing");
-                check(menu.item.shade === 0, "wallpaper stays undimmed");
+                check(menu.item.shade === 0, "wallpaper stays visible before an action");
+                check(menu.item.widthRatio === 1 && menu.item.contentAlpha === 1, "launcher-style entrance settles");
+            }
+            function checkPointer() {
+                open();
+                const window = menu.item;
+                const desktop = Qt.createQmlObject('import QtQuick; MouseArea { anchors.fill: parent; z: -1; property int clicks: 0; onClicked: clicks++ }', window.contentItem);
+                mousePress(window.contentItem, 20, 20, Qt.LeftButton);
+                check(Power.shown, "wallpaper press keeps the surface until release");
+                mouseRelease(window.contentItem, 20, 20, Qt.LeftButton);
+                check(!Power.shown && desktop.clicks === 0, "wallpaper click dismisses without reaching the desktop");
+                wait(250);
+                open();
+                check(menu.item.inputItem.width === menu.item.width && menu.item.inputItem.height === menu.item.height, "power menu input covers the wallpaper");
+                menu.item.choose(1);
+                check(menu.item.pending !== null, "restart requests confirmation");
+                mouseClick(menu.item.contentItem, 20, 20, Qt.RightButton);
+                check(!Power.shown && !Power.blackout, "wallpaper click also dismisses confirmation without executing it");
+                wait(250);
+                console.log("PASS: wallpaper clicks are consumed and dismiss the entire power menu");
             }
             function run() {
                 open();
@@ -156,6 +176,7 @@ def main():
         original_path = os.environ['PATH']
         try:
             os.environ['PATH'] = str(target / 'bin') + ':' + original_path
+            support['run_shell'](target, SCENARIO.replace('test.run();', 'test.checkPointer();'))
             support['run_shell'](target, SCENARIO)
         finally:
             os.environ['PATH'] = original_path
