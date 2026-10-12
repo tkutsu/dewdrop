@@ -12,15 +12,27 @@ import qs.services
 ShellRoot {
     // The window list keeps itself current, but an XWayland window's class lives
     // in the IPC object beside it, which Quickshell only fills in on a refresh,
-    // so a refresh on every window that opens: the workspace icons and the
-    // launcher read the class from there.
+    // so a refresh after windows open: the workspace icons and the launcher read
+    // the class from there.
+    //
+    // Debounced, so a burst asks once. A window that flaps (VLC opening a file
+    // mapped and unmapped a dozen times in a second) otherwise fires a request
+    // per open, and each Hyprland IPC request is a chance at Quickshell 0.3.2's
+    // use-after-free: makeRequest deletes its socket inside that socket's own
+    // readyRead. One such burst crashed the bar on 2026-10-12.
     Connections {
         target: Hyprland
 
         function onRawEvent(event) {
             if (event.name === "openwindow")
-                Hyprland.refreshToplevels();
+                refreshToplevels.restart();
         }
+    }
+
+    Timer {
+        id: refreshToplevels
+        interval: 150
+        onTriggered: Hyprland.refreshToplevels()
     }
 
     // Referenced here so compaction is followed whether or not a bar shows
