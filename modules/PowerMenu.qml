@@ -38,43 +38,41 @@ OverlayWindow {
     property real horizontal: 1
     property real flash: 0
     property real afterglow: 0
-    property real widthRatio: 1012 / 960
+    // The pill comes in the way a popover does (Popup.qml), once the
+    // wallpaper behind it has faded in: it fades up on the popovers' curve
+    // as it settles a few pixels down into place, and only fades on its way
+    // out. Under Reduce motion it fades where it stands.
     property real contentAlpha: 0
+    property real contentShift: 0
     readonly property bool menuOpened: root.opened && root.backdropReady
 
     onMenuOpenedChanged: {
         entrance.stop();
         dismissal.stop();
-        if (Theme.reduceMotion) {
-            root.widthRatio = 1;
-            root.contentAlpha = root.menuOpened ? 1 : 0;
-        } else if (root.menuOpened) {
+        if (root.menuOpened) {
+            root.contentShift = Theme.reduceMotion ? 0 : -8;
             entrance.start();
         } else {
             dismissal.start();
         }
     }
 
-    ParallelAnimation {
+    SequentialAnimation {
         id: entrance
-        SequentialAnimation {
-            PauseAnimation { duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 976 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 955 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 948 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 950 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 954 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 958 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 1; duration: 33 }
-            PauseAnimation { duration: 69 }
+        PauseAnimation { duration: Theme.revealMs }
+        ParallelAnimation {
+            NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1] }
+            NumberAnimation { target: root; property: "contentShift"; to: 0; duration: 220; easing.type: Easing.BezierSpline; easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1] }
         }
-        NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 67 }
     }
 
-    ParallelAnimation {
+    NumberAnimation {
         id: dismissal
-        NumberAnimation { target: root; property: "widthRatio"; to: 0.97; duration: 160; easing.type: Easing.OutCubic }
-        NumberAnimation { target: root; property: "contentAlpha"; to: 0; duration: 160; easing.type: Easing.OutCubic }
+        target: root
+        property: "contentAlpha"
+        to: 0
+        duration: 140
+        easing.type: Easing.InOutQuad
     }
 
     readonly property var entries: pending ? [
@@ -372,15 +370,14 @@ OverlayWindow {
             event.accepted = true;
         }
 
-        // Move only the sides; labels stay at their native size.
         Item {
             id: menuClip
 
             readonly property int pillHeight: 44
             property real bodyWidth: root.pending ? answers.implicitWidth : actions.implicitWidth
             x: (root.width - width) / 2
-            y: (root.height - pillHeight) / 2
-            width: bodyWidth * root.widthRatio
+            y: (root.height - pillHeight) / 2 + root.contentShift
+            width: bodyWidth
             height: pillHeight
             clip: true
             opacity: root.closing ? 0 : root.contentAlpha
@@ -520,6 +517,10 @@ OverlayWindow {
             visible: pill.selected !== null
             resetWhenHidden: true
             held: pill.held
+            // The workspace mark's switch spring: FlowMark's default raced
+            // from option to option under the arrow keys and the pointer.
+            spring: Theme.switchSpring
+            damping: Theme.switchDamping
             slabHeight: pill.height
             // The pill's padding is the mark's inset, so the mark is its
             // cell: at the ends it sits as far in as off the top and bottom.
