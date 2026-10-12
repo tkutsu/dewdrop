@@ -48,7 +48,7 @@ Text { property int maxWidth: 300; font.pixelSize: 16; verticalAlignment: Text.A
         (target / "Theme.qml").write_text('''pragma Singleton
 import QtQuick
 QtObject {
-    property int mediaGap: 8; property int pressDip: 1; property int fadeMs: 1
+    property int mediaGap: 8; property int pressDip: 1; property int barInset: 4; property int fadeMs: 1
     property int foldMs: 1; property int mediaTitleWidth: 200; property int glyphSizeLarge: 16
     property real dimOpacity: 0.5; property color fg: "white"; property color label2: "grey"
     property var glyph: ({close: "X", paused: "pause", playing: "play"})

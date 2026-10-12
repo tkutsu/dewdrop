@@ -19,7 +19,7 @@ Popup {
     // changes every second, and a popup that sized itself to it would ask the
     // compositor to reposition the window once a second for as long as it was
     // open — see Popup.reserveHeight for what that looks like.
-    readonly property int readoutWidth: 48
+    readonly property int readoutWidth: Settings.twelveHour ? 76 : 48
     readonly property int buttonWidth: 20
     readonly property int gutter: 18
 

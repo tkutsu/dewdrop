@@ -17,7 +17,7 @@ def section_rows(title):
     return source[start:end][1:-1]
 
 
-rows = '[' + ','.join(section_rows(title) for title in ('Appearance', 'Clock', 'Wallpaper')) + ']'
+rows = '[' + ','.join(section_rows(title) for title in ('Clock', 'Wallpaper', 'Desktop actions')) + ']'
 qml = '''import QtQuick
 import Quickshell
 import QtTest
@@ -38,7 +38,7 @@ ShellRoot {
             x: 12; y: 12; width: win.settingsWidth
             Repeater {
                 id: rows
-                model: APPEARANCE
+                model: SETTINGS_ROWS
                 SettingRow { required property var modelData; width: page.width; setting: modelData }
             }
         }
@@ -56,6 +56,11 @@ ShellRoot {
                 expect(words.x + words.width <= control.x || words.y + words.height <= control.y, "text does not overlap selector");
                 expect(words.y >= 0 && words.y + words.height <= row.height, "row contains description height");
                 expect(control.y >= 0 && control.y + control.height <= row.height, "row contains selector height");
+                if (row.setting.type === "toggle") {
+                    const before = row.setting.get();
+                    pointer.mouseClick(row, row.width / 2, row.height / 2);
+                    expect(row.setting.get() === !before, "toggle can be changed");
+                }
                 if (row.setting.type === "choice") {
                     const options = control.item.children[0];
                     for (const option of options.children.filter(c => c.modelData !== undefined)) {
@@ -69,7 +74,7 @@ ShellRoot {
                     expect(row.setting.get() === next.modelData.value, "choice can be selected");
                 }
             }
-            console.log("Checked appearance rows at width " + page.width);
+            console.log("Checked settings rows at width " + page.width);
         }
         Timer {
             interval: 250; running: true; repeat: true
@@ -79,7 +84,7 @@ ShellRoot {
                 }
                 win.phase++;
                 if (win.phase === win.widths.length) {
-                    if (!win.failures) console.log("PASS: appearance settings layout and selection");
+                    if (!win.failures) console.log("PASS: settings layout and selection");
                     Qt.quit();
                 } else {
                     page.width = win.widths[win.phase];
@@ -88,7 +93,7 @@ ShellRoot {
         }
     }
 }
-'''.replace('APPEARANCE', rows)
+'''.replace('SETTINGS_ROWS', rows)
 with tempfile.TemporaryDirectory(prefix='qs-settings-layout-') as folder:
     target = Path(folder)
     files = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '--cached', '--others', '--exclude-standard'], text=True)
@@ -114,4 +119,4 @@ with tempfile.TemporaryDirectory(prefix='qs-settings-layout-') as folder:
     output = result.stdout + result.stderr
     print(output)
     errors = ('FAIL:', 'ReferenceError:', 'TypeError:', 'Binding loop', 'Unable to assign')
-    raise SystemExit(0 if result.returncode == 0 and 'PASS: appearance' in output and not any(error in output for error in errors) else 1)
+    raise SystemExit(0 if result.returncode == 0 and 'PASS: settings layout' in output and not any(error in output for error in errors) else 1)
