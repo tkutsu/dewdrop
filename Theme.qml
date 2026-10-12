@@ -94,9 +94,11 @@ Singleton {
     readonly property int keyMarkWidth: 32
     // And how it moves: quicker than the workspace mark, which moves once
     // for a switch, where the keys step this one along several items in a
-    // row and each step has to have landed before the next.
+    // row and each step has to have landed before the next. Damped nearly
+    // flat (0.5% overshoot, settled in 112 ms): a step this quick that also
+    // bounces jitters under a held key.
     readonly property real keyMarkSpring: reduceMotion ? calmSpring : 14
-    readonly property real keyMarkDamping: reduceMotion ? calmDamping : 0.45
+    readonly property real keyMarkDamping: reduceMotion ? calmDamping : 0.65
 
     // One gap between things that stand on their own: modules and tray icons.
     // Measured icon to icon — a badge floats in the gap rather than claiming
@@ -553,6 +555,10 @@ Singleton {
     readonly property int markMs: 220
     readonly property real markSpring: reduceMotion ? calmSpring : 9
     readonly property real markDamping: reduceMotion ? calmDamping : 0.45
+    // A workspace switch: SwiftUI's .snappy (0.5 s, bounce 0.15) in Qt's
+    // terms, 90% of the way at 256 ms with 0.6% overshoot.
+    readonly property real switchSpring: reduceMotion ? calmSpring : 2.15
+    readonly property real switchDamping: reduceMotion ? calmDamping : 0.29
     // The mark running into an end of the pill: how far past the wall the
     // spring has to carry it to press it flat, and how much taller the glass
     // piled against the wall stands, each side, once it is. Held to what
