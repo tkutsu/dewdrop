@@ -406,18 +406,17 @@ BarItem {
         // the inset, so its ends sit inside the pill's ends by the same air
         // it keeps off the top and bottom.
         //
-        // The head runs on a spring, so it carries a little past the
-        // workspace and comes back, and the mark stands a touch long for a
-        // moment before it settles, the way a drop's momentum does. At the
-        // ends of the strip that would carry it out through the pill's own
-        // end, so there the end is a wall: the head stops against it and the
-        // rest of the run piles up against it as a bulb (see press).
+        // The head runs on a spring, Apple's snappy one for a switch, which
+        // all but lands without running past. Whatever overshoot a long run
+        // does carry would take it out through the pill's own end, so there
+        // the end is a wall: the head stops against it and the rest of the
+        // run piles up against it as a bulb (see press).
         FlowMark {
             id: mark
             held: strip.held
             // Keep keyboard steps quick; workspace switches take a gentler spring.
-            spring: strip.keyed ? Theme.keyMarkSpring : Theme.markSpring * (Theme.reduceMotion ? 1 : 0.55)
-            damping: strip.keyed ? Theme.keyMarkDamping : Theme.markDamping
+            spring: strip.keyed ? Theme.keyMarkSpring : Theme.switchSpring
+            damping: strip.keyed ? Theme.keyMarkDamping : Theme.switchDamping
             slabY: Theme.pillTop(strip.height)
             slabHeight: Theme.barHeight
             atFirst: strip.selected !== null && strip.selected.index === 0
