@@ -319,23 +319,6 @@ Item {
         duration: 240; easing.type: Easing.InOutCubic
     }
 
-    // The track follows the glass's broad compression at the contact.
-    readonly property vector4d fabric: {
-        let x = 0, y = 0;
-        for (let item = root; item; item = item.parent) {
-            x += item.x;
-            y += item.y;
-        }
-        const at = Qt.point(GlassPress.at.x - x, GlassPress.at.y - y);
-        const here = Settings.pillPressMorph && !Theme.reduceMotion
-            && GlassPress.window !== null && GlassPress.window === root.QsWindow.window
-            && at.x >= slab.x - GlassPress.dentSpread * 3
-            && at.x <= slab.x + slab.width + GlassPress.dentSpread * 3
-            && at.y >= slab.y - 2 && at.y <= slab.y + slab.height + 2;
-        return Qt.vector4d(at.x, slab.y + slab.height / 2,
-            GlassPress.dentSpread, here ? GlassPress.dent * GlassPress.dentDepth : 0);
-    }
-
     // Use the glass's rounded-box distance directly, avoiding a second curve renderer.
     ShaderEffect {
         id: track
@@ -353,9 +336,6 @@ Item {
         property color ink: root.trackColor
         property real rest: Theme.pillTrackRest
         property real foot: Theme.pillTrackFoot
-        property vector4d deform: Qt.vector4d(root.fabric.x - x, root.fabric.y - y,
-            root.fabric.z, root.fabric.w)
-        property real horizontalCompression: Settings.pillPressHorizontal ? 1 : 0
         fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
     }
 

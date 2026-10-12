@@ -3,7 +3,7 @@ import qs
 import qs.components
 
 // The real thing: a Pill of mock workspaces whose mark is a real FlowMark,
-// drawn by a real BeadMark over a strip as tall as the bar's window, the way
+// drawn by a real GlassMark over a strip as tall as the bar's window, the way
 // Bar.qml has it. The workspaces step on a script, as MarkScene's do.
 Item {
     id: scene
@@ -111,7 +111,7 @@ Item {
             }
         }
 
-        BeadMark {
+        GlassMark {
             anchors.fill: parent
             mark: mark
             pillItem: pill.parent

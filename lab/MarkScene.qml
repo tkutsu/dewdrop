@@ -2,17 +2,8 @@ import QtQuick
 import qs
 import qs.components
 
-// The workspace mark as glass that bends the icons under it, two ways and
-// two strengths each, all switching workspaces on the same beat.
-//
-//   A   a bead: as the mark sets off it swells into clear glass taller than
-//       the pill, magnifying a little and pulling hard round its rim, runs
-//       stretched by its speed, and settles back into the capsule at rest
-//   B   the spring-driven mark (FlowMark), drawn as glass over the pill
-//       and its icons rather than a fill
-//
-// The pill, its icons and the wallpaper are drawn once (`world`) and taken
-// as a texture, which both kinds of mark are glass over.
+// Two lens strengths for the spring-driven workspace mark over the pill
+// and its icons, switching workspaces on the same beat.
 Item {
     id: scene
 
@@ -76,7 +67,7 @@ Item {
         }
 
         Repeater {
-            model: 4
+            model: 2
 
             Item {
                 required property int index
@@ -132,83 +123,8 @@ Item {
         visible: false
     }
 
-    // --- A: the bead --------------------------------------------------------
-    Bead { row: 0; over: 7; zoom: 1.12; title: "A1 · bead, 7px over the pill" }
-    Bead { row: 1; over: 4; zoom: 1.06; title: "A2 · bead, 4px over" }
-
-    // --- B: the mark as it is, as glass ----------------------------------
-    Flow { row: 2; bend: 4; bendDepth: 5; tint: 0.2; title: "B1 · today's mark, glass" }
-    Flow { row: 3; bend: 7; bendDepth: 6; tint: 0.14; title: "B2 · stronger lens" }
-
-    component Bead: ShaderEffect {
-        id: bead
-
-        required property int row
-        required property real over
-        required property real zoom
-        required property string title
-
-        y: row * scene.rowH
-        width: scene.width
-        height: scene.rowH
-
-        // The mark's motion: the head on a spring, the tail eased after it,
-        // the rest width eased to the workspace's, and `clear` up while it
-        // runs and down once it has landed.
-        readonly property real targetMid: scene.pillX + (scene.slotLeft(scene.current) + scene.slotRight(scene.current)) / 2
-        readonly property real targetW: scene.slotRight(scene.current) - scene.slotLeft(scene.current)
-        property real head: targetMid
-        property real vel: 0
-        property real tail: targetMid
-        property real w: targetW
-        property real clear: 0
-        property bool moving: false
-        onTargetMidChanged: moving = true
-
-        FrameAnimation {
-            running: true
-            onTriggered: {
-                const dt = Math.min(frameTime, 0.05);
-                const k = 170, c = 2 * Math.sqrt(k) * 0.72;
-                bead.vel += (k * (bead.targetMid - bead.head) - c * bead.vel) * dt;
-                bead.head += bead.vel * dt;
-                bead.tail += (bead.head - bead.tail) * (1 - Math.exp(-dt / 0.07));
-                bead.w += (bead.targetW - bead.w) * (1 - Math.exp(-dt / 0.08));
-                if (bead.moving && Math.abs(bead.targetMid - bead.head) < 0.5 && Math.abs(bead.vel) < 8)
-                    bead.moving = false;
-                bead.clear += ((bead.moving ? 1 : 0) - bead.clear) * (1 - Math.exp(-dt / (bead.moving ? 0.06 : 0.14)));
-            }
-        }
-
-        readonly property real thick: Theme.barHeight - Theme.pillBorder - 2 * Theme.markInset
-        readonly property real tall: thick + 2 * over
-        readonly property real stretch: Math.abs(head - tail)
-        readonly property real h: thick + (tall - thick) * clear - Math.min(3, stretch * 0.06) * clear
-        readonly property real bw: w + (Math.max(w + 8, tall * 1.3) - w) * clear
-        readonly property real cy: scene.slabTop + Theme.barHeight / 2
-
-        property var source: ShaderEffectSource {
-            sourceItem: world
-            sourceRect: Qt.rect(0, bead.y, bead.width, bead.height)
-            live: true
-        }
-        readonly property size size: Qt.size(width, height)
-        readonly property vector4d box: Qt.vector4d(Math.min(head, tail) - bw / 2, cy - h / 2, stretch + bw, h)
-        readonly property real bend: 1.5 + 10.5 * clear
-        readonly property real depth: 0.5
-        readonly property real steep: 1.6
-        readonly property real dispersion: Theme.glassDispersion
-        readonly property real restTint: 0.16
-        readonly property real beadTint: 0.03
-
-        fragmentShader: Qt.resolvedUrl("mark.frag.qsb")
-
-        Tag {
-            x: 10
-            y: scene.slabTop + (Theme.barHeight - height) / 2
-            text: bead.title
-        }
-    }
+    Flow { row: 0; bend: 4; bendDepth: 5; tint: 0.2; title: "B1 · today's mark, glass" }
+    Flow { row: 1; bend: 7; bendDepth: 6; tint: 0.14; title: "B2 · stronger lens" }
 
     component Flow: Item {
         id: flow

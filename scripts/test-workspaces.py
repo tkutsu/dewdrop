@@ -48,10 +48,10 @@ implicitWidth: 16; implicitHeight: 30 }
 (target/'OpenPopup.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var selected: null; property var owner: null; function toggle(owner) {} function browse(owner, hovered) {} }')
 (target/'components/FlowMark.qml').write_text('''import QtQuick
 import qs
-Item { property bool held; property bool trackingPointer; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
+Item { property bool held; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
 property real wallLeft; property real wallRight; property real wantLeft; property real wantRight; property bool resizing
 property real spring; property real damping; property int inset: Theme.markInset; property bool animating: false }''')
-if '--marks' in sys.argv or '--mark-drag' in sys.argv:
+if '--marks' in sys.argv or '--mark-input' in sys.argv:
     (target/'components/FlowMark.qml').write_text((root/'components/FlowMark.qml').read_text())
     # Inspect the real animation's shader geometry without requiring a GPU.
     (target/'components/Liquid.qml').write_text('''import QtQuick
@@ -86,7 +86,7 @@ src=src.replace('id: root','''id: root
     property alias auditGhost: ghost
     property alias auditTracker: positionTracker
     property alias auditNewWorkspace: newWorkspace''',1)
-if '--marks' in sys.argv or '--mark-drag' in sys.argv:
+if '--marks' in sys.argv or '--mark-input' in sys.argv:
     src=src.replace('id: root', 'id: root\n    property alias auditMark: mark', 1)
 src=src.replace('id: button\n','id: button\n                    property alias auditRow: row\n',1)
 (target/'Workspaces.qml').write_text(src)
@@ -289,7 +289,7 @@ if '--marks' in sys.argv:
  console.log(failures.length ? 'FAIL: '+failures.length+' mark checks' : 'PASS: workspace mark geometry and timing');
  Qt.quit();return;
 ''' + shell_source[end:]
-if '--mark-drag' in sys.argv:
+if '--mark-input' in sys.argv:
     start=shell_source.index(" const w1=ws(1)")
     end=shell_source.index(" console.log(failures.length", start)
     shell_source=shell_source[:start]+r'''
@@ -301,42 +301,41 @@ if '--mark-drag' in sys.argv:
  function pressBackground(id) { test.mousePress(pill,background(id),19); test.wait(20); }
  let x=background(1);
  test.mouseClick(pill,x,19);test.wait(20);
- check(!pill.markGrabbed && !pill.markDragging && Hyprland.commands.length===0,'background click on the current workspace remains a click');
+ check(Hyprland.commands.length===0,'background click on the current workspace remains a click');
+ const originalLeft=mark.wantLeft,originalRight=mark.wantRight;
  pressBackground(1);
- check(pill.markGrabbed && !pill.markDragging,'mark can be picked up from its background');
  test.mouseMove(pill,x+2,19,20);
- check(!pill.markDragging,'small pointer movement does not begin a drag');
  test.mouseMove(pill,x+40,19,20);test.wait(20);
- check(pill.markDragging && !pill.dragging,'background gesture drags the mark without moving a window');
- check(Math.abs(mark.headLeft-mark.wantLeft)<0.1,'dragged mark follows the pointer without the slower spring lag');
- check(Hyprland.commands.length===0,'dragging previews selection without switching workspaces early');
- test.mouseRelease(pill,x+40,19);test.wait(30);
- check(!pill.markGrabbed && !pill.markDragging,'release ends the gesture immediately');
- check(Hyprland.commands.length===1 && Hyprland.commands[0]==='hl.dsp.focus({ workspace = 2 })','release commits exactly one workspace switch');
- check(mark.placedOn===button(2),'mark snaps to its destination while compositor acknowledgement is pending');
- w1.active=false;w2.active=true;Hyprland.focusedWorkspace=w2;test.wait(500);
- check(pill.markDestination===null && mark.placedOn===button(2),'compositor focus takes over the released selection');
-
- x=background(2);pressBackground(2);
- test.mouseMove(pill,-40,19,20);test.wait(20);
- check(mark.frontLeft>=mark.wallLeft,'dragging past the left edge keeps the mark inside the pill');
+ check(mark.wantLeft===originalLeft && mark.wantRight===originalRight && mark.placedOn===button(1),
+   'dragging the workspace background does not move the selection mark');
+ check(!pill.dragging && Hyprland.commands.length===0,'background gesture neither drags windows nor switches workspaces');
  test.mouseRelease(pill,-40,19);test.wait(500);
- check(Hyprland.commands.length===1 && !pill.markDragging && mark.placedOn===button(2),'release outside the pill cancels and returns to the focused workspace');
+ check(Hyprland.commands.length===0 && mark.placedOn===button(1),'release outside the pill keeps the focused workspace');
 
- pressBackground(2);test.mouseMove(pill,background(3),19,20);test.wait(20);
- WorkspaceSync.settled=false;test.wait(20);
- check(!pill.markGrabbed && !pill.markDragging,'workspace renumbering cancels an in-progress mark drag');
- test.mouseRelease(pill,background(3),19);WorkspaceSync.settled=true;test.wait(500);
- check(Hyprland.commands.length===1,'cancelled gesture does not switch workspace on release');
+ test.mouseClick(pill,background(2),19);test.wait(30);
+ check(Hyprland.commands.length===1 && Hyprland.commands[0]==='hl.dsp.focus({ workspace = 2 })',
+   'background click on another workspace still requests one focus switch');
+ check(mark.placedOn===button(1),'mark follows compositor focus rather than the pointer');
+ w1.active=false;w2.active=true;Hyprland.focusedWorkspace=w2;test.wait(500);
+ check(mark.placedOn===button(2),'compositor focus moves the selection mark');
+ OpenPopup.selected=button(3);test.wait(500);
+ check(mark.placedOn===button(3),'keyboard selection still moves the mark');
+ OpenPopup.selected=null;test.wait(500);
+ check(mark.placedOn===button(2),'leaving keyboard selection restores the focused mark');
 
  Hyprland.commands=[];
+ pressBackground(2);test.mouseMove(pill,background(3),19,20);test.wait(20);
+ WorkspaceSync.settled=false;test.wait(20);
+ test.mouseRelease(pill,background(3),19);WorkspaceSync.settled=true;test.wait(500);
+ check(Hyprland.commands.length===0,'workspace renumbering cancels background input without switching focus');
+
  const app=icon(button(2),'b');
  test.mousePress(app,app.width/2,19);
  test.mouseMove(pill,left(app)+app.width/2+30,19,20);test.wait(30);
- check(pill.dragging && !pill.markGrabbed,'icon gesture still drags its window');
+ check(pill.dragging,'icon gesture still drags its window');
  test.mouseRelease(pill,-40,80);test.wait(30);
  check(!pill.dragging,'window drag still releases normally');
- console.log(failures.length ? 'FAIL: '+failures.length+' mark drag checks' : 'PASS: mark mouse dragging, release, cancellation and icon gestures');
+ console.log(failures.length ? 'FAIL: '+failures.length+' mark input checks' : 'PASS: fixed mark, workspace clicks, keyboard selection and window dragging');
  Qt.quit();return;
 ''' + shell_source[end:]
 if '--regressions' in sys.argv:

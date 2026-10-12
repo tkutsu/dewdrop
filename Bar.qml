@@ -116,7 +116,7 @@ PanelWindow {
     // Hyprland's own window gap (general:gaps_out), the same gap that puts a
     // tiled window's left edge level with the left pill, so the bar reserves
     // only what that gap does not already give: the inset less the gap, which
-    // at a 5px inset and an 8px gap stops three pixels short of the pills' foot.
+    // at a 4px inset and an 8px gap stops four pixels short of the pills' foot.
     //
     // A lone or fullscreen window goes edge to edge on the other three sides
     // but keeps that top gap (the smart-gaps rules in hypr/configs/tags.lua),
@@ -167,13 +167,13 @@ PanelWindow {
 
         Workspaces {
             id: workspaces
-            drawsMark: !beadMark.active
+            drawsMark: !glassMark.active
         }
     }
 
     // The workspace mark's glass, over the pill it moves in, which it bends.
-    BeadMark {
-        id: beadMark
+    GlassMark {
+        id: glassMark
         anchors.fill: parent
         mark: workspaces.markItem
         pillItem: leftPill
@@ -210,6 +210,7 @@ PanelWindow {
         box1: bar.countdownDrop
         box2: bar.noticeDrop
         box3: bar.musicDrop
+        overflow: Qt.vector4d(0, 1, 0, 1)
         bulge0: bar.bulge(clockPill.x - leftLip, -1, music.reveal, music.stowed)
         // The timer joins the clock; the notice joins the timer if present.
         bulge1: countdown.stowed && countdown.reveal > 0 ? bar.bulge(bar.clockRight + rightLip, 1, countdown.reveal, true) : bar.bulge(countdown.reveal > 0 ? bar.noticeEdge : bar.clockRight + rightLip, 1, notice.reveal, notice.stowed)
@@ -432,7 +433,7 @@ PanelWindow {
         contentOpacity: bar.contents(music.reveal) * bar.morphContents(musicMorph.value)
         contentScale: bar.morph(Qt.vector4d(0, 0, width, Theme.barHeight), musicMorph.value).z / Math.max(width, 1)
         contentSink: Theme.barHeight * Math.max(0, (musicMorph.value - 0.5) / 1.5)
-        interactive: !music.popupOpen && musicMorph.value <= 0
+        interactive: musicMorph.value <= 0
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
@@ -445,7 +446,7 @@ PanelWindow {
         rate: music.rate
         trackColor: music.accent
         trackOpacity: contentOpacity
-        trackReady: music.reveal === 1 && musicMorph.value === 0 && !music.popupOpen
+        trackReady: music.reveal === 1 && musicMorph.value === 0
         trackWidth: music.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {
@@ -476,7 +477,7 @@ PanelWindow {
         contentOpacity: bar.contents(countdown.reveal) * bar.morphContents(countdownMorph.value)
         contentScale: bar.morph(Qt.vector4d(0, 0, width, Theme.barHeight), countdownMorph.value).z / Math.max(width, 1)
         contentSink: Theme.barHeight * Math.max(0, (countdownMorph.value - 0.5) / 1.5)
-        interactive: !countdown.popupOpen && countdownMorph.value <= 0
+        interactive: countdownMorph.value <= 0
 
         side: Pill.Side.Left
         edgeOffset: bar.clockRight + Theme.pillSpread
@@ -484,7 +485,7 @@ PanelWindow {
         progress: countdown.progress
         rate: countdown.rate
         trackOpacity: contentOpacity
-        trackReady: countdown.reveal === 1 && countdownMorph.value === 0 && !countdown.popupOpen
+        trackReady: countdown.reveal === 1 && countdownMorph.value === 0
         trackWidth: countdown.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {

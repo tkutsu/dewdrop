@@ -8,8 +8,8 @@ import qs
 // closing, the popover goes back into the drop first and the pill waits for
 // that before it takes the drop back and springs out to its width.
 //
-// Not under Reduce motion, nor for a popover handed over from another one,
-// which only fades (Popup.moves).
+// A popover handed over from another one only fades (Popup.moves), leaving
+// its pill in place. Reduce motion skips a direct opening's animation.
 Item {
     id: root
 
@@ -20,7 +20,11 @@ Item {
     onOpenChanged: {
         gather.stop();
         release.stop();
-        if (root.open && (Theme.reduceMotion || OpenPopup.switched)) {
+        if (root.open && OpenPopup.switched) {
+            root.value = 0;
+            return;
+        }
+        if (root.open && Theme.reduceMotion) {
             root.value = 2;
             return;
         }

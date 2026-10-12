@@ -86,7 +86,7 @@ ClickArea {
     property int padRight: 0
 
     // The click's press-in: while a button with something to do is held, the
-    // glass under the contents lights and the contents pop
+    // glass under the contents lights and the contents shrink
     // (PressGlass). A module that answers to several targets inside itself
     // (Music) turns this off and presses each target on its own instead.
     property bool dips: true
