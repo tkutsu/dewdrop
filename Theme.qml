@@ -721,8 +721,13 @@ Singleton {
         // left of centre, with the long handle pulling the box the other way.
         // This one's handle is a stub, its viewBox puts it on the pixel grid,
         // and its 1.75px ring stands the weight of the outlined glyphs beside
-        // it. launcher-tabler.svg is the thinner one it replaced.
+        // it.
         launcher: panel("launcher"),
+        // Query-mode icons, separate from the glyphs on result rows and the bar.
+        launcherCalc: "\u{f15a6}",    // nf-md-calculator_variant_outline
+        launcherWindow: "\u{f10ac}",  // nf-md-dock_window
+        launcherMusic: "\u{f075a}",   // nf-md-music
+        launcherWeb: "\u{f01e7}",     // nf-md-earth
 
         // Every glyph here is Material Design, outlined wherever the set has
         // an outline — the bar and the power menu used to mix in Font Awesome
@@ -752,7 +757,7 @@ Singleton {
         file: "\u{f0224}",
         folder: "\u{f0256}",
 
-        satty: "\u{f0d5d}",
+        satty: "\u{f019f}",           // nf-md-crop_free
         wallpaper: "\u{f0e09}",
         window: "\u{f4c3}",           // workspace taskbar fallback
 
@@ -789,7 +794,6 @@ Singleton {
         // the icon the loudest thing on the bar.
         wifiOff: panel("network-wireless-off"),
         wired: "\u{f0200}",
-        wiredOff: "\u{f0202}",
         // Mullvad, whose own icon is a solid padlock filling its box with a
         // status dot on it. The same outlined hand as the cone: shut while the
         // tunnel is up, the shackle swung open otherwise (nf-md-lock_outline,
@@ -823,13 +827,10 @@ Singleton {
         // size is a ring around two pixels of sign.
         plus: "\u{f0415}",            // nf-md-plus
 
-        // Google Tasks. A checklist for the module, and the two states of one
-        // row in its popup: an empty circle to aim at and the same circle with
-        // the tick already in it, which is what the pointer sitting on it
-        // promises will happen.
+        // Google Tasks: a checklist for the module and an empty circle for
+        // each task in its popup.
         tasks: "\u{f0756}",           // nf-md-format_list_checks
         taskOpen: "\u{f0766}",        // nf-md-circle_outline
-        taskDone: "\u{f0134}",        // nf-md-checkbox_marked_circle_outline
         undo: "\u{f054c}",            // nf-md-undo
 
         // The open mail's two actions in the popup's foot: the thread in the
@@ -879,13 +880,7 @@ Singleton {
         repeatAll: "\u{f0456}",
         repeatOne: "\u{f0458}",
 
-        // The queue rows' own controls: move this song up or down the queue,
-        // and drop it out of it. Filled triangles rather than the chevrons
-        // beside them in the font — at the size a queue row gives them, a
-        // chevron is two hairlines and reads as lighter than the ✕ it sits
-        // next to, while a triangle holds its ink the way the play mark does.
-        queueUp: "\u{f0360}",
-        queueDown: "\u{f035d}",
+        // Remove a song from the queue (nf-md-close).
         queueRemove: "\u{f0156}",
 
         // The four kinds of thing in the library the launcher's # mode ranks,
