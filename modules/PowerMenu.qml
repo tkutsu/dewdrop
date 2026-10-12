@@ -190,8 +190,16 @@ OverlayWindow {
         }
     }
 
-    function move(step: int): void {
-        root.index = root.index < 0 ? (step > 0 ? 0 : root.entries.length - 1) : (root.index + step + root.entries.length) % root.entries.length;
+    // A press wraps round the ends; a held key's repeats stop at them, or the
+    // mark would chase the selection round and round and never land.
+    function move(step: int, repeat: bool): void {
+        const n = root.entries.length;
+        if (root.index < 0)
+            root.index = step > 0 ? 0 : n - 1;
+        else if (repeat)
+            root.index = Math.max(0, Math.min(n - 1, root.index + step));
+        else
+            root.index = (root.index + step + n) % n;
     }
 
     // Track the pointer in fixed screen coordinates, independent of tile layout.
@@ -347,16 +355,16 @@ OverlayWindow {
             case Qt.Key_H:
             case Qt.Key_I:
             case Qt.Key_Backtab:
-                root.move(-1);
+                root.move(-1, event.isAutoRepeat);
                 break;
             case Qt.Key_Right:
             case Qt.Key_Down:
             case Qt.Key_L:
             case Qt.Key_E:
-                root.move(1);
+                root.move(1, event.isAutoRepeat);
                 break;
             case Qt.Key_Tab:
-                root.move(event.modifiers & Qt.ShiftModifier ? -1 : 1);
+                root.move(event.modifiers & Qt.ShiftModifier ? -1 : 1, event.isAutoRepeat);
                 break;
             case Qt.Key_Return:
             case Qt.Key_Enter:
