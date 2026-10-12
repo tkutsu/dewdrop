@@ -29,12 +29,12 @@ OverlayWindow {
     readonly property var backdrop: Wallpaper.backdrops[root.screen?.name] ?? null
     readonly property var wallpaper: root.backdrop?.front ?? null
     readonly property bool wallpaperReady: !!root.backdrop?.ready && (!root.wallpaper.path || wallpaperImage.status === Image.Ready)
-    readonly property real windowAlpha: 0.6
-    // The pill and the backdrop open together, once both frames are in hand.
+    // The pill and the backdrop open together, once the wallpaper is ready.
     property bool gaveUp: false
-    readonly property bool backdropReady: desktop.hasContent && root.wallpaperReady || root.gaveUp
-    property real reveal: root.opened && root.backdropReady ? 1 : 0
-    property real shade: root.closing ? 1 : 0.2
+    readonly property bool backdropReady: root.wallpaperReady || root.gaveUp
+    // Keep the final black frame opaque until the compositor exits.
+    property real reveal: (root.opened || Power.blackout) && root.backdropReady ? 1 : 0
+    property real shade: root.closing ? 1 : 0
     property real vertical: 1
     property real horizontal: 1
     property real flash: 0
@@ -202,18 +202,7 @@ OverlayWindow {
         }
     }
 
-    // Capture before revealing the menu, avoiding feedback from our own overlay.
-    ScreencopyView {
-        id: desktop
-
-        anchors.fill: parent
-        captureSource: root.screen
-        live: false
-        paintCursor: false
-        visible: false
-    }
-
-    // Still allow the menu if a frame never arrives.
+    // Still allow the menu if the wallpaper never becomes ready.
     Timer {
         interval: 300
         running: true
@@ -228,8 +217,7 @@ OverlayWindow {
         opacity: root.reveal
         visible: opacity > 0
 
-        // The wallpaper, cropped and panned the way Backdrop has it and
-        // softened less than the windows, so they can fade back over it.
+        // Lightly blur the wallpaper with the same crop and pan as Backdrop.
         Rectangle {
             anchors.fill: parent
             color: root.wallpaper?.path ? "black" : root.wallpaper?.color ?? "black"
@@ -266,26 +254,7 @@ OverlayWindow {
             }
         }
 
-        // The windows, blurred and faded back over the wallpaper. The blur
-        // has to change after the capture lands, or MultiEffect never
-        // applies it, so both blurs grow with the reveal.
-        MultiEffect {
-            anchors.fill: parent
-            source: desktop
-            autoPaddingEnabled: false
-            blurEnabled: true
-            blurMax: 32
-            blur: 0.6 * root.reveal
-            opacity: root.wallpaperReady ? root.windowAlpha : 1
-            visible: desktop.hasContent
-
-            Behavior on opacity {
-                enabled: root.reveal > 0
-                NumberAnimation { duration: Theme.fadeMs }
-            }
-        }
-
-        // Dim the desktop, then carry that shade into the CRT's black hold.
+        // Fade to black for the CRT exit and hold through session teardown.
         Rectangle {
             anchors.fill: parent
             color: "black"

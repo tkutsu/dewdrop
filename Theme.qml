@@ -28,12 +28,10 @@ Singleton {
     // is what lines a tiled window's side up with the pill above it.
     readonly property int barMargin: 8
 
-    // The air above the pills and below them: three pixels tighter than the
+    // The air above the pills and below them: four pixels tighter than the
     // sides. The air below is partly Hyprland's window gap, which is
-    // barMargin, so the bar reserves that much less (Bar.reserved). It is
-    // also as far as anything on the bar can stand out of a pill: the
-    // workspace mark's bead swells into all of it (BeadMark).
-    readonly property int barInset: 5
+    // barMargin, so the bar reserves that much less (Bar.reserved).
+    readonly property int barInset: 4
 
     // A pill claims the margin around it as hit area, so a module's box is
     // taller than the slab it is drawn on. Everything centres in its box and
@@ -542,30 +540,10 @@ Singleton {
     readonly property color taskSoon: Qt.rgba(1, 1, 1, 0.45)
     readonly property color taskUndated: Qt.rgba(1, 1, 1, 0.22)
 
-    // The accent (Settings.accent): what is on or chosen. White by default,
-    // which keeps the shell one colour, or one of macOS's accent colours in
-    // their dark-appearance shades. accentInk is what is drawn on it.
-    readonly property var accents: ({
-            white: label,
-            blue: "#0a84ff",
-            purple: "#bf5af2",
-            pink: "#ff375f",
-            red: "#ff453a",
-            orange: "#ff9f0a",
-            yellow: "#ffd60a",
-            green: "#30d158",
-            graphite: "#98989d"
-        })
-    readonly property bool accented: Settings.accent !== "white" && Settings.accent in accents
-    readonly property color accent: accented ? accents[Settings.accent] : label
-    readonly property color accentInk: accented ? "white" : "black"
-    // Selected text: the accent laid thin under it, as a Mac does.
-    readonly property color textSelection: accented ? Qt.rgba(accent.r, accent.g, accent.b, 0.45) : selection
+    readonly property color textSelection: selection
 
-    // The calendar. Today is a filled disc in the accent with the numeral cut
-    // out of it in the surface colour, the system's own mark. Everything
-    // else on it is a step of label.
-    readonly property color calToday: accent
+    // Today is a filled disc with the numeral cut out in the surface colour.
+    readonly property color calToday: label
 
     // --- opacity -------------------------------------------------------------
     readonly property real dimOpacity: 0.55   // .stale / .loading

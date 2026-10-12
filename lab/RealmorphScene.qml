@@ -59,6 +59,7 @@ Item {
             height: strip.height
             backdrop: scene.backdrop
             box0: scene.shape(Qt.vector4d(strip.x, Theme.barInset, strip.width, Theme.barHeight), morph.value)
+            overflow: Qt.vector4d(1, 0, 0, 0)
         }
 
         Pill {

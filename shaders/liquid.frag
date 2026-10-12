@@ -39,8 +39,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 fill;
     vec4 rimTop;
     vec4 rimBottom;
-    // The slab's top and bottom: the rim's gradient runs between them, and
-    // nothing is drawn above or below them.
+    // The slab's top and bottom: the rim's gradient and default clipping.
     float rimFrom;
     float rimTo;
     // Whether the backdrop is there to be drawn. Zero is the plain translucent
@@ -73,8 +72,8 @@ layout(std140, binding = 0) uniform buf {
     // bar).
     vec4 hover;
     vec4 sheen;
-    vec4 deform;
-    float horizontalCompression;
+    // Boxes allowed outside the slab's height, one flag per box.
+    vec4 overflow;
 };
 
 layout(binding = 1) uniform sampler2D backdrop;
@@ -106,14 +105,6 @@ float swell(vec4 b) {
 
 // How far p is outside the glass (negative inside).
 float field(vec2 p) {
-    // Compress a broad patch on both axes, with a small downward give.
-    // The inverse warp leaves the same distance field in charge of the rim.
-    float spread = (p.x - deform.x) / max(deform.z, 1.0);
-    float dent = deform.w * exp(-spread * spread);
-    float squeeze = max(1.0 - dent, 0.5);
-    float centre = (rimFrom + rimTo) * 0.5;
-    p.x = deform.x + (p.x - deform.x) / max(1.0 - dent * horizontalCompression, 0.5);
-    p.y = centre + (p.y - centre - dent * 5.0) / squeeze;
     // A bulge is blended in by as much as it stands out, so it grows out of
     // the slab from nothing and goes back into it without a jump.
     float s0 = swell(bulge0);
@@ -129,12 +120,15 @@ float field(vec2 p) {
     d = smin(d, box(p, box3), reaches.w);
 
     // The smooth minimum swells a join out in every direction, which made
-    // the glass taller than a pill wherever two met, and only on top: the
-    // bar's window ends at the slabs' bottom edge. Held to the slab's height,
-    // so a join only ever fills out sideways. A bulge is let through, and
-    // what its blend rounds it out by.
+    // the glass taller than a pill wherever two met. Hold joins to the slab's
+    // height, except bulges and the actual outlines of sinking pills.
     float proud = max(s0 + k0 * 0.25, s1 + k1 * 0.25);
-    return max(d, abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud);
+    float clip = abs(p.y - (rimFrom + rimTo) * 0.5) - (rimTo - rimFrom) * 0.5 - proud;
+    if (overflow.x > 0.0) clip = min(clip, box(p, box0));
+    if (overflow.y > 0.0) clip = min(clip, box(p, box1));
+    if (overflow.z > 0.0) clip = min(clip, box(p, box2));
+    if (overflow.w > 0.0) clip = min(clip, box(p, box3));
+    return max(d, clip);
 }
 
 // The wallpaper under p.
@@ -214,7 +208,7 @@ void main() {
         // centre, a line round the end in whatever colour lay there, and those
         // outside it looked through to the far side. Held short of the middle,
         // the rim shows a smaller copy of what is round it instead.
-        vec2 shift = n * min(bend * lens, 0.7 * (bendDepth + d));
+        vec2 shift = n * min(bend * lens, max(0.0, 0.7 * (bendDepth + d)));
         vec3 c = vec3(softened(p - shift * (1.0 - dispersion)).r,
                       softened(p - shift).g,
                       softened(p - shift * (1.0 + dispersion)).b);

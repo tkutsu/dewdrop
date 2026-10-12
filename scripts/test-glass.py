@@ -54,6 +54,7 @@ ShellRoot {
                 onClicked: bar.clicks++
             }
         }
+        PressGlass { id: feedback; icon: button; area: button }
         Item { id: anchor; x: 140; y: 4; width: 40; height: 30 }
         TestCase { id: test; when: false }
     }
@@ -109,15 +110,20 @@ ShellRoot {
             check(morph.value === 2, "Reduce motion also hides the popup owner's glass");
             popup.requestedVisible = true; popup.visible = true; test.wait(40);
             check(popup.opened && popup.landed && popup.ink === 1, "Reduce motion opens a complete popup without the drop animation");
-            Settings.user = {pillPressMorph: true}; test.wait(20);
-            GlassPress.press(button, button.mapToItem(null, 90, 15));
-            GlassPress.release(button); test.wait(60);
-            check(GlassPress.dent > 0 && GlassPress.dent < 0.8, "fabric press eases through an intermediate dent");
-            test.wait(90);
-            check(pill.fabric.w > 0, "track reads the fabric deformation");
-            check(GlassPress.dent > 0.8, "a quick tap still completes the broad shrink");
-            test.wait(340);
-            check(Math.abs(GlassPress.dent) < 0.001, "fabric recovers completely after a tap");
+            popup.requestedVisible = false; popup.visible = false;
+            bar.isOpen = false; pill.contentOpacity = 1;
+            Settings.user = {}; test.wait(400);
+            test.mousePress(button, 90, 15); test.wait(220);
+            check(feedback.scale >= 0.92 && feedback.scale < 0.96, "held pill content shrinks slightly");
+            Settings.user = {reduceMotion: true};
+            check(feedback.scale === 1, "Reduce motion keeps pressed content at normal size");
+            Settings.user = {};
+            test.mouseRelease(button, 90, 15);
+            let enlarged = false;
+            for (let ms = 0; ms < 1200; ms += 20) {
+                test.wait(20); enlarged = enlarged || feedback.scale > 1;
+            }
+            check(!enlarged && Math.abs(feedback.scale - 1) < 0.001, "release restores normal size without zooming past it");
             console.log("RESULT: " + failures + " failures");
             Qt.quit();
         }

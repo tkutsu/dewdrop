@@ -6,7 +6,6 @@ Liquid {
     id: root
     property bool held: false
     property bool resetWhenHidden: false
-    property bool trackingPointer: false
     readonly property bool animating: liftSpring.running || leftSpring.running || rightSpring.running
     property real slabY: 0
     required property real slabHeight
@@ -33,8 +32,8 @@ Liquid {
     }
 
     readonly property real edge: inset - lift
-    readonly property real slabTop: root.slabY + Theme.pillBorder + edge
-    readonly property real thickness: root.slabHeight - Theme.pillBorder - edge * 2
+    readonly property real slabTop: root.slabY + edge
+    readonly property real thickness: root.slabHeight - edge * 2
     readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
 
     property real wantLeft: 0
@@ -63,7 +62,7 @@ Liquid {
     readonly property bool _following: resizing && !leftSpring.running && !rightSpring.running
 
     Behavior on headLeft {
-        enabled: root.placed && !root._following && !root.trackingPointer
+        enabled: root.placed && !root._following
         SpringAnimation {
             id: leftSpring
             spring: root.spring
@@ -71,7 +70,7 @@ Liquid {
         }
     }
     Behavior on headRight {
-        enabled: root.placed && !root._following && !root.trackingPointer
+        enabled: root.placed && !root._following
         SpringAnimation {
             id: rightSpring
             spring: root.spring
@@ -108,8 +107,8 @@ Liquid {
         return 1 - (1 - t) * (1 - t);
     }
     readonly property real bulbEdge: Math.max(0, edge - Theme.markBulge * press)
-    readonly property real bulbTop: root.slabY + Theme.pillBorder + bulbEdge
-    readonly property real bulbThickness: root.slabHeight - Theme.pillBorder - bulbEdge * 2
+    readonly property real bulbTop: root.slabY + bulbEdge
+    readonly property real bulbThickness: root.slabHeight - bulbEdge * 2
     readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
     readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
 

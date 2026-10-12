@@ -1,8 +1,7 @@
 import QtQuick
 import qs
 
-// Options in a well, wrapping when the row is narrow. An option with a
-// swatch is drawn as a dot of that colour rather than named.
+// Options in a well, wrapping when the row is narrow.
 Rectangle {
     id: root
 
@@ -38,7 +37,7 @@ Rectangle {
                 Accessible.onToggleAction: if (!option.chosen && option.enabled && option.visible)
                     root.setting.set(option.modelData.value)
 
-                width: option.modelData.swatch ? height + 4 : label.implicitWidth + 20
+                width: label.implicitWidth + 20
                 height: 18
                 radius: Theme.selectionRadius
                 color: option.chosen ? Theme.selectionStrong : hover.hovered ? Theme.selection : "transparent"
@@ -49,21 +48,9 @@ Rectangle {
                     }
                 }
 
-                Rectangle {
-                    visible: !!option.modelData.swatch
-                    anchors.centerIn: parent
-                    width: 12
-                    height: 12
-                    radius: 6
-                    color: option.modelData.swatch ?? "transparent"
-                    border.width: 1
-                    border.color: Theme.stroke
-                }
-
                 PopupText {
                     id: label
 
-                    visible: !option.modelData.swatch
                     anchors.centerIn: parent
                     text: option.modelData.label
                     font.pixelSize: Theme.captionSize
