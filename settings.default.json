@@ -27,6 +27,7 @@
 
     // The clock, as a Qt date format: "HH:mm" reads 14:05, "h:mm AP" reads
     // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
+    // Alarms follow the same 12h/24h notation, always without seconds.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "timeFormat": "HH:mm",
 
@@ -63,12 +64,6 @@
     "reduceMotion": false,
     "reduceTransparency": false,
 
-    // What a slider's knob turns into while it is held: "bead" is a bead of
-    // glass the track shows through, bent round its rim; "gel" is the same
-    // bead trailing a short tail as it is dragged. Reduce motion makes it
-    // "bead", and Reduce transparency keeps the plain knob.
-    "sliderKnob": "bead",
-
     // --- apps it opens -----------------------------------------------------
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is
@@ -83,6 +78,10 @@
     // manager.
     "fileManager": "xdg-open",
 
+    // Include apps' desktop actions in launcher results. Individual hiddenApps
+    // exclusions still apply when this is on.
+    "showDesktopActions": false,
+
     // Desktop entries the launcher leaves out, by id (the file name without
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
     // desktop shows up unless it is listed here (blueman-adapters is
@@ -90,7 +89,9 @@
     // id from its [Desktop Action ...] header. Hidden here are the ones that
     // only open the app they hang off (LibreOffice's "New Spreadsheet", a
     // browser's "New Window") or that the app's own window does better
-    // (Steam's pages, Telegram's Quit). Private windows stay. The launcher's
+    // (Steam's pages, Telegram's Quit). Chromium's incognito action is also
+    // hidden. Firefox's private window is available when showDesktopActions
+    // is on. The launcher's
     // controls and power commands hide as "desktop:<key>" and "power:<key>"
     // (desktop:dnd, power:reboot).
     "hiddenApps": [
@@ -99,6 +100,7 @@
         "libreoffice-impress:NewDocument", "libreoffice-draw:NewDocument",
         "libreoffice-base:NewDocument", "libreoffice-math:NewDocument",
         "firefox:new-window", "chromium:new-window",
+        "chromium:new-private-window",
         "code-oss:new-empty-window", "cursor:new-empty-window",
         "org.telegram.desktop:quit",
         "steam:Store", "steam:Community", "steam:Library", "steam:Servers",

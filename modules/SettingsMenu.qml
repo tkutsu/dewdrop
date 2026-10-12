@@ -105,6 +105,8 @@ OverlayWindow {
         const rows = [];
         for (const e of DesktopEntries.applications.values.slice().sort((a, b) => a.name.localeCompare(b.name))) {
             rows.push(root.shownInLauncher(e.id, e.name, { icon: e.icon }));
+            if (!Settings.showDesktopActions)
+                continue;
             for (const a of e.actions ?? [])
                 rows.push(root.shownInLauncher(e.id + ":" + a.id, e.name + " · " + a.name, { icon: a.icon || e.icon }));
         }
@@ -128,12 +130,6 @@ OverlayWindow {
             title: "Bar",
             sections: [
                 {
-                    title: "Appearance",
-                    rows: [
-                        { type: "choice", id: "sliderKnob", title: "Slider knob when held", text: "Bead turns the knob into a bead of glass the track shows through. Gel is the same bead, trailing a short tail as you drag. With Reduce motion on it is the bead; with Reduce transparency, the plain knob.", options: [{ value: "bead", label: "Bead" }, { value: "gel", label: "Gel" }], get: () => Settings.sliderKnob, set: v => Settings.set("sliderKnob", v) }
-                    ]
-                },
-                {
                     title: "Workspaces",
                     rows: [
                         { type: "toggle", id: "groupWindows", title: "Group windows by app", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) }
@@ -152,7 +148,8 @@ OverlayWindow {
                 {
                     title: "Clock",
                     rows: [
-                        { type: "text", id: "timeFormat", title: "Time format", text: "A Qt date format: HH:mm reads 14:05, h:mm AP reads 2:05 PM, and with seconds (HH:mm:ss) it ticks every second.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") }
+                        { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
+                        { type: "text", id: "timeFormat", title: "Custom clock format", text: "A Qt date format: HH:mm reads 14:05, h:mm AP reads 2:05 PM, and HH:mm:ss shows seconds. Alarms follow its 12h or 24h notation.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") }
                     ]
                 },
                 {
@@ -166,6 +163,12 @@ OverlayWindow {
         {
             title: "Launcher",
             sections: [
+                {
+                    title: "Desktop actions",
+                    rows: [
+                        { type: "toggle", id: "showDesktopActions", title: "Show desktop actions", text: "Include app shortcuts such as New Private Window and Open Profile Manager in launcher results.", get: () => Settings.showDesktopActions, set: v => Settings.set("showDesktopActions", v) }
+                    ]
+                },
                 {
                     title: "Apps",
                     text: "Off leaves an app, or one of its own actions, out of the launcher's results. Nothing is uninstalled, and its desktop file is left alone.",
@@ -312,6 +315,7 @@ OverlayWindow {
                         color: Theme.fg
                         selectionColor: Theme.textSelection
                         selectedTextColor: Theme.fg
+                        cursorDelegate: TextCaret { textInput: filter }
                         selectByMouse: true
                         font.family: Theme.bodyFont
                         font.pixelSize: Theme.popupTextSize

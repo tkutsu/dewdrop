@@ -18,7 +18,9 @@ function pad(n) {
     return n < 10 ? "0" + n : String(n);
 }
 
-function hhmm(h, m) {
+function hhmm(h, m, twelveHour) {
+    if (twelveHour)
+        return (h % 12 || 12) + ":" + pad(m) + (h < 12 ? " AM" : " PM");
     return pad(h) + ":" + pad(m);
 }
 
@@ -150,11 +152,11 @@ function parse(text) {
 }
 
 // The parsed time without the label, which the launcher row already shows.
-function brief(text, parsed) {
+function brief(text, parsed, twelveHour) {
     const p = parsed ?? parse(text);
     if (!p.ok)
         return p.error;
     if (p.kind === "alarm")
-        return `alarm  ·  ${hhmm(p.hour, p.minute)} ${dayWord(p.hour, p.minute)}`;
+        return `alarm  ·  ${hhmm(p.hour, p.minute, twelveHour)} ${dayWord(p.hour, p.minute)}`;
     return `timer  ·  ${spell(p.ms)}`;
 }
