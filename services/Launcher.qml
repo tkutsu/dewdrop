@@ -104,17 +104,15 @@ Singleton {
 
     // Modes with one destination use a prefix directly.
     //
-    // Files, from fasd and fd. A calculation. A shell command. The clipboard.
+    // Files, from fasd and fd. A calculation. The clipboard.
     // The characters are the ones already on the keys they mean — "=" starts
-    // what you would write on paper, ">" is a prompt, and a quote is what you
+    // what you would write on paper, and a quote is what you
     // put round text you are pasting.
     readonly property string pathPrefix: "/"
     readonly property string calcPrefix: "="
-    readonly property string cmdPrefix: ">"
     readonly property string clipPrefix: '"'
-    // The windows that are open, by workspace, to go to one. The underscore:
-    // the one character here that starts nothing else — not a path, not a
-    // sum, not a command, not a quoted line.
+    // Open windows by workspace. An underscore tries windows first; a search
+    // with no matching window falls through to ordinary query inference.
     readonly property string windowPrefix: "_"
     // The library: artists, their records, the songs on them, and the stored
     // playlists. A hash, which starts nothing else here — it is not a
@@ -130,21 +128,16 @@ Singleton {
     // Tasks and timers share a comma: plain text writes down a task, while a
     // leading duration or time of day sets a timer or alarm.
     readonly property string taskPrefix: ","
-    // Emoji, by name or by the words people use for them ("lol" finds 😂).
-    // The colon that starts a :shortcode: in chat, and starts nothing else here.
-    readonly property string emojiPrefix: ":"
 
     readonly property var modes: [
-        { prefix: root.pathPrefix, hint: "files" },
-        { prefix: root.windowPrefix, hint: "windows" },
+        { prefix: root.calcPrefix, hint: "calc" },
         { prefix: root.clipPrefix, hint: "clipboard" },
-        { prefix: root.enginePrefix, hint: "web" },
-        { prefix: root.mailPrefix, hint: "email" },
+        { prefix: root.windowPrefix, hint: "windows" },
+        { prefix: root.pathPrefix, hint: "files" },
         { prefix: root.taskPrefix, hint: "tasks" },
         { prefix: root.musicPrefix, hint: "music" },
-        { prefix: root.emojiPrefix, hint: "emoji" },
-        { prefix: root.calcPrefix, hint: "calc" },
-        { prefix: root.cmdPrefix, hint: "run" }
+        { prefix: root.enginePrefix, hint: "web" },
+        { prefix: root.mailPrefix, hint: "email" }
     ]
 
     // What the hint in the query line says. Normally the modes, assembled
@@ -189,8 +182,6 @@ Singleton {
             return Tasks.syntax + "   " + Timers.syntax;
         if (root.pathMode)
             return "→ at end complete  ·  ctrl+enter show in folder  ·  ctrl+c copy path";
-        if (root.emojiMode)
-            return root.canType ? "enter types it  ·  ctrl+c copies" : "enter copies";
         if (root.classification.mode === "empty")
             return root.prefixHint;
         if (root.classification.mode === root.enginePrefix && !root.classification.text)
@@ -208,33 +199,26 @@ Singleton {
     // --- state ---------------------------------------------------------------
 
     property bool shown: false
+    readonly property int dismissMs: 200
     // Whether the window exists, which is not the same thing as being wanted:
-    // LauncherMenu.qml folds itself shut when `shown` goes false, so the window
+    // LauncherMenu.qml defocuses and fades when `shown` goes false, so the window
     // has to outlive the intent by the length of that. See qs.Linger.
     readonly property bool active: linger.active
     // Once the window is gone, so is the question: left set, the last mode's
     // bindings would keep answering it for nobody (every window title change
     // re-ran `_`). show() starts from empty anyway.
-    //
-    // A pending emoji is typed then too, a beat late so Hyprland has handed
-    // the focus back to the window underneath.
     onActiveChanged: {
         if (active)
             return;
         root.query = "";
-        if (root.typeOnClose)
-            Quickshell.execDetached(["sh", "-c", "sleep 0.05; exec wtype -- \"$1\"", "sh", root.typeOnClose]);
-        root.typeOnClose = "";
     }
     property string query: ""
     property int index: 0
     onResultsChanged: if (root.index >= root.results.length)
         root.index = Math.max(0, root.results.length - 1)
 
-    // The row a choice was made on, or -1 for a box that was dismissed rather
-    // than used. The exit animation is built on it — see LauncherMenu.qml —
-    // and it is also the difference between the two ways out, so it has to be
-    // set before hide() and cleared on the way back in.
+    // Record the activated row before closing; an ordinary dismissal leaves -1.
+    // show() clears it for the next query.
     property int chosen: -1
 
     // The row the box is on, and whether the box is listing files at all.
@@ -246,9 +230,34 @@ Singleton {
     readonly property bool musicMode: root.classification.mode === root.musicPrefix
     readonly property bool mailMode: root.classification.mode === root.mailPrefix
     readonly property bool taskMode: root.classification.mode === root.taskPrefix
-    readonly property bool emojiMode: root.classification.mode === root.emojiPrefix
 
-    // Classify without starting work or building rows. route() calls this
+    // Follow query inference even while results are pending or selection changes.
+    readonly property string queryIcon: {
+        const c = root.classification;
+        switch (c.mode) {
+        case root.calcPrefix: return Theme.glyph.launcherCalc;
+        case root.clipPrefix: return Theme.glyph.clipboard;
+        case root.windowPrefix: return Theme.glyph.launcherWindow;
+        case root.pathPrefix: return Theme.glyph.folder;
+        case root.musicPrefix: return Theme.glyph.launcherMusic;
+        case root.enginePrefix: return Theme.glyph.launcherWeb;
+        case root.mailPrefix: return Theme.glyph.mailUnread;
+        case root.taskPrefix: {
+            const timer = Timers.parse(c.text.trim());
+            return timer.ok ? (timer.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer) : Theme.glyph.tasks;
+        }
+        case "main":
+            if (c.math)
+                return Theme.glyph.launcherCalc;
+            if (c.email)
+                return Theme.glyph.mailUnread;
+            if (c.url || root.results[0]?.kind === "url")
+                return Theme.glyph.launcherWeb;
+        }
+        return Theme.glyph.launcher;
+    }
+
+    // Classify without starting asynchronous work. route() calls this
     // directly: onQueryChanged can run before the classification binding updates.
     function classifyQuery(q) {
         if (!q.length)
@@ -257,18 +266,23 @@ Singleton {
         const leading = q.replace(/^\s+/, "");
         const sym = leading.charAt(0);
         if (root.modeResults[sym] || sym === root.enginePrefix) {
+            // Keep an absolute path intact; "/ query" still selects file search.
+            if (sym === root.pathPrefix && /^\/\S/.test(leading))
+                return { mode: sym, text: leading.trim() };
             const rest = leading.slice(1);
-            return { mode: sym, text: sym === root.taskPrefix ? rest : rest.trim() };
+            if (sym !== root.windowPrefix || !rest.trim() || root.windowResults(rest.trim()).length)
+                return { mode: sym, text: sym === root.taskPrefix ? rest : rest.trim() };
         }
 
         // Automatic maths and URLs add rows to the main list. Files take over
         // only when neither applies; search remains a fallback after matching.
         const t = q.trim();
         const math = root.looksLikeMath(t);
+        const email = root.parseEmail(t);
         const url = root.parseUrl(t);
-        if (!math && !url && root.looksLikePath(t))
+        if (!math && !url && !email && root.looksLikePath(t))
             return { mode: root.pathPrefix, text: t };
-        return { mode: "main", text: t, math: math, url: url };
+        return { mode: "main", text: t, math: math, url: url, email: email };
     }
 
     // Recognize file search syntax independently of mode precedence.
@@ -283,7 +297,7 @@ Singleton {
     // { appId: { count, last } }
     property var db: ({})
 
-    // A new query is a new list, and the old cursor position means nothing in it.
+    // A changed query starts at its first match.
     onQueryChanged: {
         root.index = 0;
         root.mailOpen = null;
@@ -294,8 +308,8 @@ Singleton {
         id: linger
 
         shown: root.shown
-        // A choice takes longer to leave than a dismissal does.
-        hold: root.chosen >= 0 ? Theme.zipTotalMs : Theme.revealMs
+        // Keep the surface alive through the launcher's defocus and fade.
+        hold: root.dismissMs
     }
 
     function toggle(): void {
@@ -341,9 +355,7 @@ Singleton {
         root.shown = true;
     }
 
-    // Leaving because a row was used, rather than because the box was
-    // dismissed. Same exit as far as this file is concerned; the difference is
-    // the animation the box plays on the way out.
+    // Record the choice before closing and updating its usage history.
     function leave(i): void {
         root.chosen = i;
         root.hide();
@@ -415,13 +427,11 @@ Singleton {
     readonly property var modeResults: ({
             [root.pathPrefix]: rest => root.pathResults(rest),
             [root.calcPrefix]: rest => root.calcResults(rest, false),
-            [root.cmdPrefix]: rest => root.cmdResults(rest),
             [root.clipPrefix]: rest => root.clipResults(rest),
             [root.windowPrefix]: rest => root.windowResults(rest),
             [root.musicPrefix]: rest => LauncherMusic.results(rest),
             [root.mailPrefix]: rest => root.mailResults(rest),
-            [root.taskPrefix]: rest => root.taskResults(rest),
-            [root.emojiPrefix]: rest => root.emojiResults(rest)
+            [root.taskPrefix]: rest => root.taskResults(rest)
         })
 
     readonly property var results: {
@@ -442,7 +452,7 @@ Singleton {
         // so they sit above the list rather than inside it. Apps and power
         // commands are both guesses at what was meant, so they are ranked
         // against each other and share the ordering.
-        const found = root.calcResults(c.math ? c.text : "", true).concat(root.urlResults(c.text, c.url)).concat(root.mainResults(c.text));
+        const found = root.calcResults(c.math ? c.text : "", true).concat(root.emailResults(c.email), root.urlResults(c.text, c.url), root.mainResults(c.text));
 
         // Nothing matched, so it was a question: answer it the way "%" would.
         // Gated on the sum being spotted rather than on qalc's row, which
@@ -486,6 +496,8 @@ Singleton {
                 entry: e,
                 fields: root.prepFields([[e.name, 1], [e.genericName, 0.8]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
             });
+            if (!Settings.showDesktopActions)
+                continue;
             for (const a of e.actions ?? []) {
                 const id = e.id + ":" + a.id;
                 if (Settings.hiddenApps.includes(id))
@@ -792,7 +804,8 @@ Singleton {
         // would all come from whichever one fd reached first. The ranking
         // below still puts a name match over a path match; this is about
         // giving it enough to rank.
-        command: ["timeout", "5", "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
+        // Resolve an existing absolute path before searching the home directory.
+        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", Settings.expand(fd.arg), "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
 
         onResult: function (arg, text) {
             if (!root.shown || arg !== fd.want)
@@ -815,6 +828,13 @@ Singleton {
     }
 
     function pathResults(query) {
+        const hits = root.fdHits;
+        if (hits && hits.q === query) {
+            const exact = Settings.expand(query).replace(/\/$/, "") || "/";
+            const direct = hits.list.find(h => h.path === exact);
+            if (direct)
+                return [root.pathRow(direct.path, direct.dir, false)];
+        }
         // Split on slashes as well as spaces, so "downloads/torrents" scores
         // as two words against the name and the path rather than as one long
         // one that has to be a subsequence of either.
@@ -855,7 +875,6 @@ Singleton {
         // a depth-7 walk with no result cap because fzf streams and you are
         // already waiting; this caps the scan at 60 hits, or 200 for multiple terms,
         // and stopped at depth 6, which lands in about 40ms.
-        const hits = root.fdHits;
         if (hits && hits.q === query) {
             const seen = {};
             for (const r of rows)
@@ -1214,11 +1233,6 @@ Singleton {
             clip.asked = true;
             clip.running = true;
         }
-        // Read on first use and kept: the list is the same every time.
-        if (c.mode === root.emojiPrefix && !emojiFile.path) {
-            emojiFile.path = Quickshell.shellPath("data/emoji.tsv");
-            typer.running = true;
-        }
     }
 
     // --- calculator ----------------------------------------------------------
@@ -1315,6 +1329,20 @@ Singleton {
         }
     }
 
+    // Recognize a complete address without treating a sentence or file as mail.
+    function parseEmail(q) {
+        if (!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(q))
+            return null;
+        const local = q.split("@")[0];
+        return local.startsWith(".") || local.endsWith(".") || local.includes("..") ? null : q;
+    }
+
+    function emailResults(address) {
+        if (!address)
+            return [];
+        return [{kind: "url", glyph: Theme.glyph.mailRead, title: "search gmail for " + address, subtitle: "gmail", raw: true, url: Email.web + "#search/" + encodeURIComponent(address)}];
+    }
+
     // --- urls ----------------------------------------------------------------
 
     // Enough of the real TLDs to cover what actually gets typed here. An
@@ -1375,26 +1403,6 @@ Singleton {
                 url: url.url
             }
         ];
-    }
-
-    // --- run command ---------------------------------------------------------
-
-    function cmdResults(cmd) {
-        // ">" on its own is the history, the same way the empty app query is.
-        if (!cmd)
-            return root.recent("cmd:").map(root.cmdRow);
-        return [root.cmdRow(cmd)];
-    }
-
-    function cmdRow(cmd) {
-        return {
-            kind: "cmd",
-            cmd: cmd,
-            title: cmd,
-            subtitle: "run in terminal",
-            badge: root.cmdPrefix,
-            raw: true
-        };
     }
 
     // --- clipboard -----------------------------------------------------------
@@ -1495,110 +1503,6 @@ Singleton {
         }
     }
 
-    // --- emoji ---------------------------------------------------------------
-
-    // data/emoji.tsv, built by scripts/emoji-build.py: the emoji, its name,
-    // its keywords and its group, in Unicode's order.
-    property var emojis: []
-    property bool emojiMissing: false
-
-    // With nothing typed, the ones used lately and then the rest in Unicode's
-    // order, which keeps faces with faces.
-    //
-    // Typed, by whole words rather than the fuzzy matcher the apps use: as a
-    // subsequence "lol" is in "lollipop" and "love letter", which buried the
-    // face whose keyword it is. Each word typed has to start a word of the
-    // emoji's. A whole word of the name counts most, then a whole keyword,
-    // then the start of either, so "heart" lists the hearts before the faces
-    // that merely have one, and "lol" finds 😂 before the lollipop.
-    function emojiScore(term, e) {
-        let best = null;
-        const at = (words, whole, start) => {
-            for (const w of words)
-                if (w === term)
-                    best = Math.max(best ?? 0, whole);
-                else if (w.startsWith(term))
-                    best = Math.max(best ?? 0, start);
-        };
-        at(e.nameWords, 4, 2);
-        at(e.keyWords, 3, 1);
-        at(e.groupWords, 0.5, 0.5);
-        return best;
-    }
-
-    function emojiResults(query) {
-        if (!root.emojis.length)
-            return root.emojiMissing ? [root.noteRow(Theme.glyph.window, "no emoji list", "data/emoji.tsv is missing")] : [];
-
-        const terms = root.emojiWords(query);
-        const scored = [];
-        for (let i = 0; i < root.emojis.length; i++) {
-            const e = root.emojis[i];
-            const used = root.frecency("emoji:" + e.emoji);
-            let s = used * 1000 - i;
-            if (terms.length) {
-                s = 0;
-                for (const term of terms) {
-                    const m = root.emojiScore(term, e);
-                    if (m === null) {
-                        s = null;
-                        break;
-                    }
-                    s += m;
-                }
-                if (s === null)
-                    continue;
-                s += used - i * 0.0001;
-            }
-            scored.push({ s: s, e: e });
-        }
-        scored.sort((a, b) => b.s - a.s);
-        return scored.slice(0, root.maxResults).map(x => ({
-                    kind: "emoji",
-                    emoji: x.e.emoji,
-                    glyph: x.e.emoji,
-                    title: x.e.name,
-                    subtitle: x.e.group
-                }));
-    }
-
-    FileView {
-        id: emojiFile
-        printErrors: false
-        onLoadFailed: root.emojiMissing = true
-        onLoaded: root.emojis = emojiFile.text().split("\n").filter(l => l).map(l => {
-            const [emoji, name, words, group] = l.split("\t");
-            return {
-                emoji: emoji,
-                name: name,
-                group: group,
-                nameWords: root.emojiWords(name),
-                keyWords: root.emojiWords(words),
-                groupWords: root.emojiWords(group)
-            };
-        })
-    }
-
-    // Lowercased words, split at spaces and the punctuation names carry
-    // ("flag: Greece", "heart-eyes"), keeping "+1" and "it's" whole.
-    function emojiWords(text) {
-        return Fuzzy.fold(text || "").toLowerCase().split(/[\s\-:,.!()“”"&]+/).filter(w => w);
-    }
-
-    // Typing the emoji into the window the launcher was opened over, the way
-    // the macOS picker inserts it, needs wtype. Without it Enter only copies.
-    property bool canType: false
-
-    Process {
-        id: typer
-        command: ["sh", "-c", "command -v wtype"]
-        onExited: code => root.canType = code === 0
-    }
-
-    // Typed once the launcher's window is gone, so the keys reach the window
-    // underneath rather than the query line. See onActiveChanged.
-    property string typeOnClose: ""
-
     // --- selection -----------------------------------------------------------
 
     function move(dir): void {
@@ -1645,6 +1549,14 @@ Singleton {
 
     // --- activating ----------------------------------------------------------
 
+    // Select a tabbed Chromium window so a last-active PWA cannot cause a new one.
+    function browserFocus(path) {
+        if (!/\.(?:html?|xhtml)$/i.test(path))
+            return "";
+        const browser = Hyprland.toplevels.values.find(t => (t.wayland?.appId || t.lastIpcObject?.class || "").toLowerCase() === "chromium");
+        return browser ? `hl.dsp.focus({ window = "address:0x${browser.address}" })` : "";
+    }
+
     // Text to the clipboard. Through sh rather than as a wl-copy argument
     // because an answer can start with a minus — "-40 °C" would be read as
     // flags — and because it is typed text that nothing should have to quote.
@@ -1688,14 +1600,6 @@ Singleton {
                 root.leave(i);
                 root.copy(r.answer);
             },
-            cmd: (r, i) => {
-                root.leave(i);
-                root.bump("cmd:" + r.cmd);
-                // Floating by title (see wrules.lua), and held open after the
-                // command ends: one that exits instantly would otherwise take
-                // its own output with it.
-                Quickshell.execDetached(Settings.inTerminal(["sh", "-c", r.cmd], r.cmd + " (floating)", true));
-            },
             power: (r, i) => {
                 root.leave(i);
                 root.bump("power:" + r.action.key);
@@ -1718,7 +1622,11 @@ Singleton {
                 // way out, so picking a path here also trains `f` in the
                 // terminal.
                 Quickshell.execDetached(["fasd", "-A", r.path]);
-                // A text file opens in $EDITOR the way f.fish opens one, and
+                // HTML/XHTML use the default application. Focus an existing
+                // Chromium browser first when it is the default: a last-active
+                // PWA would otherwise make Chromium create another window.
+                // Other text files
+                // open in $EDITOR the way f.fish opens one, and
                 // in a terminal because that is where an editor lives. Not
                 // xdg-open for those: it would hand a .conf to a text viewer.
                 // Anything binary does go to xdg-open, though, or a .png opens
@@ -1735,18 +1643,11 @@ Singleton {
                 if (r.dir)
                     Quickshell.execDetached([Settings.fileManager, r.path]);
                 else
-                    Quickshell.execDetached(["sh", "-c", 'f=$1; shift; [ -s "$f" ] && [ "$(file -Lb --mime-encoding -- "$f")" = binary ] && exec xdg-open "$f"; exec "$@"', "sh", r.path, ...Settings.inTerminal([Settings.editor, r.path])]);
+                    Quickshell.execDetached(["sh", "-c", 'f=$1; browser=$2; shift 2; case "$f" in *.[hH][tT][mM]|*.[hH][tT][mM][lL]|*.[xX][hH][tT][mM][lL]) mime=text/html; case "$f" in *.[xX][hH][tT][mM][lL]) mime=application/xhtml+xml;; esac; [ -n "$browser" ] && [ "$(xdg-mime query default "$mime")" = chromium.desktop ] && hyprctl dispatch "$browser" >/dev/null 2>&1; exec xdg-open "$f";; esac; [ -s "$f" ] && [ "$(file -Lb --mime-encoding -- "$f")" = binary ] && exec xdg-open "$f"; exec "$@"', "sh", r.path, root.browserFocus(r.path), ...Settings.inTerminal([Settings.editor, r.path])]);
             },
             url: (r, i) => {
                 root.leave(i);
                 Quickshell.execDetached(["xdg-open", r.url]);
-            },
-            emoji: (r, i) => {
-                root.leave(i);
-                root.bump("emoji:" + r.emoji);
-                root.copy(r.emoji);
-                if (root.canType)
-                    root.typeOnClose = r.emoji;
             },
             mail: (r, i) => {
                 root.leave(i);
@@ -1817,11 +1718,10 @@ Singleton {
         Quickshell.execDetached(["busctl", "--user", "call", "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1", "ShowItems", "ass", "1", uri, ""]);
     }
 
-    // Ctrl+C with nothing selected in the query line: the row's own text,
-    // which for a file is its full path and for an emoji is the emoji.
+    // Ctrl+C with nothing selected in the query line copies the file's full path.
     function copyRow(i): void {
         const r = root.results[i];
-        const text = r?.kind === "path" ? r.path : r?.kind === "emoji" ? r.emoji : "";
+        const text = r?.kind === "path" ? r.path : "";
         if (!text)
             return;
         root.leave(i);

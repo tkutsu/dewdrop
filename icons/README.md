@@ -17,8 +17,6 @@ launcher.svg is our own drawing in the manner of SF Symbols' magnifyingglass
 (not a copy of it), in an 18px box so it lands on whole pixels. It is pure
 white rather than WhiteSur's #ececec: Glyph gives a drawing the label's alpha,
 and #ececec under that came out a step dimmer than the text beside it.
-launcher-tabler.svg is Tabler's "search" (https://github.com/tabler/tabler-icons),
-licensed MIT, redrawn the same way.
 
 network-wireless-0 to -4 and -off are our own drawings in the manner of SF
 Symbols' wifi (not a copy of it): a dot and three 1.5px arcs about it, in a
