@@ -5,16 +5,15 @@ import qs
 import qs.components
 import qs.services
 
-// A floating action pill with launcher-style folding and a CRT action exit.
+// A floating action pill with the launcher's width spring and a CRT action exit.
 OverlayWindow {
     id: root
 
     name: "powermenu"
     shown: Power.shown
-    color: "transparent"
-    inputItem: menuClip
+    inputItem: inputSurface
+    dismissOnOutsidePress: false
     WlrLayershell.keyboardFocus: root.shown || Power.blackout ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-    onDismissed: root.back()
 
     readonly property var menuActions: Power.actions
     readonly property int tileWidth: Math.max(96, Math.min(112, Math.floor((width - 64) / menuActions.length)))
@@ -39,6 +38,44 @@ OverlayWindow {
     property real horizontal: 1
     property real flash: 0
     property real afterglow: 0
+    property real widthRatio: 1012 / 960
+    property real contentAlpha: 0
+    readonly property bool menuOpened: root.opened && root.backdropReady
+
+    onMenuOpenedChanged: {
+        entrance.stop();
+        dismissal.stop();
+        if (Theme.reduceMotion) {
+            root.widthRatio = 1;
+            root.contentAlpha = root.menuOpened ? 1 : 0;
+        } else if (root.menuOpened) {
+            entrance.start();
+        } else {
+            dismissal.start();
+        }
+    }
+
+    ParallelAnimation {
+        id: entrance
+        SequentialAnimation {
+            PauseAnimation { duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 976 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 955 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 948 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 950 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 954 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 958 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 1; duration: 33 }
+            PauseAnimation { duration: 69 }
+        }
+        NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 67 }
+    }
+
+    ParallelAnimation {
+        id: dismissal
+        NumberAnimation { target: root; property: "widthRatio"; to: 0.97; duration: 160; easing.type: Easing.OutCubic }
+        NumberAnimation { target: root; property: "contentAlpha"; to: 0; duration: 160; easing.type: Easing.OutCubic }
+    }
 
     readonly property var entries: pending ? [
         {
@@ -70,18 +107,9 @@ OverlayWindow {
 
     // Every open, including a reopen during dismissal, starts unselected.
     function adopt(): void {
-        crt.stop();
-        calm.stop();
-        root.closing = false;
-        root.command = "";
-        root.vertical = 1;
-        root.horizontal = 1;
-        root.flash = 0;
-        root.afterglow = 0;
+        root.cancelCrt();
         root.pending = Power.armed;
         Power.armed = null;
-        root.index = -1;
-        root.pointerLive = false;
     }
 
     // Keep confirmations, and run the command only after the CRT finishes.
@@ -254,6 +282,12 @@ OverlayWindow {
             }
         }
 
+        Rectangle {
+            anchors.fill: parent
+            color: "black"
+            opacity: 0.15
+        }
+
         // Fade to black for the CRT exit and hold through session teardown.
         Rectangle {
             anchors.fill: parent
@@ -274,6 +308,13 @@ OverlayWindow {
             origin.y: inputSurface.height / 2
             xScale: root.horizontal
             yScale: root.vertical
+        }
+
+        // Dismiss on release so the entire click stays on this surface.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onClicked: if (!root.closing) Power.shown = false
         }
 
         HoverHandler {
@@ -331,31 +372,35 @@ OverlayWindow {
             event.accepted = true;
         }
 
-        // Keep content at its final size while the edges reveal or cover it.
+        // Move only the sides; labels stay at their native size.
         Item {
             id: menuClip
 
             readonly property int pillHeight: 44
-            // Wiped open from the centre line, or under Reduce motion there at
-            // its full height while the backdrop fades in behind it.
-            readonly property int topEdge: Theme.reduceMotion ? 0 : Math.round(pillHeight * (1 - root.reveal) / 2)
+            property real bodyWidth: root.pending ? answers.implicitWidth : actions.implicitWidth
             x: (root.width - width) / 2
-            y: (root.height - pillHeight) / 2 + topEdge
-            width: (root.pending ? answers.implicitWidth : actions.implicitWidth)
-            height: Math.max(0, pillHeight - topEdge * 2)
+            y: (root.height - pillHeight) / 2
+            width: bodyWidth * root.widthRatio
+            height: pillHeight
             clip: true
-            opacity: root.closing ? 0 : 1
+            opacity: root.closing ? 0 : root.contentAlpha
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+            }
 
             // Clear the pill quickly; the final CRT line is drawn separately.
             Behavior on opacity {
+                enabled: root.closing
                 NumberAnimation {
                     duration: 120
                     easing.type: Easing.OutQuad
                 }
             }
 
-            Behavior on width {
-                enabled: root.completed && root.shown && !root.closing
+            Behavior on bodyWidth {
+                enabled: root.completed && root.shown && !root.closing && !Theme.reduceMotion
                 NumberAnimation {
                     duration: Theme.fadeMs
                     easing.type: Easing.InOutCubic
@@ -370,7 +415,7 @@ OverlayWindow {
                 width: menuClip.width
                 height: menuClip.pillHeight
                 sourceItem: veil
-                sourceRect: Qt.rect(menuClip.x, menuClip.y - menuClip.topEdge, width, height)
+                sourceRect: Qt.rect(menuClip.x, menuClip.y, width, height)
                 visible: false
             }
 
@@ -385,7 +430,6 @@ OverlayWindow {
             }
 
             MultiEffect {
-                y: -menuClip.topEdge
                 width: menuClip.width
                 height: menuClip.pillHeight
                 source: behindPill
@@ -402,7 +446,6 @@ OverlayWindow {
             }
 
             Liquid {
-                y: -menuClip.topEdge
                 width: menuClip.width
                 height: menuClip.pillHeight
                 box0: Qt.vector4d(0, 0, width, height)
@@ -415,7 +458,6 @@ OverlayWindow {
                 id: actions
 
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: -menuClip.topEdge
                 model: root.menuActions
                 enabled: root.pending === null && !root.closing
                 opacity: root.pending ? 0 : 1
@@ -430,7 +472,6 @@ OverlayWindow {
                 id: answers
 
                 anchors.horizontalCenter: parent.horizontalCenter
-                y: -menuClip.topEdge
                 // Retain the labels while confirmation fades back to the menu.
                 model: root.confirmation ? [
                     { name: "Cancel", accept: false },
@@ -472,10 +513,6 @@ OverlayWindow {
 
         function itemAt(i: int): Item {
             return buttons.itemAt(i);
-        }
-
-        MouseArea {
-            anchors.fill: parent
         }
 
         FlowMark {

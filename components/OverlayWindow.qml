@@ -7,8 +7,8 @@ import qs
 // The screen-sized surface a launcher or a power menu is drawn on.
 //
 // Both share a transparent drawing layer, keyboard focus while
-// wanted, and a first frame at zero for the reveal. Only the menu accepts
-// pointer input; Hyprland reports outside clicks without consuming them.
+// wanted, and a first frame at zero for the reveal. Each menu chooses its
+// input area and whether Hyprland should report clicks outside it.
 //
 // Drawn transparent on purpose: wrules.lua's layer rule ignores anything under
 // 0.3 alpha, so only the box on top of this gets blurred and the rest of the
@@ -24,8 +24,9 @@ PanelWindow {
     // The layer namespace, after "quickshell:". Needs a matching rule in
     // wrules.lua to be blurred.
     required property string name
-    // The menu's input area, excluding the fullscreen backdrop and shadows.
+    // The input area: the launcher's box or the power menu's entire screen.
     required property Item inputItem
+    property bool dismissOnOutsidePress: true
 
     // Clicking anywhere that is not the box.
     signal dismissed
@@ -82,13 +83,13 @@ PanelWindow {
     HoverHandler {
         id: pointer
         parent: root.inputItem
-        enabled: root.shown
+        enabled: root.shown && root.dismissOnOutsidePress
     }
 
     // Match OpenPopup: outside presses dismiss and still reach their target.
     Connections {
         target: Hyprland
-        enabled: root.shown
+        enabled: root.shown && root.dismissOnOutsidePress
 
         function onRawEvent(event: HyprlandEvent): void {
             if (event.name === "custom" && event.data === "click" && !pointer.hovered)
