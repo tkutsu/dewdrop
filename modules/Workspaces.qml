@@ -407,10 +407,9 @@ BarItem {
         // it keeps off the top and bottom.
         //
         // The head runs on a spring, Apple's snappy one for a switch, which
-        // all but lands without running past. Whatever overshoot a long run
-        // does carry would take it out through the pill's own end, so there
-        // the end is a wall: the head stops against it and the rest of the
-        // run piles up against it as a bulb (see press).
+        // all but lands without running past. What overshoot a long run does
+        // carry would take it out through the pill's own end, so there the
+        // end is a wall the head stops against.
         FlowMark {
             id: mark
             held: strip.held

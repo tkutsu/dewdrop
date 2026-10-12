@@ -92,40 +92,12 @@ Liquid {
     readonly property real frontLeft: Math.min(atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift, atLast ? wallRight : Infinity)
     readonly property real frontRight: Math.max(frontLeft, atLast ? Math.min(headRight + lift, wallRight) : headRight + lift)
 
-    // How far past a wall the spring would have carried the head, on
-    // whichever side it is pressing.
-    readonly property real pastLeft: atFirst ? wallLeft - (headLeft - lift) : 0
-    readonly property real pastRight: atLast ? headRight + lift - wallRight : 0
-
-    // How hard the head is pressed into the wall, 0..1, eased out so
-    // the glass gives quickly at first and then stiffens. It comes
-    // out as a bulb of glass against the wall, taller than the rest
-    // of the mark, the way a drop run into something piles up where
-    // it hit rather than swelling all along.
-    readonly property real press: {
-        const t = Math.min(1, Math.max(pastLeft, pastRight, 0) / Theme.markPress);
-        return 1 - (1 - t) * (1 - t);
-    }
-    readonly property real bulbEdge: Math.max(0, edge - Theme.markBulge * press)
-    readonly property real bulbTop: root.slabY + bulbEdge
-    readonly property real bulbThickness: root.slabHeight - bulbEdge * 2
-    readonly property real bulbWidth: press > 0 ? bulbThickness * 1.2 : 0
-    readonly property real bulbLeft: pastRight > pastLeft ? wallRight - bulbWidth : wallLeft
-
     box0: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
-    box1: Qt.vector4d(bulbLeft, bulbTop, bulbWidth, bulbThickness)
     reach: 0
-    // The bulb joins the head with a small reach of its own: enough
-    // to round the step between the two, and short enough that the
-    // swell a join adds (a quarter of the reach) stays inside the
-    // pixel between the wall and the pill's edge.
-    reaches: Qt.vector4d(0, 3 * press, 0, 0)
     // The strong step, not a popup row's hover: on a pill this thin
     // over a bright wallpaper, the row fill was barely there.
     fill: Qt.vector4d(tone.r, tone.g, tone.b, tone.a)
     rimTop: Qt.vector4d(Theme.markRimTop.r, Theme.markRimTop.g, Theme.markRimTop.b, Theme.markRimTop.a)
-    // The bulb's band, which is the rest of the mark's or taller when
-    // it bulges.
-    rimFrom: bulbTop
-    rimTo: bulbTop + bulbThickness
+    rimFrom: slabTop
+    rimTo: slabTop + thickness
 }

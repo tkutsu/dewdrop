@@ -484,8 +484,10 @@ OverlayWindow {
             resetWhenHidden: true
             held: pill.held
             slabHeight: pill.height
-            wantLeft: pill.selected ? cells.x + pill.selected.x + Theme.markInset : 0
-            wantRight: pill.selected ? cells.x + pill.selected.x + pill.selected.width - Theme.markInset : 0
+            // The pill's padding is the mark's inset, so the mark is its
+            // cell: at the ends it sits as far in as off the top and bottom.
+            wantLeft: pill.selected ? cells.x + pill.selected.x : 0
+            wantRight: pill.selected ? cells.x + pill.selected.x + pill.selected.width : 0
             atFirst: pill.selected?.index === 0
             atLast: pill.selected?.index === pill.model.length - 1
             wallLeft: Theme.pillBorder
