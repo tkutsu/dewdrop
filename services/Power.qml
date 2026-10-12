@@ -25,8 +25,7 @@ Singleton {
     // the intent by the length of that. See qs.Linger.
     readonly property bool active: linger.active || root.blackout
 
-    // Outlive the menu until session teardown. Never across Sleep: a surface
-    // held through suspend is a suspect in the NVIDIA resume freeze.
+    // Outlive the menu until session teardown or the wake signal after Sleep.
     property bool blackout: false
 
     Linger {
@@ -111,15 +110,33 @@ Singleton {
         root.shown = true;
     }
 
-    // Ordinary actions close first; CRT exits keep black through teardown.
+    // Ordinary actions close first; CRT exits keep black through teardown/sleep.
     function run(arg: string, keepBlack: bool): void {
-        root.blackout = keepBlack && ["--poweroff", "--reboot", "--logout"].includes(arg);
+        root.blackout = keepBlack && ["--poweroff", "--reboot", "--logout", "--suspend"].includes(arg);
         root.shown = false;
         if (root.blackout) {
             action.command = [root.script, arg];
             action.running = true;
         } else {
             Quickshell.execDetached([root.script, arg]);
+        }
+    }
+
+    // systemctl suspend returns once queued; only logind's wake signal releases black.
+    Process {
+        running: root.blackout && action.command[1] === "--suspend"
+        command: ["stdbuf", "-oL", "gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1", "--object-path", "/org/freedesktop/login1"]
+        stdout: SplitParser {
+            onRead: line => {
+                if (line.includes("org.freedesktop.login1.Manager.PrepareForSleep (false"))
+                    root.blackout = false;
+            }
+        }
+        onExited: {
+            if (root.blackout && action.command[1] === "--suspend") {
+                console.warn("Sleep wake monitor exited; releasing blackout");
+                root.blackout = false;
+            }
         }
     }
 
