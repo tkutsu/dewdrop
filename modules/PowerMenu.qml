@@ -134,9 +134,8 @@ OverlayWindow {
         }
     }
 
-    // Sleep skips the CRT: it would end on a black frame with nothing to hold it.
     function execute(arg: string): void {
-        if (arg === "--kill" || arg === "--suspend") {
+        if (arg === "--kill") {
             Power.run(arg);
             return;
         }
