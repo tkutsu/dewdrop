@@ -2,6 +2,7 @@
 """Exercise power menu dismissal and the CRT handoff with harmless commands."""
 
 from pathlib import Path
+import os
 import runpy
 import shutil
 import tempfile
@@ -106,13 +107,17 @@ ShellRoot {
                 wait(250);
                 console.log("PASS: wallpaper clicks are consumed and dismiss the entire power menu");
             }
-            function run() {
+            function checkSleep() {
                 open();
                 menu.item.execute("--suspend");
-                check(!Power.shown && !Power.blackout && menu.item.shade === 0, "Sleep closes the menu at once, without the CRT");
-                wait(300);
-                check(!Power.active && menu.item === null, "nothing stays mapped through Sleep");
-                console.log("PASS: Sleep holds no surface across suspend");
+                wait(950);
+                check(!Power.shown && Power.blackout && menu.item !== null, "Sleep keeps the desktop covered after the CRT and queued request");
+                check(menu.item.reveal === 1 && menu.item.shade === 1, "Sleep keeps the final frame black");
+                wait(1300);
+                check(!Power.blackout && !Power.active && menu.item === null, "wake signal restores the desktop");
+                console.log("PASS: Sleep holds black until the wake signal");
+            }
+            function run() {
                 for (const reduced of [false, true]) {
                     Theme.reduceMotion = reduced;
                     for (const action of reduced ? ["--logout"] : ["--logout", "--reboot", "--poweroff"]) {
@@ -162,6 +167,10 @@ def main():
         for name in ('components', 'modules', 'services'):
             (target / name).mkdir()
         (target / 'runtime').mkdir(mode=0o700)
+        (target / 'bin').mkdir()
+        monitor = target / 'bin/gdbus'
+        monitor.write_text('#!/bin/sh\nsleep 1.2\nprintf "%s\\n" "/org/freedesktop/login1: org.freedesktop.login1.Manager.PrepareForSleep (false,)"\nsleep 1\n')
+        monitor.chmod(0o700)
         for name in ('Linger.qml', 'services/Power.qml'):
             shutil.copyfile(ROOT / name, target / name)
         # Offscreen Qt has no layer shell; only replace the platform window/focus.
@@ -170,8 +179,14 @@ def main():
         (target / 'modules/PowerMenu.qml').write_text(source)
         for name, source in STUBS.items():
             (target / name).write_text(source)
-        support['run_shell'](target, SCENARIO.replace('test.run();', 'test.checkPointer();'))
-        support['run_shell'](target, SCENARIO)
+        original_path = os.environ['PATH']
+        try:
+            os.environ['PATH'] = str(target / 'bin') + ':' + original_path
+            # One run each, so every scenario stays inside run_shell's timeout.
+            for check in ('checkPointer', 'checkSleep', 'run'):
+                support['run_shell'](target, SCENARIO.replace('test.run();', f'test.{check}();'))
+        finally:
+            os.environ['PATH'] = original_path
 
 
 if __name__ == '__main__':
