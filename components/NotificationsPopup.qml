@@ -21,6 +21,7 @@ import qs.services
 // the time was and clears it without following it.
 Popup {
     id: root
+    ChoiceBlink { id: choice }
 
     readonly property int bodyWidth: 453
     // The text's inset from the edge of the popup, as the other popups keep it.
@@ -57,7 +58,7 @@ Popup {
     // Keep the centre available until the last notification is cleared.
     function clear(items): void {
         for (const n of items)
-            n.dismiss();
+            if (Notifications.list.includes(n)) n.dismiss();
         if (Notifications.count === 0)
             OpenPopup.close(root.anchorItem);
     }
@@ -115,10 +116,17 @@ Popup {
         }
 
         PopupButton {
+            id: clearAll
             visible: Notifications.count > 0
             framed: true
             label: "clear"
-            onTapped: root.clear(Notifications.list)
+            chosen: choice.item === clearAll
+            blinkOn: choice.lit
+            live: !choice.running
+            onTapped: {
+                const items = Notifications.list.slice();
+                choice.start(clearAll, () => root.clear(items));
+            }
         }
     }
 
@@ -229,9 +237,16 @@ Popup {
                 title: group.modelData
 
                 PopupButton {
+                    id: groupClear
                     framed: true
                     label: "clear"
-                    onTapped: root.clear(group.items)
+                    chosen: choice.item === groupClear
+                    blinkOn: choice.lit
+                    live: !choice.running
+                    onTapped: {
+                        const items = group.items.slice();
+                        choice.start(groupClear, () => root.clear(items));
+                    }
                 }
             }
         }
@@ -289,7 +304,14 @@ Popup {
         property var others: []
         signal openGroup
         function open(): void {
-            card.others.length > 0 ? card.openGroup() : Notifications.activate(card.n);
+            if (card.others.length > 0) {
+                card.openGroup();
+                return;
+            }
+            const n = card.n;
+            choice.start(card, () => {
+                if (Notifications.list.includes(n)) Notifications.activate(n);
+            });
         }
         readonly property var buttons: Notifications.buttons(card.n)
         // Its picture on the left when that is a mark of the sender's (a
@@ -328,9 +350,10 @@ Popup {
             height: card.height
             radius: root.cardRadius
             color: fill.focused ? Theme.selectionStrong : Theme.selection
-            opacity: fill.focused || hover.hovered ? 1 : 0.5
+            opacity: choice.item === card ? (choice.lit ? 1 : 0) : fill.focused || hover.hovered ? 1 : 0.5
 
             Behavior on opacity {
+                enabled: choice.item !== card
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
@@ -444,7 +467,11 @@ Popup {
                         visible: hover.hovered
                         glyph: Theme.glyph.close
                         glyphSize: Theme.captionSize
-                        onTapped: root.clear([card.n, ...card.others])
+                        live: !choice.running
+                        onTapped: {
+                            const items = [card.n, ...card.others];
+                            choice.start(card, () => root.clear(items));
+                        }
                     }
                 }
 
@@ -518,7 +545,14 @@ Popup {
 
                             framed: true
                             label: modelData.text.trim() || modelData.identifier
-                            onTapped: Notifications.run(modelData, card.n)
+                            live: !choice.running
+                            onTapped: {
+                                const action = modelData;
+                                const n = card.n;
+                                choice.start(card, () => {
+                                    if (Notifications.list.includes(n)) Notifications.run(action, n);
+                                });
+                            }
                         }
                     }
                 }

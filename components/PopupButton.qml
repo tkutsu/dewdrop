@@ -21,6 +21,7 @@ Item {
     // where it is and goes faint, rather than leaving and letting its
     // neighbours slide under a pointer already on its way to them.
     property bool live: true
+    property bool pressFeedback: false
     // The one that asks twice: armed, it turns the bar's warning colour.
     property bool warn: false
     // Outlined, for the ones that stand on their own in a popup's foot rather
@@ -36,8 +37,10 @@ Item {
 
     // Lit under the pointer or when the keys reach it (PopupRow says how).
     property bool keyed: false
+    property bool chosen: false
+    property bool blinkOn: true
     readonly property var keyPress: root.live && root.name !== "" ? () => root.tapped() : null
-    readonly property bool hovered: QsWindow.window?.keyItem ? root.keyed : hover.hovered
+    readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     signal tapped
 
@@ -55,9 +58,9 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        visible: root.framed || root.lit
+        visible: root.framed || root.lit || root.chosen
         radius: Theme.selectionRadius
-        color: root.lit ? (root.hovered ? Theme.selectionStrong : Theme.selection) : root.hovered ? Theme.selection : "transparent"
+        color: root.chosen ? (root.blinkOn ? Theme.selection : "transparent") : root.lit ? (root.hovered ? Theme.selectionStrong : Theme.selection) : root.hovered ? Theme.selection : "transparent"
         border.width: Theme.pillBorder
         border.color: Theme.stroke
     }
@@ -66,8 +69,9 @@ Item {
         id: content
 
         anchors.centerIn: parent
+        scale: press.scale
         spacing: 3
-        opacity: !root.live ? 0.15 : root.hovered || root.lit ? 1 : (root.framed ? 0.7 : 0.6)
+        opacity: root.chosen ? 1 : !root.live ? 0.15 : root.hovered || root.lit ? 1 : (root.framed ? 0.7 : 0.6)
 
         Glyph {
             visible: root.glyph !== ""
@@ -90,8 +94,16 @@ Item {
     }
 
     TapHandler {
+        id: tap
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: if (root.live)
             root.tapped()
+    }
+
+    PressGlass {
+        id: press
+        icon: content
+        area: tap
+        down: root.pressFeedback && root.live && tap.pressed
     }
 }

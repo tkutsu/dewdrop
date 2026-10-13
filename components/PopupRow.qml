@@ -25,8 +25,10 @@ Item {
     // Read by the rows that show their buttons only when lit, so the keys
     // bring those out too.
     property bool keyed: false
+    property bool chosen: false
+    property bool blinkOn: true
     readonly property var keyPress: root.name !== "" ? () => root.tapped() : null
-    readonly property bool hovered: QsWindow.window?.keyItem ? root.keyed : hover.hovered
+    readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     // Inside a Flickable the press has to stay grabbable by the flick, so the
     // default policy is kept there; a row in a fixed list can ask for the

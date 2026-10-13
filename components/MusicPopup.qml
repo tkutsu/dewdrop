@@ -10,6 +10,7 @@ import qs.services
 // played from, reordered and cut down without opening the player it belongs to.
 Popup {
     id: root
+    ChoiceBlink { id: choice }
 
     readonly property int columnWidth: 290
     // The two tracks run between the same two points: an icon's width of
@@ -427,6 +428,8 @@ Popup {
                 id: entry
 
                 required property string modelData
+                chosen: choice.item === entry
+                blinkOn: choice.lit
 
                 width: root.bodyWidth
                 height: root.rowHeight
@@ -436,7 +439,7 @@ Popup {
                 // Leaving the row is how a half-pressed delete is called off.
                 // There is no cancel button because there does not need to be
                 // one: the way out is the direction the pointer was going.
-                onHoveredChanged: if (!entry.hovered && entry.armed)
+                onHoveredChanged: if (!entry.hovered && entry.armed && !entry.chosen)
                     Mpd.armedPlaylist = ""
 
                 PopupText {
@@ -498,9 +501,10 @@ Popup {
                                 live: true,
                                 warn: entry.armed,
                                 act: () => {
-                                    if (entry.armed)
-                                        Mpd.removePlaylist(entry.modelData);
-                                    else
+                                    if (entry.armed) {
+                                        const name = entry.modelData;
+                                        choice.start(entry, () => Mpd.removePlaylist(name));
+                                    } else if (!choice.running)
                                         Mpd.armedPlaylist = entry.modelData;
                                 }
                             }
@@ -517,7 +521,7 @@ Popup {
                             height: root.rowHeight
                             name: modelData.name
                             glyph: modelData.glyph
-                            live: modelData.live
+                            live: modelData.live && !choice.running
                             warn: modelData.warn
                             onTapped: modelData.act()
                         }
@@ -796,13 +800,15 @@ Popup {
 
             required property var modelData
             required property int index
+            chosen: choice.item === row
+            blinkOn: choice.lit
 
             readonly property bool current: Mpd.songPos === row.index
 
             name: "Play " + (row.modelData.title || "Track " + (row.index + 1))
             width: ListView.view.width
             height: root.rowHeight
-            onTapped: Mpd.playAt(row.modelData.pos)
+            onTapped: if (!choice.running) Mpd.playAt(row.modelData.pos)
             opacity: reorder.showing && row.index === reorder.from ? 0 : 1
             transform: Translate {
                 y: !reorder.showing ? 0 : row.index > reorder.from && row.index <= reorder.to ? -root.rowHeight : row.index < reorder.from && row.index >= reorder.to ? root.rowHeight : 0
@@ -899,7 +905,15 @@ Popup {
                     visible: row.hovered
                     name: "Remove " + (row.modelData.title || "track") + " from queue"
                     glyph: Theme.glyph.queueRemove
-                    onTapped: Mpd.removeAt(row.modelData.pos)
+                    live: !choice.running
+                    onTapped: {
+                        const track = row.modelData;
+                        choice.start(row, () => {
+                            const pos = Mpd.queue.indexOf(track);
+                            if (pos >= 0)
+                                Mpd.removeAt(pos);
+                        });
+                    }
                 }
             }
         }
