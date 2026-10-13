@@ -586,6 +586,37 @@ ShellRoot {
                 input.adopt(query); keys.wait(30);
                 check(searchIcon.text === icon && searchIcon.y === 1, "query icon and vertical offset for " + query);
             }
+            keys.wait(Theme.rollMs * 1.45 + 180);
+            const arrivingIcon = keys.findChild(searchIcon, "arrivingIcon");
+            const departingIcon = keys.findChild(searchIcon, "departingIcon");
+            input.adopt("%cats"); keys.wait(Theme.rollMs * 1.45 + 210);
+            input.adopt(""); keys.wait(40);
+            check(searchIcon.shown === Theme.glyph.launcherWeb && !searchIcon.rolling, "brief empty query does not flash or roll to the magnifier");
+            input.adopt("=2+2"); keys.wait(80);
+            check(searchIcon.shown === Theme.glyph.launcherWeb && !searchIcon.rolling, "new mode waits for the icon choice to settle");
+            keys.wait(100);
+            check(searchIcon.rolling && searchIcon.shown === Theme.glyph.launcherCalc && searchIcon.was === Theme.glyph.launcherWeb, "stable calculator rolls directly from web without the intermediate magnifier");
+            keys.wait(Theme.rollMs * 1.45 + 30);
+            input.adopt("%cats"); keys.wait(40);
+            input.adopt("=2+3"); keys.wait(180);
+            check(searchIcon.shown === Theme.glyph.launcherCalc && !searchIcon.rolling, "returning to the displayed mode cancels the pending icon change");
+            input.adopt(""); keys.wait(Theme.rollMs * 1.45 + 210);
+            input.adopt("=2+2"); keys.wait(195);
+            check(searchIcon.rolling && searchIcon.was === Theme.glyph.launcher && searchIcon.shown === Theme.glyph.launcherCalc, "mode change rolls from SVG magnifier to calculator");
+            check(departingIcon.visible && departingIcon.y < 0 && arrivingIcon.y > 0 && arrivingIcon.scale < 1 && departingIcon.scale < 1, "icons roll up, shrink and grow like the numbers");
+            const rollTime = searchIcon.s;
+            input.adopt("=2+3"); keys.wait(30);
+            check(searchIcon.s > rollTime && searchIcon.was === Theme.glyph.launcher, "typing within one mode leaves the roll running");
+            input.adopt("%cats"); keys.wait(190);
+            check(searchIcon.rolling && searchIcon.shown === Theme.glyph.launcherWeb && searchIcon.was === Theme.glyph.launcherCalc, "interrupted mode roll follows the latest icon");
+            keys.wait(Theme.rollMs * 1.45 + 30);
+            check(!searchIcon.rolling && arrivingIcon.y === 0 && arrivingIcon.scale === 1 && arrivingIcon.opacity === 1 && !arrivingIcon.layer.enabled && !departingIcon.visible, "roll settles sharp at its original position");
+            input.adopt("/"); keys.wait(190);
+            Settings.reduceMotion = true; keys.wait(20);
+            check(!searchIcon.rolling && searchIcon.shown === Theme.glyph.folder && !departingIcon.visible, "enabling reduced motion stops an active icon roll");
+            input.adopt("#"); keys.wait(170);
+            check(!searchIcon.rolling && searchIcon.shown === Theme.glyph.launcherMusic && arrivingIcon.y === 0, "reduced motion swaps mode icons immediately");
+            Settings.reduceMotion = false;
             input.adopt("2+2"); keys.wait(30);
             Launcher.calcAnswer = {expr: "2+2", text: "4"}; keys.wait(30);
             check(searchIcon.text === Theme.glyph.launcherCalc, "calculator icon stays stable when the answer arrives");
@@ -637,6 +668,20 @@ ShellRoot {
             check(input.leftFade === 0 && input.rightFade === 0 && !input.layer.enabled, "shortening the query restores the unfaded field");
             input.adopt(""); keys.wait(250);
             check(input.leftFade === 0 && input.rightFade === 0 && !input.layer.enabled, "short query and empty hints have no fade");
+            Launcher.hide();
+            list.model = [{kind: "info", title: "Hidden result below the compact box"}];
+            keys.wait(60);
+            const compactExit = keys.grabImage(menu.contentItem);
+            const stripY = Math.round(box.y + box.height + 10);
+            let brightStrip = 0;
+            for (let x = Math.round(box.x + 20); x < box.x + box.width - 20; x++) {
+                const pixel = compactExit.pixel(x, stripY);
+                if (Math.min(pixel.r, pixel.g, pixel.b) > 0.24)
+                    brightStrip++;
+            }
+            check(brightStrip < box.width / 2, "compact exit does not expose the hidden result highlight below the glass");
+            Launcher.show(); keys.wait(400);
+            menu.requestActivate(); input.forceActiveFocus();
             if (Quickshell.env("LAUNCHER_TEST_GPU")) {
                 console.log("PASS: launcher menu overflow shader, scrolling and fixed icon");
                 Qt.quit();
@@ -769,6 +814,10 @@ def check_menu(target, env):
     components = target / "components"
     (components / "Rim.qml").write_text((ROOT / "components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "components/TextCaret.qml").read_text())
+    rolling = (ROOT / "components/RollingGlyph.qml").read_text()
+    rolling = rolling.replace("id: now\n", 'id: now\n        objectName: "arrivingIcon"\n')
+    rolling = rolling.replace("id: old\n", 'id: old\n        objectName: "departingIcon"\n')
+    (components / "RollingGlyph.qml").write_text(rolling)
     stubs = {
         "OverlayWindow": 'import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true; color: "#333333" }',
         "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5 }',
@@ -787,7 +836,7 @@ def check_menu(target, env):
     (target / "shell.qml").write_text(MENU_TEST)
     if os.environ.get("LAUNCHER_TEST_GPU"):
         env = dict(env, QT_QUICK_BACKEND="rhi", QSG_RHI_BACKEND="opengl", QT_OPENGL="software", LIBGL_ALWAYS_SOFTWARE="1")
-    result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=15)
+    result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=20)
     output = result.stdout + result.stderr
     print(output, end="")
     return result.returncode == 0 and "PASS: launcher menu" in output and all(message not in output for message in ("FAIL:", "Binding loop", "Unable to assign", "Failed to load"))
