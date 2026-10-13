@@ -84,7 +84,6 @@ src=src.replace('id: root','''id: root
     property alias auditButtons: buttons
     property alias auditWorkspaces: workspaces
     property alias auditGhost: ghost
-    property alias auditTracker: positionTracker
     property alias auditNewWorkspace: newWorkspace''',1)
 if '--marks' in sys.argv or '--mark-input' in sys.argv:
     src=src.replace('id: root', 'id: root\n    property alias auditMark: mark', 1)
@@ -134,7 +133,7 @@ ShellRoot {
  test.wait(1500);
  check(Math.abs(left(dest)-dest.x)<1,'workspace settles to its layout position');
  check(Math.abs(left(icon(dest,'a'))-(dest.x+icon(dest,'a').x))<1,'moved icon settles in destination slot');
- test.wait(1500);check(!pill.auditTracker.running,'position sampling stops at rest');
+ const atRest=pill.lastWhole;test.wait(1500);check(pill.lastWhole===atRest,'placement snapshot stays unchanged at rest');
 
  a.workspace=w2;a.wayland={appId:'same'};b.wayland={appId:'same'};
  reset([b,c,a],[w1,w2,w3]);
@@ -223,6 +222,33 @@ ShellRoot {
  } }
 }
 """
+if '--snapshots' in sys.argv:
+    start = shell_source.index(' const w1=ws(1)')
+    end = shell_source.index(" console.log(failures.length", start)
+    shell_source = shell_source[:start] + r"""
+ const w1=ws(1),w2=ws(2),w3=ws(3);
+ const a=win('a',w2,'incoming'),b=win('b',w3,'existing'),c=win('c',w1,'other'),d=win('d',w2,'spare');
+ reset([b,c,a,d],[w1,w2,w3]);
+ const beforeDrag=pill.lastWhole;
+ pill.dragSource=icon(button(2),'a');pill.dragAddress='a';pill.dragWorkspace=w2;pill.dragWorkspaceId=2;pill.dragging=true;
+ test.wait(100);
+ check(pill.lastWhole===beforeDrag,'drag frames do not rebuild unchanged workspace placement');
+ pill.cancelDrag();
+ move(a,w3);test.wait(40);
+ check(pill.lastWhole.placement.a===3 && pill.lastWhole.focused===1,'placement changes update the snapshot with unchanged workspace IDs and focus');
+ Hyprland.focusedWorkspace=w3;test.wait(40);
+ check(pill.lastWhole.focused===3,'focus changes update the snapshot');
+ const beforeFreeze=pill.lastWhole;
+ WorkspaceSync.settled=false;a.workspace=w1;Hyprland.focusedWorkspace=w1;test.wait(40);
+ check(pill.lastWhole===beforeFreeze && pill.frozen.placement.a===3,'unsettled models retain the last consistent snapshot');
+ WorkspaceSync.settled=true;test.wait(40);
+ check(pill.lastWhole.placement.a===1 && pill.lastWhole.focused===1 && pill.frozen===null,'settling publishes the current placement and focus');
+ Hyprland.toplevels.values=[b,c,d];test.wait(40);
+ check(pill.lastWhole.placement.a===undefined,'closed windows leave the current snapshot');
+ const atRest=pill.lastWhole;test.wait(100);
+ check(pill.lastWhole===atRest,'unchanged models retain the same snapshot');
+""" + shell_source[end:]
+
 if '--marks' in sys.argv:
     shell_source=shell_source.replace('import qs.services', 'import qs.services\nimport qs.components', 1)
     shell_source=shell_source.replace(' property var failures: []', ''' property var failures: []
@@ -380,8 +406,8 @@ if '--regressions' in sys.argv:
  suite.samples=[];suite.captureAddress='a';
  const appended=ws(4);suite.frameUpdate=()=>{
    Hyprland.workspaces.values=[w1,compacted,w2,appended];a.workspace=appended;
-   // Exercise the existing frame callback before Qt polishes newly created delegates.
-   pill.auditTracker.triggered();
+   // Exercise snapshotting before Qt polishes newly created delegates.
+   pill.snapshot();
  };
  test.wait(900);suite.captureAddress='';
  const endIcon=icon(button(4),'a'),endX=left(endIcon);
