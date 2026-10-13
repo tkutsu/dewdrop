@@ -81,6 +81,15 @@ BarItem {
             || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
         .sort((a, b) => a.id - b.id)
         .map(w => ({ id: w.id, name: w.name, urgent: w.urgent, workspace: w }))
+    onLiveWorkspacesChanged: Qt.callLater(root.snapshot)
+
+    readonly property var livePlacement: {
+        const placement = ({});
+        for (const toplevel of Hyprland.toplevels.values)
+            placement[toplevel.address] = toplevel.workspace?.id;
+        return placement;
+    }
+    onLivePlacementChanged: Qt.callLater(root.snapshot)
 
     // While WorkspaceSync settles a renumbering, Quickshell's workspaces and
     // windows disagree with each other, so the strip draws from the last state
@@ -95,6 +104,7 @@ BarItem {
         function onSettledChanged(): void {
             if (WorkspaceSync.settled) {
                 root.frozen = null;
+                Qt.callLater(root.snapshot);
                 return;
             }
             root.cancelDrag();
@@ -114,9 +124,8 @@ BarItem {
     }
 
     readonly property var shownWorkspaces: frozen ? frozen.workspaces : liveWorkspaces
-    onShownWorkspacesChanged: positionsDirty = true
     readonly property int focusedId: frozen ? frozen.focused : (Hyprland.focusedWorkspace?.id ?? -1)
-    onFocusedIdChanged: positionsDirty = true
+    onFocusedIdChanged: Qt.callLater(root.snapshot)
 
     function workspaceOf(toplevel) {
         return root.frozen ? root.frozen.placement[toplevel.address] : toplevel.workspace?.id;
@@ -247,21 +256,13 @@ BarItem {
             : `move_window_to(${id}, "0x${address}")`);
     }
 
-    property bool positionsDirty: true
     // Retain the last consistent placement for workspace ID compaction.
-    FrameAnimation {
-        id: positionTracker
-        running: root.visible && (root.positionsDirty || root.folding || stripResize.running || root.dragging)
-        onTriggered: {
-            root.positionsDirty = false;
-            if (WorkspaceSync.settled) {
-                const placement = ({});
-                for (const toplevel of Hyprland.toplevels.values)
-                    placement[toplevel.address] = toplevel.workspace?.id;
-                root.lastWhole = { workspaces: root.shownWorkspaces, focused: root.focusedId, placement };
-            }
-        }
+    function snapshot(): void {
+        if (!WorkspaceSync.settled)
+            return;
+        root.lastWhole = { workspaces: root.liveWorkspaces, focused: root.focusedId, placement: root.livePlacement };
     }
+    Component.onCompleted: Qt.callLater(root.snapshot)
 
     HoverHandler {
         id: stripHover
@@ -525,9 +526,6 @@ BarItem {
                     readonly property var workspaceInfo: root.shownWorkspaces.find(w => w.id === modelData)
                         ?? ({ id: modelData, urgent: false, workspace: null })
                     readonly property var iconItems: row.children.filter(c => c.icon !== undefined)
-                    onIconItemsChanged: root.positionsDirty = true
-                    onXChanged: root.positionsDirty = true
-                    onDrawnXChanged: root.positionsDirty = true
                     readonly property bool active: root.focusedId === button.workspaceInfo.id
 
                     // A stop in the bar's selection mode (OpenPopup): Return
@@ -789,10 +787,6 @@ BarItem {
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
 
-                                onXChanged: root.positionsDirty = true
-                                onYChanged: root.positionsDirty = true
-                                onIconChanged: root.positionsDirty = true
-                                onRevealChanged: root.positionsDirty = true
                                 Component.onDestruction: if (root.dragSource === app) root.cancelDrag()
 
                                 // The app's name, the way the Dock labels its
