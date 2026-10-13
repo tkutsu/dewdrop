@@ -12,14 +12,16 @@ Singleton {
     id: root
 
     property bool shown: false
+    readonly property int dismissMs: 200
 
-    // Up, or still folding itself away.
+    // Up, or still blurring and fading away.
     readonly property bool active: linger.active
 
     Linger {
         id: linger
 
         shown: root.shown
+        hold: root.dismissMs
     }
 
     function toggle(): void {

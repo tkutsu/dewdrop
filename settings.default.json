@@ -25,7 +25,12 @@
     // per window by a click. false gives every window its own icon.
     "groupWindows": true,
 
-    // The clock, as a Qt date format: "HH:mm" reads 14:05, "h:mm AP" reads
+    // The date, as a Qt date format: "ddd d MMM" reads Tue 13 Oct,
+    // "dd/MM/yyyy" reads 13/10/2026. Weekday and month names use your locale.
+    // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDate-method
+    "dateFormat": "ddd d MMM",
+
+    // The clock, as a Qt time format: "HH:mm" reads 14:05, "h:mm AP" reads
     // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
     // Alarms follow the same 12h/24h notation, always without seconds.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
@@ -130,5 +135,7 @@
     // --- Google ------------------------------------------------------------
     // Mail, Tasks and the calendar's agenda need a one-time sign-in with your
     // own Google Cloud OAuth client: run scripts/gtasks-auth, or click
-    // reconnect in any of their popups. Nothing to set here.
+    // reconnect in any of their popups.
+    // Hide these list names beside tasks, separated by commas. Leave empty to show all.
+    "omittedTaskList": "Personal",
 }
