@@ -1,11 +1,14 @@
 //@ pragma Env QSG_RENDER_LOOP=threaded
-//@ pragma Env QSG_RHI_BACKEND=vulkan
 //@ pragma Env QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 //@ pragma Env QT_QPA_PLATFORMTHEME=gtk3
 
-// Drive popup motion and fades at the display refresh rate. Vulkan, because on
-// GL the render thread hangs in NVIDIA's EGL after some wakes. gtk3, because
-// the session's qt6ct points Qt at a different icon theme from GTK's.
+// Drive popup motion and fades at the display refresh rate. gtk3, because the
+// session's qt6ct points Qt at a different icon theme from GTK's.
+//
+// Not Vulkan, though it rides out the wakes that hang GL in NVIDIA's EGL
+// (qs-watchdog restarts the bar after those): every popup, tag and launcher
+// window gets its own Vulkan device, and NVIDIA's vkDestroyDevice can spin
+// 6-22 s on close while ~QQuickWindow holds the whole bar waiting.
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
