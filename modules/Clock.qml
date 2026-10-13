@@ -52,7 +52,7 @@ BarItem {
     // Date format letters use Qt's localized weekday and month names.
     BarText {
         Layout.fillHeight: true
-        text: Qt.formatDate(clock.date, Settings.dateFormat)
+        text: Settings.applyCase(Qt.formatDate(clock.date, Settings.dateFormat), Settings.dateCase)
     }
 
     // Left is the calendar (BarItem.popupButton); right is the app.
