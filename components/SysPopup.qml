@@ -315,10 +315,11 @@ Popup {
             topPadding: 1
 
             Repeater {
-                model: Sys.coreUse
+                model: Sys.coreUse.length
 
                 delegate: Rectangle {
-                    required property real modelData
+                    required property int index
+                    readonly property real modelData: Sys.coreUse[index] ?? 0
 
                     width: cores.barWidth
                     height: 11
@@ -448,12 +449,13 @@ Popup {
     // has that nothing else here does: how much of it is already spent. That is
     // the figure worth a bar, because it is the one that only ever goes one way.
     Repeater {
-        model: Sys.drives
+        model: Sys.drives.length
 
         delegate: Column {
             id: drive
 
-            required property var modelData
+            required property int index
+            readonly property var modelData: Sys.drives[index] ?? ({})
 
             spacing: 3
 

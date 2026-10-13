@@ -39,7 +39,7 @@ Singleton {
     }
 
     FrameAnimation {
-        running: root.over || root.presence > 0.001
+        running: root.x !== root.target.x || root.y !== root.target.y || root.presence !== (root.over ? 1 : 0)
         onTriggered: {
             // Exponential easing, the way a critically damped spring settles:
             // 60 ms behind the pointer, 160 ms to come up or go.
@@ -48,8 +48,12 @@ Singleton {
             root.x += (root.target.x - root.x) * follow;
             root.y += (root.target.y - root.y) * follow;
             root.presence += ((root.over ? 1 : 0) - root.presence) * fade;
-            if (!root.over && root.presence < 0.001)
-                root.presence = 0;
+            if (Math.abs(root.target.x - root.x) < 0.1)
+                root.x = root.target.x;
+            if (Math.abs(root.target.y - root.y) < 0.1)
+                root.y = root.target.y;
+            if (Math.abs((root.over ? 1 : 0) - root.presence) < 0.001)
+                root.presence = root.over ? 1 : 0;
         }
     }
 }

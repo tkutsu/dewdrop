@@ -178,7 +178,7 @@ Singleton {
     }
 
     Timer {
-        interval: 5000
+        interval: 30000
         running: root.phoneAlerts.length > 0
         repeat: true
         onTriggered: root.pollPhone()

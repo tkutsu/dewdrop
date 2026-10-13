@@ -480,7 +480,7 @@ BarItem {
             width: mark.width
             height: mark.height
             visible: false
-            layer.enabled: true
+            layer.enabled: root.drawsMark
 
             Rectangle {
                 // BarItem rounds the pill width; account for that rounding at its left edge.
@@ -651,7 +651,7 @@ BarItem {
                         const expanded = !Settings.groupWindows || (root.expandedWorkspace === button.workspaceInfo.id
                             && root.expandedClass === cls);
                         if (matching.length && !expanded)
-                            return matching[0].drawnX + matching[0].width * matching[0].scale / 2;
+                            return matching[0].x + matching[0].width * matching[0].scale / 2;
                         const order = Hyprland.toplevels.values.map(t => t.address);
                         const at = order.indexOf(address);
                         const next = matching.length
@@ -659,9 +659,9 @@ BarItem {
                             : shown.find((app, i) => (i === 0 || shown[i - 1].windowClass !== app.windowClass)
                                 && order.indexOf(app.modelData) > at);
                         if (next)
-                            return next.drawnX - Theme.appIconGap / 2;
+                            return next.x - Theme.appIconGap / 2;
                         const before = matching.length ? matching[matching.length - 1] : shown[shown.length - 1];
-                        return before.drawnX + before.width * before.scale + Theme.appIconGap / 2;
+                        return before.x + before.width * before.scale + Theme.appIconGap / 2;
                     }
 
                     MouseArea {
@@ -738,7 +738,6 @@ BarItem {
 
                             delegate: AppIcon {
                                 id: app
-                                readonly property bool inkLit: true
 
                                 required property string modelData
                                 required property int index
@@ -789,7 +788,6 @@ BarItem {
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
 
-                                readonly property real drawnX: x
                                 onXChanged: root.positionsDirty = true
                                 onYChanged: root.positionsDirty = true
                                 onIconChanged: root.positionsDirty = true
