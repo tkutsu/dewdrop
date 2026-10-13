@@ -14,6 +14,8 @@ Item {
     id: root
 
     required property Item anchorItem
+    // Bar tags hang from the slab; controls inside windows use their own height.
+    property real anchorHeight: Theme.pillTop(root.anchorItem.height) + Theme.barHeight
     property bool hovered: false
     // Held down on the item: whatever the click did is the answer now, not
     // the tag that described it.
@@ -90,6 +92,9 @@ Item {
 
         onLoaded: {
             item.anchorItem = root.anchorItem;
+            // Morphs lower the contents; resizing must anchor to the stationary pill.
+            if (item.morphs && root.anchorItem.pill)
+                item.anchor.item = root.anchorItem.pill;
             // Hang off the slab rather than the item's box: a module's box runs
             // on through the margin the pill claims for clicks, and a popup
             // that anchored to its bottom sat that margin too far from the
@@ -97,8 +102,7 @@ Item {
             // slab is centred on both. Less the air the window keeps above its
             // box for the shadow, so it is the box and not the window that
             // hangs popupGap down.
-            const slabBottom = Theme.pillTop(root.anchorItem.height) + Theme.barHeight;
-            item.anchor.rect = Qt.rect(0, 0, root.anchorItem.width, slabBottom + Theme.popupGap - item.shadowTop);
+            item.anchor.rect = Qt.rect(0, 0, root.anchorItem.width, root.anchorHeight + Theme.popupGap - item.shadowTop);
             item.requestedVisible = Qt.binding(() => root.wanted);
             item.visible = true;
         }
