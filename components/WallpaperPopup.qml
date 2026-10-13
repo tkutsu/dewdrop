@@ -1,4 +1,5 @@
 import QtQuick
+import "../FileUrl.js" as FileUrl
 import Quickshell
 import qs
 import qs.services
@@ -265,7 +266,7 @@ Popup {
             Image {
                 anchors.fill: parent
                 // The kept thumbnail once there is one (Wallpaper.thumbs).
-                source: "file://" + Wallpaper.thumbOf(cell.modelData)
+                source: FileUrl.fromPath(Wallpaper.thumbOf(cell.modelData))
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 // Decoded at cell size: the thumbnail is 512 wide, and
@@ -344,7 +345,7 @@ Popup {
             // The rest of the picture, dimmed: in reach, but not on screen.
             Image {
                 anchors.fill: parent
-                source: Wallpaper.current ? "file://" + Wallpaper.thumbOf(Wallpaper.current) : ""
+                source: Wallpaper.current ? FileUrl.fromPath(Wallpaper.thumbOf(Wallpaper.current)) : ""
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
                 sourceSize.width: Math.ceil(preview.width * root.devicePixelRatio)
@@ -366,7 +367,7 @@ Popup {
                     y: -frame.y
                     width: preview.width
                     height: preview.height
-                    source: Wallpaper.current ? "file://" + Wallpaper.thumbOf(Wallpaper.current) : ""
+                    source: Wallpaper.current ? FileUrl.fromPath(Wallpaper.thumbOf(Wallpaper.current)) : ""
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     sourceSize.width: Math.ceil(preview.width * root.devicePixelRatio)
