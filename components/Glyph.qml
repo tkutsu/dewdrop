@@ -23,7 +23,8 @@ Item {
     property bool tightWidth: true
 
     readonly property bool drawing: text.startsWith("file:")
-    readonly property bool fontCut: text.endsWith("#em")
+    readonly property bool fontCut: shown.endsWith("#em")
+    readonly property bool shownDrawing: shown.startsWith("file:")
 
     // What is on screen, which is `text` except while a drawing the bar has
     // never measured is being measured. Shown straight away, it came in at
@@ -33,7 +34,7 @@ Item {
     property string shown
 
     function settle() {
-        if (!root.drawing || pending.extent > 0)
+        if (!root.drawing || (pending.item?.extent ?? 0) > 0)
             root.shown = root.text;
     }
 
@@ -47,16 +48,16 @@ Item {
     // than on the square box it is drawn in: the launcher's 12px magnifier
     // sat in 18px of box and stood three pixels further from its neighbours
     // than the glyphs between them stood from each other.
-    implicitWidth: !drawing ? label.implicitWidth : tightWidth ? art.inkWidth : art.implicitWidth
+    implicitWidth: !shownDrawing ? label.implicitWidth : tightWidth ? (art.item?.inkWidth ?? 0) : art.implicitWidth
     implicitHeight: Theme.barHeight
     baselineOffset: label.baselineOffset
 
     BarText {
         id: label
-        visible: !root.drawing
+        visible: !root.shownDrawing
         width: implicitWidth
         height: parent.height
-        text: root.drawing ? "" : root.text
+        text: root.shownDrawing ? "" : root.shown
         family: Theme.glyphFont
         weight: Font.Normal
         opticalCentre: true
@@ -69,30 +70,37 @@ Item {
     // Scaled with the font size it stands in for, so a popup's smaller glyphs
     // get smaller drawings. An SVG cannot take the colour, but every colour a
     // glyph is given is white at some alpha, so the alpha is what carries over.
-    FittedIcon {
+    Loader {
         id: art
-        visible: root.drawing
-        x: root.tightWidth ? -inkX : 0
+        active: root.shownDrawing
+        x: root.tightWidth ? -(item?.inkX ?? 0) : 0
         y: Math.floor((root.height - height) / 2) + root.nudge
-        source: root.drawing ? root.shown : ""
-        // A cut from the font (Theme.fontCut) is drawn at the font size and
-        // left there, as big as the glyph it came from.
-        size: root.fontCut ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
-        box: size
-        ink: Theme.glyphInk
-        fitsInk: !root.fontCut
         opacity: root.inkColor.a
+
+        sourceComponent: FittedIcon {
+            source: root.shownDrawing ? root.shown : ""
+            // A cut from the font stays at the font size rather than fitting its ink.
+            size: root.fontCut ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
+            box: size
+            ink: Theme.glyphInk
+            fitsInk: !root.fontCut
+        }
     }
 
     // The next drawing, drawn unseen at the same size so InkProbe can measure
-    // it (a grab ignores the opacity above what it grabs). Empty once shown,
+    // it (a grab ignores the opacity above what it grabs). Unloaded once shown,
     // so a settled glyph holds one picture, not two.
-    FittedIcon {
+    Loader {
         id: pending
+        active: root.drawing && root.text !== root.shown
         opacity: 0
-        source: root.drawing && root.text !== root.shown ? root.text : ""
-        size: art.size
-        ink: art.ink
-        onExtentChanged: Qt.callLater(root.settle)
+        onLoaded: Qt.callLater(root.settle)
+
+        sourceComponent: FittedIcon {
+            source: root.drawing && root.text !== root.shown ? root.text : ""
+            size: root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
+            ink: Theme.glyphInk
+            onExtentChanged: Qt.callLater(root.settle)
+        }
     }
 }

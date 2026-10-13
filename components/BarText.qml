@@ -141,7 +141,7 @@ Item {
     // other copy reads the cache. Grabbed at the Text's own size so the scan
     // is in real pixels, not a scaled copy of them.
     Loader {
-        active: root.probed && root.inked === null && shown.text !== "" && root.visible
+        active: root.probed && root.inked === null && shown.text !== "" && root.visible && drawn.width >= 1 && drawn.height >= 1
 
         sourceComponent: InkProbe {
             target: drawn
