@@ -7,16 +7,19 @@ import subprocess
 import tempfile
 
 
+from test_support import copy_shell, shell_env
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
     with tempfile.TemporaryDirectory(prefix="quickshell-weather-reel-") as folder:
         target = Path(folder)
+        copy_shell(target)
         components = target / "components"
         services = target / "services"
-        components.mkdir()
-        services.mkdir()
+        components.mkdir(exist_ok=True)
+        services.mkdir(exist_ok=True)
         source = (ROOT / "components/WeatherPopup.qml").read_text()
         for name in ("reel", "outgoing", "incoming", "slide", "daily", "current"):
             source = source.replace(f"id: {name}\n", f'id: {name}\n        objectName: "{name}"\n')
@@ -341,15 +344,16 @@ ShellRoot {
 }
 ''')
         runtime = target / "runtime"
-        runtime.mkdir(mode=0o700)
+        runtime.mkdir(mode=0o700, exist_ok=True)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime))
+        env = shell_env(target, **{key: value for key, value in env.items() if key == "PATH" or key.startswith("QS_")})
         for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
             env.pop(key, None)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env,
                                 capture_output=True, text=True, timeout=15)
         output = result.stdout + result.stderr
         print(output, end="")
-        return 0 if result.returncode == 0 and "PASS: weather reel" in output and "FAIL:" not in output else 1
+        return 0 if result.returncode == 0 and "PASS: weather header, weather reel" in output and "FAIL:" not in output else 1
 
 
 if __name__ == "__main__":

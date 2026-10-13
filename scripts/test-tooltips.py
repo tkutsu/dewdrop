@@ -6,6 +6,8 @@ import runpy
 import shutil
 import tempfile
 
+from test_support import copy_shell
+
 ROOT = Path(__file__).resolve().parents[1]
 support = runpy.run_path(str(ROOT / 'scripts/test-right-pill.py'))
 
@@ -87,13 +89,12 @@ ShellRoot {
 def main():
     with tempfile.TemporaryDirectory(prefix='quickshell-tooltips-test-') as folder:
         target = Path(folder)
-        (target / 'components').mkdir()
-        (target / 'runtime').mkdir(mode=0o700)
+        copy_shell(target)
+        (target / 'components').mkdir(exist_ok=True)
+        (target / 'runtime').mkdir(mode=0o700, exist_ok=True)
         for name, source in support['STUBS'].items():
             (target / name).write_text(source)
-        for name in ('Tooltips.qml', 'Linger.qml', 'components/Pill.qml', 'components/BarItem.qml',
-                     'components/ClickArea.qml', 'components/DropLine.qml', 'components/HoverPopup.qml'):
-            shutil.copyfile(ROOT / name, target / name)
+        shutil.copyfile(ROOT / 'components/HoverPopup.qml', target / 'components/HoverPopup.qml')
         (target / 'components/Tooltip.qml').write_text("import QtQuick\nItem { property string text; property Item anchorItem; property var anchor: ({rect: null}); property int shadowTop: 0; property bool requestedVisible }")
         support['run_shell'](target, SCENARIO)
 

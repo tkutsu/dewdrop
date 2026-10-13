@@ -9,6 +9,8 @@ import textwrap
 import tempfile
 import unittest
 
+from test_support import copy_shell
+
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 from PySide6.QtCore import QPoint, QPointF, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
@@ -39,6 +41,8 @@ STATE = '''
     property string snapshot: ""
     property string trouble: ""
     property var found: null
+    property int searches: 0
+    property int searchMax: 10
     property var bodies: ({})
     property var reading: ({})
     property var readQueue: []
@@ -56,7 +60,7 @@ STATE = '''
     }
     function fail(why, status) { trouble = why; }
     function reply(body, index) { pending.splice(index ?? 0, 1)[0].then(body); }
-    function reject(index) { pending.splice(index ?? 0, 1)[0].failed("fixture failure", 503); }
+    function reject(index, status, why) { pending.splice(index ?? 0, 1)[0].failed(why ?? "fixture failure", status ?? 503); }
 '''
 
 
@@ -76,7 +80,7 @@ class EmailTests(unittest.TestCase):
         self.theme = {
             'bodyFont': 'Sans Serif', 'captionSize': 12,
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
-            'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'figures': {},
+            'scrollEdge': 16, 'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'figures': {},
             'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r'},
         }
         self.engine.rootContext().setContextProperty('Theme', self.theme)
@@ -110,6 +114,52 @@ class EmailTests(unittest.TestCase):
 
     def check(self, expression):
         self.assertTrue(self.js('return ' + expression + ';'), expression)
+
+    def test_search_list_failure_stays_local(self):
+        self.js('sut.total=7; sut.loaded=true; sut.threads=[{id:"inbox"}]; sut.search("bad query", false); sut.reject();')
+        self.check('sut.found.q === "bad query" && sut.found.trouble === "fixture failure" && sut.found.rows.length === 0')
+        self.check('sut.trouble === "" && sut.total === 7 && sut.loaded && sut.threads[0].id === "inbox"')
+
+    def test_search_header_failure_stays_local(self):
+        self.js('sut.search("query", false); sut.reply({threads:[{id:"t"}]}); sut.reject();')
+        self.check('sut.found.q === "query" && sut.found.trouble === "fixture failure" && sut.found.rows.length === 0')
+        self.check('sut.trouble === ""')
+
+    def test_stale_search_failure_preserves_current_results(self):
+        self.js('sut.search("old", false); sut.search("current", false); sut.reply({threads:[]}, 1); sut.reject();')
+        self.check('sut.found.q === "current" && sut.found.trouble === "" && sut.trouble === ""')
+
+    def test_starred_search_failure_is_not_overwritten(self):
+        self.js('sut.search("query", true); sut.reject(); sut.reply({threads:[]});')
+        self.check('sut.found.q === "query" && sut.found.trouble === "fixture failure" && sut.trouble === ""')
+
+    def test_search_preserves_existing_inbox_failure(self):
+        self.js('sut.trouble="inbox failure"; sut.search("query", false); sut.reject();')
+        self.check('sut.trouble === "inbox failure" && sut.found.trouble === "fixture failure"')
+
+    def test_search_can_retry_after_failure(self):
+        self.js('sut.search("query", false); sut.reject(); sut.search("query", false); sut.reply({threads:[{id:"t"}]}); sut.reply({messages:[{id:"m",internalDate:"10"}]});')
+        self.check('sut.found.q === "query" && sut.found.trouble === "" && sut.found.rows.length === 1 && sut.trouble === ""')
+
+    def test_stale_search_header_failure_preserves_current_results(self):
+        self.js('sut.search("old", false); sut.reply({threads:[{id:"t"}]}); sut.search("current", false); sut.reply({threads:[]}, 1); sut.reject();')
+        self.check('sut.found.q === "current" && sut.found.trouble === "" && sut.trouble === ""')
+
+    def test_search_header_failure_stops_queued_details(self):
+        self.js('sut.search("query", false); sut.reply({threads:Array.from({length:10}, (_,i)=>({id:"t"+i}))}); sut.reject(); while(sut.pending.length) sut.reply({messages:[{id:"m"}]});')
+        self.check('sut.found.trouble === "fixture failure" && sut.trouble === "" && sut.pending.length === 0')
+        self.check('sut.maxPending === sut.headerParallel')
+
+    def test_search_preserves_api_and_reconnect_errors(self):
+        self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
+        self.js('sut.search("query", false); sut.reject(0, 403, "disabled");')
+        self.check('sut.found.trouble === "Gmail API not enabled in the Google console" && sut.trouble === ""')
+        self.js('sut.search("query", false); sut.reject(0, 403, "reconnect");')
+        self.check('sut.found.trouble === "reconnect" && sut.trouble === ""')
+
+    def test_inbox_header_failure_still_sets_inbox_status(self):
+        self.js('sut.fetchThreads(); sut.reply({threads:[{id:"t"}]}); sut.reject();')
+        self.check('sut.trouble === "fixture failure" && sut.found === null')
 
     def test_named_and_numeric_entities(self):
         self.check('sut.unentity("&nbsp;&copy;&mdash;&eacute;&#x1F600;&#39;") === "\\u00a0©—é😀\\\'"')
@@ -325,22 +375,27 @@ class EmailTests(unittest.TestCase):
                     width: implicitWidth; height: implicitHeight
                     Column { id: column }
                 }""",
-            'PopupHeader.qml': 'import QtQuick\nRow { property string title }',
+            'PopupHeader.qml': 'import QtQuick\nRow { property string title; property bool addable: false; signal add }',
             'PopupButton.qml': 'import QtQuick\nItem { property bool framed; property string glyph; property string label; signal tapped(); width: 15; height: 15 }',
             'ReconnectButton.qml': 'import QtQuick\nItem {}',
             'RetryButton.qml': 'import QtQuick\nItem { property var service }',
         }
+        stubs['PressGlass.qml'] = 'import QtQuick\nQtObject { required property Item icon; required property var area; property bool down; property real scale: 1 }'
         with tempfile.TemporaryDirectory(prefix='email-popup-test-') as directory:
+            copy_shell(directory)
+            components = Path(directory, 'components')
+            for path in components.glob('*.qml'):
+                path.write_text(re.sub(r'^import qs(?:\.\w+)?\n', '', path.read_text(), flags=re.M))
             for name in ['PopupRow.qml', 'PopupText.qml']:
-                stubs[name] = (CONFIG / 'components' / name).read_text().replace('import qs\n', '')
+                stubs[name] = (CONFIG / 'components' / name).read_text().replace('import qs\n', '').replace('import Quickshell\n', '').replace('QsWindow.window?.keyItem', 'false')
             for name, source in stubs.items():
-                Path(directory, name).write_text(source)
+                (components / name).write_text(source)
             source = re.sub(r'^import qs(?:\.\w+)?\n', '', POPUP, flags=re.M)
             source = source.replace('Qt.openUrlExternally(url);', 'root.testActivated = url;')
             source = source.replace('id: more\n', 'id: more\n        objectName: "emailMore"\n', 1)
             source = source.replace('id: root', 'id: root\n    property string testActivated: ""\n    property alias testMore: more\n    property alias testList: list\n    property alias testScroll: threadList', 1)
             component = QQmlComponent(self.engine)
-            component.setData(source.encode(), QUrl.fromLocalFile(directory + '/EmailPopup.qml'))
+            component.setData(source.encode(), QUrl.fromLocalFile(directory + '/components/EmailPopup.qml'))
             self.components.append(component)
             self.js('''
                 var row=sut.rowOf({id:"t"},{messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});

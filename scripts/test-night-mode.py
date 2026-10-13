@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import tempfile
 
+from test_support import copy_shell, shell_env
+
 ROOT = Path(__file__).resolve().parents[1]
 
 SCENARIO = r'''
@@ -254,11 +256,48 @@ ShellRoot {
             wait(200);
             compare(count(), before + 1, 'failed command does not immediately loop');
             verify(!NightMode.on, 'failure preserves off state');
-            failDdc.setText('ok'); failDdc.waitForJob();
             WallClock.sample(WallClock.now + 5000);
+            wait(200);
+            compare(count(), before + 1, 'ordinary clock ticks respect the retry delay');
+            WallClock.sample(WallClock.now + 25000);
+            tryVerify(() => count() === before + 2, 2000);
+            wait(200);
+            failDdc.setText('ok'); failDdc.waitForJob();
+            WallClock.sample(WallClock.now + 30000);
+            wait(200);
+            compare(count(), before + 2, 'a second failure doubles the retry delay');
+            WallClock.sample(WallClock.now + 30000);
             tryVerify(() => NightMode.on, 2000);
-            compare(count(), before + 2, 'next clock check retries successfully');
-            console.log('PASS: failed scheduled change waits for next clock check before retry');
+            compare(count(), before + 3, 'retry succeeds once the longer delay expires');
+            failDdc.setText('fail'); failDdc.waitForJob();
+            const capStart = count();
+            const at = (hour) => new Date(2026, 9, 6, hour, 0).getTime();
+            WallClock.sample(at(7));
+            tryVerify(() => count() === capStart + 1, 2000);
+            wait(200);
+            for (const seconds of [30, 60, 120, 240, 300, 300]) {
+                const prior = count();
+                WallClock.sample(WallClock.now + (seconds - 5) * 1000);
+                wait(100);
+                compare(count(), prior, 'repeated failures wait through their backoff');
+                WallClock.sample(WallClock.now + 5000);
+                tryVerify(() => count() === prior + 1, 2000);
+                wait(100);
+            }
+            WallClock.sample(at(22));
+            wait(200);
+            compare(count(), capStart + 7, 'a matching boundary needs no display command');
+            WallClock.sample(at(7));
+            tryVerify(() => count() === capStart + 8, 2000);
+            wait(200);
+            verify(NightMode.setSchedule('08:00', '18:00'), 'edited range remains valid');
+            tryVerify(() => count() === capStart + 9, 2000);
+            wait(200);
+            failDdc.setText('ok'); failDdc.waitForJob();
+            NightMode.setAutomatic(false); NightMode.setAutomatic(true);
+            tryVerify(() => !NightMode.on, 2000);
+            compare(count(), capStart + 10, 'explicit re-enabling retries immediately');
+            console.log('PASS: scheduled failures back off, cap at five minutes, reset at boundaries and recover');
         }
     }
     Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log('FAIL: ' + e + ' ' + e.stack); } Qt.quit(); } }
@@ -276,14 +315,15 @@ def run_shell(target, scenario, env):
     for error in ('ReferenceError:', 'TypeError:', 'Binding loop', 'Failed to load configuration',
                   'Cannot assign', 'Unable to assign'):
         assert error not in output, output
-    assert output.count('Could not set scheduled night mode') == (1 if scenario == RETRY else 0), output
+    assert output.count('Could not set scheduled night mode') == (11 if scenario == RETRY else 0), output
 
 
 def main():
     with tempfile.TemporaryDirectory(prefix='quickshell-night-test-') as folder:
         target = Path(folder)
+        copy_shell(target)
         for name in ('services', 'components', 'bin', 'runtime'):
-            (target / name).mkdir(mode=0o700)
+            (target / name).mkdir(mode=0o700, exist_ok=True)
         display = target / 'display.sh'
         source = (Path.home() / '_scripts/display.sh').read_text()
         for name in ('brightness', 'night-mode', 'brightness.lock'):
@@ -305,6 +345,7 @@ fi
         env = dict(os.environ, PATH=str(target / 'bin') + ':' + os.environ['PATH'],
                    QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software',
                    XDG_RUNTIME_DIR=str(target / 'runtime'))
+        env = shell_env(target, PATH=env["PATH"])
         for key in ('WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE', 'DBUS_SESSION_BUS_ADDRESS'):
             env.pop(key, None)
 

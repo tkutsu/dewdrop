@@ -17,7 +17,7 @@ ShellRoot {
     id: test
     property int phase: 0
     readonly property string label: Timers.label
-    readonly property string tooltip: Timers.tooltip
+    readonly property string tooltip: Timers.tooltip()
     readonly property string preview: Timers.brief("8:05pm", Timers.parse("8:05pm"))
     property real alarmAt: 0
     function check(ok, why) { if (!ok) throw Error(why); }

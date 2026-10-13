@@ -9,6 +9,8 @@ import time
 import subprocess
 import tempfile
 
+from test_support import copy_shell, shell_env
+
 ROOT = Path(__file__).resolve().parents[1]
 
 TEST = '''import QtQuick
@@ -172,13 +174,23 @@ ShellRoot {
                 check(Wallpaper.onScreen === String(Wallpaper.drifted(Wallpaper.color, Wallpaper.hour)), "wake refreshes the drifting wallpaper colour");
                 checksBeforeLog = Updates.testRefreshes;
                 packageLog.setText("fixture package transaction finished\\n");
+                packageEarlyCheck.restart();
                 packageCheck.restart();
             } catch (error) { test.fail(error); }
         }
     }
     Timer {
+        id: packageEarlyCheck
+        interval: 3000
+        onTriggered: {
+            try {
+                check(Updates.testRefreshes === checksBeforeLog, "package log changes wait for the debounce");
+            } catch (error) { test.fail(error); }
+        }
+    }
+    Timer {
         id: packageCheck
-        interval: 2300
+        interval: 10300
         onTriggered: {
             try {
                 check(Updates.testRefreshes > checksBeforeLog, "package log changes refresh update count");
@@ -267,10 +279,11 @@ def hot_reload(target, env):
 def main():
     with tempfile.TemporaryDirectory(prefix="qs-recovery-") as folder:
         target = Path(folder)
+        copy_shell(target)
         services = target / "services"
         components = target / "components"
-        services.mkdir()
-        components.mkdir()
+        services.mkdir(exist_ok=True)
+        components.mkdir(exist_ok=True)
         log_path = target / "pacman.log"
         log_path.write_text("fixture initial log\n")
         display = target / "display.sh"
@@ -331,7 +344,7 @@ QtObject {
         for name in ("QueuedProcess", "FilePreview"):
             (components / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
         (components / "Glyph.qml").write_text('import QtQuick\nItem { property string text: ""; property int fontSize: 16; property color color: "white" }\n')
-        (target / "scripts").mkdir()
+        (target / "scripts").mkdir(exist_ok=True)
         thumbs = target / "scripts/wallpaper-thumbs"
         thumbs.write_text("#!/bin/sh\nexit 0\n")
         thumbs.chmod(0o700)
@@ -340,11 +353,12 @@ QtObject {
         (components / "FilePreview.qml").write_text(preview)
         (target / "shell.qml").write_text(TEST.replace('LOG_PATH', '"' + str(log_path) + '"'))
         runtime = target / "runtime"
-        runtime.mkdir(mode=0o700)
+        runtime.mkdir(mode=0o700, exist_ok=True)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime), XDG_STATE_HOME=str(target / "state"))
+        env = shell_env(target, PATH=env["PATH"])
         for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE", "DBUS_SESSION_BUS_ADDRESS"):
             env.pop(key, None)
-        result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=20)
         output = result.stdout + result.stderr
         print(output, end="")
         if result.returncode != 0 or 'PASS: wake' not in output or any(error in output for error in ('FAIL:', 'ReferenceError:', 'TypeError:')):

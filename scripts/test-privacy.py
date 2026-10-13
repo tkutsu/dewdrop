@@ -7,6 +7,8 @@ import shutil
 import subprocess
 import tempfile
 
+from test_support import copy_shell
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -88,6 +90,14 @@ ShellRoot {
         check(Privacy.mics[0].app === "Firefox" && Privacy.mics[0].source === mic, "the app and the microphone are named");
         check(Privacy.summary === "Firefox using the microphone", "summary names the app: " + Privacy.summary);
         check(!pill.stowed, "the pill comes out");
+        check(pill.testPulse.running, "an active recording pulses with normal motion");
+        Settings.user = {reduceMotion: true};
+        check(!pill.testPulse.running && pill.testDot.opacity === 1, "Reduce motion stops the recording pulse at full opacity");
+        Settings.user = {};
+        check(pill.testPulse.running, "restoring motion resumes the active recording pulse");
+        links([]);
+        check(!pill.testPulse.running && pill.testDot.opacity === 1, "ending a recording stops its pulse");
+        links([listening, held]);
 
         Privacy.toggleApp(firefox);
         check(firefox.audio.muted, "muting an app mutes its own stream");
@@ -121,11 +131,11 @@ ShellRoot {
 def main():
     with tempfile.TemporaryDirectory(prefix="quickshell-privacy-") as folder:
         target = Path(folder)
-        files = subprocess.check_output(["git", "-C", str(ROOT), "ls-files"], text=True)
-        for name in files.splitlines():
-            destination = target / name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(ROOT / name, destination)
+        copy_shell(target)
+        recording = target / "modules/Recording.qml"
+        source = recording.read_text().replace("id: root", "id: root\n    property alias testDot: dot\n    property alias testPulse: pulse", 1)
+        source = source.replace("SequentialAnimation on opacity {", "SequentialAnimation on opacity {\n            id: pulse", 1)
+        recording.write_text(source)
         service = target / "services/Privacy.qml"
         source = service.read_text().replace("import Quickshell.Services.Pipewire", "import qs.testing")
         source = source.replace('Quickshell.execDetached(["pw-cli"', 'Pipewire.recordCommand(["pw-cli"')
