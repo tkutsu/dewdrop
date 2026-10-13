@@ -128,11 +128,19 @@ Singleton {
     // A drive arriving or leaving is a block uevent; a beat after one, once
     // the partitions have turned up and udiskie has mounted them, look again.
     Process {
+        id: monitor
         running: true
-        command: ["udevadm", "monitor", "--udev", "--subsystem-match=block"]
+        command: ["setpriv", "--pdeathsig", "TERM", "--", "udevadm", "monitor", "--udev", "--subsystem-match=block"]
+        onExited: monitorRetry.restart()
         stdout: SplitParser {
             onRead: settle.restart()
         }
+    }
+
+    Timer {
+        id: monitorRetry
+        interval: 5000
+        onTriggered: monitor.running = true
     }
 
     Timer {
@@ -141,12 +149,13 @@ Singleton {
         onTriggered: root.refresh()
     }
 
-    // Mounting and filling a drive raise no uevent, so while one is in, the
-    // figures are read again every few seconds.
+    // Mounting and filling a drive raise no uevent; refresh its usage while
+    // the Devices popup is open, including immediately on opening.
     Timer {
         interval: 5000
         repeat: true
-        running: root.drives.length > 0
+        triggeredOnStart: true
+        running: root.drives.length > 0 && OpenPopup.owner?.settingsKey === "drives"
         onTriggered: root.refresh()
     }
 }
