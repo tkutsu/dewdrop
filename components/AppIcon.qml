@@ -98,7 +98,7 @@ Item {
             id: art
 
             visible: root.hasIcon
-            opacity: Theme.barInk(root, Qt.rgba(1, 1, 1, root.inkOpacity)).a
+            opacity: Theme.barInk(root, Qt.rgba(1, 1, 1, 1)).a * root.inkOpacity
             Behavior on opacity {
                 NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
             }

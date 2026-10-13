@@ -15,6 +15,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs
 import qs.components
+import "Drops.js" as Drops
 ShellRoot {
     id: bar
     BULGE
@@ -111,7 +112,7 @@ def main():
                 (target / source.name).symlink_to(source)
         (target / "settings.json").write_text("{}\n")
         source = (ROOT / "Bar.qml").read_text()
-        bulge = re.search(r"    function bulge\([^\n]+\) \{.*?\n    }", source, re.S).group()
+        bulge = "    readonly property var drops: Drops.geometry(Theme)\n    function bulge(end, dir, reveal, leaving) { return bar.drops.bulge(end, dir, reveal, leaving); }"
         (target / "shell.qml").write_text(QML.replace("BULGE", bulge))
         env = dict(os.environ, QT_QUICK_BACKEND="rhi", QT_QPA_PLATFORM="wayland",
                    XDG_STATE_HOME=str(target / "state"), XDG_CACHE_HOME=str(target / "cache"),

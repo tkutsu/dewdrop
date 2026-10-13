@@ -27,27 +27,23 @@ Singleton {
     // with a measurement that has not landed: draw at the asked size.
     function extentOf(source) {
         root.revision;
-        return root.known[source] ?? 0;
+        return root.known[source]?.extent ?? 0;
     }
 
     // Where the ink runs across the box, as fractions of its width: `left` is
     // the first column that shows at bar size and `right` the edge after the
     // last (InkProbe's edgeLeft/edgeRight). Null until measured, which callers
     // read as "the whole box".
-    property var spans: ({})
-
     function spanOf(source) {
         root.revision;
-        return root.spans[source] ?? null;
+        return root.known[source]?.span ?? null;
     }
 
     function remember(source, extent, left, right) {
-        root.known[source] = extent;
-        if (left !== undefined)
-            root.spans[source] = {
-                left: left,
-                right: right
-            };
+        root.known[source] = {
+            extent,
+            span: left !== undefined ? {left, right} : root.known[source]?.span ?? null
+        };
         root.revision++;
     }
 }

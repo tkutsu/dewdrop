@@ -117,6 +117,21 @@ ShellRoot {
             }
             function run() {
                 wait(3500);
+                Mpd.queue = [{pos: 0, title: "Queue first", artist: "First artist", duration: 60},
+                    {pos: 1, title: "Queue second", artist: "Second artist", duration: 90}];
+                wait(100);
+                function painters(item, title) {
+                    let found = item.song?.title === title && item.tailWidth !== undefined ? [item] : [];
+                    for (const child of item.children || []) found = found.concat(painters(child, title));
+                    return found;
+                }
+                check(painters(popup.contentItem, "Queue first").some(item => item.number === 1 && item.current),
+                    "queue readout marks the playing track");
+                popup.auditReorder.queue = Mpd.queue;popup.auditReorder.from = 1;popup.auditReorder.to = 0;
+                popup.auditReorder.dragging = true;wait(50);
+                check(painters(popup.contentItem, "Queue second").some(item => item.number === 1 && !item.current),
+                    "lifted queue preview keeps its song and displays the drop position");
+                popup.auditReorder.dragging = false;Mpd.queue = [];
                 const pill = named(music, "title");
                 const header = named(popup.contentItem, "songTitle");
                 const headerText = named(popup.contentItem, "songTitleText");
@@ -198,6 +213,8 @@ def main():
         for name, ids in (("modules/Music.qml", ("title", "titleRoom")), ("components/MusicPopup.qml", ("songTitle", "songTitleText"))):
             path = target / name
             content = path.read_text()
+            if name == "components/MusicPopup.qml":
+                content = content.replace("id: root", "id: root\n    property alias auditReorder: reorder", 1)
             for ident in ids:
                 content = content.replace("id: " + ident + "\n", 'id: ' + ident + '\n                    objectName: "' + ident + '"\n')
             path.write_text(content)

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import qs
+import "RollingSpring.js" as Spring
 
 // Figures that roll to their next value the way SwiftUI's numericText does,
 // which is how the Dynamic Island's timer counts: one column per character,
@@ -65,21 +66,6 @@ Row {
         font.weight: root.weight
     }
 
-    // A damped spring's step response at time t, with damping ratio zeta,
-    // scaled to settle within 2% at `settle` (all in durations).
-    function damped(t, zeta, settle) {
-        if (t <= 0)
-            return 0;
-        if (zeta >= 0.999) {
-            const k = 5.83 / settle;
-            return 1 - (1 + k * t) * Math.exp(-k * t);
-        }
-        const omega = 4 / (zeta * settle);
-        const k = zeta * omega;
-        const wd = omega * Math.sqrt(1 - zeta * zeta);
-        return 1 - Math.exp(-k * t) * (Math.cos(wd * t) + (k / wd) * Math.sin(wd * t));
-    }
-
     // Counted from the right, where the figures that change are: a string
     // that gains or loses a figure (10:00 to 9:59) does it at the left end,
     // and every other column keeps the place it had.
@@ -112,10 +98,10 @@ Row {
             readonly property bool rolling: roll.running
             // The travel (overshoots), the size and opacity, the arriving
             // figure's focus and the leaving one's blur.
-            readonly property real b: rolling ? root.damped(s, 0.54, 1) : 1
-            readonly property real g: rolling ? root.damped(s, 1, 0.65) : 1
-            readonly property real f: rolling ? root.damped(s, 0.85, 0.74) : 1
-            readonly property real o: rolling ? root.damped(s, 1, 0.46) : 1
+            readonly property real b: rolling ? Spring.damped(s, 0.54, 1) : 1
+            readonly property real g: rolling ? Spring.damped(s, 1, 0.65) : 1
+            readonly property real f: rolling ? Spring.damped(s, 0.85, 0.74) : 1
+            readonly property real o: rolling ? Spring.damped(s, 1, 0.46) : 1
             // Down the screen for a figure coming in from above.
             readonly property real travel: root.offset * root.line * (root.countsDown ? 1 : -1)
 

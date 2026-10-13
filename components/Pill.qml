@@ -26,12 +26,13 @@ Item {
 
     // Empty on the other pills; the right pill fixes its unkeyed ends in place.
     property var order: []
-    property bool dragging: false
+    readonly property var modules: row.children.filter(item => item.settingsKey)
+    property alias dragging: reorder.dragging
     readonly property bool animating: dragging || row.children.some(item => item.animating === true)
     onAnimatingChanged: Tooltips.setMoving(root, animating)
     Component.onDestruction: Tooltips.setMoving(root, false)
-    property Item dragSource: null
-    property point dragPoint: Qt.point(0, 0)
+    property alias dragSource: reorder.dragSource
+    readonly property bool dropMoves: reorder.dropMoves
 
     function arrange(): void {
         if (order.length === 0)
@@ -47,57 +48,6 @@ Item {
     Component.onCompleted: {
         arrange();
         Tooltips.setMoving(root, animating);
-        trackReveal = trackReady ? 1 : 0;
-    }
-
-    readonly property var _movable: shown.filter(item => order.includes(item.settingsKey))
-    readonly property bool dragValid: root.visible && dragSource !== null && dragSource.here && dragSource.visible
-    // Later, not here: clearing dragSource now re-evaluates dragValid inside its own change.
-    onDragValidChanged: if (dragging && !dragValid) Qt.callLater(root.cancelInvalidDrag)
-
-    function cancelInvalidDrag(): void {
-        if (dragging && !dragValid)
-            cancelDrag();
-    }
-
-    function moduleAt(point): Item {
-        if (!root.contains(point))
-            return null;
-        for (const item of root._movable)
-            if (item.contains(item.mapFromItem(root, point)))
-                return item;
-        return null;
-    }
-
-    // Compare against the remaining modules so either side of the source is a no-op.
-    function beforeAt(point): Item {
-        for (const item of root._movable) {
-            if (item === root.dragSource)
-                continue;
-            const middle = item.mapToItem(root, item.width / 2, 0).x;
-            if (point.x < middle)
-                return item;
-        }
-        return null;
-    }
-
-    readonly property Item dropBefore: dragging ? beforeAt(dragPoint) : null
-    // A drop just before the module that already follows the source leaves it where it is.
-    readonly property bool dropMoves: dragging
-        && dropBefore !== (_movable[_movable.indexOf(dragSource) + 1] ?? null)
-
-    function cancelDrag(): void {
-        dragging = false;
-        dragSource = null;
-    }
-
-    // Resolve the drop from current geometry, including a drawer still settling.
-    // A null point is a drag that ended without a release, which cancels.
-    function finishDrag(point): void {
-        if (dragging && dragValid && point !== null && root.contains(point))
-            RightPillOrder.move(dragSource.settingsKey, beforeAt(point)?.settingsKey ?? null,
-                root._movable.map(item => item.settingsKey));
-        cancelDrag();
     }
 
     // Where on the bar this pill sits. It anchors itself from this rather than
@@ -168,50 +118,12 @@ Item {
                 item.shift = item.visible && span > 0 ? dir * stretch * from(item) / span : 0;
     }
 
-    // Clockwise distance along the middle of the track, for its progress clock.
-    readonly property real trackRadius: Math.min(slab.width, slab.height) / 2 - trackWidth / 2
-    readonly property real trackLength: 2 * Math.abs(slab.width - slab.height) + 2 * Math.PI * trackRadius
-
-    // How fast `progress` runs on its own, per second, while whatever it
-    // measures is running; 0 while it stands still. The owner only says where
-    // it is once a second, and the pill carries the line on in between, so it
-    // creeps round rather than stepping a pixel at a time.
     property real rate: 0
-
-    // How much of that line is lit. Not a Behavior: the elapsed time arrives
-    // once a second, and a one-second Behavior restarted every second never
-    // finishes — the bar redrew at the monitor's refresh rate for as long as
-    // anything played (4.6% CPU against 0.2%, measured), re-stroking the dash
-    // pattern every frame. Moved on by `creep` instead, a quarter of a pixel
-    // at a time: under what the eye can call a step, and a few redraws a
-    // second rather than a hundred and twenty.
-    property real lit: root.trackLength * Math.max(0, Math.min(1, root.progress + root.drift))
-
-    // How far the line has been carried past the last `progress`, capped at a
-    // second's worth so that a late update stalls it rather than overshoots.
-    property real drift: 0
-    property real since: 0
-
-    function settle() {
-        root.since = Date.now();
-        root.drift = 0;
-    }
-
-    onProgressChanged: settle()
-    // And from a pause, which would otherwise count the whole of it as time
-    // the line should have been moving.
-    onRateChanged: settle()
-
-    Timer {
-        id: creep
-
-        readonly property real pxPerSecond: Math.abs(root.rate) * root.trackLength
-
-        interval: pxPerSecond > 0 ? Math.max(16, Math.min(1000, 250 / pxPerSecond)) : 1000
-        repeat: true
-        running: root.visible && root.rate !== 0 && root.progress >= 0 && track.opacity > 0
-        onTriggered: root.drift = root.rate * Math.min(1, (Date.now() - root.since) / 1000)
-    }
+    property bool trackReady: true
+    property alias trackReveal: track.trackReveal
+    readonly property real trackRadius: track.trackRadius
+    readonly property real trackLength: track.trackLength
+    readonly property real lit: track.lit
 
     // Whether a pill at offset zero is against the screen edge. Not for one
     // placed beside the clock (see Bar.qml): those are never against an
@@ -269,7 +181,7 @@ Item {
     // shows it, or the tint over the wallpaper's average before the strip has
     // been read and on a flat colour. For what has to be drawn solid on it
     // (Theme.badgeBg).
-    readonly property color surface: backdrop?.columns?.length ? Theme.glassOver(backdrop.average(x + slab.x, x + slab.x + slab.width)) : Theme.mix(Theme.backdrop, Theme.tint, Theme.barBg.a)
+    readonly property color surface: backdrop?.sampled ? Theme.glassOver(backdrop.average(x + slab.x, x + slab.x + slab.width)) : Theme.mix(Theme.backdrop, Theme.tint, Theme.barBg.a)
 
     // Where the glass is in the bar, stretch and all, for a bar that draws
     // this pill's glass itself while something pours out of it
@@ -301,42 +213,15 @@ Item {
         }
     }
 
-    // Tracks wait for the glass to settle; disappear immediately when it moves.
-    property bool trackReady: true
-    property real trackReveal: 0
-    onTrackReadyChanged: {
-        trackFade.stop();
-        if (trackReady && !Theme.reduceMotion) {
-            trackReveal = 0;
-            trackFade.start();
-        }
-        else
-            trackReveal = trackReady ? 1 : 0;
-    }
-    NumberAnimation {
-        id: trackFade
-        target: root; property: "trackReveal"; to: 1
-        duration: 240; easing.type: Easing.InOutCubic
-    }
-
-    // Use the glass's rounded-box distance directly, avoiding a second curve renderer.
-    ShaderEffect {
+    ProgressTrack {
         id: track
-        readonly property int room: 1
-        x: slab.x - room
-        y: slab.y - room
-        width: slab.width + 2 * room
-        height: slab.height + 2 * room
-        visible: root.progress >= 0 && opacity > 0
-        opacity: root.trackOpacity * root.trackReveal
-        property size size: Qt.size(width, height)
-        property size slabSize: Qt.size(slab.width, slab.height)
-        property real lineWidth: root.trackWidth
-        property real played: root.lit / Math.max(root.trackLength, 1)
-        property color ink: root.trackColor
-        property real rest: Theme.pillTrackRest
-        property real foot: Theme.pillTrackFoot
-        fragmentShader: Qt.resolvedUrl("../shaders/track.frag.qsb")
+        slab: slab
+        progress: root.progress
+        rate: root.rate
+        trackOpacity: root.trackOpacity
+        trackColor: root.trackColor
+        trackWidth: root.trackWidth
+        trackReady: root.trackReady
     }
 
     // No spacing of the row's own: each module carries half the gap to its
@@ -440,51 +325,7 @@ Item {
         onChildrenChanged: root.arrange()
     }
 
-    // An ancestor handler observes child MouseAreas without swallowing their clicks.
-    DragHandler {
-        id: reorder
-        target: null
-        enabled: root.order.length > 0
-        // Turning a handler off drops its grab without saying so.
-        onEnabledChanged: if (!enabled) root.cancelDrag()
-        acceptedButtons: Qt.LeftButton
-        grabPermissions: root.moduleAt(centroid.pressPosition) !== null
-            ? PointerHandler.CanTakeOverFromItems : PointerHandler.TakeOverForbidden
-        onActiveChanged: {
-            if (!active)
-                return;
-            root.dragSource = root.moduleAt(centroid.pressPosition);
-            if (root.dragSource === null)
-                return;
-            root.dragPoint = centroid.position;
-            root.dragging = true;
-            OpenPopup.dismiss();
-        }
-        onCentroidChanged: if (active && root.dragging) root.dragPoint = centroid.position
-        // Every end of the drag comes through here, released or not. Only a
-        // release drops; centroid is reset by then, but the point keeps its place.
-        onGrabChanged: (transition, point) => {
-            const ends = [PointerDevice.UngrabExclusive, PointerDevice.CancelGrabExclusive, PointerDevice.OverrideGrabExclusive];
-            if (!ends.includes(transition))
-                return;
-            const released = transition === PointerDevice.UngrabExclusive && point.state === EventPoint.Released;
-            root.finishDrag(released ? root.mapFromItem(null, point.scenePosition) : null);
-        }
-    }
-
-    // Between the modules either side of the drop, splitting any margin they overlap by.
-    DropLine {
-        target: {
-            if (!root.dropMoves || !root.contains(root.dragPoint))
-                return NaN;
-            const items = root._movable.filter(item => item !== root.dragSource);
-            const next = root.dropBefore;
-            const previous = items[(next ? items.indexOf(next) : items.length) - 1];
-            const left = previous?.mapToItem(root, previous.width, 0).x;
-            const right = next?.mapToItem(root, 0, 0).x;
-            return ((left ?? right) + (right ?? left)) / 2;
-        }
-    }
+    PillReorder { id: reorder; pill: root }
 
     // The first and last modules have no neighbour on their outer side.
     Binding {

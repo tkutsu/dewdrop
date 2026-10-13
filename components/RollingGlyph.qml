@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import qs
+import "RollingSpring.js" as Spring
 
 // Roll a whole icon with RollingText's spring, scale and focus, including SVGs.
 Item {
@@ -16,10 +17,10 @@ Item {
     property string was: ""
     property real s: 1.45
     readonly property bool reduceMotion: Theme.reduceMotion
-    readonly property real b: rolling ? root.damped(s, 0.54, 1) : 1
-    readonly property real g: rolling ? root.damped(s, 1, 0.65) : 1
-    readonly property real f: rolling ? root.damped(s, 0.85, 0.74) : 1
-    readonly property real o: rolling ? root.damped(s, 1, 0.46) : 1
+    readonly property real b: rolling ? Spring.damped(s, 0.54, 1) : 1
+    readonly property real g: rolling ? Spring.damped(s, 1, 0.65) : 1
+    readonly property real f: rolling ? Spring.damped(s, 0.85, 0.74) : 1
+    readonly property real o: rolling ? Spring.damped(s, 1, 0.46) : 1
     readonly property real travel: -0.34 * metrics.height
 
     implicitWidth: fontSize
@@ -31,20 +32,6 @@ Item {
         font.family: Theme.bodyFont
         font.pixelSize: root.fontSize
         font.weight: Theme.bodyWeight
-    }
-
-    // Same damped step response as RollingText, in multiples of Theme.rollMs.
-    function damped(t, zeta, settle) {
-        if (t <= 0)
-            return 0;
-        if (zeta >= 0.999) {
-            const k = 5.83 / settle;
-            return 1 - (1 + k * t) * Math.exp(-k * t);
-        }
-        const omega = 4 / (zeta * settle);
-        const k = zeta * omega;
-        const wd = omega * Math.sqrt(1 - zeta * zeta);
-        return 1 - Math.exp(-k * t) * (Math.cos(wd * t) + (k / wd) * Math.sin(wd * t));
     }
 
     // Hidden icons and reduced motion swap immediately; fresh mounts start still.
