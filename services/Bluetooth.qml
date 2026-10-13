@@ -26,49 +26,31 @@ Singleton {
     // Adapter recreation on resume can leave Quickshell's enabled cache stale.
     // Read BlueZ directly, including while off, so external toggles recover too.
     property var powered: null
+    property bool powerRefreshPending: false
 
     onAdapterChanged: {
         powered = null;
-        powerEvents.running = false;
-        if (root.present)
-            powerEventsRetry.restart();
         Qt.callLater(root.refreshPower);
     }
     Component.onCompleted: refreshPower()
 
+    // Coalesce changes during a probe so its old reply cannot swallow a newer power state.
     function refreshPower(): void {
-        if (!adapter || powerProbe.running)
+        if (!adapter)
             return;
+        if (powerProbe.running) {
+            root.powerRefreshPending = true;
+            return;
+        }
+        root.powerRefreshPending = false;
         powerProbe.queriedAdapter = adapter;
         powerProbe.command = ["busctl", "--system", "--timeout=2", "get-property", "org.bluez", adapter.dbusPath, "org.bluez.Adapter1", "Powered"];
         powerProbe.running = true;
     }
 
-    // busctl wait uses ordinary signal subscriptions, which need no monitoring privilege.
-    Process {
-        id: powerEvents
-        running: root.present
-        command: ["setpriv", "--pdeathsig", "TERM", "--", "busctl", "--system", "--quiet", "wait", "org.bluez", root.adapter?.dbusPath ?? "/org/bluez", "org.freedesktop.DBus.Properties", "PropertiesChanged"]
-        Component.onDestruction: running = false
-        onExited: function (code) {
-            if (!root.present)
-                return;
-            if (code === 0) {
-                root.refreshPower();
-                Qt.callLater(() => powerEvents.running = root.present);
-            } else {
-                powerEventsRetry.restart();
-            }
-        }
-    }
-
-    Timer {
-        id: powerEventsRetry
-        interval: 5000
-        onTriggered: if (root.present) {
-            powerEvents.running = true;
-            root.refreshPower();
-        }
+    Connections {
+        target: WallClock
+        function onWokeUp() { root.refreshPower(); }
     }
 
     Connections {
@@ -81,7 +63,9 @@ Singleton {
         property var queriedAdapter: null
         stdout: StdioCollector {}
         onExited: function (code) {
-            if (queriedAdapter !== root.adapter) {
+            const refreshAgain = root.powerRefreshPending || queriedAdapter !== root.adapter;
+            root.powerRefreshPending = false;
+            if (refreshAgain) {
                 Qt.callLater(root.refreshPower);
                 return;
             }
