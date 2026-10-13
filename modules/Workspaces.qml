@@ -412,6 +412,7 @@ BarItem {
         // end is a wall the head stops against.
         FlowMark {
             id: mark
+            inset: Theme.markInset + 1
             held: strip.held
             // Keep keyboard steps quick; workspace switches take a gentler spring.
             spring: strip.keyed ? Theme.keyMarkSpring : Theme.switchSpring
@@ -420,8 +421,8 @@ BarItem {
             slabHeight: Theme.barHeight
             atFirst: strip.selected !== null && strip.selected.index === 0
             atLast: strip.selected !== null && strip.selected.index === workspaces.count - 1
-            wallLeft: Theme.pillBorder
-            wallRight: strip.width + Theme.pillPad * 2 - Theme.pillBorder
+            wallLeft: Theme.pillBorder + 1
+            wallRight: strip.width + Theme.pillPad * 2 - Theme.pillBorder - 1
             visible: hasSelection
             x: -Theme.pillPad
             width: strip.width + Theme.pillPad * 2
@@ -484,11 +485,11 @@ BarItem {
 
             Rectangle {
                 // BarItem rounds the pill width; account for that rounding at its left edge.
-                x: strip.width + root.padLeft + root.padRight - root.width + Theme.pillBorder
-                y: Theme.pillTop(parent.height) + Theme.pillBorder
-                width: Math.max(0, root.width - root.padLeft - root.padRight + Theme.pillPad * 2 - Theme.pillBorder * 2)
-                height: Theme.barHeight - Theme.pillBorder * 2
-                radius: Theme.pillRadius - Theme.pillBorder
+                x: strip.width + root.padLeft + root.padRight - root.width + mark.wallLeft
+                y: Theme.pillTop(parent.height) + mark.wallLeft
+                width: Math.max(0, root.width - root.padLeft - root.padRight + Theme.pillPad * 2 - mark.wallLeft * 2)
+                height: Theme.barHeight - mark.wallLeft * 2
+                radius: Theme.pillRadius - mark.wallLeft
                 color: "white"
             }
         }
