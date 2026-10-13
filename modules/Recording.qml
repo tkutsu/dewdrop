@@ -33,9 +33,9 @@ BarItem {
         color: Theme.recording
 
         SequentialAnimation on opacity {
-            running: Privacy.active
+            running: Privacy.active && !Theme.reduceMotion
             loops: Animation.Infinite
-            alwaysRunToEnd: true
+            onRunningChanged: if (!running) dot.opacity = 1
 
             NumberAnimation {
                 to: 0.4

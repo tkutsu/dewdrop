@@ -59,6 +59,7 @@ Singleton {
             return;
         root.automatic = enabled;
         memory.applied = -1;
+        root.resetScheduleRetry();
         root.saveSchedule();
         root.checkSchedule();
     }
@@ -69,6 +70,7 @@ Singleton {
             return false;
         root.startMinute = from;
         root.endMinute = to;
+        root.resetScheduleRetry();
         root.saveSchedule();
         root.checkSchedule();
         return true;
@@ -100,13 +102,16 @@ Singleton {
         if (!root.restored || !root.flagKnown || !root.automatic || modeSetter.running)
             return;
         const due = root.scheduledOn(WallClock.now) ? 1 : 0;
+        if (due !== root.pendingMode)
+            root.resetScheduleRetry();
         if (due === memory.applied)
             return;
         if (due === Number(root.on)) {
             memory.applied = due;
+            root.resetScheduleRetry();
             return;
         }
-        if (setter.running)
+        if (setter.running || WallClock.now < root.nextScheduleAttempt)
             return;
         root.pendingMode = due;
         modeSetter.command = [Paths.script("display.sh"), due ? "night-on" : "night-off"];
@@ -114,6 +119,14 @@ Singleton {
     }
 
     property int pendingMode: -1
+    property int scheduleFailures: 0
+    property double nextScheduleAttempt: 0
+
+    // A new schedule boundary or user choice starts a fresh retry sequence.
+    function resetScheduleRetry() {
+        root.scheduleFailures = 0;
+        root.nextScheduleAttempt = 0;
+    }
 
     Connections {
         target: WallClock
@@ -126,12 +139,15 @@ Singleton {
         onExited: function (code) {
             nightFlag.reload();
             nightFlag.waitForJob();
-            // A failed run leaves the boundary pending for the next tick to
-            // retry; a good one re-checks at once, for a tick it made skip.
+            // A failed boundary backs off from 30 seconds to five minutes;
+            // a good run re-checks at once for a boundary it made skip.
             if (code === 0) {
+                root.resetScheduleRetry();
                 memory.applied = root.pendingMode;
                 root.checkSchedule();
             } else {
+                root.nextScheduleAttempt = WallClock.now + Math.min(30000 * Math.pow(2, root.scheduleFailures), 5 * 60000);
+                root.scheduleFailures = Math.min(root.scheduleFailures + 1, 16);
                 console.warn("Could not set scheduled night mode:", code);
             }
         }

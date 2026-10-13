@@ -280,6 +280,8 @@ GoogleService {
         root.searches += 1;
         const gen = root.searches;
         const current = () => gen === root.searches;
+        let broken = false;
+        const alive = () => current() && !broken;
         // Newest first by the date each row shows, starred ones on top when
         // asked. Gmail's own order goes by the message that matched, which a
         // row showing the thread's newest one makes look shuffled.
@@ -293,17 +295,19 @@ GoogleService {
                 };
         };
         const failed = function (why, status) {
-            root.fail(why, status);
-            answer([], root.trouble);
+            if (!alive())
+                return;
+            broken = true;
+            answer([], status === 403 && why !== Google.reconnect ? "Gmail API not enabled in the Google console" : why);
         };
         // Gmail lists newest first.
         const list = (query, then) => root.send("GET", `${root.api}/threads?maxResults=${root.searchMax}&q=${encodeURIComponent(query)}&fields=threads(id,historyId,snippet)`, null, body => {
-            if (current())
+            if (alive())
                 then(body?.threads ?? []);
         }, failed);
 
         if (!starredFirst) {
-            list(q, listed => root.detail(listed, rows => answer(rows, "")));
+            list(q, listed => root.detail(listed, rows => answer(rows, ""), failed, alive));
             return;
         }
         // Bracketed, so "a OR b" gains the star as a whole rather than
@@ -317,7 +321,7 @@ GoogleService {
             for (const t of starred)
                 seen[t.id] = true;
             const listed = starred.concat(all.filter(t => !seen[t.id])).slice(0, root.searchMax);
-            root.detail(listed, rows => answer(rows, ""));
+            root.detail(listed, rows => answer(rows, ""), failed, alive);
         };
         list(`(${q}) is:starred`, l => {
             starred = l;
@@ -331,19 +335,19 @@ GoogleService {
 
     // Listed threads to rows, in the order given, kept by slot rather than
     // by arrival. A thread the poll has already read costs nothing.
-    function detail(listed: var, then: var): void {
+    function detail(listed: var, then: var, failed: var, alive: var): void {
         const rows = listed.map(t => {
             const c = root.cache[t.id];
             return c && t.historyId && c.historyId === t.historyId ? c.row : null;
         });
         const missing = listed.filter((t, i) => rows[i] === null);
-        root.eachHeader(missing, (t, thread) => rows[listed.indexOf(t)] = root.rowOf(t, thread), () => then(rows.filter(r => r)), () => true);
+        root.eachHeader(missing, (t, thread) => rows[listed.indexOf(t)] = root.rowOf(t, thread), () => then(rows.filter(r => r)), alive ?? (() => true), failed);
     }
 
     // Each thread's headers, a few requests at a time: after "load more" a
     // poll can find a couple of hundred threads stale. `done` runs once all
     // have landed or failed, and nothing more is asked once `alive` goes false.
-    function eachHeader(threads: var, each: var, done: var, alive: var): void {
+    function eachHeader(threads: var, each: var, done: var, alive: var, failed: var): void {
         let next = 0;
         let outstanding = threads.length;
         if (outstanding === 0) {
@@ -368,7 +372,7 @@ GoogleService {
                 settle();
             }, function (why, status) {
                 if (alive())
-                    root.fail(why, status);
+                    (failed ?? root.fail)(why, status);
                 settle();
             });
         };
