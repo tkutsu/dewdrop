@@ -27,6 +27,7 @@ import os
 import secrets
 import socket
 import sys
+import tempfile
 import threading
 import urllib.error
 import urllib.parse
@@ -183,20 +184,23 @@ def save(client_id: str, client_secret: str, refresh_token: str) -> None:
     # Written through a private temporary file rather than opened and filled:
     # between the open and the write, a file created with the default umask is
     # a refresh token readable by anything on the machine.
-    tmp = DEST + ".new"
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    with os.fdopen(os.open(tmp, flags, 0o600), "w") as handle:
-        json.dump(
-            {
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "refresh_token": refresh_token,
-            },
-            handle,
-            indent=2,
-        )
-        handle.write("\n")
-    os.replace(tmp, DEST)
+    fd, tmp = tempfile.mkstemp(prefix="gtasks-", dir=os.path.dirname(DEST))
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(
+                {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "refresh_token": refresh_token,
+                },
+                handle,
+                indent=2,
+            )
+            handle.write("\n")
+        os.replace(tmp, DEST)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def check() -> int:
