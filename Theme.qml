@@ -577,8 +577,7 @@ Singleton {
     // then the box snapping shut after them.
     readonly property int foldMs: 360
 
-    // The side pills use the music title's spring (Music.qml): the same
-    // stiffness and damping for workspace width changes.
+    // The side pills' spring for workspace width changes.
     readonly property real foldSpring: springStiffness
     readonly property real foldDamping: reduceMotion ? calmDamping : 0.14
     // The drawer folds on a softer one: a 12% overshoot rather than 30%.
