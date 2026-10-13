@@ -101,32 +101,82 @@ Popup {
         precision: SystemClock.Minutes
     }
 
-    PopupHeader {
+    Item {
         width: root.bodyWidth
+        height: 22
         // Over the cards, which run on under it (ScrollUnder).
         z: 1
-        title: "Notifications"
+
+        Item {
+            id: clearAll
+            anchors.left: parent.left
+            anchors.right: dnd.left
+            anchors.rightMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            height: parent.height
+            property bool keyed: false
+            readonly property bool chosen: choice.item === clearAll
+            readonly property bool live: Notifications.count > 0 && !choice.running
+            readonly property bool hovered: clearAll.chosen ? choice.lit : QsWindow.window?.keyItem ? clearAll.keyed : clearHover.hovered
+            readonly property var keyPress: clearAll.live ? () => clearAll.clear() : null
+
+            Accessible.role: Accessible.Button
+            Accessible.name: "Clear all notifications"
+            Accessible.ignored: !clearAll.live
+            Accessible.onPressAction: if (clearAll.enabled && clearAll.visible)
+                clearAll.clear()
+
+            function clear(): void {
+                if (!clearAll.live)
+                    return;
+                const items = Notifications.list.slice();
+                choice.start(clearAll, () => root.clear(items));
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: Theme.selectionRadius
+                border.width: 0
+                color: clearAll.hovered && (clearAll.live || clearAll.chosen) ? Theme.selection : "transparent"
+            }
+
+            HoverHandler { id: clearHover }
+
+            TapHandler {
+                gesturePolicy: TapHandler.ReleaseWithinBounds
+                onTapped: clearAll.clear()
+            }
+
+            PopupText {
+                x: root.inset
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.max(0, clearAll.width - x - clearLabel.width - 14)
+                text: "Notifications"
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+
+            PopupText {
+                id: clearLabel
+                anchors.right: parent.right
+                anchors.rightMargin: 7
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Notifications.count > 0
+                text: "clear"
+                font.pixelSize: Theme.captionSize
+                opacity: clearAll.chosen ? 1 : !clearAll.live ? 0.15 : clearAll.hovered ? 1 : 0.7
+            }
+        }
 
         PopupButton {
+            id: dnd
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
             framed: true
             lit: Notifications.dnd
             glyph: Theme.glyph.dnd
             label: "do not disturb"
             onTapped: Notifications.setDnd(!Notifications.dnd)
-        }
-
-        PopupButton {
-            id: clearAll
-            visible: Notifications.count > 0
-            framed: true
-            label: "clear"
-            chosen: choice.item === clearAll
-            blinkOn: choice.lit
-            live: !choice.running
-            onTapped: {
-                const items = Notifications.list.slice();
-                choice.start(clearAll, () => root.clear(items));
-            }
         }
     }
 
