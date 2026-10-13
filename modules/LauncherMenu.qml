@@ -73,9 +73,102 @@ OverlayWindow {
         }
     }
 
+    // Keep the action separate from the result so typing never loses focus.
+    property string selectedAction: "activate"
+    readonly property var rowActions: {
+        const row = Launcher.selected;
+        if (Launcher.mailMode)
+            return [
+                { key: "activate", label: "open in gmail", live: row?.kind === "mail" },
+                { key: "mail-fold", label: Launcher.mailOpen ? "back to list" : "read", live: row?.kind === "mail" },
+                { key: "play", label: "new mail", live: true }
+            ];
+        if (!row || row.kind === "note")
+            return [];
+        if (row.kind === "path")
+            return [
+                { key: "activate", label: "open", live: true },
+                { key: "play", label: "show in folder", live: true },
+                { key: "copy-path", label: "copy path", live: true },
+                { key: "complete-path", label: "complete path", live: true }
+            ];
+        if (row.kind === "clip")
+            return [
+                { key: "activate", label: "copy", live: true },
+                { key: "forget", label: "delete", live: true }
+            ];
+        if (row.kind === "music-start")
+            return [{ key: "activate", label: "start music", live: true }];
+        if (row.kind === "music-queue")
+            return [];
+        if (row.kind.startsWith("music-")) {
+            const actions = [
+                { key: "activate", label: "queue", live: true },
+                { key: "play", label: "play", live: true }
+            ];
+            if (row.kind === "music-artist" || row.kind === "music-album")
+                actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "collapse" : "expand", live: true });
+            else if (row.indent)
+                actions.push({ key: "music-fold", label: "collapse", live: true });
+            return actions;
+        }
+        const labels = { calc: "copy answer", window: "focus", task: "complete", "task-add": "add task", "timer-add": "add timer", desktop: "run", power: row.action?.label, bluetooth: row.connect ? "connect" : "disconnect" };
+        const label = row.kind === "timer" ? (row.entry.running ? "pause" : "resume") : labels[row.kind] ?? "open";
+        return [{ key: "activate", label, live: row.ok !== false }];
+    }
+    readonly property int actionIndex: Math.max(0, root.rowActions.findIndex(action => action.key === root.selectedAction))
+
+    // Home and End cycle through available actions without moving the caret.
+    function moveAction(dir) {
+        const count = root.rowActions.length;
+        for (let step = 1; step <= count; step++) {
+            const at = (root.actionIndex + dir * step + count) % count;
+            if (root.rowActions[at].live) {
+                root.selectedAction = root.rowActions[at].key;
+                return;
+            }
+        }
+    }
+
+    // Buttons and Enter share the same dispatch; the older shortcuts still work.
+    function runAction(at) {
+        const action = root.rowActions[at];
+        if (!action?.live)
+            return;
+        root.selectedAction = action.key;
+        switch (action.key) {
+        case "mail-fold":
+            Launcher.mailFold();
+            break;
+        case "music-fold":
+            LauncherMusic.fold();
+            break;
+        case "copy-path":
+            Launcher.copyRow(Launcher.index);
+            break;
+        case "complete-path":
+            root.completePath();
+            break;
+        case "forget":
+            Launcher.forget(Launcher.index);
+            break;
+        default:
+            Launcher.activate(Launcher.index, action.key === "play" ? "play" : "queue");
+        }
+        input.forceActiveFocus();
+    }
+
+    function completePath() {
+        const row = Launcher.selected;
+        if (row?.kind === "path")
+            input.adopt(Launcher.tildeHome(row.path) + (row.dir ? "/" : ""));
+    }
+
     function accept(ctrl) {
         if (!root.expanded && !input.text.trim())
             root.browse();
+        else if (!ctrl && root.rowActions.length)
+            root.runAction(root.actionIndex);
         else
             Launcher.activate(Launcher.index, ctrl ? "play" : "queue");
     }
@@ -130,6 +223,7 @@ OverlayWindow {
         function onShownChanged() {
             if (Launcher.shown) {
                 root.frecencyOpen = false;
+                root.selectedAction = "activate";
                 box.bodyHeight = Qt.binding(() => box.restHeight);
                 list.model = Qt.binding(() => Launcher.results);
                 input.adopt(Launcher.query);
@@ -165,6 +259,7 @@ OverlayWindow {
     // The query line, and the air above and below its rule.
     readonly property int inputHeight: Theme.queryTextSize + 12
     readonly property int contentGap: 8
+    readonly property int actionHeight: 20
     // The preview panel / mode grows on the right, and the air between it and
     // the list. Roughly a third of the body, which is about what Spotlight
     // gives its own preview, set in the same 12 of air as everything else in
@@ -183,7 +278,7 @@ OverlayWindow {
     // The box at its tallest, with the list full. This places the box; it does
     // not size it. The top edge is pinned where a full box would have been
     // centred, so every shorter one keeps its query line on that same line.
-    readonly property int fullHeight: boxPad * 2 + inputHeight + contentGap * 2 + Theme.pillBorder + visibleRows * rowHeight
+    readonly property int fullHeight: boxPad * 2 + inputHeight + actionHeight + contentGap * 3 + Theme.pillBorder + visibleRows * rowHeight
 
     // +1 for the keys that go down, -1 for the ones that go up, 0 for the
     // rest. Readline's pair and vim's are in here, since both are muscle
@@ -586,6 +681,7 @@ OverlayWindow {
                     }
 
                     onTextChanged: {
+                        root.selectedAction = "activate";
                         root.settling = true;
                         Launcher.query = input.text;
                         root.settling = false;
@@ -632,9 +728,13 @@ OverlayWindow {
                             break;
                         case Qt.Key_Return:
                         case Qt.Key_Enter:
-                            // Only music, mail and file rows read the modifier;
-                            // see Launcher.hint for what each one means.
                             root.accept(ctrl);
+                            break;
+                        case Qt.Key_Home:
+                        case Qt.Key_End:
+                            if (event.modifiers !== Qt.NoModifier || !root.rowActions.length)
+                                return;
+                            root.moveAction(event.key === Qt.Key_Home ? -1 : 1);
                             break;
                         // Drop the row rather than act on it. Only the clipboard
                         // has anything to drop; elsewhere this does nothing, and
@@ -660,7 +760,7 @@ OverlayWindow {
                             const row = Launcher.selected;
                             if (!Launcher.pathMode || row?.kind !== "path")
                                 return;
-                            input.adopt(Launcher.tildeHome(row.path) + (row.dir ? "/" : ""));
+                            root.completePath();
                             break;
                         default:
                             // Everything else this takes is a step one way or the
@@ -675,6 +775,42 @@ OverlayWindow {
                         }
                         event.accepted = true;
                     }
+                }
+            }
+
+            Item {
+                id: actionBar
+                width: parent.width
+                height: root.actionHeight
+                visible: root.expanded && root.rowActions.length > 0
+
+                Row {
+                    id: actionButtons
+                    spacing: 6
+
+                    Repeater {
+                        model: root.rowActions
+
+                        PopupButton {
+                            required property var modelData
+                            required property int index
+                            label: modelData.label
+                            live: modelData.live
+                            framed: true
+                            chosen: root.actionIndex === index
+                            onTapped: root.runAction(index)
+                        }
+                    }
+                }
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.rowActions.filter(action => action.live).length > 1
+                    text: "Home / End"
+                    color: Theme.label3
+                    font.family: Theme.bodyFont
+                    font.pixelSize: Theme.footnoteSize
                 }
             }
 
@@ -980,6 +1116,8 @@ OverlayWindow {
                         }
                         width: root.slotWidth
                         height: root.slotWidth
+                        // Let the queue control take its click before the result row.
+                        z: 1
 
                         // Same treatment as a taskbar icon (AppIcon.qml): ask
                         // for the name, and fall back to a glyph if nothing
@@ -1029,6 +1167,16 @@ OverlayWindow {
                             font.family: Theme.bodyFont
                             font.pixelSize: Theme.captionSize
                             font.weight: Font.Bold
+                        }
+
+                        ClickArea {
+                            id: queueControl
+                            anchors.fill: parent
+                            visible: row.modelData.kind === "music-queue" && !!row.modelData.glyph
+                            enabled: Mpd.connected
+                            cursorShape: Qt.PointingHandCursor
+                            name: (row.modelData.glyph === Theme.glyph.paused ? "Pause " : "Play ") + row.modelData.title
+                            actions: ({ [Qt.LeftButton]: () => Launcher.activate(row.index) })
                         }
                     }
 

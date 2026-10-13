@@ -5,7 +5,7 @@ import Quickshell
 import qs
 import qs.services
 
-// The launcher's # mode: the library laid out as rows, walked, and acted on.
+// The launcher's # mode: the current queue, or a search of the music library.
 //
 // The one mode whose rows are a tree rather than a list, which is why it is a
 // file of its own beside services/Library.qml rather than a section of
@@ -27,6 +27,16 @@ Singleton {
     // the expression it came from.
     property string query: ""
 
+    // Give connection and library reads time to settle before showing a status row.
+    property bool inMode: false
+    property bool showStatus: false
+    property bool queueSelectionPending: false
+    Timer {
+        id: statusDelay
+        interval: 250
+        onTriggered: root.showStatus = true
+    }
+
     Timer {
         id: debounce
 
@@ -41,18 +51,25 @@ Singleton {
     // and what follows the prefix if it is. A new query is a new tree, and
     // nothing that was open in the old one was opened about this query.
     function route(inMode, rest): void {
+        if (inMode && !root.inMode) {
+            root.showStatus = false;
+            statusDelay.restart();
+        }
+        root.inMode = inMode;
+        root.queueSelectionPending = inMode && !rest;
         root.open = ({});
         if (!inMode) {
+            statusDelay.stop();
+            root.showStatus = false;
             debounce.stop();
             root.query = "";
             return;
         }
-        // Read once and then kept, so this is a real ask only on the first #
-        // of a session — and a rescan of mpd's database is what makes it one
-        // again. See services/Library.qml. Not while mpd is down: there is
-        // nobody to read it from, and the row on top offers to start it.
-        if (Mpd.connected)
+        // Queue browsing needs no library read; searches load it on demand.
+        if (Mpd.connected && rest)
             Library.ensure();
+        if (!rest)
+            Qt.callLater(root.selectCurrent);
         // Scoring ten thousand titles is 50ms for one word and 160ms for
         // three, which is a keystroke the box does not answer. Debounced
         // like the modes that shell out, and for the same reason — the only
@@ -63,9 +80,10 @@ Singleton {
         // spot: there is nothing on screen yet to stand in for it, and a
         // list that arrives blank and fills in 60ms later is the flicker
         // the debounce is supposed to prevent.
-        if (!root.query)
+        if (!root.query || !rest) {
+            debounce.stop();
             root.query = rest;
-        else
+        } else
             debounce.restart();
     }
 
@@ -73,6 +91,10 @@ Singleton {
     // query nobody is looking at any more.
     function cancel(): void {
         debounce.stop();
+        statusDelay.stop();
+        root.inMode = false;
+        root.showStatus = false;
+        root.queueSelectionPending = false;
     }
 
     Connections {
@@ -98,11 +120,28 @@ Singleton {
         function onConnectedChanged() {
             root.reask();
         }
+        function onQueueChanged() {
+            if (root.queueSelectionPending)
+                Qt.callLater(root.selectCurrent);
+        }
+        function onSongPosChanged() {
+            if (root.queueSelectionPending)
+                Qt.callLater(root.selectCurrent);
+        }
     }
 
     function reask(): void {
-        if (!Library.loaded && !Library.loading && Launcher.musicMode && Mpd.connected)
+        if (!Library.loaded && !Library.loading && Launcher.musicMode && Launcher.classification.text && Mpd.connected)
             Library.ensure();
+    }
+
+    // Select the current song on entry, including a queue arriving after connection.
+    function selectCurrent(): void {
+        if (!root.queueSelectionPending || !Launcher.musicMode || Launcher.classification.text || !Mpd.queue.length)
+            return;
+        const at = Launcher.results.findIndex(row => row.kind === "music-queue" && row.track.pos === Mpd.songPos);
+        Launcher.index = Math.max(0, at);
+        root.queueSelectionPending = false;
     }
 
     // --- ranking -------------------------------------------------------------
@@ -147,7 +186,7 @@ Singleton {
         // "#" on its own with mpd down is one row: start it. That is what the
         // mode is being opened for, and it is gone the moment anything is
         // typed, which is a search rather than a wish to hear something.
-        const start = !Mpd.connected && !query ? [
+        const start = root.showStatus && !Mpd.connected && !query ? [
             {
                 kind: "music-start",
                 key: "start",
@@ -158,24 +197,23 @@ Singleton {
             }
         ] : [];
 
-        // route() has already started the read; this is what stands in while
-        // it happens. A note rather than an empty list, for the reason the
-        // clipboard has one: a "nothing here" that turns into a hundred rows a
-        // moment later reads as a bug rather than as a wait. Except with mpd
-        // down, when there is no read to wait for and the note would stand
-        // there for good.
+        if (!query) {
+            if (!Mpd.connected)
+                return start;
+            if (Mpd.queue.length)
+                return Mpd.queue.map(song => root.queueRow(song));
+            return root.showStatus ? [root.note("queue is empty")] : [];
+        }
+
+        // Brief reads need no placeholder. A slower read shows its status
+        // after the entry delay; a stopped MPD offers its start action then too.
         if (!Library.loaded) {
+            if (!root.showStatus)
+                return [];
             if (!Mpd.connected)
                 return start.length ? start : [root.note("mpd is not running")];
             return [root.note(Library.failed ? "could not read the library" : "reading the library")];
         }
-
-        // "#" on its own is the stored playlists. Ten thousand tracks in no
-        // particular order is not a list anybody reads — and the playlists are
-        // the one thing in this mode the search below cannot reach, a saved
-        // queue having no artist and no album to be found under.
-        if (!query)
-            return start.concat(Mpd.playlists.map(name => root.playlistRow(name)));
 
         const rows = [];
         for (const x of root.hits) {
@@ -193,6 +231,19 @@ Singleton {
 
     function note(text) {
         return Object.assign(Launcher.noteRow(Theme.glyph.track, text), {key: "note"});
+    }
+
+    // Keep the queue entry so activation can reject a track removed in the meantime.
+    function queueRow(song) {
+        return {
+            kind: "music-queue",
+            key: "queue:" + song.pos,
+            track: song,
+            glyph: song.pos !== Mpd.songPos ? "" : Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing,
+            title: song.title,
+            subtitle: [song.artist, song.album].filter(x => x).join("  ·  "),
+            raw: true
+        };
     }
 
     // "1 track", "14 tracks". A discography that says "1 tracks" is one
@@ -331,6 +382,8 @@ Singleton {
         if (!Launcher.musicMode || !r || r.kind.indexOf("music-") !== 0)
             return "";
         const kind = r.kind.slice(6);
+        if (kind === "queue")
+            return Settings.musicDir + r.track.file.slice(0, r.track.file.lastIndexOf("/") + 1);
         if (kind !== "artist" && kind !== "album" && kind !== "track")
             return "";
         return Library.coverDir(kind, r.at);
@@ -344,8 +397,21 @@ Singleton {
     // only in that mpd loads it by name: it is a list of files this has never
     // read.
     //
-    // Play closes the launcher. Queueing keeps it open for more selections.
+    // Library play closes the launcher; queue playback controls keep it open.
     function activate(r, mode): bool {
+        if (r.kind === "music-queue") {
+            if (!Mpd.connected)
+                return false;
+            if (!Mpd.queue.includes(r.track))
+                return false;
+            if (r.track.pos === Mpd.songPos && Mpd.state === "play" && mode !== "play")
+                Mpd.pause();
+            else if (r.track.pos === Mpd.songPos && Mpd.state === "pause")
+                Mpd.toggle();
+            else if (r.track.pos !== Mpd.songPos || Mpd.state !== "play")
+                Mpd.playAt(r.track.pos);
+            return false;
+        }
         // The box stays up: mpd is a second away, and the library it brings
         // is what the mode was opened to look through.
         if (r.kind === "music-start") {
