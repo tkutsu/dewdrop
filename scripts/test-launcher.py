@@ -45,11 +45,17 @@ MOCKS = {
         function arm(action) { armed = action; }
         function run(arg) { throw new Error("Unexpected power action: " + arg); }''',
     "LauncherMusic": '''property var rows: []
+        property var open: ({})
+        property int folds: 0
+        property int activations: 0
         property string activated: ""
         function cancel() {}
         function route(inMode, rest) {}
         function results(query) { return rows; }
-        function activate(row, mode) { activated = mode; return false; }''',
+        function fold() { folds++; }
+        function activate(row, mode) { activations++; activated = mode || "queue"; return false; }''',
+    "Mpd": '''property bool connected: true
+        property string state: "play"''',
     "Email": '''property var threads: []
         readonly property string web: "https://mail.google.com/mail/u/0/"
         property bool configured: true
@@ -58,6 +64,12 @@ MOCKS = {
         property string trouble: ""
         property var bodies: ({})
         property var found: null
+        property string composed: ""
+        property string opened: ""
+        function compose(subject) { composed = subject; }
+        function open(thread) { opened = thread.id; }
+        function read(thread) {}
+        function markRead(thread) {}
         function sayWhen(at) { return "10:00"; }
         property int searches: 0
         function search(query, all) { searches++; }''',
@@ -562,6 +574,8 @@ ShellRoot {
             const modes = keys.findChild(menu, "modeHints");
             const placeholder = keys.findChild(menu, "placeholder");
             const searchIcon = keys.findChild(menu, "searchIcon");
+            const actionBar = keys.findChild(menu, "actionBar");
+            const actionButtons = keys.findChild(menu, "actionButtons");
             trackEntrance = false;
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.popupRadius && !list.enabled, "starts with field only and existing radius");
@@ -713,6 +727,79 @@ ShellRoot {
             check(Launcher.pathMode && box.width > 680 && !hint.visible && !placeholder.visible, "file mode keeps preview structure without hints");
             input.adopt("#"); keys.wait(240);
             check(Launcher.musicMode && box.width > 680, "music preview structure preserved");
+            LauncherMusic.rows = [{kind: "music-track", title: "Track", subtitle: ""}];
+            keys.wait(30);
+            check(actionBar.visible && actionBar.y >= input.height && menu.rowActions.map(action => action.label).join(",") === "queue,play", "music actions appear below the input");
+            const musicCaret = input.cursorPosition;
+            keys.keyClick(Qt.Key_End);
+            check(menu.selectedAction === "play" && input.activeFocus && input.cursorPosition === musicCaret, "End selects play without moving focus or the caret");
+            keys.keyClick(Qt.Key_Return);
+            check(LauncherMusic.activated === "play", "Enter runs the selected play action");
+            keys.keyClick(Qt.Key_End);
+            check(menu.selectedAction === "activate", "End wraps to queue");
+            keys.keyClick(Qt.Key_Return);
+            check(LauncherMusic.activated === "queue", "Enter queues after changing the action");
+            keys.keyClick(Qt.Key_Home);
+            check(menu.selectedAction === "play", "Home cycles backward to play");
+            keys.keyClick(Qt.Key_Return, Qt.ControlModifier);
+            check(LauncherMusic.activated === "play", "Ctrl+Enter still plays");
+            const playButton = actionButtons.children.find(child => child.label === "play");
+            keys.keyClick(Qt.Key_End);
+            keys.mouseClick(playButton, playButton.width / 2, playButton.height / 2);
+            check(LauncherMusic.activated === "play" && input.activeFocus, "clicking play runs the action and keeps typing focused");
+            LauncherMusic.rows = [
+                {kind: "music-queue", title: "Current track", subtitle: "", glyph: Theme.glyph.paused},
+                {kind: "music-queue", title: "Other track", subtitle: "", glyph: ""}
+            ];
+            keys.wait(30);
+            check(menu.rowActions.length === 0 && !actionBar.visible, "queue playback has no buttons under the input");
+            const pauseControl = keys.findChild(list.itemAtIndex(0), "queueControl");
+            check(pauseControl.visible && pauseControl.name === "Pause Current track", "the right icon exposes a pause action");
+            check(!keys.findChild(list.itemAtIndex(1), "queueControl").visible, "other tracks have no playback icon click target");
+            const clicksBefore = LauncherMusic.activations;
+            keys.mouseClick(pauseControl, pauseControl.width / 2, pauseControl.height / 2);
+            check(LauncherMusic.activations === clicksBefore + 1 && Launcher.shown, "the icon click activates playback once without also clicking the row");
+            LauncherMusic.rows = [{kind: "music-queue", title: "Current track", subtitle: "", glyph: Theme.glyph.playing}];
+            keys.wait(30);
+            const resumeControl = keys.findChild(list.itemAtIndex(0), "queueControl");
+            check(resumeControl.name === "Play Current track", "a paused row exposes the play action instead");
+            keys.mouseClick(resumeControl, resumeControl.width / 2, resumeControl.height / 2);
+            check(LauncherMusic.activations === clicksBefore + 2, "the play icon also activates playback once");
+            keys.keyClick(Qt.Key_Return);
+            check(LauncherMusic.activations === clicksBefore + 3 && input.activeFocus, "Enter still controls the selected queue track");
+            input.adopt("#artist"); keys.wait(30);
+            LauncherMusic.rows = [{kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""}];
+            keys.wait(30);
+            check(menu.rowActions[2].label === "expand", "music tree action is available as a button");
+            keys.keyClick(Qt.Key_Home);
+            keys.keyClick(Qt.Key_Return);
+            check(LauncherMusic.folds === 1, "selected expand button dispatches to the music tree");
+            input.adopt("@subject"); keys.wait(30);
+            check(menu.actionIndex === 0 && menu.rowActions[2].label === "new mail", "changing modes resets the action and offers compose without a result");
+            keys.keyClick(Qt.Key_End);
+            check(menu.selectedAction === "play", "action navigation skips unavailable mail actions");
+            keys.keyClick(Qt.Key_Return);
+            check(Email.composed === "subject" && !Launcher.shown, "selected new mail action uses the query as its subject");
+            Launcher.show(); menu.requestActivate(); input.forceActiveFocus();
+            Email.threads = [{id: "button-mail", subject: "Mail", from: "sender", at: 0, unread: false, messages: []}];
+            input.adopt("@"); keys.wait(30);
+            keys.keyClick(Qt.Key_End); keys.keyClick(Qt.Key_Return);
+            check(Launcher.mailOpen?.id === "button-mail" && menu.rowActions[1].label === "back to list", "read button opens the inline reader");
+            keys.keyClick(Qt.Key_Return);
+            check(!Launcher.mailOpen, "back to list button closes the inline reader");
+            Email.threads = [];
+            input.adopt("/"); keys.wait(30);
+            Launcher.pathCache = [{path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1], [Settings.home + "/notes.txt", 0.5]])}];
+            keys.wait(30);
+            check(menu.rowActions.map(action => action.key).join(",") === "activate,play,copy-path,complete-path", "file shortcuts have matching buttons: " + JSON.stringify(Launcher.selected));
+            keys.keyClick(Qt.Key_Home); keys.keyClick(Qt.Key_Return);
+            check(input.text === "~/notes.txt" && input.activeFocus, "complete path button fills the query");
+            input.adopt('"'); keys.wait(30);
+            Launcher.clipEntries = [{id: "1", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]}];
+            keys.wait(30);
+            check(menu.rowActions[1]?.key === "forget", "clipboard deletion has a button");
+            input.adopt("#"); keys.wait(30);
+            check(menu.selectedAction === "activate", "typing resets the action to the primary one");
             LauncherMusic.rows = Array.from({length: 12}, (_, i) => ({kind: "music", title: "row " + i}));
             keys.wait(240);
             const openedMode = Qt.createComponent(Qt.resolvedUrl("modules/LauncherMenu.qml")).createObject(null);
@@ -805,7 +892,7 @@ def check_menu(target, env):
     modules = target / "modules"
     modules.mkdir()
     source = (ROOT / "modules/LauncherMenu.qml").read_text()
-    for name in ("box", "input", "hint", "list", "divider", "modeHints", "placeholder", "searchIcon", "listEdges", "rowEntrance"):
+    for name in ("box", "input", "hint", "list", "divider", "modeHints", "placeholder", "searchIcon", "listEdges", "rowEntrance", "actionBar", "actionButtons", "queueControl"):
         source = source.replace(f"id: {name}\n", f'id: {name}\n                objectName: "{name}"\n')
     (modules / "LauncherMenu.qml").write_text(source)
     (target / "Theme.qml").write_text((ROOT / "Theme.qml").read_text())
@@ -814,6 +901,9 @@ def check_menu(target, env):
     components = target / "components"
     (components / "Rim.qml").write_text((ROOT / "components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "components/TextCaret.qml").read_text())
+    for name in ("PopupButton", "PopupText", "PressGlass", "ClickArea"):
+        (components / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
+    (target / "GlassPress.qml").write_text((ROOT / "GlassPress.qml").read_text())
     rolling = (ROOT / "components/RollingGlyph.qml").read_text()
     rolling = rolling.replace("id: now\n", 'id: now\n        objectName: "arrivingIcon"\n')
     rolling = rolling.replace("id: old\n", 'id: old\n        objectName: "departingIcon"\n')
