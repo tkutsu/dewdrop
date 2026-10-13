@@ -8,12 +8,6 @@
 // their input, which is why they live here and not in the singleton: nothing
 // in them reads the list or the clock.
 
-// What can be written here, for the grey line under the launcher's query.
-// Forms, not sentences: the label is whatever you write after the time and
-// needs no example. These are the shapes the time itself can take, which is
-// the part that has to be remembered rather than guessed.
-const syntax = ["25m", "1h30", "90s", "7:30", "8pm"].join("   ");
-
 function pad(n) {
     return n < 10 ? "0" + n : String(n);
 }

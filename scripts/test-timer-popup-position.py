@@ -34,7 +34,8 @@ ShellRoot {
         FUNCTIONS
         Item { id: ordinary; width: 30; height: 30 }
         Morph { id: countdownMorph; open: countdown.popupOpen }
-        Pill {
+        SidePill {
+            control: countdown; morphValue: countdownMorph.value
             id: countdownPill
             drawsSlab: false
             side: Pill.Side.Left
@@ -49,10 +50,10 @@ ShellRoot {
             function clear(popup, label, remaining) {
                 const row = popup.keyTargets().find(item => item.name === "Cancel " + label);
                 if (!row) throw Error("cancel row missing: " + label);
-                mouseClick(row, 40, row.height / 2);
+                mouseClick(row, row.width / 2, row.height / 2);
                 wait(700);
                 if (Timers.timers.length !== remaining)
-                    throw Error("row click did not cancel " + label);
+                    throw Error("cancel button did not cancel " + label);
                 if (!popup.opened || OpenPopup.owner !== countdown)
                     throw Error("clearing timer closed popup");
             }
@@ -71,6 +72,15 @@ ShellRoot {
                 wait(1000);
                 const popup = countdown.popupItem;
                 if (!popup?.opened) throw Error("popup did not open");
+                const pause = popup.keyTargets().find(item => item.name === "Pause Tea");
+                if (!pause) throw Error("pause row missing");
+                mouseClick(pause, 40, pause.height / 2);wait(250);
+                if (Timers.timers.length !== 2 || Timers.timers.find(e => e.label === "Tea").running)
+                    throw Error("row tap did not pause without cancelling");
+                const resume = popup.keyTargets().find(item => item.name === "Resume Tea");
+                mouseClick(resume, 40, resume.height / 2);wait(250);
+                if (!Timers.timers.find(e => e.label === "Tea").running)
+                    throw Error("row tap did not resume");
                 clear(popup, "Tea", 1);
                 clear(popup, "Bread", 0);
                 OpenPopup.dismiss();
@@ -131,9 +141,7 @@ def run_case(functions, bindings, mode):
 
 def main():
     source = (ROOT / "Bar.qml").read_text()
-    functions = "\n".join(re.search(
-        r"    function " + name + r"\([^\n]+\) \{.*?\n    }", source, re.S).group()
-        for name in ("morph", "morphContents"))
+    functions = ""
     block = source.split("id: countdownPill", 1)[1].split("id: countdown\n", 1)[0]
     bindings = "\n".join(line for line in block.splitlines() if re.match(
         r"\s*(contentOpacity|contentScale|contentSink|interactive):", line))

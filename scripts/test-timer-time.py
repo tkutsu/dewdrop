@@ -74,6 +74,19 @@ ShellRoot {
                     Settings.setTwelveHour(true);
                 } else {
                     check(Settings.timeFormat === "h:mm:ss AP", "seconds retained switching to 12h");
+                    for (const [custom, twelve, back] of [
+                        ["HH.mm:ss.zzz 's AP' t", "hh.mm:ss.zzz 's AP' t AP", "HH.mm:ss.zzz 's AP' t"],
+                        ["H:mm 'o''clock' t", "h:mm 'o''clock' t AP", "H:mm 'o''clock' t"],
+                        ["'AP' HH:mm", "'AP' hh:mm AP", "'AP' HH:mm"]
+                    ]) {
+                        Settings.set("timeFormat", custom);Settings.setTwelveHour(true);
+                        check(Settings.timeFormat === twelve, "custom 12h format: " + custom);
+                        Settings.setTwelveHour(false);
+                        check(Settings.timeFormat === back, "custom 24h format: " + custom);
+                    }
+                    Settings.set("timeFormat", "AP hh.mm:ss");Settings.setTwelveHour(false);
+                    check(Settings.timeFormat === "HH.mm:ss", "leading AM/PM removal preserves other tokens");
+                    Settings.set("timeFormat", "h:mm:ss AP");
                     console.log("PASS: clock/alarm notation, live bindings and 12h alarm creation");
                     Qt.quit();
                 }
@@ -109,7 +122,7 @@ ShellRoot {
 def main():
     with tempfile.TemporaryDirectory(prefix="qs-timer-time-") as folder:
         target = Path(folder)
-        for name in ("Settings.qml", "Paths.qml", "settings.default.json", "services/Timers.qml", "services/TimersParse.js"):
+        for name in ("Settings.qml", "Paths.qml", "settings.default.json", "services/Timers.qml", "services/TimersParse.js", "services/WallClock.qml"):
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
