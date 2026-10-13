@@ -3,8 +3,9 @@
 
 import os
 from pathlib import Path
-import shutil
 import subprocess
+
+from test_support import copy_shell
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,12 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     target = ROOT / ".a11y-test/controls"
     target.mkdir(parents=True, exist_ok=True)
-    files = subprocess.check_output(["git", "-C", str(ROOT), "ls-files"], text=True)
-    for name in files.splitlines():
-        destination = target / name
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / name, destination)
-    (target / "settings.json").write_text("{}\n")
+    copy_shell(target)
     (target / "shell.qml").write_text('''import QtQuick
 import QtQuick.Window
 import QtTest
