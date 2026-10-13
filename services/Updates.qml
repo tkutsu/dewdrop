@@ -195,7 +195,7 @@ Singleton {
 
     Timer {
         id: packageChange
-        interval: 2000
+        interval: 10000
         onTriggered: root.refresh()
     }
 
