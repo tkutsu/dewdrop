@@ -280,6 +280,8 @@ GoogleService {
 
         const head = raw.split(/\s+/)[0];
         const day = root.readDay(head.toLowerCase());
+        if (/^\d{4}-\d{2}-\d{2}$/.test(head) && day === "")
+            return { ok: false, title: "", day: "", error: "Invalid date" };
         if (day === "")
             return {
                 ok: true,
@@ -310,10 +312,12 @@ GoogleService {
     function readDay(word: string): string {
         if (word === "today")
             return root.today;
-        if (word === "tomorrow" || word === "tom")
+        if (word === "tomorrow")
             return root.tomorrow;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(word))
-            return word;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(word)) {
+            const at = new Date(word + "T00:00:00Z");
+            return !isNaN(at.getTime()) && at.toISOString().slice(0, 10) === word ? word : "";
+        }
 
         // A weekday means the next one, never today: "mon" on a Monday is
         // next week.
@@ -322,7 +326,7 @@ GoogleService {
             const at = new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + ahead);
             const short = locale.dayName(at.getDay(), Locale.ShortFormat).toLowerCase();
             const long = locale.dayName(at.getDay(), Locale.LongFormat).toLowerCase();
-            if (word === short || word === long || short.startsWith(word) && word.length >= 2)
+            if (word === short || word === long || short.startsWith(word) && word.length >= 3)
                 return root.dayString(at);
         }
         return "";
