@@ -529,10 +529,6 @@ OverlayWindow {
             visible: pill.selected !== null
             resetWhenHidden: true
             held: pill.held
-            // The workspace mark's switch spring: FlowMark's default raced
-            // from option to option under the arrow keys and the pointer.
-            spring: Theme.switchSpring
-            damping: Theme.switchDamping
             slabHeight: pill.height
             // The pill's padding is the mark's inset, so the mark is its
             // cell: at the ends it sits as far in as off the top and bottom.
