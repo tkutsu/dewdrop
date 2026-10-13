@@ -27,13 +27,49 @@ OverlayWindow {
     inputItem: box
     onDismissed: Preferences.hide()
 
-    property real reveal: root.opened ? 1 : 0
+    // Match the launcher's width bounce and defocus without scaling the controls.
+    property real widthRatio: 1012 / 960
+    property real contentAlpha: 0
+    property real exitBlur: 0
+    readonly property real extraWidth: root.boxWidth * (root.widthRatio - 1)
+    readonly property bool presenting: root.opened || root.contentAlpha > 0
 
-    Behavior on reveal {
-        NumberAnimation {
-            duration: Theme.revealMs
-            easing.type: Easing.OutCubic
+    onOpenedChanged: {
+        entrance.stop();
+        dismissal.stop();
+        if (Theme.reduceMotion) {
+            root.widthRatio = 1;
+            root.contentAlpha = root.opened ? 1 : 0;
+            root.exitBlur = 0;
+        } else if (root.opened) {
+            entrance.start();
+        } else {
+            dismissal.start();
         }
+    }
+
+    ParallelAnimation {
+        id: entrance
+        SequentialAnimation {
+            PauseAnimation { duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 976 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 955 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 948 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 950 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 954 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 958 / 960; duration: 33 }
+            NumberAnimation { target: root; property: "widthRatio"; to: 1; duration: 33 }
+            PauseAnimation { duration: 69 }
+        }
+        NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 67 }
+        NumberAnimation { target: root; property: "exitBlur"; to: 0; duration: 67 }
+    }
+
+    ParallelAnimation {
+        id: dismissal
+        NumberAnimation { target: root; property: "widthRatio"; to: 1.03; duration: Preferences.dismissMs; easing.type: Easing.InCubic }
+        NumberAnimation { target: root; property: "contentAlpha"; to: 0; duration: Preferences.dismissMs; easing.type: Easing.InCubic }
+        NumberAnimation { target: root; property: "exitBlur"; to: 1; duration: Preferences.dismissMs; easing.type: Easing.InCubic }
     }
 
     property int page: 0
@@ -149,7 +185,14 @@ OverlayWindow {
                     title: "Clock",
                     rows: [
                         { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "timeFormat", title: "Custom clock format", text: "A Qt date format: HH:mm reads 14:05, h:mm AP reads 2:05 PM, and HH:mm:ss shows seconds. Alarms follow its 12h or 24h notation.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") }
+                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Set the bar's date display. Hover for format letters and examples.", tooltip: "d/dd: day number (5/05). ddd/dddd: short/full weekday name.\nM/MM: month number (3/03). MMM/MMMM: short/full month name.\nyy/yyyy: year (26/2026). Names follow your locale.\nUse spaces, / or - as separators. Put literal text in single quotes.\nExamples: ddd d MMM or dd/MM/yyyy. Empty restores ddd d MMM.", placeholder: "ddd d MMM", get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || "ddd d MMM") },
+                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Set the bar's time display. Alarms follow its 12h or 24h notation. Hover for format letters and examples.", tooltip: "H/HH: 24h hour (2/02). h/hh: 12h hour with AP or ap, otherwise 24h.\nm/mm: minutes (5/05). s/ss: seconds (9/09), refreshed every second.\nAP/ap: AM/PM or am/pm. z/zzz: fractional seconds (sampled at the clock's refresh rate).\nt: time zone abbreviation. tt/ttt: UTC offset without/with a colon. tttt: full time zone name.\nPut literal text in single quotes. Examples: HH:mm or h:mm AP.\nAlarms follow its 12h or 24h notation. Empty restores HH:mm.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") }
+                    ]
+                },
+                {
+                    title: "Tasks",
+                    rows: [
+                        { type: "text", id: "omittedTaskList", title: "Omit list names", text: "Enter list names to hide, separated by commas. Leave empty to show every list name.", placeholder: "Personal, Work", get: () => Settings.omittedTaskList, set: v => Settings.set("omittedTaskList", v.trim()) }
                     ]
                 },
                 {
@@ -237,27 +280,34 @@ OverlayWindow {
         y: box.y
         width: box.width
         height: box.height
-        visible: box.height > 0
+        visible: root.presenting
+        opacity: root.contentAlpha
         offset.y: Theme.shadowY
         radius: box.radius
         blur: Theme.shadowBlur
         color: Theme.shadow
     }
 
-    // Opens out from its own middle and folds back into it, like the
-    // launcher dismissed.
     Rectangle {
         id: box
 
-        readonly property int fold: Math.round(root.boxHeight * (1 - root.reveal) / 2)
-
-        x: Math.round((root.width - root.boxWidth) / 2)
-        y: Math.round((root.height - root.boxHeight) / 2) + box.fold
-        width: root.boxWidth
-        height: root.boxHeight - 2 * box.fold
+        x: Math.round((root.width - root.boxWidth - root.extraWidth) / 2)
+        y: Math.round((root.height - root.boxHeight) / 2)
+        width: Math.round(root.boxWidth + root.extraWidth)
+        height: root.boxHeight
+        visible: root.presenting
         clip: true
         radius: Theme.popupRadius
         color: Theme.frostOver(under.luma)
+
+        // Keep the glass above the compositor's blur cutoff until the final fade.
+        layer.enabled: root.exitBlur > 0
+        layer.effect: MultiEffect {
+            blurEnabled: true
+            blurMax: 16
+            blur: root.exitBlur
+            opacity: 1 - Math.max(0, (root.exitBlur - 0.4) / 0.6)
+        }
 
         Rim {
             anchors.fill: parent
@@ -273,9 +323,9 @@ OverlayWindow {
         Item {
             id: content
 
-            y: -box.fold
-            width: root.boxWidth
+            width: box.width
             height: root.boxHeight
+            opacity: root.contentAlpha
 
             // Escape from anywhere in the box that has not used it itself
             // (a field putting its text back does).
@@ -412,7 +462,7 @@ OverlayWindow {
                 // The whole height, padded inside rather than out, so the
                 // list scrolls on under the box's edges instead of stopping
                 // short of them.
-                width: root.boxWidth - x - root.boxPad + Theme.selectionInset
+                width: content.width - x - root.boxPad + Theme.selectionInset
                 height: root.boxHeight
                 topMargin: root.boxPad
                 bottomMargin: root.boxPad

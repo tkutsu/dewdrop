@@ -49,14 +49,10 @@ BarItem {
         }
     }
 
-    // The weekday and date are one label with a word space between them.
-    // standalone names rather than dayName/monthName
-    // or the "MMM" of formatDateTime: a label on its own wants the nominative,
-    // which only shows in a locale that inflects (the calendar header makes the
-    // same call for its own title).
+    // Date format letters use Qt's localized weekday and month names.
     BarText {
         Layout.fillHeight: true
-        text: Qt.locale().standaloneDayName(clock.date.getDay(), Locale.ShortFormat) + " " + clock.date.getDate() + " " + Qt.locale().standaloneMonthName(clock.date.getMonth(), Locale.ShortFormat)
+        text: Qt.formatDate(clock.date, Settings.dateFormat)
     }
 
     // Left is the calendar (BarItem.popupButton); right is the app.
