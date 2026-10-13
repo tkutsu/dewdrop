@@ -52,9 +52,20 @@ ShellRoot {
                     check(Timers.hhmm(0, 0) === "12:00 AM" && Timers.hhmm(12, 0) === "12:00 PM", "midnight and noon display");
                     check(Timers.entries[0].endsAt === test.alarmAt, "notation does not reschedule alarms");
                     check(Timers.clock(90000) === "1:30" && Timers.parse("25m tea").ms === 1500000, "countdown behavior stays unchanged");
+                    Settings.set("timeCase", "lowercase");
+                    Settings.set("smallAmPm", true);
+                } else if (test.phase === 2) {
+                    check(test.label === "8:05pm" && test.tooltip.includes("8:05pm") && test.preview.includes("8:05pm"), "alarm bindings share case and spacing");
+                    check(Timers.hhmm(0, 0) === "12:00am" && Timers.hhmm(12, 0) === "12:00pm", "case and spacing at midnight and noon");
+                    check(JSON.stringify(Timers.alarmDisplay(20, 5).smallRanges) === '[{"start":4,"end":6}]', "alarm AM/PM sizing ranges");
+                    check(Timers.ringTitle({kind: "alarm", hour: 20, minute: 5, label: ""}) === "8:05pm", "ringing title shares clock settings");
+                    check(Timers.ringTitle({kind: "alarm", hour: 20, minute: 5, label: "Dinner"}) === "Dinner", "alarm names retain their case");
+                    check(Timers.entries[0].endsAt === test.alarmAt, "display changes do not reschedule alarms");
+                    Settings.set("timeCase", "uppercase");
+                    Settings.set("smallAmPm", false);
                     Settings.set("timeFormat", "h:mm:ss ap");
                     Settings.setTwelveHour(false);
-                } else if (test.phase === 2) {
+                } else if (test.phase === 3) {
                     check(Settings.timeFormat === "HH:mm:ss" && !Settings.twelveHour, "seconds retained switching to 24h");
                     check(test.label === "20:05" && test.preview.includes("20:05"), "switch back updates alarms");
                     Settings.set("timeFormat", "HH:mm 'AP'");

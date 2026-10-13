@@ -152,11 +152,11 @@ function parse(text) {
 }
 
 // The parsed time without the label, which the launcher row already shows.
-function brief(text, parsed, twelveHour) {
+function brief(text, parsed, twelveHour, alarmTime) {
     const p = parsed ?? parse(text);
     if (!p.ok)
         return p.error;
     if (p.kind === "alarm")
-        return `alarm  ·  ${hhmm(p.hour, p.minute, twelveHour)} ${dayWord(p.hour, p.minute)}`;
+        return `alarm  ·  ${alarmTime ?? hhmm(p.hour, p.minute, twelveHour)} ${dayWord(p.hour, p.minute)}`;
     return `timer  ·  ${spell(p.ms)}`;
 }

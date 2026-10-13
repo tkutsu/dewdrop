@@ -44,11 +44,12 @@
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "timeFormat": "HH:mm",
 
-    // Letter case for the bar clock: normal, capitalize, uppercase or lowercase.
-    "timeCase": "normal",
+    // Letter case for the bar clock and alarm times: uppercase or lowercase.
+    "timeCase": "uppercase",
 
-    // Draw AM/PM at half the clock's font size, on its baseline, without a
-    // preceding space. Applies to AP/ap tokens in a 12h clock format.
+    // Draw AM/PM at two-thirds font size in bar clock and alarm readouts, on
+    // the same baseline without a preceding space. Popup times keep AM/PM at
+    // full size with a space for readability. Requires a 12h clock format.
     "smallAmPm": false,
 
     // What the language module shows for each keyboard layout, keyed by the

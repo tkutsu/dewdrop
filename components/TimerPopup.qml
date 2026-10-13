@@ -54,7 +54,7 @@ Popup {
                 glyph: Theme.glyph.timerRing,
                 warn: true,
                 dim: false,
-                title: Timers.ringTitle(e),
+                title: e.kind === "alarm" && e.label === "" ? Timers.alarmTime(e.hour, e.minute) : Timers.ringTitle(e),
                 readout: "",
                 name: "Dismiss ringing timers",
                 act: () => Timers.hush(),
@@ -105,7 +105,7 @@ Popup {
                 // whole difference between turning one off and cancelling it.
                 dim: !e.running,
                 title: e.label !== "" ? e.label : "Alarm",
-                readout: Timers.hhmm(e.hour, e.minute),
+                readout: Timers.alarmTime(e.hour, e.minute),
                 name: "Cancel " + (e.label || "alarm"),
                 act: () => Timers.cancel(e.id),
                 buttons: [
@@ -174,6 +174,7 @@ Popup {
             }
 
             PopupText {
+                id: title
                 anchors {
                     left: parent.left
                     leftMargin: root.gutter + 6

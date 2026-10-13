@@ -17,7 +17,7 @@ def section_rows(title):
     return source[start:end][1:-1]
 
 
-rows = '[' + ','.join(section_rows(title) for title in ('Clock', 'Wallpaper', 'Desktop actions')) + ']'
+rows = '[' + ','.join(section_rows(title) for title in ('Time', 'Date', 'Wallpaper', 'Desktop actions')) + ']'
 qml = '''import QtQuick
 import Quickshell
 import QtTest

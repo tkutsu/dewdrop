@@ -37,7 +37,7 @@ ShellRoot {
         onTriggered: {
             try {
                 if (test.phase === 0) {
-                    check(Settings.dateCase === "normal" && Settings.timeCase === "normal" && !Settings.smallAmPm, "defaults preserve current display");
+                    check(Settings.dateCase === "normal" && Settings.timeCase === "uppercase" && !Settings.smallAmPm, "default case and size");
                     for (const [mode, expected] of [
                         ["normal", "tue 13 OCT"], ["capitalize", "Tue 13 Oct"],
                         ["uppercase", "TUE 13 OCT"], ["lowercase", "tue 13 oct"]
@@ -46,15 +46,15 @@ ShellRoot {
                     check(Settings.applyCase("Tue", "unknown") === "Tue", "unknown case preserves text");
                     for (const [format, mode, small, expected, ranges] of [
                         ["h:mm AP", "normal", false, "8:05 PM", []],
-                        ["h:mm ap", "normal", true, "8:05pm", [{start: 4, end: 6}]],
+                        ["h:mm ap", "lowercase", true, "8:05pm", [{start: 4, end: 6}]],
                         ["h:mm AP", "lowercase", true, "8:05pm", [{start: 4, end: 6}]],
                         ["h:mm ap", "uppercase", true, "8:05PM", [{start: 4, end: 6}]],
-                        ["h:mm AP", "capitalize", true, "8:05Pm", [{start: 4, end: 6}]],
+                        ["h:mm AP", "capitalize", true, "8:05PM", [{start: 4, end: 6}]],
                         ["h:mm:ss AP", "normal", true, "8:05:09PM", [{start: 7, end: 9}]],
                         ["hh:mmAP", "normal", true, "08:05PM", [{start: 5, end: 7}]],
                         ["AP h:mm", "normal", true, "PM 8:05", [{start: 0, end: 2}]],
-                        ["h:mm 'AP' ap", "normal", true, "8:05 APpm", [{start: 7, end: 9}]],
-                        ["h:mm AP 'and' ap", "normal", true, "8:05PM andpm", [{start: 4, end: 6}, {start: 10, end: 12}]],
+                        ["h:mm 'AP' ap", "uppercase", true, "8:05 APPM", [{start: 7, end: 9}]],
+                        ["h:mm AP 'and' ap", "uppercase", true, "8:05PM ANDPM", [{start: 4, end: 6}, {start: 10, end: 12}]],
                         ["'straße' h:mm AP", "uppercase", true, "STRASSE 8:05PM", [{start: 12, end: 14}]],
                         ["HH:mm 'AP'", "normal", true, "20:05 AP", []],
                         ["HH:mm", "normal", true, "20:05", []]
@@ -75,7 +75,7 @@ ShellRoot {
                     const full = label(2);
                     for (const index of [0, 1]) {
                         const small = label(index);
-                        check(small.fontSize === Math.round(clock.fontSize / 2), "half-size AM/PM");
+                        check(small.fontSize === Math.round(clock.fontSize * 2 / 3), "two-thirds-size AM/PM");
                         check(Math.abs(small.baselineOffset - full.baselineOffset) <= 0.5, "AM/PM baseline: " + small.baselineOffset + " vs " + full.baselineOffset);
                     }
                     check(full.fontSize === clock.fontSize, "digits remain full size");
@@ -84,7 +84,7 @@ ShellRoot {
                     else Settings.set("smallAmPm", false);
                 } else {
                     check(clock.text === "8:05 pm" && clock.smallRanges.length === 0, "turning option off restores original spacing and size");
-                    console.log("PASS: clock casing, token ranges, half-size AM/PM and baselines");
+                    console.log("PASS: clock casing, token ranges, two-thirds-size AM/PM and baselines");
                     Qt.quit();
                 }
                 test.phase++;
