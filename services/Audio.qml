@@ -211,7 +211,7 @@ Singleton {
     Process {
         id: subscription
         running: true
-        command: ["pactl", "subscribe"]
+        command: ["setpriv", "--pdeathsig", "TERM", "--", "pactl", "subscribe"]
         onExited: subscriptionRetry.restart()
         // A hot reload destroys this object but leaves the subprocess running,
         // reparented to init, and pulse only accepts so many clients before it
