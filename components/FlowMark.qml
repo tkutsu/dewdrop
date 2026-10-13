@@ -10,7 +10,7 @@ Liquid {
     property real slabY: 0
     required property real slabHeight
 
-    readonly property int inset: Theme.markInset
+    property int inset: Theme.markInset
 
     // How the ends run: the workspace mark's pace unless told otherwise.
     property real spring: Theme.markSpring
