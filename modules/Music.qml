@@ -341,25 +341,36 @@ BarItem {
 
             Behavior on implicitWidth {
                 enabled: root.settled
-                SpringAnimation {
+                NumberAnimation {
                     id: titleWidth
-                    spring: Theme.springStiffness
-                    // Give the second rebound enough travel to read as a bounce.
-                    // The side pills' damping, which Reduce motion calms too.
-                    damping: Theme.foldDamping
-                    epsilon: 0.25
+                    duration: Theme.reduceMotion ? Theme.turnMs : 640
+                    easing.type: Theme.reduceMotion ? Easing.OutCubic : Easing.BezierSpline
+                    // Match the drawer's soft spring, then settle without its tiny tail.
+                    easing.bezierCurve: [
+                        0.08, 0,    0.18, 0.72, 0.32, 1,
+                        0.38, 1.12, 0.43, 1.12, 0.49, 1.12,
+                        0.64, 1.12, 0.72, 1,    1,    1
+                    ]
                 }
             }
 
-            BarText {
+            Marquee {
                 id: title
 
                 width: Math.min(implicitWidth, titleRoom.width)
                 height: parent.height
-                clip: true
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
+                contentWidth: titleText.implicitWidth
+                active: Settings.scrollMusicTitles && !Theme.reduceMotion && root.settled && !root.contentAnimating
                 opacity: root.titleMix
+
+                BarText {
+                    id: titleText
+                    height: parent.height
+                    text: root.shownLabel
+                    maxWidth: Settings.scrollMusicTitles && !Theme.reduceMotion ? 0 : Theme.mediaTitleWidth
+                }
             }
 
             BarText {

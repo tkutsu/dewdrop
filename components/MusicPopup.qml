@@ -167,7 +167,7 @@ Popup {
                 width: root.columnWidth
                 height: songTitle.implicitHeight
 
-                PopupText {
+                Marquee {
                     id: songTitle
 
                     anchors {
@@ -177,8 +177,16 @@ Popup {
                         verticalCenter: parent.verticalCenter
                     }
                     text: Mpd.title
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
+                    contentWidth: songTitleText.implicitWidth
+                    implicitHeight: songTitleText.implicitHeight
+
+                    PopupText {
+                        id: songTitleText
+                        width: songTitle.active ? implicitWidth : songTitle.width
+                        text: Mpd.title
+                        font.weight: Font.DemiBold
+                        elide: songTitle.active ? Text.ElideNone : Text.ElideRight
+                    }
                 }
 
                 // The way to put something else on: the launcher's # mode,
