@@ -15,7 +15,7 @@ import qs.services
 // themselves and the end of it is usually the part that says what to actually
 // do — "ring the surgery about the…" is a row that has to be opened somewhere
 // else to be any use, which is the opposite of what a popup on the bar is for.
-// So rows are as tall as their text, and the list is as tall as its rows.
+// Rows are as tall as their text; longer lists scroll inside the popup.
 //
 // The whole row is the button. The circle used to be the only target, which is
 // eight pixels of a row twenty-one pixels tall — everywhere else on the row did
@@ -32,12 +32,8 @@ Popup {
     // A fixed column, so the dates line up down the right edge instead of
     // ending wherever each one happens to.
     readonly property int dayWidth: 46
+    readonly property int actionsWidth: 20
     readonly property int dotSize: 6
-
-    // Enough of a list to read at a glance. Past it the popup says how many
-    // more there are, which is the honest answer — a bar popup is not where
-    // eighty tasks get worked through.
-    readonly property int cap: 9
 
     // A row is never shorter than a single line's worth of row.
     readonly property int rowMin: 20
@@ -45,6 +41,7 @@ Popup {
     spacing: 3
 
     readonly property var rows: Tasks.ordered
+    ChoiceBlink { id: choice }
 
     // Future-dated tasks also keep the list open, even with a zero bar count.
     function complete(task): void {
@@ -63,6 +60,18 @@ Popup {
             return Theme.taskSoon;
         }
         return Theme.taskUndated;
+    }
+
+    // Keep task titles and list names literal inside the styled label.
+    function escaped(text): string {
+        return String(text ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function titleText(task): string {
+        const list = task.listTitle ?? "";
+        const omit = Settings.omittedTaskList.split(",").map(name => name.trim().toLowerCase()).filter(name => name !== "");
+        const suffix = list !== "" && !omit.includes(list.trim().toLowerCase()) ? ` <font color="${Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.4)}">${root.escaped(list)}</font>` : "";
+        return root.escaped(task.title) + suffix;
     }
 
     // Put back what was just ticked off, and add something: the plus at the
@@ -116,119 +125,147 @@ Popup {
         wrapMode: Text.WordWrap
     }
 
-    Repeater {
-        model: root.rows.slice(0, root.cap)
+    Flickable {
+        id: list
+        width: root.bodyWidth
+        height: Math.min(taskRows.height, 320, (root.screen?.height ?? 800) * 0.6)
+        contentWidth: width
+        contentHeight: taskRows.height
+        clip: true
+        interactive: contentHeight > height
+        boundsBehavior: Flickable.StopAtBounds
+        layer.enabled: contentHeight > height
+        layer.effect: ScrollEdges { view: list }
+        Accessible.role: Accessible.List
+        Accessible.name: "Tasks"
+        Accessible.onScrollUpAction: contentY = Math.max(0, contentY - height / 2)
+        Accessible.onScrollDownAction: contentY = Math.min(Math.max(0, contentHeight - height), contentY + height / 2)
 
-        delegate: PopupRow {
-            id: row
+        Column {
+            id: taskRows
+            width: list.width
+            spacing: root.spacing
 
-            required property var modelData
+            Repeater {
+                model: root.rows
 
-            name: "Complete " + row.modelData.title
-            width: root.bodyWidth
-            // As tall as the text it holds, never shorter than a single line's
-            // worth of row. The text is what decides, and the dot and the day
-            // hang off its first line rather than off the row — a dot floating
-            // halfway down a three-line task would read as belonging to the
-            // middle line.
-            height: Math.max(label.implicitHeight, root.rowMin) + root.rowPad * 2
+                delegate: PopupRow {
+                    id: row
 
-            // The whole row completes it. On a list this tightly packed a
-            // slipped press would otherwise tick off whatever it started on,
-            // so only a release on the row counts.
-            gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: root.complete(row.modelData)
+                    required property var modelData
+                    readonly property string dayText: {
+                        const day = Tasks.dayOf(row.modelData);
+                        return day === "" || day === Tasks.today || day === Tasks.tomorrow ? "" : Tasks.sayDay(day);
+                    }
+                    readonly property int dateWidth: row.dayText === "" ? 0 : root.dayWidth
+                    name: "Complete " + row.modelData.title
+                    chosen: choice.item === row
+                    blinkOn: choice.lit
+                    width: root.bodyWidth
+                    // As tall as the text it holds, never shorter than a single line's
+                    // worth of row. The text is what decides, and the dot and the day
+                    // hang off its first line rather than off the row — a dot floating
+                    // halfway down a three-line task would read as belonging to the
+                    // middle line.
+                    height: Math.max(label.implicitHeight, root.rowMin) + root.rowPad * 2
 
-            // Hung off the first line's baseline and sat a pixel over the
-            // middle of its x-height, which is where that line looks like it
-            // is. Centring on the line box instead put the dot a good two
-            // pixels high, up level with the top of the capitals: the box has
-            // to leave room under the baseline for descenders, and most rows
-            // have none.
-            //
-            // It also grows a little under the pointer, which is the only
-            // acknowledgement the row needs that clicking it will do something —
-            // a tick appearing inside it would be drawing the outcome before it
-            // happened.
-            Rectangle {
-                x: (root.gutter - width) / 2
-                anchors.baseline: label.baseline
-                anchors.baselineOffset: -(metrics.xHeight + height) / 2 - 1
-                width: row.hovered ? root.dotSize + 2 : root.dotSize
-                height: width
-                radius: width / 2
-                color: root.dotColour(row.modelData)
+                    // The row completes a task; dragging leaves the press to the list.
+                    onTapped: {
+                        const task = row.modelData;
+                        choice.start(row, () => root.complete(task));
+                    }
 
-                Behavior on width {
-                    NumberAnimation {
-                        duration: Theme.selectMs
-                        easing.type: Easing.OutCubic
+                    // Hung off the first line's baseline and sat a pixel over the
+                    // middle of its x-height, which is where that line looks like it
+                    // is. Centring on the line box instead put the dot a good two
+                    // pixels high, up level with the top of the capitals: the box has
+                    // to leave room under the baseline for descenders, and most rows
+                    // have none.
+                    //
+                    // It also grows a little under the pointer, which is the only
+                    // acknowledgement the row needs that clicking it will do something —
+                    // a tick appearing inside it would be drawing the outcome before it
+                    // happened.
+                    Rectangle {
+                        x: (root.gutter - width) / 2
+                        anchors.baseline: label.baseline
+                        anchors.baselineOffset: -(metrics.xHeight + height) / 2 - 1
+                        width: row.hovered ? root.dotSize + 2 : root.dotSize
+                        height: width
+                        radius: width / 2
+                        color: root.dotColour(row.modelData)
+
+                        Behavior on width {
+                            NumberAnimation {
+                                duration: Theme.selectMs
+                                easing.type: Easing.OutCubic
+                            }
+                        }
+                    }
+
+                    PopupText {
+                        id: label
+
+                        // The font's own measurements, for placing the dot against the
+                        // first line of a paragraph rather than the middle of it.
+                        FontMetrics {
+                            id: metrics
+                            font: label.font
+                        }
+
+                        x: root.gutter
+                        // Centred in the row rather than pinned to its top: a one-line
+                        // task is shorter than the row minimum, and left at the top it
+                        // sat with all the slack under it, hanging off the ceiling of
+                        // its own hover box. A wrapped row is exactly its text plus the
+                        // padding, so this comes back to rowPad there.
+                        y: Math.round((row.height - implicitHeight) / 2)
+                        width: root.bodyWidth - root.gutter - row.dateWidth - root.actionsWidth - 6
+                        text: root.titleText(row.modelData)
+                        textFormat: Text.StyledText
+                        font.pixelSize: Theme.captionSize
+                        color: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 0.9)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    PopupButton {
+                        id: actions
+                        anchors.right: parent.right
+                        y: root.rowPad - 1
+                        pressFeedback: true
+                        framed: actions.hovered
+                        implicitHeight: 20
+                        glyphSize: Theme.captionSize
+                        opacity: row.hovered || actions.hovered ? 1 : 0
+                        live: !choice.running
+                        glyph: Theme.glyph.copy
+                        name: "Copy " + row.modelData.title
+                        onTapped: Launcher.copy(row.modelData.title)
+                    }
+
+                    // The day, for anything further off than tomorrow. Today and
+                    // tomorrow are what the dot is already saying, and a date beside a
+                    // dot that means the same thing is the column this redesign took
+                    // out. List names follow the task title instead.
+                    PopupText {
+                        anchors {
+                            right: actions.left
+                            rightMargin: 2
+                            // The same line as the title's first, sat on the same
+                            // baseline rather than at the same height — it is a size
+                            // smaller, so matching tops would leave it riding high.
+                            baseline: label.baseline
+                        }
+                        width: row.dateWidth
+                        horizontalAlignment: Text.AlignRight
+                        text: row.dayText
+                        font.pixelSize: Theme.footnoteSize
+                        color: Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.fg
+                        opacity: Tasks.urgency(row.modelData) === "late" ? 0.75 : 0.4
+                        elide: Text.ElideRight
                     }
                 }
             }
-
-            PopupText {
-                id: label
-
-                // The font's own measurements, for placing the dot against the
-                // first line of a paragraph rather than the middle of it.
-                FontMetrics {
-                    id: metrics
-                    font: label.font
-                }
-
-                x: root.gutter
-                // Centred in the row rather than pinned to its top: a one-line
-                // task is shorter than the row minimum, and left at the top it
-                // sat with all the slack under it, hanging off the ceiling of
-                // its own hover box. A wrapped row is exactly its text plus the
-                // padding, so this comes back to rowPad there.
-                y: Math.round((row.height - implicitHeight) / 2)
-                width: root.bodyWidth - root.gutter - root.dayWidth - 6
-                text: row.modelData.title
-                font.pixelSize: Theme.captionSize
-                opacity: 0.9
-                wrapMode: Text.WordWrap
-            }
-
-            // The day, for anything further off than tomorrow. Today and
-            // tomorrow are what the dot is already saying, and a date beside a
-            // dot that means the same thing is the column this redesign took
-            // out. When the account keeps more than one list, an undated task
-            // says which list it is on instead — that is the only thing left
-            // that distinguishes it.
-            PopupText {
-                anchors {
-                    right: parent.right
-                    rightMargin: 2
-                    // The same line as the title's first, sat on the same
-                    // baseline rather than at the same height — it is a size
-                    // smaller, so matching tops would leave it riding high.
-                    baseline: label.baseline
-                }
-                width: root.dayWidth
-                horizontalAlignment: Text.AlignRight
-                text: {
-                    const day = Tasks.dayOf(row.modelData);
-                    if (day === "")
-                        return Tasks.lists.length > 1 ? row.modelData.listTitle : "";
-                    if (day === Tasks.today || day === Tasks.tomorrow)
-                        return "";
-                    return Tasks.sayDay(day);
-                }
-                font.pixelSize: Theme.footnoteSize
-                color: Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.fg
-                opacity: Tasks.urgency(row.modelData) === "late" ? 0.75 : 0.4
-                elide: Text.ElideRight
-            }
         }
-    }
-
-    PopupText {
-        width: root.bodyWidth
-        visible: root.rows.length > root.cap
-        text: `    … and ${root.rows.length - root.cap} more`
-        font.pixelSize: Theme.footnoteSize
-        opacity: 0.45
     }
 }
