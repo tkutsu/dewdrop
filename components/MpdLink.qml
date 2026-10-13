@@ -22,6 +22,7 @@ Item {
     id: root
 
     required property string path
+    property bool active: true
 
     readonly property bool connected: loader.item ? loader.item.connected : false
 
@@ -38,7 +39,7 @@ Item {
     // slow retry. Not more than once per short interval, so a burst of
     // keypresses at a stopped mpd is one dial rather than one each.
     function wake(): void {
-        if (root.connected || Date.now() - root.lastTry < 5000)
+        if (!root.active || root.connected || Date.now() - root.lastTry < 5000)
             return;
         root.redial();
         retry.restart();
@@ -47,7 +48,7 @@ Item {
     // For when mpd is known to have just come up: dial at once, and go back to
     // the quick retries whatever the wait had grown to.
     function dialNow(): void {
-        if (root.connected)
+        if (!root.active || root.connected)
             return;
         root.tries = 0;
         root.redial();
@@ -61,11 +62,12 @@ Item {
         root.tries++;
         root.lastTry = Date.now();
         loader.active = false;
-        loader.active = true;
+        loader.active = Qt.binding(() => root.active);
     }
 
     Loader {
         id: loader
+        active: root.active
 
         sourceComponent: Component {
             Socket {
@@ -92,7 +94,7 @@ Item {
         id: retry
         interval: root.tries < 6 ? 5000 : 5 * 60000
         repeat: true
-        running: !root.connected
+        running: root.active && !root.connected
         onTriggered: root.redial()
     }
 }

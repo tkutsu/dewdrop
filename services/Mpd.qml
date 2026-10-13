@@ -6,6 +6,7 @@ import Quickshell.Io
 import Qt.labs.folderlistmodel
 import qs
 import qs.components
+import "../FileUrl.js" as FileUrl
 
 // MPD state, straight off the MPD protocol.
 //
@@ -58,7 +59,7 @@ Singleton {
 
     FolderListModel {
         id: covers
-        folder: root.albumDir ? "file://" + root.albumDir : ""
+        folder: FileUrl.forFolderModel(root.albumDir)
         showDirs: false
         sortField: FolderListModel.Name
         nameFilters: ["cover.*", "folder.*", "front.*", "album.*"]
@@ -152,7 +153,6 @@ Singleton {
         command: ["systemctl", "--user", "start", "mpd.service"]
         onExited: function (exitCode) {
             link.dialNow();
-            cmdLink.dialNow();
             if (exitCode === 0)
                 root.run(["play"]);
         }
@@ -321,6 +321,7 @@ Singleton {
     MpdLink {
         id: cmdLink
         path: Settings.mpdSocket
+        active: link.connected
 
         // Nothing here asks a question, so every reply is an OK to be dropped
         // — except the greeting, which is the moment to send what was typed
@@ -386,6 +387,7 @@ Singleton {
             // slow retry is tuned for an mpd that is off for the evening, not
             // for one that was just started and asked to play.
             root.outbox = text;
+            link.wake();
             cmdLink.wake();
         }
     }
