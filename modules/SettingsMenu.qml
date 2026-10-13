@@ -329,7 +329,9 @@ OverlayWindow {
         Item {
             id: content
 
-            width: box.width
+            // Animate the surrounding glass without rewrapping the settings text.
+            x: Math.round((box.width - width) / 2)
+            width: root.boxWidth
             height: root.boxHeight
             opacity: root.contentAlpha
 
