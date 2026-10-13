@@ -1,13 +1,14 @@
 import QtQuick
 import qs
 
-// A line of text, written when Enter is pressed or the field is left.
+// A line of text, saved on Enter, focus loss or settings closure.
 // Escape puts back what was there, and with nothing to put back is left to
 // whatever holds the field (the settings window closes on it).
 Rectangle {
     id: root
 
     property var setting: null
+    property bool edited: false
 
     implicitWidth: 160
     implicitHeight: 22
@@ -15,6 +16,9 @@ Rectangle {
     color: Theme.well
     border.width: Theme.pillBorder
     border.color: input.activeFocus ? Theme.outline : "transparent"
+
+    Component.onDestruction: if (root.edited && root.setting && input.text !== input.stored)
+        root.setting.set(input.text)
 
     TextInput {
         id: input
@@ -40,11 +44,16 @@ Rectangle {
             text = stored
         Component.onCompleted: text = stored
 
-        onEditingFinished: if (text !== stored)
-            root.setting.set(text)
+        onTextEdited: root.edited = true
+        onEditingFinished: {
+            if (text !== stored)
+                root.setting.set(text);
+            root.edited = false;
+        }
 
         Keys.onEscapePressed: function (event) {
             event.accepted = text !== stored;
+            root.edited = false;
             text = stored;
         }
 
