@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import qs.components
 
 // The bar item whose popup a click has opened, or null. One at a time, the
 // way a menu bar's menus are: opening one puts away whichever was up. Kept by
@@ -16,12 +17,7 @@ Singleton {
     property bool switched: false
     property int browseDelayMs: 300
     property Item _pending: null
-    property bool _outsidePress: false
-    property bool keyboardOpening: false
-    onOwnerChanged: {
-        root.cancelBrowse();
-        root.keyboardOpening = root.owner !== null && PopupPointer.bars === 0 && PopupPointer.hovered === 0;
-    }
+    onOwnerChanged: root.cancelBrowse()
 
     // A launcher action asks the chosen screen's bar for its existing popup.
     signal controlRequested(key: string, screenName: string)
@@ -32,29 +28,24 @@ Singleton {
     // handing both to the target. Closing on release keeps the focus change
     // from interrupting the application's click.
     // Clicks on a bar or in a popup are theirs to sort out.
+    OutsideClick {
+        id: outside
+        enabled: root.owner !== null || root.selected !== null
+        inside: PopupPointer.hovered > 0 || PopupPointer.bars > 0
+        onReleased: root.dismiss()
+    }
     Connections {
         target: Hyprland
-        enabled: root.owner !== null || root.selected !== null
-
+        enabled: root.selected !== null
         function onRawEvent(event: HyprlandEvent): void {
-            if (event.name === "custom" && event.data === "click" && PopupPointer.hovered === 0 && PopupPointer.bars === 0)
-                root._outsidePress = true;
-            else if (event.name === "custom" && event.data === "click-release" && root._outsidePress) {
-                root._outsidePress = false;
-                root.dismiss();
-            }
-            // Selection mode ends when another window takes focus, as one
-            // does when Return on a workspace brings its window forward. Not
-            // on the event alone: Hyprland sends it again for the same window
-            // every time its title changes, and a terminal with a spinner in
-            // its title changes it several times a second.
-            else if (event.name === "activewindowv2" && root.selected !== null && event.data !== root._window)
+            // Title changes can repeat this event for the same focused window.
+            if (event.name === "activewindowv2" && event.data !== root._window)
                 root.dismiss();
         }
     }
 
     function set(item: Item): void {
-        root._outsidePress = false;
+        outside.reset();
         root.switched = root.owner !== null && item !== null && root.owner !== item;
         root.cancelBrowse();
         // A popup the pointer browses to takes the selection with it, and

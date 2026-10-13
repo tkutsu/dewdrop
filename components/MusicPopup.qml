@@ -301,56 +301,23 @@ Popup {
                 }
             }
 
-            // mpd's own level, not the system's — the bar's audio module is two
-            // pills along for that. They are different questions: how loud the
-            // music is against everything else, and how loud everything is.
-            Row {
-                spacing: 6
+            // MPD volume is independent of the system output level.
+            VolumeRow {
                 visible: Mpd.volume >= 0
-
-                Item {
-                    width: root.gutter
-                    height: Theme.popupTextSize + 4
-
-                    Glyph {
-                        anchors.centerIn: parent
-                        text: Mpd.volumeIcon
-                        fontSize: Theme.captionSize
-                        implicitHeight: parent.height
-                        // Lit while it is the thing standing between you and
-                        // the music, quiet while it is only a label for the
-                        // track beside it.
-                        opacity: Mpd.volume > 0 ? 0.75 : 1
-                    }
-
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Toggle music mute"
-                    Accessible.onPressAction: if (enabled && visible)
-                        Mpd.toggleMute()
-                    readonly property var keyPress: () => Mpd.toggleMute()
-
-                    TapHandler {
-                        onTapped: Mpd.toggleMute()
-                    }
-                }
-
-                Slider {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: root.sliderWidth
-                    name: "Music volume"
-                    value: Math.max(0, Mpd.volume) / 100
-                    wheelStep: 0.05
-                    onMoved: value => Mpd.setVolume(value)
-                }
-
-                PopupText {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: root.readoutWidth
-                    horizontalAlignment: Text.AlignRight
-                    text: Math.max(0, Mpd.volume) + "%"
-                    opacity: 0.75
-                    font.pixelSize: Theme.captionSize
-                }
+                name: "Music"
+                leftPadding: 0
+                spacing: 6
+                icon: Mpd.volumeIcon
+                volume: Math.max(0, Mpd.volume)
+                iconWidth: root.gutter
+                iconFontSize: Theme.popupGlyphSize
+                sliderWidth: root.sliderWidth
+                readoutWidth: root.readoutWidth
+                readoutOpacity: 0.75
+                readoutFontSize: Theme.captionSize
+                wheelStep: 0.05
+                onMoved: value => Mpd.setVolume(value)
+                onIconTapped: Mpd.toggleMute()
             }
 
         }
@@ -436,8 +403,7 @@ Popup {
                 id: entry
 
                 required property string modelData
-                chosen: choice.item === entry
-                blinkOn: choice.lit
+                blink: choice
 
                 width: root.bodyWidth
                 height: root.rowHeight
@@ -751,54 +717,12 @@ Popup {
                     opacity: reorder.elevation
                 }
 
-                PopupText {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 6
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 18
-                    horizontalAlignment: Text.AlignRight
-                    text: reorder.from === Mpd.songPos ? Mpd.stateIcon : String(reorder.to + 1)
-                    font.family: reorder.from === Mpd.songPos ? Theme.glyphFont : Theme.bodyFont
-                    font.pixelSize: Theme.footnoteSize
-                    opacity: reorder.from === Mpd.songPos ? 1 : 0.4
-                }
-
-                Item {
-                    id: liftedLine
-                    x: 32
-                    width: parent.width - x - root.queueTailWidth - 8
-                    height: parent.height
-
-                    PopupText {
-                        id: liftedName
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Math.min(implicitWidth, lifted.song?.artist ? liftedLine.width * 0.62 : liftedLine.width)
-                        text: lifted.song?.title ?? ""
-                        font.pixelSize: Theme.captionSize
-                        font.weight: reorder.from === Mpd.songPos ? Font.DemiBold : Font.Normal
-                        opacity: reorder.from === Mpd.songPos ? 1 : 0.8
-                        elide: Text.ElideRight
-                    }
-
-                    PopupText {
-                        anchors.left: liftedName.right
-                        anchors.leftMargin: 6
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: lifted.song?.artist ?? ""
-                        font.pixelSize: Theme.captionSize
-                        opacity: 0.45
-                        elide: Text.ElideRight
-                    }
-                }
-
-                PopupText {
-                    anchors.right: parent.right
-                    anchors.rightMargin: 6
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: Mpd.clock(lifted.song?.duration ?? 0)
-                    font.pixelSize: Theme.footnoteSize
-                    opacity: 0.4
+                QueueTrack {
+                    anchors.fill: parent
+                    song: lifted.song
+                    number: reorder.to + 1
+                    current: reorder.from === Mpd.songPos
+                    tailWidth: root.queueTailWidth
                 }
             }
         }
@@ -808,8 +732,7 @@ Popup {
 
             required property var modelData
             required property int index
-            chosen: choice.item === row
-            blinkOn: choice.lit
+            blink: choice
 
             readonly property bool current: Mpd.songPos === row.index
 
@@ -833,58 +756,13 @@ Popup {
             // The queue position, except on the song that is playing — there
             // the number is the one thing you already know, and the state icon
             // is what you came to the list to find.
-            PopupText {
-                id: ordinal
-
-                anchors.left: parent.left
-                anchors.leftMargin: 6
-                anchors.verticalCenter: parent.verticalCenter
-                width: 18
-                horizontalAlignment: Text.AlignRight
-                text: row.current ? Mpd.stateIcon : String(row.index + 1)
-                font.family: row.current ? Theme.glyphFont : Theme.bodyFont
-                font.pixelSize: Theme.footnoteSize
-                opacity: row.current ? 1 : 0.4
-            }
-
-            Item {
-                id: line
-
-                anchors {
-                    left: ordinal.right
-                    leftMargin: 8
-                    right: tail.left
-                    rightMargin: 8
-                    verticalCenter: parent.verticalCenter
-                }
-                height: parent.height
-
-                PopupText {
-                    id: name
-
-                    anchors.verticalCenter: parent.verticalCenter
-                    // The artist keeps its share of the row: two songs of the
-                    // same name in a queue are told apart by who plays them.
-                    width: Math.min(implicitWidth, row.modelData.artist ? line.width * 0.62 : line.width)
-                    text: row.modelData.title
-                    font.pixelSize: Theme.captionSize
-                    font.weight: row.current ? Font.DemiBold : Font.Normal
-                    opacity: row.current ? 1 : 0.8
-                    elide: Text.ElideRight
-                }
-
-                PopupText {
-                    anchors {
-                        left: name.right
-                        leftMargin: 6
-                        right: parent.right
-                        verticalCenter: parent.verticalCenter
-                    }
-                    text: row.modelData.artist
-                    font.pixelSize: Theme.captionSize
-                    opacity: 0.45
-                    elide: Text.ElideRight
-                }
+            QueueTrack {
+                anchors.fill: parent
+                song: row.modelData
+                number: row.index + 1
+                current: row.current
+                tailWidth: root.queueTailWidth
+                showDuration: !row.hovered
             }
 
             // The duration gives way to remove on hover without shifting titles.
@@ -895,16 +773,6 @@ Popup {
                 anchors.verticalCenter: parent.verticalCenter
                 width: root.queueTailWidth
                 height: parent.height
-
-                PopupText {
-                    anchors.right: parent.right
-                    anchors.rightMargin: 6
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !row.hovered
-                    text: Mpd.clock(row.modelData.duration)
-                    font.pixelSize: Theme.footnoteSize
-                    opacity: 0.4
-                }
 
                 PopupButton {
                     anchors.right: parent.right

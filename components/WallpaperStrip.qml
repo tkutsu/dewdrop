@@ -16,7 +16,7 @@ ShaderEffectSource {
     readonly property var renderer: Wallpaper.backdrops[root.screen.name] ?? null
     readonly property real progress: root.renderer?.progress ?? 0
     readonly property real glassWeight: root.renderer ? (root.renderer.front.glass ? 1 : 0) * (1 - root.progress) + (root.renderer.back.glass ? 1 : 0) * root.progress : 0
-    readonly property var columns: root.glassWeight > 0 ? (first.columns.length ? first.columns : second.columns) : []
+    readonly property bool sampled: root.glassWeight > 0 && (first.columns.length > 0 || second.columns.length > 0)
 
     hideSource: true
     live: true

@@ -33,9 +33,6 @@ Singleton {
     // phone until the next poll put it back, which reads as the bar losing a
     // click.
     property var waiting: []
-    // How the refresh in the air is ended, whichever of the reply, the XHR
-    // timeout or the watchdog gets there first. Null when none is running.
-    property var settleRefresh: null
     readonly property int refreshTimeoutMs: 15000
     readonly property int requestTimeoutMs: 15000
 
@@ -181,34 +178,24 @@ Singleton {
             return;
         root.refreshing = true;
 
-        const xhr = new XMLHttpRequest();
-        // Runs exactly once however the refresh ends. A refresh that never
-        // ended used to leave `refreshing` up for good, and every call after
-        // it joined the queue and stayed there — the bar sat on "Connecting…"
-        // until restarted. Every exit now goes through here and empties the
-        // queue, with a failure or a token.
-        let settled = false;
-        root.settleRefresh = function (why, status) {
-            if (settled)
-                return;
-            settled = true;
-            root.settleRefresh = null;
-            watchdog.stop();
+        // Clear the queue before callbacks, so a caller may safely request another refresh.
+        const settle = function (why, status) {
             root.refreshing = false;
             const queued = root.waiting;
             root.waiting = [];
-            if (why !== "") {
-                xhr.abort();
-                for (const held of queued)
+            for (const held of queued) {
+                if (why !== "")
                     held.bad(why, status ?? 0);
-                return;
+                else
+                    held.go();
             }
-            for (const held of queued)
-                held.go();
         };
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE || settled)
-                return;
+        Http.sendForm(root.tokenEndpoint, {
+            client_id: adapter.client_id,
+            client_secret: adapter.client_secret,
+            refresh_token: adapter.refresh_token,
+            grant_type: "refresh_token"
+        }, root.refreshTimeoutMs, function (xhr) {
             if (xhr.status < 200 || xhr.status >= 300) {
                 // 400 here is the refresh token itself being dead — revoked, or
                 // expired because the app was left in Testing. Nothing the bar
@@ -216,36 +203,22 @@ Singleton {
                 // retrying every two minutes forever.
                 const dead = xhr.status === 400 || xhr.status === 401;
                 root.tokenDead = dead;
-                root.settleRefresh(dead ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`), xhr.status);
+                settle(dead ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`), xhr.status);
                 return;
             }
             let parsed;
             try {
                 parsed = JSON.parse(xhr.responseText);
             } catch (e) {
-                root.settleRefresh("Sign-in sent something unreadable", xhr.status);
+                settle("Sign-in sent something unreadable", xhr.status);
                 return;
             }
             root.accessToken = parsed.access_token ?? "";
             root.tokenExpiry = Date.now() + (parsed.expires_in ?? 3600) * 1000;
-            root.settleRefresh("");
-        };
-        watchdog.restart();
-        xhr.open("POST", root.tokenEndpoint);
-        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        xhr.send(`client_id=${encodeURIComponent(adapter.client_id)}&client_secret=${encodeURIComponent(adapter.client_secret)}&refresh_token=${encodeURIComponent(adapter.refresh_token)}&grant_type=refresh_token`);
-    }
-
-    function refreshTimedOut(): void {
-        if (root.settleRefresh)
-            root.settleRefresh("Sign-in timed out");
-    }
-
-    // QML's XMLHttpRequest has no timeout; the watchdog ends a hung refresh.
-    Timer {
-        id: watchdog
-        interval: root.refreshTimeoutMs
-        onTriggered: root.refreshTimedOut()
+            settle("");
+        }, function (why, status) {
+            settle(why === "Request timed out" ? "Sign-in timed out" : why, status);
+        });
     }
 
     // --- credentials ---------------------------------------------------------

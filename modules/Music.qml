@@ -133,7 +133,7 @@ BarItem {
         root.shownCover = Mpd.cover;
     }
 
-    contentAnimating: titleFade.running || previousWidth.running || titleWidth.running || nextWidth.running
+    contentAnimating: titleFade.running || previousStep.animating || titleWidth.running || nextStep.animating
 
     NumberAnimation {
         id: titleFade
@@ -195,57 +195,12 @@ BarItem {
     // to a hover is the pill answering, not a new title arriving — and the
     // pill's edge passes over the glyph, which stays put beside the title. Its tap is off while folded, where the glyph sits
     // out past the pill's edge.
-    Item {
-        readonly property real full: prev.implicitWidth + Theme.mediaGap
-
-        Layout.fillHeight: true
-        implicitWidth: root.handsOut ? full : 0
-        clip: width < full
-        opacity: width / full
-
-        Behavior on implicitWidth {
-            enabled: root.settled
-            NumberAnimation {
-                id: previousWidth
-                duration: Theme.foldMs
-                easing.type: Easing.InOutCubic
-            }
-        }
-
-        Glyph {
-            id: prev
-            readonly property bool inkLit: true
-
-            anchors.right: parent.right
-            anchors.rightMargin: Theme.mediaGap
-            height: parent.height
-            text: Theme.glyph.mediaPrev
-            scale: prevPress.scale
-
-            PressGlass {
-                id: prevPress
-                icon: prev
-                area: prevTap
-            }
-
-            // A pixel of margin on every target. Targets used to press in by
-            // dipping the item their handler hangs off, which left a pointer
-            // on the screen's top pixel — the cheapest place on the bar to
-            // click — above the item it had pressed and cancelled the tap.
-            // They grow from their middle now (PressGlass), but the margin
-            // keeps a press on that pixel landing whatever the press does.
-            Accessible.role: Accessible.Button
-            Accessible.name: "Previous track"
-            Accessible.onPressAction: if (prevTap.enabled && enabled && visible)
-                Mpd.prev()
-
-            TapHandler {
-                id: prevTap
-                enabled: root.handsOut
-                margin: Theme.pressDip
-                onTapped: Mpd.prev()
-            }
-        }
+    MediaStep {
+        id: previousStep
+        previous: true
+        open: root.handsOut
+        settled: root.settled
+        onTriggered: Mpd.prev()
     }
 
     RowLayout {
@@ -260,52 +215,11 @@ BarItem {
             onHoveredChanged: OpenPopup.browse(root, hovered)
         }
 
-        Item {
-            id: nextRoom
-
-            readonly property real full: Theme.mediaGap + next.implicitWidth
-
-            Layout.fillHeight: true
-            implicitWidth: root.handsOut ? full : 0
-            clip: width < full
-            opacity: width / full
-
-            Behavior on implicitWidth {
-                enabled: root.settled
-                NumberAnimation {
-                    id: nextWidth
-                    duration: Theme.foldMs
-                    easing.type: Easing.InOutCubic
-                }
-            }
-
-            Glyph {
-                id: next
-                readonly property bool inkLit: true
-
-                x: 0
-                height: parent.height
-                text: Theme.glyph.mediaNext
-                scale: nextPress.scale
-
-                PressGlass {
-                    id: nextPress
-                    icon: next
-                    area: nextTap
-                }
-
-                Accessible.role: Accessible.Button
-                Accessible.name: "Next track"
-                Accessible.onPressAction: if (nextTap.enabled && enabled && visible)
-                    Mpd.next()
-
-                TapHandler {
-                    id: nextTap
-                    enabled: root.handsOut
-                    margin: Theme.pressDip
-                    onTapped: Mpd.next()
-                }
-            }
+        MediaStep {
+            id: nextStep
+            open: root.handsOut
+            settled: root.settled
+            onTriggered: Mpd.next()
         }
 
         // The title's room, which is what sizes the pill: it springs to the

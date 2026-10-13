@@ -15,6 +15,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs
 import qs.components
+import "Drops.js" as Drops
 ShellRoot {
     id: bar
     MORPH
@@ -57,7 +58,7 @@ ShellRoot {
 
 def main():
     source = (ROOT / "Bar.qml").read_text()
-    morph = re.search(r"    function morph\([^\n]+\) \{.*?\n    }", source, re.S).group()
+    morph = "    readonly property var drops: Drops.geometry(Theme)\n    function morph(box, s) { return bar.drops.morph(box, s); }"
     overflow = re.search(r"        overflow: ([^\n]+)", source)
     binding = overflow.group(1) if overflow else "Qt.vector4d(0,0,0,0)"
     with tempfile.TemporaryDirectory(prefix="quickshell-morph-padding-") as folder:

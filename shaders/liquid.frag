@@ -149,16 +149,6 @@ vec3 softened(vec2 p) {
 void main() {
     vec2 p = qt_TexCoord0 * size;
     float d = field(p);
-    // Shade each pill in its own proportions, so a long top edge also loses
-    // its light toward the top-right corner. Two broad opposing lobes.
-    vec4 nearest = box0;
-    float nearestD = box(p, box0);
-    if (box(p, box1) < nearestD) { nearest = box1; nearestD = box(p, box1); }
-    if (box(p, box2) < nearestD) { nearest = box2; nearestD = box(p, box2); }
-    if (box(p, box3) < nearestD) { nearest = box3; }
-    vec2 around = (p - nearest.xy - nearest.zw * 0.5) / max(nearest.zw * 0.5, vec2(1.0));
-    float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
-    float shine = smoothstep(sheen.z, 0.96, diagonal);
     if (d >= 0.5) {
         fragColor = vec4(0.0);
         return;
@@ -181,6 +171,16 @@ void main() {
         fragColor = vec4(0.0);
         return;
     }
+    // Shade each pill in its own proportions, so a long top edge also loses
+    // its light toward the top-right corner. Two broad opposing lobes.
+    vec4 nearest = box0;
+    float nearestD = box(p, box0);
+    if (box(p, box1) < nearestD) { nearest = box1; nearestD = box(p, box1); }
+    if (box(p, box2) < nearestD) { nearest = box2; nearestD = box(p, box2); }
+    if (box(p, box3) < nearestD) { nearest = box3; }
+    vec2 around = (p - nearest.xy - nearest.zw * 0.5) / max(nearest.zw * 0.5, vec2(1.0));
+    float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
+    float shine = smoothstep(sheen.z, 0.96, diagonal);
     float inner = clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     float band = shape - inner;
 

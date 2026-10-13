@@ -1,3 +1,4 @@
+import "../KeyTargets.js" as KeyTargets
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -389,17 +390,7 @@ PopupWindow {
     // hidden, sized to nothing, under something at zero opacity, or clipped
     // out by a box that is not a list (a list scrolls to it instead).
     function keyTargets(): var {
-        const found = [];
-        const walk = item => {
-            for (const child of item.children) {
-                if (!child.visible || child.opacity === 0 || !child.enabled)
-                    continue;
-                if ((typeof child.keyPress === "function" || typeof child.keyStep === "function") && child.width > 0 && child.height > 0 && root.inView(child))
-                    found.push(child);
-                walk(child);
-            }
-        };
-        walk(body);
+        const found = KeyTargets.collect(body, child => (typeof child.keyPress === "function" || typeof child.keyStep === "function") && child.width > 0 && child.height > 0 && root.inView(child));
         const at = new Map(found.map(t => [t, t.mapToItem(body, 0, 0)]));
         found.sort((a, b) => at.get(a).y - at.get(b).y || at.get(a).x - at.get(b).x);
         return found;
@@ -561,7 +552,7 @@ PopupWindow {
                 // there: the reading lands a few frames after the box. Only
                 // ever up from popupBg, so the blur stays.
                 property color frost: Theme.frostOver(under.luma)
-                color: root.morphs ? "transparent" : frost
+                color: root.morphs && !root.landed ? "transparent" : frost
 
                 Behavior on frost {
                     ColorAnimation {
@@ -570,7 +561,7 @@ PopupWindow {
                 }
 
                 Rim {
-                    visible: !root.morphs
+                    visible: !root.morphs || root.landed
                     anchors.fill: parent
                     radius: chrome.radius
                     // Above the rows, which run edge to edge in a menu and
@@ -582,7 +573,7 @@ PopupWindow {
                 // rim over them, reaching below the box for the drop's
                 // swell to run past it.
                 Item {
-                    visible: root.morphs
+                    visible: root.morphs && !root.landed
                     width: parent.width
                     height: parent.height + 16
                     z: 1
@@ -596,7 +587,7 @@ PopupWindow {
                     }
                 }
                 Item {
-                    visible: root.morphs
+                    visible: root.morphs && !root.landed
                     width: parent.width
                     height: parent.height + 16
                     z: -1
