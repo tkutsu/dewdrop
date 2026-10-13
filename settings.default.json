@@ -34,11 +34,22 @@
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDate-method
     "dateFormat": "ddd d MMM",
 
+    // Letter case for the bar date: normal, capitalize, uppercase or lowercase.
+    // Capitalize makes the first character of each space-separated word uppercase.
+    "dateCase": "normal",
+
     // The clock, as a Qt time format: "HH:mm" reads 14:05, "h:mm AP" reads
     // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
     // Alarms follow the same 12h/24h notation, always without seconds.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "timeFormat": "HH:mm",
+
+    // Letter case for the bar clock: normal, capitalize, uppercase or lowercase.
+    "timeCase": "normal",
+
+    // Draw AM/PM at half the clock's font size, on its baseline, without a
+    // preceding space. Applies to AP/ap tokens in a 12h clock format.
+    "smallAmPm": false,
 
     // What the language module shows for each keyboard layout, keyed by the
     // name `hyprctl devices` gives it. A layout not listed here shows its

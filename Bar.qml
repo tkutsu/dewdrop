@@ -235,7 +235,9 @@ PanelWindow {
 
             RollingText {
                 Layout.fillHeight: true
-                text: Qt.formatDateTime(clock.date, Settings.timeFormat)
+                readonly property var display: Settings.clockDisplay(clock.date)
+                text: display.text
+                smallRanges: display.smallRanges
             }
         }
     }
