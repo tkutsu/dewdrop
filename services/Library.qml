@@ -114,8 +114,8 @@ Singleton {
         // Name to index while building, thrown away after: the rows index into
         // the three arrays above, and a string key on every one of ten
         // thousand rows is memory spent to say what a number already says.
-        const artistAt = ({});
-        const albumAt = ({});
+        const artistAt = Object.create(null);
+        const albumAt = Object.create(null);
 
         for (const line of text.split("\n")) {
             const f = line.split("\t");

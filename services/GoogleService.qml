@@ -76,8 +76,8 @@ Singleton {
     }
 
     // The sign-in and the status codes are Google.qml's; what is kept here is
-    // what a failure means for the bar. `fail` is optional and defaults to
-    // setting `trouble`; a caller that gives its own still has to do that.
+    // what a failure means for the bar. `fail` defaults to setting `trouble`;
+    // search and body-reading callbacks can keep their errors local.
     function send(method: string, url: string, body: var, then: var, fail: var): void {
         // A parallel success must not erase another request's failure.
         base.requests++;

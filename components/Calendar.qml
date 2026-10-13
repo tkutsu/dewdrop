@@ -25,6 +25,7 @@ Popup {
     // been already.
     onShownChanged: Agenda.ensure(shown)
     Component.onCompleted: Agenda.ensure(shown)
+    Component.onDestruction: Agenda.lastShown = ""
 
     // The day the list under the grid is about: the one under the pointer,
     // or today. A dot says a day has something on it; resting on the day says

@@ -19,6 +19,8 @@ Row {
 
     spacing: 10
 
+    Component.onDestruction: if (commit.running) commit.triggered()
+
     function snap(v: real): real {
         const snapped = root.from + Math.round((v - root.from) / root.step) * root.step;
         return Math.max(root.from, Math.min(root.to, Number(snapped.toFixed(6))));

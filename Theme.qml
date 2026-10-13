@@ -679,23 +679,6 @@ Singleton {
     // timer's icon is meant to hop on the beat rather than beside it.
     readonly property int jumpPeriodMs: 3000
 
-    // Leaving on a choice, which is not the same event as being dismissed: the
-    // box closes onto the row that was picked rather than folding shut about
-    // its own middle. The top and bottom edges travel in until the box is that
-    // row and nothing else (zipMs), hold there while it is read as the answer
-    // (zipHoldMs), then close the rest of the way over it (zipFoldMs). See
-    // modules/LauncherMenu.qml.
-    //
-    // The hold is a beat, not a stop. It has to be long enough to separate the
-    // two halves of one motion — without it they run together and the row is
-    // never a destination — and short enough that the box is not waiting to be
-    // told to go.
-    readonly property int zipMs: 140
-    readonly property int zipHoldMs: 50
-    readonly property int zipFoldMs: 110
-    // What the window has to outlive, all three together.
-    readonly property int zipTotalMs: zipMs + zipHoldMs + zipFoldMs
-
     // --- glyphs --------------------------------------------------------------
     // Lifted verbatim from config.jsonc and the scripts it called, by codepoint
     // so nothing is lost to a copy/paste through a non-symbol font.
@@ -745,7 +728,6 @@ Singleton {
         // hyprctl kill is a click-to-kill cursor (nf-md-crosshairs_gps).
         powerKill: "\u{f01a4}",
         powerConfirm: "\u{f012c}",
-        powerCancel: "\u{f0156}",
         // Launcher rows that are not apps: a detected domain, a clipboard
         // entry, and the lock command the power menu deliberately omits.
         web: "\u{f059f}",
