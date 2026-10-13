@@ -413,6 +413,7 @@ OverlayWindow {
             blurEnabled: true
             blurMax: 16
             blur: root.exitBlur
+            autoPaddingEnabled: false
             opacity: 1 - Math.max(0, (root.exitBlur - 0.4) / 0.6)
         }
 
@@ -440,13 +441,14 @@ OverlayWindow {
                 width: parent.width
                 height: root.inputHeight
 
-                Glyph {
+                RollingGlyph {
                     id: searchIcon
                     x: 2
                     y: 1
                     height: root.inputHeight
                     width: 20
                     text: Launcher.queryIcon
+                    animate: Launcher.shown
                     fontSize: 20
                     color: Theme.label2
                 }
