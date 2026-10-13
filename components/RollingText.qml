@@ -33,11 +33,12 @@ Row {
     property color color: Theme.fg
     property int fontSize: Theme.textSize
     property int weight: Theme.bodyWeight
-    // Half-size character ranges share the full-size text's baseline.
+    // Smaller character ranges share the full-size text's baseline.
     property var smallRanges: []
-    readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize / 2))
-    readonly property real smallNudge: Math.round((root.height + metrics.capitalHeight) / 2 - metrics.ascent) + metrics.ascent
-        - (Math.round((root.height + smallMetrics.capitalHeight) / 2 - smallMetrics.ascent) + smallMetrics.ascent)
+    readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize * 2 / 3))
+    // BarText rounds glyph positions, so the baseline shift must be whole pixels too.
+    readonly property int smallNudge: Math.round(Math.round((root.height + metrics.capitalHeight) / 2 - metrics.ascent) + metrics.ascent
+        - (Math.round((root.height + smallMetrics.capitalHeight) / 2 - smallMetrics.ascent) + smallMetrics.ascent))
 
     // SwiftUI's transition, in line heights and in multiples of its duration
     // (Theme.rollMs).

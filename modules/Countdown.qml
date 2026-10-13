@@ -76,6 +76,7 @@ BarItem {
     // tick they agree.
     property string shownGlyph: ""
     property string shownLabel: ""
+    property var shownSmallRanges: []
     // The name, for the hover. Not while ringing, where the label already is
     // the name.
     property string shownName: ""
@@ -85,6 +86,9 @@ BarItem {
             return;
         root.shownGlyph = Timers.glyph;
         root.shownLabel = Timers.label;
+        const alarm = root.ringing ? Timers.ringing[0] : !Timers.focus ? Timers.nextAlarm : null;
+        root.shownSmallRanges = alarm?.kind === "alarm" && (!root.ringing || alarm.label === "")
+            ? Timers.alarmDisplay(alarm.hour, alarm.minute).smallRanges : [];
         root.shownName = root.ringing ? "" : root.target?.label ?? "";
     }
 
@@ -197,7 +201,7 @@ BarItem {
     // click anywhere hushes instead (`actions`).
     Item {
         id: labelBox
-        readonly property bool figures: /^[0-9:]+$/.test(root.shownLabel)
+        readonly property bool figures: /^[0-9:]+$/.test(root.shownLabel) || root.shownSmallRanges.length > 0
 
         Layout.fillHeight: true
         implicitWidth: figures ? rolling.implicitWidth : words.implicitWidth
@@ -250,7 +254,8 @@ BarItem {
             height: parent.height
             visible: parent.figures
             text: parent.figures ? root.shownLabel : ""
-            countsDown: true
+            smallRanges: root.shownSmallRanges
+            countsDown: !!Timers.focus
         }
     }
 

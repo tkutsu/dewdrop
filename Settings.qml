@@ -31,7 +31,7 @@ Singleton {
     readonly property string dateFormat: root.values.dateFormat ?? "ddd d MMM"
     readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
     readonly property string dateCase: root.values.dateCase ?? "normal"
-    readonly property string timeCase: root.values.timeCase ?? "normal"
+    readonly property string timeCase: root.values.timeCase === "lowercase" ? "lowercase" : "uppercase"
     readonly property bool smallAmPm: root.values.smallAmPm ?? false
     readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
@@ -78,12 +78,16 @@ Singleton {
         }
     }
 
-    // Mark actual AM/PM tokens, preserving quoted literals and custom token order.
     function clockDisplay(date: date): var {
-        if (!root.smallAmPm || !root.twelveHour)
-            return { text: root.applyCase(Qt.formatDateTime(date, root.timeFormat), root.timeCase), smallRanges: [] };
+        return root.timeDisplay(date, root.timeFormat);
+    }
 
-        const format = root.timeFormat.replace(/'(?:[^']|'')*'|AP|ap/g,
+    // Mark actual AM/PM tokens, preserving quoted literals and custom token order.
+    function timeDisplay(date: date, timeFormat: string): var {
+        if (!root.smallAmPm || !/AP|ap/.test(timeFormat.replace(/'(?:[^']|'')*'/g, "")))
+            return { text: root.applyCase(Qt.formatDateTime(date, timeFormat), root.timeCase), smallRanges: [] };
+
+        const format = timeFormat.replace(/'(?:[^']|'')*'|AP|ap/g,
             token => token[0] === "'" ? token : "\uE000" + token + "\uE001");
         const marked = Qt.formatDateTime(date, format);
         const plain = marked.replace(/[\uE000\uE001]/g, "");

@@ -42,7 +42,7 @@ ClickArea {
         (target / "components/BarText.qml").write_text('''import QtQuick
 Text { property int maxWidth: 300; font.pixelSize: 16; verticalAlignment: Text.AlignVCenter }
 ''')
-        (target / "components/RollingText.qml").write_text('import QtQuick\nText { property bool countsDown: false; font.pixelSize: 16 }\n')
+        (target / "components/RollingText.qml").write_text('import QtQuick\nText { property bool countsDown: false; property var smallRanges: []; font.pixelSize: 16 }\n')
         (target / "components/Glyph.qml").write_text('import QtQuick\nText { property int fontSize: 16; font.pixelSize: fontSize }\n')
         (target / "components/Bounce.qml").write_text('import QtQuick\nQtObject { property bool running: false; property int periodMs: 1000; property real offset: 0 }\n')
         (target / "Theme.qml").write_text('''pragma Singleton
