@@ -9,6 +9,7 @@ import qs
 //   type      "toggle", "choice", "slider" or "text": which control
 //   title     its name
 //   text      what it does, optional
+//   tooltip   extra help shown on hover, optional
 //   icon      an icon name or path, or glyph, a Theme.glyph value; optional
 //   get, set  read and write the value, wherever it lives (Settings,
 //             DrawerPins, ...). `get` is read in a binding, so whatever it
@@ -60,6 +61,13 @@ Item {
 
     HoverHandler {
         id: hover
+    }
+
+    HoverPopup {
+        anchorItem: root
+        anchorHeight: root.height
+        hovered: hover.hovered && root.visible && root.enabled
+        text: root.setting.tooltip ?? ""
     }
 
     TapHandler {

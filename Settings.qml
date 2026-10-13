@@ -28,6 +28,7 @@ Singleton {
     // --- values --------------------------------------------------------------
     readonly property var screens: root.values.screens ?? []
     readonly property bool groupWindows: root.values.groupWindows ?? true
+    readonly property string dateFormat: root.values.dateFormat ?? "ddd d MMM"
     readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
     readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
@@ -38,6 +39,7 @@ Singleton {
     readonly property string fileManager: root.values.fileManager ?? "xdg-open"
     readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters", "libreoffice-startcenter"]
     readonly property bool showDesktopActions: root.values.showDesktopActions ?? false
+    readonly property string omittedTaskList: root.values.omittedTaskList ?? "Personal"
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
     readonly property bool reduceMotion: root.values.reduceMotion ?? false
