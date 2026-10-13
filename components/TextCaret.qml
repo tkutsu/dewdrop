@@ -1,6 +1,6 @@
 import QtQuick
 
-// A thicker caret that fades while its text field is active and visible.
+// A thicker caret that blinks while its text field is active and visible.
 Rectangle {
     id: root
 
@@ -13,18 +13,11 @@ Rectangle {
     SequentialAnimation on opacity {
         running: root.visible
         loops: Animation.Infinite
+        onRunningChanged: if (!running) root.opacity = 1
 
-        NumberAnimation {
-            from: 1
-            to: 0
-            duration: 1000
-            easing.type: Easing.InOutSine
-        }
-        NumberAnimation {
-            from: 0
-            to: 1
-            duration: 1000
-            easing.type: Easing.InOutSine
-        }
+        PropertyAction { value: 1 }
+        PauseAnimation { duration: 1000 }
+        PropertyAction { value: 0 }
+        PauseAnimation { duration: 1000 }
     }
 }

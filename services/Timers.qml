@@ -127,25 +127,16 @@ Singleton {
         return "";
     }
 
-    // The rows that do not move: paused timers and alarms. Kept apart from
-    // the running ones so that the tick, which moves `now` every second,
-    // rebuilds only the lines that read it rather than the whole list.
-    readonly property string tooltipStill: {
-        const lines = [];
+    // Only IPC reads this list, so format it when requested rather than every tick.
+    function tooltip(): string {
+        if (root.ringing.length > 0)
+            return root.ringing.map(e => root.ringTitle(e) + " — click to dismiss").join("\n");
+        const lines = root.timers.filter(e => e.running).map(e => root.describe(e));
         for (const e of root.timers)
             if (!e.running)
                 lines.push(root.describe(e));
         for (const e of root.alarms)
             lines.push(root.describe(e));
-        return lines.join("\n");
-    }
-
-    readonly property string tooltip: {
-        if (root.ringing.length > 0)
-            return root.ringing.map(e => root.ringTitle(e) + " — click to dismiss").join("\n");
-        const lines = root.timers.filter(e => e.running).map(e => root.describe(e));
-        if (root.tooltipStill !== "")
-            lines.push(root.tooltipStill);
         return lines.length > 0 ? lines.join("\n") : "No timers";
     }
 
@@ -639,7 +630,7 @@ Singleton {
         }
 
         function list(): string {
-            return root.tooltip;
+            return root.tooltip();
         }
 
         function phone(): string {
