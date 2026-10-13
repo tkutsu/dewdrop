@@ -32,6 +32,8 @@ INTERVAL=5   # seconds between probes
 LIMIT=30     # frozen this long = not healing on its own (heals took <= 23 s)
 STATE="$HOME/.local/state/quickshell-watchdog"
 LOG="$STATE/log"
+BAR_CONFIG=$(realpath "$HOME/.config/quickshell/shell.qml") || exit 1
+BAR_EXE=$(readlink -f "$(command -v quickshell)") || exit 1
 
 mkdir -p "$STATE"
 log() { printf '%s %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; }
@@ -39,12 +41,45 @@ log() { printf '%s %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; }
 exec 9>"$STATE/lock"
 flock -n 9 || exit 0   # one watchdog per session
 
+# Owner, executable and kernel start time identify this process across PID reuse.
+bar_identity() {
+    [[ $pid =~ ^[1-9][0-9]*$ ]] || return 1
+    [ "$(stat -c %u "/proc/$pid" 2>/dev/null)" = "$UID" ] || return 1
+    [ "$(readlink "/proc/$pid/exe" 2>/dev/null)" = "$BAR_EXE" ] || return 1
+    local process_stat
+    local -a fields
+    IFS= read -r process_stat <"/proc/$pid/stat" 2>/dev/null || return 1
+    read -ra fields <<<"${process_stat##*) }"
+    [[ ${fields[19]} =~ ^[0-9]+$ ]] || return 1
+    printf '%s\n' "${fields[19]}"
+}
+
+# Only watch one instance of this config on this display; ambiguity is not a target.
+select_bar() {
+    local -a candidates
+    mapfile -t candidates < <(timeout 2 qs list --json --path "$BAR_CONFIG" 2>/dev/null |
+        jq -r --arg config "$BAR_CONFIG" '.[] | select(.config_path == $config) | .pid' 2>/dev/null)
+    [ "${#candidates[@]}" -eq 1 ] || return 1
+    pid=${candidates[0]}
+    started=$(bar_identity) || return 1
+}
+
+same_bar() {
+    local current
+    current=$(bar_identity) || return 1
+    [ "$current" = "$started" ]
+}
+
 # Total CPU ticks of the render threads (100 per second of one core).
 render_ticks() {
-    local t sum=0
+    local t thread_name thread_stat sum=0
+    local -a fields
     for t in /proc/"$pid"/task/*; do
-        [ "$(cat "$t/comm" 2>/dev/null)" = QSGRenderThread ] || continue
-        sum=$((sum + $(awk '{print $14 + $15}' "$t/stat" 2>/dev/null || echo 0)))
+        IFS= read -r thread_name <"$t/comm" 2>/dev/null || continue
+        [ "$thread_name" = QSGRenderThread ] || continue
+        IFS= read -r thread_stat <"$t/stat" 2>/dev/null || continue
+        read -ra fields <<<"${thread_stat##*) }"
+        sum=$((sum + ${fields[11]:-0} + ${fields[12]:-0}))
     done
     echo "$sum"
 }
@@ -69,6 +104,7 @@ deaf() {
 # fetching Qt's debug info would hold the bar stopped for minutes.
 # Thread names may hold spaces, so stat is read from after the ")".
 dump() {
+    same_bar || return
     local out="$STATE/$(date '+%F-%H%M%S').stack" t
     {
         echo "# quickshell $pid, $1"
@@ -85,10 +121,11 @@ dump() {
 }
 
 restart() {
+    same_bar || { log "  bar identity changed; skipping restart"; return; }
     timeout 2 qs kill --pid "$pid" >/dev/null 2>&1
-    kill -TERM "$pid" 2>/dev/null
-    for _ in 1 2 3 4 5 6; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
-    kill -KILL "$pid" 2>/dev/null && log "  needed SIGKILL"
+    same_bar && kill -TERM "$pid" 2>/dev/null
+    for _ in 1 2 3 4 5 6; do same_bar || break; sleep 0.5; done
+    same_bar && kill -KILL "$pid" 2>/dev/null && log "  needed SIGKILL"
     hyprctl dispatch "hl.dsp.exec_cmd(\"$HOME/.config/quickshell/scripts/qs-launch\")" >/dev/null
 }
 
@@ -104,10 +141,8 @@ while sleep "$INTERVAL"; do
     # sleep runs on the monotonic clock, which stops during suspend, so a
     # wall-clock gap far longer than INTERVAL means the machine slept.
     last=$tick tick=$(date +%s)
-    # A bar started any other way than qs-launch (e.g. `qs -p ... -d`) is
-    # named qs, not quickshell, and can't be eu-stacked, so say we're blind.
-    pid=$(pgrep -xo quickshell) || {
-        [ "$lost" ] || log "no quickshell process, not watching (bar not started by qs-launch?)"
+    select_bar || {
+        [ "$lost" ] || log "no unique bar instance for $BAR_CONFIG, not watching"
         lost=1 since=0
         continue
     }
