@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# qs-watchdog — catch quickshell freezes, dump their stacks, restart if stuck.
+#
+# Quickshell's QSGRenderThread sometimes gets stuck in the NVIDIA driver and
+# the bar stops drawing, mostly right after a resume. Most of these heal within
+# 10-23 s ("Context is lost", scenegraph rebuilt); on 2026-10-08 one spun at
+# 100% CPU for good. Qt's threaded render loop makes the GUI thread wait on the
+# render thread, so a stuck renderer also stops quickshell answering IPC. That
+# is the probe, plus a check for a render thread burning a whole core.
+#
+# On the first failed probe the stacks go to $STATE/<time>.stack; if the bar
+# is still frozen after LIMIT seconds, a second dump, then a restart. The
+# eu-stack only works on a bar started by qs-launch (see there).
+#
+# Those hangs followed wakes whose kernel log has nvidia-drm's semsurf error
+# ("Failed to register auto-value-update ... sync FD semaphore surface"), and
+# lived in EGL. Since qs-launch put the bar on Vulkan (2026-10-13) such wakes
+# leave it drawing, so they're only logged. The first tick after a wake skips
+# the probes: they'd catch the bar still resuming and call it frozen.
+#
+# A freeze can also leave the bar deaf. Hyprland drops an event-socket client
+# that falls 64 events behind, and Quickshell never reconnects (upstream issue
+# quickshell-mirror/quickshell#989), so the workspace mark and every other bit
+# of Hyprland state stop following. The bar logs the drop once; seeing that on
+# a bar that answers again means a restart.
+#
+# Started from Hyprland's exec.lua, so the relaunch, which goes through
+# Hyprland anyway, never hands the bar this script's env.
+
+INTERVAL=5   # seconds between probes
+LIMIT=30     # frozen this long = not healing on its own (heals took <= 23 s)
+STATE="$HOME/.local/state/quickshell-watchdog"
+LOG="$STATE/log"
+
+mkdir -p "$STATE"
+log() { printf '%s %s\n' "$(date '+%F %T')" "$*" >>"$LOG"; }
+
+exec 9>"$STATE/lock"
+flock -n 9 || exit 0   # one watchdog per session
+
+# Total CPU ticks of the render threads (100 per second of one core).
+render_ticks() {
+    local t sum=0
+    for t in /proc/"$pid"/task/*; do
+        [ "$(cat "$t/comm" 2>/dev/null)" = QSGRenderThread ] || continue
+        sum=$((sum + $(awk '{print $14 + $15}' "$t/stat" 2>/dev/null || echo 0)))
+    done
+    echo "$sum"
+}
+
+spinning() {
+    local a b
+    a=$(render_ticks); sleep 1; b=$(render_ticks)
+    [ $((b - a)) -ge 80 ]
+}
+
+healthy() {
+    timeout 3 qs ipc --pid "$pid" show >/dev/null 2>&1 && ! spinning
+}
+
+# Whether Hyprland dropped the bar's event socket.
+deaf() {
+    grep -q "Hyprland event socket error" "/run/user/$UID/quickshell/by-pid/$pid/log.log" 2>/dev/null
+}
+
+# Stacks of every thread, plus what /proc says about each. Build ids and the
+# maps let the frames be symbolised later; debuginfod stays off here because
+# fetching Qt's debug info would hold the bar stopped for minutes.
+# Thread names may hold spaces, so stat is read from after the ")".
+dump() {
+    local out="$STATE/$(date '+%F-%H%M%S').stack" t
+    {
+        echo "# quickshell $pid, $1"
+        timeout 20 env -u DEBUGINFOD_URLS eu-stack -b -m -p "$pid" 2>&1
+        echo "# threads: tid comm state ticks wchan"
+        for t in /proc/"$pid"/task/*; do
+            printf '%s %s %s %s\n' "${t##*/}" "$(cat "$t/comm")" \
+                "$(sed 's/.*) //' "$t/stat" | awk '{print $1, $12 + $13}')" "$(cat "$t/wchan")"
+        done
+        echo "# maps"
+        cat /proc/"$pid"/maps
+    } >"$out" 2>/dev/null
+    log "  stacks -> $out"
+}
+
+restart() {
+    timeout 2 qs kill --pid "$pid" >/dev/null 2>&1
+    kill -TERM "$pid" 2>/dev/null
+    for _ in 1 2 3 4 5 6; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+    kill -KILL "$pid" 2>/dev/null && log "  needed SIGKILL"
+    hyprctl dispatch "hl.dsp.exec_cmd(\"$HOME/_scripts/qs-launch\")" >/dev/null
+}
+
+# Whether the kernel logged the semsurf error since the given epoch second.
+semsurf_since() {
+    journalctl -k -q -o cat --since "@$1" 2>/dev/null | grep -q semsurf_wait_fence
+}
+
+
+log "watchdog started (pid $$)"
+since=0 frozen="" lost="" tick=$(date +%s)
+while sleep "$INTERVAL"; do
+    # sleep runs on the monotonic clock, which stops during suspend, so a
+    # wall-clock gap far longer than INTERVAL means the machine slept.
+    last=$tick tick=$(date +%s)
+    # A bar started any other way than qs-launch (e.g. `qs -p ... -d`) is
+    # named qs, not quickshell, and can't be eu-stacked, so say we're blind.
+    pid=$(pgrep -xo quickshell) || {
+        [ "$lost" ] || log "no quickshell process, not watching (bar not started by qs-launch?)"
+        lost=1 since=0
+        continue
+    }
+    [ "$lost" ] && log "watching quickshell $pid"
+    lost=""
+    if [ $((tick - last)) -gt $((INTERVAL * 4)) ]; then
+        semsurf_since "$last" && log "wake logged the semsurf error, quickshell $pid"
+        continue
+    fi
+    [ "$(ps -o etimes= -p "$pid")" -ge 15 ] || continue   # still loading its config
+
+    if healthy; then
+        [ "$frozen" = "$pid" ] && log "quickshell $pid recovered after $(($(date +%s) - since)) s"
+        frozen=""
+        if deaf; then
+            log "quickshell $pid lost Hyprland's event socket, restarting"
+            restart
+        fi
+        continue
+    fi
+
+    if [ "$frozen" != "$pid" ]; then
+        frozen=$pid since=$(date +%s)
+        log "quickshell $pid frozen"
+        dump "first failed probe"
+    elif [ $(($(date +%s) - since)) -ge "$LIMIT" ]; then
+        log "quickshell $pid still frozen after $LIMIT s, restarting"
+        dump "frozen $LIMIT s, before restart"
+        restart
+        frozen=""
+    fi
+done
