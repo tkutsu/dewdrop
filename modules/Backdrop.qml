@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../FileUrl.js" as FileUrl
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
@@ -258,7 +259,7 @@ PanelWindow {
             height: root.height * layer.zoom
             x: (root.width - width) / 2 + layer.offsetX
             y: (root.height - height) / 2 + layer.offsetY
-            source: layer.path ? "file://" + layer.path.split("/").map(encodeURIComponent).join("/") : ""
+            source: FileUrl.fromPath(layer.path)
             // Decode at the window's pixel size, including fractional scaling.
             sourceSize: Qt.size(Math.ceil(width * root.devicePixelRatio), Math.ceil(height * root.devicePixelRatio))
             fillMode: Image.PreserveAspectCrop

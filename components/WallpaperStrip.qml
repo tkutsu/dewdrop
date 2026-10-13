@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "../FileUrl.js" as FileUrl
 import Quickshell
 import qs
 import qs.services
@@ -119,7 +120,7 @@ ShaderEffectSource {
             asynchronous: true
             retainWhileLoading: true
             cache: false
-            source: strip.path && natural.width > 0 ? "file://" + strip.path.split("/").map(encodeURIComponent).join("/") : ""
+            source: natural.width > 0 ? FileUrl.fromPath(strip.path) : ""
             fillMode: Image.PreserveAspectCrop
             sourceSize: Qt.size(Math.ceil(root.screen.width * strip.zoom * root.dpr), Math.ceil(root.screen.height * strip.zoom * root.dpr))
             sourceClipRect: Qt.rect(Math.round(cropLeft * root.dpr), Math.round(cropTop * root.dpr), Math.ceil(width * root.dpr), Math.ceil(height * root.dpr))

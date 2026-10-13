@@ -3,6 +3,7 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import qs
 import qs.components
+import "../FileUrl.js" as FileUrl
 
 // The artwork for whatever row the launcher's # mode is sitting on.
 //
@@ -63,7 +64,7 @@ Item {
     FolderListModel {
         id: named
 
-        folder: root.dir ? "file://" + root.dir : ""
+        folder: FileUrl.forFolderModel(root.dir)
         showDirs: false
         sortField: FolderListModel.Name
         nameFilters: ["cover.*", "folder.*", "front.*", "album.*"]
@@ -73,7 +74,7 @@ Item {
     FolderListModel {
         id: loose
 
-        folder: root.dir ? "file://" + root.dir : ""
+        folder: FileUrl.forFolderModel(root.dir)
         showDirs: false
         sortField: FolderListModel.Name
         nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.bmp"]
