@@ -80,7 +80,7 @@ OverlayWindow {
         if (Launcher.mailMode)
             return [
                 { key: "activate", label: "open in gmail", live: row?.kind === "mail" },
-                { key: "mail-fold", label: Launcher.mailOpen ? "back to list" : "read", live: row?.kind === "mail" },
+                { key: "mail-fold", label: LauncherMail.open ? "back to list" : "read", live: row?.kind === "mail" },
                 { key: "play", label: "new mail", live: true }
             ];
         if (!row || row.kind === "note")
@@ -138,7 +138,7 @@ OverlayWindow {
         root.selectedAction = action.key;
         switch (action.key) {
         case "mail-fold":
-            Launcher.mailFold();
+            LauncherMail.fold();
             break;
         case "music-fold":
             LauncherMusic.fold();
@@ -161,7 +161,7 @@ OverlayWindow {
     function completePath() {
         const row = Launcher.selected;
         if (row?.kind === "path")
-            input.adopt(Launcher.tildeHome(row.path) + (row.dir ? "/" : ""));
+            input.adopt(LauncherFiles.tildeHome(row.path) + (row.dir ? "/" : ""));
     }
 
     function accept(ctrl) {
@@ -174,48 +174,16 @@ OverlayWindow {
     }
 
     // The sides follow the sampled Spotlight width curve; contents never scale.
-    property real widthRatio: 1012 / 960
-    property real contentAlpha: 0
-    property real exitBlur: 0
+    property alias widthRatio: motion.widthRatio
+    property alias contentAlpha: motion.contentAlpha
+    property alias exitBlur: motion.exitBlur
     readonly property real extraWidth: root.boxWidth * (root.widthRatio - 1)
     readonly property bool presenting: root.opened || root.contentAlpha > 0
 
-    onOpenedChanged: {
-        entrance.stop();
-        dismissal.stop();
-        if (Theme.reduceMotion) {
-            root.widthRatio = 1;
-            root.contentAlpha = root.opened ? 1 : 0;
-            root.exitBlur = 0;
-        } else if (root.opened) {
-            entrance.start();
-        } else {
-            dismissal.start();
-        }
-    }
-
-    ParallelAnimation {
-        id: entrance
-        SequentialAnimation {
-            PauseAnimation { duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 976 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 955 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 948 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 950 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 954 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 958 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 1; duration: 33 }
-            PauseAnimation { duration: 69 }
-        }
-        NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 67 }
-        NumberAnimation { target: root; property: "exitBlur"; to: 0; duration: 67 }
-    }
-
-    ParallelAnimation {
-        id: dismissal
-        NumberAnimation { target: root; property: "widthRatio"; to: 1.03; duration: Launcher.dismissMs; easing.type: Easing.InCubic }
-        NumberAnimation { target: root; property: "contentAlpha"; to: 0; duration: Launcher.dismissMs; easing.type: Easing.InCubic }
-        NumberAnimation { target: root; property: "exitBlur"; to: 1; duration: Launcher.dismissMs; easing.type: Easing.InCubic }
+    SpotlightMotion {
+        id: motion
+        opened: root.opened
+        dismissMs: Launcher.dismissMs
     }
 
     Connections {
@@ -247,7 +215,7 @@ OverlayWindow {
     // being a scroll. maxResults still ranks well past this,
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
-    readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !Launcher.mailOpen
+    readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !LauncherMail.open
     readonly property int boxPad: 12
     // The right-hand slot every row ends in: an app icon, or the "%y" badge
     // that says which engine Enter would use.
@@ -322,15 +290,15 @@ OverlayWindow {
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
         // Reading a mail, every step is the reader's: Tab back to the list,
         // the arrows a row's height of text, the page keys a screenful.
-        if (Launcher.mailOpen) {
+        if (LauncherMail.open) {
             if (tab)
-                Launcher.mailFold();
+                LauncherMail.fold();
             else
                 reader.scroll(dir * (page ? reader.height - root.rowHeight : root.rowHeight));
             return;
         }
         if (Launcher.mailMode && tab) {
-            Launcher.mailFold();
+            LauncherMail.fold();
             return;
         }
         if (Launcher.musicMode && page) {
@@ -596,8 +564,7 @@ OverlayWindow {
 
                     // What the mode prefixes do, inside the field and
                     // against its right edge, in the quietest step of the label
-                    // scale. It stays while the mode it describes does (see
-                    // Launcher.hint), in the room the query is not using, and
+                    // scale. It uses the room the query is not using, and
                     // gives way as the query reaches it — it is a reference, and
                     // never the thing being read.
                     Item {
@@ -646,8 +613,6 @@ OverlayWindow {
                                 }
                             }
                         }
-
-
                     }
 
                     focus: true
@@ -1003,240 +968,14 @@ OverlayWindow {
                 // the ends just looks like the list came loose.
                 boundsBehavior: Flickable.StopAtBounds
 
-                delegate: Rectangle {
-                    id: row
-
-                    required property var modelData
-                    required property int index
-
-                    readonly property bool current: Launcher.index === row.index
-                    readonly property real enterProgress: Theme.reduceMotion ? 1 : Math.max(0, Math.min(1, (root.rowsReveal * root.rowRevealMs - Math.min(row.index, root.visibleRows - 1) * root.rowStaggerMs) / 100))
-
-                    width: ListView.view.width
-                    height: root.rowHeight
-                    // The fill is the view's `highlight` above; all that marks
-                    // the selected row here is the colour of its text.
-                    color: "transparent"
-                    opacity: row.enterProgress
-                    transform: Translate { y: 6 * (1 - row.enterProgress) }
-
-                    Text {
-                        id: title
-
-                        anchors {
-                            left: parent.left
-                            // The box's padding and the row's own, because the
-                            // row itself no longer has any: a title still
-                            // starts where it always did — and then however
-                            // deep in the music mode's tree this row sits,
-                            // which is nothing at all in every other mode.
-                            leftMargin: root.boxPad + Theme.pillPad + (row.modelData.indent ?? 0) * root.indentStep
-                            verticalCenter: parent.verticalCenter
-                        }
-                        // Never more than half the row, so a long name cannot
-                        // squeeze the subtitle out entirely — the subtitle is
-                        // the only thing separating two files both called
-                        // config.json. A row with no subtitle has nothing to
-                        // protect and gets the line, which is what a clipboard
-                        // entry needs.
-                        // Half the row is the right reserve when the subtitle
-                        // is a path and both halves are competing for it. A row
-                        // whose subtitle is a short, fixed thing — a date, a
-                        // word — can say so and take the rest, which is what a
-                        // task written as a sentence to yourself needs.
-                        width: Math.min(implicitWidth, row.width * (row.modelData.titleShare ?? (row.modelData.subtitle ? 0.55 : 0.88)))
-                        // An app name is the launcher's to style, so it is
-                        // lowercased. A calculated answer, a
-                        // command and a copied line are not — they are text
-                        // that came from somewhere else and has to come back
-                        // out the way it went in.
-                        // A timer's title counts down, so it is read live
-                        // here rather than carried in the row: a row that
-                        // changed every second would rebuild the list every
-                        // second. See Launcher.timerResults.
-                        text: {
-                            const d = row.modelData;
-                            const t = d.kind === "timer" ? Timers.describe(d.entry) : d.title;
-                            return d.raw ? t : t.toLowerCase();
-                        }
-                        color: row.current ? Theme.menuSelectionText : Theme.menuText
-                        font.family: Theme.bodyFont
-                        font.pixelSize: Theme.labelSize
-                        font.weight: Theme.bodyWeight
-                        elide: Text.ElideRight
-
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: Theme.fadeMs
-                            }
-                        }
-                    }
-
-                    // Where the row came from, on the same line rather than
-                    // under the title: app rows have nothing to put here, and a
-                    // second line would make every row taller for the sake of
-                    // the two modes that do.
-                    //
-                    // Elided from the left and pushed right, because the end of
-                    // a path is the part that identifies it — ".../hypr/configs"
-                    // says more than "/home/kutsui/.config/...".
-                    Text {
-                        anchors {
-                            left: title.right
-                            leftMargin: 8
-                            right: slot.left
-                            rightMargin: 6
-                            verticalCenter: parent.verticalCenter
-                        }
-                        visible: text !== ""
-                        text: row.modelData.subtitle ?? ""
-                        color: Theme.menuText
-                        // Under the title even on the row you are on: it is
-                        // context, not the thing you picked. Further under it
-                        // on a row the history has never seen — see `dim` in
-                        // services/Launcher.qml.
-                        opacity: row.modelData.dim ? 0.4 : 0.6
-                        font.family: Theme.bodyFont
-                        font.pixelSize: Theme.captionSize
-                        horizontalAlignment: Text.AlignRight
-                        elide: Text.ElideLeft
-                    }
-
-                    Item {
-                        id: slot
-
-                        anchors {
-                            right: parent.right
-                            // What the row took off the right, less the
-                            // border it stops short of: an icon sits the same
-                            // distance from the edge of the box as a title
-                            // does from the other one.
-                            rightMargin: root.boxPad + Theme.pillPad - Theme.pillBorder
-                            verticalCenter: parent.verticalCenter
-                        }
-                        width: root.slotWidth
-                        height: root.slotWidth
-                        // Let the queue control take its click before the result row.
-                        z: 1
-
-                        // Same treatment as a taskbar icon (AppIcon.qml): ask
-                        // for the name, and fall back to a glyph if nothing
-                        // answers. A .desktop file can name an icon no theme on
-                        // the machine carries, and a fallback passed to
-                        // iconPath is only another name that can miss in turn —
-                        // when it does, the row is left with a hole in it.
-                        //
-                        // themis answers every name the current menu asks for.
-                        // This is the net for the one that eventually does not.
-                        IconImage {
-                            id: icon
-
-                            anchors.centerIn: parent
-                            implicitSize: Theme.iconSize
-                            source: row.modelData.icon ? Quickshell.iconPath(row.modelData.icon, true) : ""
-                            // Only Ready counts: a name that resolves to nothing
-                            // leaves the image blank rather than erroring, which
-                            // would hide the fallback.
-                            // Keyed on having an icon name rather than on the
-                            // row's kind, so app rows and path rows both land
-                            // here without the slot having to know which.
-                            visible: !!row.modelData.icon && status === Image.Ready
-                        }
-
-                        // Two jobs, because they draw the same thing. A row
-                        // can name a glyph outright — the power commands, a
-                        // detected domain, a clipboard entry, none of which
-                        // has an icon in any theme — and a row that named an
-                        // icon nothing answered to falls back to one.
-                        Glyph {
-                            anchors.centerIn: parent
-                            visible: !!row.modelData.glyph || (!!row.modelData.icon && !icon.visible)
-                            text: row.modelData.glyph ?? Theme.glyph.window
-                            fontSize: Theme.iconSize
-                            implicitHeight: Theme.iconSize
-                        }
-
-                        // Engine rows have no icon; the key you would be using
-                        // goes here instead, so "%" then "y" shows you
-                        // landing on YouTube as you type it.
-                        Text {
-                            anchors.centerIn: parent
-                            visible: !!row.modelData.badge
-                            text: row.modelData.badge ?? ""
-                            color: Theme.fg
-                            font.family: Theme.bodyFont
-                            font.pixelSize: Theme.captionSize
-                            font.weight: Font.Bold
-                        }
-
-                        ClickArea {
-                            id: queueControl
-                            anchors.fill: parent
-                            visible: row.modelData.kind === "music-queue" && !!row.modelData.glyph
-                            enabled: Mpd.connected
-                            cursorShape: Qt.PointingHandCursor
-                            name: (row.modelData.glyph === Theme.glyph.paused ? "Pause " : "Play ") + row.modelData.title
-                            actions: ({ [Qt.LeftButton]: () => Launcher.activate(row.index) })
-                        }
-                    }
-
-                    // Hover selects: the pointer moves the selection
-                    // rather than acting on its own. Emphatically only when it
-                    // moves.
-                    //
-                    // positionChanged also fires when the list moves under a
-                    // pointer that is sitting still — a different delegate
-                    // arrives beneath the cursor and Qt hands it a move event.
-                    // The keyboard then loses every reorder to wherever the
-                    // mouse happens to be parked: typing ".au" reset the
-                    // selection to 0 and this put it straight back on row 5,
-                    // so Enter opened ChatGPT instead of the AUR. The box
-                    // opening under the pointer did the same thing.
-                    //
-                    // So: compare against the last position the pointer was
-                    // really at. Scene coordinates, not the row's own, because
-                    // the row is the thing that moved. And nothing counts
-                    // until the pointer has moved once since the box opened,
-                    // or opening under a stationary cursor would still steal
-                    // row 0.
-                    MouseArea {
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        Accessible.role: Accessible.Button
-                        Accessible.name: row.modelData.title || row.modelData.subtitle || "Launcher result"
-                        Accessible.ignored: row.modelData.kind === "note"
-                        Accessible.onPressAction: if (enabled && visible)
-                            Launcher.activate(row.index)
-
-                        onPositionChanged: function (mouse) {
-                            const p = mapToItem(null, mouse.x, mouse.y);
-                            if (!list.pointerLive) {
-                                list.pointer = p;
-                                list.pointerLive = true;
-                                return;
-                            }
-                            if (Math.abs(p.x - list.pointer.x) < 1 && Math.abs(p.y - list.pointer.y) < 1)
-                                return;
-                            list.pointer = p;
-                            Launcher.selectAt(row.index);
-                        }
-
-                        onClicked: Launcher.activate(row.index)
-
-                        onWheel: function (wheel) {
-                            if (wheel.angleDelta.y < 0 || wheel.pixelDelta.y < 0)
-                                root.loadUnreadMore(Math.ceil((list.contentY + list.height) / root.rowHeight));
-                            wheel.accepted = false;
-                        }
-                    }
-                }
+                delegate: LauncherRow { menu: root }
             }
 
             // The mail Tab opened, under its own row: the text in one piece,
             // wrapped to the box and scrolled by the keys that otherwise move
             // the selection. As tall as the text, and at most what the rest of
             // a full list would have been, so reading never grows the box past
-            // its usual size. Only while one is open (see Launcher.mailOpen).
+            // its usual size. Only while one is open (see LauncherMail.open).
             Flickable {
                 id: reader
                 // In the accessibility tree as a list to scroll, half a view a step.
@@ -1249,7 +988,7 @@ OverlayWindow {
                     reader.contentY = Math.max(0, Math.min(reader.contentHeight - reader.height, reader.contentY + by));
                 }
 
-                visible: Launcher.mailOpen !== null
+                visible: LauncherMail.open !== null
                 width: parent.width
                 height: Math.min(reader.contentHeight, (root.visibleRows - 1) * root.rowHeight - root.contentGap)
                 contentHeight: body.implicitHeight + root.contentGap
@@ -1267,7 +1006,7 @@ OverlayWindow {
                     // the subject rather than out at the box's edge.
                     x: Theme.pillPad
                     width: reader.width - Theme.pillPad * 2
-                    text: Launcher.mailText || "reading…"
+                    text: LauncherMail.text || "reading…"
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     lineHeight: 1.25

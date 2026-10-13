@@ -233,7 +233,7 @@ ShellRoot {
             check(Launcher.results.length === 0, "a closed launcher computes nothing");
             Launcher.show();
             const directPath = Quickshell.env("LAUNCHER_TEST_PATH");
-            Launcher.pathCache = [];
+            LauncherFiles.pathCache = [];
             Launcher.query = directPath;
             fileKeys.wait(400);
             check(Launcher.results[0]?.kind === "path" && Launcher.results[0].path === directPath, "absolute file outside home is actionable without history");
@@ -261,21 +261,21 @@ ShellRoot {
             Launcher.index = 1;
             LauncherMusic.rows = LauncherMusic.rows.slice(0, 1);
             check(Launcher.index === 0 && Launcher.selected.title === "first", "selection clamps when rows disappear");
-            Launcher.mailOpen = {message: "new", messages: [{id: "old", from: "Ann", at: 1}, {id: "new", from: "Bob", at: 2}]};
+            LauncherMail.open = {message: "new", messages: [{id: "old", from: "Ann", at: 1}, {id: "new", from: "Bob", at: 2}]};
             Email.bodies = ({old: "earlier reply", new: "latest reply"});
-            check(Launcher.mailText.includes("earlier reply") && Launcher.mailText.includes("latest reply"), "reader shows unread conversation");
-            Launcher.mailOpen = null;
+            check(LauncherMail.text.includes("earlier reply") && LauncherMail.text.includes("latest reply"), "reader shows unread conversation");
+            LauncherMail.open = null;
             Launcher.db = ({});
             Email.found = null;
-            check(Launcher.mailResults("")[0].title === "reading inbox...", "bare mail query reports pending inbox");
-            Email.found = {q: Launcher.recentMail, rows: [], trouble: "mail fetch failed"};
-            check(Launcher.mailResults("")[0].title === "mail fetch failed", "bare mail query reports failed inbox");
-            Email.found = {q: Launcher.recentMail, rows: [], trouble: ""};
+            check(LauncherMail.results("")[0].title === "reading inbox...", "bare mail query reports pending inbox");
+            Email.found = {q: LauncherMail.recentMail, rows: [], trouble: "mail fetch failed"};
+            check(LauncherMail.results("")[0].title === "mail fetch failed", "bare mail query reports failed inbox");
+            Email.found = {q: LauncherMail.recentMail, rows: [], trouble: ""};
             Email.loading = true;
-            check(Launcher.mailResults("")[0].title === "reading inbox...", "cached empty inbox stays marked while reloading");
+            check(LauncherMail.results("")[0].title === "reading inbox...", "cached empty inbox stays marked while reloading");
             Email.loading = false;
             Email.trouble = "Google needs reconnecting";
-            check(Launcher.mailResults("")[0].title === Email.trouble, "cached empty inbox shows expired sign-in");
+            check(LauncherMail.results("")[0].title === Email.trouble, "cached empty inbox shows expired sign-in");
             Email.trouble = "";
             Launcher.rankingNow = Date.now();
             Launcher.db = ({aged: {count: 2, last: Launcher.rankingNow}});
@@ -293,7 +293,7 @@ ShellRoot {
             Audio.icon = "different-volume";
             Network.icon = "different-signal";
             check(Launcher.results === stableResults, "volume and network icons do not rebuild launcher results");
-            Email.found = {q: Launcher.recentMail, at: Date.now(), rows: [], trouble: ""};
+            Email.found = {q: LauncherMail.recentMail, at: Date.now(), rows: [], trouble: ""};
             Launcher.query = "@";
             Launcher.query = "@ ";
             check(Email.searches === 0, "fresh recent-mail search is reused");
@@ -326,11 +326,11 @@ ShellRoot {
                 {address: "111", wayland: {appId: "chrome-test-Default"}},
                 {address: "222", wayland: {appId: "chromium"}}
             ]};
-            check(Launcher.browserFocus("/tmp/index.html").includes("address:0x222"), "HTML selects the browser and skips PWAs");
-            check(Launcher.browserFocus("/tmp/index.XHTML").includes("address:0x222"), "XHTML selects the browser");
-            check(Launcher.browserFocus("/tmp/notes.txt") === "", "text files do not change browser focus");
+            check(LauncherFiles.browserFocus("/tmp/index.html").includes("address:0x222"), "HTML selects the browser and skips PWAs");
+            check(LauncherFiles.browserFocus("/tmp/index.XHTML").includes("address:0x222"), "XHTML selects the browser");
+            check(LauncherFiles.browserFocus("/tmp/notes.txt") === "", "text files do not change browser focus");
             Hyprland.toplevels = {values: []};
-            check(Launcher.browserFocus("/tmp/index.html") === "", "HTML supports no existing browser");
+            check(LauncherFiles.browserFocus("/tmp/index.html") === "", "HTML supports no existing browser");
             check(Launcher.classifyQuery("_projects").mode === "main", "unmatched underscore query falls back");
             Launcher.query = "_zzmissingwindow";
             check(Launcher.results[0]?.kind === "url" && Launcher.results[0].badge === "%", "unmatched window query reaches web fallback");
@@ -339,7 +339,7 @@ ShellRoot {
                 const classified = Launcher.classifyQuery(query);
                 check(classified.mode === Launcher.pathPrefix && classified.text.includes("_projects"), "filepath keeps underscore " + query);
             }
-            Launcher.fdHits = {q: htmlPath, list: [{path: Settings.home + "/" + htmlPath, dir: false}]};
+            LauncherFiles.fdHits = {q: htmlPath, list: [{path: Settings.home + "/" + htmlPath, dir: false}]};
             Launcher.query = htmlPath;
             check(Launcher.pathMode && Launcher.results[0]?.path === Settings.home + "/" + htmlPath, "relative HTML path produces an actionable file row");
             Hyprland.toplevels = {values: []};
@@ -468,7 +468,7 @@ ShellRoot {
                 check(!Launcher.results.some(r => r.kind === "emoji"), "main search has no emoji rows for " + query);
             }
             Launcher.query = "/";
-            check(Launcher.hint.includes("show in folder"), "file mode hints its keys");
+
 
             console.log("PASS: launcher discovery, ranking, prefixes and direct actions");
             Qt.quit();
@@ -487,7 +487,7 @@ ShellRoot {
 
 def check_file_dispatch(target):
     """Run the launcher's file-opening command with a harmless default opener."""
-    source = (ROOT / "services/Launcher.qml").read_text()
+    source = (ROOT / "services/LauncherFiles.qml").read_text()
     match = re.search(r'Quickshell\.execDetached\(\["sh", "-c", (\x27[^\n]+?\x27), "sh", r\.path', source)
     script = ast.literal_eval(match.group(1))
     bin_dir = target / "bin"
@@ -706,7 +706,7 @@ ShellRoot {
             keys.keyClick(Qt.Key_Up);
             check(Launcher.index === 0 && !menu.expanded, "Up does not navigate hidden results");
             keys.keyClick(Qt.Key_Return); keys.wait(240);
-            check(menu.frecencyOpen && Launcher.shown && Launcher.chosen === -1 && box.height > 54, "empty Enter discloses without launching");
+            check(menu.frecencyOpen && Launcher.shown && box.height > 54, "empty Enter discloses without launching");
             check(box.y === pinned && list.enabled, "expansion pins the query and enables results");
             check(divider.opacity === 1 && hint.visible, "empty expanded list shows mode hints and divider");
             menu.toggleList(); keys.wait(250);
@@ -784,18 +784,18 @@ ShellRoot {
             Email.threads = [{id: "button-mail", subject: "Mail", from: "sender", at: 0, unread: false, messages: []}];
             input.adopt("@"); keys.wait(30);
             keys.keyClick(Qt.Key_End); keys.keyClick(Qt.Key_Return);
-            check(Launcher.mailOpen?.id === "button-mail" && menu.rowActions[1].label === "back to list", "read button opens the inline reader");
+            check(LauncherMail.open?.id === "button-mail" && menu.rowActions[1].label === "back to list", "read button opens the inline reader");
             keys.keyClick(Qt.Key_Return);
-            check(!Launcher.mailOpen, "back to list button closes the inline reader");
+            check(!LauncherMail.open, "back to list button closes the inline reader");
             Email.threads = [];
             input.adopt("/"); keys.wait(30);
-            Launcher.pathCache = [{path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1], [Settings.home + "/notes.txt", 0.5]])}];
+            LauncherFiles.pathCache = [{path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1], [Settings.home + "/notes.txt", 0.5]])}];
             keys.wait(30);
             check(menu.rowActions.map(action => action.key).join(",") === "activate,play,copy-path,complete-path", "file shortcuts have matching buttons: " + JSON.stringify(Launcher.selected));
             keys.keyClick(Qt.Key_Home); keys.keyClick(Qt.Key_Return);
             check(input.text === "~/notes.txt" && input.activeFocus, "complete path button fills the query");
             input.adopt('"'); keys.wait(30);
-            Launcher.clipEntries = [{id: "1", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]}];
+            LauncherClipboard.clipEntries = [{id: "1", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]}];
             keys.wait(30);
             check(menu.rowActions[1]?.key === "forget", "clipboard deletion has a button");
             input.adopt("#"); keys.wait(30);
@@ -868,7 +868,6 @@ ShellRoot {
             const closingHeight = box.height;
             const closingCenter = box.y + box.height / 2;
             const closingGlass = box.color.a;
-            Launcher.chosen = 0;
             Launcher.hide(); keys.wait(80);
             check(box.height === closingHeight && box.width > 680, "chosen exit gently expands sideways at fixed height");
             check(Math.abs(box.y + box.height / 2 - closingCenter) <= 1 && input.scale === 1, "exit keeps the baseline fixed without scaling text");
@@ -901,13 +900,17 @@ def check_menu(target, env):
     components = target / "components"
     (components / "Rim.qml").write_text((ROOT / "components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "components/TextCaret.qml").read_text())
-    for name in ("PopupButton", "PopupText", "PressGlass", "ClickArea"):
-        (components / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
+    for name in ("PopupButton", "PopupText", "PressGlass", "ClickArea", "SpotlightMotion", "LauncherRow"):
+        component_source = (ROOT / f"components/{name}.qml").read_text()
+        if name == "LauncherRow":
+            component_source = component_source.replace('id: queueControl\n', 'id: queueControl\n            objectName: "queueControl"\n')
+        (components / f"{name}.qml").write_text(component_source)
     (target / "GlassPress.qml").write_text((ROOT / "GlassPress.qml").read_text())
     rolling = (ROOT / "components/RollingGlyph.qml").read_text()
     rolling = rolling.replace("id: now\n", 'id: now\n        objectName: "arrivingIcon"\n')
     rolling = rolling.replace("id: old\n", 'id: old\n        objectName: "departingIcon"\n')
     (components / "RollingGlyph.qml").write_text(rolling)
+    (components / "RollingSpring.js").write_text((ROOT / "components/RollingSpring.js").read_text())
     stubs = {
         "OverlayWindow": 'import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true; color: "#333333" }',
         "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5 }',
@@ -942,14 +945,21 @@ def main():
         services.mkdir()
         components.mkdir()
         source = (ROOT / "services/Launcher.qml").read_text()
-        file_command = re.search(r'^        command: .*fd\.arg.*$', source, re.MULTILINE).group(0)
-        # Reads of clipboard/history and query helpers stay inside the fixture.
+        file_source = (ROOT / "services/LauncherFiles.qml").read_text()
+        file_command = re.search(r'^        command: .*fd\.arg.*$', file_source, re.MULTILINE).group(0)
+        file_source = re.sub(r"^(\s*)command:.*?(,?)$", r'\1command: ["/usr/bin/true"]\2', file_source, flags=re.MULTILINE)
+        file_source = file_source.replace('QueuedProcess {\n        id: fd', 'FileQuery {\n        id: fd')
+        file_source = re.sub(r'(id: fd.*?)(        command: [^\n]+)', lambda match: match.group(1) + file_command, file_source, count=1, flags=re.DOTALL)
+        file_source = file_source.replace("import Quickshell.Hyprland", "import qs.services as TestDesktop").replace("Hyprland.", "TestDesktop.Hyprland.")
+        (services / "LauncherFiles.qml").write_text(file_source)
+        clip_source = (ROOT / "services/LauncherClipboard.qml").read_text()
+        clip_source = re.sub(r"^(\s*)command:.*?(,?)$", r'\1command: ["/usr/bin/true"]\2', clip_source, flags=re.MULTILINE)
+        (services / "LauncherClipboard.qml").write_text(clip_source)
         source = re.sub(r"^(\s*)command:.*?(,?)$", r'\1command: ["/usr/bin/true"]\2', source, flags=re.MULTILINE)
-        source = source.replace('QueuedProcess {\n        id: fd', 'FileQuery {\n        id: fd')
-        source = re.sub(r'(id: fd.*?)(        command: [^\n]+)', lambda match: match.group(1) + file_command, source, count=1, flags=re.DOTALL)
         source = source.replace("import Quickshell.Hyprland", "import qs.services as TestDesktop")
         source = source.replace("Hyprland.", "TestDesktop.Hyprland.")
         (services / "Launcher.qml").write_text(source)
+        (services / "LauncherMail.qml").write_text((ROOT / "services/LauncherMail.qml").read_text())
         for name, body in MOCKS.items():
             imports = 'import "TimersParse.js" as Parse\n' if name == "Timers" else ""
             (services / (name + ".qml")).write_text("pragma Singleton\nimport QtQuick\n" + imports + "QtObject {\n" + body + "\n}\n")

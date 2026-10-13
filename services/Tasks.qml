@@ -307,8 +307,6 @@ GoogleService {
     }
 
     // Date keywords for the first word; the task title follows them.
-    readonly property string syntax: ["today", "tomorrow", "fri", "2026-10-01"].join("   ")
-
     function readDay(word: string): string {
         if (word === "today")
             return root.today;

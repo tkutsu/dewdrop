@@ -28,49 +28,18 @@ OverlayWindow {
     onDismissed: Preferences.hide()
 
     // Match the launcher's width bounce and defocus without scaling the controls.
-    property real widthRatio: 1012 / 960
-    property real contentAlpha: 0
-    property real exitBlur: 0
+    property alias widthRatio: motion.widthRatio
+    property alias contentAlpha: motion.contentAlpha
+    property alias exitBlur: motion.exitBlur
     readonly property real extraWidth: root.boxWidth * (root.widthRatio - 1)
     readonly property bool presenting: root.opened || root.contentAlpha > 0
 
-    onOpenedChanged: {
-        entrance.stop();
-        dismissal.stop();
-        if (Theme.reduceMotion) {
-            root.widthRatio = 1;
-            root.contentAlpha = root.opened ? 1 : 0;
-            root.exitBlur = 0;
-        } else if (root.opened) {
-            entrance.start();
-        } else {
-            dismissal.start();
-        }
+    SpotlightMotion {
+        id: motion
+        opened: root.opened
+        dismissMs: Preferences.dismissMs
     }
 
-    ParallelAnimation {
-        id: entrance
-        SequentialAnimation {
-            PauseAnimation { duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 976 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 955 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 948 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 950 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 954 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 958 / 960; duration: 33 }
-            NumberAnimation { target: root; property: "widthRatio"; to: 1; duration: 33 }
-            PauseAnimation { duration: 69 }
-        }
-        NumberAnimation { target: root; property: "contentAlpha"; to: 1; duration: 67 }
-        NumberAnimation { target: root; property: "exitBlur"; to: 0; duration: 67 }
-    }
-
-    ParallelAnimation {
-        id: dismissal
-        NumberAnimation { target: root; property: "widthRatio"; to: 1.03; duration: Preferences.dismissMs; easing.type: Easing.InCubic }
-        NumberAnimation { target: root; property: "contentAlpha"; to: 0; duration: Preferences.dismissMs; easing.type: Easing.InCubic }
-        NumberAnimation { target: root; property: "exitBlur"; to: 1; duration: Preferences.dismissMs; easing.type: Easing.InCubic }
-    }
 
     property int page: 0
     property string query: ""
@@ -207,7 +176,7 @@ OverlayWindow {
                     title: "Time",
                     rows: [
                         { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") },
+                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
                         { type: "choice", id: "timeCase", title: "Time letter case", text: "Change the letter case of the clock and alarm times.", options: [{ value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
                         { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", text: "Use two-thirds font size for AM/PM in the bar, on the same baseline with no preceding space. Popup times keep AM/PM at full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
                     ]
@@ -215,7 +184,7 @@ OverlayWindow {
                 {
                     title: "Date",
                     rows: [
-                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: "ddd d MMM", get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || "ddd d MMM") },
+                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
                         { type: "choice", id: "dateCase", title: "Date letter case", text: "Change the case of weekday and month names in the bar.", options: [{ value: "normal", label: "Normal" }, { value: "capitalize", label: "Capitalized" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
                     ]
                 }
@@ -257,7 +226,12 @@ OverlayWindow {
                     title: "Power",
                     text: "Lock, sleep, restart and the rest, found by typing their names.",
                     rows: root.powerRows
-                },
+                }
+            ]
+        },
+        {
+            title: "Apps",
+            sections: [
                 {
                     title: "Apps",
                     text: "Off leaves an app, or one of its own actions, out of the launcher's results. Nothing is uninstalled, and its desktop file is left alone.",
