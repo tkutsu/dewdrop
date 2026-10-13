@@ -97,6 +97,24 @@ ShellRoot {
                 }
                 check(true, "final width settles smoothly without extra reversals");
             }
+            function checkHoverFades(pill, expanded) {
+                const from = music.width;
+                if (expanded)
+                    mouseMove(pill, pill.width / 2, pill.height / 2);
+                else
+                    mouseMove(win.contentItem, 850, 150);
+                wait(16);
+                check(music.handsOut === expanded && music.contentAnimating, "hover starts " + (expanded ? "expanding" : "contracting") + " the pill");
+                let frames = 0;
+                while (music.contentAnimating && frames < 100) {
+                    check(!pill.scrolling && pill.offset === 0, "title stays still during the hover transition");
+                    check(pill.overflow > 0 && pill.rightFade > 0 && pill.layer.enabled, "overflowing title keeps its right fade during the hover transition");
+                    frames++;
+                    wait(16);
+                }
+                check(frames > 1 && !music.contentAnimating && pill.scrolling, "hover transition settles and resumes title scrolling");
+                check(expanded ? music.width > from : music.width < from, "hover changes the pill width in the expected direction");
+            }
             function run() {
                 wait(3500);
                 const pill = named(music, "title");
@@ -105,6 +123,10 @@ ShellRoot {
                 check(pill && header && headerText, "real pill and popup titles found");
                 check(Settings.scrollMusicTitles && pill.scrolling && header.scrolling, "overflow scrolls by default in both titles");
                 check(pill.width <= Theme.mediaTitleWidth, "long title keeps the pill width capped");
+                mouseMove(win.contentItem, 850, 150);
+                tryCompare(music, "contentAnimating", false, 1500);
+                checkHoverFades(pill, true);
+                checkHoverFades(pill, false);
                 pill.restart(); header.restart(); cycle.restart();
                 check(pill.leftFade === 0 && header.leftFade === 0 && pill.rightFade > 0 && header.rightFade > 0, "start stays clear while overflowing right edges fade");
                 wait(1800);
