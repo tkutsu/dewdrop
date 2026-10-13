@@ -9,7 +9,7 @@ import qs
 //   type      "toggle", "choice", "slider" or "text": which control
 //   title     its name
 //   text      what it does, optional
-//   tooltip   extra help shown on hover, optional
+//   tooltip   extra help shown on info-icon hover, optional
 //   icon      an icon name or path, or glyph, a Theme.glyph value; optional
 //   get, set  read and write the value, wherever it lives (Settings,
 //             DrawerPins, ...). `get` is read in a binding, so whatever it
@@ -64,10 +64,13 @@ Item {
     }
 
     HoverPopup {
-        anchorItem: root
-        anchorHeight: root.height
-        hovered: hover.hovered && root.visible && root.enabled
+        anchorItem: info
+        anchorHeight: info.height
+        hovered: infoHover.containsMouse && root.visible && root.enabled
         text: root.setting.tooltip ?? ""
+        // Settings help sits over other text, so its fill must hide what is behind it.
+        onItemChanged: if (item)
+            item.chromeItem.color = Qt.binding(() => Theme.solid)
     }
 
     TapHandler {
@@ -111,12 +114,47 @@ Item {
         width: root.stacked ? root.width - x - 8 : control.x - 16 - x
         spacing: 2
 
-        PopupText {
-            id: title
-
+        Item {
             width: parent.width
-            elide: Text.ElideRight
-            text: root.setting.title
+            height: Math.max(title.implicitHeight, info.visible ? info.height : 0)
+
+            PopupText {
+                id: title
+
+                width: Math.min(implicitWidth, parent.width - (info.visible ? 22 : 0))
+                anchors.verticalCenter: parent.verticalCenter
+                elide: Text.ElideRight
+                text: root.setting.title
+            }
+
+            Item {
+                id: info
+
+                x: title.width + 6
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16
+                height: 16
+                visible: !!root.setting.tooltip
+
+                Glyph {
+                    anchors.centerIn: parent
+                    height: parent.height
+                    text: "\u{f02fd}" // nf-md-information_outline
+                    fontSize: Theme.popupGlyphSize
+                    color: Theme.label2
+                }
+
+                ClickArea {
+                    id: infoHover
+
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+                    hoverEnabled: true
+                    hovers: true
+                    name: root.setting.title + " help"
+                    hint: root.setting.tooltip ?? ""
+                }
+            }
         }
 
         PopupText {

@@ -185,8 +185,14 @@ OverlayWindow {
                     title: "Clock",
                     rows: [
                         { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Set the bar's date display. Hover for format letters and examples.", tooltip: "d/dd: day number (5/05). ddd/dddd: short/full weekday name.\nM/MM: month number (3/03). MMM/MMMM: short/full month name.\nyy/yyyy: year (26/2026). Names follow your locale.\nUse spaces, / or - as separators. Put literal text in single quotes.\nExamples: ddd d MMM or dd/MM/yyyy. Empty restores ddd d MMM.", placeholder: "ddd d MMM", get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || "ddd d MMM") },
-                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Set the bar's time display. Alarms follow its 12h or 24h notation. Hover for format letters and examples.", tooltip: "H/HH: 24h hour (2/02). h/hh: 12h hour with AP or ap, otherwise 24h.\nm/mm: minutes (5/05). s/ss: seconds (9/09), refreshed every second.\nAP/ap: AM/PM or am/pm. z/zzz: fractional seconds (sampled at the clock's refresh rate).\nt: time zone abbreviation. tt/ttt: UTC offset without/with a colon. tttt: full time zone name.\nPut literal text in single quotes. Examples: HH:mm or h:mm AP.\nAlarms follow its 12h or 24h notation. Empty restores HH:mm.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") }
+                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: "ddd d MMM", get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || "ddd d MMM") },
+                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") }
+                    ]
+                },
+                {
+                    title: "Music",
+                    rows: [
+                        { type: "toggle", id: "scrollMusicTitles", title: "Scroll long track titles", text: "Scroll titles that do not fit in the music pill or player. Reduce motion keeps them still.", get: () => Settings.scrollMusicTitles, set: v => Settings.set("scrollMusicTitles", v) }
                     ]
                 },
                 {
