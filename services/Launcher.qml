@@ -171,7 +171,7 @@ Singleton {
         if (root.query.replace(/^\s+/, "").length > 1)
             return "";
         if (root.musicMode)
-            return "→ at end expand  ·  enter queue  ·  ctrl+enter play";
+            return "enter play/pause";
         // The keys, and Gmail's own search operators, which nothing on a mail
         // row hints at.
         if (root.mailOpen)
@@ -1673,8 +1673,8 @@ Singleton {
             }
         })
 
-    // Ctrl+Enter requests play for music, compose for mail, or the folder for
-    // a file; Enter queues music.
+    // Ctrl+Enter requests play for library results, compose for mail, or the
+    // folder for a file. Queue rows control the existing playback.
     function activate(i, mode): void {
         const r = root.results[i];
         // Ctrl+Enter in mail mode writes a new one, whatever row is selected

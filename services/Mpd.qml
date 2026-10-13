@@ -491,8 +491,8 @@ Singleton {
         idling = true;
         // Only the subsystems the bar renders; anything else stays silent.
         // The last two are not the bar's: they are the launcher's # mode,
-        // whose library is a copy of the database and whose first screen is
-        // the stored playlists. Both move rarely enough to cost nothing —
+        // whose searches include the library and stored playlists.
+        // Both move rarely enough to cost nothing —
         // `database` only when mpd rescans the disk.
         root.say("idle player mixer options playlist database stored_playlist\n");
     }
