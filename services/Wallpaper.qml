@@ -376,7 +376,7 @@ Singleton {
     }
 
     function openFolder() {
-        Quickshell.execDetached(Settings.inTerminal(["yazi", root.dir]));
+        Quickshell.execDetached([Settings.fileManager, root.dir]);
     }
 
     FileView {
