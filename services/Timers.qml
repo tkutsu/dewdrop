@@ -414,23 +414,17 @@ Singleton {
     onRingingChanged: if (root.ringing.length === 0)
         ring.running = false
 
-    function notify(title: string, body: string, urgent: bool): void {
-        Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", urgent ? "critical" : "normal", title, body]);
-    }
-
     readonly property string phoneWarning: Pushover.phoneWarning
 
     Connections {
         target: Pushover
-        function onFailed(reason: string): void { root.phoneFailed(reason); }
+        function onFailed(reason: string): void {
+            console.warn("Phone alert: " + reason);
+            Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", "normal", "Phone alert failed", reason]);
+        }
         function onAcknowledged(id: string, firedAt: real): void {
             root._unring(root.ringing.filter(entry => entry.id !== id || entry.firedAt !== firedAt));
         }
-    }
-
-    function phoneFailed(reason: string): void {
-        console.warn("Phone alert: " + reason);
-        root.notify("Phone alert failed", reason, false);
     }
 
     // One sound at a time, and one this file can still stop. execDetached sets
@@ -454,8 +448,6 @@ Singleton {
     // --- reading what was typed ----------------------------------------------
     // The grammar lives in TimersParse.js; these are the names the launcher
     // and the IPC call it by.
-    readonly property string syntax: Parse.syntax
-
     function parse(text: string): var {
         return Parse.parse(text);
     }
@@ -481,10 +473,8 @@ Singleton {
     }
 
     // --- the clock -----------------------------------------------------------
-    // One second while something is counting down in front of someone, and
-    // nothing at all while the only thing pending is an alarm hours away. A
-    // countdown's label changes every second and has to; an alarm's does not
-    // change until it goes off, so it gets one wakeup, aimed at that moment.
+    // Countdown labels change every second. Alarms keep a precise deadline
+    // and share WallClock's resume and clock-correction checks.
     readonly property bool counting: root.timers.some(e => e.running) || root.ringing.length > 0
 
     Timer {
@@ -494,17 +484,20 @@ Singleton {
         onTriggered: root.tick()
     }
 
-    // Re-aimed whenever the list changes, since the next alarm may have, and
-    // after every shot, since one shot is rarely the whole wait: it is held
-    // to a minute at most rather than armed for the distance. Qt's timers run
-    // on a clock that stops during suspend, so one armed for eight hours
-    // before the lid closed would fire eight awake hours later, long after
-    // the alarm it was for. A wakeup a minute costs nothing, and the tick it
-    // runs fires anything the clock has already passed.
-    //
-    // Set by hand rather than bound: a single-shot Timer turns its own
-    // `running` off when it fires, and a binding on it would not be looked at
-    // again until something else changed.
+    // Shared clock samples catch resume and clock corrections; the deadline timer
+    // still fires normal alarms between samples. Empty lists need no expiry work.
+    Connections {
+        target: WallClock
+        enabled: root.loaded
+
+        function onNowChanged(): void {
+            root.tick();
+            root.arm();
+        }
+    }
+
+    // Aim once at the next alarm, and re-aim after clock samples or list changes.
+    // Set by hand because a single-shot Timer clears its own running state.
     Timer {
         id: wake
         onTriggered: {
@@ -517,7 +510,7 @@ Singleton {
         wake.stop();
         if (root.counting || !root.nextAlarm)
             return;
-        wake.interval = Math.max(50, Math.min(60000, root.nextAlarm.endsAt - Date.now()));
+        wake.interval = Math.max(50, root.nextAlarm.endsAt - Date.now());
         wake.start();
     }
 

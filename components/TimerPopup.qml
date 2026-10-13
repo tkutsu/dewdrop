@@ -80,13 +80,13 @@ Popup {
                 title: e.label !== "" ? e.label : "Timer",
                 // Left to the delegate, off `entry` above.
                 readout: "",
-                name: "Cancel " + (e.label || "timer"),
-                act: () => Timers.cancel(e.id),
+                name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
+                act: () => Timers.toggle(e.id),
                 buttons: [
                     {
-                        name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
-                        glyph: e.running ? Theme.glyph.paused : Theme.glyph.playing,
-                        act: () => Timers.toggle(e.id)
+                        name: "Cancel " + (e.label || "timer"),
+                        glyph: Theme.glyph.close,
+                        act: () => Timers.cancel(e.id)
                     }
                 ]
             });
@@ -106,13 +106,13 @@ Popup {
                 dim: !e.running,
                 title: e.label !== "" ? e.label : "Alarm",
                 readout: Timers.alarmTime(e.hour, e.minute),
-                name: "Cancel " + (e.label || "alarm"),
-                act: () => Timers.cancel(e.id),
+                name: (e.running ? "Turn off " : "Turn on ") + (e.label || "alarm"),
+                act: () => Timers.toggle(e.id),
                 buttons: [
                     {
-                        name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
-                        glyph: e.running ? Theme.glyph.paused : Theme.glyph.playing,
-                        act: () => Timers.toggle(e.id)
+                        name: "Cancel " + (e.label || "alarm"),
+                        glyph: Theme.glyph.close,
+                        act: () => Timers.cancel(e.id)
                     }
                 ]
             });
@@ -158,8 +158,7 @@ Popup {
             width: root.bodyWidth
             height: root.rowHeight
             name: row.modelData.name
-            chosen: choice.item === row
-            blinkOn: choice.lit
+            blink: choice
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: choice.start(row, row.modelData.act)
 
