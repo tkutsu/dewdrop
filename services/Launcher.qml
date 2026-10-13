@@ -34,37 +34,29 @@ Singleton {
     // One letter each, and Google has none at all — it is what a bare "%"
     // does, so the search run most often costs the fewest keys. Claude is
     // "%l" because ChatGPT holds the "c", so the key moved to the next free
-    // letter of the word, which costs nothing to remember because the hint
-    // line marks the key where it falls: "%c[l]aude".
+    // letter of the word: "%l" opens Claude.
     //
     // %s is replaced with the URL-encoded query. Every engine here has a place
     // to put one, which is why there is no Gemini: neither gemini.google.com
     // nor AI Studio takes a prompt in the URL, so an entry could only open an
     // empty chat and drop what was typed.
     //
-    // `hint` is the word the query line's hint writes the engine as,
-    // and `key` has to be one of its letters: the line brackets the key inside
-    // the word rather than spelling it out beside it, so the word is the name
-    // itself rather than an abbreviation making room for a repeat of the key.
     readonly property string enginePrefix: "%"
 
     readonly property var engines: [
         {
             key: "",
             name: "Google",
-            hint: "google",
             url: "https://www.google.com/search?q=%s"
         },
         {
             key: "y",
             name: "YouTube",
-            hint: "youtube",
             url: "https://www.youtube.com/results?search_query=%s"
         },
         {
             key: "c",
             name: "ChatGPT",
-            hint: "chatgpt",
             url: "https://chatgpt.com/?q=%s"
         },
         {
@@ -74,12 +66,10 @@ Singleton {
             // in it, which is the whole test for being in this
             // list — see the note about Gemini above.
             url: "https://claude.ai/new?q=%s",
-            hint: "claude"
         },
         {
             key: "x",
             name: "1337x",
-            hint: "1337x",
             // Path, not a query string: 1337x takes the term as a
             // path segment with the page number after it. The 1 is
             // the first page.
@@ -88,7 +78,6 @@ Singleton {
         {
             key: "t",
             name: "Translate",
-            hint: "translate",
             // Auto-detect the source, English the target: the
             // text is what changes, the direction rarely does.
             url: "https://translate.google.com/?sl=auto&tl=en&text=%s&op=translate"
@@ -96,11 +85,9 @@ Singleton {
         {
             key: "m",
             name: "Maps",
-            hint: "maps",
             url: "https://www.google.com/maps/search/%s"
         }
     ]
-
 
     // Modes with one destination use a prefix directly.
     //
@@ -151,44 +138,6 @@ Singleton {
     // letter that picks each one is the thing worth having in front of you.
     readonly property string prefixHint: root.modes.map(mode => mode.prefix + mode.hint).join("   ")
 
-    // Each engine written as one word with its key bracketed inside it:
-    // "%[y]outube". The brackets are the whole instruction — which letter to
-    // type and where it sits in the name — in the space the name was taking
-    // anyway, where "%y youtube" spent a word saying the key twice.
-    //
-    // Google gets no brackets because it has no key, which is what "a bare %
-    // is a Google search" looks like written down.
-    readonly property string engineHint: root.engines.map(e => {
-            const at = e.hint.indexOf(e.key);
-            if (!e.key || at < 0)
-                return root.enginePrefix + e.hint;
-            return root.enginePrefix + e.hint.slice(0, at) + "[" + e.key + "]" + e.hint.slice(at + 1);
-        }).join("   ")
-
-    // Show hints for an empty launcher or a bare mode prefix. Any character
-    // after the prefix, including a space, hides the hint until removed.
-    readonly property string hint: {
-        if (root.query.replace(/^\s+/, "").length > 1)
-            return "";
-        if (root.musicMode)
-            return "enter play/pause";
-        // The keys, and Gmail's own search operators, which nothing on a mail
-        // row hints at.
-        if (root.mailOpen)
-            return "tab back  ·  ↑↓ scroll  ·  enter open in gmail";
-        if (root.mailMode)
-            return "tab read  ·  ctrl+enter new mail  ·  from:  subject:  has:attachment";
-        if (root.taskMode)
-            return Tasks.syntax + "   " + Timers.syntax;
-        if (root.pathMode)
-            return "→ at end complete  ·  ctrl+enter show in folder  ·  ctrl+c copy path";
-        if (root.classification.mode === "empty")
-            return root.prefixHint;
-        if (root.classification.mode === root.enginePrefix && !root.classification.text)
-            return root.engineHint;
-        return "";
-    }
-
     // How many rows are worth ranking; the box shows a dozen of them at once.
     readonly property int maxResults: 50
     // How hard usage history pushes a match up the list. High enough that the
@@ -216,10 +165,6 @@ Singleton {
     property int index: 0
     onResultsChanged: if (root.index >= root.results.length)
         root.index = Math.max(0, root.results.length - 1)
-
-    // Record the activated row before closing; an ordinary dismissal leaves -1.
-    // show() clears it for the next query.
-    property int chosen: -1
 
     // The row the box is on, and whether the box is listing files at all.
     // Both are for the preview panel, which is the one thing that cares what
@@ -300,7 +245,7 @@ Singleton {
     // A changed query starts at its first match.
     onQueryChanged: {
         root.index = 0;
-        root.mailOpen = null;
+
         root.route();
     }
 
@@ -348,30 +293,19 @@ Singleton {
         root.query = "";
         root.index = 0;
         // File and clipboard results are refreshed for each opening.
-        root.clipEntries = [];
-        clip.asked = false;
-        fasd.asked = false;
-        root.chosen = -1;
+        for (const provider of Object.values(root.providers))
+            provider.cancel();
         root.shown = true;
-    }
-
-    // Record the choice before closing and updating its usage history.
-    function leave(i): void {
-        root.chosen = i;
-        root.hide();
     }
 
     function hide(): void {
         root.shown = false;
-        root.fdHits = ({q: "", list: []});
         // Closing is not a keystroke, so route() never runs to stop the clocks
         // the modes keep; a run they started against a box that is gone would
         // be work nobody sees.
         qalc.cancel();
-        fd.cancel();
-        LauncherMusic.cancel();
-        mailSearch.stop();
-        mailSearch.want = "";
+        for (const provider of Object.values(root.providers))
+            provider.cancel();
     }
 
     // --- matching ------------------------------------------------------------
@@ -424,13 +358,20 @@ Singleton {
 
     // Each explicit mode builds rows from the text prepared by classifyQuery.
     // The explicit calculator accepts whatever qalc says; automatic maths is strict.
+    readonly property var providers: ({
+        [root.musicPrefix]: LauncherMusic,
+        [root.pathPrefix]: LauncherFiles,
+        [root.mailPrefix]: LauncherMail,
+        [root.clipPrefix]: LauncherClipboard
+    })
+
     readonly property var modeResults: ({
-            [root.pathPrefix]: rest => root.pathResults(rest),
+            [root.pathPrefix]: rest => LauncherFiles.results(rest),
             [root.calcPrefix]: rest => root.calcResults(rest, false),
-            [root.clipPrefix]: rest => root.clipResults(rest),
+            [root.clipPrefix]: rest => LauncherClipboard.results(rest),
             [root.windowPrefix]: rest => root.windowResults(rest),
             [root.musicPrefix]: rest => LauncherMusic.results(rest),
-            [root.mailPrefix]: rest => root.mailResults(rest),
+            [root.mailPrefix]: rest => LauncherMail.results(rest),
             [root.taskPrefix]: rest => root.taskResults(rest)
         })
 
@@ -689,221 +630,6 @@ Singleton {
         return scored;
     }
 
-    // fasd's database, re-read on the first "/" of each open. It is one
-    // ~80-line file under ~/.cache/fasd rather than a filesystem walk, so the
-    // whole thing lands in about 15ms — long before the prefix has finished
-    // being typed. Asked for then rather than on every open, because most
-    // opens never reach it. The last read stands in while the new one runs:
-    // a list that is a session old is still the right list, where a blank
-    // one for a frame is a flicker.
-    //
-    // This half is instant and needs no debounce, which is why it is a
-    // separate process from the fd half below rather than one call that
-    // returns both: the list you have opened before is on screen from the
-    // first keystroke, and the disk is walked behind it. What fasd cannot do
-    // is reach a file never opened at all, and that is what fd is for.
-    //
-    // Nothing is filtered out of this. fasd only ever records paths opened on
-    // purpose, so cache and build noise never enters it — the ignore file the
-    // fd half uses was measured against this database and matched none of it.
-    //
-    // { dir, path, base, fields }, with `fields` the basename and the path
-    // folded for the matcher — once, here, rather than per keystroke.
-    property var pathCache: []
-
-    // One pass does two jobs: drop entries whose path has since been deleted
-    // (fasd keeps them), and label each survivor d or f, so a row can pick its
-    // icon and Enter can pick its action without stat-ing anything again.
-    Process {
-        id: fasd
-
-        // Whether the list has been asked for during this open, not whether
-        // it has arrived.
-        property bool asked: false
-
-        command: ["sh", "-c", "fasd -Ral | while IFS= read -r p; do if [ -d \"$p\" ]; then printf 'd %s\\n' \"$p\"; elif [ -e \"$p\" ]; then printf 'f %s\\n' \"$p\"; fi; done"]
-
-        stdout: StdioCollector {
-            onStreamFinished: {
-                // Split on the first space only: the type is one character, and
-                // everything after it is the path, spaces and all.
-                root.pathCache = text.split("\n").filter(l => l.length > 2).map(l => {
-                    const path = l.slice(2);
-                    const base = path.slice(path.lastIndexOf("/") + 1);
-                    // The basename is the thing being thought of. The
-                    // directories above it are context and score at half, or
-                    // a deep path would beat the file actually named for the
-                    // query on sheer length.
-                    return {
-                        dir: l.charAt(0) === "d",
-                        path: path,
-                        base: base,
-                        fields: root.prepFields([[base, 1], [path, 0.5]])
-                    };
-                });
-            }
-        }
-    }
-
-    // What fd last found, tagged with the query it was for. See QueuedProcess.
-    property var fdHits: null
-
-    // What never turns up in a search. Not a list here, because
-    // ~/.config/fish/functions/f.fish searches the same machine from the
-    // terminal and has to skip exactly the same things — two copies of a
-    // 230-entry denylist drift the moment either is edited. fd reads the file
-    // itself, so neither side parses it.
-    //
-    // A missing file costs a warning on fd's stderr, which nothing here reads,
-    // and an unfiltered walk. The mode gets noisy rather than breaking.
-    readonly property string fdIgnore: Paths.script("f/ignore")
-
-    // A slash separates terms the same way a space does, so a path can be
-    // described either way round: "downloads torrents" and "downloads/torrents"
-    // are the same three-and-a-bit words about the same place, and neither is
-    // the literal name of anything.
-    //
-    // A leading "~" is home, as the shell reads it: fasd and fd both hold
-    // whole paths, and neither has a tilde in it to match.
-    function fdTerms(query) {
-        return Settings.expand(query).toLowerCase().split(/[\s/]+/).filter(t => t.length && t !== "." && t !== "..");
-    }
-
-    // Terms joined with a gap, so "hypr key" finds keybinds.lua under hypr the
-    // same way the fasd half does. Escaped first: a query is typed text, and
-    // an unbalanced bracket in it would be a regex error rather than no match.
-    function fdPattern(query) {
-        return root.fdTerms(query).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
-    }
-
-    QueuedProcess {
-        id: fd
-
-        // Longer than the calculator's: this one spawns a walk of the disk,
-        // and the fasd half has already put something on screen to look at.
-        interval: 150
-
-        // Lowercase pattern plus fd's smart case means this is case-
-        // insensitive, which is what a launcher query wants.
-        // Bounded like qalc's, and for the same reason rather than the same
-        // risk: this one comes back in about 20ms, but a stalled mount under
-        // $HOME is not something a launcher should be able to hang on.
-        //
-        // --full-path, but only past the first word. fd matches the base name
-        // alone by default, and for one word that is exactly right: "launcher"
-        // means a thing called launcher, not the hundred files sitting inside
-        // a directory of that name. A second word cannot be part of the same
-        // name, though — at that point the query is describing a path rather
-        // than naming a file ("download torrent", "hypr/keybinds"), and only
-        // the whole path can answer it. Which is also what f.fish does, having
-        // never had a pattern at all: it lists the disk and lets the matcher
-        // see the paths whole.
-        //
-        // The cap goes up with it, because a path pattern matches every file
-        // under every directory it describes and the first 60 in walk order
-        // would all come from whichever one fd reached first. The ranking
-        // below still puts a name match over a path match; this is about
-        // giving it enough to rank.
-        // Resolve an existing absolute path before searching the home directory.
-        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", Settings.expand(fd.arg), "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
-
-        onResult: function (arg, text) {
-            if (!root.shown || arg !== fd.want)
-                return;
-            root.fdHits = ({
-                    q: arg,
-                    // fd ends a directory with a slash, which is the only
-                    // thing in the output that says which of the two it is.
-                    list: text.split("\n").filter(l => l.length).map(l => ({
-                                dir: l.charAt(l.length - 1) === "/",
-                                path: l.charAt(l.length - 1) === "/" ? l.slice(0, -1) : l
-                            }))
-                });
-        }
-    }
-
-    function tildeHome(path) {
-        const home = Settings.home;
-        return home && path.startsWith(home) ? "~" + path.slice(home.length) : path;
-    }
-
-    function pathResults(query) {
-        const hits = root.fdHits;
-        if (hits && hits.q === query) {
-            const exact = Settings.expand(query).replace(/\/$/, "") || "/";
-            const direct = hits.list.find(h => h.path === exact);
-            if (direct)
-                return [root.pathRow(direct.path, direct.dir, false)];
-        }
-        // Split on slashes as well as spaces, so "downloads/torrents" scores
-        // as two words against the name and the path rather than as one long
-        // one that has to be a subsequence of either.
-        const terms = root.fdTerms(query).map(t => Fuzzy.prepQuery(t));
-        const scored = [];
-        // A local, not root.pathCache[i] in the loop: each read inside the
-        // results binding would register as a dependency of its own.
-        const cache = root.pathCache;
-
-        for (let i = 0; i < cache.length; i++) {
-            const e = cache[i];
-
-            // fasd hands the list over already ranked by frecency, so with
-            // nothing typed its order is the answer; scoring down the list is
-            // what preserves it through the sort below.
-            let s = -i;
-
-            if (terms.length) {
-                const m = root.matchPrepped(terms, e.fields);
-                if (m === null)
-                    continue;
-                // Rank still breaks ties between equally good matches, gently.
-                s = m - i * 0.1;
-            }
-
-            scored.push({
-                s: s,
-                e: e
-            });
-        }
-
-        scored.sort((a, b) => b.s - a.s);
-        const rows = scored.slice(0, root.maxResults).map(x => root.pathRow(x.e.path, x.e.dir, false));
-
-        // And then everything fasd has never heard of. Same two sources in
-        // the same order as ~/.config/fish/functions/f.fish: what you have
-        // opened before, then what is actually on the disk. f.fish can afford
-        // a depth-7 walk with no result cap because fzf streams and you are
-        // already waiting; this caps the scan at 60 hits, or 200 for multiple terms,
-        // and stopped at depth 6, which lands in about 40ms.
-        if (hits && hits.q === query) {
-            const seen = {};
-            for (const r of rows)
-                seen[r.path] = true;
-            for (const h of hits.list) {
-                if (seen[h.path])
-                    continue;
-                rows.push(root.pathRow(h.path, h.dir, true));
-            }
-        }
-        return rows.slice(0, root.maxResults);
-    }
-
-    function pathRow(path, dir, fresh) {
-        const cut = path.lastIndexOf("/");
-        return {
-            kind: "path",
-            path: path,
-            dir: dir,
-            icon: dir ? "folder" : "text-x-generic",
-            title: path.slice(cut + 1),
-            subtitle: root.tildeHome(path.slice(0, cut) || "/"),
-            // Rows fasd did not know about, drawn a shade back: they are the
-            // ones you have not opened before, and the list is still ordered
-            // history first.
-            dim: fresh
-        };
-    }
-
     // --- tasks and timers ----------------------------------------------------
 
     // Typing writes something down; not typing lists what is already written.
@@ -1031,110 +757,6 @@ Singleton {
         return {kind: "note", glyph, title, subtitle, raw: true};
     }
 
-    // --- mail ----------------------------------------------------------------
-
-    // "@" on its own is the unread the bar already has, so it is on screen at
-    // once. Anything past it is a Gmail search, which is a round trip to
-    // Google — debounced harder than the disk walk for it, and shown only
-    // once the answer for this exact query is back (see Email.found).
-    function mailResults(query) {
-        const note = title => [root.noteRow(Theme.glyph.mailRead, title)];
-        if (!Email.configured)
-            return note(`Gmail not connected — run ${Google.setup}`);
-
-        // Reading one: its row alone, as the header over its text, which the
-        // box draws under the list (see LauncherMenu's reader).
-        if (root.mailOpen)
-            return [root.mailRow(root.mailOpen)];
-
-        if (!query) {
-            if (!Email.loaded)
-                return note(Email.trouble || "reading mail…");
-            if (Email.threads.length)
-                return Email.threads.map(root.mailRow);
-            // Nothing unread: the inbox, newest first, which route() has
-            // already asked for. The note stands in until it lands.
-            const recent = Email.found;
-            if (Email.trouble)
-                return note(Email.trouble);
-            if (Email.loading && !recent?.rows.length)
-                return note("reading inbox...");
-            if (!recent || recent.q !== root.recentMail)
-                return note("reading inbox...");
-            if (recent.trouble)
-                return note(recent.trouble);
-            if (!recent.rows.length)
-                return note("no unread mail");
-            return recent.rows.map(root.mailRow);
-        }
-
-        const found = Email.found;
-        if (!found || found.q !== query)
-            return note("searching…");
-        if (found.trouble)
-            return note(found.trouble);
-        return found.rows.length ? found.rows.map(root.mailRow) : note("no mail matches");
-    }
-
-    // The thread Tab opened to read, or null. The thread itself rather than
-    // its id: reading marks it read, which takes it off the unread list this
-    // would otherwise have to find it in.
-    property var mailOpen: null
-    // Its text, "" until it lands.
-    readonly property string mailText: !root.mailOpen ? "" : (root.mailOpen.messages ?? []).map(message => {
-        const body = Email.bodies[message.id] ?? message.snippet ?? "";
-        return `${message.from}  ${Email.sayWhen(message.at)}\n${body}`;
-    }).join("\n\n")
-
-    // Tab in mail mode: read the selected mail, or go back to the list from
-    // one, onto the row it was read from if it is still there. Reading counts
-    // as read, the way opening it in Gmail does.
-    function mailFold(): void {
-        const open = root.mailOpen;
-        if (open) {
-            root.mailOpen = null;
-            root.index = Math.max(0, root.results.findIndex(x => x.kind === "mail" && x.thread.id === open.id));
-            return;
-        }
-        const r = root.selected;
-        if (!r || r.kind !== "mail")
-            return;
-        Email.read(r.thread);
-        if (r.thread.unread)
-            Email.markRead(r.thread);
-        root.mailOpen = Object.assign({}, r.thread, {
-            unread: false
-        });
-        root.index = 0;
-    }
-
-    // Subject first, since it is what the mail is; who and when to the right.
-    // A read thread sits a shade back; a starred one wears the star, which is
-    // what put it at the top of a search.
-    function mailRow(t) {
-        return {
-            kind: "mail",
-            thread: t,
-            glyph: t.starred ? Theme.glyph.mailStarred : t.unread ? Theme.glyph.mailUnread : Theme.glyph.mailRead,
-            title: t.subject,
-            subtitle: [t.from, Email.sayWhen(t.at)].filter(x => x).join("  ·  "),
-            raw: true,
-            dim: !t.unread
-        };
-    }
-
-    Timer {
-        id: mailSearch
-
-        property string want: ""
-
-        interval: 300
-        onTriggered: Email.search(mailSearch.want, true)
-    }
-
-    // What a bare "@" lists when nothing is unread.
-    readonly property string recentMail: "in:inbox"
-
     // --- windows -------------------------------------------------------------
 
     // Every window, grouped by the workspace it is on in the order the bar
@@ -1198,41 +820,9 @@ Singleton {
     // after the row it belongs to.
     function route(): void {
         const c = root.classifyQuery(root.query);
-        const files = c.mode === root.pathPrefix;
-
         qalc.want = c.mode === root.calcPrefix || c.math ? c.text : "";
-
-        // Three characters before walking the disk. Fewer than that matches
-        // most of the home directory, and fasd has already answered anyway.
-        fd.want = files && c.text.length >= 3 ? c.text : "";
-
-        LauncherMusic.route(c.mode === root.musicPrefix, c.text);
-
-        // A bare "@" with nothing unread lists the inbox instead. Asked at
-        // once rather than after the debounce: nothing was typed to wait out.
-        if (c.mode === root.mailPrefix && !c.text && !Email.threads.length && !(Email.found?.q === root.recentMail && !Email.found.trouble && Date.now() - Email.found.at < 30000))
-            Email.search(root.recentMail, false);
-
-        const mail = c.mode === root.mailPrefix ? c.text : "";
-        if (mail !== mailSearch.want) {
-            mailSearch.want = mail;
-            if (mail)
-                mailSearch.restart();
-            else
-                mailSearch.stop();
-        }
-
-        // Asked once per open, on the keystroke that first names the mode.
-        // `asked` rather than "arrived": the second character typed must not
-        // start a second read of the same list.
-        if (files && !fasd.asked) {
-            fasd.asked = true;
-            fasd.running = true;
-        }
-        if (c.mode === root.clipPrefix && !clip.asked) {
-            clip.asked = true;
-            clip.running = true;
-        }
+        for (const [prefix, provider] of Object.entries(root.providers))
+            provider.route(c.mode === prefix, c.text);
     }
 
     // --- calculator ----------------------------------------------------------
@@ -1405,104 +995,6 @@ Singleton {
         ];
     }
 
-    // --- clipboard -----------------------------------------------------------
-
-    // cliphist's whole list, read once the first time the mode is opened and
-    // filtered in here after that. Per keystroke it would be a process per
-    // letter, for a list that cannot change while you are looking at it.
-    property var clipEntries: []
-
-    // Choose an icon from the preview without decoding the stored payload.
-    function clipIcon(text) {
-        const body = text.trim();
-        if (body.startsWith("[[ binary data"))
-            return /\b(png|jpe?g|gif|webp|bmp|tiff?|svg|avif|heic|ico)\b/i.test(body)
-                ? "image-x-generic" : "application-octet-stream";
-        if (/^(?:(?:copy|cut)\s+)?file:\/\//i.test(body) || /^(\/|~\/)/.test(body))
-            return "folder";
-        if (/^(https?|ftp):\/\/\S+$/i.test(body))
-            return "internet-web-browser";
-        return "text-x-generic";
-    }
-
-    function clipResults(query) {
-        // Still reading. An empty list and a list not yet asked for look the
-        // same from here, and a "nothing" that turns into rows a frame later
-        // reads as a bug.
-        if (!clip.asked || (clip.running && !root.clipEntries.length))
-            return [];
-
-        // cliphist is not something the bar installs. It is also just not
-        // running yet, or genuinely empty — the row says what to check rather
-        // than guessing which.
-        if (!root.clipEntries.length)
-            return [
-                root.noteRow(Theme.glyph.clipboard, "no clipboard history", "needs cliphist storing")
-            ];
-
-        const terms = root.prepTerms(query);
-        const scored = [];
-        const entries = root.clipEntries;
-
-        for (let i = 0; i < entries.length; i++) {
-            const e = entries[i];
-            // cliphist lists newest first, and with nothing typed that order
-            // is the answer — the thing you just copied is the thing you want.
-            let s = -i;
-
-            if (terms.length) {
-                const m = root.matchPrepped(terms, e.fields);
-                if (m === null)
-                    continue;
-                s = m - i * 0.1;
-            }
-
-            scored.push({
-                s: s,
-                e: e
-            });
-        }
-
-        scored.sort((a, b) => b.s - a.s);
-        return scored.slice(0, root.maxResults).map(x => ({
-                    kind: "clip",
-                    id: x.e.id,
-                    line: x.e.line,
-                    icon: root.clipIcon(x.e.text),
-                    // One line per row, so a copied paragraph does not arrive
-                    // as a row with a newline in the middle of it.
-                    title: x.e.text.replace(/\s+/g, " ").trim(),
-                    subtitle: "",
-                    raw: true
-                }));
-    }
-
-    Process {
-        id: clip
-
-        // Whether the list has been asked for during this open, not whether it
-        // has arrived.
-        property bool asked: false
-
-        command: ["cliphist", "list"]
-
-        stdout: StdioCollector {
-            // Tab-separated: an id and the preview cliphist made of the entry,
-            // which for an image is its own "[[ binary data ... ]]" line. The
-            // id is what decodes back to the real thing, so both are kept —
-            // and the text folded for the matcher, once, here.
-            onStreamFinished: root.clipEntries = text.split("\n").filter(l => l.indexOf("\t") > 0).map(l => {
-                const body = l.slice(l.indexOf("\t") + 1);
-                return {
-                    id: l.slice(0, l.indexOf("\t")),
-                    line: l,
-                    text: body,
-                    fields: root.prepFields([[body, 1]])
-                };
-            })
-        }
-    }
-
     // --- selection -----------------------------------------------------------
 
     function move(dir): void {
@@ -1550,12 +1042,6 @@ Singleton {
     // --- activating ----------------------------------------------------------
 
     // Select a tabbed Chromium window so a last-active PWA cannot cause a new one.
-    function browserFocus(path) {
-        if (!/\.(?:html?|xhtml)$/i.test(path))
-            return "";
-        const browser = Hyprland.toplevels.values.find(t => (t.wayland?.appId || t.lastIpcObject?.class || "").toLowerCase() === "chromium");
-        return browser ? `hl.dsp.focus({ window = "address:0x${browser.address}" })` : "";
-    }
 
     // Text to the clipboard. Through sh rather than as a wl-copy argument
     // because an answer can start with a minus — "-40 °C" would be read as
@@ -1577,13 +1063,13 @@ Singleton {
             desktop: (r, i) => {
                 // Powering on keeps the search visible for the device action.
                 if (r.action.key !== "bluetooth-power" || Bluetooth.on)
-                    root.leave(i);
+                    root.hide();
                 root.bump("desktop:" + r.action.key);
                 r.action.run();
             },
             bluetooth: (r, i) => root.activateBluetooth(r),
             app: (r, i) => {
-                root.leave(i);
+                root.hide();
                 root.bump(r.id);
                 // execute() ignores Terminal=true, so a TUI app would start
                 // with nowhere to draw. An action runs in its app's terminal.
@@ -1597,11 +1083,11 @@ Singleton {
                     run.execute();
             },
             calc: (r, i) => {
-                root.leave(i);
+                root.hide();
                 root.copy(r.answer);
             },
             power: (r, i) => {
-                root.leave(i);
+                root.hide();
                 root.bump("power:" + r.action.key);
                 // The irreversible ones keep their second look. See Power.arm.
                 if (r.action.confirm)
@@ -1609,113 +1095,48 @@ Singleton {
                 else
                     Power.run(r.action.arg);
             },
-            clip: (r, i) => {
-                root.leave(i);
-                // decode, not the preview: the preview is one line of what
-                // may be several, and for an image it is a description of
-                // the bytes.
-                Quickshell.execDetached(["sh", "-c", "cliphist decode \"$1\" | wl-copy", "sh", r.id]);
-            },
-            path: (r, i) => {
-                root.leave(i);
-                // Keep fasd's ranking fresh, the same way f.fish does on its
-                // way out, so picking a path here also trains `f` in the
-                // terminal.
-                Quickshell.execDetached(["fasd", "-A", r.path]);
-                // HTML/XHTML use the default application. Focus an existing
-                // Chromium browser first when it is the default: a last-active
-                // PWA would otherwise make Chromium create another window.
-                // Other text files
-                // open in $EDITOR the way f.fish opens one, and
-                // in a terminal because that is where an editor lives. Not
-                // xdg-open for those: it would hand a .conf to a text viewer.
-                // Anything binary does go to xdg-open, though, or a .png opens
-                // in nvim as a screen of bytes. `file` decides, at the moment
-                // of opening rather than per row, and an empty file counts as
-                // text because it reads as binary to `file` and is almost
-                // always something about to be written.
-                //
-                // A directory goes to Dolphin rather than to a prompt sitting
-                // in it. f cd-s there because the next thing you type in a
-                // terminal is a command about the place; picking a folder out
-                // of a list of folders is the other errand, and it wants the
-                // folder open and its contents visible without an ls.
-                if (r.dir)
-                    Quickshell.execDetached([Settings.fileManager, r.path]);
-                else
-                    Quickshell.execDetached(["sh", "-c", 'f=$1; browser=$2; shift 2; case "$f" in *.[hH][tT][mM]|*.[hH][tT][mM][lL]|*.[xX][hH][tT][mM][lL]) mime=text/html; case "$f" in *.[xX][hH][tT][mM][lL]) mime=application/xhtml+xml;; esac; [ -n "$browser" ] && [ "$(xdg-mime query default "$mime")" = chromium.desktop ] && hyprctl dispatch "$browser" >/dev/null 2>&1; exec xdg-open "$f";; esac; [ -s "$f" ] && [ "$(file -Lb --mime-encoding -- "$f")" = binary ] && exec xdg-open "$f"; exec "$@"', "sh", r.path, root.browserFocus(r.path), ...Settings.inTerminal([Settings.editor, r.path])]);
-            },
             url: (r, i) => {
-                root.leave(i);
+                root.hide();
                 Quickshell.execDetached(["xdg-open", r.url]);
             },
-            mail: (r, i) => {
-                root.leave(i);
-                Email.open(r.thread);
-            },
             window: (r, i) => {
-                root.leave(i);
+                root.hide();
                 Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${r.address}" })`);
             },
             task: (r, i) => Tasks.complete(r.task),
             "task-add": (r, i) => {
                 if (!r.ok)
                     return;
-                root.leave(i);
+                root.hide();
                 Tasks.run(r.text);
             },
             timer: (r, i) => Timers.toggle(r.entry.id),
             "timer-add": (r, i) => {
                 if (!r.ok)
                     return;
-                root.leave(i);
+                root.hide();
                 Timers.run(r.text);
             }
         })
 
     // Ctrl+Enter requests play for library results, compose for mail, or the
-    // folder for a file. Queue rows control the existing playback.
+    // folder for a file. Queue rows control the existing playback. A prefix
+    // mode's rows belong to its provider, which says whether to close.
     function activate(i, mode): void {
         const r = root.results[i];
-        // Ctrl+Enter in mail mode writes a new one, whatever row is selected
-        // and whether or not there is one: what was typed is the subject.
-        if (root.mailMode && mode === "play") {
-            if (r)
-                root.leave(i);
-            else
-                root.hide();
-            Email.compose(root.classifyQuery(root.query).text);
-            return;
-        }
-        if (!r)
-            return;
+        // Ctrl+Enter in mail mode writes a new one with or without a row.
+        const composes = root.mailMode && mode === "play";
         // A row that is only telling you something has nothing to activate,
         // and closing the launcher would take the message with it.
-        if (r.kind === "note")
+        if (!composes && (!r || r.kind === "note"))
             return;
-        // Ctrl+Enter on a file is Spotlight's ⌘↵: show it where it lives.
-        if (r.kind === "path" && mode === "play") {
-            root.reveal(r, i);
-            return;
-        }
-        if (r.kind.indexOf("music-") === 0) {
-            if (LauncherMusic.activate(r, mode))
-                root.leave(i);
+        const provider = root.providers[root.classification.mode];
+        if (provider) {
+            if (provider.activate(r, mode))
+                root.hide();
             return;
         }
         root.actions[r.kind](r, i);
-    }
-
-    // The file's folder, opened with the file selected. Through the
-    // FileManager1 interface rather than a flag of one file manager's own:
-    // Dolphin, Nautilus and Nemo all answer it, and D-Bus starts one if none
-    // is running. Each part of the path is escaped, so a "#" or a space in a
-    // name stays part of the name.
-    function reveal(r, i): void {
-        root.leave(i);
-        Quickshell.execDetached(["fasd", "-A", r.path]);
-        const uri = "file://" + r.path.split("/").map(encodeURIComponent).join("/");
-        Quickshell.execDetached(["busctl", "--user", "call", "org.freedesktop.FileManager1", "/org/freedesktop/FileManager1", "org.freedesktop.FileManager1", "ShowItems", "ass", "1", uri, ""]);
     }
 
     // Ctrl+C with nothing selected in the query line copies the file's full path.
@@ -1724,23 +1145,14 @@ Singleton {
         const text = r?.kind === "path" ? r.path : "";
         if (!text)
             return;
-        root.leave(i);
+        root.hide();
         root.copy(text);
     }
 
     // Ctrl+Delete. Only the clipboard has anything to forget: an app you
     // stop using falls off the list on its own, and a path is fasd's to keep.
     function forget(i): void {
-        const r = root.results[i];
-        if (!r || r.kind !== "clip")
-            return;
-
-        // cliphist takes the whole list line back on stdin, id and preview
-        // both, rather than the id on its own.
-        Quickshell.execDetached(["sh", "-c", "printf '%s\\n' \"$1\" | cliphist delete", "sh", r.line]);
-        // Dropped here too rather than re-reading the list: the row should go
-        // while the finger is still on the key.
-        root.clipEntries = root.clipEntries.filter(e => e.id !== r.id);
+        LauncherClipboard.activate(root.results[i], "forget");
     }
 
     // --- frecency ------------------------------------------------------------
@@ -1757,13 +1169,6 @@ Singleton {
         const ageH = (root.rankingNow - r.last) / 3600000;
         const w = ageH < 4 ? 4 : ageH < 24 ? 2 : ageH < 168 ? 1 : 0.5;
         return r.count * w;
-    }
-
-    // The keys under one namespace, best first. Commands share the app db
-    // rather than getting one of their own: it is the same question asked of
-    // a different kind of thing, and the same decay answers it.
-    function recent(prefix) {
-        return Object.keys(root.db).filter(k => k.indexOf(prefix) === 0).sort((a, b) => root.frecency(b) - root.frecency(a)).slice(0, 10).map(k => k.slice(prefix.length));
     }
 
     // How long an unused entry is kept. Past a week its weight is already at
@@ -1802,15 +1207,7 @@ Singleton {
         // fresh install is not worth a line in the log.
         printErrors: false
 
-        onLoadFailed: {
-            try {
-                const history = legacyHistory.text();
-                root.db = JSON.parse(history);
-                store.setText(history);
-            } catch (error) {
-                root.db = ({});
-            }
-        }
+        onLoadFailed: root.db = ({})
         onLoaded: {
             try {
                 root.db = JSON.parse(store.text());
@@ -1818,14 +1215,6 @@ Singleton {
                 root.db = {};
             }
         }
-    }
-
-    FileView {
-        id: legacyHistory
-        path: Quickshell.statePath("launcher-frecency.json")
-        preload: false
-        blockLoading: true
-        printErrors: false
     }
 
     IpcHandler {

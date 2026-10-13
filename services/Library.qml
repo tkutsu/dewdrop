@@ -34,7 +34,7 @@ Singleton {
     // `raw` and `low` are Fuzzy.prep's two halves, folded once here rather
     // than per keystroke (see Fuzzy.js).
 
-    // Read on the first "&", not at startup: the mode may never be opened.
+    // Read on the first "#", not at startup: the mode may never be opened.
     function ensure(): void {
         if (root.loaded || root.loading)
             return;
@@ -54,7 +54,7 @@ Singleton {
         target: Mpd
 
         // Not reloaded from here: the launcher is usually not open when mpd
-        // finishes a rescan, and the next "&" will ask. When it is open in
+        // finishes a rescan, and the next "#" will ask. When it is open in
         // music mode, LauncherMusic sees `loaded` drop and asks at once.
         function onDatabaseChanged() {
             root.stale = root.loading;
@@ -223,7 +223,7 @@ Singleton {
         root.albums = albums;
         root.tracks = tracks;
         // An empty answer is not latched: `ensure()` never asks twice once
-        // `loaded` is set, and an empty library costs only a re-dump per "&".
+        // `loaded` is set, and an empty library costs only a re-dump per "#".
         root.loaded = tracks.length > 0;
         root.failed = !root.loaded;
     }
