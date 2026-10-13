@@ -362,7 +362,8 @@ BarItem {
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
                 contentWidth: titleText.implicitWidth
-                active: Settings.scrollMusicTitles && !Theme.reduceMotion && root.settled && !root.contentAnimating
+                active: Settings.scrollMusicTitles && !Theme.reduceMotion && root.settled
+                paused: root.contentAnimating
                 opacity: root.titleMix
 
                 BarText {

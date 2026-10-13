@@ -10,11 +10,14 @@ Item {
     property real contentWidth: 0
     property real maxWidth: 0
     property bool active: Settings.scrollMusicTitles && !Theme.reduceMotion
+    property bool paused: false
     readonly property real overflow: Math.max(0, contentWidth - width)
-    readonly property bool scrolling: active && visible && width > 0 && overflow > 0
+    readonly property bool overflowing: visible && width > 0 && overflow > 0
+    readonly property bool scrolling: active && !paused && overflowing
     property real offset: 0
-    readonly property real leftFade: scrolling ? Math.min(16, width / 2, offset) : 0
-    readonly property real rightFade: scrolling ? Math.min(16, width / 2, overflow - offset) : 0
+    // Pausing motion still leaves overflowing text clipped at the edges.
+    readonly property real leftFade: active && overflowing ? Math.min(16, width / 2, offset) : 0
+    readonly property real rightFade: active && overflowing ? Math.min(16, width / 2, overflow - offset) : 0
 
     implicitWidth: maxWidth > 0 ? Math.min(contentWidth, maxWidth) : contentWidth
     clip: true
