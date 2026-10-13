@@ -27,6 +27,7 @@ PanelWindow {
     // The input area: the launcher's box or the power menu's entire screen.
     required property Item inputItem
     property bool dismissOnOutsidePress: true
+    property bool _outsidePress: false
 
     // Clicking anywhere that is not the box.
     signal dismissed
@@ -42,7 +43,11 @@ PanelWindow {
         root.pickScreen();
         root.completed = true;
     }
-    onShownChanged: if (root.shown) root.pickScreen()
+    onShownChanged: {
+        root._outsidePress = false;
+        if (root.shown)
+            root.pickScreen();
+    }
 
     // Keep an open overlay on the screen selected when it was requested.
     function pickScreen(): void {
@@ -86,14 +91,21 @@ PanelWindow {
         enabled: root.shown && root.dismissOnOutsidePress
     }
 
-    // Match OpenPopup: outside presses dismiss and still reach their target.
+    // Match OpenPopup: keep focus stable until the target gets the full click.
     Connections {
         target: Hyprland
         enabled: root.shown && root.dismissOnOutsidePress
 
         function onRawEvent(event: HyprlandEvent): void {
             if (event.name === "custom" && event.data === "click" && !pointer.hovered)
-                root.dismissed();
+                root._outsidePress = true;
+            else if (event.name === "custom" && event.data === "click-release" && root._outsidePress) {
+                root._outsidePress = false;
+                Qt.callLater(() => {
+                    if (root.shown)
+                        root.dismissed();
+                });
+            }
         }
     }
 }
