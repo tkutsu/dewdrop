@@ -10,6 +10,8 @@ Singleton {
     id: root
 
     property bool settled: true
+    property bool failed: false
+    readonly property int retryLimit: 12
     property int tries: 0
     property int generation: 0
 
@@ -18,12 +20,23 @@ Singleton {
     onHasPlaceholderChanged: if (hasPlaceholder) root.unsettle()
 
     function unsettle(): void {
-        if (root.settled)
+        if (root.settled || root.failed)
             root.tries = 0;
+        root.failed = false;
         root.generation++;
         root.settled = false;
         release.stop();
-        refresh.restart();
+        refresh.start();
+    }
+
+    // Stop background retries without presenting unverified workspace IDs as settled.
+    function fail(): void {
+        root.failed = true;
+        refresh.stop();
+        release.stop();
+        deadline.stop();
+        verify.running = false;
+        console.warn("Workspace synchronization failed after " + root.tries + " attempts; waiting for a compositor event");
     }
 
     // Compare IDs, window placement and monitor focus rather than assuming requests have finished.
@@ -69,6 +82,10 @@ Singleton {
         id: refresh
         interval: root.tries < 3 ? 10 : 250
         onTriggered: {
+            if (root.tries >= root.retryLimit) {
+                root.fail();
+                return;
+            }
             root.tries++;
             Hyprland.refreshWorkspaces();
             Hyprland.refreshToplevels();
@@ -99,7 +116,7 @@ Singleton {
         stdout: StdioCollector { id: reply }
         onExited: code => {
             deadline.stop();
-            if (root.settled)
+            if (root.settled || root.failed)
                 return;
             let valid = false;
             if (code === 0 && verify.generation === root.generation) {
@@ -114,6 +131,8 @@ Singleton {
                 refresh.stop();
                 release.stop();
                 root.settled = true;
+            } else if (root.tries >= root.retryLimit) {
+                root.fail();
             } else {
                 refresh.restart();
             }
