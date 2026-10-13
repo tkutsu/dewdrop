@@ -11,9 +11,8 @@ import qs
 // PopupButton supplies the header controls.
 //
 // A popup that can make another of what it lists (a task, a timer, a mail)
-// sets `addable`, and a bare plus closes the line. With nothing else beside
-// it the whole header is the press, lit like a row under the pointer; beside
-// other controls it is only the plus.
+// sets `addable`. The title and plus share one button, shortened from the
+// right when there are other controls beside it.
 Item {
     id: root
 
@@ -24,9 +23,8 @@ Item {
     property int inset: 6
     property bool addable: false
 
-    // A Row lays out only what is visible, so with every other control away
-    // it has no width.
-    readonly property bool addOnly: root.addable && row.implicitWidth === 0
+    // Hidden controls take no space; visible ones keep a gap before them.
+    readonly property real titleAreaWidth: Math.max(0, root.width - row.implicitWidth - (row.implicitWidth > 0 ? row.spacing : 0))
 
     signal add
 
@@ -47,13 +45,11 @@ Item {
         readonly property bool lit: QsWindow.window?.keyItem ? target.keyed : hover.hovered
 
         visible: root.addable
-        anchors.right: parent.right
-        width: root.addOnly ? parent.width : plus.width
+        width: root.titleAreaWidth
         height: parent.height
 
         Rectangle {
             anchors.fill: parent
-            visible: root.addOnly
             radius: Theme.selectionRadius
             color: target.lit ? Theme.selection : "transparent"
         }
@@ -90,7 +86,7 @@ Item {
 
         x: root.inset
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width - x - row.width - (root.addable ? plus.width + row.spacing : 0) - 8
+        width: Math.max(0, root.titleAreaWidth - x - (root.addable ? plus.width : 0) - 8)
         text: root.title
         font.weight: Font.DemiBold
         elide: Text.ElideRight
@@ -100,7 +96,6 @@ Item {
         id: row
 
         anchors.right: parent.right
-        anchors.rightMargin: root.addable ? plus.width + spacing : 0
         anchors.verticalCenter: parent.verticalCenter
         spacing: 4
     }
