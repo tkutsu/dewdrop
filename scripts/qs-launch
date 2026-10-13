@@ -5,7 +5,7 @@
 # the bar is Hyprland's child. PR_SET_PTRACER_ANY lifts that for this process
 # alone (it survives the exec below), so the rest of the system stays at 1.
 #
-# The bar's env (Vulkan, the gtk3 platform theme) lives in the pragmas at the
+# The bar's env (the gtk3 platform theme) lives in the pragmas at the
 # top of ~/.config/quickshell/shell.qml, so any launch gets it.
 #
 # Launch through Hyprland so the bar gets Hyprland's env, not a shell's:
