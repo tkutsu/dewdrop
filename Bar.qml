@@ -1,3 +1,5 @@
+import "KeyTargets.js" as KeyTargets
+import "Drops.js" as Drops
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -11,6 +13,7 @@ import qs.services as Services
 PanelWindow {
     id: bar
 
+    readonly property var drops: Drops.geometry(Theme)
     required property var modelData
     screen: modelData
 
@@ -34,14 +37,18 @@ PanelWindow {
         shown: OpenPopup.owner !== null || barHover.hovered || PopupPointer.hovered > 0
     }
 
-    // Arm on-demand focus before the opening click. Exclusive focus blocks
-    // clicks to other windows; keep it for opening without a pointer click.
+    // Acquire focus for a click-opened popup, then let outside clicks focus their target.
     readonly property bool keyed: (OpenPopup.keyed.length > 0 && OpenPopup.owner?.QsWindow.window === bar) || OpenPopup.selected?.QsWindow.window === bar
-    WlrLayershell.keyboardFocus: bar.keyed && (OpenPopup.keyboardOpening || OpenPopup.selected?.QsWindow.window === bar) ? WlrKeyboardFocus.Exclusive
-        : bar.keyed || barHover.hovered ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    property bool acquiringFocus: false
+    onKeyedChanged: bar.acquiringFocus = bar.keyed && !keyReceiver.activeFocus
+    WlrLayershell.keyboardFocus: bar.keyed && bar.acquiringFocus ? WlrKeyboardFocus.Exclusive
+        : bar.keyed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     Item {
+        id: keyReceiver
         focus: true
+        onActiveFocusChanged: if (activeFocus && bar.acquiringFocus)
+            Qt.callLater(() => bar.acquiringFocus = false)
         Keys.onPressed: event => event.accepted = OpenPopup.selected !== null && !OpenPopup.inPopup ? bar.selectKey(event) : OpenPopup.key(event)
     }
 
@@ -82,17 +89,7 @@ PanelWindow {
     // popup to open or a press to make (OpenPopup.select), and is on the
     // bar rather than folded away.
     function stops(): var {
-        const found = [];
-        const walk = item => {
-            for (const child of item.children) {
-                if (!child.visible || !child.enabled || child.opacity === 0)
-                    continue;
-                if ((child.keyOpens === true || typeof child.keyPress === "function") && child.width > 0)
-                    found.push(child);
-                walk(child);
-            }
-        };
-        walk(bar.contentItem);
+        const found = KeyTargets.collect(bar.contentItem, child => (child.keyOpens === true || typeof child.keyPress === "function") && child.width > 0);
         const at = new Map(found.map(s => [s, s.mapToItem(bar.contentItem, s.width / 2, 0).x]));
         return found.sort((a, b) => at.get(a) - at.get(b));
     }
@@ -124,7 +121,7 @@ PanelWindow {
     readonly property int reserved: bar.stripHeight - Theme.barMargin
     exclusiveZone: bar.reserved
     // The whole strip, gaps or not: for the glass to bulge into as a drop
-    // pours into its neighbour (bar.bulge). Clicks below the pills' foot go through to
+    // pours into its neighbour (Drops.js bulge). Clicks below the pills' foot go through to
     // whatever is under them.
     implicitHeight: bar.stripHeight
     mask: Region {
@@ -170,7 +167,10 @@ PanelWindow {
     // The workspace mark's glass, over the pill it moves in, which it bends.
     GlassMark {
         id: glassMark
-        anchors.fill: parent
+        x: leftPill.x
+        y: leftPill.y
+        width: leftPill.width
+        height: leftPill.height
         mark: workspaces.markItem
         pillItem: leftPill
         wallpaperItem: wallpaperImage
@@ -198,19 +198,19 @@ PanelWindow {
         backdrop: wallpaperImage
 
         // The clock's ends give as a drop goes into them or lets go of them
-        // (bar.lip). The notice only touches the clock with no timer set.
-        readonly property real leftLip: bar.lip(music.reveal, music.stowed)
-        readonly property real rightLip: bar.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.lip(notice.reveal, notice.stowed))
+        // (Drops.js lip). The notice only touches the clock with no timer set.
+        readonly property real leftLip: bar.drops.lip(music.reveal, music.stowed)
+        readonly property real rightLip: bar.drops.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(notice.reveal, notice.stowed))
 
         box0: Qt.vector4d(clockPill.x - leftLip, Theme.barInset, clockPill.width + leftLip + rightLip, Theme.barHeight)
         box1: bar.countdownDrop
         box2: bar.noticeDrop
         box3: bar.musicDrop
         overflow: Qt.vector4d(0, 1, 0, 1)
-        bulge0: bar.bulge(clockPill.x - leftLip, -1, music.reveal, music.stowed)
+        bulge0: bar.drops.bulge(clockPill.x - leftLip, -1, music.reveal, music.stowed)
         // The timer joins the clock; the notice joins the timer if present.
-        bulge1: countdown.stowed && countdown.reveal > 0 ? bar.bulge(bar.clockRight + rightLip, 1, countdown.reveal, true) : bar.bulge(countdown.reveal > 0 ? bar.noticeEdge : bar.clockRight + rightLip, 1, notice.reveal, notice.stowed)
-        reaches: Qt.vector4d(0, bar.dropReach(countdown.reveal, countdown.stowed), bar.dropReach(notice.reveal, notice.stowed), bar.dropReach(music.reveal, music.stowed))
+        bulge1: countdown.stowed && countdown.reveal > 0 ? bar.drops.bulge(bar.clockRight + rightLip, 1, countdown.reveal, true) : bar.drops.bulge(countdown.reveal > 0 ? bar.noticeEdge : bar.clockRight + rightLip, 1, notice.reveal, notice.stowed)
+        reaches: Qt.vector4d(0, bar.drops.dropReach(countdown.reveal, countdown.stowed), bar.drops.dropReach(notice.reveal, notice.stowed), bar.drops.dropReach(music.reveal, music.stowed))
     }
 
     Pill {
@@ -254,7 +254,7 @@ PanelWindow {
     // neighbour the way a drop is — the clock is the one island that is always
     // there, and a thing that is not being shown is taken back into it rather
     // than blinked off. The glass for all of them is one surface (Liquid, under
-    // the clock), and each pill's share of it is a box worked out by `drop`
+    // the clock), and each pill's share of it is a box worked out by Drops.js `drop`
     // from the module's own `reveal`, the same eased 0..1 the drawer folds on.
     //
     // Going away, a pill first lets its contents go, then gathers itself up
@@ -262,146 +262,25 @@ PanelWindow {
     // and wobbles as it rounds. Only then does it fall into the neighbour: the
     // neck fills out to the bead's height a frame or two after they touch, as
     // water does, and the neighbour takes what came in as a swelling of its
-    // end that springs back (bar.lip, bar.bulge). It never stays joined by a
+    // end that springs back (Drops.js lip, bulge). It never stays joined by a
     // waist: held there, it read as being sucked through a straw.
     //
     // Arriving is not the same run backwards: liquid joins in a hurry and
     // parts reluctantly. The pill comes out of its neighbour round, the neck
     // stretches out before it lets go, and only once it is free does it spring
-    // out to its width, past it, and back. `edge` is the neighbour's facing
-    // edge, `dir` which way the pill lies from it (1 right, -1 left), `width`
-    // the pill at rest, `leaving` whether it is on its way in.
-    function drop(edge, dir, width, reveal, leaving) {
-        if (reveal <= 0)
-            return Qt.vector4d(0, 0, 0, 0);
-        const t = 1 - reveal;
-        const height = Theme.barHeight;
-        const bead = bar.bead;
-        // How far this side of the neighbour's edge the pill's inner end is.
-        let gap, w, h;
-        if (leaving) {
-            w = width + (bead - width) * bar.ease((t - bar.settle) / 0.3);
-            h = Math.min(height, Math.max(bead, w));
-            const squash = bar.wobble((t - 0.42) / 0.3, 0.1);
-            w *= 1 - squash;
-            h *= 1 + squash / 2;
-            const fall = Math.pow(Math.max(0, Math.min(1, (t - 0.5) / 0.2)), 2);
-            // All the way in: the bead ends up inside the neighbour's round end.
-            gap = Theme.pillSpread - (Theme.pillSpread + bead + 3) * fall;
-        } else {
-            const close = bar.ease((t - 0.25) / 0.5);
-            const plunge = bar.ease((t - 0.65) / 0.35);
-            const shrink = 1 - 0.3 * plunge;
-            w = (height + (width - height) * bar.spring((0.5 - t) / 0.36)) * shrink;
-            h = height * shrink;
-            gap = Theme.pillSpread * (1 - close) - height * 1.6 * plunge;
-        }
-        const inner = edge + dir * gap;
-        return Qt.vector4d(dir > 0 ? inner : inner - w, Theme.barInset + (height - h) / 2, w, h);
-    }
-
-    // A drop gathered up: a little shorter than a pill, so the neck that
-    // joins it to the neighbour is a neck and not a straight run of glass.
-    readonly property int bead: Math.round(Theme.barHeight * 0.8)
-
-    // How far the neighbour's end is pushed out by a drop at a given
-    // `reveal`. Going in, it is shoved out by the bead and wobbles back.
-    // Letting go, it gives a little the other way.
-    function lip(reveal, leaving) {
-        return leaving ? bar.wobble((0.38 - reveal) / 0.38, 5) : bar.wobble((reveal - 0.55) / 0.3, -3);
-    }
-
-    // Where the neighbour's glass bulges, above and below, at the end a drop
-    // goes into: once, as the bead goes in, a pixel or so proud of the slab.
-    // `end` is the neighbour's end the drop is on, `dir` which way the drop
-    // lies from it, as for `drop`.
-    function bulge(end, dir, reveal, leaving) {
-        const phase = (0.36 - reveal) / 0.12;
-        if (!leaving || phase <= 0 || phase >= 1)
-            return Qt.vector4d(0, 0, 0, 0);
-        const swell = 1.2 * Math.sin(Math.PI * phase);
-        if (swell <= 0)
-            return Qt.vector4d(0, 0, 0, 0);
-        const w = Theme.barHeight * 1.2;
-        return Qt.vector4d(dir > 0 ? end - w : end, Theme.barInset - swell, w, Theme.barHeight + 2 * swell);
-    }
-
-    // How far a drop reaches for its neighbour. At rest, the air between
-    // them, so the two are drawn exactly as they are. Going in, it lets go of
-    // the neighbour's end once the bead is inside it, or the end swelled out
-    // square against the top and bottom of the slab. Coming out, half again
-    // as far while it is on the move, so the neck stretches before it lets
-    // go, and back to the air by the time it is out.
-    function dropReach(reveal, leaving) {
-        if (leaving)
-            return Theme.pillSpread * (1 - 0.8 * bar.ease((0.36 - reveal) / 0.08));
-        const t = 1 - reveal;
-        return Theme.pillSpread * (1 + 0.5 * bar.ease((t - 0.25) / 0.3) * (1 - bar.ease((t - 0.8) / 0.2)));
-    }
-
-    // How much of a pill's contents show at a given `reveal`, and its outline
-    // with them. The first `settle` of leaving is theirs alone: they are gone
-    // before the glass under them moves, and arriving, they come in only once
-    // it has come to rest. Anything sooner and the outline, drawn round the
-    // pill at rest, hung in the air outside glass that was not there yet.
-    readonly property real settle: 0.2
-
-    function contents(reveal) {
-        return bar.ease((reveal - (1 - bar.settle)) / bar.settle);
-    }
-
-    function ease(x) {
-        const c = Math.max(0, Math.min(1, x));
-        return c * c * (3 - 2 * c);
-    }
-
-    // 0 to 1 the way a spring gets there: past it by about 13%, back a touch
-    // short, and on it. Near the pill width spring (Theme.foldDamping).
-    function spring(x) {
-        if (x >= 1)
-            return 1;
-        const c = Math.max(0, x);
-        return 1 - Math.exp(-6 * c) * Math.cos(3 * Math.PI * c);
-    }
-
-    // A wobble of `size` over 0..1, at rest at both ends: out, back past
-    // rest, and out a little again.
-    function wobble(x, size) {
-        const c = Math.max(0, Math.min(1, x));
-        return size * Math.exp(-3 * c) * Math.sin(3 * Math.PI * c);
-    }
+    // out to its width, past it, and back.
 
     readonly property real clockLeft: clockPill.x
     readonly property real clockRight: clockPill.x + clockPill.width
 
-    readonly property vector4d musicDrop: bar.morph(bar.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed), musicMorph.value)
-    readonly property vector4d countdownDrop: bar.morph(bar.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed), countdownMorph.value)
+    readonly property vector4d musicDrop: bar.drops.morph(bar.drops.drop(bar.clockLeft, -1, musicPill.width, music.reveal, music.stowed), musicMorph.value)
+    readonly property vector4d countdownDrop: bar.drops.morph(bar.drops.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed), countdownMorph.value)
 
     // The music and timer pills turn into their popovers rather than opening
     // them (Popup.morphs): the pill's contents go, its glass gathers into a
     // drop at its middle and starts sinking halfway through gathering. It
     // sinks through the slab's foot, where the bar's glass ends, into the
     // popover coming out under it.
-    // Closing, the drop comes back up and springs out to the pill. `s` is
-    // Morph.value, 0 the pill, 1 the drop, 2 gone; a little under 0 as the
-    // pill springs past its width on the way back.
-    function morph(box, s) {
-        if (s >= 2)
-            return Qt.vector4d(0, 0, 0, 0);
-        if (s === 0 || box.z <= 0)
-            return box;
-        const gather = Math.min(1, s);
-        const sink = Math.max(0, (s - 0.5) / 1.5);
-        const mid = box.x + box.z / 2;
-        const w = box.z + (Theme.barHeight * 1.3 - box.z) * gather;
-        return Qt.vector4d(mid - w / 2, box.y + box.w * sink, w, box.w);
-    }
-    // How much of a pill's contents show as it does: gone by halfway to the
-    // drop, and back in as it springs out.
-    function morphContents(s) {
-        return Math.max(0, Math.min(1, 1 - 2 * s));
-    }
-
     Morph {
         id: musicMorph
         open: music.popupOpen
@@ -413,7 +292,7 @@ PanelWindow {
     // Follow the timer's glass as it arrives or leaves, falling back to the
     // clock's right edge once the timer is inside it.
     readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
-    readonly property vector4d noticeDrop: bar.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal, notice.stowed)
+    readonly property vector4d noticeDrop: bar.drops.drop(bar.noticeEdge, 1, noticePill.width, notice.reveal, notice.stowed)
 
     // The player, alone on the clock's left. What it carries is a song title —
     // text from somewhere else, as long as whoever named the track made it —
@@ -422,29 +301,17 @@ PanelWindow {
     // outwards.
     //
     // The pills stay where they rest while their glass runs off from under
-    // them; their contents have gone by then (bar.contents).
-    Pill {
+    // them; their contents have gone by then (Drops.js contents).
+    SidePill {
         id: musicPill
-
-        edges: false
-        drawsSlab: false
-        contentOpacity: bar.contents(music.reveal) * bar.morphContents(musicMorph.value)
-        contentScale: bar.morph(Qt.vector4d(0, 0, width, Theme.barHeight), musicMorph.value).z / Math.max(width, 1)
-        contentSink: Theme.barHeight * Math.max(0, (musicMorph.value - 0.5) / 1.5)
-        interactive: musicMorph.value <= 0
+        control: music
+        morphValue: musicMorph.value
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
-        // With nothing to play there is no pill, rather than an empty one. Off
-        // the module's `reveal` rather than its visibility: hiding an item
-        // hides its children with it, so a pill reading its child's `visible`
-        // would latch shut the first time mpd was quiet.
-        visible: music.reveal > 0
         progress: music.progress
         rate: music.rate
         trackColor: music.accent
-        trackOpacity: contentOpacity
-        trackReady: music.reveal === 1 && musicMorph.value === 0
         trackWidth: music.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {
@@ -467,23 +334,15 @@ PanelWindow {
     // so it grows away from the clock. Its label only changes width when its
     // format does — the figures are tabular — so it does not twitch once a
     // second.
-    Pill {
+    SidePill {
         id: countdownPill
-
-        edges: false
-        drawsSlab: false
-        contentOpacity: bar.contents(countdown.reveal) * bar.morphContents(countdownMorph.value)
-        contentScale: bar.morph(Qt.vector4d(0, 0, width, Theme.barHeight), countdownMorph.value).z / Math.max(width, 1)
-        contentSink: Theme.barHeight * Math.max(0, (countdownMorph.value - 0.5) / 1.5)
-        interactive: countdownMorph.value <= 0
+        control: countdown
+        morphValue: countdownMorph.value
 
         side: Pill.Side.Left
         edgeOffset: bar.clockRight + Theme.pillSpread
-        visible: countdown.reveal > 0
         progress: countdown.progress
         rate: countdown.rate
-        trackOpacity: contentOpacity
-        trackReady: countdown.reveal === 1 && countdownMorph.value === 0
         trackWidth: countdown.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {
@@ -505,7 +364,7 @@ PanelWindow {
     // is out, this surface draws both pills and the right pill stands its
     // own slab down. Declared before both to lie under their contents.
     readonly property rect rightGlass: rightPill.slabRect
-    readonly property vector4d recordingDrop: bar.drop(bar.rightGlass.x, -1, recordingPill.width, recording.reveal, recording.stowed)
+    readonly property vector4d recordingDrop: bar.drops.drop(bar.rightGlass.x, -1, recordingPill.width, recording.reveal, recording.stowed)
 
     Liquid {
         anchors.fill: parent
@@ -513,24 +372,20 @@ PanelWindow {
 
         backdrop: wallpaperImage
 
-        readonly property real lip: bar.lip(recording.reveal, recording.stowed)
+        readonly property real lip: bar.drops.lip(recording.reveal, recording.stowed)
 
         box0: Qt.vector4d(bar.rightGlass.x - lip, Theme.barInset, bar.rightGlass.width + lip, Theme.barHeight)
         box1: bar.recordingDrop
-        bulge0: bar.bulge(bar.rightGlass.x - lip, -1, recording.reveal, recording.stowed)
-        reaches: Qt.vector4d(0, bar.dropReach(recording.reveal, recording.stowed), 0, 0)
+        bulge0: bar.drops.bulge(bar.rightGlass.x - lip, -1, recording.reveal, recording.stowed)
+        reaches: Qt.vector4d(0, bar.drops.dropReach(recording.reveal, recording.stowed), 0, 0)
     }
 
-    Pill {
+    SidePill {
         id: recordingPill
-
-        edges: false
-        drawsSlab: false
-        contentOpacity: bar.contents(recording.reveal)
+        control: recording
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.rightGlass.x + Theme.pillSpread
-        visible: recording.reveal > 0
 
         Recording {
             id: recording
@@ -541,18 +396,12 @@ PanelWindow {
 
     // A notice grows rightwards from the timer's glass, or the clock's when
     // no timer is present. Leave a spread before the recording or right pill.
-    Pill {
+    SidePill {
         id: noticePill
-
-        edges: false
-        drawsSlab: false
-        contentOpacity: bar.contents(notice.reveal)
+        control: notice
 
         side: Pill.Side.Left
         edgeOffset: bar.noticeEdge + Theme.pillSpread
-        // Off the module's `reveal`, never its visibility (see the music pill
-        // above).
-        visible: notice.reveal > 0
 
         Notice {
             id: notice
@@ -577,7 +426,7 @@ PanelWindow {
         // "nothing to say" is (BarItem.quiet), a middle click can overrule them
         // either way (DrawerPins), and the drawer only decides whether they
         // are showing anyway.
-        readonly property var drawable: [audio, email, tasks, updater, bell, satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
+        readonly property var drawable: rightPill.modules
 
         // The glass running on past the drawer as its spring carries it out,
         // or squeezing in past shut as it carries it in, and first winding up
@@ -718,7 +567,8 @@ PanelWindow {
         function onControlRequested(key: string, screenName: string): void {
             if (bar.modelData.name !== screenName)
                 return;
-            const item = { sound: audio, display: night, network, bluetooth, notifications: bell }[key];
+            const moduleKey = {sound: "audio", display: "night", notifications: "bell"}[key] ?? key;
+            const item = rightPill.drawable.find(item => item.pinKey === moduleKey);
             if (!item?.here)
                 return;
             controlOpen.interval = item.stowed ? Theme.windupMs + Theme.foldLandMs : 1;

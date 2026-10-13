@@ -30,7 +30,9 @@ def move(x, y):
 
 def main():
     source = (ROOT / "Bar.qml").read_text()
-    keyboard = re.search(r"    readonly property bool keyed:.*?\n    }", source, re.S).group()
+    start = source.index("    readonly property bool keyed:")
+    end = source.index("\n    // Selection mode", start)
+    keyboard = source[start:end]
     hover = source.split("    HoverHandler {", 1)[1].split("\n    }", 1)[0]
     qml = '''import QtQuick
 import Quickshell
@@ -86,7 +88,7 @@ ShellRoot {
 import QtQuick
 import Quickshell
 import Quickshell.Io
-ShellRoot { id: fixture; property int clicks: 0; property int escapes: 0
+ShellRoot { id: fixture; property int clicks: 0; property int escapes: 0; property int keysReceived: 0
     FloatingWindow {
         title: "QS popup dismissal fixture"
         implicitWidth: 400; implicitHeight: 200
@@ -94,10 +96,10 @@ ShellRoot { id: fixture; property int clicks: 0; property int escapes: 0
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: fixture.clicks++ }
         Item {
             focus: true
-            Keys.onPressed: event => { if (event.key === Qt.Key_Escape) fixture.escapes++; }
+            Keys.onPressed: event => { if (event.key === Qt.Key_Escape) fixture.escapes++; else fixture.keysReceived++; }
         }
     }
- IpcHandler { target: "receiver"; function count(): int { return fixture.clicks; } } }
+ IpcHandler { target: "receiver"; function count(): int { return fixture.clicks; } function keys(): int { return fixture.keysReceived; } } }
 ''')
         env = dict(os.environ, XDG_STATE_HOME=str(target / "state"),
                    XDG_DATA_HOME=str(target / "data"), XDG_CACHE_HOME=str(target / "cache"))
@@ -138,6 +140,14 @@ ShellRoot { id: fixture; property int clicks: 0; property int escapes: 0
                 baseline = state()["clicks"]
                 print("Click baseline:", state())
                 assert baseline == 1, "plain click does not reach fixture; reproduction is invalid"
+                move(panel["x"] + 1150, panel["y"] + 15)
+                time.sleep(0.1)
+                before_keys = int(command("qs", "ipc", "-p", str(target / "receiver.qml"), "call", "receiver", "keys"))
+                command("ydotool", "key", "30:1", "30:0", "30:1", "30:0")
+                time.sleep(0.1)
+                after_keys = int(command("qs", "ipc", "-p", str(target / "receiver.qml"), "call", "receiver", "keys"))
+                assert state()["bars"] > 0 and after_keys == before_keys + 2, "idle bar hover intercepts typing"
+                print("PASS: typing stays with the application while hovering the idle bar")
                 open_popup()
                 command("ydotool", "key", "1:1", "1:0")
                 time.sleep(0.3)
@@ -168,6 +178,16 @@ ShellRoot { id: fixture; property int clicks: 0; property int escapes: 0
                     print("Held", button, "click:", result)
                     if result["open"] or result["clicks"] != baseline + 1:
                         failures.append(f"held {button} click failed dismissal or delivery")
+                move(x, y)
+                before_ipc = state()["clicks"]
+                command("qs", "ipc", "-p", str(target), "call", "fixture", "open")
+                time.sleep(0.4)
+                command("ydotool", "click", "0xC0")
+                time.sleep(0.3)
+                if state()["open"] or state()["clicks"] != before_ipc + 1:
+                    failures.append("keyboard-opened popup blocks outside click delivery")
+                else:
+                    print("PASS: keyboard-opened popup also preserves the outside application's click")
                 for failure in failures:
                     print("FAIL:", failure)
                 if not failures:

@@ -55,13 +55,13 @@ void main() {
     vec2 p = qt_TexCoord0 * size;
     float d = capsule(p);
     float shape = clamp(0.5 - d, 0.0, 1.0);
-    vec2 around = (p - box.xy - box.zw * 0.5) / max(box.zw * 0.5, vec2(1.0));
-    float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
-    float shine = smoothstep(sheen.z, 0.96, diagonal);
     if (shape <= 0.0 || box.z <= 0.0) {
         fragColor = vec4(0.0);
         return;
     }
+    vec2 around = (p - box.xy - box.zw * 0.5) / max(box.zw * 0.5, vec2(1.0));
+    float diagonal = abs(dot(normalize(around + 1e-6), normalize(sheen.xy)));
+    float shine = smoothstep(sheen.z, 0.96, diagonal);
 
     vec2 n = normalize(vec2(capsule(p + vec2(0.5, 0.0)) - capsule(p - vec2(0.5, 0.0)),
                             capsule(p + vec2(0.0, 0.5)) - capsule(p - vec2(0.0, 0.5))) + 1e-6);

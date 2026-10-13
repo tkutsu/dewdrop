@@ -410,6 +410,11 @@ class EmailTests(unittest.TestCase):
             popup.setParentItem(window.contentItem())
             window.show()
             QTest.qWait(30)
+            def items(parent):
+                for child in parent.childItems():
+                    yield child
+                    yield from items(child)
+            self.assertFalse([child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')], 'Collapsed mail eagerly built text controls')
             # Keep the Wayland surface size fixed while the drawn rows unfold.
             reserved = popup.property('reserveHeight')
             sizes = []
@@ -429,6 +434,7 @@ class EmailTests(unittest.TestCase):
             self.assertGreater(len(heights), 3)
             self.assertEqual(heights, sorted(heights, reverse=True))
             self.assertFalse(sizes, 'Popup window resized during collapse: ' + str(sizes))
+            self.assertFalse([child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')], 'Closed mail retained text controls after its fold')
             popup.setProperty('expanded', 't')
             QTest.qWait(100)
             popup.setProperty('expanded', '')
@@ -436,10 +442,6 @@ class EmailTests(unittest.TestCase):
             popup.setProperty('expanded', 't')
             QTest.qWait(400)
             self.assertFalse(sizes, 'Popup window resized when reversing the animation: ' + str(sizes))
-            def items(parent):
-                for child in parent.childItems():
-                    yield child
-                    yield from items(child)
             editors = [child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')]
             self.assertEqual(len(editors), 1)
             editor = editors[0]

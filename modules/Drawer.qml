@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Shapes
-import Quickshell.Hyprland
 import qs
 import qs.components
 
@@ -169,17 +168,10 @@ BarItem {
         onTriggered: root.open = false
     }
 
-    // And at once on a click anywhere off the bar and its popups: the same
-    // custom>>click from Hyprland that closes a popup (see OpenPopup.qml),
-    // which still hands the click on to whatever it landed on. Clicks on the
-    // bar itself are Bar.qml's.
-    Connections {
-        target: Hyprland
+    // Release closes the drawer after the target receives its full click.
+    OutsideClick {
         enabled: root.open
-
-        function onRawEvent(event: HyprlandEvent): void {
-            if (event.name === "custom" && event.data === "click" && PopupPointer.hovered === 0 && PopupPointer.bars === 0)
-                root.open = false;
-        }
+        inside: PopupPointer.hovered > 0 || PopupPointer.bars > 0
+        onReleased: root.open = false
     }
 }

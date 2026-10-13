@@ -25,8 +25,10 @@ Item {
     // Read by the rows that show their buttons only when lit, so the keys
     // bring those out too.
     property bool keyed: false
-    property bool chosen: false
-    property bool blinkOn: true
+    // Rows sharing a ChoiceBlink need only supply that controller.
+    property var blink: null
+    property bool chosen: root.blink?.item === root
+    property bool blinkOn: root.blink?.lit ?? true
     readonly property var keyPress: root.name !== "" ? () => root.tapped() : null
     readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 

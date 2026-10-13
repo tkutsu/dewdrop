@@ -13,8 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     source = (ROOT / "Bar.qml").read_text()
-    functions = "\n".join(re.search(r"    function " + name + r"\([^\n]+\) \{.*?\n    }", source, re.S).group()
-                          for name in ("morph", "morphContents"))
+    functions = '    readonly property var drops: Drops.geometry(Theme)\n    function morph(box, s) { return bar.drops.morph(box, s); }\n    function morphContents(s) { return bar.drops.morphContents(s); }'
     pills = []
     for name in ("music", "countdown"):
         block = source.split(f"id: {name}Pill", 1)[1].split(f"id: {name}\n", 1)[0]
@@ -22,7 +21,8 @@ def main():
             r"\s*(contentOpacity|contentScale|contentSink|interactive|trackReady):", line))
         pills.append(f"""
         Morph {{ id: {name}Morph; open: {name}.popupOpen }}
-        Pill {{
+        SidePill {{
+            control: {name}; morphValue: {name}Morph.value
             id: {name}Pill; drawsSlab: false; side: Pill.Side.Left
             edgeOffset: {100 if name == 'music' else 350}
             {bindings}
@@ -38,6 +38,7 @@ import QtTest
 import Quickshell
 import qs
 import qs.components
+import "Drops.js" as Drops
 ShellRoot {
     FloatingWindow {
         id: bar; implicitWidth: 700; implicitHeight: 100

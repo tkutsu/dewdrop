@@ -315,7 +315,7 @@ Popup {
 
                             visible: height > 0
                             width: parent.width
-                            height: row.isOpen ? mail.height + 12 : 0
+                            height: row.isOpen ? (details.item?.height ?? 0) + 12 : 0
                             clip: true
 
                             Behavior on height {
@@ -325,142 +325,149 @@ Popup {
                                 }
                             }
 
-                            Flickable {
-                                id: mail
-
-                                // In the accessibility tree as a list to scroll, half a view a step.
-
-                                Accessible.role: Accessible.List
-
-                                Accessible.name: "Message"
-
-                                Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
-
-                                Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
-
+                            Loader {
+                                id: details
                                 y: 6
                                 width: parent.width
-                                height: Math.min(chain.implicitHeight, root.bodyMax)
-                                contentHeight: chain.implicitHeight
-                                clip: true
-                                layer.enabled: contentHeight > height
-                                layer.effect: ScrollEdges {
-                                    view: mail
-                                }
-                                boundsBehavior: Flickable.StopAtBounds
-                                acceptedButtons: Qt.NoButton
+                                active: row.isOpen || reveal.height > 0
+                                sourceComponent: Component {
+                                    Flickable {
+                                        id: mail
 
-                                Column {
-                                    id: chain
+                                        // In the accessibility tree as a list to scroll, half a view a step.
 
-                                    readonly property int links: row.modelData.messages.length
+                                        Accessible.role: Accessible.List
 
-                                    width: parent.width
-                                    spacing: 10
+                                        Accessible.name: "Message"
 
-                                    Repeater {
-                                        model: row.modelData.messages
+                                        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
 
-                                        delegate: Item {
-                                            id: link
+                                        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
-                                            required property var modelData
-                                            required property int index
-                                            readonly property bool chained: chain.links > 1
-                                            readonly property var fetched: Email.bodies[link.modelData.id]
+                                        width: details.width
+                                        height: Math.min(chain.implicitHeight, root.bodyMax)
+                                        contentHeight: chain.implicitHeight
+                                        clip: true
+                                        layer.enabled: contentHeight > height
+                                        layer.effect: ScrollEdges {
+                                            view: mail
+                                        }
+                                        boundsBehavior: Flickable.StopAtBounds
+                                        acceptedButtons: Qt.NoButton
 
-                                            width: chain.width
-                                            height: said.implicitHeight
+                                        Column {
+                                            id: chain
 
-                                            // Down to the next dot, clear of both.
-                                            Rectangle {
-                                                visible: link.chained && link.index < chain.links - 1
-                                                x: dot.x + Math.floor(dot.width / 2)
-                                                y: dot.y + dot.height + 3
-                                                width: 1
-                                                height: link.height + chain.spacing - dot.height - 6
-                                                color: Theme.label3
-                                            }
+                                            readonly property int links: row.modelData.messages.length
 
-                                            Rectangle {
-                                                id: dot
+                                            width: parent.width
+                                            spacing: 10
 
-                                                visible: link.chained
-                                                // On whole pixels, or a dot this small blurs.
-                                                x: Math.floor((root.railWidth - width) / 2)
-                                                y: Math.round((sender.height - height) / 2)
-                                                width: 5
-                                                height: 5
-                                                radius: width / 2
-                                                color: Theme.label2
-                                            }
+                                            Repeater {
+                                                model: row.modelData.messages
 
-                                            Column {
-                                                id: said
+                                                delegate: Item {
+                                                    id: link
 
-                                                x: link.chained ? root.railWidth : 0
-                                                width: link.width - x
-                                                spacing: 2
+                                                    required property var modelData
+                                                    required property int index
+                                                    readonly property bool chained: chain.links > 1
+                                                    readonly property var fetched: Email.bodies[link.modelData.id]
 
-                                                Item {
-                                                    visible: link.chained
-                                                    width: parent.width
-                                                    height: sender.implicitHeight
+                                                    width: chain.width
+                                                    height: said.implicitHeight
 
-                                                    PopupText {
-                                                        id: sender
-                                                        width: parent.width - root.whenWidth
-                                                        text: link.modelData.from
-                                                        textFormat: Text.PlainText
-                                                        font.pixelSize: Theme.footnoteSize
-                                                        font.weight: Font.DemiBold
-                                                        color: Theme.label2
-                                                        elide: Text.ElideRight
-                                                    }
-
-                                                    PopupText {
-                                                        anchors.right: parent.right
-                                                        anchors.baseline: sender.baseline
-                                                        text: Email.sayWhen(link.modelData.at)
-                                                        font.pixelSize: Theme.footnoteSize
+                                                    // Down to the next dot, clear of both.
+                                                    Rectangle {
+                                                        visible: link.chained && link.index < chain.links - 1
+                                                        x: dot.x + Math.floor(dot.width / 2)
+                                                        y: dot.y + dot.height + 3
+                                                        width: 1
+                                                        height: link.height + chain.spacing - dot.height - 6
                                                         color: Theme.label3
                                                     }
-                                                }
 
-                                                TextEdit {
-                                                    id: messageText
-                                                    width: parent.width
-                                                    text: Email.richText(link.fetched !== undefined ? link.fetched : link.modelData.snippet + "…")
-                                                    font.family: Theme.bodyFont
-                                                    font.pixelSize: Theme.captionSize
-                                                    color: link.fetched !== undefined ? Theme.label : Theme.label3
-                                                    selectionColor: Theme.textSelection
-                                                    selectedTextColor: Theme.label
-                                                    readOnly: true
-                                                    selectByMouse: true
-                                                    persistentSelection: true
-                                                    activeFocusOnPress: false
-                                                    wrapMode: TextEdit.Wrap
-                                                    textFormat: TextEdit.RichText
-                                                    onLinkActivated: url => {
-                                                        if (/^https?:\/\//i.test(url)) {
-                                                            OpenPopup.dismiss();
-                                                            Qt.openUrlExternally(url);
-                                                        }
+                                                    Rectangle {
+                                                        id: dot
+
+                                                        visible: link.chained
+                                                        // On whole pixels, or a dot this small blurs.
+                                                        x: Math.floor((root.railWidth - width) / 2)
+                                                        y: Math.round((sender.height - height) / 2)
+                                                        width: 5
+                                                        height: 5
+                                                        radius: width / 2
+                                                        color: Theme.label2
                                                     }
 
-                                                    // Right-click copies the selection, or the whole message.
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        acceptedButtons: Qt.RightButton
-                                                        Accessible.role: Accessible.StaticText
-                                                        Accessible.name: "Message text"
-                                                        Accessible.description: "Pointer: right click"
-                                                        cursorShape: messageText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
-                                                        onClicked: {
-                                                            if (messageText.selectedText === "")
-                                                                messageText.selectAll();
-                                                            messageText.copy();
+                                                    Column {
+                                                        id: said
+
+                                                        x: link.chained ? root.railWidth : 0
+                                                        width: link.width - x
+                                                        spacing: 2
+
+                                                        Item {
+                                                            visible: link.chained
+                                                            width: parent.width
+                                                            height: sender.implicitHeight
+
+                                                            PopupText {
+                                                                id: sender
+                                                                width: parent.width - root.whenWidth
+                                                                text: link.modelData.from
+                                                                textFormat: Text.PlainText
+                                                                font.pixelSize: Theme.footnoteSize
+                                                                font.weight: Font.DemiBold
+                                                                color: Theme.label2
+                                                                elide: Text.ElideRight
+                                                            }
+
+                                                            PopupText {
+                                                                anchors.right: parent.right
+                                                                anchors.baseline: sender.baseline
+                                                                text: Email.sayWhen(link.modelData.at)
+                                                                font.pixelSize: Theme.footnoteSize
+                                                                color: Theme.label3
+                                                            }
+                                                        }
+
+                                                        TextEdit {
+                                                            id: messageText
+                                                            width: parent.width
+                                                            text: Email.richText(link.fetched !== undefined ? link.fetched : link.modelData.snippet + "…")
+                                                            font.family: Theme.bodyFont
+                                                            font.pixelSize: Theme.captionSize
+                                                            color: link.fetched !== undefined ? Theme.label : Theme.label3
+                                                            selectionColor: Theme.textSelection
+                                                            selectedTextColor: Theme.label
+                                                            readOnly: true
+                                                            selectByMouse: true
+                                                            persistentSelection: true
+                                                            activeFocusOnPress: false
+                                                            wrapMode: TextEdit.Wrap
+                                                            textFormat: TextEdit.RichText
+                                                            onLinkActivated: url => {
+                                                                if (/^https?:\/\//i.test(url)) {
+                                                                    OpenPopup.dismiss();
+                                                                    Qt.openUrlExternally(url);
+                                                                }
+                                                            }
+
+                                                            // Right-click copies the selection, or the whole message.
+                                                            MouseArea {
+                                                                anchors.fill: parent
+                                                                acceptedButtons: Qt.RightButton
+                                                                Accessible.role: Accessible.StaticText
+                                                                Accessible.name: "Message text"
+                                                                Accessible.description: "Pointer: right click"
+                                                                cursorShape: messageText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
+                                                                onClicked: {
+                                                                    if (messageText.selectedText === "")
+                                                                        messageText.selectAll();
+                                                                    messageText.copy();
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }

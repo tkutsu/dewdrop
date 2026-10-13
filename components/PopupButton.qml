@@ -37,8 +37,10 @@ Item {
 
     // Lit under the pointer or when the keys reach it (PopupRow says how).
     property bool keyed: false
-    property bool chosen: false
-    property bool blinkOn: true
+    // Rows sharing a ChoiceBlink need only supply that controller.
+    property var blink: null
+    property bool chosen: root.blink?.item === root
+    property bool blinkOn: root.blink?.lit ?? true
     readonly property var keyPress: root.live && root.name !== "" ? () => root.tapped() : null
     readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 

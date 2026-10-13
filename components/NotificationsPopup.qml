@@ -290,8 +290,7 @@ Popup {
                     id: groupClear
                     framed: true
                     label: "clear"
-                    chosen: choice.item === groupClear
-                    blinkOn: choice.lit
+                    blink: choice
                     live: !choice.running
                     onTapped: {
                         const items = group.items.slice();

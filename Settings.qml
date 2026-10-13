@@ -27,27 +27,27 @@ Singleton {
 
     // --- values --------------------------------------------------------------
     readonly property var screens: root.values.screens ?? []
-    readonly property bool groupWindows: root.values.groupWindows ?? true
-    readonly property string dateFormat: root.values.dateFormat ?? "ddd d MMM"
-    readonly property string timeFormat: root.values.timeFormat ?? "HH:mm"
-    readonly property string dateCase: root.values.dateCase ?? "normal"
+    readonly property bool groupWindows: root.values.groupWindows === true
+    readonly property string dateFormat: root.values.dateFormat ?? ""
+    readonly property string timeFormat: root.values.timeFormat ?? ""
+    readonly property string dateCase: root.values.dateCase ?? ""
     readonly property string timeCase: root.values.timeCase === "lowercase" ? "lowercase" : "uppercase"
-    readonly property bool smallAmPm: root.values.smallAmPm ?? false
+    readonly property bool smallAmPm: root.values.smallAmPm === true
     readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
     readonly property string font: root.values.font ?? ""
     readonly property string monoFont: root.values.monoFont ?? ""
-    readonly property string terminal: root.values.terminal ?? "kitty"
+    readonly property string terminal: root.values.terminal ?? ""
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
-    readonly property string fileManager: root.values.fileManager ?? "xdg-open"
-    readonly property var hiddenApps: root.values.hiddenApps ?? ["blueman-adapters", "libreoffice-startcenter"]
-    readonly property bool showDesktopActions: root.values.showDesktopActions ?? false
-    readonly property string omittedTaskList: root.values.omittedTaskList ?? "Personal"
+    readonly property string fileManager: root.values.fileManager ?? ""
+    readonly property var hiddenApps: root.values.hiddenApps ?? []
+    readonly property bool showDesktopActions: root.values.showDesktopActions === true
+    readonly property string omittedTaskList: root.values.omittedTaskList ?? ""
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
-    readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1.08) || 1)
-    readonly property bool reduceMotion: root.values.reduceMotion ?? false
-    readonly property bool reduceTransparency: root.values.reduceTransparency ?? false
-    readonly property bool scrollMusicTitles: root.values.scrollMusicTitles ?? true
+    readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
+    readonly property bool reduceMotion: root.values.reduceMotion === true
+    readonly property bool reduceTransparency: root.values.reduceTransparency === true
+    readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true
     readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")
@@ -116,10 +116,23 @@ Singleton {
         return { text, smallRanges };
     }
 
-    // Switch the clock and alarms together, keeping seconds if they are shown.
+    // Switch hour notation while preserving custom separators, literals and other tokens.
     function setTwelveHour(enabled: bool): void {
-        const seconds = root.timeFormat.includes("s");
-        root.set("timeFormat", enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm"));
+        if (enabled === root.twelveHour)
+            return;
+        const current = root.timeFormat;
+        if (/^(?:HH|h):mm(?::ss)?(?: [Aa][Pp])?$/.test(current)) {
+            const seconds = current.includes(":ss");
+            root.set("timeFormat", enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm"));
+            return;
+        }
+        let format = current.replace(/'(?:[^']|'')*'|H{1,2}|h{1,2}/g,
+            token => token[0] === "'" ? token : enabled ? "h".repeat(token.length) : "H".repeat(token.length));
+        if (enabled)
+            format += " AP";
+        else
+            format = format.replace(/'(?:[^']|'')*'|\s*(?:AP|ap)/g, token => token[0] === "'" ? token : "");
+        root.set("timeFormat", format.trim());
     }
 
     // A list setting with `item` put in or taken out.

@@ -118,6 +118,8 @@ def main():
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
+        step = target / "components/MediaStep.qml"
+        step.write_text(step.read_text().replace('id: icon\n', 'id: icon\n        objectName: root.previous ? "prev" : "next"\n'))
         for module, names in [('Music', ['titleRoom', 'slot', 'next']), ('Countdown', ['labelBox', 'slot'])]:
             path = target / 'modules' / (module + '.qml')
             source = path.read_text()

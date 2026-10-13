@@ -159,8 +159,7 @@ Popup {
                     }
                     readonly property int dateWidth: row.dayText === "" ? 0 : root.dayWidth
                     name: "Complete " + row.modelData.title
-                    chosen: choice.item === row
-                    blinkOn: choice.lit
+                    blink: choice
                     width: root.bodyWidth
                     // As tall as the text it holds, never shorter than a single line's
                     // worth of row. The text is what decides, and the dot and the day

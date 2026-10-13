@@ -79,16 +79,12 @@ OverlayWindow {
         easing.type: Easing.InOutQuad
     }
 
-    readonly property var entries: pending ? [
-        {
-            name: "Cancel",
-            accept: false
-        },
-        {
-            name: pending.name,
-            accept: true
-        }
-    ] : root.menuActions
+    // Retain one answer pair while its labels fade back to the menu.
+    readonly property var confirmationEntries: root.confirmation ? [
+        { name: "Cancel", accept: false },
+        { name: root.confirmation.name, accept: true }
+    ] : []
+    readonly property var entries: root.pending ? root.confirmationEntries : root.menuActions
 
     onEntriesChanged: root.pointerLive = false
     onPendingChanged: if (root.pending) root.confirmation = root.pending
@@ -482,10 +478,7 @@ OverlayWindow {
 
                 anchors.horizontalCenter: parent.horizontalCenter
                 // Retain the labels while confirmation fades back to the menu.
-                model: root.confirmation ? [
-                    { name: "Cancel", accept: false },
-                    { name: root.confirmation.name, accept: true }
-                ] : []
+                model: root.confirmationEntries
                 enabled: root.pending !== null && !root.closing
                 opacity: root.pending ? 1 : 0
                 visible: opacity > 0

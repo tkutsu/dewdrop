@@ -169,7 +169,7 @@ ShellRoot {
                 mouseRelease(pill, launcher.x - 1, 20, Qt.LeftButton);
                 pill.order = Qt.binding(() => RightPillOrder.keys); wait(30);
                 root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'disabled controller writes nothing');
-                root.check(!RightPillOrder.move('audio', 'email', pill._movable.map(m => m.settingsKey)), 'own slot does not write');
+                root.check(!RightPillOrder.move('audio', 'email', pill.shown.filter(m => pill.order.includes(m.settingsKey)).map(m => m.settingsKey)), 'own slot does not write');
                 root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'own slot preserves order');
                 const own = email.x + email.width - 1;
                 mousePress(email, email.width / 2, 20, Qt.LeftButton);

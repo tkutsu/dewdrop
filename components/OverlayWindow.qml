@@ -27,7 +27,6 @@ PanelWindow {
     // The input area: the launcher's box or the power menu's entire screen.
     required property Item inputItem
     property bool dismissOnOutsidePress: true
-    property bool _outsidePress: false
 
     // Clicking anywhere that is not the box.
     signal dismissed
@@ -44,7 +43,7 @@ PanelWindow {
         root.completed = true;
     }
     onShownChanged: {
-        root._outsidePress = false;
+        outside.reset();
         if (root.shown)
             root.pickScreen();
     }
@@ -91,21 +90,13 @@ PanelWindow {
         enabled: root.shown && root.dismissOnOutsidePress
     }
 
-    // Match OpenPopup: keep focus stable until the target gets the full click.
-    Connections {
-        target: Hyprland
+    OutsideClick {
+        id: outside
         enabled: root.shown && root.dismissOnOutsidePress
-
-        function onRawEvent(event: HyprlandEvent): void {
-            if (event.name === "custom" && event.data === "click" && !pointer.hovered)
-                root._outsidePress = true;
-            else if (event.name === "custom" && event.data === "click-release" && root._outsidePress) {
-                root._outsidePress = false;
-                Qt.callLater(() => {
-                    if (root.shown)
-                        root.dismissed();
-                });
-            }
-        }
+        inside: pointer.hovered
+        onReleased: Qt.callLater(() => {
+            if (root.shown)
+                root.dismissed();
+        })
     }
 }

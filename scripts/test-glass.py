@@ -12,8 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def function(name):
-    source = (ROOT / "Bar.qml").read_text()
-    return re.search(r"    function " + name + r"\([^\n]+\) \{.*?\n    }", source, re.S).group()
+    signatures = {"morph": "box, s", "bulge": "end, dir, reveal, leaving"}
+    args = signatures[name]
+    return ("    readonly property var drops: Drops.geometry(Theme)\n" if name == "morph" else "") + f"    function {name}({args}) {{ return bar.drops.{name}({args}); }}"
+
 
 
 def main():
@@ -30,6 +32,7 @@ import QtTest
 import Quickshell
 import qs
 import qs.components
+import "Drops.js" as Drops
 ShellRoot {
     id: bar
     property int clicks: 0

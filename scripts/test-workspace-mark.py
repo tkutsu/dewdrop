@@ -102,6 +102,10 @@ ShellRoot {
                     glass.fragmentShader = phase % 2 === 0
                         ? Qt.resolvedUrl("shaders/glassmark.frag.qsb") : Qt.resolvedUrl("flat.frag.qsb");
                 } else if (phase === 8) {
+                    glass.fragmentShader = Qt.resolvedUrl("shaders/glassmark.frag.qsb");
+                    glass.anchors.fill = null;
+                    glass.x = 20;glass.y = 8;glass.width = 320;glass.height = 30;
+                } else if (phase === 9) {
                     console.log("RESULT: " + failures + " failures"); Qt.quit(); return;
                 }
                 delay.start();
@@ -163,6 +167,10 @@ def main():
             for side, left, right in (("left", x + 2, x + radius), ("right", x + width - radius, x + width - 2)):
                 cap = (int(left), int(y + 2), int(right), int(y + height - 2))
                 checks[f"glass at {state} distorts its {side} rounded cap"] = delta.crop(cap).getbbox() is not None
+        full = Image.open(target / "mark-6.png").convert("RGB")
+        cropped = Image.open(target / "mark-8.png").convert("RGB")
+        delta = ImageChops.difference(full, cropped)
+        checks["narrowed glass preserves wallpaper and pill texture coordinates"] = max(max(channel) for channel in delta.getdata()) <= 2
         if destination := os.environ.get("MARK_PREVIEW_DIR"):
             preview = Path(destination)
             preview.mkdir(parents=True, exist_ok=True)
