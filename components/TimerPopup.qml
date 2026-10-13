@@ -24,6 +24,7 @@ Popup {
     readonly property int gutter: 18
 
     spacing: 6
+    ChoiceBlink { id: choice }
 
     // Ringing first, because it is the only row here that is asking for
     // something. Then what is running, then the alarms standing by — soonest
@@ -55,13 +56,9 @@ Popup {
                 dim: false,
                 title: Timers.ringTitle(e),
                 readout: "",
-                buttons: [
-                    {
-                        name: "Dismiss ringing timers",
-                        glyph: Theme.glyph.powerCancel,
-                        act: () => Timers.hush()
-                    }
-                ]
+                name: "Dismiss ringing timers",
+                act: () => Timers.hush(),
+                buttons: []
             });
 
         // The same order "soonest first" always gave, off numbers that do not
@@ -83,16 +80,13 @@ Popup {
                 title: e.label !== "" ? e.label : "Timer",
                 // Left to the delegate, off `entry` above.
                 readout: "",
+                name: "Cancel " + (e.label || "timer"),
+                act: () => Timers.cancel(e.id),
                 buttons: [
                     {
                         name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
                         glyph: e.running ? Theme.glyph.paused : Theme.glyph.playing,
                         act: () => Timers.toggle(e.id)
-                    },
-                    {
-                        name: "Cancel " + (e.label || "timer"),
-                        glyph: Theme.glyph.powerCancel,
-                        act: () => Timers.cancel(e.id)
                     }
                 ]
             });
@@ -112,16 +106,13 @@ Popup {
                 dim: !e.running,
                 title: e.label !== "" ? e.label : "Alarm",
                 readout: Timers.hhmm(e.hour, e.minute),
+                name: "Cancel " + (e.label || "alarm"),
+                act: () => Timers.cancel(e.id),
                 buttons: [
                     {
                         name: (e.running ? "Pause " : "Resume ") + (e.label || "timer"),
                         glyph: e.running ? Theme.glyph.paused : Theme.glyph.playing,
                         act: () => Timers.toggle(e.id)
-                    },
-                    {
-                        name: "Cancel " + (e.label || "timer"),
-                        glyph: Theme.glyph.powerCancel,
-                        act: () => Timers.cancel(e.id)
                     }
                 ]
             });
@@ -166,6 +157,11 @@ Popup {
 
             width: root.bodyWidth
             height: root.rowHeight
+            name: row.modelData.name
+            chosen: choice.item === row
+            blinkOn: choice.lit
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: choice.start(row, row.modelData.act)
 
             Glyph {
                 x: 2
@@ -234,6 +230,7 @@ Popup {
                         height: root.rowHeight
                         name: modelData.name
                         glyph: modelData.glyph
+                        live: !choice.running
                         onTapped: modelData.act()
                     }
                 }

@@ -39,8 +39,10 @@ def main():
         target = Path(folder)
         (target / "services").mkdir()
         (target / "NotificationsPopup.qml").write_text(popup)
-        for name in ("PopupButton", "PopupText", "PopupHeader", "NotificationPicture"):
+        for name in ("PopupButton", "PopupText", "PopupHeader", "NotificationPicture", "ChoiceBlink"):
             (target / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
+        (target / "PressGlass.qml").write_text('import QtQuick\nQtObject { required property Item icon; required property var area; property bool down: false; property real scale: 1 }\n')
+        (target / "ScrollUnder.qml").write_text('import QtQuick\nItem { required property Flickable view; required property Item box }\n')
         (target / "Theme.qml").write_text('''pragma Singleton
 import QtQuick
 QtObject {
@@ -48,9 +50,10 @@ QtObject {
     property color warn: "red"; property color fg: "white"; property color stroke: "grey"
     property color selection: "#222222"; property color selectionStrong: "#444444"
     property int selectionRadius: 4; property int fadeMs: 100; property int captionSize: 14
+    property int blinkMs: 60
     property int popupTextSize: 16; property int glyphSizeLarge: 16; property int pillBorder: 1
     property string bodyFont: "sans-serif"; property var figures: ({})
-    property var glyph: ({notif: "N", close: "X", dnd: "D"})
+    property var glyph: ({notif: "N", close: "X", dnd: "D", plus: "+"})
 }
 ''')
         (target / "Popup.qml").write_text('''import QtQuick
@@ -60,6 +63,7 @@ Item {
     property real reserveHeight: 0
     property bool requestedVisible: true
     readonly property real chromeHeight: body.implicitHeight
+    readonly property Item chromeItem: body
     property alias spacing: body.spacing
     default property alias content: body.data
     width: body.implicitWidth; height: body.implicitHeight
@@ -183,7 +187,10 @@ ShellRoot {
                 // A click with a default action runs it once and clears the card.
                 notice.actions = [{identifier: "default", text: " ", invoke: () => Notifications.invoked++}]; wait(130);
                 check(button(card, "open sender") === null && button(card, "default") === null, "the default action has no button of its own");
-                mouseClick(card, 12, 45); wait(130);
+                mouseClick(card, 12, 45);
+                check(Notifications.invoked === 0 && Notifications.count === 1, "card stays until the acknowledgement finishes");
+                card.open();
+                wait(130);
                 check(Notifications.invoked === 1 && OpenPopup.dismissed && Notifications.count === 0, "a click runs the default action once and clears the card");
                 // Without one it goes to the sender (nothing to focus here) and still clears.
                 OpenPopup.dismissed = false;
