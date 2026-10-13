@@ -88,7 +88,7 @@ restart() {
     kill -TERM "$pid" 2>/dev/null
     for _ in 1 2 3 4 5 6; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
     kill -KILL "$pid" 2>/dev/null && log "  needed SIGKILL"
-    hyprctl dispatch "hl.dsp.exec_cmd(\"$HOME/_scripts/qs-launch\")" >/dev/null
+    hyprctl dispatch "hl.dsp.exec_cmd(\"$HOME/.config/quickshell/scripts/qs-launch\")" >/dev/null
 }
 
 # Whether the kernel logged the semsurf error since the given epoch second.
