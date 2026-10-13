@@ -2,14 +2,12 @@
 """Read Open-Meteo and return display-ready forecasts in the city's timezone."""
 
 import argparse
-import fcntl
 import json
 import math
 import os
 import tempfile
 import time
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
+from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -137,94 +135,44 @@ def write_json(path, value):
             temporary.unlink(missing_ok=True)
 
 
-def retry_after(header, now, fallback):
-    """Accept Retry-After as delay seconds or an HTTP date."""
-    if header is not None:
-        text = header.strip()
-        if text.isascii() and text.isdigit() and int(text) > 0:
-            return now + int(text)
-        try:
-            date = parsedate_to_datetime(text)
-            if date.tzinfo is None:
-                date = date.replace(tzinfo=timezone.utc)
-            if date.timestamp() > now:
-                return date.timestamp()
-        except (TypeError, ValueError, OverflowError):
-            pass
-    return now + fallback
-
-
-def request(mode, args, state_path, cache_path, force=False):
-    """Share cached forecasts and persisted backoff across workers and reloads."""
-    state_path, cache_path = Path(state_path), Path(cache_path)
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    # Hold the lock through the fetch: a worker from a reload must observe
-    # the first worker's cache or cooldown before making another request.
-    with state_path.with_suffix(".lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        now = time.time()
-        state = read_json(state_path)
-        snapshot = {}
-        if mode == "forecast":
-            key = [float(args[0]), float(args[1]), args[2]]
-            cached = read_json(cache_path)
-            forecast = cached.get("forecast", {})
-            if cached.get("key") == key and len(forecast.get("days", [])) == 7 and number(cached.get("fetchedAt")) is not None:
-                snapshot = {**forecast, "fetchedAt": cached["fetchedAt"], "cached": True}
-
-        cooldown = state.get("cooldownUntil", 0)
-        if cooldown > now:
-            return {**snapshot, "error": "Weather is rate limited. Waiting for the cooldown to end.", "status": 429, "cooldownUntil": cooldown, "retryAt": cooldown}
-        retry_at = state.get("forecastRetryAt", 0) if mode == "forecast" else 0
-        if retry_at > now:
-            return {**snapshot, "error": "Weather request failed. Waiting before trying again.", "retryAt": retry_at}
+def request(mode, args, cache_path, force=False):
+    """Reuse fresh forecasts and preserve the last forecast when fetching fails."""
+    cache_path = Path(cache_path)
+    now = time.time()
+    snapshot = {}
+    if mode == "forecast":
+        key = [float(args[0]), float(args[1]), args[2]]
+        cached = read_json(cache_path)
+        forecast = cached.get("forecast", {})
+        if cached.get("key") == key and len(forecast.get("days", [])) == 7 and number(cached.get("fetchedAt")) is not None:
+            snapshot = {**forecast, "fetchedAt": cached["fetchedAt"], "cached": True}
         if snapshot and not force and 0 <= now - snapshot["fetchedAt"] < 15 * 60:
             return snapshot
 
-        try:
-            result = fetch(mode, args)
-        except Exception as error:
-            now = time.time()
-            if isinstance(error, HTTPError) and error.code == 429:
-                attempts = min(state.get("rateFailures", 0) + 1, 8)
-                cooldown = retry_after(error.headers.get("Retry-After"), now, min(15 * 60 * 2 ** (attempts - 1), 24 * 3600))
-                error.close()
-                state.update(cooldownUntil=cooldown, rateFailures=attempts)
-                write_json(state_path, state)
-                return {**snapshot, "error": "Weather is rate limited. Waiting for the cooldown to end.", "status": 429, "cooldownUntil": cooldown, "retryAt": cooldown}
-            if isinstance(error, HTTPError):
-                error.close()
-            # Transport and HTTP failures are OSErrors; anything else is a
-            # reply that could not be read, which no reconnecting will fix.
-            reason = "Check your connection and try again." if isinstance(error, OSError) else "The forecast it sent could not be read."
-            result = {**snapshot, "error": f"Weather request failed. {reason}"}
-            if mode == "forecast":
-                attempts = min(state.get("forecastFailures", 0) + 1, 5)
-                result["retryAt"] = now + min(30 * 2 ** (attempts - 1), 300)
-                state.update(forecastRetryAt=result["retryAt"], forecastFailures=attempts)
-                write_json(state_path, state)
-            return result
+    try:
+        result = fetch(mode, args)
+    except Exception as error:
+        if isinstance(error, HTTPError):
+            error.close()
+        reason = "Check your connection and try again." if isinstance(error, OSError) else "The forecast it sent could not be read."
+        return {**snapshot, "error": f"Weather request failed. {reason}"}
 
-        state.update(cooldownUntil=0, rateFailures=0)
-        if mode == "forecast":
-            result = {**result, "fetchedAt": time.time()}
-            write_json(cache_path, {"key": key, "forecast": result, "fetchedAt": result["fetchedAt"]})
-            state.update(forecastRetryAt=0, forecastFailures=0)
-        write_json(state_path, state)
-        return result
+    if mode == "forecast":
+        result = {**result, "fetchedAt": time.time()}
+        write_json(cache_path, {"key": key, "forecast": result, "fetchedAt": result["fetchedAt"]})
+    return result
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["forecast", "search"])
     parser.add_argument("args", nargs="+")
-    parser.add_argument("--state", required=True)
     parser.add_argument("--cache", required=True)
     parser.add_argument("--force", action="store_true")
     options = parser.parse_args()
     try:
-        result = request(options.mode, options.args, options.state, options.cache, options.force)
+        result = request(options.mode, options.args, options.cache, options.force)
     except Exception:
         # One JSON result even on failure, so the UI can always end loading.
-        result = {"error": "Could not load weather or save its request state.", "retryAt": time.time() + 30}
+        result = {"error": "Could not load weather or save its forecast."}
     print(json.dumps(result, ensure_ascii=False))

@@ -51,8 +51,8 @@ Popup {
         }
         PopupButton {
             framed: true
-            label: Weather.waitingForForecast ? "waiting..." : Weather.loading ? "loading..." : "refresh"
-            live: !!Weather.location && !Weather.loading && !Weather.waitingForForecast
+            label: Weather.loading ? "loading..." : "refresh"
+            live: !!Weather.location && !Weather.loading
             onTapped: Weather.refresh(true)
         }
     }
@@ -254,8 +254,8 @@ Popup {
 
             PopupText {
                 width: parent.width
-                text: Weather.rateLimited ? "Location search is paused until the weather cooldown ends." : Weather.searching ? "Searching..." : Weather.searchTrouble || (Weather.query.trim().length < 2 ? "Type at least two characters, then choose a location." : "Choose a location below.")
-                color: Weather.rateLimited || Weather.searchTrouble ? Theme.warn : Theme.label2
+                text: Weather.searching ? "Searching..." : Weather.searchTrouble || (Weather.query.trim().length < 2 ? "Type at least two characters, then choose a location." : "Choose a location below.")
+                color: Weather.searchTrouble ? Theme.warn : Theme.label2
                 font.pixelSize: Theme.captionSize
                 wrapMode: Text.WordWrap
             }
