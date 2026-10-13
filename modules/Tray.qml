@@ -231,14 +231,22 @@ BarItem {
                 Accessible.onScrollDownAction: entry.modelData.scroll(-120, false)
             }
 
+            Linger {
+                id: menuLifetime
+                shown: entry.menuOpen && entry.modelData.hasMenu
+                hold: menuLoader.item?.exitMs ?? 160
+            }
+
             Loader {
-                active: entry.menuOpen && entry.modelData.hasMenu
+                id: menuLoader
+                active: menuLifetime.active
 
                 sourceComponent: MenuPopup {
                     id: menu
 
                     anchorItem: entry
                     handle: entry.modelData.menu
+                    requestedVisible: menuLifetime.shown
 
                     // Flush under the icon and hung from its left edge, the
                     // way the system drops a menu from a menu bar extra —

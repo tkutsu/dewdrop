@@ -431,10 +431,6 @@ Singleton {
             noticeTimer.stop();
     }
 
-    // Let go of by the pointer, a notice gets its full time again rather than
-    // whatever was left when it was reached for.
-    onHeldChanged: root.timeNotice()
-
     // A notice whose notification was closed from elsewhere — the sender
     // withdrew it, or it was cleared in the centre — has nothing left to show.
     onLatestChanged: if (!latest)
