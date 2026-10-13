@@ -1,0 +1,21 @@
+#!/usr/bin/python3 -I
+# qs-launch — start quickshell so qs-watchdog can eu-stack it when it freezes.
+#
+# kernel.yama.ptrace_scope=1 only lets a process trace its own descendants, and
+# the bar is Hyprland's child. PR_SET_PTRACER_ANY lifts that for this process
+# alone (it survives the exec below), so the rest of the system stays at 1.
+#
+# The bar's env (Vulkan, the gtk3 platform theme) lives in the pragmas at the
+# top of ~/.config/quickshell/shell.qml, so any launch gets it.
+#
+# Launch through Hyprland so the bar gets Hyprland's env, not a shell's:
+#   hyprctl dispatch 'hl.dsp.exec_cmd("/home/kutsui/.config/quickshell/scripts/qs-launch")'
+
+import ctypes
+import os
+
+PR_SET_PTRACER = 0x59616D61
+PR_SET_PTRACER_ANY = ctypes.c_ulong(2**64 - 1)
+
+ctypes.CDLL(None).prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0)
+os.execvp("quickshell", ["quickshell"])
