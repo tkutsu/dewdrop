@@ -33,6 +33,11 @@ Row {
     property color color: Theme.fg
     property int fontSize: Theme.textSize
     property int weight: Theme.bodyWeight
+    // Half-size character ranges share the full-size text's baseline.
+    property var smallRanges: []
+    readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize / 2))
+    readonly property real smallNudge: Math.round((root.height + metrics.capitalHeight) / 2 - metrics.ascent) + metrics.ascent
+        - (Math.round((root.height + smallMetrics.capitalHeight) / 2 - smallMetrics.ascent) + smallMetrics.ascent)
 
     // SwiftUI's transition, in line heights and in multiples of its duration
     // (Theme.rollMs).
@@ -49,6 +54,13 @@ Row {
         id: metrics
         font.family: Theme.bodyFont
         font.pixelSize: root.fontSize
+        font.weight: root.weight
+    }
+
+    FontMetrics {
+        id: smallMetrics
+        font.family: Theme.bodyFont
+        font.pixelSize: root.smallFontSize
         font.weight: root.weight
     }
 
@@ -85,6 +97,10 @@ Row {
             required property int index
             // Empty past the start of the string (charAt of a negative index).
             readonly property string ch: root.text.charAt(root.text.length - 1 - index)
+            readonly property bool small: root.smallRanges.some(range => {
+                const position = root.text.length - 1 - index;
+                return position >= range.start && position < range.end;
+            })
             // What the column shows and what it last showed, set here rather
             // than bound: the change handler needs the old one.
             property string shown: ""
@@ -143,7 +159,8 @@ Row {
                 readonly property real blur: 1 - column.f
 
                 height: parent.height
-                fontSize: root.fontSize
+                fontSize: column.small ? root.smallFontSize : root.fontSize
+                nudge: column.small ? root.smallNudge : 0
                 weight: root.weight
                 text: column.shown
                 color: root.color
@@ -172,7 +189,8 @@ Row {
 
                 height: parent.height
                 visible: column.rolling
-                fontSize: root.fontSize
+                fontSize: column.small ? root.smallFontSize : root.fontSize
+                nudge: column.small ? root.smallNudge : 0
                 weight: root.weight
                 text: column.was
                 color: root.color
