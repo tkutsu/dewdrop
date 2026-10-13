@@ -691,7 +691,7 @@ Singleton {
     Process {
         id: gpuPoll
         running: root.gpuWanted
-        command: ["nvidia-smi", "-i", "0", "--query-gpu=name,temperature.gpu,utilization.gpu,clocks.current.graphics,clocks.max.graphics,clocks.current.memory,memory.used,memory.total,power.draw,power.limit,fan.speed", "--format=csv,noheader,nounits", "-lms", "2000"]
+        command: ["setpriv", "--pdeathsig", "TERM", "--", "nvidia-smi", "-i", "0", "--query-gpu=name,temperature.gpu,utilization.gpu,clocks.current.graphics,clocks.max.graphics,clocks.current.memory,memory.used,memory.total,power.draw,power.limit,fan.speed", "--format=csv,noheader,nounits", "-lms", "2000"]
 
         stdout: SplitParser {
             onRead: line => root.parseGpu(line)

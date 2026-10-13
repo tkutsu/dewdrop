@@ -48,7 +48,7 @@ Singleton {
     Process {
         id: powerEvents
         running: root.present
-        command: ["busctl", "--system", "--quiet", "wait", "org.bluez", root.adapter?.dbusPath ?? "/org/bluez", "org.freedesktop.DBus.Properties", "PropertiesChanged"]
+        command: ["setpriv", "--pdeathsig", "TERM", "--", "busctl", "--system", "--quiet", "wait", "org.bluez", root.adapter?.dbusPath ?? "/org/bluez", "org.freedesktop.DBus.Properties", "PropertiesChanged"]
         Component.onDestruction: running = false
         onExited: function (code) {
             if (!root.present)

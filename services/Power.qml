@@ -125,7 +125,7 @@ Singleton {
     // systemctl suspend returns once queued; only logind's wake signal releases black.
     Process {
         running: root.blackout && action.command[1] === "--suspend"
-        command: ["stdbuf", "-oL", "gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1", "--object-path", "/org/freedesktop/login1"]
+        command: ["setpriv", "--pdeathsig", "TERM", "--", "stdbuf", "-oL", "gdbus", "monitor", "--system", "--dest", "org.freedesktop.login1", "--object-path", "/org/freedesktop/login1"]
         stdout: SplitParser {
             onRead: line => {
                 if (line.includes("org.freedesktop.login1.Manager.PrepareForSleep (false"))
