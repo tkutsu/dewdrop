@@ -34,15 +34,11 @@ PanelWindow {
         shown: OpenPopup.owner !== null || barHover.hovered || PopupPointer.hovered > 0
     }
 
-    // The keyboard, while one of this bar's popups is open, for the popup to
-    // be driven from (Popup.qml): the popup's own surface gets no keys
-    // without a grab. Exclusive rather than on-demand because the click that
-    // opened the popup has already happened by the time this turns on; the
-    // window under the bar has its keyboard back the moment the popup goes.
-    // And while the bar itself is walked from the keyboard (selection mode,
-    // OpenPopup.selected), down in a popup or not.
+    // Arm on-demand focus before the opening click. Exclusive focus blocks
+    // clicks to other windows; keep it for opening without a pointer click.
     readonly property bool keyed: (OpenPopup.keyed.length > 0 && OpenPopup.owner?.QsWindow.window === bar) || OpenPopup.selected?.QsWindow.window === bar
-    WlrLayershell.keyboardFocus: bar.keyed ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: bar.keyed && (OpenPopup.keyboardOpening || OpenPopup.selected?.QsWindow.window === bar) ? WlrKeyboardFocus.Exclusive
+        : bar.keyed || barHover.hovered ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     Item {
         focus: true

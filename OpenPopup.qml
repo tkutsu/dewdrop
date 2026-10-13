@@ -16,16 +16,21 @@ Singleton {
     property bool switched: false
     property int browseDelayMs: 300
     property Item _pending: null
-    onOwnerChanged: root.cancelBrowse()
+    property bool _outsidePress: false
+    property bool keyboardOpening: false
+    onOwnerChanged: {
+        root.cancelBrowse();
+        root.keyboardOpening = root.owner !== null && PopupPointer.bars === 0 && PopupPointer.hovered === 0;
+    }
 
     // A launcher action asks the chosen screen's bar for its existing popup.
     signal controlRequested(key: string, screenName: string)
 
     // Layer surfaces hear nothing of clicks in other windows, so Hyprland
     // tells us: a non-consuming bind in hypr/configs/keybinds.lua emits
-    // `custom>>click` on every press and still hands it to whatever was under
-    // the pointer. A focus grab heard them too, but it ate the click that
-    // ended it, so the first click on another window did not even focus it.
+    // `custom>>click` on press and `custom>>click-release` on release, while
+    // handing both to the target. Closing on release keeps the focus change
+    // from interrupting the application's click.
     // Clicks on a bar or in a popup are theirs to sort out.
     Connections {
         target: Hyprland
@@ -33,7 +38,11 @@ Singleton {
 
         function onRawEvent(event: HyprlandEvent): void {
             if (event.name === "custom" && event.data === "click" && PopupPointer.hovered === 0 && PopupPointer.bars === 0)
+                root._outsidePress = true;
+            else if (event.name === "custom" && event.data === "click-release" && root._outsidePress) {
+                root._outsidePress = false;
                 root.dismiss();
+            }
             // Selection mode ends when another window takes focus, as one
             // does when Return on a workspace brings its window forward. Not
             // on the event alone: Hyprland sends it again for the same window
@@ -45,6 +54,7 @@ Singleton {
     }
 
     function set(item: Item): void {
+        root._outsidePress = false;
         root.switched = root.owner !== null && item !== null && root.owner !== item;
         root.cancelBrowse();
         // A popup the pointer browses to takes the selection with it, and
