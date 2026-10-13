@@ -172,27 +172,6 @@ OverlayWindow {
                     ]
                 },
                 {
-                    title: "Right pill",
-                    text: "Auto shows an icon when it has something to show. Pinned always shows it. Drawer keeps it behind the chevron.",
-                    rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
-                },
-                {
-                    title: "Tray icons",
-                    text: "Apps' own status icons, listed while the app runs. Off keeps an icon behind the chevron while the drawer is closed; with the drawer open it is there and works as before.",
-                    rows: root.trayRows
-                },
-                {
-                    title: "Clock",
-                    rows: [
-                        { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: "ddd d MMM", get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || "ddd d MMM") },
-                        { type: "choice", id: "dateCase", title: "Date letter case", text: "Change the case of weekday and month names in the bar.", options: [{ value: "normal", label: "Normal" }, { value: "capitalize", label: "Capitalized" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) },
-                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") },
-                        { type: "choice", id: "timeCase", title: "Time letter case", text: "Change the case of AM/PM and other text in the bar clock.", options: [{ value: "normal", label: "Normal" }, { value: "capitalize", label: "Capitalized" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
-                        { type: "toggle", id: "smallAmPm", title: "Half-size AM/PM", text: "Use half the clock's font size, aligned to its baseline with no space before AM/PM.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
-                    ]
-                },
-                {
                     title: "Music",
                     rows: [
                         { type: "toggle", id: "scrollMusicTitles", title: "Scroll long track titles", text: "Scroll titles that do not fit in the music pill or player. Reduce motion keeps them still.", get: () => Settings.scrollMusicTitles, set: v => Settings.set("scrollMusicTitles", v) }
@@ -203,11 +182,59 @@ OverlayWindow {
                     rows: [
                         { type: "text", id: "omittedTaskList", title: "Omit list names", text: "Enter list names to hide, separated by commas. Leave empty to show every list name.", placeholder: "Personal, Work", get: () => Settings.omittedTaskList, set: v => Settings.set("omittedTaskList", v.trim()) }
                     ]
+                }
+            ]
+        },
+        {
+            title: "Drawer",
+            sections: [
+                {
+                    title: "Bar placement",
+                    text: "Auto shows an icon when it has something to show. Pinned always shows it. Drawer keeps it behind the chevron.",
+                    rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
                 },
+                {
+                    title: "Tray icons",
+                    text: "Apps' own status icons, listed while the app runs. Off keeps an icon behind the chevron while the drawer is closed; with the drawer open it is there and works as before.",
+                    rows: root.trayRows
+                }
+            ]
+        },
+        {
+            title: "Clock",
+            sections: [
+                {
+                    title: "Time",
+                    rows: [
+                        { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
+                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: "HH:mm", get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || "HH:mm") },
+                        { type: "choice", id: "timeCase", title: "Time letter case", text: "Change the letter case of the clock and alarm times.", options: [{ value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
+                        { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", text: "Use two-thirds font size for AM/PM in the bar, on the same baseline with no preceding space. Popup times keep AM/PM at full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
+                    ]
+                },
+                {
+                    title: "Date",
+                    rows: [
+                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: "ddd d MMM", get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || "ddd d MMM") },
+                        { type: "choice", id: "dateCase", title: "Date letter case", text: "Change the case of weekday and month names in the bar.", options: [{ value: "normal", label: "Normal" }, { value: "capitalize", label: "Capitalized" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
+                    ]
+                }
+            ]
+        },
+        {
+            title: "Appearance",
+            sections: [
                 {
                     title: "Wallpaper",
                     rows: [
                         { type: "slider", id: "wallpaperParallaxZoom", title: "Parallax zoom", text: "How far the picture is enlarged to leave it room to pan as you change workspace. 1× turns the motion off.", from: 1, to: 1.3, step: 0.01, format: v => v.toFixed(2) + "×", get: () => Settings.wallpaperParallaxZoom, set: v => Settings.set("wallpaperParallaxZoom", v) }
+                    ]
+                },
+                {
+                    title: "Display",
+                    rows: [
+                        { type: "toggle", id: "reduceMotion", title: "Reduce motion", text: "Springs settle without a bounce, an icon asking for attention dims instead of hopping, and wallpaper parallax stops. Popups, the launcher and the power menu open in place rather than sliding or wiping in.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) },
+                        { type: "toggle", id: "reduceTransparency", title: "Reduce transparency", text: "The pills, popups, the launcher and the power menu are drawn on a solid dark surface instead of glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
                     ]
                 }
             ]
@@ -222,11 +249,6 @@ OverlayWindow {
                     ]
                 },
                 {
-                    title: "Apps",
-                    text: "Off leaves an app, or one of its own actions, out of the launcher's results. Nothing is uninstalled, and its desktop file is left alone.",
-                    rows: root.appRows
-                },
-                {
                     title: "Controls",
                     text: "The switches the launcher offers for sound, notifications, night mode and the radios.",
                     rows: root.controlRows
@@ -235,18 +257,11 @@ OverlayWindow {
                     title: "Power",
                     text: "Lock, sleep, restart and the rest, found by typing their names.",
                     rows: root.powerRows
-                }
-            ]
-        },
-        {
-            title: "Accessibility",
-            sections: [
+                },
                 {
-                    title: "Display",
-                    rows: [
-                        { type: "toggle", id: "reduceMotion", title: "Reduce motion", text: "Springs settle without a bounce, an icon asking for attention dims instead of hopping, and wallpaper parallax stops. Popups, the launcher and the power menu open in place rather than sliding or wiping in.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) },
-                        { type: "toggle", id: "reduceTransparency", title: "Reduce transparency", text: "The pills, popups, the launcher and the power menu are drawn on a solid dark surface instead of glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
-                    ]
+                    title: "Apps",
+                    text: "Off leaves an app, or one of its own actions, out of the launcher's results. Nothing is uninstalled, and its desktop file is left alone.",
+                    rows: root.appRows
                 }
             ]
         }

@@ -782,7 +782,7 @@ OverlayWindow {
                 id: actionBar
                 width: parent.width
                 height: root.actionHeight
-                visible: root.expanded && root.rowActions.length > 0
+                visible: root.expanded && root.rowActions.length > 1
 
                 Row {
                     id: actionButtons
