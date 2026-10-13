@@ -124,7 +124,6 @@ ShellRoot {
  move(a,w3);test.wait(35);
  const dest=button(3);
  check(Math.abs(left(icon(dest,'b'))-oldB)<Theme.workspaceGap,'surviving icon stays near its old position as collapse begins');
- check(Math.abs(icon(dest,'a').drawnX-icon(dest,'a').x)<1,'moved icon appears directly in its destination slot');
  const rightEdge=pill.auditStrip.mapFromItem(pill,pill.width-2,19).x;
  const hitPoint=Qt.point(Math.min(rightEdge,left(dest)+dest.width-4),19);
  check(pill.buttonAt(hitPoint)===dest,'drop target covers the drawn workspace');

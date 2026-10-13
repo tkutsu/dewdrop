@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import tempfile
 
+from test_support import copy_shell, shell_env
+
 ROOT = Path(__file__).resolve().parents[1]
 
 LOGIC = r"""
@@ -190,7 +192,7 @@ ShellRoot {
 STUBS = {
     'Settings.qml': "pragma Singleton\nimport QtQuick\nQtObject {}",
     'DrawerPins.qml': "pragma Singleton\nimport QtQuick\nQtObject { property var pins: ({}); function pinned(k) { return pins[k] === true; } function kept(k) { return pins[k] === false; } function toggle(k) { const next = Object.assign({}, pins); next[k] = !pinned(k); pins = next; } }",
-    'OpenPopup.qml': "pragma Singleton\nimport QtQuick\nQtObject { property Item owner: null; function dismiss() { owner = null; } function toggle(item) { owner = owner === item ? null : item; } function browse(item, hovered) {} }",
+    'OpenPopup.qml': "pragma Singleton\nimport QtQuick\nQtObject { property Item selected: null; property Item owner: null; function dismiss() { owner = null; } function toggle(item) { owner = owner === item ? null : item; } function browse(item, hovered) {} }",
     'Theme.qml': """pragma Singleton
 import QtQuick
 QtObject {
@@ -202,6 +204,10 @@ QtObject {
     property int startMs: 10000; property int foldMs: 100; property int fadeMs: 120
     property int pressDip: 1; property int pinMarkSize: 6; property int pinGlyphSize: 6
     property color markRimTop: 'white'; property int iconSize: 12
+    property bool reduceMotion: false
+    property int markInset: 3; property real markSpring: 9; property real markDamping: 0.45
+    property real keyMarkSpring: 14; property real keyMarkDamping: 0.65; property int keyMarkWidth: 24
+    property color selectionStrong: 'grey'; property color markLifted: 'white'
     property int glyphSize: 16
     property var glyph: ({pin: 'p', nightOn: 'on', nightOff: 'off'})
     function pillTop(height) { return (height - barHeight) / 2; }
@@ -210,7 +216,7 @@ QtObject {
     property color badgeFg: 'white'
 } """,
     'Paths.qml': "pragma Singleton\nimport Quickshell\nSingleton { function state(name) { return Quickshell.shellPath('state/' + name); } }",
-    'components/Liquid.qml': "import QtQuick\nItem { property var backdrop; property vector4d box0; property real rimFrom; property real rimTo }",
+    'components/Liquid.qml': "import QtQuick\nItem { property var backdrop; property vector4d box0; property real reach; property vector4d fill; property vector4d rimTop; property real rimFrom; property real rimTo }",
     'components/Rim.qml': "import QtQuick\nItem { property real radius; property real lineWidth; property color topColor; property color bottomColor }",
     'components/Glyph.qml': "import QtQuick\nItem { property string text; property int fontSize; property color color; property real nudge: 0 }",
     'components/Badge.qml': "import QtQuick\nItem {}",
@@ -275,7 +281,7 @@ ShellRoot {
 
 def run_shell(target, source):
     (target / 'shell.qml').write_text(source)
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', XDG_RUNTIME_DIR=str(target / 'runtime'))
+    env = shell_env(target)
     for key in ('WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE'):
         env.pop(key, None)
     result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=15)
@@ -289,8 +295,8 @@ def run_shell(target, source):
 
 def check_placement(target):
     # Real settings, saved placement, and night-mode module with a fake display service.
-    (target / 'modules').mkdir()
-    (target / 'services').mkdir()
+    (target / 'modules').mkdir(exist_ok=True)
+    (target / 'services').mkdir(exist_ok=True)
     for name in ('Settings.qml', 'DrawerPins.qml', 'modules/NightMode.qml'):
         shutil.copyfile(ROOT / name, target / name)
     (target / 'settings.default.json').write_text('{}')
@@ -348,11 +354,10 @@ def main():
     subprocess.run(['node', '-e', LOGIC, str(ROOT / 'RightPillOrder.js')], check=True)
     with tempfile.TemporaryDirectory(prefix='quickshell-right-pill-test-') as folder:
         target = Path(folder)
-        (target / 'components').mkdir()
-        (target / 'state').mkdir()
-        (target / 'runtime').mkdir(mode=0o700)
-        for name in ('Tooltips.qml', 'RightPillOrder.qml', 'RightPillOrder.js', 'components/Pill.qml', 'components/BarItem.qml', 'components/ClickArea.qml', 'components/DropLine.qml'):
-            shutil.copyfile(ROOT / name, target / name)
+        copy_shell(target)
+        (target / 'components').mkdir(exist_ok=True)
+        (target / 'state').mkdir(exist_ok=True)
+        (target / 'runtime').mkdir(mode=0o700, exist_ok=True)
         for name, text in STUBS.items():
             (target / name).write_text(text)
         # Loading absent or malformed state must not repair it until a changed drop.

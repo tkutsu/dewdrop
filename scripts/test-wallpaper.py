@@ -7,6 +7,8 @@ import shutil
 import subprocess
 import tempfile
 
+from test_support import copy_shell, shell_env
+
 ROOT = Path(__file__).resolve().parents[1]
 
 SCENARIO = r"""
@@ -205,9 +207,11 @@ import qs.components
 import qs.services
 ShellRoot {
     Window {
+        id: fixtureWindow
         visible: true; width: popup.width + 24; height: popup.height + 24; color: '#171717'
         WallpaperPopup { id: popup; x: 12; y: 12 }
         TestCase { id: test; when: false
+            function check(ok, message) { if (!ok) throw new Error(message); }
             function buttons(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
                 if (item.fullHeight !== undefined) found.framing = item;
@@ -222,40 +226,42 @@ ShellRoot {
                 wait(100);
                 const controls = {};
                 buttons(popup, controls);
-                verify(controls.parallax && controls.drift, 'both section headers have a toggle');
-                verify(controls.parallax.framed && controls.drift.framed, 'toggles use standard framed buttons');
+                check(controls.parallax && controls.drift, 'both section headers have a toggle');
+                check(controls.parallax.framed && controls.drift.framed, 'toggles use standard framed buttons');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                verify(!Wallpaper.parallax && !controls.parallax.lit && controls.parallax.glyph === '', 'parallax button switches off');
+                check(!Wallpaper.parallax && !controls.parallax.lit && controls.parallax.glyph === '', 'parallax button switches off');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                verify(Wallpaper.parallax && controls.parallax.glyph === Theme.glyph.check, 'parallax button switches on with standard check');
+                check(Wallpaper.parallax && controls.parallax.glyph === Theme.glyph.check, 'parallax button switches on with standard check');
                 const framing = controls.framing, area = controls.frameArea;
                 tryVerify(() => framing.height === framing.fullHeight && framing.opacity === 1, 1000);
+                check(waitForPolish(fixtureWindow), 'framing layout settles before measuring the reserved height');
                 const reserved = popup.reserveHeight;
-                verify(framing.mapToItem(popup, 0, 0).y > controls.parallax.mapToItem(popup, 0, controls.parallax.height).y, 'framing opens under the parallax button');
+                check(framing.mapToItem(popup, 0, 0).y > controls.parallax.mapToItem(popup, 0, controls.parallax.height).y, 'framing opens under the parallax button');
                 mouseClick(area, area.width / 2, area.height * 0.25);
-                verify(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'pressing a quarter down the picture frames a quarter down');
+                check(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'pressing a quarter down the picture frames a quarter down');
                 mouseWheel(area, area.width / 2, area.height / 2, 0, -120);
                 wait(50);
-                verify(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'the framing leaves the wheel alone');
+                check(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'the framing leaves the wheel alone');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
                 tryVerify(() => framing.height === 0, 1000);
-                verify(popup.reserveHeight === reserved, 'closing the framing keeps the window its size');
+                check(waitForPolish(fixtureWindow), 'closed framing layout settles');
+                check(popup.reserveHeight === reserved, 'closing the framing keeps the window its size');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
                 tryVerify(() => framing.height === framing.fullHeight, 1000);
                 const grid = controls.grid, files = Wallpaper.files.slice();
-                verify(!grid.interactive, 'a short library does not scroll');
+                check(!grid.interactive, 'a short library does not scroll');
                 Wallpaper.files = Array.from({length: 20}, () => files[0]);
                 wait(50);
-                verify(grid.interactive && grid.height === 3 * grid.cellHeight - 4, 'a long library scrolls inside three rows');
+                check(grid.interactive && grid.height === 3 * grid.cellHeight - 4, 'a long library scrolls inside three rows');
                 mouseWheel(grid, grid.width / 2, grid.height / 2, 0, -120);
                 tryVerify(() => grid.contentY > 0, 1000);
                 Wallpaper.files = files;
                 wait(50);
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
-                verify(!Wallpaper.drift && !controls.drift.lit, 'drift button switches off');
+                check(!Wallpaper.drift && !controls.drift.lit, 'drift button switches off');
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
-                verify(Wallpaper.drift && controls.drift.glyph === Theme.glyph.check, 'drift button switches on with standard check');
-                verify(controls.drift.y + controls.drift.parent.parent.y < popup.height - 60, 'drift sits above the colour controls');
+                check(Wallpaper.drift && controls.drift.glyph === Theme.glyph.check, 'drift button switches on with standard check');
+                check(controls.drift.y + controls.drift.parent.parent.y < popup.height - 60, 'drift sits above the colour controls');
                 const preview = Quickshell.env('QUICKSHELL_WALLPAPER_PREVIEW');
                 if (preview) {
                     let saved = false;
@@ -265,11 +271,11 @@ ShellRoot {
                 // Exercise layout when there is no image grid to set its width.
                 Wallpaper.files = [];
                 wait(30);
-                verify(popup.bodyWidth >= 320 && controls.parallax.width < popup.bodyWidth / 2, 'empty library retains readable section headers');
+                check(popup.bodyWidth >= 320 && controls.parallax.width < popup.bodyWidth / 2, 'empty library retains readable section headers');
                 console.log('PASS: wallpaper popup layout, pointer toggles and checkmarks');
             }
         }
-        Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log('FAIL: ' + e); } Qt.quit(); } }
+        Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log('FAIL: ' + e + '\n' + e.stack); } Qt.quit(); } }
     }
 }
 """
@@ -295,7 +301,7 @@ ShellRoot {
 
 def run_shell(target, scenario):
     (target / 'shell.qml').write_text(scenario)
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', XDG_RUNTIME_DIR=str(target / 'runtime'))
+    env = shell_env(target)
     for key in ('WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE'):
         env.pop(key, None)
     result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=20)
@@ -307,10 +313,11 @@ def run_shell(target, scenario):
 
 
 def main():
-    with tempfile.TemporaryDirectory(prefix='quickshell-wallpaper-test-') as folder:
+    with tempfile.TemporaryDirectory(prefix='quickshell-wallpaper-test-#?%-') as folder:
         target = Path(folder)
+        copy_shell(target)
         for name in ('services', 'components', 'modules', 'testing', 'wallpapers', 'cache', 'runtime'):
-            (target / name).mkdir(mode=0o700)
+            (target / name).mkdir(mode=0o700, exist_ok=True)
         for name in ('Theme.qml', 'services/Wallpaper.qml', 'services/WallClock.qml', 'components/QueuedProcess.qml', 'components/WallpaperStrip.qml', 'modules/Backdrop.qml', 'components/WallpaperPopup.qml', 'components/PopupHeader.qml', 'components/PopupButton.qml', 'components/PopupText.qml', 'components/Glyph.qml', 'components/BarText.qml', 'components/FittedIcon.qml', 'components/InkProbe.qml', 'components/Slider.qml', 'services/GlyphInk.qml', 'services/IconInk.qml'):
             source = (ROOT / name).read_text().replace('import Quickshell.Hyprland', 'import qs.testing')
             if name == 'services/Wallpaper.qml':
@@ -332,6 +339,9 @@ Item {
     property alias spacing: body.spacing
     property real reserveHeight: 0
     readonly property real chromeHeight: implicitHeight
+    readonly property real radius: Theme.popupRadius
+    readonly property Item chromeItem: root
+    readonly property real devicePixelRatio: 1
     property var screen: null
     implicitWidth: body.implicitWidth + 12
     implicitHeight: body.implicitHeight + 12
@@ -368,7 +378,7 @@ QtObject {
         # Green rises down the picture, so a vertical misplacement shows too.
         for name, gradient in (('a.png', 'red-blue'), ('b.png', 'green-yellow')):
             subprocess.run(['magick', '-size', '200x432', 'gradient:' + gradient, '-rotate', '-90', '(', '-size', '432x200', 'gradient:black-lime', ')', '-compose', 'plus', '-composite', str(target / 'wallpapers' / name)], check=True)
-        (target / 'scripts').mkdir()
+        (target / 'scripts').mkdir(exist_ok=True)
         shutil.copy(ROOT / 'scripts/wallpaper-thumbs', target / 'scripts/wallpaper-thumbs')
         (target / 'wallpapers/.current_wallpaper').write_text(str(target / 'wallpapers/a.png') + '\n\n\n')
         run_shell(target, SCENARIO)

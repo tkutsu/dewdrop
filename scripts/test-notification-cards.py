@@ -125,6 +125,11 @@ ShellRoot {
         TestCase {
             id: test; name: "NotificationCards"; when: false
             function check(ok, message) { if (!ok) throw Error(message); }
+            function checkSoon(predicate, message) {
+                const deadline = Date.now() + 1000;
+                while (!predicate() && Date.now() < deadline) wait(10);
+                check(predicate(), message);
+            }
             function named(item, name) {
                 if (item.objectName === name) return item;
                 for (const child of item.children || []) {
@@ -190,14 +195,13 @@ ShellRoot {
                 mouseClick(card, 12, 45);
                 check(Notifications.invoked === 0 && Notifications.count === 1, "card stays until the acknowledgement finishes");
                 card.open();
-                wait(130);
-                check(Notifications.invoked === 1 && OpenPopup.dismissed && Notifications.count === 0, "a click runs the default action once and clears the card");
+                checkSoon(() => Notifications.invoked === 1 && OpenPopup.dismissed && Notifications.count === 0, "a click runs the default action once and clears the card");
                 // Without one it goes to the sender (nothing to focus here) and still clears.
                 OpenPopup.dismissed = false;
                 notice.actions = [];
                 Notifications.list = [notice]; wait(150);
-                mouseClick(notificationCard(popup, notice), 12, 45); wait(130);
-                check(Notifications.invoked === 1 && OpenPopup.dismissed && Notifications.count === 0, "a click with no action clears the card");
+                mouseClick(notificationCard(popup, notice), 12, 45);
+                checkSoon(() => Notifications.invoked === 1 && OpenPopup.dismissed && Notifications.count === 0, "a click with no action clears the card");
                 // Other actions keep their buttons.
                 OpenPopup.dismissed = false;
                 notice.actions = [{identifier: "default", text: "Open", invoke: () => Notifications.invoked++}, {identifier: "reply", text: "Reply", invoke: () => Notifications.invoked += 10}];
@@ -207,8 +211,8 @@ ShellRoot {
                 list.contentY = Math.max(0, list.contentHeight - list.height); wait(130);
                 const reply = button(card, "Reply");
                 check(reply !== null && reply.visible, "the sender's other actions remain available");
-                mouseClick(reply, reply.width / 2, reply.height / 2); wait(130);
-                check(Notifications.invoked === 11 && OpenPopup.dismissed && Notifications.count === 0, "another action runs once and clears its notification");
+                mouseClick(reply, reply.width / 2, reply.height / 2);
+                checkSoon(() => Notifications.invoked === 11 && OpenPopup.dismissed && Notifications.count === 0, "another action runs once and clears its notification");
                 // The close button clears without following.
                 OpenPopup.dismissed = false;
                 Notifications.list = [notice]; wait(150);
@@ -217,8 +221,8 @@ ShellRoot {
                 const clear = button(card, "");
                 mouseMove(card, 12, 45); wait(130);
                 check(clear !== null && clear.visible, "hover exposes the dismiss control");
-                mouseClick(clear, clear.width / 2, clear.height / 2); wait(130);
-                check(Notifications.count === 0 && Notifications.invoked === 11, "the dismiss control clears without running anything");
+                mouseClick(clear, clear.width / 2, clear.height / 2);
+                checkSoon(() => Notifications.count === 0 && Notifications.invoked === 11, "the dismiss control clears without running anything");
                 // Groups: a closed group's card opens it rather than acting.
                 notice.actions = [];
                 notice.summary = "First notification"; notice.body = ""; notice.image = "";
@@ -235,14 +239,14 @@ ShellRoot {
                 wait(130);
                 check(cardCount(popup) === 1, "clicking the header closes the group");
                 mouseClick(named(popup, "notification-card"), 12, 30); wait(130);
-                mouseClick(notificationCard(popup, second), 12, 30); wait(130);
-                check(Notifications.count === 1 && Notifications.list[0] === notice && OpenPopup.dismissed, "a card in an open group acts on that notification alone");
+                mouseClick(notificationCard(popup, second), 12, 30);
+                checkSoon(() => Notifications.count === 1 && Notifications.list[0] === notice && OpenPopup.dismissed, "a card in an open group acts on that notification alone");
                 Notifications.list = [notice, second]; wait(150);
                 card = named(popup, "notification-card");
                 mouseMove(card, 12, 30); wait(130);
                 const groupClear = button(card, "");
-                mouseClick(groupClear, groupClear.width / 2, groupClear.height / 2); wait(130);
-                check(Notifications.count === 0, "a closed group's dismiss control clears all of it");
+                mouseClick(groupClear, groupClear.width / 2, groupClear.height / 2);
+                checkSoon(() => Notifications.count === 0, "a closed group's dismiss control clears all of it");
                 // One group open at a time, and the focused one's group opens.
                 const other = {appName: "Other sender", summary: "Other notification", body: "", actions: [], image: ""};
                 const otherSecond = {appName: other.appName, summary: "Second other notification", body: "", actions: [], image: ""};
@@ -255,8 +259,8 @@ ShellRoot {
                 Notifications.centreFocus = second; wait(130);
                 check(popup.expandedGroup === notice.appName, "opening on a focused notification opens its group");
                 const headerClear = button(named(popup, "group-header"), "clear");
-                mouseClick(headerClear, headerClear.width / 2, headerClear.height / 2); wait(130);
-                check(Notifications.count === 3 && Notifications.list.includes(single), "the header's clear clears only its group");
+                mouseClick(headerClear, headerClear.width / 2, headerClear.height / 2);
+                checkSoon(() => Notifications.count === 3 && Notifications.list.includes(single), "the header's clear clears only its group");
                 console.log("PASS: notification cards, actions, dismissal and grouping");
             }
         }
@@ -264,7 +268,7 @@ ShellRoot {
     Timer {
         interval: 100; running: true
         onTriggered: {
-            try { test.run(); } catch (error) { console.log("FAIL: " + error); }
+            try { test.run(); } catch (error) { console.log("FAIL: " + error + "\n" + error.stack); }
             Qt.quit();
         }
     }
