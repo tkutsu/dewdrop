@@ -1,5 +1,6 @@
 import QtQuick
 import qs
+import qs.services
 
 // A BarText preset for Nerd Font icons: symbol font, optically centred, laid
 // out on its ink, and unweighted (the icon fonts have a single weight, so
@@ -30,19 +31,29 @@ Item {
     // never measured is being measured. Shown straight away, it came in at
     // its whole box and shrank onto its ink a frame later, a zoom and a jolt
     // of the pill the first time caffeine went on or the volume reached a new
-    // step. So the old picture stays until `pending` has the new one's size.
+    // step. So the old picture stays until Ink has the new one's size.
     property string shown
 
+    // Off `text` itself rather than `drawing`: this runs from onTextChanged,
+    // which can come before that binding has heard of the new text.
     function settle() {
-        if (!root.drawing || (pending.item?.extent ?? 0) > 0)
+        if (!root.text.startsWith("file:") || Ink.extentOf(root.text) > 0)
             root.shown = root.text;
+        else
+            Ink.measureIcon(root.text, root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize));
     }
 
-    // Later rather than now: `pending` hears of the new text through a chain
-    // of bindings, and read in the middle of it would still be answering for
-    // the old one.
-    onTextChanged: Qt.callLater(root.settle)
+    onTextChanged: settle()
     Component.onCompleted: settle()
+
+    Connections {
+        target: Ink
+        enabled: root.shown !== root.text
+
+        function onRevisionChanged() {
+            root.settle();
+        }
+    }
 
     // A drawing is laid out on its ink too, like the font's glyphs, rather
     // than on the square box it is drawn in: the launcher's 12px magnifier
@@ -84,23 +95,6 @@ Item {
             box: size
             ink: Theme.glyphInk
             fitsInk: !root.fontCut
-        }
-    }
-
-    // The next drawing, drawn unseen at the same size so InkProbe can measure
-    // it (a grab ignores the opacity above what it grabs). Unloaded once shown,
-    // so a settled glyph holds one picture, not two.
-    Loader {
-        id: pending
-        active: root.drawing && root.text !== root.shown
-        opacity: 0
-        onLoaded: Qt.callLater(root.settle)
-
-        sourceComponent: FittedIcon {
-            source: root.drawing && root.text !== root.shown ? root.text : ""
-            size: root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
-            ink: Theme.glyphInk
-            onExtentChanged: Qt.callLater(root.settle)
         }
     }
 }

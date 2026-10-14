@@ -7,6 +7,8 @@ import re
 import subprocess
 import tempfile
 
+from test_support import offscreen_ink
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -124,6 +126,7 @@ ShellRoot {
             if item.name not in (".git", "settings.json", "shell.qml"):
                 (target / item.name).symlink_to(item)
         (target / "settings.json").write_text("{}\n")
+        offscreen_ink(target)
         (target / "shell.qml").write_text(qml)
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)

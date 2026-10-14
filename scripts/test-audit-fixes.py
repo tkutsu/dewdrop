@@ -13,6 +13,8 @@ import tempfile
 import time
 from unittest.mock import patch
 
+from test_support import offscreen_ink
+
 ROOT = Path(__file__).resolve().parents[1]
 
 GOOGLE = '''pragma Singleton
@@ -51,7 +53,7 @@ ShellRoot {
             target: glyph.auditArt
             function onSourceChanged() { suite.checkArtSource(); }
         }
-        BarText { id: zeroProbe; text: "audit zero-sized text"; opticalCentre: true; visible: false }
+        BarText { id: inkText; text: "audit measured text"; opticalCentre: true; visible: false }
         TestCase { id: test; when: false }
         Component { id: sliderFactory; SettingSlider {} }
     }
@@ -118,27 +120,27 @@ ShellRoot {
                 glyph.text = artwork;
                 check(glyph.shown === "A" && glyph.auditLabel.visible && glyph.auditArt === null,
                     "font glyph stays displayed while artwork is pending");
-                IconInk.remember(artwork, 1, 0, 1); test.wait(50);
+                Ink.remember(artwork, 1, 0, 1); test.wait(50);
                 check(glyph.shown === artwork && glyph.auditArt.visible && !glyph.auditLabel.visible, "measured artwork replaces the font glyph");
-                check(fittedIcons(glyph) === 1 && glyph.auditPending === null, "settled artwork unloads its measuring object");
+                check(fittedIcons(glyph) === 1, "settled artwork holds one picture");
                 glyph.text = "B"; test.wait(50);
                 check(glyph.shown === "B" && glyph.auditLabel.visible && glyph.auditArt === null, "switching back to a font unloads artwork");
                 check(fittedIcons(glyph) === 0, "returning to a font leaves no artwork objects");
                 check(suite.invalidSources === 0, "artwork never receives a font codepoint as its source");
                 glyph.text = artwork + "#em";
-                check(glyph.auditPending.size === glyph.fontSize, "pending font-cut artwork is measured at the font size");
-                IconInk.remember(artwork + "#em", 1, 0, 1); test.wait(50);
+                check(Ink._queue.some(job => job.source === artwork + "#em" && job.size === glyph.fontSize), "pending font-cut artwork is measured at the font size");
+                Ink.remember(artwork + "#em", 1, 0, 1); test.wait(50);
                 check(glyph.auditArt.size === glyph.fontSize, "displayed font-cut artwork keeps its font size");
                 glyph.text = artwork;
-                check(glyph.auditArt.size === glyph.fontSize, "pending artwork leaves the displayed font-cut size unchanged");
+                check(glyph.shown === artwork, "an already measured drawing replaces the font cut at once");
                 test.wait(50);
                 check(glyph.auditArt.size === Math.round(glyph.fontSize * Theme.iconSize / Theme.glyphSize), "ordinary artwork uses the theme icon size");
 
                 const unseen = String(Qt.resolvedUrl("fixture-unseen.svg"));
                 glyph.text = unseen;
-                check(glyph.shown === artwork && fittedIcons(glyph) === 2, "unmeasured replacement keeps the displayed artwork");
-                test.tryVerify(() => glyph.shown === unseen && IconInk.extentOf(unseen) > 0, 2000);
-                check(fittedIcons(glyph) === 1 && glyph.auditPending === null, "real ink measurement retires the pending artwork");
+                check(glyph.shown === artwork && fittedIcons(glyph) === 1, "unmeasured replacement keeps the displayed artwork");
+                test.tryVerify(() => glyph.shown === unseen && Ink.extentOf(unseen) > 0, 2000);
+                check(fittedIcons(glyph) === 1 && Math.abs(Ink.extentOf(unseen) - 14 / 20) < 0.08, "Ink measures the artwork's ink, not its box");
                 check(glyph.implicitWidth === glyph.auditArt.inkWidth
                     && glyph.auditArt.mapToItem(glyph, 0, 0).x === -glyph.auditArt.inkX,
                     "lazy artwork keeps tight ink layout");
@@ -152,11 +154,11 @@ ShellRoot {
                 check(glyph.shown === "C" && fittedIcons(glyph) === 0, "aborted artwork releases its measurement and returns to a font");
                 check(suite.invalidSources === 0, "lazy artwork never receives a font codepoint");
 
-                zeroProbe.auditDrawn.width = 0; zeroProbe.auditDrawn.height = 0; zeroProbe.visible = true;
-                check(!zeroProbe.auditProbe.active, "zero-sized text does not start an ink probe");
-                zeroProbe.auditDrawn.width = 20; zeroProbe.auditDrawn.height = 20;
-                check(zeroProbe.auditProbe.active, "ink probing resumes once text has a drawable size");
-                zeroProbe.visible = false;
+                check(!(("glyph:" + inkText.inkKey) in Ink._asked), "hidden text is not measured");
+                inkText.visible = true;
+                test.tryVerify(() => inkText.inked !== null, 2000);
+                check(inkText.inked.top >= Ink.glyphPad && inkText.inked.bottom < inkText.auditDrawn.height, "visible text is measured inside its padded Text");
+                inkText.visible = false;
 
                 GlassLight.track(fixtureAnchor, Qt.point(20, 10)); test.wait(1400);
                 check(GlassLight.presence === 1 && !GlassLight.auditFrames.running, "stationary hover stops per-frame lighting work");
@@ -263,15 +265,16 @@ def main():
             (target / "bin" / name).chmod(0o700)
         source = (target / "components/FittedIcon.qml").read_text().replace("id: root", 'id: root\n    objectName: "audit-fitted-icon"', 1)
         (target / "components/FittedIcon.qml").write_text(source)
-        source = (target / "components/Glyph.qml").read_text().replace("id: root", "id: root\n    readonly property var auditArt: art.item\n    property alias auditLabel: label\n    readonly property var auditPending: pending.item", 1)
+        source = (target / "components/Glyph.qml").read_text().replace("id: root", "id: root\n    readonly property var auditArt: art.item\n    property alias auditLabel: label", 1)
         (target / "components/Glyph.qml").write_text(source)
-        source = (target / "components/BarText.qml").read_text().replace("id: root", "id: root\n    property alias auditDrawn: drawn\n    property alias auditProbe: auditProbeLoader", 1).replace("Loader {", "Loader {\n        id: auditProbeLoader", 1)
+        source = (target / "components/BarText.qml").read_text().replace("id: root", "id: root\n    property alias auditDrawn: drawn", 1)
         (target / "components/BarText.qml").write_text(source)
         source = (target / "GlassLight.qml").read_text().replace("id: root", "id: root\n    property alias auditFrames: frames", 1).replace("FrameAnimation {", "FrameAnimation {\n        id: frames", 1)
         (target / "GlassLight.qml").write_text(source)
         (target / "fixture.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="white"/></svg>')
         for name in ("fixture-unseen.svg", "fixture-aborted.svg"):
             (target / name).write_text('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="5" y="3" width="10" height="14" fill="white"/></svg>')
+        offscreen_ink(target)
         (target / "shell.qml").write_text(SHELL)
         (target / "runtime").mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", LC_ALL="C.UTF-8", XDG_RUNTIME_DIR=str(target / "runtime"), XDG_DATA_HOME=str(target / "data"), XDG_STATE_HOME=str(target / "state"), XDG_CACHE_HOME=str(target / "cache"))

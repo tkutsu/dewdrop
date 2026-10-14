@@ -318,7 +318,7 @@ def main():
         copy_shell(target)
         for name in ('services', 'components', 'modules', 'testing', 'wallpapers', 'cache', 'runtime'):
             (target / name).mkdir(mode=0o700, exist_ok=True)
-        for name in ('Theme.qml', 'services/Wallpaper.qml', 'services/WallClock.qml', 'components/QueuedProcess.qml', 'components/WallpaperStrip.qml', 'modules/Backdrop.qml', 'components/WallpaperPopup.qml', 'components/PopupHeader.qml', 'components/PopupButton.qml', 'components/PopupText.qml', 'components/Glyph.qml', 'components/BarText.qml', 'components/FittedIcon.qml', 'components/InkProbe.qml', 'components/Slider.qml', 'services/GlyphInk.qml', 'services/IconInk.qml'):
+        for name in ('Theme.qml', 'services/Wallpaper.qml', 'services/WallClock.qml', 'components/QueuedProcess.qml', 'components/WallpaperStrip.qml', 'modules/Backdrop.qml', 'components/WallpaperPopup.qml', 'components/PopupHeader.qml', 'components/PopupButton.qml', 'components/PopupText.qml', 'components/Glyph.qml', 'components/BarText.qml', 'components/FittedIcon.qml', 'components/Slider.qml'):
             source = (ROOT / name).read_text().replace('import Quickshell.Hyprland', 'import qs.testing')
             if name == 'services/Wallpaper.qml':
                 # Keep border IPC off the host; exercise all wallpaper state and timers.

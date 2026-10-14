@@ -104,7 +104,7 @@ Item {
             }
             y: Math.round((root.height - implicitHeight) / 2)
             source: root.source || (root.iconName ? Quickshell.iconPath(root.iconName, true) : "")
-            // The tray's line, found the same way (components/InkProbe.qml). The
+            // The tray's line, found the same way (services/Ink.qml). The
             // taskbar used to sit on a guess instead: application icons fill their
             // box edge to edge where the theme's panel icons keep margin inside
             // theirs, so the box was made smaller — 13 against the tray's 16 — to

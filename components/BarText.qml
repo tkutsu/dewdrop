@@ -43,23 +43,32 @@ Item {
     // box; the rasteriser then hints the strokes onto whole rows and columns,
     // and at bar sizes the pixels land a row or two from where the outline
     // said — which is why a row of glyphs each centred on its own metrics
-    // still stepped up and down by a pixel. So once drawn, the glyph is
-    // grabbed and scanned (InkProbe), and from then on it is placed by what
-    // the scan found. Until the scan comes back it sits where the metrics put
-    // it, which is within a pixel or two, so nothing jumps on load.
+    // still stepped up and down by a pixel. So the glyph is drawn and scanned
+    // once (services/Ink.qml), and from then on it is placed by what the scan
+    // found. Until the scan comes back it sits where the metrics put it,
+    // which is within a pixel or two, so nothing jumps on load.
     //
     // Only for what is centred or measured on ink; text laid out on its
     // advance and cap height is left to the metrics, which are what a run of
     // text should be laid out on.
     readonly property bool probed: opticalCentre || tightWidth
-    readonly property string inkKey: GlyphInk.keyOf(root.family, root.weight, root.fontSize, shown.text)
-    readonly property var inked: probed ? GlyphInk.boundsOf(inkKey) : null
+    readonly property string inkKey: Ink.keyOf(root.family, root.weight, root.fontSize, shown.text)
+    readonly property var inked: probed ? Ink.boundsOf(inkKey) : null
 
-    // Room around the drawn text so the grab catches ink that hangs outside
-    // the advance box — a Nerd Font glyph with a negative side bearing, a
-    // descender past the line box. Given to the Text as padding and taken
-    // back off its position, so the ink lands exactly where it did before.
-    readonly property int inkPad: 4
+    // Asked once per glyph the first time it shows anywhere; every other copy
+    // reads the answer.
+    readonly property bool _unmeasured: probed && inked === null && shown.text !== "" && visible
+    on_UnmeasuredChanged: if (_unmeasured)
+        Ink.measureGlyph(root.family, root.weight, root.fontSize, shown.text)
+    Component.onCompleted: if (_unmeasured)
+        Ink.measureGlyph(root.family, root.weight, root.fontSize, shown.text)
+
+    // Room around the drawn text for ink that hangs outside the advance box —
+    // a Nerd Font glyph with a negative side bearing, a descender past the
+    // line box. Given to the Text as padding and taken back off its position,
+    // so the ink lands exactly where it did before. The same padding Ink
+    // measured with, so its rows and columns are this Text's.
+    readonly property int inkPad: Ink.glyphPad
 
     // A ceiling, for the one kind of text on the bar that does not come from
     // the bar: a song title, which can be any length and arrives at whatever
@@ -135,20 +144,5 @@ Item {
         text: shown.text
         font: metrics.font
         color: root.inkColor
-    }
-
-    // Measure once per glyph, the first time it is drawn anywhere; every
-    // other copy reads the cache. Grabbed at the Text's own size so the scan
-    // is in real pixels, not a scaled copy of them.
-    Loader {
-        active: root.probed && root.inked === null && shown.text !== "" && root.visible && drawn.width >= 1 && drawn.height >= 1
-
-        sourceComponent: InkProbe {
-            target: drawn
-            width: Math.ceil(drawn.width)
-            height: Math.ceil(drawn.height)
-            ready: true
-            onBounds: (top, bottom, left, right) => GlyphInk.remember(root.inkKey, top, bottom, left, right)
-        }
     }
 }

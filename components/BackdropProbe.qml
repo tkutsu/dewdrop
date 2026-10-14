@@ -48,7 +48,7 @@ Item {
     property bool around: false
 
     // The answer, or -1 for a reading that found nothing to read, which
-    // keeps whatever there was. Out of the paint first, as InkProbe does: it
+    // keeps whatever there was. Out of the paint first: it
     // is what retires the canvas, and a canvas should not go from inside its
     // own paint.
     function done(luma: real): void {
@@ -94,7 +94,7 @@ Item {
         active: root.reading
 
         sourceComponent: Item {
-            // Drawn, but contributing nothing, as InkProbe is: the view only
+            // Drawn, but contributing nothing, as Ink's meter is: the view only
             // has to be in the scene for the grab to have something to render.
             opacity: 0
 
