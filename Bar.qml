@@ -49,6 +49,8 @@ PanelWindow {
         focus: true
         onActiveFocusChanged: if (activeFocus && bar.acquiringFocus)
             Qt.callLater(() => bar.acquiringFocus = false)
+        Keys.forwardTo: OpenPopup.keyed.length && OpenPopup.keyed[OpenPopup.keyed.length - 1].keyInput
+            ? [OpenPopup.keyed[OpenPopup.keyed.length - 1].keyInput] : []
         Keys.onPressed: event => event.accepted = OpenPopup.key(event)
     }
 

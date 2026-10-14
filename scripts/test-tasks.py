@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+"""Exercise the real task service and popup with an isolated Google transport."""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from test_support import copy_shell, shell_env
+
+BASE = '''import QtQuick
+import Quickshell
+Singleton {
+    property string service: ""; property int pollMs: 0
+    property bool loaded: true; property bool configured: true
+    property bool polling: false; property bool loading: false; property int requests: 0; property bool retryable: false
+    property bool stale: false; property string trouble: ""
+    property string today: "2026-10-14"
+    property var generations: ({})
+    property var calls: []
+    signal fetch()
+    function dayString(d) { return Qt.formatDate(d, "yyyy-MM-dd"); }
+    function send(method, url, body, done, failed) {
+        calls = calls.concat([{method: method, url: url, body: body, done: done, failed: failed}]);
+    }
+    function fail(why, status) { trouble = why; }
+    function refresh() {} function retryNow() {}
+    function gather(key, sources, map, done) {}
+}'''
+
+SHELL = '''import QtQuick
+import Quickshell.Io
+import Quickshell.Wayland
+import QtQuick.Window
+import QtTest
+import Quickshell
+import qs
+import qs.components
+import qs.services
+ShellRoot {
+    property bool live: false
+    Process { id: pointerMotion }
+    FloatingWindow { visible: true; title: "Quickshell task verification"; implicitWidth: 500; implicitHeight: 400
+        property point windowOnScreen: Qt.point(0, 0)
+        Item { id: anchor; width: 40; height: 20 }
+        Item { id: keyRelay; focus: true
+            Keys.forwardTo: popup.keyInput ? [popup.keyInput] : []
+            Keys.onPressed: event => event.accepted = popup.key(event)
+        }
+        TestCase { id: test; when: false
+            function check(ok, text) { if (!ok) throw Error(text); console.log("PASS: " + text); }
+            function run() {
+                Tasks.lists = [{id: "home", title: "To do"}, {id: "work", title: "Work"}, {id: "empty", title: "Later"}];
+                Settings.set("defaultTaskList", "work");
+                for (const line of ["work fri call x", "fri work call x"] ) {
+                    const p = Tasks.parse(line);
+                    check(p.ok && p.title === "call x" && p.list === "work" && p.day !== "", line);
+                }
+                check(Tasks.parse("call x").list === "work", "default section");
+                check(Tasks.parse("ToDo milk").list === "home", "case and spaces in list names");
+                check(Tasks.parse("work").error === "No task, only a section", "section without title");
+                check(!Tasks.parse("2026-02-30 work tax").ok, "invalid leading date");
+                check(!Tasks.parse("work 2026-02-30 tax").ok, "invalid date after section");
+                check(!Tasks.parse("tomorrow").ok, "day without title");
+                Settings.set("defaultTaskList", "missing");
+                check(Tasks.parse("call x").list === "home", "unknown default falls back");
+                Tasks.tasks = [
+                    {id: "b", listId: "home", title: "Second", position: "20", due: "2026-10-01", parent: "", notes: ""},
+                    {id: "a", listId: "home", title: "First", position: "10", due: "", parent: "", notes: "A note"},
+                    {id: "c", listId: "home", title: "Child", position: "10", due: "", parent: "a", notes: ""},
+                    {id: "d", listId: "work", title: "Work task", position: "10", due: "2026-12-01", parent: "", notes: ""}
+                ];
+                check(Tasks.rows.map(r => r.kind + ":" + r.id).join(",") === "header:home,task:a,subtask:c,task:b,header:work,task:d", "flat section model and manual order");
+                check(Tasks.sections[0].tasks[0].children[0].id === "c", "parent children");
+                check(Tasks.count === 2, "date based count excludes children and future tasks");
+                check(Tasks.dragRows.some(r => r.kind === "header" && r.id === "empty"), "empty drag destinations");
+                Tasks.run("work tomorrow new task");
+                check(Tasks.calls[0].url.includes("/lists/work/tasks") && Tasks.calls[0].body.title === "new task", "add routed to section");
+                check(popup.auditList.count === Tasks.rows.length, "popup draws flat model");
+                check(Launcher.taskResults("").filter(r => r.kind === "task").map(r => r.task.id).join(",") === "a,c,b,d", "launcher section order");
+                check(Launcher.taskResults("work fri call x")[0].subtitle.includes("Work"), "launcher add destination");
+                Tasks.calls = [];
+                const stableRows = Tasks.rows;
+                Tasks.fetchLists();
+                Tasks.calls[0].done({items: Tasks.lists});
+                check(Tasks.rows === stableRows, "unchanged list poll preserves row model");
+                Tasks.calls = [];
+                popup.auditReorder.queue = Tasks.dragRows;
+                const firstIndex = Tasks.dragRows.findIndex(r => r.id === "a");
+                const workHeader = Tasks.dragRows.findIndex(r => r.kind === "header" && r.id === "work");
+                popup.moveRow(firstIndex, workHeader);
+                check(Tasks.sections[1].tasks.map(t => t.id).join(",") === "a,d", "dragging a parent past its children lands under the header");
+                Tasks.calls[0].failed("Test rollback", 400);
+                Tasks.calls = [];
+                popup.auditReorder.queue = Tasks.dragRows;
+                const childIndex = Tasks.dragRows.findIndex(r => r.id === "c");
+                popup.moveRow(childIndex, childIndex);
+                check(Tasks.calls.length === 0 && Tasks.tasks.find(t => t.id === "c").parent === "a", "stationary hold preserves a subtask");
+                Tasks.move(Tasks.tasks.find(t => t.id === "b"), {list: "work", previous: "d"});
+                check(Tasks.sections[1].tasks.map(t => t.id).join(",") === "d,b", "optimistic cross section order");
+                check(Tasks.calls[0].method === "POST" && Tasks.calls[0].body === null && Tasks.calls[0].url.includes("destinationTasklist=work") && Tasks.calls[0].url.includes("previous=d"), "move query and empty body");
+                Tasks.calls[0].failed("Recurring task cannot change lists", 400);
+                check(Tasks.ordered.map(t => t.id).join(",") === "a,c,b,d" && Tasks.trouble.includes("Recurring"), "failed move rolls back with trouble");
+                Tasks.trouble = "";
+                Tasks.calls = [];
+                Tasks.move(Tasks.tasks.find(t => t.id === "b"), {list: "home", parent: "a", previous: "c"});
+                check(Tasks.ordered.map(t => t.id + ":" + (t.parent || "")).join(",") === "a:,c:a,b:a,d:", "nesting position");
+                Tasks.calls[0].done({id: "b", position: "20"});
+                Tasks.calls = [];
+                Tasks.move(Tasks.tasks.find(t => t.id === "c"), {list: "home", parent: "", previous: "a"});
+                check(Tasks.sections[0].tasks.map(t => t.id).join(",") === "a,c", "subtask lifted to top level");
+                Tasks.calls[0].done({id: "c", position: "20"});
+                Tasks.calls = [];
+                Tasks.move(Tasks.tasks.find(t => t.id === "a"), {list: "home", parent: "c"});
+                check(Tasks.calls.length === 0, "parent with children cannot nest");
+                Tasks.move(Tasks.tasks.find(t => t.id === "a"), {list: "work"});
+                check(Tasks.tasks.find(t => t.id === "b").listId === "work", "parent moves its children");
+                Tasks.calls[0].done({id: "a", position: "05"});
+                Tasks.calls = [];
+                const a = Tasks.ordered.find(t => t.id === "a");
+                Tasks.complete(a);
+                check(Tasks.isCrossed(a) && Tasks.isCrossed(Tasks.tasks.find(t => t.id === "b")), "parent cross out includes children");
+                check(Tasks.calls.length === 0 && Tasks.ordered.some(t => t.id === "a"), "cross out stays visible with no request");
+                check(Launcher.taskResults("").find(r => r.task?.id === "a").crossed, "launcher uses crossed state");
+                Tasks.complete(a);
+                Tasks.commit();
+                check(!Tasks.isCrossed(a) && Tasks.calls.length === 0, "tap twice then close commits nothing");
+                Tasks.complete(a);
+                popup.requestedVisible = false;
+                check(Tasks.calls.length === 1 && Tasks.calls[0].url.includes("/tasks/b"), "close commits child first");
+                Tasks.calls[0].done({});
+                check(Tasks.calls.length === 2 && Tasks.calls[1].url.includes("/tasks/a"), "parent follows child commit");
+                Tasks.calls[1].done({});
+                check(!Tasks.tasks.some(t => ["a", "b"].includes(t.id)), "commit removes completed rows");
+                popup.requestedVisible = true;
+                Tasks.calls = [];
+                const c = Tasks.tasks.find(t => t.id === "c");
+                Tasks.complete(c);
+                wait(5500);
+                check(Tasks.calls.length === 0, "completion waits ten seconds");
+                Tasks.complete(c);
+                Tasks.complete(c);
+                wait(5000);
+                check(Tasks.calls.length === 0, "last tap restarts completion delay");
+                wait(5100);
+                check(Tasks.calls.length === 1, "ten second idle commit while open");
+                Tasks.calls[0].failed("Offline", 0);
+                check(Tasks.tasks.some(t => t.id === "c") && !Tasks.isCrossed(c), "failed completion restores open state");
+                Tasks.calls = [];
+                popup.beginEdit(c);
+                wait(50);
+                check(popup.editing.id === "c", "edit begins");
+                const row = popup.auditList.itemAtIndex(Tasks.rows.findIndex(r => r.id === "c"));
+                const editor = row.children[0].children.find(child => child.objectName === "taskEditor");
+                if (!live) anchor.Window.window.requestActivate();
+                keyRelay.forceActiveFocus();
+                wait(100);
+                check(editor && editor.focus && popup.keyInput === editor, "inline editor receives forwarded keys");
+                editor.selectAll();
+                for (const ch of "Edited title") keyClick(ch);
+                keyClick(Qt.Key_Return, Qt.ShiftModifier);
+                for (const ch of "Notes on phone") keyClick(ch);
+                keyClick(Qt.Key_Return);
+                check(Tasks.calls.length === 1 && Tasks.calls[0].body.title === "Edited title" && Tasks.calls[0].body.notes === "Notes on phone", "Enter saves title and Shift Enter notes");
+                Tasks.calls[0].done({});
+                Tasks.calls = [];
+                popup.auditList.forceLayout();
+                const editRow = popup.auditList.itemAtIndex(Tasks.rows.findIndex(r => r.id === "c"));
+                popup.setKey(editRow);
+                check(popup.key({key: Qt.Key_E}), "e edits focused row");
+                wait(30);
+                keyRelay.forceActiveFocus();
+                wait(100);
+                keyClick(Qt.Key_Escape);
+                check(popup.editing === null && Tasks.calls.length === 0, "Escape cancels without writing");
+                if (live) {
+                    const local = editRow.mapToItem(popup.contentItem, 25, 10);
+                    const point = {x: local.x + popup.windowOnScreen.x, y: local.y + popup.windowOnScreen.y};
+                    pointerMotion.command = ["hyprctl", "dispatch", "hl.dsp.cursor.move({x=" + Math.round(point.x) + ",y=" + Math.round(point.y) + "})"];
+                    pointerMotion.running = true;
+                    wait(100);
+                } else mouseMove(editRow, 25, 10);
+                wait(30);
+                check(editRow.hovered, "hover works after editing");
+                const rowIndex = Tasks.rows.findIndex(r => r.id === "c");
+                const y = editRow.y - popup.auditList.contentY + 12;
+                mouseClick(popup.auditList, 25, y);
+                check(Tasks.isCrossed(c), "pointer tap crosses exactly once");
+                mouseClick(popup.auditList, 25, y);
+                check(!Tasks.isCrossed(c), "second pointer tap uncrosses");
+                mousePress(popup.auditList, 25, y);
+                wait(550);
+                check(popup.auditReorder.dragging, "hold lifts task");
+                check(popup.auditReorder.queue.some(r => r.kind === "header" && r.id === "empty"), "hold reveals empty sections");
+                check(popup.auditList.itemAtIndex(popup.auditReorder.from).height === popup.rowHeight, "held rows collapse to one line");
+                mouseMove(popup.auditList, 25, popup.auditList.height - 2);
+                wait(50);
+                mouseRelease(popup.auditList, 25, popup.auditList.height - 2);
+                wait(200);
+                check(Tasks.calls.length === 1 && Tasks.calls[0].url.includes("/move"), "pointer drop sends move");
+                Tasks.calls[0].failed("Refused move", 400);
+                wait(200);
+                check(!popup.auditReorder.showing && Tasks.tasks.find(t => t.id === "c").listId === "home", "refused pointer move settles and rolls back");
+                console.log("DONE: tasks");
+            }
+        }
+    }
+    TasksPopup { id: popup; visible: true; anchorItem: anchor }
+    Timer { interval: 100; running: true; onTriggered: {
+        try { test.run(); } catch(e) { console.log("FAIL: " + e + "\\n" + e.stack); }
+        Qt.quit();
+    } }
+}'''
+
+
+def main():
+    with tempfile.TemporaryDirectory(prefix="qs-tasks-") as folder:
+        target = Path(folder)
+        copy_shell(target)
+        (target / "services/GoogleService.qml").write_text(BASE)
+        p = target / "components/TasksPopup.qml"
+        p.write_text(p.read_text().replace("id: root", "id: root\n    property alias auditList: list\n    property alias auditReorder: reorder", 1))
+        shell = SHELL
+        if "--live" in sys.argv:
+            shell = shell.replace("property bool live: false", "property bool live: true")
+            shell = shell.replace('FloatingWindow { visible: true; title: "Quickshell task verification"; implicitWidth: 500; implicitHeight: 400',
+                'PanelWindow { anchors.top: true; anchors.left: true; anchors.right: true; implicitHeight: 50; exclusionMode: ExclusionMode.Ignore; WlrLayershell.namespace: "quickshell-task-verification"; WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive')
+        (target / "shell.qml").write_text(shell)
+        env = shell_env(target)
+        if "--live" in sys.argv:
+            env.pop("QT_QUICK_BACKEND", None)
+            env.update(QT_QPA_PLATFORM="wayland", XDG_RUNTIME_DIR=os.environ["XDG_RUNTIME_DIR"],
+                       WAYLAND_DISPLAY=os.environ["WAYLAND_DISPLAY"],
+                       HYPRLAND_INSTANCE_SIGNATURE=os.environ["HYPRLAND_INSTANCE_SIGNATURE"])
+        pointer = json.loads(subprocess.check_output(["hyprctl", "cursorpos", "-j"], text=True)) if "--live" in sys.argv else None
+        try:
+            result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=40)
+        finally:
+            if pointer:
+                subprocess.run(["hyprctl", "dispatch", f"hl.dsp.cursor.move({{x={pointer['x']},y={pointer['y']}}})"], capture_output=True)
+        output = result.stdout + result.stderr
+        errors = ("FAIL:", "ReferenceError:", "TypeError:", "Unable to assign", "Cannot assign", "Binding loop", "Failed to load configuration")
+        print("\n".join(line for line in output.splitlines() if any(marker in line for marker in ("PASS:", "DONE:", *errors, "caused by"))))
+        return 0 if result.returncode == 0 and "DONE: tasks" in output and not any(e in output for e in errors) else 1
+
+if __name__ == "__main__":
+    raise SystemExit(main())

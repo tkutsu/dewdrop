@@ -114,12 +114,20 @@ _Avoid_: File popup, search result
 A Google Tasks item that can be created or completed through the shell, with an optional due day. Tasks belong to task lists.
 _Avoid_: Reminder, calendar event, timer
 
+**Task list**:
+A named Google Tasks list, drawn as a section in the shell. Sections keep their Google list order; tasks inside them keep their manual order.
+_Avoid_: Stage, priority group
+
+**Subtask**:
+A task nested one level under a parent task in the same section. Subtasks have their own due days and can be completed separately; completing a parent completes its open subtasks too.
+_Avoid_: Checklist item, nested list
+
 **Due day**:
 The calendar day on which a task is due, without a time of day. A task is overdue when its due day precedes today.
 _Avoid_: Deadline time, due instant
 
 **Task count**:
-The number of incomplete tasks that are overdue, due today, or undated. Future-dated tasks appear in the task list but do not contribute to the bar's count.
+The number of incomplete top-level tasks that are overdue, due today, or undated. Subtasks and future-dated tasks appear in sections but do not contribute to the bar's count.
 _Avoid_: Total tasks, tasks due today (for the badge count)
 
 **Mail thread**:
