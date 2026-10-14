@@ -299,6 +299,7 @@ Singleton {
     }
 
     function hide(): void {
+        Tasks.commit();
         root.shown = false;
         // Closing is not a keystroke, so route() never runs to stop the clocks
         // the modes keep; a run they started against a box that is gone would
@@ -657,21 +658,17 @@ Singleton {
             rows.unshift({
                 kind: "task-add",
                 glyph: Theme.glyph.plus,
-                // What was typed, not what was parsed: the row is a preview of
-                // the line, and a title that silently dropped the "@fri" would
-                // leave you unsure whether it had been understood or eaten.
+                // Keep the typed day and section words in the preview.
                 title: typed,
                 raw: true,
                 // Show the parsed date and destination beside the typed title.
-                subtitle: !p.ok ? p.error : "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (Tasks.lists.length > 1 ? "  ·  " + Tasks.lists[0].title : ""),
+                subtitle: !p.ok ? p.error : "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (Tasks.lists.find(l => l.id === p.list) ? "  ·  " + Tasks.lists.find(l => l.id === p.list).title : ""),
                 ok: p.ok,
                 text: typed
             });
         }
 
-        // Filtered on the parsed title rather than the raw line, or the "@fri"
-        // in ",milk @fri" would be a term no task could match and the list
-        // below would empty out exactly as the date was typed.
+        // Day and section words route the add; only the title filters tasks.
         const core = parsedTask?.title ?? "";
         const terms = root.prepTerms(core);
         const scored = [];
@@ -689,6 +686,7 @@ Singleton {
                 row: {
                     kind: "task",
                     task: task,
+                    crossed: Tasks.isCrossed(task),
                     glyph: Theme.glyph.taskOpen,
                     title: task.title,
                     raw: true,
@@ -697,8 +695,8 @@ Singleton {
                     // in a fight with it for the row.
                     titleShare: 0.82,
                     // The order the list is already in is the order it should
-                    // keep when nothing is typed: by date, soonest first. Only
-                    // a real query is allowed to reorder it.
+                    // keep when nothing is typed: sections and manual order.
+                    // Only a real query is allowed to reorder it.
                     dim: Tasks.urgency(task) === "none"
                 }
             });

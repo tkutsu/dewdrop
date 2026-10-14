@@ -29,16 +29,11 @@ GoogleService {
     // that only proved nothing had. See fetchTasks.
     property string snapshot: ""
 
-    // Just ticked off, by task id with the moment it went: what the popup
-    // offers undo for. Held for ten seconds, long enough to notice the wrong
-    // row went, rather than cleared when the refetch lands.
-    property var undoable: ({})
-    readonly property int undoMs: 10000
-    // Completions still on their way to Google, keyed by task id, each holding
-    // the undo tapped meanwhile (or null). Two PATCHes for one task in flight
-    // at once can land in either order, and an undo that lands first leaves
-    // the task completed with nothing left to undo it, so restore waits here.
-    property var completing: ({})
+    property var crossed: ({})
+    property int writing: 0
+    property bool commitWanted: false
+    onWritingChanged: if (writing === 0 && commitWanted) Qt.callLater(root.commit)
+    signal committed()
 
     // --- days ----------------------------------------------------------------
     // Google stores a due date as midnight UTC but means a calendar day. Read
@@ -51,27 +46,49 @@ GoogleService {
 
     readonly property string tomorrow: root.dayString(new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + 1))
 
-    // --- the groups ----------------------------------------------------------
-    // Sorted by day, then by the order they sit in on Google's side, so a list
-    // reordered on the phone reads the same here.
-    function byDay(a: var, b: var): int {
-        const da = root.dayOf(a);
-        const db = root.dayOf(b);
-        if (da !== db)
-            return da < db ? -1 : 1;
+    // Sections keep Google's list order and each sibling group's manual order.
+    function byPosition(a: var, b: var): int {
         const pa = String(a.position ?? "");
         const pb = String(b.position ?? "");
         return pa === pb ? 0 : (pa < pb ? -1 : 1);
     }
 
-    readonly property var overdue: root.tasks.filter(t => root.dayOf(t) !== "" && root.dayOf(t) < root.today).sort(root.byDay)
-    readonly property var due: root.tasks.filter(t => root.dayOf(t) === root.today).sort(root.byDay)
-    readonly property var soon: root.tasks.filter(t => root.dayOf(t) > root.today).sort(root.byDay)
-    readonly property var undated: root.tasks.filter(t => root.dayOf(t) === "").sort(root.byDay)
+    function byDay(a: var, b: var): int {
+        const da = root.dayOf(a), db = root.dayOf(b);
+        return da === db ? root.byPosition(a, b) : da < db ? -1 : 1;
+    }
 
-    // One list, soonest first, undated last; the groups count, they are not
-    // drawn as headings.
-    readonly property var ordered: root.overdue.concat(root.due).concat(root.soon).concat(root.undated)
+    readonly property var sections: root.lists.map(l => ({
+        id: l.id, title: l.title,
+        tasks: root.tasks.filter(t => t.listId === l.id && !t.parent).sort(root.byPosition).map(t =>
+            Object.assign({}, t, { children: root.tasks.filter(c => c.listId === l.id && c.parent === t.id).sort(root.byPosition) }))
+    }))
+
+    function flatRows(includeEmpty: bool): var {
+        const out = [];
+        for (const section of root.sections) {
+            if (!includeEmpty && !section.tasks.length)
+                continue;
+            if (root.lists.length > 1)
+                out.push({ kind: "header", id: section.id, title: section.title, listId: section.id });
+            for (const task of section.tasks) {
+                out.push(Object.assign({}, task, { kind: "task" }));
+                for (const child of task.children)
+                    out.push(Object.assign({}, child, { kind: "subtask", children: [] }));
+            }
+        }
+        return out;
+    }
+
+    readonly property var rows: root.flatRows(false)
+    readonly property var dragRows: root.flatRows(true)
+    readonly property var ordered: root.rows.filter(r => r.kind !== "header")
+    readonly property var topLevel: root.tasks.filter(t => !t.parent)
+    readonly property var overdue: root.topLevel.filter(t => root.dayOf(t) !== "" && root.dayOf(t) < root.today).sort(root.byDay)
+    readonly property var due: root.topLevel.filter(t => root.dayOf(t) === root.today).sort(root.byDay)
+    readonly property var soon: root.topLevel.filter(t => root.dayOf(t) > root.today).sort(root.byDay)
+    readonly property var undated: root.topLevel.filter(t => root.dayOf(t) === "").sort(root.byDay)
+    readonly property var defaultList: root.lists.find(l => l.id === Settings.defaultTaskList) ?? root.lists[0] ?? { id: "@default", title: "" }
 
     // How pressing a task is, as one of four words, drawn as a dot's colour:
     // taken in without reading.
@@ -138,10 +155,8 @@ GoogleService {
     // --- reading -------------------------------------------------------------
     function fetchLists(): void {
         root.send("GET", `${root.api}/users/@me/lists`, null, function (body) {
-            root.lists = (body.items ?? []).map(l => ({
-                id: l.id,
-                title: l.title
-            }));
+            const lists = (body.items ?? []).map(l => ({ id: l.id, title: l.title }));
+            if (JSON.stringify(lists) !== JSON.stringify(root.lists)) root.lists = lists;
             root.fetchTasks();
         });
     }
@@ -150,17 +165,16 @@ GoogleService {
     // GoogleService.gather); if any list fails, what is on screen stays and
     // `trouble` says so.
     function fetchTasks(): void {
+        if (root.writing > 0) return;
         const sources = root.lists.map(l => ({
                     url: `${root.api}/lists/${l.id}/tasks?showCompleted=false&showHidden=false&maxResults=100`,
                     list: l
                 }));
         root.gather("tasks", sources, function (item, source) {
-            // Subtasks share the list with a parent id; the bar draws no tree,
-            // so they stay out.
-            if (item.parent)
-                return null;
             return {
                 id: item.id,
+                parent: item.parent ?? "",
+                assignmentInfo: item.assignmentInfo ?? null,
                 listId: source.list.id,
                 listTitle: source.list.title,
                 title: item.title ?? "",
@@ -171,9 +185,7 @@ GoogleService {
         }, function (gathered, failed) {
             if (failed.length > 0)
                 return;
-            // A reply built before the PATCH landed may still hold a ticked
-            // row; kept out until the undo window closes so it cannot flicker.
-            const kept = gathered.filter(t => !root.undoable[t.id]);
+            const kept = gathered;
             // A fixed order, whatever order the replies came back in.
             kept.sort((a, b) => a.listId !== b.listId ? (a.listId < b.listId ? -1 : 1) : a.position === b.position ? 0 : (a.position < b.position ? -1 : 1));
 
@@ -190,73 +202,155 @@ GoogleService {
     }
 
     // --- writing -------------------------------------------------------------
-    // The row goes at once and the refetch confirms it.
-    function complete(task: var): void {
-        const mark = Object.assign({}, root.undoable);
-        mark[task.id] = {
-            task: task,
-            at: Date.now()
-        };
-        root.undoable = mark;
-        root.tasks = root.tasks.filter(t => t.id !== task.id);
-        // The screen no longer matches the snapshot, so the next fetch must
-        // publish, or a failed PATCH would read as "nothing moved".
-        root.snapshot = "";
-
-        root.completing[task.id] = null;
-        const settle = function () {
-            const undo = root.completing[task.id];
-            delete root.completing[task.id];
-            return undo;
-        };
-        const failed = function (why, status) {
-            settle();
-            root.fail(why, status);
-            root.forget(task.id);
-            if (!root.tasks.some(t => t.id === task.id))
-                root.tasks = root.tasks.concat([task]);
-            root.snapshot = "";
-        };
-        root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
-            status: "completed"
-        }, () => {
-            const undo = settle();
-            if (undo)
-                undo();
-            else
-                root.fetchTasks();
-        }, failed);
+    // Cross-outs stay editable until the popup closes or the last tap ages out.
+    function isCrossed(task: var): bool {
+        return !!root.crossed[task.id];
     }
 
-    // Undo. Google clears the completion date itself but not `hidden`, and a
-    // hidden task never comes back into the list.
-    function restore(task: var): void {
-        if (task.id in root.completing) {
-            root.completing[task.id] = () => root.restore(task);
-            return;
+    function complete(task: var): void {
+        if (root.writing > 0) return;
+        const marks = Object.assign({}, root.crossed);
+        const checked = !root.isCrossed(task);
+        const affected = root.tasks.filter(t => t.id === task.id || (t.listId === task.listId && t.parent === task.id));
+        for (const t of affected) {
+            if (checked) marks[t.id] = true;
+            else delete marks[t.id];
         }
-        root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, {
-            status: "needsAction",
-            completed: null,
-            hidden: false
-        }, () => {
-            root.forget(task.id);
+        // Reopening a child also reopens its parent so a parent PATCH cannot
+        // silently complete a child that was just uncrossed.
+        if (!checked && task.parent) delete marks[task.parent];
+        root.crossed = marks;
+        if (Object.keys(marks).length) commitDelay.restart();
+        else commitDelay.stop();
+    }
+
+    function invalidate(): void {
+        root.snapshot = "";
+        root.generations.tasks = (root.generations.tasks ?? 0) + 1;
+    }
+
+    function commit(): void {
+        if (root.writing > 0) { root.commitWanted = true; return; }
+        root.commitWanted = false;
+        commitDelay.stop();
+        const selected = root.tasks.filter(t => root.isCrossed(t));
+        if (!selected.length) return;
+        root.writing++;
+        root.trouble = "";
+        root.invalidate();
+        // Children go first: if a child fails, its parent must remain open.
+        const children = selected.filter(t => t.parent);
+        const parents = selected.filter(t => !t.parent);
+        const succeeded = [];
+        const blocked = new Set();
+        let failed = false;
+        const finish = () => {
+            const marks = Object.assign({}, root.crossed);
+            for (const task of selected) delete marks[task.id];
+            root.crossed = marks;
+            root.tasks = root.tasks.filter(t => !succeeded.includes(t.id));
+            root.writing--;
+            root.committed();
+            if (!failed) root.fetchTasks();
+        };
+        const write = (items, next) => {
+            let remaining = items.length;
+            if (!remaining) { next(); return; }
+            const settled = () => { if (--remaining === 0) next(); };
+            for (const task of items) {
+                if (blocked.has(task.id)) { settled(); continue; }
+                root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, { status: "completed" }, () => {
+                    succeeded.push(task.id);
+                    settled();
+                }, (why, status) => {
+                    failed = true;
+                    if (task.parent) blocked.add(task.parent);
+                    root.fail(why, status);
+                    settled();
+                });
+            }
+        };
+        write(children, () => write(parents, finish));
+    }
+
+    // Optimistic sibling positions are replaced by Google's positions on sync.
+    function move(task: var, destination: var): void {
+        if (root.writing > 0 || root.isCrossed(task)) return;
+        const current = root.tasks.find(t => t.id === task.id && t.listId === task.listId);
+        if (!current) return;
+        const list = destination.list || current.listId;
+        const parent = destination.parent || "";
+        const previous = destination.previous || "";
+        const children = root.tasks.filter(t => t.listId === current.listId && t.parent === current.id);
+        const target = root.tasks.find(t => t.id === parent && t.listId === list);
+        if (parent && (!target || target.parent || target.id === current.id || children.length || target.assignmentInfo || current.assignmentInfo)) return;
+        const siblings = root.tasks.filter(t => t.listId === list && (t.parent || "") === parent && t.id !== current.id).sort(root.byPosition);
+        const at = previous === "" ? 0 : siblings.findIndex(t => t.id === previous) + 1;
+        if (previous && at === 0) return;
+        const old = root.tasks;
+        const moved = Object.assign({}, current, { listId: list, listTitle: root.lists.find(l => l.id === list)?.title ?? "", parent: parent });
+        siblings.splice(at, 0, moved);
+        const positions = new Map(siblings.map((t, i) => [t.id, String(i).padStart(20, "0")]));
+        root.writing++;
+        root.trouble = "";
+        root.invalidate();
+        root.tasks = old.map(t => {
+            if (t.id === current.id) return Object.assign({}, moved, { position: positions.get(t.id) });
+            if (t.listId === current.listId && t.parent === current.id)
+                return Object.assign({}, t, { listId: list, listTitle: moved.listTitle });
+            if (t.listId === list && (t.parent || "") === parent && positions.has(t.id))
+                return Object.assign({}, t, { position: positions.get(t.id) });
+            return t;
+        });
+        const query = [];
+        if (parent) query.push("parent=" + encodeURIComponent(parent));
+        if (previous) query.push("previous=" + encodeURIComponent(previous));
+        if (list !== current.listId) query.push("destinationTasklist=" + encodeURIComponent(list));
+        root.send("POST", `${root.api}/lists/${current.listId}/tasks/${current.id}/move${query.length ? "?" + query.join("&") : ""}`, null, body => {
+            root.tasks = root.tasks.map(t => {
+                if (t.id === current.id) return Object.assign({}, t, { id: body.id ?? t.id, position: body.position ?? t.position });
+                if (t.parent === current.id && t.listId === list) return Object.assign({}, t, { parent: body.id ?? current.id });
+                return t;
+            });
+            root.writing--;
             root.fetchTasks();
+        }, (why, status) => {
+            root.tasks = old;
+            root.writing--;
+            root.fail(why, status);
         });
     }
 
-    function forget(id: string): void {
-        const left = ({});
-        for (const key of Object.keys(root.undoable))
-            if (key !== id)
-                left[key] = root.undoable[key];
-        root.undoable = left;
+    // Editing preserves the row while the server confirms the new text.
+    function edit(task: var, text: string): bool {
+        const lines = text.replace(/\r/g, "").split("\n");
+        const title = lines.shift().trim();
+        const notes = lines.join("\n");
+        if (!title || root.writing > 0) return false;
+        if (title.length > 1024 || notes.length > 8192) {
+            root.trouble = "Title or notes too long";
+            return false;
+        }
+        const old = root.tasks;
+        root.writing++;
+        root.trouble = "";
+        root.invalidate();
+        root.tasks = old.map(t => t.id === task.id ? Object.assign({}, t, { title: title, notes: notes }) : t);
+        root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, { title: title, notes: notes }, () => {
+            root.writing--;
+            root.fetchTasks();
+        }, (why, status) => {
+            root.tasks = old;
+            root.writing--;
+            root.fail(why, status);
+        });
+        return true;
     }
 
-    function add(title: string, day: string): void {
+    function add(title: string, day: string, list: string): void {
         if (title.trim() === "")
             return;
-        const list = root.lists.length > 0 ? root.lists[0].id : "@default";
+        list = list || root.defaultList.id;
         const body = {
             title: title.trim()
         };
@@ -265,45 +359,35 @@ GoogleService {
         root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks());
     }
 
-    // --- reading what was typed ----------------------------------------------
-    // A recognised first word schedules the task, just as a time sets a timer.
-    // "milk", "tomorrow milk", "fri call the dentist", "2026-10-01 tax".
+    // A leading day and section word can appear in either order.
     function parse(text: string): var {
-        const raw = (text ?? "").trim();
-        if (raw === "")
-            return {
-                ok: false,
-                title: "",
-                day: "",
-                error: ""
-            };
-
-        const head = raw.split(/\s+/)[0];
-        const day = root.readDay(head.toLowerCase());
-        if (/^\d{4}-\d{2}-\d{2}$/.test(head) && day === "")
-            return { ok: false, title: "", day: "", error: "Invalid date" };
-        if (day === "")
-            return {
-                ok: true,
-                title: raw,
-                day: "",
-                error: ""
-            };
-
-        const title = raw.slice(head.length).trim();
-        if (title === "")
-            return {
-                ok: false,
-                title: "",
-                day: day,
-                error: "No task, only a day"
-            };
-        return {
-            ok: true,
-            title: title,
-            day: day,
-            error: ""
-        };
+        const words = (text ?? "").trim().split(/\s+/).filter(w => w !== "");
+        let day = "", section = null, error = "";
+        function takeDay() {
+            if (!words.length) return false;
+            const parsed = root.readDay(words[0].toLowerCase());
+            if (/^\d{4}-\d{2}-\d{2}$/.test(words[0]) && parsed === "") {
+                error = "Invalid date";
+                return false;
+            }
+            if (parsed === "") return false;
+            day = parsed;
+            words.shift();
+            return true;
+        }
+        const leadingDay = takeDay();
+        if (!error && words.length) {
+            section = root.lists.find(l => l.title.toLowerCase().replace(/\s+/g, "") === words[0].toLowerCase());
+            if (section) {
+                words.shift();
+                if (!leadingDay) takeDay();
+            }
+        }
+        const title = words.join(" ");
+        if (!error && title === "")
+            error = section ? "No task, only a section" : day ? "No task, only a day" : "";
+        return { ok: title !== "" && error === "", title: title, day: day,
+            list: (section ?? root.defaultList).id, error: error };
     }
 
     // Date keywords for the first word; the task title follows them.
@@ -334,21 +418,14 @@ GoogleService {
         const p = root.parse(text);
         if (!p.ok)
             return p.error;
-        root.add(p.title, p.day);
+        root.add(p.title, p.day, p.list);
         return p.day === "" ? `Added ${p.title}` : `Added ${p.title} for ${root.sayDay(p.day)}`;
     }
 
-    // Ages the undos out; runs only while something is undoable.
     Timer {
-        interval: 1000
-        running: Object.keys(root.undoable).length > 0
-        repeat: true
-        onTriggered: {
-            const now = Date.now();
-            for (const key of Object.keys(root.undoable))
-                if (now - root.undoable[key].at > root.undoMs)
-                    root.forget(key);
-        }
+        id: commitDelay
+        interval: 10000
+        onTriggered: root.commit()
     }
 
     // qs ipc call tasks …
@@ -369,11 +446,15 @@ GoogleService {
             if (!root.loaded)
                 return root.trouble !== "" ? root.trouble : "Connecting…";
             const out = [];
-            for (const group of [root.overdue, root.due, root.soon, root.undated])
-                for (const t of group) {
-                    const when = root.sayDay(root.dayOf(t));
-                    out.push(when === "" ? t.title : `${t.title}  ·  ${when}`);
+            for (const row of root.rows) {
+                if (row.kind === "header") {
+                    out.push(row.title + ":");
+                    continue;
                 }
+                const when = root.sayDay(root.dayOf(row));
+                const title = (row.kind === "subtask" ? "  " : "") + row.title;
+                out.push(when === "" ? title : `${title}  ·  ${when}`);
+            }
             return out.length > 0 ? out.join("\n") : "Nothing on the list";
         }
     }
