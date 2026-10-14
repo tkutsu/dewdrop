@@ -29,7 +29,7 @@ PopupRow {
     gesturePolicy: TapHandler.ReleaseWithinBounds
 
     Glyph {
-        x: 6 + Math.round((18 - implicitWidth) / 2)
+        x: Theme.popupInset + Math.round((18 - implicitWidth) / 2)
         height: parent.height
         visible: root.current
         text: Theme.glyph.check
@@ -41,7 +41,7 @@ PopupRow {
     PopupText {
         x: root.lead
         anchors.verticalCenter: parent.verticalCenter
-        width: (root.busy ? spinner.x - 8 : tail.width > 0 ? tail.x - 8 : root.width - 6) - x
+        width: (root.busy ? spinner.x - 8 : tail.width > 0 ? tail.x - 8 : root.width - Theme.popupInset) - x
         elide: Text.ElideRight
         text: root.text
         font.pixelSize: Theme.captionSize
@@ -53,7 +53,7 @@ PopupRow {
         id: spinner
 
         anchors.right: parent.right
-        anchors.rightMargin: 6
+        anchors.rightMargin: Theme.popupInset
         anchors.verticalCenter: parent.verticalCenter
         visible: root.busy
     }
@@ -62,7 +62,7 @@ PopupRow {
         id: tail
 
         anchors.right: parent.right
-        anchors.rightMargin: 6
+        anchors.rightMargin: Theme.popupInset
         anchors.verticalCenter: parent.verticalCenter
         height: parent.height
         spacing: 6

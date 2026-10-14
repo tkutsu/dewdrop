@@ -69,6 +69,7 @@ QtObject { function state(name) { return Quickshell.shellPath(name); }
         (target / "Theme.qml").write_text('''pragma Singleton
 import QtQuick
 QtObject {
+    property int popupInset: 6
     property int foldMs: 360; property int selectionRadius: 4; property int pillBorder: 1
     property int captionSize: 12; property int footnoteSize: 10; property int popupTextSize: 14
     property int popupGlyphSize: 16; property int iconSize: 20; property int figureTextSize: 34

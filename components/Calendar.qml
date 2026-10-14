@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Effects
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import qs
 import qs.services
@@ -250,16 +250,11 @@ Popup {
                         anchors.fill: parent
                         visible: dayCell.isToday
                         layer.enabled: visible
-                        layer.effect: MultiEffect {
-                            autoPaddingEnabled: false
-                            maskEnabled: true
-                            maskInverted: true
+                        layer.effect: OpacityMask {
+                            invert: true
                             maskSource: todayMask
-                            // Cut on the numeral's antialiased edge. A
-                            // threshold of 0 cuts the whole disc away, and a
-                            // spread of 1 thins the dot to nothing.
-                            maskThresholdMin: 0.5
-                            maskSpreadAtMin: 0.5
+                            // Preserve the glyph and dot's coverage directly;
+                            // thresholding their alpha roughens the edges.
                         }
 
                         Rectangle {
@@ -325,7 +320,8 @@ Popup {
             id: list
 
             visible: Agenda.configured
-            width: root.cell * 7
+            x: Theme.popupInset
+            width: root.cell * 7 - Theme.popupInset * 2
             topPadding: 6
             spacing: 0
 
@@ -360,6 +356,7 @@ Popup {
                 Row {
                     required property var modelData
 
+                    width: list.width
                     height: root.listRowHeight
                     spacing: 8
 
@@ -373,7 +370,7 @@ Popup {
                     }
 
                     PopupText {
-                        width: root.cell * 7 - 50
+                        width: list.width - 50
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter
                         text: modelData.title

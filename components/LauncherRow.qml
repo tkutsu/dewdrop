@@ -34,7 +34,7 @@ Rectangle {
             // starts where it always did — and then however
             // deep in the music mode's tree this row sits,
             // which is nothing at all in every other mode.
-            leftMargin: row.menu.boxPad + Theme.pillPad + (row.modelData.indent ?? 0) * row.menu.indentStep
+            leftMargin: row.menu.boxPad + Theme.popupInset + (row.modelData.indent ?? 0) * row.menu.indentStep
             verticalCenter: parent.verticalCenter
         }
         // Never more than half the row, so a long name cannot
@@ -111,11 +111,8 @@ Rectangle {
 
         anchors {
             right: parent.right
-            // What the row took off the right, less the
-            // border it stops short of: an icon sits the same
-            // distance from the edge of the box as a title
-            // does from the other one.
-            rightMargin: row.menu.boxPad + Theme.pillPad - Theme.pillBorder
+            // Match the title's inset on the opposite edge.
+            rightMargin: row.menu.boxPad + Theme.popupInset
             verticalCenter: parent.verticalCenter
         }
         width: row.menu.slotWidth

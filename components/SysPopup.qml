@@ -13,6 +13,8 @@ import qs.services
 Popup {
     id: root
 
+    hPadding: Theme.popupPadding + Theme.popupInset
+    vPadding: hPadding
     spacing: 9
 
     // A fixed width, and every figure in a mono face. The contents are replaced

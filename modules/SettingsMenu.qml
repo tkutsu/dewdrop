@@ -46,7 +46,7 @@ OverlayWindow {
 
     readonly property int boxWidth: 700
     readonly property int boxHeight: 560
-    readonly property int boxPad: 12
+    readonly property int boxPad: Theme.panelPadding
     readonly property int sideWidth: 168
 
     // --- the pages -----------------------------------------------------------
@@ -283,7 +283,7 @@ OverlayWindow {
         height: root.boxHeight
         visible: root.presenting
         clip: true
-        radius: Theme.popupRadius
+        radius: Theme.panelRadius
         color: Theme.frostOver(under.luma)
 
         // Keep the glass above the compositor's blur cutoff until the final fade.
@@ -330,11 +330,11 @@ OverlayWindow {
                 Rectangle {
                     width: parent.width
                     height: 26
-                    radius: Theme.selectionRadius + 2
+                    radius: Theme.selectionRadius
                     color: Theme.well
 
                     Glyph {
-                        x: 8
+                        x: Theme.popupInset
                         height: parent.height
                         text: Theme.glyph.launcher
                         fontSize: Theme.captionSize
@@ -414,7 +414,7 @@ OverlayWindow {
                         }
 
                         PopupText {
-                            x: 8
+                            x: Theme.popupInset
                             anchors.verticalCenter: parent.verticalCenter
                             text: tab.modelData.title
                             font.weight: tab.open ? Font.DemiBold : Font.Normal
@@ -446,11 +446,11 @@ OverlayWindow {
 
                 Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
-                x: root.sideWidth + Theme.pillBorder + root.boxPad - Theme.selectionInset
+                x: root.sideWidth + Theme.pillBorder + root.boxPad
                 // The whole height, padded inside rather than out, so the
                 // list scrolls on under the box's edges instead of stopping
                 // short of them.
-                width: content.width - x - root.boxPad + Theme.selectionInset
+                width: content.width - x - root.boxPad
                 height: root.boxHeight
                 topMargin: root.boxPad
                 bottomMargin: root.boxPad
@@ -498,14 +498,14 @@ OverlayWindow {
                             spacing: 3
 
                             PopupText {
-                                x: 8
+                                x: Theme.popupInset
                                 text: entry.modelData.heading
                                 font.weight: Font.DemiBold
                             }
 
                             PopupText {
-                                x: 8
-                                width: list.width - 16
+                                x: Theme.popupInset
+                                width: list.width - Theme.popupInset * 2
                                 visible: !!entry.modelData.text
                                 text: entry.modelData.text
                                 wrapMode: Text.Wrap

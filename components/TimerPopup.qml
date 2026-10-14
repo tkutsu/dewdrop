@@ -122,8 +122,6 @@ Popup {
 
     PopupHeader {
         width: root.bodyWidth
-        // Level with the rows' glyphs.
-        inset: 2
         title: "Timers"
         // The way in to setting another: the launcher, which takes any
         // duration or time of day.
@@ -134,6 +132,8 @@ Popup {
     PopupText {
         visible: Timers.phoneWarning !== ""
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         text: Timers.phoneWarning
         color: Theme.warn
         font.pixelSize: Theme.footnoteSize
@@ -143,6 +143,8 @@ Popup {
     PopupText {
         visible: root.rows.length === 0
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         text: "Nothing set"
         opacity: 0.6
     }
@@ -163,7 +165,7 @@ Popup {
             onTapped: choice.start(row, row.modelData.act)
 
             Glyph {
-                x: 2
+                x: Theme.popupInset
                 anchors.verticalCenter: parent.verticalCenter
                 text: row.modelData.glyph
                 fontSize: Theme.popupGlyphSize
@@ -216,6 +218,7 @@ Popup {
                 id: buttons
 
                 anchors.right: parent.right
+                anchors.rightMargin: Theme.popupInset
                 anchors.verticalCenter: parent.verticalCenter
                 height: root.rowHeight
                 spacing: 0

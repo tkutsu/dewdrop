@@ -17,7 +17,7 @@ Popup {
     readonly property int bodyWidth: 320
     readonly property int rowPad: 4
     // The text's inset from the edge of the row's highlight.
-    readonly property int inset: 6
+    readonly property int inset: Theme.popupInset
     // A fixed column, so the times line up down the right edge.
     readonly property int whenWidth: 44
     readonly property int batch: 8
@@ -49,7 +49,7 @@ Popup {
     // the animation (see Popup.reserveHeight). The body adds 12 pixels of
     // padding and one extra pixel of spacing below the subject.
     reserveHeight: {
-        let h = root.vPadding * 2 + Math.min(root.collapsedListHeight + root.bodyMax + 13, root.listMax);
+        let h = root.vPadding + root.bottomPadding + Math.min(root.collapsedListHeight + root.bodyMax + 13, root.listMax);
         for (const item of root.content) {
             if (item !== threadList && item.visible)
                 h += item.height + root.spacing;
@@ -106,6 +106,7 @@ Popup {
     PopupText {
         width: root.bodyWidth
         leftPadding: root.inset
+        rightPadding: root.inset
         visible: Email.loaded && Email.trouble !== "" && Email.trouble !== Google.reconnect
         text: Email.trouble
         color: Theme.warn
@@ -117,6 +118,7 @@ Popup {
     PopupText {
         width: root.bodyWidth
         leftPadding: root.inset
+        rightPadding: root.inset
         visible: !Email.loaded || root.rows.length === 0
         text: !Email.loaded ? Email.tooltip : Email.total === 0 ? "No unread mail"
             : Email.trouble || (Email.loading ? "Reading mail..." : "Unread mail details unavailable")
