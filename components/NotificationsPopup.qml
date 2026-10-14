@@ -6,7 +6,7 @@ import qs
 import qs.services
 
 // The bell's popup, which is the notification centre: everything being kept,
-// newest first, with do not disturb and clear in its header. It used to be a
+// newest first, with clear in its header. It used to be a
 // few rows and a button through to the centre, a column of glass cards down
 // the right edge of the screen; the two were one list said twice, so the
 // centre moved in here.
@@ -110,8 +110,7 @@ Popup {
         Item {
             id: clearAll
             anchors.left: parent.left
-            anchors.right: dnd.left
-            anchors.rightMargin: 4
+            anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             height: parent.height
             property bool keyed: false
@@ -168,16 +167,6 @@ Popup {
             }
         }
 
-        PopupButton {
-            id: dnd
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            framed: true
-            lit: Notifications.dnd
-            glyph: Theme.glyph.dnd
-            label: "do not disturb"
-            onTapped: Notifications.setDnd(!Notifications.dnd)
-        }
     }
 
     // Nothing waiting: a line saying so, rather than a header over nothing.

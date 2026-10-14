@@ -27,7 +27,7 @@ Item {
     // Outlined, for the ones that stand on their own in a popup's foot rather
     // than in a run of controls at the end of a row.
     property bool framed: false
-    // On, for a toggle (do not disturb): held at the hovered fill and full
+    // On, for a toggle: held at the hovered fill and full
     // strength, and one step past it under the pointer.
     property bool lit: false
     // A framed one is a popup header's (PopupHeader), a size down from the

@@ -497,7 +497,6 @@ Singleton {
     // Desktop actions run directly through their existing services.
     readonly property var desktopCommands: [
         { key: "mute", title: Audio.muted ? "Unmute sound" : "Mute sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
-        { key: "dnd", title: Notifications.dnd ? "Turn do not disturb off" : "Turn do not disturb on", aliases: "dnd notifications silence quiet", glyph: Theme.glyph.notif, run: () => Notifications.setDnd(!Notifications.dnd) },
         { key: "night", title: NightMode.on ? "Turn night mode off" : "Turn night mode on", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
         { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi off" : "Turn Wi-Fi on", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },
         { key: "bluetooth-power", title: Bluetooth.on ? "Turn Bluetooth off" : "Turn Bluetooth on", aliases: "wireless radio" + (!Bluetooth.on ? " connect headphones headset " + Bluetooth.devices.filter(d => d.paired).map(d => d.name).join(" ") : ""), glyph: Theme.glyph.bluetooth, available: Bluetooth.present, run: () => Bluetooth.toggle() }
