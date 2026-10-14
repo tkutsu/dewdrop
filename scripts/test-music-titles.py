@@ -17,9 +17,12 @@ QtObject {
     property string cover: ""; property string state: "play"
     property string artist: "Artist"; property string album: "Album"
     property real duration: 120; property real elapsed: 30
+    property real playbackElapsed: elapsed; property real playbackSampledAt: Date.now()
+    property string file: ""; property string musicDir: ""
     property int volume: 50; property int premute: 50
     property string volumeIcon: "V"; property string stateIcon: "P"
     property string repeatIcon: "R"; property string repeatMode: "off"
+    property bool randomOn: false
     property var playlists: []; property bool playlistsOpen: false
     property string armedPlaylist: ""; property var queue: []; property int songPos: 0
     signal queueChanging()
