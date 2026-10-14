@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Services.Notifications
 import qs
 import qs.components
 import qs.services
@@ -76,6 +77,9 @@ BarItem {
         Layout.alignment: Qt.AlignVCenter
         windowClass: root.kept.key
         source: root.kept.picture
+        // An urgent notice wants you the way a tray icon asking for
+        // attention does, and says it the same way, until it is answered.
+        urgent: Notifications.urgent
         fallbackGlyph: Theme.glyph.notif
     }
 
@@ -102,7 +106,9 @@ BarItem {
     // Left runs its default action, as clicking its card in the centre does
     // (Notifications.activate). One without a default opens in the centre
     // instead, scrolled to and marked there. Anything else only waves the
-    // notice off, and the notification stays in the centre.
+    // notice off, and the notification stays in the centre; right on an
+    // urgent one answers it, and it goes from the centre too. Each makes way
+    // for the next one waiting (Notifications.advance).
     actions: ({
             [Qt.LeftButton]: () => {
                 const n = root.entry;
@@ -110,9 +116,15 @@ BarItem {
                     Notifications.activate(n);
                 else
                     Notifications.focusOn(n);
-                Notifications.dismissNotice();
+                Notifications.dismissNotice(n);
             },
-            [Qt.RightButton]: () => Notifications.dismissNotice(),
-            [Qt.MiddleButton]: () => Notifications.dismissNotice()
+            [Qt.RightButton]: () => {
+                const n = root.entry;
+                const answered = n?.urgency === NotificationUrgency.Critical;
+                Notifications.dismissNotice(n);
+                if (answered && Notifications.list.includes(n))
+                    n.dismiss();
+            },
+            [Qt.MiddleButton]: () => Notifications.dismissNotice(root.entry)
         })
 }

@@ -54,10 +54,47 @@ Singleton {
     // How many more arrived while the notice was already up, for the "+3" at
     // its end: a burst, not the centre's total. The total is almost never
     // news, and a notice that said "+22" every time would soon go unread.
+    // Behind an urgent notice it is how many are waiting for their turn.
     property int burst: 0
 
-    function dismissNotice() {
-        root.showing = false;
+    // An urgent notice stays until it is answered, so what arrives meanwhile
+    // waits behind it rather than taking its place, oldest first.
+    readonly property bool urgent: root.showing && root.latest?.urgency === NotificationUrgency.Critical
+    property var queued: []
+
+    // Done with the notice on show. Given the one that was clicked, and only
+    // if it is still the one on show: a click that ran its action has
+    // already moved on to the next.
+    function dismissNotice(n) {
+        if (n && n !== root.latest)
+            return;
+        if (root.queued.length > 0)
+            root.advance();
+        else
+            root.showing = false;
+    }
+
+    // The next turn after an urgent notice: the next urgent one if any is
+    // waiting, else the newest of the rest with a count of the others, timed
+    // as usual. Those others are in the centre; one notice each would keep
+    // the pill busy for minutes after a burst.
+    function advance() {
+        const waiting = root.queued.filter(q => q && root.list.includes(q));
+        const next = waiting.find(q => q.urgency === NotificationUrgency.Critical) ?? waiting[waiting.length - 1];
+        if (!next) {
+            root.queued = [];
+            root.showing = false;
+            return;
+        }
+        const previous = root.latest;
+        const rest = waiting.filter(q => q !== next);
+        root.queued = next.urgency === NotificationUrgency.Critical ? rest : [];
+        root.burst = rest.length;
+        root.latest = next;
+        root.showing = true;
+        root.timeNotice();
+        if (previous && previous !== next)
+            root.letGo(previous);
     }
 
     // --- the centre -----------------------------------------------------------
@@ -323,6 +360,14 @@ Singleton {
             delete root.passing[n.id];
             delete root.observed[n.id];
             retained.arrivalsJson = JSON.stringify(root.arrived);
+            // Withdrawn by its sender, or cleared in the centre: it no longer
+            // waits its turn, and if it was on show, the next one has it.
+            if (root.queued.includes(n)) {
+                root.queued = root.queued.filter(q => q !== n);
+                root.burst = root.queued.length;
+            }
+            if (n === root.latest && root.showing)
+                root.dismissNotice();
         });
     }
 
@@ -360,11 +405,27 @@ Singleton {
                     other.dismiss();
         }
 
+        // Behind an urgent notice, what arrives waits its turn. What is only
+        // for the moment (a fleeting one, a volume toast) has had its moment
+        // by then, so it is let go instead.
+        if (root.urgent && root.latest !== n && !replacing) {
+            if (tag || root.passing[n.id])
+                root.letGo(n);
+            else if (!root.queued.includes(n)) {
+                root.queued = [...root.queued, n];
+                root.burst = root.queued.length;
+            }
+            return;
+        }
+
         // The notice it replaces was only waiting on its time.
         if (root.latest && root.latest !== n)
             root.letGo(root.latest);
-        // Nor is an update to the one on show.
-        if (root.showing && !replacing && root.latest !== n)
+        // Nor is an update to the one on show. An urgent one counts only what
+        // waits behind it, so it starts at none.
+        if (n.urgency === NotificationUrgency.Critical && root.latest !== n)
+            root.burst = 0;
+        else if (root.showing && !replacing && root.latest !== n)
             root.burst++;
         root.latest = n;
         root.showing = true;
@@ -380,22 +441,24 @@ Singleton {
     }
 
     onShowingChanged: if (!showing) {
-        root.letGo(root.latest);
+        root.queued = [];
         root.burst = 0;
+        root.letGo(root.latest);
     }
 
-    // How long a notice stays up. The sender's own timeout when it gave one;
-    // otherwise by urgency, the way swaync was set up to time its popups —
-    // low goes quickly, critical waits to be answered. expireTimeout is
-    // documented in seconds but holds the D-Bus value, which is milliseconds.
+    // How long a notice stays up. A critical one until it is answered,
+    // whatever its sender asked for. Otherwise the sender's own timeout when
+    // it gave one, else by urgency, the way swaync was set up to time its
+    // popups: low goes quickly. expireTimeout is documented in seconds but
+    // holds the D-Bus value, which is milliseconds.
     readonly property int noticeMs: {
         const n = root.latest;
-        if (!n)
+        if (!n || n.urgency === NotificationUrgency.Critical)
             return 0;
         // 0 is the sender saying never; -1 leaves it to us.
         if (n.expireTimeout >= 0)
             return n.expireTimeout;
-        return n.urgency === NotificationUrgency.Low ? 3000 : n.urgency === NotificationUrgency.Critical ? 0 : 6000;
+        return n.urgency === NotificationUrgency.Low ? 3000 : 6000;
     }
 
     Timer {
@@ -414,9 +477,10 @@ Singleton {
     }
 
     // A notice whose notification was closed from elsewhere — the sender
-    // withdrew it, or it was cleared in the centre — has nothing left to show.
+    // withdrew it, or it was cleared in the centre — has nothing left to show,
+    // and hands over to the next one waiting.
     onLatestChanged: if (!latest)
-        root.showing = false
+        root.dismissNotice()
 
     NotificationServer {
         id: server
