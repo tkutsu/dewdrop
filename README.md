@@ -58,7 +58,8 @@ Settings > Launcher > Desktop actions shows or hides all app shortcuts together.
 
 - Notification server, with a notification centre
 - Timers and repeating alarms, with optional Pushover phone alerts
-- Google Tasks, Calendar agenda, Gmail unread
+- Google Tasks, Calendar agenda
+- Gmail's Primary unread, cleared from the popup: archive, mark read and star on every row or by swiping it, each undoable for a few seconds; login codes to copy, attachments to save, unsubscribe, mail to task; a notification for each new mail
 - Weather (Open-Meteo, no account)
 - MPD player with cover, seek and an editable queue
 - Audio output and per-app volume

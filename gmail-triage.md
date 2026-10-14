@@ -5,7 +5,13 @@ Turn the mail popup from a list you read into a list you clear: one click
 itself. Plus the small things that save a trip to Gmail: copying a login
 code, saving an attachment, unsubscribing, turning a mail into a task.
 
-**Status:** planned 2026-10-15, nothing built yet.
+**Status:** all five phases built 2026-10-15, one commit each. Tests:
+`scripts/test-email` (offline service and popup), `scripts/test-email-popup.py`
+(the real popup in a scratch shell; pass a folder to keep screenshots) and
+`scripts/test-gmail-attachment.py`. Swiping on the touchpad is tested with
+synthetic wheel events only: ydotool cannot make touchpad gestures, and a
+live mouse drag would have archived real mail. Its direction follows how
+content scrolls on this machine (`pixelDelta.x`); check it by hand.
 
 ## Scope
 

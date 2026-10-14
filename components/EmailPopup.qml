@@ -896,6 +896,31 @@ Popup {
                                                         }
                                                     }
                                                 }
+
+                                                // What came with it: saved to
+                                                // Downloads and opened.
+                                                Flow {
+                                                    readonly property var parts: Email.files[link.modelData.id] ?? []
+
+                                                    visible: parts.length > 0
+                                                    width: parent.width
+                                                    topPadding: 4
+                                                    spacing: 4
+
+                                                    Repeater {
+                                                        model: parent.parts
+
+                                                        delegate: PopupButton {
+                                                            required property var modelData
+
+                                                            framed: true
+                                                            glyph: Theme.glyph.attachment
+                                                            label: Email.saving[modelData.id] ? "saving…" : Email.sayFile(modelData)
+                                                            name: "Save " + modelData.name
+                                                            onTapped: Email.save(link.modelData.id, modelData)
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -920,6 +945,42 @@ Popup {
                             onTapped: {
                                 OpenPopup.dismiss();
                                 Email.open(row.modelData);
+                            }
+                        }
+
+                        // Made a task and archived, as one undoable thing.
+                        PopupButton {
+                            framed: true
+                            glyph: Theme.glyph.tasks
+                            label: "task"
+                            name: "Make a task"
+                            onTapped: root.act("archive", row.modelData, {
+                                said: "Task made",
+                                also: Email.makeTask
+                            })
+                        }
+
+                        // Only when the mail offers a way off its list on the
+                        // web. One click and archived when the sender takes a
+                        // one-click unsubscribe; its page otherwise.
+                        PopupButton {
+                            readonly property var unsubscribe: row.modelData.unsubscribe ?? null
+
+                            visible: unsubscribe !== null
+                            framed: true
+                            glyph: Theme.glyph.mailUnsubscribe
+                            label: "unsubscribe"
+                            name: "Unsubscribe"
+                            onTapped: {
+                                if (unsubscribe.oneClick) {
+                                    root.act("archive", row.modelData, {
+                                        said: "Unsubscribed",
+                                        also: Email.unsubscribe
+                                    });
+                                } else {
+                                    OpenPopup.dismiss();
+                                    Qt.openUrlExternally(unsubscribe.url);
+                                }
                             }
                         }
                     }

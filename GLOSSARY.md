@@ -135,8 +135,16 @@ A Gmail conversation containing one or more messages, presented as one mail item
 _Avoid_: Message, email (when counting conversations)
 
 **Unread mail count**:
-The number of unread threads in the Gmail inbox, including threads not shown in the popup.
+The number of unread threads in the Gmail inbox's Primary tab, including threads not shown in the popup. The badge, the mail popup's list, the launcher's `@` and new-mail notifications all count Primary alone.
 _Avoid_: Unread message count, visible mail count
+
+**Other mail**:
+The unread threads in the inbox outside the Primary tab. The mail popup folds them into one row at the end of its list, which unfolds into the same rows.
+_Avoid_: Promotions (it is every other tab), spam
+
+**Mail action**:
+Archive, mark read or star, taken on a mail thread from the popup. It leaves the list at once and reaches Gmail after a few seconds, so it can be undone until then; closing the popup sends whatever is still waiting. Archive also marks the thread read.
+_Avoid_: Delete (nothing here deletes mail)
 
 **Agenda**:
 The view of events from the Google account's selected, owned calendars, associated with the clock's calendar view. Its day list also shows that day's dated top-level tasks after the events.

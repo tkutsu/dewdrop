@@ -219,10 +219,11 @@ GoogleService {
         page("");
     }
 
-    // A thread's messages with only what a row needs: who, what, when, and
-    // which of them are unread.
+    // A thread's messages with only what a row needs: who, what, when,
+    // which of them are unread, and how to leave the list it came from.
     function headersUrl(id: string): string {
-        return `${root.api}/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,snippet,payload/headers)`;
+        const headers = ["From", "Subject", "List-Unsubscribe", "List-Unsubscribe-Post"].map(h => `&metadataHeaders=${h}`).join("");
+        return `${root.api}/threads/${id}?format=metadata${headers}&fields=messages(id,labelIds,internalDate,snippet,payload/headers)`;
     }
 
     function publish(unread: var, wanted: var, rest: var, wantedOther: var): void {
@@ -363,6 +364,93 @@ GoogleService {
         return row.code || root.codeOf(root.bodies[row.message] ?? "");
     }
 
+    // --- the open mail's foot --------------------------------------------
+    // A task to deal with it later: the subject, and in the notes who sent
+    // it and the thread in Gmail, by a link that still works once it is
+    // archived. In the default list, with no day.
+    function makeTask(row: var): void {
+        const who = row.address && row.address !== row.from ? `${row.from} <${row.address}>` : row.from;
+        Tasks.add(row.subject, "", "", `${who}\n${root.web}#all/${row.id}`);
+    }
+
+    // The unsubscribe address a mail gives in List-Unsubscribe, when one is
+    // on the web: mailto alone gets no button. One-click (RFC 8058, which
+    // Gmail asks of bulk senders) when List-Unsubscribe-Post says so, and
+    // only then is it done from here; otherwise the page is opened.
+    function unsubscribeOf(list: string, post: string): var {
+        const urls = (list.match(/<[^>]+>/g) ?? []).map(u => u.slice(1, -1).trim());
+        const web = urls.find(u => /^https:\/\//i.test(u));
+        return web ? { url: web, oneClick: /List-Unsubscribe\s*=\s*One-Click/i.test(post) } : null;
+    }
+
+    // The one-click POST. Straight to the sender, with no Google token on
+    // it: that never leaves Google.
+    function unsubscribe(row: var): void {
+        const failed = () => root.trouble = `Unsubscribing from ${row.from} failed`;
+        Http.request("POST", row.unsubscribe.url, "List-Unsubscribe=One-Click", { "Content-Type": "application/x-www-form-urlencoded" }, 30000, function (xhr) {
+            if (xhr.status < 200 || xhr.status >= 400)
+                failed();
+        }, failed);
+    }
+
+    // Message id → its files, each {id, name, size, type}, read with its
+    // text. Images placed in the text (a signature's logo) are not files.
+    property var files: ({})
+    // Attachment ids being saved now.
+    property var saving: ({})
+
+    function partsOf(payload: var): var {
+        const found = [];
+        const walk = function (p) {
+            if (!p)
+                return;
+            const header = name => (p.headers ?? []).find(h => h.name.toLowerCase() === name)?.value ?? "";
+            const placed = header("content-id") !== "" && /^\s*inline/i.test(header("content-disposition"));
+            if (p.filename && p.body?.attachmentId && !placed)
+                found.push({
+                    id: p.body.attachmentId,
+                    name: p.filename,
+                    size: p.body.size ?? 0,
+                    type: p.mimeType ?? ""
+                });
+            for (const child of p.parts ?? [])
+                walk(child);
+        };
+        walk(payload);
+        return found;
+    }
+
+    // "report.pdf · 240 KB", with a long name cut in the middle so its
+    // extension still shows.
+    function sayFile(part: var): string {
+        const name = part.name.length > 28 ? part.name.slice(0, 18) + "…" + part.name.slice(-8) : part.name;
+        const size = part.size < 1024 ? `${part.size} B` : part.size < 1048576 ? `${Math.round(part.size / 1024)} KB` : `${(part.size / 1048576).toFixed(1)} MB`;
+        return `${name} · ${size}`;
+    }
+
+    // Into ~/Downloads, under a new name if the one it has is taken, then
+    // opened. scripts/gmail-attachment fetches and writes it; the token goes
+    // to it in its environment, where the process list does not show it.
+    function save(message: string, part: var): void {
+        if (root.saving[part.id])
+            return;
+        root.saving = Object.assign({}, root.saving, { [part.id]: true });
+        const done = function () {
+            const next = Object.assign({}, root.saving);
+            delete next[part.id];
+            root.saving = next;
+        };
+        root.authorised(() => saver.createObject(root, {
+                command: [Quickshell.shellPath("scripts/gmail-attachment"), message, part.id, part.name],
+                environment: { GMAIL_TOKEN: Google.accessToken },
+                part: part,
+                done: done
+            }).running = true, function (why, status) {
+            done();
+            root.fail(why, status);
+        });
+    }
+
     // A thread as a row: who wrote the newest unread message in it, what it
     // is about, and when. The newest unread rather than the first, because
     // that is the one waiting; the last message if none is marked, which is
@@ -387,6 +475,7 @@ GoogleService {
             subject: subject,
             snippet: snippet,
             code: root.codeOf(subject + "\n" + snippet),
+            unsubscribe: root.unsubscribeOf(header(m, "list-unsubscribe"), header(m, "list-unsubscribe-post")),
             at: Number(m?.internalDate ?? 0),
             unread: unread.length > 0,
             starred: messages.some(m => (m.labelIds ?? []).includes("STARRED")),
@@ -619,6 +708,9 @@ GoogleService {
                 finished();
             };
             root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
+                const parts = root.partsOf(body?.payload);
+                if (parts.length > 0)
+                    root.files = Object.assign({}, root.files, { [m.id]: parts });
                 root.loadText(m.id, body?.payload, function (text) {
                     // A new object, so bindings on `bodies` see the change.
                     const next = ({});
@@ -815,7 +907,8 @@ GoogleService {
     // Archive and read take the row out of its list; a star stays and only
     // turns. `options` may carry wasOpen (the row was the open one, so an
     // undo opens it again), said (the foot's words, for a compound action)
-    // and also (more to send with it, as one undoable thing).
+    // and also (more to send with it, as one undoable thing: called with
+    // the row when the wait is over).
     function act(kind: string, row: var, options: var): void {
         const o = options ?? {};
         const list = root.otherThreads.some(t => t.id === row.id) ? "otherThreads" : "threads";
@@ -888,7 +981,7 @@ GoogleService {
         }
         root.perform(entry.kind, entry.row);
         if (entry.also)
-            entry.also();
+            entry.also(entry.row);
     }
 
     // The request behind each verb. Archive here means done: out of the
@@ -1002,6 +1095,32 @@ GoogleService {
             onExited: {
                 root.answered(chosen.text.trim(), waiting.row, waiting.code);
                 waiting.destroy();
+            }
+        }
+    }
+
+    Component {
+        id: saver
+
+        Process {
+            id: download
+
+            property var part
+            property var done
+
+            stdout: StdioCollector {
+                id: saved
+            }
+            stderr: StdioCollector {
+                id: why
+            }
+            onExited: code => {
+                download.done();
+                if (code === 0)
+                    Quickshell.execDetached(["xdg-open", saved.text.trim()]);
+                else
+                    root.trouble = `Could not save ${download.part.name}: ${why.text.trim().split("\n").pop() || "the download failed"}`;
+                download.destroy();
             }
         }
     }
