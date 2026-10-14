@@ -333,8 +333,8 @@ Popup {
             // --- swipe -------------------------------------------------------
             // Left archives, right marks read, on the touchpad or with a
             // mouse drag on the row's two lines. The row moves the way content
-            // scrolls on this machine, the colour of what letting go will do
-            // opens behind it, and past `reach` its glyph pops: letting go
+            // scrolls on this machine, the glyph of what letting go will do
+            // opens behind it, and past `reach` it pops: letting go
             // there slides the row off and folds it away. Short of it, the row
             // springs back.
             property real swipe: 0
@@ -413,6 +413,7 @@ Popup {
 
             height: (lines.implicitHeight + root.rowPad * 2) * (1 - row.gone)
             clip: row.leaving
+            held: row.swiping
 
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: {
@@ -428,13 +429,11 @@ Popup {
 
             // What letting go will do, opening from the edge the row is
             // leaving: archive at the right, mark read at the left.
-            Rectangle {
+            Item {
                 visible: row.swipe !== 0
                 x: row.swipe < 0 ? row.width + row.swipe : 0
                 width: Math.abs(row.swipe)
                 height: row.height
-                radius: Theme.selectionRadius
-                color: Theme.swipeFill
                 opacity: row.armed ? 1 : 0.6
                 clip: true
 
@@ -445,7 +444,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     text: row.swipe < 0 ? Theme.glyph.mailArchive : Theme.glyph.mailRead
                     fontSize: Theme.popupTextSize
-                    color: Theme.badgeFg
+                    color: Theme.label
                     scale: row.armed ? 1.3 : 1
 
                     Behavior on scale {
