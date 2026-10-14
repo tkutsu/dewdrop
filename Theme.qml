@@ -559,10 +559,6 @@ Singleton {
     // white initials read on every one.
     readonly property var monogramTones: ["#5e7896", "#7a6a96", "#94677c", "#94785e", "#5e8a74", "#5e8a91", "#8a8257", "#6f7680"]
 
-    // What shows behind a mail row being swiped, either way: the grey of the
-    // tones above. The glyph on it says which verb it is.
-    readonly property color swipeFill: "#6f7680"
-
     // --- opacity -------------------------------------------------------------
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
