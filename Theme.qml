@@ -806,6 +806,8 @@ Singleton {
         timerPaused: "\u{f1adf}",     // nf-md-timer_pause_outline
         timerRing: "\u{f1acd}",       // nf-md-timer_alert_outline
         alarm: "\u{f0020}",           // nf-md-alarm
+        // A calendar event made from the launcher's `,` line.
+        event: "\u{f0b67}",           // nf-md-calendar_outline
 
 
         // The popups' add button. A bare plus rather than the circled one: it

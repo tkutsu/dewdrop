@@ -106,8 +106,8 @@ GoogleService {
             out.push({ kind: "header", id: list.id, title: list.title, listId: list.id });
             for (const task of list.tasks) {
                 out.push(Object.assign({}, task, { kind: "task" }));
-                for (const child of task.children)
-                    out.push(Object.assign({}, child, { kind: "subtask", children: [] }));
+                task.children.forEach((child, i) =>
+                    out.push(Object.assign({}, child, { kind: "subtask", children: [], number: i + 1 })));
             }
         }
         return out;
@@ -134,6 +134,15 @@ GoogleService {
         if (day === root.today)
             return "now";
         return "soon";
+    }
+
+    function dotColour(task: var): color {
+        switch (root.urgency(task)) {
+        case "late": return Theme.taskLate;
+        case "now": return Theme.taskToday;
+        case "soon": return Theme.taskSoon;
+        }
+        return Theme.taskUndated;
     }
 
     // Count overdue, due today, and undated tasks; future-dated tasks stay in
@@ -521,12 +530,68 @@ GoogleService {
         return "";
     }
 
+    // The whole `,` line, which makes one of four things: the more of a time
+    // it gives, the bigger the thing. In this order:
+    //   1. a duration or a clock time first: a timer, or an alarm, which with
+    //      a title is also an hour's event on the day it rings;
+    //   2. a day, then a clock time and a title: an event, with no alarm;
+    //   3. anything else: a task, with its day and task list (parse).
+    // Times come from TimersParse.js and days from readDay, so "9:30", "9pm"
+    // and "21:30" mean the same here as for alarms, and a bare "9" stays a
+    // nine-minute timer: "fri 9 x" is a task due Friday. See calendar-events.md.
+    function plan(text: string): var {
+        const typed = (text ?? "").trim();
+        const timer = Timers.parse(typed);
+        if (timer.ok && timer.kind === "countdown")
+            return { ok: true, kind: "timer", timer: timer };
+        if (timer.ok) {
+            // The day the alarm rings, so the two never disagree at midnight.
+            const start = new Date(Timers.occurrence(timer.hour, timer.minute, [], Date.now()));
+            // The alarm is the ring, already sent to the phone; a calendar
+            // reminder on top would ring twice.
+            return { ok: true, kind: "alarm", timer: timer,
+                event: timer.label ? root.event(timer.label, start, { useDefault: false, overrides: [] }) : null };
+        }
+        const words = typed.split(/\s+/);
+        const day = words.length > 1 ? root.readDay(words[0].toLowerCase()) : "";
+        const at = day !== "" ? Timers.parse(words.slice(1).join(" ")) : null;
+        if (at?.ok && at.kind === "alarm") {
+            if (!at.label)
+                return { ok: false, kind: "event", error: "No event, only a time" };
+            const [y, m, d] = day.split("-").map(Number);
+            return { ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute), null) };
+        }
+        const task = root.parse(typed);
+        return { ok: task.ok, kind: "task", task: task, error: task.error };
+    }
+
+    // Events last an hour.
+    function event(title: string, start: var, reminders: var): var {
+        return { title: title, start: start, end: new Date(start.getTime() + 3600000), reminders: reminders };
+    }
+
+    // What the line makes, said once it is done. The one entry point the
+    // launcher and the IPC both use.
     function run(text: string): string {
-        const p = root.parse(text);
+        const p = root.plan(text);
         if (!p.ok)
             return p.error;
-        root.add(p.title, p.day, p.list);
-        return p.day === "" ? `Added ${p.title}` : `Added ${p.title} for ${root.sayDay(p.day)}`;
+        if (p.kind === "timer")
+            return Timers.run(text);
+        if (p.kind === "alarm") {
+            const said = Timers.run(text);
+            // Without the calendar the alarm still rings; the launcher said so.
+            if (!p.event || Google.needsConsent)
+                return said;
+            Agenda.insert(p.event);
+            return `${said}, and an event`;
+        }
+        if (p.kind === "event") {
+            Agenda.insert(p.event);
+            return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} at ${Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes())}`;
+        }
+        root.add(p.task.title, p.task.day, p.task.list);
+        return p.task.day === "" ? `Added ${p.task.title}` : `Added ${p.task.title} for ${root.sayDay(p.task.day)}`;
     }
 
     Timer {
