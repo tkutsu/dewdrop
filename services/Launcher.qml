@@ -121,7 +121,7 @@ Singleton {
         { prefix: root.clipPrefix, hint: "clipboard" },
         { prefix: root.windowPrefix, hint: "windows" },
         { prefix: root.pathPrefix, hint: "files" },
-        { prefix: root.taskPrefix, hint: "tasks" },
+        { prefix: root.taskPrefix, hint: "tasks, timers, events" },
         { prefix: root.musicPrefix, hint: "music" },
         { prefix: root.enginePrefix, hint: "web" },
         { prefix: root.mailPrefix, hint: "email" }
@@ -188,8 +188,12 @@ Singleton {
         case root.enginePrefix: return Theme.glyph.launcherWeb;
         case root.mailPrefix: return Theme.glyph.mailUnread;
         case root.taskPrefix: {
-            const timer = Timers.parse(c.text.trim());
-            return timer.ok ? (timer.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer) : Theme.glyph.tasks;
+            switch (Tasks.plan(c.text).kind) {
+            case "alarm": return Theme.glyph.alarm;
+            case "timer": return Theme.glyph.timer;
+            case "event": return Theme.glyph.event;
+            }
+            return Theme.glyph.tasks;
         }
         case "main":
             if (c.math)
@@ -643,9 +647,9 @@ Singleton {
     // which is a thing you came to do rather than a thing you are mid-flow on.
     function taskResults(query) {
         const typed = query.trim();
-        const parsedTimer = typed.length ? Timers.parse(typed) : null;
-        const timerInput = !!parsedTimer?.ok;
-        const rows = root.timerResults(timerInput ? typed : "", parsedTimer);
+        const plan = typed.length ? Tasks.plan(typed) : null;
+        const timerInput = plan?.kind === "timer" || plan?.kind === "alarm";
+        const rows = root.timerResults(timerInput ? typed : "", plan);
 
         if (!Tasks.configured)
             return rows.concat([
@@ -654,16 +658,17 @@ Singleton {
 
         const parsedTask = typed.length ? Tasks.parse(typed) : null;
         if (typed.length && !timerInput) {
-            const p = parsedTask;
+            const event = plan.kind === "event";
             rows.unshift({
                 kind: "task-add",
-                glyph: Theme.glyph.plus,
+                event: event,
+                glyph: event ? Theme.glyph.event : Theme.glyph.plus,
                 // Keep the typed day and task list names in the preview.
                 title: typed,
                 raw: true,
-                // Show the parsed date and destination beside the typed title.
-                subtitle: !p.ok ? p.error : "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (Tasks.lists.length > 1 && Tasks.lists.find(l => l.id === p.list) ? "  ·  " + Tasks.lists.find(l => l.id === p.list).title : ""),
-                ok: p.ok,
+                subtitle: root.linePreview(typed, plan),
+                // An event needs the calendar; the preview says so.
+                ok: plan.ok && !(event && Google.needsConsent),
                 text: typed
             });
         }
@@ -708,24 +713,47 @@ Singleton {
         return rows.concat(scored.slice(0, root.maxResults).map(x => x.row));
     }
 
+    // What Enter makes of a `,` line (Tasks.plan), read from the parse rather
+    // than the line: "alarm 15:00 today  ·  event 15:00–16:00",
+    // "event  ·  fri 15:00–16:00", or the task's day and task list.
+    function linePreview(typed, plan) {
+        if (!plan.ok)
+            return plan.error;
+        const time = at => Timers.hhmm(at.getHours(), at.getMinutes());
+        const ev = plan.event;
+        const calendar = () => Google.needsConsent ? "calendar needs reconnect" : null;
+        switch (plan.kind) {
+        case "timer":
+            return Timers.brief(typed, plan.timer);
+        case "alarm":
+            if (!ev)
+                return Timers.brief(typed, plan.timer);
+            return `alarm ${time(ev.start)} ${Tasks.sayDay(Tasks.dayString(ev.start))}  ·  ${calendar() ?? `event ${time(ev.start)}–${time(ev.end)}`}`;
+        case "event":
+            return "event  ·  " + (calendar() ?? `${Tasks.sayDay(Tasks.dayString(ev.start))} ${time(ev.start)}–${time(ev.end)}`);
+        }
+        const p = plan.task;
+        const list = Tasks.lists.length > 1 ? Tasks.lists.find(l => l.id === p.list) : null;
+        return "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (list ? "  ·  " + list.title : "");
+    }
+
     // Timer rows in tasks mode: a time being typed first, then existing timers.
     // Enter on a running timer pauses it; its countdown stays bound in the row.
-    function timerResults(query, parsed) {
+    function timerResults(query, plan) {
         const typed = query.trim();
         const rows = [];
 
         if (typed.length) {
-            const p = parsed ?? Timers.parse(typed);
             rows.push({
                 kind: "timer-add",
-                glyph: p.ok && p.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer,
+                glyph: plan.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer,
                 title: typed,
                 raw: true,
                 // Same again: "25m" is what was typed and "25 minutes" is what
                 // it was read as, so the reading is worth showing and the label
                 // beside it is not.
-                subtitle: Timers.brief(typed, p),
-                ok: p.ok,
+                subtitle: root.linePreview(typed, plan),
+                ok: plan.ok,
                 text: typed
             });
         }
@@ -1112,7 +1140,8 @@ Singleton {
                 if (!r.ok)
                     return;
                 root.hide();
-                Timers.run(r.text);
+                // Tasks, not Timers: an alarm with a title is an event too.
+                Tasks.run(r.text);
             }
         })
 

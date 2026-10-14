@@ -59,15 +59,6 @@ Popup {
         }
     }
 
-    function dotColour(task) {
-        switch (Tasks.urgency(task)) {
-        case "late": return Theme.taskLate;
-        case "now": return Theme.taskToday;
-        case "soon": return Theme.taskSoon;
-        }
-        return Theme.taskUndated;
-    }
-
     function editText(task) {
         if (task.kind === "header") return task.title;
         return task.title + (task.notes ? "\n" + task.notes : "");
@@ -220,7 +211,7 @@ Popup {
                         width: 6
                         height: 6
                         radius: 3
-                        color: root.dotColour(reorder.rows[reorder.from])
+                        color: Tasks.dotColour(reorder.rows[reorder.from])
                     }
                     PopupText {
                         x: root.gutter + root.dragIndent
@@ -307,7 +298,7 @@ Popup {
                         easing.type: Easing.OutCubic
                     }
                 }
-                color: root.dotColour(row.modelData)
+                color: Tasks.dotColour(row.modelData)
             }
             PopupText {
                 visible: row.sub && !row.editing
@@ -317,7 +308,7 @@ Popup {
                 text: row.modelData.number + "."
                 font.pixelSize: Theme.captionSize
                 horizontalAlignment: Text.AlignRight
-                color: Tasks.urgency(row.modelData) === "none" ? Theme.label2 : root.dotColour(row.modelData)
+                color: Tasks.urgency(row.modelData) === "none" ? Theme.label2 : Tasks.dotColour(row.modelData)
             }
             PopupText {
                 id: label

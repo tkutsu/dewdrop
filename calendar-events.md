@@ -3,6 +3,11 @@
 Put tasks on the calendar popover, and add events from the same `,` line that
 already writes tasks, timers and alarms. No new prefix and no new popup.
 
+**Status:** all four phases implemented 2026-10-14. Writing events needs one
+re-consent (`gtasks-auth`) for the `calendar.events` scope. Leaving a day for
+the list under the grid keeps that day's list, so its tasks can be ticked.
+Alarm previews keep their day word: `alarm 15:00 today  ·  event 15:00–16:00`.
+
 ## Decisions
 
 The `,` line grows by one rule: the more of a time you give, the bigger the
