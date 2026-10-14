@@ -8,14 +8,17 @@ import qs.services
 Popup {
     id: root
 
-    // Lines of packages across both sections. The AUR goes first and is
-    // usually a handful, so it takes what it needs and official the rest.
+    // Keep the combined list short, with AUR packages first.
     readonly property int shown: 14
+    readonly property var entries: Updates.aurList.concat(Updates.officialList)
+    readonly property int remaining: Math.max(0, entries.length - shown)
 
-    spacing: 6
+    spacing: 10
 
     PopupHeader {
-        width: Math.max(list.width, implicitWidth)
+        id: header
+
+        width: Math.max(list.width, footer.implicitWidth, implicitWidth)
         // The list below runs from the edge, so the title does too.
         inset: 0
         title: "Updates"
@@ -56,34 +59,25 @@ Popup {
         }
     }
 
-    // One source: its count against what is installed from it, then its
-    // packages. Not there at all while it has nothing waiting.
-    component Section: Column {
-        id: section
+    Column {
+        id: list
 
-        property string title
-        property var entries: []
-        property int total
-        property int limit
-
-        visible: entries.length > 0
         spacing: 3
 
         PopupText {
-            text: `${section.title}  <font color="${Theme.label2}">${section.entries.length}/${section.total}</font>`
-            textFormat: Text.StyledText
-            font.weight: Font.DemiBold
-            bottomPadding: 2
+            visible: Updates.trouble !== "" || !Updates.loaded || Updates.pending === 0
+            text: Updates.trouble !== "" ? Updates.trouble : !Updates.loaded ? "Checking for updates…" : "System up to date"
+            color: Theme.label2
+            wrapMode: Text.WordWrap
         }
 
         Repeater {
-            model: section.entries.slice(0, section.limit)
+            model: root.entries.slice(0, root.shown)
 
             delegate: PopupText {
                 required property string modelData
 
-                // "pkg 1.2-1 -> 1.2-2": the name is what identifies it, the
-                // versions are the detail, so they are dimmed rather than cut.
+                // Keep package names prominent and dim their version details.
                 text: {
                     const parts = modelData.split(" ");
                     return `${parts[0]}  <font color="${Theme.label2}">${parts.slice(1).join(" ")}</font>`;
@@ -93,40 +87,34 @@ Popup {
                 font.pixelSize: Theme.captionSize
             }
         }
-
-        PopupText {
-            visible: section.entries.length > section.limit
-            text: `… and ${section.entries.length - section.limit} more`
-            opacity: 0.6
-            font.pixelSize: Theme.captionSize
-        }
     }
 
-    Column {
-        id: list
+    Item {
+        id: footer
 
-        spacing: 9
+        width: header.width
+        implicitWidth: (counts.visible ? counts.implicitWidth : 0) + (more.visible ? more.implicitWidth : 0) + (counts.visible && more.visible ? 12 : 0)
+        implicitHeight: Math.max(counts.implicitHeight, more.implicitHeight)
+        visible: counts.visible || more.visible
 
         PopupText {
-            visible: Updates.trouble !== "" || !Updates.loaded || Updates.pending === 0
-            text: Updates.trouble !== "" ? Updates.trouble : !Updates.loaded ? "Checking for updates…" : "System up to date"
+            id: counts
+
+            anchors.left: parent.left
+            visible: Updates.loaded
+            text: `Official ${Updates.officialList.length}/${Updates.officialTotal} · AUR ${Updates.aurList.length}/${Updates.aurTotal}`
             color: Theme.label2
-            wrapMode: Text.WordWrap
+            font.pixelSize: Theme.footnoteSize
         }
 
-        Section {
-            id: aur
-            title: "AUR"
-            entries: Updates.aurList
-            total: Updates.aurTotal
-            limit: root.shown
-        }
+        PopupText {
+            id: more
 
-        Section {
-            title: "Official"
-            entries: Updates.officialList
-            total: Updates.officialTotal
-            limit: root.shown - Math.min(aur.entries.length, aur.limit)
+            anchors.right: parent.right
+            visible: root.remaining > 0
+            text: `${root.remaining} more`
+            color: Theme.label2
+            font.pixelSize: Theme.footnoteSize
         }
     }
 }

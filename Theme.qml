@@ -57,7 +57,7 @@ Singleton {
     // the sliders, the launcher), a menu (menuRadius below) and a tooltip
     // (tagRadius). The selection inside a popover or a menu is a rounded fill
     // inset from the edge.
-    readonly property int popupRadius: 8
+    readonly property int popupRadius: 10
     // How far below the slab a popup hangs. The system drops a menu bar's
     // menus flush under the item they came from; this leaves a hairline of
     // wallpaper between the two surfaces so they read as two, and no more.

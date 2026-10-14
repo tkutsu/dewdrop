@@ -51,6 +51,12 @@ Popup {
         }
     }
 
+    Rectangle {
+        width: root.bodyWidth
+        height: Theme.pillBorder
+        color: Theme.stroke
+    }
+
     PopupHeader {
         width: root.bodyWidth
         inset: 0
