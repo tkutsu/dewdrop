@@ -35,10 +35,30 @@ GoogleService {
     // thread, oldest first, each {id, from, at, snippet}; the row's own
     // message, from and at are its last.
     property var threads: []
-    // Every unread thread in the inbox, read in full or not. What the badge
-    // counts.
+    // Every unread thread in the Primary tab, read in full or not. What the
+    // badge counts: the other tabs' unread is mostly what nobody waits for,
+    // and a number that counts it stops meaning anything.
     property int total: 0
+    // The rest of the inbox's unread, which the popup folds into one row.
+    // Its threads are only detailed once that row is unfolded.
+    property int other: 0
+    property var otherThreads: []
+    property bool otherWanted: false
+    onOtherWantedChanged: if (root.otherWanted && root.otherThreads.length < Math.min(root.other, root.detailed)) {
+        root.morePending = true;
+        root.flushMore();
+    }
     property string snapshot: ""
+
+    // What the popup did that has not reached Gmail yet, oldest first, each
+    // {kind, row, list, wasOpen, said, also, at}. Every action from
+    // the popup waits undoMs, so a slip is one click to take back; the row
+    // has left the list already, so the wait costs nothing. Closing the
+    // popup sends whatever is still waiting.
+    property var pending: []
+    readonly property int undoMs: 4000
+    // An undone row back in its list, for the popup to reopen it.
+    signal restored(var row, bool wasOpen)
 
     // Thread metadata requested so far, plus a few spare rows to replace
     // threads marked read. Grows when the popup requests another batch.
@@ -81,7 +101,8 @@ GoogleService {
             return root.trouble;
         if (!root.loaded)
             return "Connecting…";
-        return root.count === 0 ? "No unread mail" : `${root.count} unread`;
+        const other = root.other > 0 ? ` · ${root.other} other` : "";
+        return (root.count === 0 ? "No unread mail" : `${root.count} unread`) + other;
     }
 
     // Grow the metadata window on demand, after any current request chain.
@@ -103,17 +124,75 @@ GoogleService {
     onLoadingChanged: root.flushMore()
 
     // --- reading -------------------------------------------------------------
+    // Two lists: the Primary tab's unread, which is what counts, and every
+    // unread in the inbox, of which the rest is `other`. Both in flight at
+    // once, and nothing published until both are in.
     function fetchThreads(): void {
         root.generation += 1;
         const gen = root.generation;
-        const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD&maxResults=500&fields=nextPageToken,threads(id,historyId,snippet)`;
+        const current = () => gen === root.generation;
+        let primary = null;
+        let all = null;
+        const both = function () {
+            if (primary === null || all === null)
+                return;
+            // Hide a just-opened thread while Gmail catches up. Confirmation
+            // clears the marker; a failed read is visible again after 30
+            // seconds. A thread still waiting in the queue stays hidden however
+            // long the list takes to agree.
+            const seen = ({});
+            for (const t of all)
+                seen[t.id] = true;
+            const waiting = ({});
+            for (const p of root.pending)
+                waiting[p.row.id] = true;
+            const opened = ({});
+            for (const [id, at] of Object.entries(root.opened))
+                if (waiting[id] || (seen[id] && Date.now() - at < 30000))
+                    opened[id] = at;
+            root.opened = opened;
+
+            const inPrimary = ({});
+            for (const t of primary)
+                inPrimary[t.id] = true;
+            const unread = primary.filter(t => !root.opened[t.id]);
+            const rest = all.filter(t => !inPrimary[t.id] && !root.opened[t.id]);
+            const wanted = unread.slice(0, root.detailed);
+            const wantedOther = root.otherWanted ? rest.slice(0, root.detailed) : [];
+            const stale = wanted.concat(wantedOther).filter(t => !t.historyId || root.cache[t.id]?.historyId !== t.historyId);
+
+            // Published together when the last one lands, for the reason
+            // GoogleService.gather gives: a list filled in reply by reply
+            // reorders itself under the pointer.
+            root.eachHeader(stale, function (t, thread) {
+                root.cache[t.id] = {
+                    historyId: t.historyId,
+                    row: root.rowOf(t, thread)
+                };
+            }, () => root.publish(unread, wanted, rest, wantedOther), current);
+        };
+        root.listAll("&q=category%3Aprimary", current, listed => {
+            primary = listed;
+            both();
+        });
+        root.listAll("", current, listed => {
+            all = listed;
+            both();
+        });
+    }
+
+    // Every unread thread in the inbox matching `query`, page by page, then
+    // `then(listed)` once the last page is in.
+    function listAll(query: string, current: var, then: var): void {
+        const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD${query}&maxResults=500&fields=nextPageToken,threads(id,historyId,snippet)`;
         const listed = [];
         const seen = ({});
         const pages = ({});
+        let broken = false;
         const page = function (token) {
             const nextUrl = token ? `${url}&pageToken=${encodeURIComponent(token)}` : url;
             root.send("GET", nextUrl, null, function (body) {
-                if (gen !== root.generation)
+                if (!current() || broken)
                     return;
                 for (const t of body?.threads ?? []) {
                     if (t.id && !seen[t.id]) {
@@ -123,6 +202,7 @@ GoogleService {
                 }
                 if (body?.nextPageToken) {
                     if (pages[body.nextPageToken]) {
+                        broken = true;
                         root.fail("Gmail repeated a page token", 0);
                         return;
                     }
@@ -130,29 +210,9 @@ GoogleService {
                     page(body.nextPageToken);
                     return;
                 }
-
-                // Hide a just-opened thread while Gmail catches up. Confirmation
-                // clears the marker; a failed read is visible again after 30 seconds.
-                const opened = ({});
-                for (const [id, at] of Object.entries(root.opened))
-                    if (seen[id] && Date.now() - at < 30000)
-                        opened[id] = at;
-                root.opened = opened;
-                const unread = listed.filter(t => !root.opened[t.id]);
-                const wanted = unread.slice(0, root.detailed);
-                const stale = wanted.filter(t => !t.historyId || root.cache[t.id]?.historyId !== t.historyId);
-
-                // Published together when the last one lands, for the reason
-                // GoogleService.gather gives: a list filled in reply by reply
-                // reorders itself under the pointer.
-                root.eachHeader(stale, function (t, thread) {
-                    root.cache[t.id] = {
-                        historyId: t.historyId,
-                        row: root.rowOf(t, thread)
-                    };
-                }, () => root.publish(unread, wanted), () => gen === root.generation);
+                then(listed);
             }, function (why, status) {
-                if (gen === root.generation)
+                if (current())
                     root.fail(why, status);
             });
         };
@@ -165,27 +225,32 @@ GoogleService {
         return `${root.api}/threads/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&fields=messages(id,labelIds,internalDate,snippet,payload/headers)`;
     }
 
-    function publish(unread: var, wanted: var): void {
+    function publish(unread: var, wanted: var, rest: var, wantedOther: var): void {
         // A row may have been opened while its metadata was in flight.
-        unread = unread.filter(t => !root.opened[t.id]);
-        wanted = wanted.filter(t => !root.opened[t.id]);
+        const shown = t => !root.opened[t.id];
+        unread = unread.filter(shown);
+        rest = rest.filter(shown);
         // Only what is still listed is kept, so the cache is never bigger
         // than the inbox's unread.
         const kept = ({});
-        for (const t of unread)
+        for (const t of unread.concat(rest))
             if (root.cache[t.id])
                 kept[t.id] = root.cache[t.id];
         root.cache = kept;
 
-        const rows = wanted.filter(t => kept[t.id]).map(t => kept[t.id].row).sort((a, b) => b.at - a.at);
+        const rowsOf = listed => listed.filter(t => shown(t) && kept[t.id]).map(t => kept[t.id].row).sort((a, b) => b.at - a.at);
+        const rows = rowsOf(wanted);
+        const others = rowsOf(wantedOther);
         // Replaced only when something moved, so a poll that changed nothing
         // does not rebuild the popup's rows under the pointer (see Tasks).
-        const next = JSON.stringify(rows);
+        const next = JSON.stringify([rows, others]);
         if (next !== root.snapshot) {
             root.snapshot = next;
             root.threads = rows;
+            root.otherThreads = others;
         }
         root.total = unread.length;
+        root.other = rest.length;
         root.loaded = true;
     }
 
@@ -204,6 +269,8 @@ GoogleService {
         return {
             id: listed.id,
             message: m?.id ?? "",
+            // The thread's newest message, read or not: where a star goes.
+            last: messages[messages.length - 1]?.id ?? "",
             from: root.sayFrom(header(m, "from")),
             subject: header(m, "subject").trim() || "(no subject)",
             snippet: root.unentity(listed.snippet ?? ""),
@@ -583,15 +650,156 @@ GoogleService {
         Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", `${root.web}#inbox/${thread.id}`, root.web));
     }
 
-    // Read without opening it: the UNREAD label off every message in the
-    // thread, which is what Gmail's own "mark as read" does. Needs the
-    // gmail.modify scope; a token granted before it was added gets a 403 and
-    // a failed read returns after the grace period, with `trouble` saying why.
+    // Read without opening it, at once: the launcher's reader and a
+    // notification's button, which have nowhere to show an undo. The popup
+    // goes through act() instead.
     function markRead(thread: var): void {
         root.drop(thread);
-        root.send("POST", `${root.api}/threads/${thread.id}/modify`, {
-            removeLabelIds: ["UNREAD"]
-        }, function () {});
+        root.perform("read", thread);
+    }
+
+    function archive(thread: var): void {
+        root.drop(thread);
+        root.perform("archive", thread);
+    }
+
+    // --- acting ----------------------------------------------------------
+    // What each verb says in the popup's foot while it waits.
+    readonly property var said: ({
+            archive: "Archived",
+            read: "Marked read",
+            star: "Starred",
+            unstar: "Unstarred"
+        })
+
+    // A verb from the popup: done here at once, sent to Gmail undoMs later.
+    // Archive and read take the row out of its list; a star stays and only
+    // turns. `options` may carry wasOpen (the row was the open one, so an
+    // undo opens it again), said (the foot's words, for a compound action)
+    // and also (more to send with it, as one undoable thing).
+    function act(kind: string, row: var, options: var): void {
+        const o = options ?? {};
+        const list = root.otherThreads.some(t => t.id === row.id) ? "otherThreads" : "threads";
+        const entry = {
+            kind: kind,
+            row: row,
+            list: list,
+            wasOpen: !!o.wasOpen,
+            said: o.said ?? root.said[kind],
+            also: o.also ?? null,
+            at: Date.now()
+        };
+        if (kind === "star" || kind === "unstar")
+            root.restar(row.id, kind === "star");
+        else
+            root.drop(row);
+        root.pending = root.pending.concat([entry]);
+        root.arm();
+    }
+
+    // Take back the latest action that has not gone yet.
+    function undo(): void {
+        const entry = root.pending[root.pending.length - 1];
+        if (!entry)
+            return;
+        root.pending = root.pending.slice(0, -1);
+        if (entry.kind === "star" || entry.kind === "unstar")
+            root.restar(entry.row.id, entry.kind !== "star");
+        else
+            root.restore(entry);
+        root.arm();
+    }
+
+    // Everything still waiting, now: the popup closing.
+    function flush(): void {
+        const all = root.pending;
+        root.pending = [];
+        root.arm();
+        for (const entry of all)
+            root.commit(entry);
+    }
+
+    // Send what has waited its undoMs, and wait for the next one.
+    function commitDue(): void {
+        const now = Date.now();
+        const due = root.pending.filter(p => now - p.at >= root.undoMs);
+        root.pending = root.pending.filter(p => now - p.at < root.undoMs);
+        root.arm();
+        for (const entry of due)
+            root.commit(entry);
+    }
+
+    function arm(): void {
+        const first = root.pending[0];
+        if (!first) {
+            dueTimer.stop();
+            return;
+        }
+        dueTimer.interval = Math.max(1, first.at + root.undoMs - Date.now());
+        dueTimer.restart();
+    }
+
+    function commit(entry: var): void {
+        // Hidden afresh from now, so the grace before a poll trusts Gmail
+        // again runs from the request rather than from the click.
+        if (root.opened[entry.row.id]) {
+            const mark = Object.assign({}, root.opened);
+            mark[entry.row.id] = Date.now();
+            root.opened = mark;
+        }
+        root.perform(entry.kind, entry.row);
+        if (entry.also)
+            entry.also();
+    }
+
+    // The request behind each verb. Archive here means done: out of the
+    // inbox and read, so it cannot come back to a count anywhere. Gmail
+    // stars a message rather than a thread, so a star goes on the newest
+    // one and coming off it comes off them all. Needs the gmail.modify
+    // scope; a token granted before it was added gets a 403, and a dropped
+    // row returns after the grace period, with `trouble` saying why.
+    function perform(kind: string, row: var): void {
+        const thread = `${root.api}/threads/${row.id}/modify`;
+        if (kind === "archive")
+            root.send("POST", thread, { removeLabelIds: ["INBOX", "UNREAD"] }, function () {});
+        else if (kind === "read")
+            root.send("POST", thread, { removeLabelIds: ["UNREAD"] }, function () {});
+        else if (kind === "star")
+            root.send("POST", `${root.api}/messages/${row.last || row.message}/modify`, { addLabelIds: ["STARRED"] }, function () {});
+        else if (kind === "unstar")
+            root.send("POST", thread, { removeLabelIds: ["STARRED"] }, function () {});
+    }
+
+    // A row's star turned here, in its list and in the cache, so a poll
+    // before the request lands does not turn it back.
+    function restar(id: string, starred: bool): void {
+        const turn = r => r.id === id ? Object.assign({}, r, { starred: starred }) : r;
+        root.threads = root.threads.map(turn);
+        root.otherThreads = root.otherThreads.map(turn);
+        if (root.cache[id])
+            root.cache[id] = Object.assign({}, root.cache[id], { row: turn(root.cache[id].row) });
+        root.snapshot = "";
+    }
+
+    // An undone row back where it was: in its list by date, counted again,
+    // and no longer hidden from the polls.
+    function restore(entry: var): void {
+        const row = entry.row;
+        const mark = Object.assign({}, root.opened);
+        delete mark[row.id];
+        root.opened = mark;
+        if (!root[entry.list].some(t => t.id === row.id))
+            root[entry.list] = root[entry.list].concat([row]).sort((a, b) => b.at - a.at);
+        if (entry.list === "otherThreads")
+            root.other += 1;
+        else
+            root.total += 1;
+        if (root.found)
+            root.found = Object.assign({}, root.found, {
+                rows: root.found.rows.map(r => r.id === row.id ? Object.assign({}, r, { unread: row.unread }) : r)
+            });
+        root.snapshot = "";
+        root.restored(row, entry.wasOpen);
     }
 
     // Remove immediately and guard against replies from the current poll.
@@ -612,8 +820,13 @@ GoogleService {
         const mark = Object.assign({}, root.opened);
         mark[thread.id] = Date.now();
         root.opened = mark;
-        root.threads = root.threads.filter(t => t.id !== thread.id);
-        root.total = Math.max(0, root.total - 1);
+        if (root.otherThreads.some(t => t.id === thread.id)) {
+            root.otherThreads = root.otherThreads.filter(t => t.id !== thread.id);
+            root.other = Math.max(0, root.other - 1);
+        } else {
+            root.threads = root.threads.filter(t => t.id !== thread.id);
+            root.total = Math.max(0, root.total - 1);
+        }
         root.snapshot = "";
     }
 
@@ -626,6 +839,11 @@ GoogleService {
     function compose(subject: string): void {
         const su = subject ? `&su=${encodeURIComponent(subject)}` : "";
         Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", `${root.web}?view=cm&fs=1${su}`, root.web));
+    }
+
+    Timer {
+        id: dueTimer
+        onTriggered: root.commitDue()
     }
 
     // qs ipc call email …
