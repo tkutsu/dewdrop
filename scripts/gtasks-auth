@@ -35,8 +35,8 @@ import urllib.request
 import webbrowser
 
 # gmail.modify rather than gmail.readonly: it reads everything readonly does,
-# and adds the label changes the bar's "mark read" button makes. It cannot
-# delete mail or send it.
+# and adds the label changes the mail popup makes (archive, mark read, star).
+# It can also send and move mail to the bin, but it cannot delete mail for good.
 # The agenda reads every calendar and writes events made from the launcher:
 # calendar.events covers the writing, and listing the calendars still needs
 # calendar.readonly.
