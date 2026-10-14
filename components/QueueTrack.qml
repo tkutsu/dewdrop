@@ -13,7 +13,7 @@ Item {
 
     PopupText {
         id: ordinal
-        x: 6
+        x: Theme.popupInset
         anchors.verticalCenter: parent.verticalCenter
         width: 18
         horizontalAlignment: Text.AlignRight
@@ -50,7 +50,7 @@ Item {
     }
     PopupText {
         anchors.right: parent.right
-        anchors.rightMargin: 6
+        anchors.rightMargin: Theme.popupInset
         anchors.verticalCenter: parent.verticalCenter
         visible: root.showDuration
         text: Mpd.clock(root.song?.duration ?? 0)

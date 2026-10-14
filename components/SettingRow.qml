@@ -46,7 +46,7 @@ Item {
         })
 
     readonly property bool hasMark: !!(root.setting.icon || root.setting.glyph)
-    readonly property int lead: root.hasMark ? 32 : 8
+    readonly property int lead: root.hasMark ? 32 : Theme.popupInset
     readonly property bool stacked: control.implicitWidth > (root.width - root.lead - 24) / 2
 
     implicitHeight: Math.max(28, words.implicitHeight + (root.setting.text ? 12 : 8),
@@ -81,7 +81,7 @@ Item {
 
     // The thing itself, as the launcher and the bar draw it.
     Item {
-        x: 8
+        x: Theme.popupInset
         width: 16
         height: 16
         y: words.y + Math.round((title.implicitHeight - 16) / 2)
@@ -111,7 +111,7 @@ Item {
 
         x: root.lead
         y: root.stacked ? 6 : Math.round((root.height - height) / 2)
-        width: root.stacked ? root.width - x - 8 : control.x - 16 - x
+        width: root.stacked ? root.width - x - Theme.popupInset : control.x - 16 - x
         spacing: 2
 
         Item {
@@ -171,9 +171,9 @@ Item {
     Loader {
         id: control
 
-        x: root.stacked ? root.lead : root.width - width - 8
+        x: root.stacked ? root.lead : root.width - width - Theme.popupInset
         y: root.stacked ? words.y + words.height + 8 : Math.round((root.height - height) / 2)
-        width: Math.min(implicitWidth, root.width - root.lead - 8)
+        width: Math.min(implicitWidth, root.width - root.lead - Theme.popupInset)
         source: root.controls[root.setting.type] ?? ""
         onLoaded: item.setting = Qt.binding(() => root.setting)
     }

@@ -551,7 +551,7 @@ ShellRoot {
         const box = keys.findChild(menu, "box"), input = keys.findChild(menu, "input");
         sawWide = sawWide || box.width > 680;
         sawNarrow = sawNarrow || box.width < 680;
-        geometryChanged = geometryChanged || box.height !== 54 || box.radius !== Theme.popupRadius || Math.abs(box.x + box.width / 2 - menu.width / 2) > 1 || input.scale !== 1 || input.font.pixelSize !== Theme.queryTextSize;
+        geometryChanged = geometryChanged || box.height !== 54 || box.radius !== Theme.panelRadius || Math.abs(box.x + box.width / 2 - menu.width / 2) > 1 || input.scale !== 1 || input.font.pixelSize !== Theme.queryTextSize;
     } }
     function check(ok, message) { if (!ok) throw new Error(message); }
     Timer { interval: 150; running: true; onTriggered: {
@@ -572,7 +572,7 @@ ShellRoot {
             const actionButtons = keys.findChild(menu, "actionButtons");
             trackEntrance = false;
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
-            check(box.height === 54 && box.radius === Theme.popupRadius && !list.enabled, "starts with field only and existing radius");
+            check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
             check(Launcher.modes.map(mode => mode.prefix).join("") === '=\"_/,#%@', "requested mode hint order");
             check(!keys.findChild(menu, "disclosure"), "chevron removed");
@@ -799,13 +799,20 @@ ShellRoot {
             const openedMode = Qt.createComponent(Qt.resolvedUrl("modules/LauncherMenu.qml")).createObject(null);
             keys.wait(110);
             const initialList = keys.findChild(openedMode, "list");
+            const initialBox = keys.findChild(openedMode, "box");
+            const highlight = initialList.highlightItem;
+            const leftInset = initialList.mapToItem(initialBox, highlight.x, 0).x;
+            const rightInset = Math.round(openedMode.boxWidth + openedMode.extraWidth) - leftInset - highlight.width;
+            check(leftInset === openedMode.boxPad && rightInset === leftInset, "result highlight has equal frame insets");
+            check(initialBox.radius - leftInset === highlight.radius, "result highlight and frame have concentric corners");
             check(initialList.itemAtIndex(0).opacity > initialList.itemAtIndex(6).opacity && initialList.itemAtIndex(6).opacity < 1, "a launcher created in a mode visibly cascades its rows");
             keys.wait(70);
             check(initialList.itemAtIndex(0).opacity === 1 && initialList.itemAtIndex(6).opacity <= 0.15, "cascade remains distinct after the first row has settled");
             const rowMotion = keys.findChild(openedMode, "rowEntrance");
             rowMotion.pause();
             const earlyRows = keys.grabImage(openedMode.contentItem);
-            const rowPosition = initialList.mapToItem(openedMode.contentItem, 12, 6 * menu.rowHeight);
+            // Sample inside the flat part of the inset highlight, away from its corner.
+            const rowPosition = initialList.mapToItem(openedMode.contentItem, openedMode.boxPad + Theme.selectionRadius + 1, 6 * menu.rowHeight);
             const left = Math.round(rowPosition.x), top = Math.round(rowPosition.y);
             const background = earlyRows.pixel(left + 220, top + 14);
             let earlyInk = 0;

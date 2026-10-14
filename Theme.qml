@@ -57,7 +57,15 @@ Singleton {
     // the sliders, the launcher), a menu (menuRadius below) and a tooltip
     // (tagRadius). The selection inside a popover or a menu is a rounded fill
     // inset from the edge.
-    readonly property int popupRadius: 10
+    // Surface-to-frame padding, then text-to-row padding. Keep both on the
+    // same grid; nested corners share a centre with their enclosing frame.
+    readonly property int popupPadding: 6
+    readonly property int popupInset: 6
+    // Match the shared horizontal text inset below every popover's content.
+    readonly property int popupBottomPadding: popupPadding + popupInset
+    readonly property int popupRadius: popupPadding + selectionRadius
+    readonly property int panelPadding: 12
+    readonly property int panelRadius: panelPadding + selectionRadius
     // How far below the slab a popup hangs. The system drops a menu bar's
     // menus flush under the item they came from; this leaves a hairline of
     // wallpaper between the two surfaces so they read as two, and no more.
@@ -70,12 +78,10 @@ Singleton {
     // reads as going under and the one after it is whole.
     readonly property int scrollEdge: 20
     readonly property int selectionRadius: 4
-    readonly property int selectionInset: 5
+    readonly property int selectionInset: popupPadding
     // A menu's corner runs parallel to the highlight inside it: the
     // highlight's radius plus the inset between them, so the two curves share
-    // a centre, the way Apple nests its corners. At 5 the box was no rounder
-    // than the fill 5px inside it, and the fill's corners looked too round
-    // for the box they sat in.
+    // a centre, the way Apple nests its corners.
     readonly property int menuRadius: selectionRadius + selectionInset
     // A tooltip's corner. Nothing sits inside a tag for it to run parallel
     // to, and a menu's corner on a box one line high all but makes it a
@@ -768,11 +774,10 @@ Singleton {
         // font's cone it replaces filled solid as the signal rose. Five
         // because nm-applet quantised the signal to five buckets, and
         // Network.bars still does — the bar has the steps it has, not the ones
-        // a percentage would suggest. Indexed from zero, so wifiStrength[0] is
-        // no signal at all.
+        // a percentage would suggest. wifiStrength[0] keeps the dot lit even
+        // without signal; the arcs light as the signal rises.
         wifiStrength: [0, 1, 2, 3, 4].map(n => panel("network-wireless-" + n)),
-        // The faint arcs struck through, so losing the network does not make
-        // the icon the loudest thing on the bar.
+        // The dot and arcs are all faint when the Wi-Fi radio is disabled.
         wifiOff: panel("network-wireless-off"),
         wired: "\u{f0200}",
         // Mullvad, whose own icon is a solid padlock filling its box with a
@@ -783,7 +788,7 @@ Singleton {
         vpnOff: "\u{f0fc7}",
         // The Bluetooth module, in place of blueman's theme drawing: a thin
         // rune in the theme's own blue, narrow enough to read a size down once
-        // scaled to the row. On or off only, struck through like the cone
+        // scaled to the row. On or off only, struck through when disabled
         // (nf-md-bluetooth, nf-md-bluetooth_off).
         bluetooth: "\u{f00af}",
         bluetoothOff: "\u{f00b2}",
@@ -853,12 +858,14 @@ Singleton {
         mediaPrev: "\u{f04ae}",
         mediaNext: "\u{f04ad}",
         // One control cycling off → all → one, so the three states are three
-        // glyphs from one family rather than two separate toggles that have to
-        // be read together (nf-md-repeat_off, _repeat, _repeat_once).
-        repeatOff: "\u{f0457}",
-        repeatAll: "\u{f0456}",
-        repeatOne: "\u{f0458}",
-        random: "\u{f049d}",
+        // drawings from one family (nf-md-repeat_off, _repeat, _repeat_once).
+        // Their white outlines keep the thin strokes bright at popup size.
+        repeatOff: fontCut("repeat-off"),
+        repeatAll: fontCut("repeat-all"),
+        repeatOne: fontCut("repeat-one"),
+        // Separate shuffle shapes keep its state readable at the same brightness.
+        randomOn: "\u{f049f}",       // nf-md-shuffle_variant
+        randomOff: fontCut("shuffle-off"),
 
         // Remove a song from the queue (nf-md-close).
         queueRemove: "\u{f0156}",

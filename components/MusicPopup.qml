@@ -64,15 +64,6 @@ Popup {
             width: root.artSize
             height: root.artSize
 
-            RectangularShadow {
-                anchors.fill: artFrame
-                visible: cover.status === Image.Ready
-                offset.y: 3
-                radius: artFrame.radius
-                blur: 8
-                color: Theme.shadow
-            }
-
             ClippingRectangle {
                 id: artFrame
                 anchors.fill: parent
@@ -130,14 +121,12 @@ Popup {
                         model: [
                             {
                                 name: "Random playback: " + (Mpd.randomOn ? "on" : "off"),
-                                glyph: Theme.glyph.random,
-                                active: Mpd.randomOn,
+                                glyph: Mpd.randomOn ? Theme.glyph.randomOn : Theme.glyph.randomOff,
                                 act: () => Mpd.toggleRandom()
                             },
                             {
                                 name: "Repeat mode: " + Mpd.repeatMode,
                                 glyph: Mpd.repeatIcon,
-                                active: Mpd.repeatMode !== "off",
                                 act: () => Mpd.cycleRepeat()
                             }
                         ]
@@ -155,12 +144,18 @@ Popup {
                                 text: parent.modelData.glyph
                                 fontSize: Theme.glyphSizeLarge
                                 implicitHeight: parent.height
-                                opacity: press.hovered ? 1 : parent.modelData.active ? 0.8 : 0.3
+                                color: "white"
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    shadowEnabled: true
+                                    shadowColor: "black"
+                                    shadowOpacity: 0.85
+                                    shadowBlur: 0.5
+                                    blurMax: 4
+                                    shadowVerticalOffset: 1
+                                }
                             }
 
-                            HoverHandler {
-                                id: press
-                            }
                             Accessible.role: Accessible.Button
                             Accessible.name: modelData.name
                             Accessible.onPressAction: if (enabled && visible)
@@ -241,14 +236,20 @@ Popup {
                                 Glyph {
                                     anchors.centerIn: parent
                                     text: parent.modelData.glyph
-                                    fontSize: Theme.glyphSizeLarge
+                                    fontSize: Theme.glyphSizeLarge + (parent.index === 1 ? 4 : 0)
                                     implicitHeight: parent.height
-                                    opacity: press.hovered ? 1 : 0.8
+                                    color: "white"
+                                    layer.enabled: true
+                                    layer.effect: MultiEffect {
+                                        shadowEnabled: true
+                                        shadowColor: "black"
+                                        shadowOpacity: 0.85
+                                        shadowBlur: 0.5
+                                        blurMax: 4
+                                        shadowVerticalOffset: 1
+                                    }
                                 }
 
-                                HoverHandler {
-                                    id: press
-                                }
                                 Accessible.role: Accessible.Button
                                 Accessible.name: modelData.name
                                 Accessible.onPressAction: if (enabled && visible)
@@ -345,6 +346,7 @@ Popup {
 
             PopupText {
                 width: root.columnWidth
+                rightPadding: Theme.popupInset
                 text: [Mpd.artist, Mpd.album].filter(part => part).join("  ·  ")
                 opacity: 0.75
                 elide: Text.ElideRight
@@ -356,16 +358,18 @@ Popup {
                 name: "Music"
                 iconBeforeReadout: true
                 leftPadding: 0
+                rightPadding: Theme.popupInset
                 spacing: 2
                 icon: Mpd.volumeIcon
                 volume: Math.max(0, Mpd.volume)
                 iconWidth: root.volumeIconWidth
                 iconFontSize: Theme.popupGlyphSize
                 sliderWidth: root.sliderWidth
-                readoutWidth: root.readoutWidth
+                readoutWidth: root.readoutWidth - Theme.popupInset
                 readoutOpacity: 0.75
                 readoutFontSize: Theme.captionSize
                 wheelStep: 0.05
+                wheelSnap: true
                 onMoved: value => Mpd.setVolume(value)
                 onIconTapped: Mpd.toggleMute()
             }
@@ -408,6 +412,7 @@ Popup {
                 PopupText {
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.readoutWidth
+                    rightPadding: Theme.popupInset
                     horizontalAlignment: Text.AlignRight
                     text: Mpd.duration > 0 ? `${Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}` : Mpd.clock(Mpd.elapsed)
                     opacity: 0.75
@@ -537,6 +542,7 @@ Popup {
                     id: buttons
 
                     anchors.right: parent.right
+                    anchors.rightMargin: Theme.popupInset
                     anchors.verticalCenter: parent.verticalCenter
                     height: root.rowHeight
                     spacing: 0
@@ -871,6 +877,7 @@ Popup {
 
                 PopupButton {
                     anchors.right: parent.right
+                    anchors.rightMargin: Theme.popupInset
                     width: root.buttonWidth
                     height: root.rowHeight
                     visible: row.hovered

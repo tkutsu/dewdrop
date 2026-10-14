@@ -22,14 +22,13 @@ PopupWindow {
     property bool acceptsKeyboard: false
     property bool probes: true
     grabFocus: root.acceptsKeyboard && root.requestedVisible
-    property real padding: 6
+    property real padding: Theme.popupPadding
     // A popover's corner by default; the menus round themselves tighter.
     property int radius: Theme.popupRadius
-    // The two axes split for the menus, whose rows run edge to edge and so want
-    // no side padding at all — only enough top and bottom to stay clear of the
-    // rounded corners. Everything else sets `padding` once and gets both.
+    // Separate axes let compact tooltips override the common popover inset.
     property real hPadding: padding
     property real vPadding: padding
+    property real bottomPadding: Theme.popupBottomPadding
     default property alias content: body.data
     // Popups whose body is one run of text want the parts touching; the ones
     // that stack separate sections set this.
@@ -79,7 +78,7 @@ PopupWindow {
     readonly property int shadowBottom: shadowBlur + shadowY
 
     // How tall the box is drawn, which is not always how tall the window is.
-    readonly property real chromeHeight: Math.max(1, body.implicitHeight + vPadding * 2)
+    readonly property real chromeHeight: Math.max(1, body.implicitHeight + vPadding + bottomPadding)
     // The box itself, for a list that runs on under its header to draw out
     // to the box's edges (ScrollUnder).
     readonly property Item chromeItem: chrome

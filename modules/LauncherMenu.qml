@@ -216,7 +216,7 @@ OverlayWindow {
     // so the rest is reachable by arrowing down.
     readonly property int visibleRows: 12
     readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !LauncherMail.open
-    readonly property int boxPad: 12
+    readonly property int boxPad: Theme.panelPadding
     // The right-hand slot every row ends in: an app icon, or the "%y" badge
     // that says which engine Enter would use.
     readonly property int slotWidth: 24
@@ -459,7 +459,7 @@ OverlayWindow {
                 duration: Theme.revealMs
             }
         }
-        radius: Theme.popupRadius
+        radius: Theme.panelRadius
 
         // Its edge, above everything drawn inside it so that no row's fill
         // can paint over it.
@@ -816,15 +816,10 @@ OverlayWindow {
 
                 Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
-                // Out to both edges of the box, less the hairline of border
-                // on the right. The white rule down the selected row is the
-                // row's own left edge and sits on the box's; the far end has
-                // nothing to say and simply runs to the outline — up to it,
-                // not over it, or the selected row would be the one row with
-                // no right-hand edge to it. The rows put the padding back for
-                // their own contents.
+                // The viewport spans the box; its highlight and row contents
+                // put back the same inset as the query and preview above.
                 x: -root.boxPad
-                width: parent.width + root.boxPad * 2 - Theme.pillBorder
+                width: parent.width + root.boxPad * 2
                 // Short lists draw short, rather than leaving the box padded
                 // out with empty rows the way a fixed height would.
                 height: Math.min(count, root.visibleRows) * root.rowHeight
@@ -946,8 +941,8 @@ OverlayWindow {
                 // held in from the box's edges rather than running out to
                 // them, and nothing else marking it.
                 highlight: Rectangle {
-                    x: Theme.selectionInset
-                    width: list.width - Theme.selectionInset * 2
+                    x: root.boxPad
+                    width: list.width - root.boxPad * 2
                     height: root.rowHeight
                     y: Launcher.index * root.rowHeight
                     visible: list.count > 0

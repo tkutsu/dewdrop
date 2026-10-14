@@ -21,7 +21,6 @@ Popup {
 
     PopupHeader {
         width: content.width
-        inset: 0
         title: "Sound"
     }
 
@@ -66,6 +65,8 @@ Popup {
             // The outputs, the one in use ticked, as the Bluetooth and
             // network popups list theirs.
             PopupText {
+                leftPadding: Theme.popupInset
+                rightPadding: Theme.popupInset
                 visible: Audio.sinks.length === 0
                 text: "No audio output"
                 color: Theme.label2

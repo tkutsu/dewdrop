@@ -21,5 +21,5 @@ and #ececec under that came out a step dimmer than the text beside it.
 network-wireless-0 to -4 and -off are our own drawings in the manner of SF
 Symbols' wifi (not a copy of it): a dot and three 1.5px arcs about it, in a
 20px box with 13px of ink, which is what Glyph fits a drawing to at the bar's
-glyph size, so nothing rescales them. 0 has every part at .25; each step
-after lights one more, dot first. -off is the faint set struck through.
+glyph size, so nothing rescales them. 0 and 1 light only the dot; each step
+after lights one more arc. -off has every part at .25, without a slash.

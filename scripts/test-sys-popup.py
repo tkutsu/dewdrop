@@ -46,7 +46,7 @@ def main():
         target = Path(folder)
         copy_shell(target)
         (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
-        (target / "components/Popup.qml").write_text('import QtQuick\nColumn {}')
+        (target / "components/Popup.qml").write_text('import QtQuick\nColumn { property real hPadding: 6; property real vPadding: 6 }')
         (target / "components/Glyph.qml").write_text('import QtQuick\nItem { property string text: ""; property int fontSize: 16; implicitWidth: 16 }')
         (target / "services/Sys.qml").write_text('''pragma Singleton
 import QtQuick

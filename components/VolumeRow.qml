@@ -14,6 +14,7 @@ Row {
     property alias iconWidth: speaker.width
     property alias iconFontSize: glyph.fontSize
     property alias wheelStep: slider.wheelStep
+    property alias wheelSnap: slider.wheelSnap
     property alias readoutOpacity: readout.opacity
     property alias readoutFontSize: readout.font.pixelSize
     signal moved(real value)
@@ -21,8 +22,9 @@ Row {
 
     // On the lists' grid (ChoiceRow): the speaker in the tick's column,
     // the track starting where the names do.
-    leftPadding: 8
-    spacing: 10
+    leftPadding: Theme.popupInset
+    rightPadding: Theme.popupInset
+    spacing: Theme.popupInset * 2
 
     Item {
         id: leadingSpeaker

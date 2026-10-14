@@ -7,7 +7,7 @@ MouseArea {
     id: root
 
     required property Flickable view
-    property real step: 100
+    property real step: 120
     property real offset: 0
     property int direction: 0
     property bool applying: false
@@ -35,8 +35,10 @@ MouseArea {
     }
 
     onWheel: wheel => {
-        // Pixel deltas already carry the touchpad's motion and momentum.
-        if (wheel.pixelDelta.y !== 0 || wheel.angleDelta.y === 0) {
+        // Wayland mouse wheels include pixel deltas and can be labelled as
+        // touchpads too. Gesture phases distinguish native motion/momentum.
+        const gesture = wheel.phase !== Qt.NoScrollPhase;
+        if (gesture || wheel.angleDelta.y === 0) {
             glide.stop();
             wheel.accepted = false;
             return;
@@ -67,8 +69,11 @@ MouseArea {
         target: root
         property: "offset"
         velocity: -1
-        duration: 220
-        reversingMode: SmoothedAnimation.Immediate
+        // Brief acceleration, a steady middle, then braking; retargeted
+        // notches keep their velocity instead of feeling like separate pulses.
+        duration: 280
+        maximumEasingTime: 120
+        reversingMode: SmoothedAnimation.Eased
     }
 
     property Connections watcher: Connections {

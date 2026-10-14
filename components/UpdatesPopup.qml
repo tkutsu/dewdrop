@@ -19,8 +19,6 @@ Popup {
         id: header
 
         width: Math.max(list.width, footer.implicitWidth, implicitWidth)
-        // The list below runs from the edge, so the title does too.
-        inset: 0
         title: "Updates"
 
         // The upgrade itself, in a terminal. Faint with nothing to take.
@@ -62,6 +60,8 @@ Popup {
     Column {
         id: list
 
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         spacing: 3
 
         PopupText {
@@ -93,7 +93,7 @@ Popup {
         id: footer
 
         width: header.width
-        implicitWidth: (counts.visible ? counts.implicitWidth : 0) + (more.visible ? more.implicitWidth : 0) + (counts.visible && more.visible ? 12 : 0)
+        implicitWidth: (counts.visible ? counts.implicitWidth : 0) + (more.visible ? more.implicitWidth : 0) + (counts.visible && more.visible ? 12 : 0) + Theme.popupInset * 2
         implicitHeight: Math.max(counts.implicitHeight, more.implicitHeight)
         visible: counts.visible || more.visible
 
@@ -101,6 +101,7 @@ Popup {
             id: counts
 
             anchors.left: parent.left
+            anchors.leftMargin: Theme.popupInset
             visible: Updates.loaded
             text: `Official ${Updates.officialList.length}/${Updates.officialTotal} · AUR ${Updates.aurList.length}/${Updates.aurTotal}`
             color: Theme.label2
@@ -111,6 +112,7 @@ Popup {
             id: more
 
             anchors.right: parent.right
+            anchors.rightMargin: Theme.popupInset
             visible: root.remaining > 0
             text: `${root.remaining} more`
             color: Theme.label2

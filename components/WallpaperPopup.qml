@@ -1,6 +1,7 @@
 import QtQuick
 import "../FileUrl.js" as FileUrl
 import Quickshell
+import Quickshell.Widgets
 import qs
 import qs.services
 
@@ -186,7 +187,6 @@ Popup {
 
         PopupHeader {
             width: root.bodyWidth
-            inset: 0
             title: "Wallpaper"
 
             PopupButton {
@@ -204,102 +204,116 @@ Popup {
     }
 
     PopupText {
+        width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         visible: Wallpaper.files.length === 0
         text: Wallpaper.tooltip
     }
 
-    GridView {
-        id: grid
-
-        // In the accessibility tree as a list to scroll, half a view a step.
-
-        Accessible.role: Accessible.List
-
-        Accessible.name: "Wallpapers"
-
-        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
-
-        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
-
-        readonly property int rows: Math.ceil(count / root.columns)
-
-        x: (root.bodyWidth - root.gridWidth) / 2
-        // Cells carry the gap on their right and bottom; the last ones fall
-        // outside the view.
-        width: root.gridWidth + 4
-        height: Math.max(0, Math.min(rows, root.visibleRows) * cellHeight - 4)
-        cellWidth: root.cellWidth + 4
-        cellHeight: root.cellHeight + 4
+    // The grid needs a trailing cell gap for column counting, but that gap
+    // must not increase the popup's width or its right-hand padding.
+    Item {
+        width: root.bodyWidth
+        height: grid.height
         clip: true
 
-        ScrollUnder {
-            parent: grid
-            view: grid
-            box: root.chromeItem
-        }
-        model: Wallpaper.files
-        // Scrolls only when there is more than fits, so the wheel otherwise
-        // falls through to whatever is underneath.
-        interactive: rows > root.visibleRows
-        // Whole rows, as the music queue does, and no momentum past the ends.
-        boundsBehavior: Flickable.StopAtBounds
-        // No SmoothScroll: SnapToRow pulls each eased step back to its row.
-        snapMode: GridView.SnapToRow
+        GridView {
+            id: grid
 
-        // Open where the wallpaper on screen is, once there are cells to find.
-        Component.onCompleted: Qt.callLater(() => {
-            const index = Wallpaper.files.indexOf(Wallpaper.current);
-            if (index >= 0)
-                grid.positionViewAtIndex(index, GridView.Contain);
-        })
+            // In the accessibility tree as a list to scroll, half a view a step.
 
-        delegate: Item {
-            id: cell
+            Accessible.role: Accessible.List
 
-            required property string modelData
-            required property int index
+            Accessible.name: "Wallpapers"
 
-            readonly property bool current: cell.modelData === Wallpaper.current
+            Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
 
-            width: root.cellWidth
-            height: root.cellHeight
+            Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
-            Image {
-                anchors.fill: parent
-                // The kept thumbnail once there is one (Wallpaper.thumbs).
-                source: FileUrl.fromPath(Wallpaper.thumbOf(cell.modelData))
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                // Decoded at cell size: the thumbnail is 512 wide, and
-                // until it exists this is all that stands between a cell
-                // and a full 4K wallpaper in memory.
-                sourceSize.width: Math.ceil(root.cellWidth * root.devicePixelRatio)
-                opacity: cell.current || cell.lit ? 1 : 0.6
+            readonly property int rows: Math.ceil(count / root.columns)
+
+            x: (root.bodyWidth - root.gridWidth) / 2
+            // Cells carry the gap on their right and bottom; the last ones fall
+            // outside the view.
+            width: root.gridWidth + 4
+            height: Math.max(0, Math.min(rows, root.visibleRows) * cellHeight - 4)
+            cellWidth: root.cellWidth + 4
+            cellHeight: root.cellHeight + 4
+            clip: true
+
+            ScrollUnder {
+                parent: grid
+                view: grid
+                box: root.chromeItem
             }
+            model: Wallpaper.files
+            // Scrolls only when there is more than fits, so the wheel otherwise
+            // falls through to whatever is underneath.
+            interactive: rows > root.visibleRows
+            // Whole rows, as the music queue does, and no momentum past the ends.
+            boundsBehavior: Flickable.StopAtBounds
+            // No SmoothScroll: SnapToRow pulls each eased step back to its row.
+            snapMode: GridView.SnapToRow
 
-            Rectangle {
-                anchors.fill: parent
+            // Open where the wallpaper on screen is, once there are cells to find.
+            Component.onCompleted: Qt.callLater(() => {
+                const index = Wallpaper.files.indexOf(Wallpaper.current);
+                if (index >= 0)
+                    grid.positionViewAtIndex(index, GridView.Contain);
+            })
+
+            delegate: ClippingRectangle {
+                id: cell
+
+                required property string modelData
+                required property int index
+
+                readonly property bool current: cell.modelData === Wallpaper.current
+
+                width: root.cellWidth
+                height: root.cellHeight
+                radius: Theme.selectionRadius
                 color: "transparent"
-                border.width: 1
-                border.color: cell.current ? Theme.fg : (cell.lit ? Theme.outlineHover : "transparent")
-            }
 
-            HoverHandler {
-                id: hover
-            }
+                Image {
+                    anchors.fill: parent
+                    // The kept thumbnail once there is one (Wallpaper.thumbs).
+                    source: FileUrl.fromPath(Wallpaper.thumbOf(cell.modelData))
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    // Decoded at cell size: the thumbnail is 512 wide, and
+                    // until it exists this is all that stands between a cell
+                    // and a full 4K wallpaper in memory.
+                    sourceSize.width: Math.ceil(root.cellWidth * root.devicePixelRatio)
+                    opacity: cell.current || cell.lit ? 1 : 0.6
+                }
 
-            Accessible.role: Accessible.Button
-            Accessible.name: "Wallpaper " + cell.modelData.split("/").pop()
-            Accessible.onPressAction: if (enabled && visible)
-                Wallpaper.show(cell.index)
+                Rectangle {
+                    anchors.fill: parent
+                    radius: cell.radius
+                    color: "transparent"
+                    border.width: 1
+                    border.color: cell.current ? Theme.fg : (cell.lit ? Theme.outlineHover : "transparent")
+                }
 
-            // The keys (Popup.qml) light a thumbnail as the pointer does.
-            property bool keyed: false
-            readonly property var keyPress: () => Wallpaper.show(cell.index)
-            readonly property bool lit: QsWindow.window?.keyItem ? cell.keyed : hover.hovered
+                HoverHandler {
+                    id: hover
+                }
 
-            TapHandler {
-                onTapped: Wallpaper.show(cell.index)
+                Accessible.role: Accessible.Button
+                Accessible.name: "Wallpaper " + cell.modelData.split("/").pop()
+                Accessible.onPressAction: if (enabled && visible)
+                    Wallpaper.show(cell.index)
+
+                // The keys (Popup.qml) light a thumbnail as the pointer does.
+                property bool keyed: false
+                readonly property var keyPress: () => Wallpaper.show(cell.index)
+                readonly property bool lit: QsWindow.window?.keyItem ? cell.keyed : hover.hovered
+
+                TapHandler {
+                    onTapped: Wallpaper.show(cell.index)
+                }
             }
         }
     }
@@ -464,7 +478,6 @@ Popup {
 
     PopupHeader {
         width: root.bodyWidth
-        inset: 0
         title: "Monochrome"
 
         // Only a flat colour drifts, so the toggle goes quiet while an image
@@ -492,6 +505,7 @@ Popup {
             Rectangle {
                 width: root.swatchWidth
                 height: 42
+                radius: Theme.selectionRadius
                 color: root.hex
                 border.width: 1
                 // Lit the same way a thumbnail is, and for the same reason:

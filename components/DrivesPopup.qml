@@ -51,7 +51,7 @@ Popup {
 
             PopupText {
                 id: name
-                x: 6
+                x: Theme.popupInset
                 y: 5
                 width: eject.x - x - 8
                 text: row.modelData.name
@@ -71,7 +71,7 @@ Popup {
 
             // How full it is, as the system popup's memory and disks are.
             Rectangle {
-                x: 6
+                x: Theme.popupInset
                 y: 26
                 width: eject.x - x - 8
                 height: 3
@@ -90,7 +90,7 @@ Popup {
                 name: "Eject " + row.modelData.name
 
                 anchors.right: parent.right
-                anchors.rightMargin: 4
+                anchors.rightMargin: Theme.popupInset
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !row.ejecting
                 glyph: Theme.glyph.eject
@@ -106,7 +106,7 @@ Popup {
 
     PopupText {
         width: root.bodyWidth
-        leftPadding: 6
+        leftPadding: Theme.popupInset
         visible: Drives.batteries.length > 0
         text: "Batteries"
         color: Theme.label2

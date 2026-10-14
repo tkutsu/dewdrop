@@ -49,6 +49,7 @@ QtObject {
     property color label: "white"; property color label2: "grey"; property color label3: "grey"
     property color warn: "red"; property color fg: "white"; property color stroke: "grey"
     property color selection: "#222222"; property color selectionStrong: "#444444"
+    property int popupInset: 6; property int popupPadding: 6; property int popupRadius: 10;
     property int selectionRadius: 4; property int fadeMs: 100; property int captionSize: 14
     property int blinkMs: 60
     property bool reduceMotion: false

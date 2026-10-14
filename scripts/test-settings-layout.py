@@ -30,7 +30,7 @@ ShellRoot {
         id: win
         property int failures: 0
         property int phase: 0
-        readonly property int settingsWidth: 700 - 168 - Theme.pillBorder - 24 + 2 * Theme.selectionInset
+        readonly property int settingsWidth: 700 - 168 - Theme.pillBorder - 2 * Theme.panelPadding
         readonly property var widths: [win.settingsWidth, 360, 1200, win.settingsWidth]
         implicitWidth: 1240; implicitHeight: 900
         TestCase { id: pointer; when: false }
@@ -54,7 +54,7 @@ ShellRoot {
                     if (!ok) { console.log("FAIL: " + row.setting.id + " " + message); win.failures++; }
                 }
                 expect(words.width >= Math.min(200, (row.width - row.lead - 24) / 2), "title and description have readable width");
-                expect(control.x >= row.lead && control.x + control.width <= row.width - 7, "selector stays within row");
+                expect(control.x >= row.lead && control.x + control.width <= row.width - Theme.popupInset, "selector stays within row");
                 expect(words.x + words.width <= control.x || words.y + words.height <= control.y, "text does not overlap selector");
                 expect(words.y >= 0 && words.y + words.height <= row.height, "row contains description height");
                 expect(control.y >= 0 && control.y + control.height <= row.height, "row contains selector height");
@@ -67,7 +67,7 @@ ShellRoot {
                     const options = control.item.children[0];
                     for (const option of options.children.filter(c => c.modelData !== undefined)) {
                         const p = option.mapToItem(row, 0, 0);
-                        expect(p.x >= row.lead && p.x + option.width <= row.width - 7, "option " + option.modelData.label + " stays within row");
+                        expect(p.x >= row.lead && p.x + option.width <= row.width - Theme.popupInset, "option " + option.modelData.label + " stays within row");
                         expect(option.y + option.height <= control.height - 2, "wrapped option fits selector height");
                     }
                     const choices = options.children.filter(c => c.modelData !== undefined);
