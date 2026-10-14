@@ -45,14 +45,15 @@ Popup {
 
         // The system's maintenance: caches, orphans, snapshots, logs. A button
         // you have to open the popup to reach rather than a click on the bar,
-        // because it removes packages without asking.
+        // because it removes packages without asking. Runs where the upgrade
+        // does: a dropdown pane, or a kitty window when the dropdown is shut.
         PopupButton {
             framed: true
             glyph: Theme.glyph.cleanup
             label: "clean up"
             onTapped: {
                 OpenPopup.dismiss();
-                Quickshell.execDetached(Settings.inTerminal([Paths.script("cleanup.sh")], "cleanup"));
+                Quickshell.execDetached([Paths.script("dropdown-run.sh"), "cleanup", Paths.script("cleanup.sh")]);
             }
         }
     }
@@ -102,8 +103,9 @@ Popup {
 
             anchors.left: parent.left
             anchors.leftMargin: Theme.popupInset
-            visible: Updates.loaded
-            text: `Official ${Updates.officialList.length}/${Updates.officialTotal} · AUR ${Updates.aurList.length}/${Updates.aurTotal}`
+            // Only the sources that have something waiting.
+            visible: Updates.loaded && Updates.pending > 0
+            text: [Updates.official > 0 ? `Official ${Updates.officialList.length}/${Updates.officialTotal}` : "", Updates.aur > 0 ? `AUR ${Updates.aurList.length}/${Updates.aurTotal}` : ""].filter(Boolean).join(" · ")
             color: Theme.label2
             font.pixelSize: Theme.footnoteSize
         }
