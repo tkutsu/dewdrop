@@ -334,10 +334,15 @@ PopupWindow {
     // `keyed` property; anything without one gets the focus ring below.
     // Up and Down go to the nearest control in the next row, keeping to the
     // column where there is one; Left and Right stay in the row. The keys
-    // reach here from the bar, which takes the keyboard while its popup is up
-    // (Bar.qml): a popup's own surface has none unless it grabs, and a grab
-    // makes it a Qt popup that eats the hover the bar browses popups by.
+    // reach here from the bar or the popup's own surface when the compositor
+    // focuses it under the pointer. Neither needs a popup grab, which would
+    // eat the hover the bar browses popups by.
     property bool takesKeys: true
+    contentItem {
+        focus: root.takesKeys
+        Keys.enabled: root.keysLive
+        Keys.onPressed: event => event.accepted = OpenPopup.key(event)
+    }
     property Item keyItem: null
     // Escape, and Left with nothing to the left: a submenu goes back to its
     // menu (MenuPopup) rather than closing the whole menu.

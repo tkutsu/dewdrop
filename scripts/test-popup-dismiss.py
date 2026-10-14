@@ -72,7 +72,8 @@ ShellRoot {
         function state(): string {
             return JSON.stringify({open: OpenPopup.owner !== null, bars: PopupPointer.bars,
                 hovered: PopupPointer.hovered, keyed: bar.keyed, clicks: fixture.clicks,
-                escapes: fixture.escapes});
+                escapes: fixture.escapes, popupAt: owner.popupItem?.windowOnScreen,
+                popupWidth: owner.popupItem?.width});
         }
     }
 }
@@ -156,6 +157,31 @@ ShellRoot { id: fixture; property int clicks: 0; property int escapes: 0; proper
                 if result["open"]:
                     failures.append("Escape over an application window leaves popup open")
 
+                for position in ("bar", "popup", "clicked-popup"):
+                    open_popup()
+                    current = state()
+                    if position == "bar":
+                        move(panel["x"] + 1150, panel["y"] + 15)
+                    else:
+                        at = current["popupAt"]
+                        move(panel["x"] + int(at["x"] + current["popupWidth"] / 2),
+                             panel["y"] + int(at["y"] + 30))
+                        time.sleep(0.1)
+                        assert state()["hovered"] > 0, "pointer missed the popup"
+                        if position == "clicked-popup":
+                            command("ydotool", "click", "0xC0")
+                    time.sleep(0.2)
+                    command("ydotool", "key", "1:1", "1:0")
+                    time.sleep(0.3)
+                    result = state()
+                    print("Escape with pointer on", position, result, flush=True)
+                    if result["open"]:
+                        failures.append("Escape leaves popup open with pointer on " + position)
+                        move(x, y)
+                        command("ydotool", "click", "0xC0")
+                        time.sleep(0.3)
+
+                baseline = state()["clicks"]
                 open_popup()
                 command("ydotool", "click", "0xC0")
                 time.sleep(0.3)
