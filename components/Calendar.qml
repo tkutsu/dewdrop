@@ -254,7 +254,7 @@ Popup {
                             autoPaddingEnabled: false
                             maskEnabled: true
                             maskInverted: true
-                            maskSource: marks
+                            maskSource: todayMask
                             // Cut on the numeral's antialiased edge. A
                             // threshold of 0 cuts the whole disc away, and a
                             // spread of 1 thins the dot to nothing.
@@ -271,14 +271,21 @@ Popup {
                         }
                     }
 
+                    ShaderEffectSource {
+                        id: todayMask
+
+                        sourceItem: marks
+                        hideSource: dayCell.isToday
+                        live: dayCell.isToday
+                        visible: false
+                    }
+
                     // The numeral and its dot: drawn on any other day, and on
                     // today only the shape cut out of the disc, so opaque.
                     Item {
                         id: marks
 
                         anchors.fill: parent
-                        visible: !dayCell.isToday
-                        layer.enabled: dayCell.isToday
 
                         PopupText {
                             anchors.centerIn: parent
@@ -286,6 +293,7 @@ Popup {
                             // The days either side are context, not padding — worth
                             // showing, faintly, so a month boundary reads at a glance.
                             color: dayCell.isToday ? "white" : (dayCell.thisMonth ? Theme.fg : Theme.label3)
+                            font.pixelSize: Theme.popupTextSize + (dayCell.isToday ? 1 : 0)
                             font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
                         }
 
