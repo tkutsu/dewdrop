@@ -858,6 +858,7 @@ Singleton {
         repeatOff: "\u{f0457}",
         repeatAll: "\u{f0456}",
         repeatOne: "\u{f0458}",
+        random: "\u{f049d}",
 
         // Remove a song from the queue (nf-md-close).
         queueRemove: "\u{f0156}",

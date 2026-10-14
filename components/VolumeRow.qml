@@ -8,8 +8,9 @@ Row {
     property string icon
     property int volume
     property string name: "Output"
+    property bool iconBeforeReadout: false
     property alias sliderWidth: slider.width
-    property alias readoutWidth: readout.width
+    property alias readoutWidth: readoutSpace.width
     property alias iconWidth: speaker.width
     property alias iconFontSize: glyph.fontSize
     property alias wheelStep: slider.wheelStep
@@ -23,19 +24,31 @@ Row {
     leftPadding: 8
     spacing: 10
 
+    Item {
+        id: leadingSpeaker
+        anchors.verticalCenter: parent.verticalCenter
+        visible: !volumeRow.iconBeforeReadout
+        width: speaker.width
+        height: speaker.height
+    }
+
     // A fixed box, with the speaker against its left edge: the struck-out
     // speaker is not the width of the others, and a glyph sized to its
     // own ink shoved the slider along whenever it came or went. Two
     // pixels past the font size holds either.
     Item {
         id: speaker
+        parent: volumeRow.iconBeforeReadout ? readoutSpace : leadingSpeaker
 
         anchors.verticalCenter: parent.verticalCenter
+        anchors.right: volumeRow.iconBeforeReadout ? readout.left : undefined
+        anchors.rightMargin: volumeRow.spacing
         width: Theme.popupTextSize + 2
         height: Theme.popupTextSize + 4
 
         Glyph {
             id: glyph
+            anchors.right: volumeRow.iconBeforeReadout ? parent.right : undefined
             height: parent.height
             text: volumeRow.icon
             fontSize: Theme.popupTextSize
@@ -63,11 +76,19 @@ Row {
         onMoved: value => volumeRow.moved(value)
     }
 
-    PopupText {
-        id: readout
+    Item {
+        id: readoutSpace
         anchors.verticalCenter: parent.verticalCenter
         width: 34
-        horizontalAlignment: Text.AlignRight
-        text: volumeRow.volume + "%"
+        height: Math.max(readout.implicitHeight, volumeRow.iconBeforeReadout ? speaker.height : 0)
+
+        PopupText {
+            id: readout
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: volumeRow.iconBeforeReadout ? implicitWidth : parent.width
+            horizontalAlignment: Text.AlignRight
+            text: volumeRow.volume + "%"
+        }
     }
 }

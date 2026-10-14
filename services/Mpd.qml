@@ -25,12 +25,16 @@ Singleton {
     property string title: ""
     property string artist: ""
     property int elapsed: 0
+    // Fractional MPD time anchors beat pulses between the readout's ticks.
+    property real playbackElapsed: 0
+    property real playbackSampledAt: 0
     property int duration: 0
     readonly property bool connected: link.connected
     property string album: ""
     property string file: ""
     property bool repeatOn: false
     property bool singleOn: false
+    property bool randomOn: false
     // -1 from MPD when the output it is playing through has no mixer to set,
     // which is the one case the popup has nothing to offer.
     property int volume: -1
@@ -240,6 +244,8 @@ Singleton {
             return;
         seekTarget = Math.round(Math.max(0, Math.min(1, fraction)) * duration);
         elapsed = seekTarget;
+        playbackElapsed = seekTarget;
+        playbackSampledAt = Date.now();
         seekWrite.restart();
     }
 
@@ -252,6 +258,10 @@ Singleton {
             root.seekSentAt = Date.now();
             root.run(["seekcur " + root.seekTarget]);
         }
+    }
+
+    function toggleRandom(): void {
+        root.run(["random " + (root.randomOn ? "0" : "1")]);
     }
 
     function cycleRepeat() {
@@ -507,12 +517,16 @@ Singleton {
         root.duration = Math.round(parseFloat(pending["duration"] ?? pending["Time"] ?? "0"));
         root.songPos = pending["song"] === undefined ? -1 : parseInt(pending["song"]);
         root.repeatOn = pending["repeat"] === "1";
+        root.randomOn = pending["random"] === "1";
         // MPD reports single as 0/1/oneshot.
         root.singleOn = (pending["single"] ?? "0") !== "0";
         // Not while the hand is still on the slider, or just off it: see
         // volumeSentAt.
-        if (!seekWrite.running && now - root.seekSentAt > root.holdMs)
-            root.elapsed = Math.round(parseFloat(pending["elapsed"] ?? "0"));
+        if (!seekWrite.running && now - root.seekSentAt > root.holdMs) {
+            root.playbackElapsed = parseFloat(pending["elapsed"] ?? "0");
+            root.playbackSampledAt = now;
+            root.elapsed = Math.round(root.playbackElapsed);
+        }
         if (!volumeWrite.running && now - root.volumeSentAt > root.holdMs)
             root.volume = parseInt(pending["volume"] ?? "-1");
 

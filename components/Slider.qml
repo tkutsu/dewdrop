@@ -21,6 +21,18 @@ Item {
     // the same grey every slider's is.
     property bool knob: true
     property color fill: Theme.label
+    // A song's envelope keeps its shape as the played colour advances.
+    property bool wave: false
+    property var waveSamples: []
+    property real wavePulse: 0
+    property real waveAmount: wave ? 1 : 0
+    Behavior on waveAmount {
+        NumberAnimation {
+            duration: Theme.reduceMotion ? 0 : Theme.fadeMs
+            easing.type: Easing.InOutQuad
+        }
+    }
+    readonly property bool waving: waveAmount > 0.001 && !knob && !trackGradient
     // How far one notch of the wheel moves the value. Zero leaves the wheel
     // to whatever is underneath — the sound popup has one handler for all
     // its rows, which a slider taking the wheel for itself would cut short.
@@ -149,6 +161,7 @@ Item {
 
             readonly property bool swollen: !root.knob && (hover.hovered || area.pressed)
 
+            visible: !root.waving
             x: root.room
             anchors.verticalCenter: parent.verticalCenter
             width: root.width
@@ -177,6 +190,97 @@ Item {
                     height: parent.height
                     radius: track.radius
                     color: root.fill
+                }
+            }
+        }
+
+        Canvas {
+            id: ripple
+
+            smooth: false
+            x: root.room
+            anchors.verticalCenter: parent.verticalCenter
+            width: root.width
+            height: root.height
+            visible: root.waving
+            readonly property real end: width * Math.max(0, Math.min(1, root.value))
+            readonly property real hoverEnd: Math.max(0, Math.min(width, hover.point.position.x))
+            property real hoverAmount: hover.hovered ? 1 : 0
+            Behavior on hoverAmount {
+                NumberAnimation {
+                    duration: Theme.reduceMotion ? 0 : Theme.fadeMs
+                    easing.type: Easing.InOutQuad
+                }
+            }
+            property var fromSamples: []
+            property var toSamples: []
+            property real blend: 1
+            property bool ready: false
+            readonly property var incomingSamples: root.waveSamples
+            onIncomingSamplesChanged: if (ready)
+                replaceSamples(incomingSamples)
+            Component.onCompleted: {
+                ready = true;
+                replaceSamples(incomingSamples);
+            }
+
+            // Continue from the visible shape if another song arrives mid-blend.
+            function replaceSamples(next): void {
+                morph.stop();
+                fromSamples = toSamples.map((value, index) => {
+                    const start = fromSamples[index] ?? value;
+                    return start + (value - start) * blend;
+                });
+                toSamples = next;
+                blend = fromSamples.length && toSamples.length && !Theme.reduceMotion ? 0 : 1;
+                if (blend === 0)
+                    morph.restart();
+            }
+
+            NumberAnimation {
+                id: morph
+                target: ripple
+                property: "blend"
+                to: 1
+                duration: Theme.fadeMs + 80
+                easing.type: Easing.InOutQuad
+            }
+
+            readonly property var paintInputs: [width, height, end, hoverEnd, hoverAmount, blend, fromSamples, toSamples, root.waveAmount, root.wavePulse, root.fill, Theme.sliderTrack, visible]
+            onPaintInputsChanged: requestPaint()
+
+            // Bars span the whole song; clip the accent to the seek position.
+            onPaint: {
+                const ctx = getContext("2d");
+                ctx.clearRect(0, 0, width, height);
+                const count = Math.max(1, Math.floor(width / 3));
+                const step = 3;
+                const left = Math.floor((width - count * step) / 2);
+                for (let index = 0; index < count; index++) {
+                    const first = Math.floor(index * toSamples.length / count);
+                    const last = Math.max(first + 1, Math.floor((index + 1) * toSamples.length / count));
+                    let sample = 0;
+                    for (let i = first; i < last; i++) {
+                        const a = fromSamples[i] ?? toSamples[i] ?? 0;
+                        const b = toSamples[i] ?? 0;
+                        sample = Math.max(sample, a + (b - a) * blend);
+                    }
+                    const barHeight = Math.round(Math.min(height - 2, 2 + 9 * sample * root.waveAmount * (1 + 0.18 * root.wavePulse)));
+                    const x = left + index * step;
+                    const y = height - 1 - barHeight;
+                    const barWidth = Math.min(2, step - 1);
+                    ctx.fillStyle = Theme.sliderTrack;
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                    const hoverStart = Math.max(x, end);
+                    const hoverWidth = Math.min(x + barWidth, hoverEnd) - hoverStart;
+                    if (hoverWidth > 0 && hoverAmount > 0) {
+                        ctx.fillStyle = Qt.rgba(Theme.sliderTrack.r, Theme.sliderTrack.g, Theme.sliderTrack.b, 0.14 * hoverAmount);
+                        ctx.fillRect(hoverStart, y, hoverWidth, barHeight);
+                    }
+                    if (x < end) {
+                        ctx.fillStyle = root.fill;
+                        ctx.fillRect(x, y, Math.min(barWidth, end - x), barHeight);
+                    }
                 }
             }
         }
