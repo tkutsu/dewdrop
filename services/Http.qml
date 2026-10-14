@@ -45,7 +45,8 @@ Singleton {
         for (const [key, value] of Object.entries(headers))
             xhr.setRequestHeader(key, value);
         timeout.start();
-        xhr.send(body);
+        if (body === null) xhr.send();
+        else xhr.send(body);
     }
 
     Component {

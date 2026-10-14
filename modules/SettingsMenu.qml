@@ -148,7 +148,7 @@ OverlayWindow {
                 {
                     title: "Tasks",
                     rows: [
-                        { type: "text", id: "omittedTaskList", title: "Omit list names", text: "Enter list names to hide, separated by commas. Leave empty to show every list name.", placeholder: "Personal, Work", get: () => Settings.omittedTaskList, set: v => Settings.set("omittedTaskList", v.trim()) }
+                        { type: "choice", id: "defaultTaskList", title: "Default section", text: "Tasks without a section word go here. If unavailable, the first list is used.", options: Tasks.lists.map(l => ({ value: l.id, label: l.title })), get: () => Tasks.defaultList.id, set: v => Settings.set("defaultTaskList", v) }
                     ]
                 }
             ]

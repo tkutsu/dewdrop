@@ -337,9 +337,11 @@ PopupWindow {
     // focuses it under the pointer. Neither needs a popup grab, which would
     // eat the hover the bar browses popups by.
     property bool takesKeys: true
+    property Item keyInput: null
     contentItem {
         focus: root.takesKeys
         Keys.enabled: root.keysLive
+        Keys.forwardTo: root.keyInput ? [root.keyInput] : []
         Keys.onPressed: event => event.accepted = OpenPopup.key(event)
     }
     property Item keyItem: null
@@ -454,6 +456,10 @@ PopupWindow {
         const k = event.key;
         const t = root.keyItem;
         switch (k) {
+        case Qt.Key_E:
+            if (typeof t?.keyEdit !== "function") return false;
+            t.keyEdit();
+            return true;
         case Qt.Key_Escape:
             root.closeKey();
             return true;
