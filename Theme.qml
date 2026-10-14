@@ -553,6 +553,17 @@ Singleton {
     // Today is a filled disc with the numeral cut out in the surface colour.
     readonly property color calToday: label
 
+    // The disc with a sender's initials at the head of a mail row, one of
+    // these picked by the address so the same sender always wears the same
+    // one. Muted and all at the same lightness, so no sender shouts and the
+    // white initials read on every one.
+    readonly property var monogramTones: ["#5e7896", "#7a6a96", "#94677c", "#94785e", "#5e8a74", "#5e8a91", "#8a8257", "#6f7680"]
+
+    // What shows behind a mail row being swiped: archive one way, mark read
+    // the other, in Gmail's own green and blue, muted to sit with the above.
+    readonly property color swipeArchive: "#4f8a68"
+    readonly property color swipeRead: "#4f72a0"
+
     // --- opacity -------------------------------------------------------------
     readonly property real dimOpacity: 0.55   // .stale / .loading
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
@@ -823,14 +834,20 @@ Singleton {
         edit: "\u{f03eb}",            // nf-md-pencil
         copy: "\u{f018f}",            // nf-md-content_copy
 
-        // The open mail's two actions in the popup's foot: the thread in the
-        // Gmail app, and marking it read, which is the envelope opened.
+        // The thread in the Gmail app, from the open mail's foot.
         openApp: "\u{f03cc}",          // nf-md-open_in_new
 
+        // A mail row's three verbs: archive, mark read (the envelope
+        // opened) and star, outlined until it is starred.
+        mailArchive: "\u{f125a}",      // nf-md-archive_arrow_down_outline
         mailRead: "\u{f05ef}",         // nf-md-email_open_outline
         mailUnread: "\u{f01f0}",       // nf-md-email_outline
         // A starred mail in the launcher's search, which is why it is on top.
         mailStarred: "\u{f04d2}",      // nf-md-star_outline
+        mailStar: "\u{f04ce}",         // nf-md-star
+        // The open mail's foot: leave a mailing list, and a file it carries.
+        mailUnsubscribe: "\u{f0ee6}",  // nf-md-email_minus_outline
+        attachment: "\u{f03e2}",       // nf-md-paperclip
 
         // One bell whatever the count: the badge carries the number.
         notif: "\u{f009c}",
