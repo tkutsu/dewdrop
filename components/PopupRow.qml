@@ -65,7 +65,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: Theme.selectionRadius
-            color: root.hovered ? Theme.selection : "transparent"
+            color: root.name !== "" && root.hovered ? Theme.selection : "transparent"
         }
     }
 }
