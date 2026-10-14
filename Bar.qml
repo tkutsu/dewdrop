@@ -49,7 +49,7 @@ PanelWindow {
         focus: true
         onActiveFocusChanged: if (activeFocus && bar.acquiringFocus)
             Qt.callLater(() => bar.acquiringFocus = false)
-        Keys.onPressed: event => event.accepted = OpenPopup.selected !== null && !OpenPopup.inPopup ? bar.selectKey(event) : OpenPopup.key(event)
+        Keys.onPressed: event => event.accepted = OpenPopup.key(event)
     }
 
     // Selection mode's keys while they are on the bar rather than in a popup
