@@ -54,6 +54,7 @@ STATE = '''
     function copy(text) { copied = text; }
     QtObject { id: card; function createObject(parent, props) { root.cards.push(props); return props; } }
     property bool otherWanted: false
+    property var categories: ["primary"]
     property var pending: []
     property int undoMs: 4000
     property var said: ({archive: "Archived", read: "Marked read", star: "Starred", unstar: "Unstarred"})
@@ -117,7 +118,7 @@ class EmailTests(unittest.TestCase):
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
             'scrollEdge': 16, 'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'fadeMs': 0, 'figures': {},
             'badgeFg': '#ffffff', 'pillBorder': 1, 'stroke': '#333333', 'well': '#222222',
-            'drawerSpring': 2.2, 'drawerDamping': 0.2, 'swipeArchive': '#4f8a68', 'swipeRead': '#4f72a0',
+            'drawerSpring': 2.2, 'drawerDamping': 0.2,
             'monogramTones': ['#5e7896', '#7a6a96', '#94677c', '#94785e', '#5e8a74', '#5e8a91', '#8a8257', '#6f7680'],
             'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r', 'mailArchive': 'a', 'mailStar': 'S', 'mailStarred': 's',
                       'undo': 'u', 'sectionOpen': 'v', 'sectionShut': '>'},
@@ -278,6 +279,23 @@ class EmailTests(unittest.TestCase):
             sut.replyAll({threads:listed(0,1201)});
             if (sut.requests.length !== 0 || sut.total !== 1201) throw Error("cache missed");
         ''')
+
+    def test_picked_tabs_are_one_query(self):
+        self.js('sut.categories = ["primary", "updates"]; sut.fetchThreads();')
+        self.check('sut.requests.length === 2 && sut.requests.some(r => r.url.includes("&q=category%3Aprimary%20OR%20category%3Aupdates&"))')
+
+    def test_no_tabs_picked_counts_the_whole_inbox(self):
+        self.js('''
+            sut.categories = [];
+            sut.fetchThreads();
+            if (sut.requests.length !== 1 || sut.requests[0].url.includes("&q=")) throw Error("asked for more than the inbox");
+            sut.replyAll({threads: [{id: "a", historyId: "1"}, {id: "b", historyId: "1"}]});
+            while (sut.requests.length) {
+                const id = sut.requests[0].url.match(/threads\\/(\\w+)\\?/)[1];
+                sut.reply({messages:[{id:"m"+id,internalDate:"1",labelIds:["UNREAD"]}]});
+            }
+        ''')
+        self.check('sut.total === 2 && sut.other === 0 && sut.threads.length === 2')
 
     def test_primary_counts_and_other_is_the_rest(self):
         self.js('''
@@ -558,7 +576,7 @@ class EmailTests(unittest.TestCase):
         source = re.sub(r'^import qs(?:\.\w+)?\n', '', POPUP, flags=re.M)
         source = source.replace('Qt.openUrlExternally(url);', 'root.testActivated = url;')
         source = source.replace('id: more\n', 'id: more\n                objectName: "emailMore"\n', 1)
-        source = source.replace('id: root', 'id: root\n    property string testActivated: ""\n    property alias testMore: more\n    property alias testList: list\n    property alias testOther: otherList\n    property alias testOtherRow: otherRow\n    property alias testUndo: undoSlot\n    property alias testScroll: threadList', 1)
+        source = source.replace('id: root', 'id: root\n    property string testActivated: ""\n    property alias testMore: more\n    property alias testList: list\n    property alias testOther: otherList\n    property alias testOtherRow: otherRow\n    property alias testUndo: undoButton\n    property alias testScroll: threadList', 1)
         component = QQmlComponent(self.engine)
         component.setData(source.encode(), QUrl.fromLocalFile(directory + '/components/EmailPopup.qml'))
         self.components.append(component)
@@ -748,8 +766,8 @@ class EmailTests(unittest.TestCase):
         QTest.qWait(10)
         self.click(window, self.button(self.js('return popup.testList.itemAt(1);'), 'Archive'))
         self.check('sut.threads.map(t => t.id).join() === "a,c" && popup.expanded === "c"')
-        self.check('sut.pending.length === 1 && popup.testUndo.height > 0 && sut.requests.length === 0')
-        self.click(window, self.button(popup, 'Undo'))
+        self.check('sut.pending.length === 1 && popup.testUndo.visible && sut.requests.length === 0')
+        self.click(window, self.button(popup, 'Undo: Archived'))
         self.check('sut.threads.map(t => t.id).join() === "a,b,c" && popup.expanded === "b" && sut.pending.length === 0')
         # The last one opens the one above instead.
         self.js('popup.expanded = "c";')
@@ -760,17 +778,17 @@ class EmailTests(unittest.TestCase):
         self.click(window, self.button(self.js('return popup.testList.itemAt(1);'), 'Star'))
         self.check('popup.expanded === "b" && sut.threads[1].starred')
 
-    def test_undo_line_keeps_the_window_still(self):
+    def test_undo_button_keeps_the_window_still(self):
         self.mail_rows(['a', 'b'])
         popup, window = self.build_popup(fold_ms=0)
         reserved = popup.property('reserveHeight')
         self.js('sut.act("star", sut.threads[0]);')
         QTest.qWait(10)
-        self.check('popup.testUndo.height > 0')
+        self.check('popup.testUndo.visible')
         self.assertEqual(popup.property('reserveHeight'), reserved)
         self.js('sut.undo();')
         QTest.qWait(10)
-        self.check('popup.testUndo.height === 0')
+        self.check('!popup.testUndo.visible')
         self.assertEqual(popup.property('reserveHeight'), reserved)
 
     def test_closing_the_popup_sends_what_waits(self):
@@ -795,7 +813,7 @@ class EmailTests(unittest.TestCase):
         self.check('popup.otherOpen && sut.otherWanted && popup.testOther.count === 2')
         self.click(window, self.button(self.js('return popup.testOther.itemAt(0);'), 'Archive'))
         self.check('sut.other === 1 && sut.total === 1 && popup.testOther.count === 1 && OpenPopup.shown')
-        self.click(window, self.button(popup, 'Undo'))
+        self.click(window, self.button(popup, 'Undo: Archived'))
         self.check('sut.other === 2 && popup.testOther.count === 2')
         self.js('popup.visible = false;')
         self.check('!popup.otherOpen && !sut.otherWanted')
