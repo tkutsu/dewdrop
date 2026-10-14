@@ -906,7 +906,7 @@ GoogleService {
     // A verb from the popup: done here at once, sent to Gmail undoMs later.
     // Archive and read take the row out of its list; a star stays and only
     // turns. `options` may carry wasOpen (the row was the open one, so an
-    // undo opens it again), said (the foot's words, for a compound action)
+    // undo opens it again), said (the undo button's words, for a compound action)
     // and also (more to send with it, as one undoable thing: called with
     // the row when the wait is over).
     function act(kind: string, row: var, options: var): void {
