@@ -1,6 +1,7 @@
 import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell
+import Quickshell.Widgets
 import qs
 import qs.components
 import "../FileUrl.js" as FileUrl
@@ -95,12 +96,11 @@ Item {
         // there is anything in it, so the caption underneath sits on the same
         // line for every row rather than climbing when a folder has no
         // picture.
-        Rectangle {
+        ClippingRectangle {
             width: parent.width
             height: parent.width
             color: Theme.well
-            radius: 3
-            clip: true
+            radius: Theme.selectionRadius
 
             Image {
                 id: art

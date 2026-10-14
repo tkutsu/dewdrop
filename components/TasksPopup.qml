@@ -108,7 +108,8 @@ Popup {
     // says it in place of the list.
     PopupText {
         width: root.bodyWidth
-        leftPadding: 6
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         visible: Tasks.loaded && Tasks.trouble !== "" && Tasks.trouble !== Google.reconnect
         text: Tasks.trouble
         color: Theme.warn
@@ -119,6 +120,8 @@ Popup {
 
     PopupText {
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         visible: !Tasks.loaded || root.rows.length === 0
         text: !Tasks.loaded ? (Tasks.trouble !== "" ? Tasks.trouble : "Connecting…") : "Nothing on the list"
         color: Theme.label2
@@ -220,7 +223,7 @@ Popup {
                         // its own hover box. A wrapped row is exactly its text plus the
                         // padding, so this comes back to rowPad there.
                         y: Math.round((row.height - implicitHeight) / 2)
-                        width: root.bodyWidth - root.gutter - row.dateWidth - root.actionsWidth - 6
+                        width: root.bodyWidth - root.gutter - row.dateWidth - root.actionsWidth - Theme.popupInset * 2
                         text: root.titleText(row.modelData)
                         textFormat: Text.StyledText
                         font.pixelSize: Theme.captionSize
@@ -231,6 +234,7 @@ Popup {
                     PopupButton {
                         id: actions
                         anchors.right: parent.right
+                        anchors.rightMargin: Theme.popupInset
                         y: root.rowPad - 1
                         pressFeedback: true
                         framed: actions.hovered

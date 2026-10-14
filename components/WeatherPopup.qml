@@ -59,8 +59,8 @@ Popup {
 
     // Now: the temperature, and beside it the sky with the next six hours.
     Row {
-        x: 6
-        width: root.bodyWidth - 12
+        x: Theme.popupInset
+        width: root.bodyWidth - Theme.popupInset * 2
         visible: !root.choosing && Weather.days.length > 0
         spacing: 14
 
@@ -254,6 +254,8 @@ Popup {
 
             PopupText {
                 width: parent.width
+                leftPadding: Theme.popupInset
+                rightPadding: Theme.popupInset
                 text: Weather.searching ? "Searching..." : Weather.searchTrouble || (Weather.query.trim().length < 2 ? "Type at least two characters, then choose a location." : "Choose a location below.")
                 color: Weather.searchTrouble ? Theme.warn : Theme.label2
                 font.pixelSize: Theme.captionSize
@@ -274,8 +276,8 @@ Popup {
                     }
                     PopupText {
                         anchors.fill: parent
-                        anchors.leftMargin: 6
-                        anchors.rightMargin: 6
+                        anchors.leftMargin: Theme.popupInset
+                        anchors.rightMargin: Theme.popupInset
                         verticalAlignment: Text.AlignVCenter
                         text: place.modelData.label
                         font.pixelSize: Theme.captionSize
@@ -355,6 +357,8 @@ Popup {
 
     PopupText {
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         // With no forecast at all, the panel above already says this.
         visible: !root.choosing && Weather.days.length > 0 && (Weather.trouble !== "" || Weather.loading)
         font.pixelSize: Theme.footnoteSize
@@ -370,6 +374,7 @@ Popup {
         PopupText {
             id: attribution
             anchors.left: parent.left
+            anchors.leftMargin: Theme.popupInset
             anchors.bottom: parent.bottom
             text: `<a href="https://open-meteo.com/" style="color: ${Theme.label2}">Open-Meteo</a>`
             textFormat: Text.RichText
@@ -383,6 +388,7 @@ Popup {
         PopupText {
             id: updated
             anchors.right: parent.right
+            anchors.rightMargin: Theme.popupInset
             anchors.bottom: parent.bottom
             visible: Weather.updatedAt > 0
             text: `Updated ${Qt.formatDateTime(new Date(Weather.updatedAt * 1000),

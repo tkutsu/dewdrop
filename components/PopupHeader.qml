@@ -20,7 +20,7 @@ Item {
     default property alias buttons: row.data
     // The title's inset from the popup's edge, level with the text of the rows
     // under it.
-    property int inset: 6
+    property int inset: Theme.popupInset
     property bool addable: false
 
     // Hidden controls take no space; visible ones keep a gap before them.
@@ -29,7 +29,7 @@ Item {
     signal add
 
     implicitWidth: root.inset + name.implicitWidth + 12 + row.implicitWidth + (root.addable ? plus.width + row.spacing : 0)
-    implicitHeight: 22
+    implicitHeight: Math.max(20, name.implicitHeight, row.implicitHeight)
 
     Item {
         id: target

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+ <desc>Straight playback arrows sized to match the shuffle-on font glyph.</desc>
+ <path fill="#fff" d="M11.5 2v2h-10v2h10v2L15 5Zm0 6v2h-10v2h10v2l3.5-3Z"/>
+</svg>

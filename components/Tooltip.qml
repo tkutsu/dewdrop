@@ -13,6 +13,7 @@ Popup {
 
     hPadding: 7
     vPadding: 3
+    bottomPadding: vPadding
     radius: Theme.tagRadius
     shadowBlur: 8
     shadowY: 2

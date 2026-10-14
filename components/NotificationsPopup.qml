@@ -25,11 +25,10 @@ Popup {
 
     readonly property int bodyWidth: 453
     // The text's inset from the edge of the popup, as the other popups keep it.
-    readonly property int inset: 6
+    readonly property int inset: Theme.popupInset
     readonly property int cardPad: 10
-    // A card is a fill inside the popup's box, two steps rounder than a row's
-    // highlight since it is taller than one.
-    readonly property int cardRadius: Theme.selectionRadius + 2
+    // Cards and the enclosing popup have concentric corners.
+    readonly property int cardRadius: Theme.popupRadius - Theme.popupPadding
     readonly property int cardGap: 6
     readonly property int iconSize: 32
     readonly property int iconRadius: 6
@@ -158,7 +157,7 @@ Popup {
             PopupText {
                 id: clearLabel
                 anchors.right: parent.right
-                anchors.rightMargin: 7
+                anchors.rightMargin: root.inset
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Notifications.count > 0
                 text: "clear"
@@ -174,6 +173,7 @@ Popup {
         visible: Notifications.count === 0
         width: root.bodyWidth
         leftPadding: root.inset
+        rightPadding: root.inset
         bottomPadding: 2
         text: "No notifications"
         color: Theme.label2

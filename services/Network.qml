@@ -46,23 +46,22 @@ Singleton {
     readonly property bool joining: networks.some(n => n.stateChanging && !n.connected)
 
     // The signal as nm-applet quantised it, and so as the glyph set is cut:
-    // five steps, the first of which is no signal at all.
+    // five steps. Even the lowest lights the dot while Wi-Fi is enabled.
     function bars(strength: real): int {
         const s = strength * 100;
         return s > 80 ? 4 : s > 55 ? 3 : s > 30 ? 2 : s > 5 ? 1 : 0;
     }
 
-    // The cable wins when there is one, the way the system routes. The empty
-    // cone while a network comes up is the honest picture of it: no signal
-    // yet, and it fills rather than being swapped once there is.
+    // The cable wins when there is one, the way the system routes. Enabled
+    // Wi-Fi lights at least the dot; only a disabled radio is fully dim.
     readonly property string icon: {
         if (wiredUp)
             return Theme.glyph.wired;
+        if (!wifiOn)
+            return Theme.glyph.wifiOff;
         if (current)
             return Theme.glyph.wifiStrength[bars(current.signalStrength)];
-        if (joining)
-            return Theme.glyph.wifiStrength[0];
-        return Theme.glyph.wifiOff;
+        return Theme.glyph.wifiStrength[0];
     }
 
     readonly property bool online: wiredUp || !!current

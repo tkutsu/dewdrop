@@ -56,6 +56,8 @@ Popup {
 
     PopupText {
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         visible: !Bluetooth.on || Bluetooth.devices.length === 0
         text: !Bluetooth.on ? "Bluetooth is off" : Bluetooth.scanning ? "Looking for devices…" : "No devices paired"
         color: Theme.label2

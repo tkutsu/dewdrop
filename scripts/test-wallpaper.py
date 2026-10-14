@@ -233,6 +233,9 @@ ShellRoot {
                 wait(100);
                 const controls = {};
                 buttons(popup, controls);
+                check(popup.width === popup.bodyWidth + Theme.popupPadding * 2, 'trailing thumbnail gap does not widen the popup');
+                const gridBounds = bounds(controls.grid);
+                check(Math.abs(gridBounds.x + popup.gridWidth / 2 - popup.width / 2) < 0.5, 'visible thumbnails have equal frame insets');
                 check(controls.parallax && controls.drift, 'both section headers have a toggle');
                 check(controls.parallax.framed && controls.drift.framed, 'toggles use standard framed buttons');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
@@ -264,7 +267,7 @@ ShellRoot {
                 check(bounds(readout).y > hint.y && bounds(readout).y + readout.height <= picture.y + picture.height, 'zoom percentage follows the knob downward and stays inside the preview');
                 Settings.set('wallpaperParallaxZoom', originalZoom);
                 const reserved = popup.reserveHeight;
-                check(framing.mapToItem(popup, 0, 0).y > controls.parallax.mapToItem(popup, 0, controls.parallax.height).y, 'framing opens under the parallax button');
+                check(bounds(area).y > bounds(controls.parallax).y + controls.parallax.height, 'framing picture clears the parallax button');
                 mouseClick(area, area.width / 2, area.height * 0.25);
                 check(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'pressing a quarter down the picture frames a quarter down');
                 mouseWheel(area, area.width / 2, area.height / 2, 0, -120);

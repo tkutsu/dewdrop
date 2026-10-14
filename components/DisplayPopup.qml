@@ -14,7 +14,6 @@ Popup {
 
     PopupHeader {
         width: root.bodyWidth
-        inset: 0
         title: "Display"
 
         PopupButton {
@@ -31,11 +30,12 @@ Popup {
         id: row
 
         width: root.bodyWidth
-        leftPadding: 8
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         spacing: 10
 
         Slider {
-            width: root.bodyWidth - 8 - 10 - 34
+            width: root.bodyWidth - Theme.popupInset * 2 - row.spacing - 34
             anchors.verticalCenter: parent.verticalCenter
             name: "Brightness"
             value: NightMode.brightness / 100
@@ -59,7 +59,6 @@ Popup {
 
     PopupHeader {
         width: root.bodyWidth
-        inset: 0
         title: "Schedule"
 
         PopupButton {

@@ -30,7 +30,7 @@ Popup {
 
     component Section: PopupText {
         width: root.bodyWidth
-        leftPadding: 6
+        leftPadding: Theme.popupInset
         color: Theme.label2
         font.pixelSize: Theme.captionSize
     }
@@ -49,7 +49,7 @@ Popup {
 
         PopupText {
             id: line
-            x: 6
+            x: Theme.popupInset
             y: 5
             width: end.x - x - 8
             text: entry.title
@@ -59,7 +59,7 @@ Popup {
         }
 
         PopupText {
-            x: 6
+            x: Theme.popupInset
             anchors.top: line.bottom
             width: end.x - x - 8
             text: entry.detail
@@ -71,7 +71,7 @@ Popup {
         Row {
             id: end
             anchors.right: parent.right
-            anchors.rightMargin: 4
+            anchors.rightMargin: Theme.popupInset
             anchors.verticalCenter: parent.verticalCenter
         }
     }

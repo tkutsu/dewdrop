@@ -50,6 +50,8 @@ Popup {
 
     PopupText {
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
         visible: !Network.wifiOn || Network.networks.length === 0
         text: !Network.wifi ? "No Wi-Fi adapter" : !Network.wifiOn ? "Wi-Fi is off" : "Looking for networks…"
         color: Theme.label2

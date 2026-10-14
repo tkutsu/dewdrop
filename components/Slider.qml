@@ -40,6 +40,7 @@ Item {
     // back: the track lies across the wheel, so it reads like a page. The
     // bar's icons go the other way round, up for more.
     property real wheelStep: 0
+    property bool wheelSnap: false
     property real _wheelAcc: 0
     signal moved(real value)
 
@@ -349,7 +350,13 @@ Item {
             if (notches === 0)
                 return;
             root._wheelAcc -= notches * 120;
-            root.moved(Math.max(0, Math.min(1, root.value + notches * root.wheelStep)));
+            let next = root.value + notches * root.wheelStep;
+            if (root.wheelSnap) {
+                // Round away from the current step, tolerating floating-point drift.
+                const step = root.value / root.wheelStep;
+                next = ((notches > 0 ? Math.floor(step + 1e-6) : Math.ceil(step - 1e-6)) + notches) * root.wheelStep;
+            }
+            root.moved(Math.max(0, Math.min(1, next)));
         }
     }
 }

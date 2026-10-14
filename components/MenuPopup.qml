@@ -47,16 +47,14 @@ Popup {
         return false;
     }
 
-    // Rows run the width of the menu, so the only side padding is the hairline
-    // they must not paint over — a child is drawn above the panel's border, and
-    // a hovered row that reached the edge would break the outline along itself.
-    // Top and bottom clear the rounded corners for the same reason.
+    // Selections keep the same inset on every side of the frame.
     radius: Theme.menuRadius
     // The system's menu metrics: rows 22 high, the fill under the pointer
     // inset from the box on every side, and the same inset again between the
     // fill and the label.
     hPadding: Theme.selectionInset
     vPadding: Theme.selectionInset
+    bottomPadding: vPadding
     readonly property int rowHeight: 22
 
     QsMenuOpener {
@@ -131,7 +129,7 @@ Popup {
                 // at rather than something to read around, and the tighter
                 // pair is what keeps a long app menu to a column instead of a
                 // page. A separator gets the vertical pair and no text.
-                readonly property int pad: Theme.selectionInset + 4
+                readonly property int pad: Theme.popupInset
 
                 // Whether the pointer is on this row or inside the submenu it
                 // opened. A submenu is its own surface, so reaching for one
