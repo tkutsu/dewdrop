@@ -32,7 +32,34 @@ GoogleService {
     property var crossed: ({})
     property int writing: 0
     property bool commitWanted: false
-    onWritingChanged: if (writing === 0 && commitWanted) Qt.callLater(root.commit)
+    property var pending: []
+    onWritingChanged: if (writing === 0) Qt.callLater(root.flushPending)
+
+    // Serialize gestures behind a write rather than losing clicks. Resolve
+    // each task again: an earlier move may have changed its list or server id.
+    function flushPending(): void {
+        while (root.writing === 0 && root.pending.length) {
+            const action = root.pending[0];
+            root.pending = root.pending.slice(1);
+            if (action.kind === "renameList") {
+                root.renameList(action.id, action.title);
+                continue;
+            }
+            const task = root.tasks.find(t => t.id === action.id);
+            if (!task) {
+                root.trouble = "Task is no longer available";
+                continue;
+            }
+            if (action.kind === "complete") root.complete(task);
+            else if (action.kind === "move") root.move(task, action.destination);
+            else root.edit(task, action.text);
+        }
+        if (root.writing === 0 && root.commitWanted) root.commit();
+    }
+
+    function enqueue(kind: string, task: var, extra: var): void {
+        root.pending = root.pending.concat([Object.assign({ kind: kind, id: task.id }, extra)]);
+    }
     signal committed()
 
     // --- days ----------------------------------------------------------------
@@ -46,7 +73,7 @@ GoogleService {
 
     readonly property string tomorrow: root.dayString(new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() + 1))
 
-    // Sections keep Google's list order and each sibling group's manual order.
+    // Task lists keep Google's list order and each sibling group's manual order.
     function byPosition(a: var, b: var): int {
         const pa = String(a.position ?? "");
         const pb = String(b.position ?? "");
@@ -58,20 +85,22 @@ GoogleService {
         return da === db ? root.byPosition(a, b) : da < db ? -1 : 1;
     }
 
-    readonly property var sections: root.lists.map(l => ({
+    // A missing parent must not make a server task disappear from the shell.
+    function isTopLevel(task: var): bool {
+        return !task.parent || !root.tasks.some(t => t.id === task.parent && t.listId === task.listId);
+    }
+
+    readonly property var groupedLists: root.lists.map(l => ({
         id: l.id, title: l.title,
-        tasks: root.tasks.filter(t => t.listId === l.id && !t.parent).sort(root.byPosition).map(t =>
+        tasks: root.tasks.filter(t => t.listId === l.id && root.isTopLevel(t)).sort(root.byPosition).map(t =>
             Object.assign({}, t, { children: root.tasks.filter(c => c.listId === l.id && c.parent === t.id).sort(root.byPosition) }))
     }))
 
-    function flatRows(includeEmpty: bool): var {
+    function flatRows(): var {
         const out = [];
-        for (const section of root.sections) {
-            if (!includeEmpty && !section.tasks.length)
-                continue;
-            if (root.lists.length > 1)
-                out.push({ kind: "header", id: section.id, title: section.title, listId: section.id });
-            for (const task of section.tasks) {
+        for (const list of root.groupedLists) {
+            out.push({ kind: "header", id: list.id, title: list.title, listId: list.id });
+            for (const task of list.tasks) {
                 out.push(Object.assign({}, task, { kind: "task" }));
                 for (const child of task.children)
                     out.push(Object.assign({}, child, { kind: "subtask", children: [] }));
@@ -80,10 +109,10 @@ GoogleService {
         return out;
     }
 
-    readonly property var rows: root.flatRows(false)
-    readonly property var dragRows: root.flatRows(true)
+    readonly property var rows: root.flatRows()
+    readonly property var dragRows: root.rows
     readonly property var ordered: root.rows.filter(r => r.kind !== "header")
-    readonly property var topLevel: root.tasks.filter(t => !t.parent)
+    readonly property var topLevel: root.tasks.filter(root.isTopLevel)
     readonly property var overdue: root.topLevel.filter(t => root.dayOf(t) !== "" && root.dayOf(t) < root.today).sort(root.byDay)
     readonly property var due: root.topLevel.filter(t => root.dayOf(t) === root.today).sort(root.byDay)
     readonly property var soon: root.topLevel.filter(t => root.dayOf(t) > root.today).sort(root.byDay)
@@ -154,7 +183,11 @@ GoogleService {
 
     // --- reading -------------------------------------------------------------
     function fetchLists(): void {
+        if (root.writing > 0 || root.pending.length || root.commitWanted) return;
+        const generation = (root.generations.lists ?? 0) + 1;
+        root.generations.lists = generation;
         root.send("GET", `${root.api}/users/@me/lists`, null, function (body) {
+            if (generation !== root.generations.lists || root.writing > 0) return;
             const lists = (body.items ?? []).map(l => ({ id: l.id, title: l.title }));
             if (JSON.stringify(lists) !== JSON.stringify(root.lists)) root.lists = lists;
             root.fetchTasks();
@@ -165,7 +198,7 @@ GoogleService {
     // GoogleService.gather); if any list fails, what is on screen stays and
     // `trouble` says so.
     function fetchTasks(): void {
-        if (root.writing > 0) return;
+        if (root.writing > 0 || root.pending.length || root.commitWanted) return;
         const sources = root.lists.map(l => ({
                     url: `${root.api}/lists/${l.id}/tasks?showCompleted=false&showHidden=false&maxResults=100`,
                     list: l
@@ -208,7 +241,10 @@ GoogleService {
     }
 
     function complete(task: var): void {
-        if (root.writing > 0) return;
+        if (root.writing > 0) {
+            root.enqueue("complete", task, {});
+            return;
+        }
         const marks = Object.assign({}, root.crossed);
         const checked = !root.isCrossed(task);
         const affected = root.tasks.filter(t => t.id === task.id || (t.listId === task.listId && t.parent === task.id));
@@ -227,10 +263,55 @@ GoogleService {
     function invalidate(): void {
         root.snapshot = "";
         root.generations.tasks = (root.generations.tasks ?? 0) + 1;
+        root.generations.lists = (root.generations.lists ?? 0) + 1;
+    }
+
+    // Rename the Google list, keeping the selected default attached to its ID.
+    function renameList(id: string, text: string): bool {
+        const title = text.trim();
+        if (!title || title.length > 1024 || /[\r\n]/.test(title)) {
+            root.trouble = "Task list name must be one line of 1 to 1024 characters";
+            return false;
+        }
+        const current = root.lists.find(l => l.id === id);
+        if (!current) {
+            root.trouble = "Task list is no longer available";
+            return false;
+        }
+        if (root.writing > 0) {
+            root.pending = root.pending.concat([{ kind: "renameList", id: id, title: title }]);
+            return true;
+        }
+        if (title === current.title) return true;
+        const oldLists = root.lists;
+        const oldTasks = root.tasks;
+        root.writing++;
+        root.trouble = "";
+        root.invalidate();
+        const update = name => {
+            root.lists = root.lists.map(l => l.id === id ? Object.assign({}, l, { title: name }) : l);
+            root.tasks = root.tasks.map(t => t.listId === id ? Object.assign({}, t, { listTitle: name }) : t);
+        };
+        update(title);
+        root.send("PATCH", `${root.api}/users/@me/lists/${encodeURIComponent(id)}`, { title: title }, body => {
+            if (body.title && body.title !== title) update(body.title);
+            root.writing--;
+            root.fetchTasks();
+        }, (why, status) => {
+            root.lists = oldLists;
+            root.tasks = oldTasks;
+            root.writing--;
+            root.fail(why, status);
+        });
+        return true;
     }
 
     function commit(): void {
-        if (root.writing > 0) { root.commitWanted = true; return; }
+        if (root.writing > 0 || root.pending.length) {
+            root.commitWanted = true;
+            if (root.writing === 0) Qt.callLater(root.flushPending);
+            return;
+        }
         root.commitWanted = false;
         commitDelay.stop();
         const selected = root.tasks.filter(t => root.isCrossed(t));
@@ -275,7 +356,11 @@ GoogleService {
 
     // Optimistic sibling positions are replaced by Google's positions on sync.
     function move(task: var, destination: var): void {
-        if (root.writing > 0 || root.isCrossed(task)) return;
+        if (root.writing > 0) {
+            root.enqueue("move", task, { destination: destination });
+            return;
+        }
+        if (root.isCrossed(task)) return;
         const current = root.tasks.find(t => t.id === task.id && t.listId === task.listId);
         if (!current) return;
         const list = destination.list || current.listId;
@@ -312,6 +397,15 @@ GoogleService {
                 if (t.parent === current.id && t.listId === list) return Object.assign({}, t, { parent: body.id ?? current.id });
                 return t;
             });
+            if (body.id && body.id !== current.id) {
+                root.pending = root.pending.map(action => Object.assign({}, action, {
+                    id: action.id === current.id ? body.id : action.id,
+                    destination: action.destination ? Object.assign({}, action.destination, {
+                        parent: action.destination.parent === current.id ? body.id : action.destination.parent,
+                        previous: action.destination.previous === current.id ? body.id : action.destination.previous
+                    }) : undefined
+                }));
+            }
             root.writing--;
             root.fetchTasks();
         }, (why, status) => {
@@ -326,17 +420,26 @@ GoogleService {
         const lines = text.replace(/\r/g, "").split("\n");
         const title = lines.shift().trim();
         const notes = lines.join("\n");
-        if (!title || root.writing > 0) return false;
+        if (!title) {
+            root.trouble = "Task title cannot be empty";
+            return false;
+        }
         if (title.length > 1024 || notes.length > 8192) {
             root.trouble = "Title or notes too long";
             return false;
         }
+        if (root.writing > 0) {
+            root.enqueue("edit", task, { text: text });
+            return true;
+        }
+        const current = root.tasks.find(t => t.id === task.id);
+        if (!current) return false;
         const old = root.tasks;
         root.writing++;
         root.trouble = "";
         root.invalidate();
         root.tasks = old.map(t => t.id === task.id ? Object.assign({}, t, { title: title, notes: notes }) : t);
-        root.send("PATCH", `${root.api}/lists/${task.listId}/tasks/${task.id}`, { title: title, notes: notes }, () => {
+        root.send("PATCH", `${root.api}/lists/${current.listId}/tasks/${current.id}`, { title: title, notes: notes }, () => {
             root.writing--;
             root.fetchTasks();
         }, (why, status) => {
@@ -359,10 +462,10 @@ GoogleService {
         root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks());
     }
 
-    // A leading day and section word can appear in either order.
+    // A leading day and task list name can appear in either order.
     function parse(text: string): var {
         const words = (text ?? "").trim().split(/\s+/).filter(w => w !== "");
-        let day = "", section = null, error = "";
+        let day = "", list = null, error = "";
         function takeDay() {
             if (!words.length) return false;
             const parsed = root.readDay(words[0].toLowerCase());
@@ -377,17 +480,17 @@ GoogleService {
         }
         const leadingDay = takeDay();
         if (!error && words.length) {
-            section = root.lists.find(l => l.title.toLowerCase().replace(/\s+/g, "") === words[0].toLowerCase());
-            if (section) {
+            list = root.lists.find(l => l.title.toLowerCase().replace(/\s+/g, "") === words[0].toLowerCase());
+            if (list) {
                 words.shift();
                 if (!leadingDay) takeDay();
             }
         }
         const title = words.join(" ");
         if (!error && title === "")
-            error = section ? "No task, only a section" : day ? "No task, only a day" : "";
+            error = list ? "No task, only a task list" : day ? "No task, only a day" : "";
         return { ok: title !== "" && error === "", title: title, day: day,
-            list: (section ?? root.defaultList).id, error: error };
+            list: (list ?? root.defaultList).id, error: error };
     }
 
     // Date keywords for the first word; the task title follows them.
