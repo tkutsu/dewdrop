@@ -201,7 +201,7 @@ Singleton {
     // mattering and the second size went with it.
     readonly property int iconSize: 20
     // How tall an icon's ink should stand in its box, measured rather than
-    // assumed (components/InkProbe.qml). Thirteen pixels of ink in a 20px box
+    // assumed (services/Ink.qml). Thirteen pixels of ink in a 20px box
     // keeps tray and workspace artwork on the same line despite different
     // margins in the source images.
     readonly property real iconInk: 13 / 20

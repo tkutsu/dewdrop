@@ -21,6 +21,29 @@ def copy_shell(target):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
     (target / "settings.json").write_text("{}\n")
+    offscreen_ink(target)
+
+
+def offscreen_ink(target):
+    """Give Ink's meter a plain window: the offscreen platform has no layer shell.
+
+    Never writes through a link: a fixture that links the checkout's services/
+    gets a real directory of links instead, and Ink.qml becomes a real file.
+    """
+    services = Path(target) / "services"
+    if services.is_symlink():
+        checkout = services.resolve()
+        services.unlink()
+        services.mkdir()
+        for item in checkout.iterdir():
+            (services / item.name).symlink_to(item)
+    path = services / "Ink.qml"
+    if not path.exists():
+        return
+    lines = path.read_text().replace("    PanelWindow {", "    FloatingWindow {", 1).splitlines()
+    path.unlink()
+    shell_only = ("anchors.top:", "anchors.left:", "exclusionMode:", "mask: Region", "WlrLayershell.")
+    path.write_text("\n".join(line for line in lines if not line.strip().startswith(shell_only)) + "\n")
 
 
 def shell_env(target, **overrides):
