@@ -243,6 +243,7 @@ Popup {
         interactive: rows > root.visibleRows
         // Whole rows, as the music queue does, and no momentum past the ends.
         boundsBehavior: Flickable.StopAtBounds
+        // No SmoothScroll: SnapToRow pulls each eased step back to its row.
         snapMode: GridView.SnapToRow
 
         // Open where the wallpaper on screen is, once there are cells to find.

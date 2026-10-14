@@ -894,7 +894,7 @@ def check_menu(target, env):
     components = target / "components"
     (components / "Rim.qml").write_text((ROOT / "components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "components/TextCaret.qml").read_text())
-    for name in ("PopupButton", "PopupText", "PressGlass", "ClickArea", "SpotlightMotion", "LauncherRow"):
+    for name in ("PopupButton", "PopupText", "PressGlass", "ClickArea", "SpotlightMotion", "LauncherRow", "SmoothScroll"):
         component_source = (ROOT / f"components/{name}.qml").read_text()
         if name == "LauncherRow":
             component_source = component_source.replace('id: queueControl\n', 'id: queueControl\n            objectName: "queueControl"\n')

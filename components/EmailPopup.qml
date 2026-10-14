@@ -149,6 +149,7 @@ Popup {
         }
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
+        SmoothScroll { view: threadList }
         acceptedButtons: Qt.NoButton
 
         Column {
@@ -353,6 +354,7 @@ Popup {
                                             view: mail
                                         }
                                         boundsBehavior: Flickable.StopAtBounds
+                                        SmoothScroll { view: mail }
                                         acceptedButtons: Qt.NoButton
 
                                         Column {

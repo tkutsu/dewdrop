@@ -175,6 +175,7 @@ Item {
             view: bodyView
         }
         boundsBehavior: Flickable.StopAtBounds
+        SmoothScroll { view: bodyView }
         visible: opacity > 0
         opacity: root.kind === "text" ? 0.75 : 0
 

@@ -39,7 +39,7 @@ def main():
         target = Path(folder)
         (target / "services").mkdir()
         (target / "NotificationsPopup.qml").write_text(popup)
-        for name in ("PopupButton", "PopupText", "PopupHeader", "NotificationPicture", "ChoiceBlink"):
+        for name in ("PopupButton", "PopupText", "PopupHeader", "NotificationPicture", "ChoiceBlink", "SmoothScroll"):
             (target / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
         (target / "PressGlass.qml").write_text('import QtQuick\nQtObject { required property Item icon; required property var area; property bool down: false; property real scale: 1 }\n')
         (target / "ScrollUnder.qml").write_text('import QtQuick\nItem { required property Flickable view; required property Item box }\n')
