@@ -4,8 +4,8 @@ import qs
 // The attention bounce: the one motion on this bar, and the loudest thing it
 // can say. A count badge means "there are things here" and is read when you
 // look; this means "this wants you now" and is meant to be caught when you are
-// not looking. It is spent on three states only — a tray icon asking for
-// attention, a window asking for it, and a timer going off.
+// not looking. It is spent on four states only — a tray icon asking for
+// attention, a window asking for it, an urgent notice, and a timer going off.
 //
 // Bind `offset` to the y translation of whatever should move. Positive is down,
 // so the crouch is positive and the hops are negative. An animation rather than
