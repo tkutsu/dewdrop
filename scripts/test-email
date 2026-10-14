@@ -14,7 +14,7 @@ from test_support import copy_shell
 
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 from PySide6.QtCore import QPoint, QPointF, Qt, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QWheelEvent
 from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlExpression
 from PySide6.QtQuick import QQuickItem, QQuickTextDocument, QQuickWindow
 from PySide6.QtTest import QTest
@@ -102,6 +102,7 @@ class EmailTests(unittest.TestCase):
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
             'scrollEdge': 16, 'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'fadeMs': 0, 'figures': {},
             'badgeFg': '#ffffff', 'pillBorder': 1, 'stroke': '#333333', 'well': '#222222',
+            'drawerSpring': 2.2, 'drawerDamping': 0.2, 'swipeArchive': '#4f8a68', 'swipeRead': '#4f72a0',
             'monogramTones': ['#5e7896', '#7a6a96', '#94677c', '#94785e', '#5e8a74', '#5e8a91', '#8a8257', '#6f7680'],
             'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r', 'mailArchive': 'a', 'mailStar': 'S', 'mailStarred': 's',
                       'undo': 'u', 'sectionOpen': 'v', 'sectionShut': '>'},
@@ -782,6 +783,76 @@ class EmailTests(unittest.TestCase):
         self.check('sut.other === 2 && popup.testOther.count === 2')
         self.js('popup.visible = false;')
         self.check('!popup.otherOpen && !sut.otherWanted')
+
+    def wheel(self, window, item, deltas, end=True):
+        """A touchpad gesture over `item`: begin, one update per delta, end."""
+        local = QPointF(item.width() / 2, 8)
+        scene = item.mapToScene(local)
+        QTest.mouseMove(window, scene.toPoint())
+        def send(dx, dy, phase):
+            event = QWheelEvent(scene, QPointF(window.mapToGlobal(scene.toPoint())), QPoint(dx, dy), QPoint(dx, dy),
+                                Qt.NoButton, Qt.NoModifier, phase, False)
+            QGuiApplication.sendEvent(window, event)
+        send(0, 0, Qt.ScrollBegin)
+        for dx, dy in deltas:
+            send(dx, dy, Qt.ScrollUpdate)
+            QTest.qWait(5)
+        if end:
+            send(0, 0, Qt.ScrollEnd)
+
+    def test_swipe_left_past_the_reach_archives(self):
+        self.mail_rows(['a', 'b'])
+        popup, window = self.build_popup(fold_ms=0)
+        QTest.qWait(40)
+        row = self.js('return popup.testList.itemAt(0);')
+        self.wheel(window, row, [(-40, 0)] * 4)
+        QTest.qWait(30)
+        self.check('sut.pending.length === 0 && sut.threads.length === 2')
+        QTest.qWait(300)
+        self.check('sut.pending.length === 1 && sut.pending[0].kind === "archive" && sut.pending[0].row.id === "a"')
+        self.check('sut.threads.map(t => t.id).join() === "b"')
+
+    def test_short_swipe_springs_back(self):
+        self.mail_rows(['a'])
+        popup, window = self.build_popup(fold_ms=0)
+        QTest.qWait(40)
+        row = self.js('return popup.testList.itemAt(0);')
+        self.wheel(window, row, [(30, 0)] * 2)
+        self.check('popup.testList.itemAt(0).swipe === 60 || popup.testList.itemAt(0).swipe < 60')
+        QTest.qWait(1500)
+        self.check('Math.abs(popup.testList.itemAt(0).swipe) < 1 && sut.pending.length === 0 && sut.threads.length === 1')
+
+    def test_a_scroll_never_turns_into_a_swipe(self):
+        self.mail_rows(['a'])
+        popup, window = self.build_popup(fold_ms=0)
+        QTest.qWait(40)
+        row = self.js('return popup.testList.itemAt(0);')
+        self.wheel(window, row, [(0, -10)] + [(-60, -2)] * 4)
+        QTest.qWait(400)
+        self.check('popup.testList.itemAt(0).swipe === 0 && sut.pending.length === 0')
+
+    def test_a_swipe_that_never_ends_lets_go_when_quiet(self):
+        self.mail_rows(['a', 'b'])
+        popup, window = self.build_popup(fold_ms=0)
+        QTest.qWait(40)
+        row = self.js('return popup.testList.itemAt(0);')
+        self.wheel(window, row, [(50, 0)] * 4, end=False)
+        QTest.qWait(500)
+        self.check('sut.pending.length === 1 && sut.pending[0].kind === "read"')
+
+    def test_mouse_drag_right_marks_read(self):
+        self.mail_rows(['a', 'b'])
+        popup, window = self.build_popup(fold_ms=0)
+        QTest.qWait(40)
+        row = self.js('return popup.testList.itemAt(1);')
+        start = row.mapToScene(QPointF(80, 8)).toPoint()
+        QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, start)
+        for step in range(1, 9):
+            QTest.mouseMove(window, start + QPoint(step * 25, 0), 10)
+        QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, start + QPoint(200, 0))
+        QTest.qWait(300)
+        self.check('sut.pending.length === 1 && sut.pending[0].kind === "read" && sut.pending[0].row.id === "b"')
+        self.check('popup.expanded === ""')
 
     def test_real_text_control_selection_copy_and_links(self):
         # Keep the real popup control; intercept the external browser boundary.
