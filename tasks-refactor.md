@@ -20,7 +20,8 @@ crosses it out instead of making it vanish.
   date names a section if it matches one; otherwise the task goes to the
   default section, chosen in settings.
 - **One drag component** shared by the music queue and the tasks popup.
-- **No timers or calendar.** Tasks stay tasks.
+- **No timers on task rows.** Tasks stay tasks. Tasks on the calendar
+  popover, and events from the `,` line, are planned in calendar-events.md.
 
 ## What Google allows
 
@@ -86,6 +87,8 @@ Checked against the `tasks.move` reference:
 - The add row's subtitle shows the section the line resolved to (now always
   `lists[0].title`).
 - Task rows follow section order when nothing is typed.
+- Two comments in `taskResults()` still describe a `,milk @fri` syntax the
+  parser no longer has; reword them for the leading day and section words.
 
 Done when: the popup shows sections in manual order with subtasks under their
 parents; `, work fri call x`, `, fri work call x`, `, call x` and `, work` all
@@ -202,6 +205,9 @@ here show on the phone; popup hover is unaffected.
   is none.
 - The wheel over the chip moves the day forward or back one per step; past
   today it clears. PATCH 600 ms after the last step.
+- Caveat: the API drops any time on `due` and can't read one set in the
+  phone app. Rescheduling from here would wipe a time set on the phone, so
+  say so in the chip's tooltip, or leave this phase out.
 
 ## Across all phases
 
@@ -217,3 +223,5 @@ here show on the phone; popup hover is unaffected.
 ## Order
 
 First round: 1 → 2a → 2b → 3. Then 4, then 5 if it is still wanted.
+calendar-events.md can start any time after Phase 1 here, which is the
+parse it builds on.
