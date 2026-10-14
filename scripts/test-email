@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import textwrap
 import tempfile
 import unittest
@@ -99,8 +100,11 @@ class EmailTests(unittest.TestCase):
         self.theme = {
             'bodyFont': 'Sans Serif', 'captionSize': 12,
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
-            'scrollEdge': 16, 'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'figures': {},
-            'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r'},
+            'scrollEdge': 16, 'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'fadeMs': 0, 'figures': {},
+            'badgeFg': '#ffffff', 'pillBorder': 1, 'stroke': '#333333', 'well': '#222222',
+            'monogramTones': ['#5e7896', '#7a6a96', '#94677c', '#94785e', '#5e8a74', '#5e8a91', '#8a8257', '#6f7680'],
+            'glyph': {'openApp': 'o', 'plus': '+', 'mailRead': 'r', 'mailArchive': 'a', 'mailStar': 'S', 'mailStarred': 's',
+                      'undo': 'u', 'sectionOpen': 'v', 'sectionShut': '>'},
         }
         self.engine.rootContext().setContextProperty('Theme', self.theme)
 
@@ -495,11 +499,11 @@ class EmailTests(unittest.TestCase):
         self.check('!sut.richText("javascript:bad file:///tmp/x").includes("<a ")')
         self.check('sut.richText("www.example.com").includes("href=\\"https://www.example.com\\"")')
 
-    def test_complete_popup_events_and_dynamic_preload(self):
-        # Instantiate the full popup with its real row/text components, replacing
-        # only window chrome, buttons and external services with offline stubs.
+    def build_popup(self, fold_ms=360):
+        """The full popup with its real row and text components, only window
+        chrome, buttons and external services replaced with offline stubs."""
         self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
-        self.engine.rootContext().setContextProperty('Theme', dict(self.theme, foldMs=360))
+        self.engine.rootContext().setContextProperty('Theme', dict(self.theme, foldMs=fold_ms))
         stubs = {
             'Popup.qml': """import QtQuick
                 Item { id: chrome; property real reserveHeight: 0; property var screen: null; property Item anchorItem
@@ -513,143 +517,271 @@ class EmailTests(unittest.TestCase):
                     Column { id: column }
                 }""",
             'PopupHeader.qml': 'import QtQuick\nRow { property string title; property bool addable: false; signal add }',
-            'PopupButton.qml': 'import QtQuick\nItem { property bool framed; property string glyph; property string label; signal tapped(); width: 15; height: 15 }',
+            'PopupButton.qml': '''import QtQuick
+                Item { id: button; property bool framed; property string glyph; property string label; property string name: label
+                    property bool live: true; property int glyphSize; property int textSize; property bool keyed: false
+                    signal tapped(); width: 20; height: 20
+                    Accessible.role: Accessible.Button; Accessible.name: name
+                    TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: if (button.live) button.tapped() } }''',
+            'Glyph.qml': 'import QtQuick\nText { property int fontSize }',
             'ReconnectButton.qml': 'import QtQuick\nItem {}',
             'RetryButton.qml': 'import QtQuick\nItem { property var service }',
+            'PressGlass.qml': 'import QtQuick\nQtObject { required property Item icon; required property var area; property bool down; property real scale: 1 }',
         }
-        stubs['PressGlass.qml'] = 'import QtQuick\nQtObject { required property Item icon; required property var area; property bool down; property real scale: 1 }'
-        with tempfile.TemporaryDirectory(prefix='email-popup-test-') as directory:
-            copy_shell(directory)
-            components = Path(directory, 'components')
-            for path in components.glob('*.qml'):
-                path.write_text(re.sub(r'^import qs(?:\.\w+)?\n', '', path.read_text(), flags=re.M))
-            for name in ['PopupRow.qml', 'PopupText.qml']:
-                stubs[name] = (CONFIG / 'components' / name).read_text().replace('import qs\n', '').replace('import Quickshell\n', '').replace('QsWindow.window?.keyItem', 'false')
-            for name, source in stubs.items():
-                (components / name).write_text(source)
-            source = re.sub(r'^import qs(?:\.\w+)?\n', '', POPUP, flags=re.M)
-            source = source.replace('Qt.openUrlExternally(url);', 'root.testActivated = url;')
-            source = source.replace('id: more\n', 'id: more\n        objectName: "emailMore"\n', 1)
-            source = source.replace('id: root', 'id: root\n    property string testActivated: ""\n    property alias testMore: more\n    property alias testList: list\n    property alias testScroll: threadList', 1)
-            component = QQmlComponent(self.engine)
-            component.setData(source.encode(), QUrl.fromLocalFile(directory + '/components/EmailPopup.qml'))
-            self.components.append(component)
-            self.js('''
-                var row=sut.rowOf({id:"t"},{messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});
-                sut.bodies={m:"Hello https://example.com\\nsecond line" + "\\nbody line".repeat(30)};
-                sut.threads=[row]; sut.total=1; sut.loaded=true;
-            ''')
-            popup = component.create()
-            self.assertIsNotNone(popup, '\n'.join(e.toString() for e in component.errors()))
-            self.engine.rootContext().setContextProperty('popup', popup)
-            window = QQuickWindow()
-            window.resize(340, 800)
-            popup.setParentItem(window.contentItem())
-            window.show()
-            QTest.qWait(30)
-            def items(parent):
-                for child in parent.childItems():
-                    yield child
-                    yield from items(child)
-            self.assertFalse([child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')], 'Collapsed mail eagerly built text controls')
-            # Keep the Wayland surface size fixed while the drawn rows unfold.
-            reserved = popup.property('reserveHeight')
-            sizes = []
-            popup.implicitHeightChanged.connect(lambda: sizes.append(popup.implicitHeight()))
-            row = self.js('return popup.testList.itemAt(0);')
-            heights = []
-            row.heightChanged.connect(lambda: heights.append(row.height()))
-            popup.setProperty('expanded', 't')
-            QTest.qWait(400)
-            self.assertGreater(len(heights), 3)
-            self.assertEqual(heights, sorted(heights))
-            self.assertFalse(sizes, 'Popup window resized during expansion: ' + str(sizes))
-            self.assertEqual(popup.property('reserveHeight'), reserved)
-            heights.clear()
-            popup.setProperty('expanded', '')
-            QTest.qWait(400)
-            self.assertGreater(len(heights), 3)
-            self.assertEqual(heights, sorted(heights, reverse=True))
-            self.assertFalse(sizes, 'Popup window resized during collapse: ' + str(sizes))
-            self.assertFalse([child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')], 'Closed mail retained text controls after its fold')
-            popup.setProperty('expanded', 't')
-            QTest.qWait(100)
-            popup.setProperty('expanded', '')
-            QTest.qWait(100)
-            popup.setProperty('expanded', 't')
-            QTest.qWait(400)
-            self.assertFalse(sizes, 'Popup window resized when reversing the animation: ' + str(sizes))
-            editors = [child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')]
-            self.assertEqual(len(editors), 1)
-            editor = editors[0]
-            point = editor.mapToScene(QPointF(1, 8)).toPoint()
-            QTest.mouseMove(window, point)
-            QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, point)
-            QTest.mouseMove(window, point + QPoint(32, 0), 20)
-            QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, point + QPoint(32, 0))
-            self.assertTrue(editor.property('selectedText'))
-            self.assertEqual(popup.property('expanded'), 't')
-            QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, point)
-            self.assertTrue(APP.clipboard().text())
-            self.assertEqual(popup.property('expanded'), 't')
-            self.js('popup.expanded=""; sut.threads=[sut.rowOf({id:"replacement"},{messages:[{id:"new",internalDate:20,labelIds:["UNREAD"]}]})];')
-            self.check('sut.requests.length === 1 && sut.requests[0].url.includes("messages/new?")')
-            self.js('''
-                sut.reply({payload:{mimeType:"text/plain",body:{data:"SGVsbG8"}}});
-                var cache={}, bodies={};
-                for (var i=0; i<40; i++) {
-                    const row=sut.rowOf({id:"t"+i},{messages:[{id:"m"+i,internalDate:40-i,labelIds:["UNREAD"]}]});
-                    if (i<12) cache[row.id]={historyId:"1",row:row};
-                    bodies["m"+i]=i < 2 ? "body line\\n".repeat(30) : "Hello";
-                }
-                sut.bodies=bodies; sut.cache=cache;
-                sut.threads=Object.values(cache).map(t=>t.row); sut.total=40;
-            ''')
-            QTest.qWait(20)
-            self.check('popup.testList.count === 8 && popup.testMore.visible')
-            sizes.clear()
-            popup.setProperty('expanded', 't0')
-            QTest.qWait(400)
-            popup.setProperty('expanded', 't1')
-            QTest.qWait(400)
-            popup.setProperty('expanded', '')
-            QTest.qWait(400)
-            self.assertFalse(sizes, 'Popup window resized when switching mails: ' + str(sizes))
-            for count in (16,24,32,40):
-                more=next(item for item in items(popup) if item.objectName() == 'emailMore')
-                point=more.mapToScene(QPointF(20,more.height()/2)).toPoint()
-                QTest.mouseMove(window,point)
-                QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,point)
-                self.assertEqual(popup.property('cap'),count)
-                self.js('''
-                    if (sut.requests.length) {
-                        const listed=Array.from({length:40},(_,i)=>({id:"t"+i,historyId:"1"}));
-                        sut.lists(listed);
-                        while (sut.requests.length) {
-                            const id=sut.requests[0].url.match(/threads\\/t(\\d+)/)[1];
-                            sut.reply({messages:[{id:"m"+id,internalDate:40-Number(id),labelIds:["UNREAD"]}]});
-                        }
-                    }
-                ''')
-                QTest.qWait(5)
-                self.check('popup.testList.count === '+str(count))
-                self.check('popup.testScroll.height <= popup.listMax')
-            self.check('!popup.testMore.visible && popup.testScroll.contentHeight > popup.testScroll.height')
-            self.js('popup.testScroll.contentY=popup.testScroll.contentHeight-popup.testScroll.height;')
-            self.check('popup.testScroll.contentY > 0')
-            self.js('popup.markRead(sut.threads[0]);')
-            self.check('OpenPopup.shown && sut.total === 39')
-            self.js('''
-                var last=sut.threads[0];
-                sut.threads=[last]; sut.total=1;
-                popup.markRead(last);
-            ''')
-            self.check('!OpenPopup.shown && sut.total === 0')
+        directory = tempfile.mkdtemp(prefix='email-popup-test-')
+        self.addCleanup(shutil.rmtree, directory, True)
+        copy_shell(directory)
+        components = Path(directory, 'components')
+        for path in components.glob('*.qml'):
+            path.write_text(re.sub(r'^import qs(?:\.\w+)?\n', '', path.read_text(), flags=re.M))
+        for name in ['PopupRow.qml', 'PopupText.qml']:
+            stubs[name] = (CONFIG / 'components' / name).read_text().replace('import qs\n', '').replace('import Quickshell\n', '').replace('QsWindow.window?.keyItem', 'false')
+        for name, source in stubs.items():
+            (components / name).write_text(source)
+        source = re.sub(r'^import qs(?:\.\w+)?\n', '', POPUP, flags=re.M)
+        source = source.replace('Qt.openUrlExternally(url);', 'root.testActivated = url;')
+        source = source.replace('id: more\n', 'id: more\n                objectName: "emailMore"\n', 1)
+        source = source.replace('id: root', 'id: root\n    property string testActivated: ""\n    property alias testMore: more\n    property alias testList: list\n    property alias testOther: otherList\n    property alias testOtherRow: otherRow\n    property alias testUndo: undoSlot\n    property alias testScroll: threadList', 1)
+        component = QQmlComponent(self.engine)
+        component.setData(source.encode(), QUrl.fromLocalFile(directory + '/components/EmailPopup.qml'))
+        self.components.append(component)
+        popup = component.create()
+        self.assertIsNotNone(popup, '\n'.join(e.toString() for e in component.errors()))
+        self.engine.rootContext().setContextProperty('popup', popup)
+        window = QQuickWindow()
+        window.resize(340, 800)
+        popup.setParentItem(window.contentItem())
+        window.show()
+        QTest.qWait(30)
+
+        def close():
             window.close()
             popup.setParentItem(None)
             popup.deleteLater()
             window.deleteLater()
             self.engine.rootContext().setContextProperty('popup', None)
+        self.addCleanup(close)
+        return popup, window
+
+    def test_complete_popup_events_and_dynamic_preload(self):
+        self.js('''
+            var row=sut.rowOf({id:"t"},{messages:[{id:"m",internalDate:10,labelIds:["UNREAD"]}]});
+            sut.bodies={m:"Hello https://example.com\\nsecond line" + "\\nbody line".repeat(30)};
+            sut.threads=[row]; sut.total=1; sut.loaded=true;
+        ''')
+        popup, window = self.build_popup()
+        def items(parent):
+            for child in parent.childItems():
+                yield child
+                yield from items(child)
+        self.assertFalse([child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')], 'Collapsed mail eagerly built text controls')
+        # Keep the Wayland surface size fixed while the drawn rows unfold.
+        reserved = popup.property('reserveHeight')
+        sizes = []
+        popup.implicitHeightChanged.connect(lambda: sizes.append(popup.implicitHeight()))
+        row = self.js('return popup.testList.itemAt(0);')
+        heights = []
+        row.heightChanged.connect(lambda: heights.append(row.height()))
+        popup.setProperty('expanded', 't')
+        QTest.qWait(400)
+        self.assertGreater(len(heights), 3)
+        self.assertEqual(heights, sorted(heights))
+        self.assertFalse(sizes, 'Popup window resized during expansion: ' + str(sizes))
+        self.assertEqual(popup.property('reserveHeight'), reserved)
+        heights.clear()
+        popup.setProperty('expanded', '')
+        QTest.qWait(400)
+        self.assertGreater(len(heights), 3)
+        self.assertEqual(heights, sorted(heights, reverse=True))
+        self.assertFalse(sizes, 'Popup window resized during collapse: ' + str(sizes))
+        self.assertFalse([child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')], 'Closed mail retained text controls after its fold')
+        popup.setProperty('expanded', 't')
+        QTest.qWait(100)
+        popup.setProperty('expanded', '')
+        QTest.qWait(100)
+        popup.setProperty('expanded', 't')
+        QTest.qWait(400)
+        self.assertFalse(sizes, 'Popup window resized when reversing the animation: ' + str(sizes))
+        editors = [child for child in items(popup) if child.metaObject().className().startswith('QQuickTextEdit')]
+        self.assertEqual(len(editors), 1)
+        editor = editors[0]
+        point = editor.mapToScene(QPointF(1, 8)).toPoint()
+        QTest.mouseMove(window, point)
+        QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, point)
+        QTest.mouseMove(window, point + QPoint(32, 0), 20)
+        QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, point + QPoint(32, 0))
+        self.assertTrue(editor.property('selectedText'))
+        self.assertEqual(popup.property('expanded'), 't')
+        QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, point)
+        self.assertTrue(APP.clipboard().text())
+        self.assertEqual(popup.property('expanded'), 't')
+        self.js('popup.expanded=""; sut.threads=[sut.rowOf({id:"replacement"},{messages:[{id:"new",internalDate:20,labelIds:["UNREAD"]}]})];')
+        self.check('sut.requests.length === 1 && sut.requests[0].url.includes("messages/new?")')
+        self.js('''
+            sut.reply({payload:{mimeType:"text/plain",body:{data:"SGVsbG8"}}});
+            var cache={}, bodies={};
+            for (var i=0; i<40; i++) {
+                const row=sut.rowOf({id:"t"+i},{messages:[{id:"m"+i,internalDate:40-i,labelIds:["UNREAD"]}]});
+                if (i<12) cache[row.id]={historyId:"1",row:row};
+                bodies["m"+i]=i < 2 ? "body line\\n".repeat(30) : "Hello";
+            }
+            sut.bodies=bodies; sut.cache=cache;
+            sut.threads=Object.values(cache).map(t=>t.row); sut.total=40;
+        ''')
+        QTest.qWait(20)
+        self.check('popup.testList.count === 8 && popup.testMore.visible')
+        sizes.clear()
+        popup.setProperty('expanded', 't0')
+        QTest.qWait(400)
+        popup.setProperty('expanded', 't1')
+        QTest.qWait(400)
+        popup.setProperty('expanded', '')
+        QTest.qWait(400)
+        self.assertFalse(sizes, 'Popup window resized when switching mails: ' + str(sizes))
+        for count in (16,24,32,40):
+            # The button closes the list, under the rows, so scroll to it.
+            self.js('popup.testScroll.contentY = Math.max(0, popup.testScroll.contentHeight - popup.testScroll.height);')
+            QTest.qWait(5)
+            more=next(item for item in items(popup) if item.objectName() == 'emailMore')
+            point=more.mapToScene(QPointF(20,more.height()/2)).toPoint()
+            QTest.mouseMove(window,point)
+            QTest.mouseClick(window,Qt.LeftButton,Qt.NoModifier,point)
+            self.assertEqual(popup.property('cap'),count)
+            self.js('''
+                if (sut.requests.length) {
+                    const listed=Array.from({length:40},(_,i)=>({id:"t"+i,historyId:"1"}));
+                    sut.lists(listed);
+                    while (sut.requests.length) {
+                        const id=sut.requests[0].url.match(/threads\\/t(\\d+)/)[1];
+                        sut.reply({messages:[{id:"m"+id,internalDate:40-Number(id),labelIds:["UNREAD"]}]});
+                    }
+                }
+            ''')
+            QTest.qWait(5)
+            self.check('popup.testList.count === '+str(count))
+            self.check('popup.testScroll.height <= popup.listMax')
+        self.check('!popup.testMore.visible && popup.testScroll.contentHeight > popup.testScroll.height')
+        self.js('popup.testScroll.contentY=popup.testScroll.contentHeight-popup.testScroll.height;')
+        self.check('popup.testScroll.contentY > 0')
+        self.js('popup.markRead(sut.threads[0]);')
+        self.check('OpenPopup.shown && sut.total === 39')
+        self.js('''
+            var last=sut.threads[0];
+            sut.threads=[last]; sut.total=1;
+            popup.markRead(last);
+        ''')
+        self.check('!OpenPopup.shown && sut.total === 0')
+
+    def test_monogram_letters_and_tone(self):
+        self.check('sut.initials("Ann Example") === "AE"')
+        self.check('sut.initials("ann@example.com") === "A"')
+        self.check('sut.initials("Γιώργος Παπαδόπουλος") === "ΓΠ"')
+        self.check('sut.initials("| Example Ltd") === "EL"')
+        self.check('sut.initials("") === ""')
+        self.check('sut.addressOf("Ann <Ann@Example.com>") === "ann@example.com" && sut.addressOf("b@x.io") === "b@x.io"')
+        self.check('sut.toneOf("ann@example.com", 8) === sut.toneOf("ann@example.com", 8) && sut.toneOf("ann@example.com", 8) < 8')
+        self.check('new Set(["a@x","b@x","c@x","d@x","e@x","f@x"].map(a => sut.toneOf(a, 8))).size > 2')
+
+    def mail_rows(self, ids, other=()):
+        made = lambda id, at: 'sut.rowOf({id:"%s"},{messages:[{id:"m%s",internalDate:%d,labelIds:["UNREAD"],payload:{headers:[{name:"From",value:"%s Sender <%s@example.com>"},{name:"Subject",value:"About %s"}]}}]})' % (id, id, at, id.upper(), id, id)
+        self.js('''
+            sut.threads=[%s]; sut.total=%d; sut.otherThreads=[%s]; sut.other=%d; sut.loaded=true;
+            sut.bodies={}; for (const t of sut.threads.concat(sut.otherThreads)) sut.bodies["m"+t.id] = "Body of " + t.id;
+        ''' % (','.join(made(i, 100 - n) for n, i in enumerate(ids)), len(ids),
+               ','.join(made(i, 50 - n) for n, i in enumerate(other)), len(other)))
+
+    def items(self, parent):
+        for child in parent.childItems():
+            yield child
+            yield from self.items(child)
+
+    def button(self, parent, name):
+        found = [c for c in self.items(parent) if c.property('name') == name and c.property('glyph') is not None]
+        self.assertTrue(found, 'no %s button' % name)
+        return found[0]
+
+    def click(self, window, item):
+        # A frame first, so the Column has laid out what just changed.
+        QTest.qWait(40)
+        point = item.mapToScene(QPointF(item.width() / 2, item.height() / 2)).toPoint()
+        QTest.mouseMove(window, point)
+        QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, point)
+        QTest.qWait(10)
+
+    def test_popup_rows_carry_three_verbs(self):
+        self.mail_rows(['a', 'b'])
+        popup, window = self.build_popup(fold_ms=0)
+        QTest.mouseMove(window, QPoint(330, 790))
+        for i in range(2):
+            row = self.js('return popup.testList.itemAt(%d);' % i)
+            names = sorted(c.property('name') for c in self.items(row) if c.property('glyph') is not None and c.property('name') in ('Archive', 'Mark read', 'Star', 'Unstar'))
+            self.assertEqual(names, ['Archive', 'Mark read', 'Star'])
+        # Out of sight on a row the pointer is not on, out on the open one.
+        self.check('!popup.testList.itemAt(0).showVerbs')
+        self.js('popup.expanded = "a";')
+        self.check('popup.testList.itemAt(0).showVerbs')
+        self.js('sut.act("star", sut.threads[1]); sut.undoMs = 60000;')
+        row = self.js('return popup.testList.itemAt(1);')
+        self.button(row, 'Unstar')
+
+    def test_acting_on_the_open_mail_opens_the_next_and_undo_reopens_it(self):
+        self.mail_rows(['a', 'b', 'c'])
+        popup, window = self.build_popup(fold_ms=0)
+        self.js('popup.expanded = "b";')
+        QTest.qWait(10)
+        self.click(window, self.button(self.js('return popup.testList.itemAt(1);'), 'Archive'))
+        self.check('sut.threads.map(t => t.id).join() === "a,c" && popup.expanded === "c"')
+        self.check('sut.pending.length === 1 && popup.testUndo.height > 0 && sut.requests.length === 0')
+        self.click(window, self.button(popup, 'Undo'))
+        self.check('sut.threads.map(t => t.id).join() === "a,b,c" && popup.expanded === "b" && sut.pending.length === 0')
+        # The last one opens the one above instead.
+        self.js('popup.expanded = "c";')
+        QTest.qWait(10)
+        self.click(window, self.button(self.js('return popup.testList.itemAt(2);'), 'Mark read'))
+        self.check('popup.expanded === "b" && sut.threads.length === 2')
+        # A star leaves the open mail open.
+        self.click(window, self.button(self.js('return popup.testList.itemAt(1);'), 'Star'))
+        self.check('popup.expanded === "b" && sut.threads[1].starred')
+
+    def test_undo_line_keeps_the_window_still(self):
+        self.mail_rows(['a', 'b'])
+        popup, window = self.build_popup(fold_ms=0)
+        reserved = popup.property('reserveHeight')
+        self.js('sut.act("star", sut.threads[0]);')
+        QTest.qWait(10)
+        self.check('popup.testUndo.height > 0')
+        self.assertEqual(popup.property('reserveHeight'), reserved)
+        self.js('sut.undo();')
+        QTest.qWait(10)
+        self.check('popup.testUndo.height === 0')
+        self.assertEqual(popup.property('reserveHeight'), reserved)
+
+    def test_closing_the_popup_sends_what_waits(self):
+        self.mail_rows(['a', 'b'])
+        popup, window = self.build_popup(fold_ms=0)
+        self.js('popup.act("archive", sut.threads[0]); popup.act("star", sut.threads[0]);')
+        self.check('sut.pending.length === 2 && sut.requests.length === 0')
+        self.js('popup.visible = false;')
+        self.check('sut.pending.length === 0 && sut.requests.length === 2')
+
+    def test_last_mail_gone_closes_the_popup(self):
+        self.mail_rows(['a'], other=['x'])
+        popup, window = self.build_popup(fold_ms=0)
+        self.js('popup.act("archive", sut.threads[0]);')
+        self.check('!OpenPopup.shown')
+
+    def test_other_row_unfolds_into_rows_with_the_same_verbs(self):
+        self.mail_rows(['a'], other=['x', 'y'])
+        popup, window = self.build_popup(fold_ms=0)
+        self.check('popup.testOtherRow.visible && popup.testOther.count === 0 && !sut.otherWanted')
+        self.click(window, self.js('return popup.testOtherRow;'))
+        self.check('popup.otherOpen && sut.otherWanted && popup.testOther.count === 2')
+        self.click(window, self.button(self.js('return popup.testOther.itemAt(0);'), 'Archive'))
+        self.check('sut.other === 1 && sut.total === 1 && popup.testOther.count === 1 && OpenPopup.shown')
+        self.click(window, self.button(popup, 'Undo'))
+        self.check('sut.other === 2 && popup.testOther.count === 2')
+        self.js('popup.visible = false;')
+        self.check('!popup.otherOpen && !sut.otherWanted')
 
     def test_real_text_control_selection_copy_and_links(self):
         # Keep the real popup control; intercept the external browser boundary.
