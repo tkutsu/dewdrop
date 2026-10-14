@@ -72,7 +72,8 @@ MOCKS = {
         function search(query, all) { searches++; }''',
     "Tasks": '''property bool configured: false
         property string syntax: "task text"
-        property var ordered: []''',
+        property var ordered: []
+        function commit() {}''',
     "Timers": '''property var entries: []
         property string syntax: "25m or 7:30"
         function parse(text) { return Parse.parse(text); }

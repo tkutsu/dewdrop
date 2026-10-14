@@ -35,6 +35,7 @@ Item {
     // Inside a Flickable the press has to stay grabbable by the flick, so the
     // default policy is kept there; a row in a fixed list can ask for the
     // stricter one, which does not count a press that slid off it.
+    property bool acceptsTap: true
     property int gesturePolicy: TapHandler.DragThreshold
 
     signal tapped
@@ -45,6 +46,7 @@ Item {
 
     TapHandler {
         id: tap
+        enabled: root.acceptsTap
         gesturePolicy: root.gesturePolicy
         onTapped: root.tapped()
     }

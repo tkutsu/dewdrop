@@ -59,6 +59,10 @@ ShellRoot {
         FakeRequest.reply(6, {access_token: 'recovered', expires_in: 3600});
         check(successes === 3 && !Google.refreshing && Google.waiting.length === 0,
             'reentrant refresh settles independently');
+        Http.send("POST", "https://fixture/tasks/move", null, {}, 1000, () => {}, fail);
+        check(FakeRequest.requests[7].body === undefined,
+            'empty move request sends no body rather than a null string');
+        FakeRequest.reply(7, {});
         console.log('PASS: Google refresh lifecycle');
     }
     Timer { interval: 100; running: true; onTriggered: {

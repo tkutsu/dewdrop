@@ -818,6 +818,7 @@ Singleton {
         tasks: "\u{f0756}",           // nf-md-format_list_checks
         taskOpen: "\u{f0766}",        // nf-md-circle_outline
         undo: "\u{f054c}",            // nf-md-undo
+        edit: "\u{f03eb}",            // nf-md-pencil
         copy: "\u{f018f}",            // nf-md-content_copy
 
         // The open mail's two actions in the popup's foot: the thread in the
