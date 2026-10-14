@@ -35,10 +35,17 @@ GoogleService {
     // thread, oldest first, each {id, from, at, snippet}; the row's own
     // message, from and at are its last.
     property var threads: []
-    // Every unread thread in the Primary tab, read in full or not. What the
-    // badge counts: the other tabs' unread is mostly what nobody waits for,
-    // and a number that counts it stops meaning anything.
+    // Every unread thread in the inbox tabs that count, read in full or not.
+    // What the badge counts.
     property int total: 0
+    // The Gmail tabs that count (primary, updates, promotions, social,
+    // forums), picked on the settings window's Mail page. None picked: the
+    // whole inbox counts.
+    readonly property var categories: Settings.mailCategories
+    onCategoriesChanged: if (root.loaded) {
+        root.morePending = true;
+        root.flushMore();
+    }
     // The rest of the inbox's unread, which the popup folds into one row.
     // Its threads are only detailed once that row is unfolded.
     property int other: 0
@@ -124,17 +131,18 @@ GoogleService {
     onLoadingChanged: root.flushMore()
 
     // --- reading -------------------------------------------------------------
-    // Two lists: the Primary tab's unread, which is what counts, and every
-    // unread in the inbox, of which the rest is `other`. Both in flight at
-    // once, and nothing published until both are in.
+    // Two lists: the unread in the tabs that count, and every unread in the
+    // inbox, of which the rest is `other`. Both in flight at once, and
+    // nothing published until both are in. With no tabs picked the inbox is
+    // the one list and there is no other.
     function fetchThreads(): void {
         root.generation += 1;
         const gen = root.generation;
         const current = () => gen === root.generation;
-        let primary = null;
+        let counted = null;
         let all = null;
         const both = function () {
-            if (primary === null || all === null)
+            if (counted === null || all === null)
                 return;
             // Hide a just-opened thread while Gmail catches up. Confirmation
             // clears the marker; a failed read is visible again after 30
@@ -152,11 +160,11 @@ GoogleService {
                     opened[id] = at;
             root.opened = opened;
 
-            const inPrimary = ({});
-            for (const t of primary)
-                inPrimary[t.id] = true;
-            const unread = primary.filter(t => !root.opened[t.id]);
-            const rest = all.filter(t => !inPrimary[t.id] && !root.opened[t.id]);
+            const isCounted = ({});
+            for (const t of counted)
+                isCounted[t.id] = true;
+            const unread = counted.filter(t => !root.opened[t.id]);
+            const rest = all.filter(t => !isCounted[t.id] && !root.opened[t.id]);
             const wanted = unread.slice(0, root.detailed);
             const wantedOther = root.otherWanted ? rest.slice(0, root.detailed) : [];
             const stale = wanted.concat(wantedOther).filter(t => !t.historyId || root.cache[t.id]?.historyId !== t.historyId);
@@ -171,12 +179,15 @@ GoogleService {
                 };
             }, () => root.publish(unread, wanted, rest, wantedOther), current);
         };
-        root.listAll("&q=category%3Aprimary", current, listed => {
-            primary = listed;
-            both();
-        });
+        if (root.categories.length > 0)
+            root.listAll("&q=" + encodeURIComponent(root.categories.map(c => "category:" + c).join(" OR ")), current, listed => {
+                counted = listed;
+                both();
+            });
         root.listAll("", current, listed => {
             all = listed;
+            if (root.categories.length === 0)
+                counted = listed;
             both();
         });
     }
@@ -257,7 +268,7 @@ GoogleService {
     }
 
     // --- telling ---------------------------------------------------------
-    // A card for each new mail in the Primary tab, through notify-send like
+    // A card for each new mail that counts, through notify-send like
     // any other app, so it gets the notification server's own cards, Do Not
     // Disturb and centre. New is newer than anything a poll has shown
     // before, which a row turned up by "load more" never is. Nothing for the
