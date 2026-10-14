@@ -122,7 +122,6 @@ OverlayWindow {
     // say which way they would flip right now ("Turn Wi-Fi off").
     readonly property var controlRows: [
         root.shownInLauncher("desktop:mute", "Mute sound", { glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1] }),
-        root.shownInLauncher("desktop:dnd", "Do not disturb", { glyph: Theme.glyph.notif }),
         root.shownInLauncher("desktop:night", "Night mode", { glyph: Theme.glyph.nightOff }),
         root.shownInLauncher("desktop:wifi", "Wi-Fi", { glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] }),
         root.shownInLauncher("desktop:bluetooth-power", "Bluetooth", { glyph: Theme.glyph.bluetooth })

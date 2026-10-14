@@ -178,10 +178,6 @@ _Avoid_: Retained notification, notice (for the underlying message)
 The additional arrivals during an already visible notice, represented by the notice's extra count.
 _Avoid_: Notification total, unread count
 
-**Do not disturb**:
-A mode that suppresses arriving notices except those marked critical. Retained notifications remain available in the notification centre.
-_Avoid_: Disable notifications, mute all alerts
-
 ### Music
 
 **Music library**:

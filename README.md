@@ -41,7 +41,7 @@ Settings > Launcher > Desktop actions shows or hides all app shortcuts together.
 
 ### Built in
 
-- Notification server, with a notification centre and do not disturb
+- Notification server, with a notification centre
 - Timers and repeating alarms, with optional Pushover phone alerts
 - Google Tasks, Calendar agenda, Gmail unread
 - Weather (Open-Meteo, no account)
