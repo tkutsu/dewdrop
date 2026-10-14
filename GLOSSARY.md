@@ -187,7 +187,7 @@ A notification intended only for the moment of arrival and normally released whe
 _Avoid_: Retained notification, notice (for the underlying message)
 
 **Notification burst**:
-The additional arrivals during an already visible notice, represented by the notice's extra count.
+The additional arrivals during an already visible notice, represented by the notice's extra count. Behind an urgent notice, which stays until it is answered, the count is the arrivals waiting their turn.
 _Avoid_: Notification total, unread count
 
 ### Music

@@ -14,9 +14,10 @@ Item {
     id: root
 
     property string windowClass
-    // Hyprland says this window wants you. The icon bounces rather than
-    // recolouring: it is the same thing a tray icon asking for attention says,
-    // and the two should not say it differently.
+    // Hyprland says this window wants you, or this is an urgent notice's
+    // sender. The icon bounces rather than recolouring: it is the same thing a
+    // tray icon asking for attention says, and they should not say it
+    // differently.
     property bool urgent: false
     // One of this app's windows is the one you are in.
     property bool focused: false
