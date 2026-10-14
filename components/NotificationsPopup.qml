@@ -201,6 +201,7 @@ Popup {
         }
         spacing: root.cardGap
         boundsBehavior: Flickable.StopAtBounds
+        SmoothScroll { view: cards }
 
         // Through a ScriptModel rather than the array itself: the array is
         // rebuilt on every change, and handed straight to the view that tore

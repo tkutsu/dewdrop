@@ -964,9 +964,10 @@ OverlayWindow {
                         }
                     }
                 }
-                // Nothing here scrolls with momentum; a flick that overshoots
-                // the ends just looks like the list came loose.
+                // Ease wheel motion while keeping the ends firm.
                 boundsBehavior: Flickable.StopAtBounds
+
+                SmoothScroll { view: list }
 
                 delegate: LauncherRow { menu: root }
             }
@@ -993,6 +994,7 @@ OverlayWindow {
                 height: Math.min(reader.contentHeight, (root.visibleRows - 1) * root.rowHeight - root.contentGap)
                 contentHeight: body.implicitHeight + root.contentGap
                 boundsBehavior: Flickable.StopAtBounds
+                SmoothScroll { view: reader }
                 clip: true
                 layer.enabled: contentHeight > height
                 layer.effect: ScrollEdges {

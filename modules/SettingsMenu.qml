@@ -472,6 +472,8 @@ OverlayWindow {
                 }
                 boundsBehavior: Flickable.StopAtBounds
 
+                SmoothScroll { view: list }
+
                 // A page, and a new search, start at their top.
                 Connections {
                     target: root
