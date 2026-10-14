@@ -31,6 +31,10 @@ Item {
     property bool blinkOn: root.blink?.lit ?? true
     readonly property var keyPress: root.name !== "" ? () => root.tapped() : null
     readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
+    // Lit whatever the pointer does, while a gesture on the row has it (a
+    // mail being swiped), so the row stays the selected one when the pointer
+    // runs out of the popup.
+    property bool held: false
 
     // Inside a Flickable the press has to stay grabbable by the flick, so the
     // default policy is kept there; a row in a fixed list can ask for the
@@ -67,7 +71,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: Theme.selectionRadius
-            color: root.name !== "" && root.hovered ? Theme.selection : "transparent"
+            color: root.name !== "" && (root.hovered || root.held) ? Theme.selection : "transparent"
         }
     }
 }
