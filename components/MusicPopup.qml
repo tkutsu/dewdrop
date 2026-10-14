@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import Quickshell.Widgets
 import qs
 import qs.components
 import qs.services
@@ -13,18 +14,13 @@ Popup {
     ChoiceBlink { id: choice }
 
     readonly property int columnWidth: 290
-    // The two tracks run between the same two points: an icon's width of
-    // gutter on the left, a readout's on the right. The volume has something
-    // to put in the gutter and the position has not, which is not a reason for
-    // the two of them to start in different places.
-    readonly property int gutter: 16
+    readonly property int volumeIconWidth: 16
     // The pill's colour for the track, taken off the sleeve (Music.accent),
     // so the position here is the same line as the one round the pill.
     property color accent: Theme.fg
-    // Wide enough for both figures of the longest track anyone is likely to
-    // queue, so the track beside it does not shorten as the numbers grow.
+    // Fixed readout space keeps both tracks aligned as the figures change.
     readonly property int readoutWidth: 84
-    readonly property int sliderWidth: columnWidth - gutter - readoutWidth - 12
+    readonly property int sliderWidth: columnWidth - readoutWidth - 2
     // The cover squares off against the column beside it rather than being
     // given a size of its own, so the header is one block however many lines
     // the column turns out to have.
@@ -47,6 +43,8 @@ Popup {
 
     // Give row controls a full hit target around their glyphs.
     readonly property int buttonWidth: 20
+    // Odd-sized header targets center the 7px plus and close glyphs on pixels.
+    readonly property int headerButtonSize: 21
     readonly property int queueTailWidth: 60
 
     // Whether the quit button in the header has been pressed once. See the
@@ -62,78 +60,103 @@ Popup {
     Row {
         spacing: 10
 
-        Rectangle {
+        Item {
             width: root.artSize
             height: root.artSize
-            color: Theme.well
 
-            Image {
-                id: cover
-                anchors.fill: parent
-                fillMode: Image.PreserveAspectCrop
-                asynchronous: true
-                source: Mpd.cover
-                sourceSize.width: 192
-                sourceSize.height: 192
+            RectangularShadow {
+                anchors.fill: artFrame
+                visible: cover.status === Image.Ready
+                offset.y: 3
+                radius: artFrame.radius
+                blur: 8
+                color: Theme.shadow
             }
 
-            // The transport, on the cover rather than under the column beside
-            // it. The three of them were a row of their own at the bottom of
-            // the popup, which is a row of its own worth of height for the
-            // three controls least in need of the room — and the picture is
-            // already the thing the pointer goes to.
-            //
-            // A band shading into the foot of the artwork, because the glyphs
-            // are white and the artwork underneath them is whatever it is.
-            Rectangle {
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    bottom: parent.bottom
-                }
-                height: root.transportBand
+            ClippingRectangle {
+                id: artFrame
+                anchors.fill: parent
+                radius: root.radius - root.padding
+                color: "transparent"
 
-                gradient: Gradient {
-                    GradientStop {
-                        position: 0
-                        color: "transparent"
-                    }
-                    GradientStop {
-                        position: 1
-                        color: Theme.scrim
-                    }
+                Image {
+                    id: cover
+                    visible: status === Image.Ready
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    source: Mpd.cover
+                    sourceSize.width: 192
+                    sourceSize.height: 192
                 }
 
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 10
+                Rectangle {
+                    anchors.fill: parent
+                    visible: cover.status === Image.Ready
+                    color: Qt.rgba(0, 0, 0, 0.12)
+                }
+
+                Rectangle {
+                    anchors {
+                        top: parent.top
+                        left: parent.left
+                        right: parent.right
+                    }
+                    height: root.transportBand
+                    visible: cover.status === Image.Ready
+
+                    gradient: Gradient {
+                        GradientStop {
+                            position: 0
+                            color: Theme.scrim
+                        }
+                        GradientStop {
+                            position: 1
+                            color: "transparent"
+                        }
+                    }
+                }
+
+                Item {
+                    anchors {
+                        top: parent.top
+                        left: parent.left
+                        right: parent.right
+                        margins: 4
+                    }
+                    height: root.buttonWidth
 
                     Repeater {
                         model: [
                             {
-                                name: "Previous track",
-                                glyph: Theme.glyph.mediaPrev,
-                                act: () => Mpd.prev()
+                                name: "Random playback: " + (Mpd.randomOn ? "on" : "off"),
+                                glyph: Theme.glyph.random,
+                                active: Mpd.randomOn,
+                                act: () => Mpd.toggleRandom()
                             },
                             {
-                                name: Mpd.state === "play" ? "Pause music" : "Play music",
-                                glyph: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing,
-                                act: () => Mpd.toggle()
-                            },
-                            {
-                                name: "Next track",
-                                glyph: Theme.glyph.mediaNext,
-                                act: () => Mpd.next()
+                                name: "Repeat mode: " + Mpd.repeatMode,
+                                glyph: Mpd.repeatIcon,
+                                active: Mpd.repeatMode !== "off",
+                                act: () => Mpd.cycleRepeat()
                             }
                         ]
 
-                        delegate: Glyph {
+                        delegate: Item {
                             required property var modelData
+                            required property int index
 
-                            text: modelData.glyph
-                            fontSize: Theme.glyphSizeLarge
-                            implicitHeight: root.transportBand
-                            opacity: press.hovered ? 1 : 0.8
+                            x: index * (parent.width - width)
+                            width: root.buttonWidth
+                            height: root.buttonWidth
+
+                            Glyph {
+                                anchors.centerIn: parent
+                                text: parent.modelData.glyph
+                                fontSize: Theme.glyphSizeLarge
+                                implicitHeight: parent.height
+                                opacity: press.hovered ? 1 : parent.modelData.active ? 0.8 : 0.3
+                            }
 
                             HoverHandler {
                                 id: press
@@ -146,6 +169,95 @@ Popup {
 
                             TapHandler {
                                 onTapped: parent.modelData.act()
+                            }
+                        }
+                    }
+                }
+
+                // The transport, on the cover rather than under the column beside
+                // it. The three of them were a row of their own at the bottom of
+                // the popup, which is a row of its own worth of height for the
+                // three controls least in need of the room — and the picture is
+                // already the thing the pointer goes to.
+                //
+                // A band shading into the foot of the artwork, because the glyphs
+                // are white and the artwork underneath them is whatever it is.
+                Item {
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        bottom: parent.bottom
+                    }
+                    height: root.transportBand
+
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: cover.status === Image.Ready
+
+                        gradient: Gradient {
+                            GradientStop {
+                                position: 0
+                                color: "transparent"
+                            }
+                            GradientStop {
+                                position: 1
+                                color: Theme.scrim
+                            }
+                        }
+                    }
+
+                    Item {
+                        anchors.fill: parent
+                        anchors.leftMargin: 4
+                        anchors.rightMargin: 4
+
+                        Repeater {
+                            model: [
+                                {
+                                    name: "Previous track",
+                                    glyph: Theme.glyph.mediaPrev,
+                                    act: () => Mpd.prev()
+                                },
+                                {
+                                    name: Mpd.state === "play" ? "Pause music" : "Play music",
+                                    glyph: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing,
+                                    act: () => Mpd.toggle()
+                                },
+                                {
+                                    name: "Next track",
+                                    glyph: Theme.glyph.mediaNext,
+                                    act: () => Mpd.next()
+                                }
+                            ]
+
+                            delegate: Item {
+                                required property var modelData
+                                required property int index
+
+                                x: index * (parent.width - width) / 2
+                                width: root.buttonWidth
+                                height: root.transportBand
+
+                                Glyph {
+                                    anchors.centerIn: parent
+                                    text: parent.modelData.glyph
+                                    fontSize: Theme.glyphSizeLarge
+                                    implicitHeight: parent.height
+                                    opacity: press.hovered ? 1 : 0.8
+                                }
+
+                                HoverHandler {
+                                    id: press
+                                }
+                                Accessible.role: Accessible.Button
+                                Accessible.name: modelData.name
+                                Accessible.onPressAction: if (enabled && visible)
+                                    modelData.act()
+                                readonly property var keyPress: modelData.act
+
+                                TapHandler {
+                                    onTapped: parent.modelData.act()
+                                }
                             }
                         }
                     }
@@ -165,7 +277,7 @@ Popup {
             // being neighbours.
             Item {
                 width: root.columnWidth
-                height: songTitle.implicitHeight
+                height: Math.max(songTitle.implicitHeight, quit.implicitHeight)
 
                 Marquee {
                     id: songTitle
@@ -202,6 +314,7 @@ Popup {
                     anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
                     framed: true
+                    implicitHeight: root.headerButtonSize
                     glyph: Theme.glyph.plus
                     onTapped: Launcher.openWith(Launcher.musicPrefix)
                 }
@@ -218,6 +331,7 @@ Popup {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     framed: true
+                    implicitHeight: root.headerButtonSize
                     glyph: root.quitArmed ? Theme.glyph.check : Theme.glyph.close
                     warn: root.quitArmed
                     onTapped: {
@@ -236,6 +350,26 @@ Popup {
                 elide: Text.ElideRight
             }
 
+            // MPD volume is independent of the system output level.
+            VolumeRow {
+                visible: Mpd.volume >= 0
+                name: "Music"
+                iconBeforeReadout: true
+                leftPadding: 0
+                spacing: 2
+                icon: Mpd.volumeIcon
+                volume: Math.max(0, Mpd.volume)
+                iconWidth: root.volumeIconWidth
+                iconFontSize: Theme.popupGlyphSize
+                sliderWidth: root.sliderWidth
+                readoutWidth: root.readoutWidth
+                readoutOpacity: 0.75
+                readoutFontSize: Theme.captionSize
+                wheelStep: 0.05
+                onMoved: value => Mpd.setVolume(value)
+                onIconTapped: Mpd.toggleMute()
+            }
+
             Item {
                 width: 1
                 height: 3
@@ -245,39 +379,11 @@ Popup {
             // say how far in what. They were a row apart from each other and
             // are one reading.
             Row {
-                spacing: 6
-
-                // One control for three states rather than repeat and single
-                // as separate toggles: what is being asked is how far playback
-                // goes back round — nowhere, the queue, or this song — which
-                // is one question with three answers, and it belongs against
-                // the track it is a question about.
-                Item {
-                    width: root.gutter
-                    height: Theme.popupTextSize + 4
-
-                    Glyph {
-                        anchors.centerIn: parent
-                        text: Mpd.repeatIcon
-                        fontSize: Theme.captionSize
-                        implicitHeight: parent.height
-                        opacity: Mpd.repeatMode === "off" ? 0.3 : 1
-                    }
-
-                    // On the box rather than on the glyph: the ink is eight
-                    // pixels of arrow and the box is the whole gutter.
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Repeat mode: " + Mpd.repeatMode
-                    Accessible.onPressAction: if (enabled && visible)
-                        Mpd.cycleRepeat()
-                    readonly property var keyPress: () => Mpd.cycleRepeat()
-
-                    TapHandler {
-                        onTapped: Mpd.cycleRepeat()
-                    }
-                }
+                height: Theme.popupTextSize + 4
+                spacing: 2
 
                 Slider {
+                    id: playback
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
                     name: "Playback position"
@@ -286,6 +392,14 @@ Popup {
                     enabled: Mpd.duration > 0
                     knob: false
                     fill: root.accent
+                    wave: waveform.samples.length > 0
+                    waveSamples: waveform.samples
+                    wavePulse: waveform.pulse
+                    MusicWaveform {
+                        id: waveform
+                        active: root.visible
+                        playing: root.visible && Mpd.state === "play" && !Theme.reduceMotion
+                    }
                     // Ten seconds a notch, as on the pill.
                     wheelStep: Mpd.duration > 0 ? 10 / Mpd.duration : 0
                     onMoved: value => Mpd.seekTo(value)
@@ -299,25 +413,6 @@ Popup {
                     opacity: 0.75
                     font.pixelSize: Theme.captionSize
                 }
-            }
-
-            // MPD volume is independent of the system output level.
-            VolumeRow {
-                visible: Mpd.volume >= 0
-                name: "Music"
-                leftPadding: 0
-                spacing: 6
-                icon: Mpd.volumeIcon
-                volume: Math.max(0, Mpd.volume)
-                iconWidth: root.gutter
-                iconFontSize: Theme.popupGlyphSize
-                sliderWidth: root.sliderWidth
-                readoutWidth: root.readoutWidth
-                readoutOpacity: 0.75
-                readoutFontSize: Theme.captionSize
-                wheelStep: 0.05
-                onMoved: value => Mpd.setVolume(value)
-                onIconTapped: Mpd.toggleMute()
             }
 
         }
@@ -536,9 +631,9 @@ Popup {
         }
         model: reorder.showing ? reorder.queue : Mpd.queue
         interactive: !reorder.showing
-        // Nothing here scrolls with momentum; a flick that overshoots the ends
-        // only looks like the list came loose.
+        // Ease wheel motion while keeping the ends firm.
         boundsBehavior: Flickable.StopAtBounds
+        SmoothScroll { view: list }
 
         // The song playing is the one you came here from, so that is where the
         // queue opens — not at the top of a hundred songs you have been
