@@ -25,9 +25,10 @@ Singleton {
     // Mic: a source (not a sink's monitor, which is the sound going out, not
     // in) into an app's capture stream. Not the Bluetooth stack's own
     // ("Internal"), and not a level meter (stream.monitor, pavucontrol's).
-    readonly property var micLinks: root.groups.filter(g => g.source.type === PwNodeType.AudioSource && g.target.type === PwNodeType.AudioInStream && !String(g.target.properties?.["media.class"] ?? "").includes("Internal") && String(g.target.properties?.["stream.monitor"]) !== "true")
+    readonly property var micLinks: root.groups.filter(g => g.source?.type === PwNodeType.AudioSource && g.target?.type === PwNodeType.AudioInStream && !String(g.target.properties?.["media.class"] ?? "").includes("Internal") && String(g.target.properties?.["stream.monitor"]) !== "true")
 
-    readonly property var shareLinks: root.groups.filter(g => g.source.type === PwNodeType.VideoSource && !root.camera(g.source) && (g.target.type & PwNodeType.Stream))
+    // Video input streams can be Untracked in Quickshell's node type flags.
+    readonly property var shareLinks: root.groups.filter(g => g.source?.type === PwNodeType.VideoSource && !root.camera(g.source) && ((g.target?.type & PwNodeType.Stream) || g.target?.properties?.["media.class"] === "Stream/Input/Video"))
 
     // One entry per app stream, with the source it is listening to.
     readonly property var mics: {
@@ -54,12 +55,22 @@ Singleton {
     readonly property bool listening: root.mics.length > 0
     readonly property bool sharing: root.shares.length > 0
     readonly property bool active: root.listening || root.sharing
+    readonly property bool microphonesMuted: root.listening && root.mics.every(m => root.muted(m))
+    readonly property bool recording: root.sharing || root.mics.some(m => !root.muted(m) && (m.node?.audio?.volume ?? 1) > 0 && (m.source?.audio?.volume ?? 1) > 0)
+
+    // One input control per device, even when several apps capture from it.
+    readonly property var inputs: {
+        const seen = new Map();
+        for (const mic of root.mics)
+            seen.set(mic.source.id, mic.source);
+        return [...seen.values()];
+    }
 
     // "Firefox is using the microphone", for the tooltip and the popup's title.
     readonly property string summary: {
         const parts = [];
         if (root.listening)
-            parts.push(root.names(root.mics.map(m => m.app)) + " using the microphone");
+            parts.push(root.names(root.mics.map(m => m.app)) + " using the microphone" + (root.microphonesMuted ? " (muted)" : root.mics.some(m => root.muted(m)) ? " (some muted)" : ""));
         if (root.sharing)
             parts.push(root.names([].concat(...root.shares.map(s => s.apps))) + " sharing the screen");
         return parts.join(" · ");
@@ -77,7 +88,21 @@ Singleton {
 
     function appName(node): string {
         const props = node.properties ?? {};
-        return props["application.name"] || props["node.description"] || node.description || node.name || "An app";
+        if (props["application.name"])
+            return props["application.name"];
+        DesktopEntries.applications.values.length;
+        return DesktopEntries.heuristicLookup(props["application.id"] || props["application.process.binary"] || node.name)?.name || props["node.description"] || node.description || node.name || "An app";
+    }
+
+    // Either the app or its input can silence a capture; other apps stay live.
+    function muted(mic): bool {
+        return !!(mic.node?.audio?.muted || mic.source?.audio?.muted);
+    }
+
+    // Portal IDs identify sessions rather than the screen the user chose.
+    function shareName(source): string {
+        const label = source.properties?.["node.description"] || source.description || source.properties?.["media.name"] || source.name;
+        return !label || /^(xdph-streaming|xdg-desktop-portal)/.test(label) ? "Screen capture" : label;
     }
 
     // One app's capture, muted at its own stream: that app hears silence and
@@ -87,6 +112,12 @@ Singleton {
             node.audio.muted = !node.audio.muted;
     }
 
+    // Muting an input affects every app that captures from that device.
+    function toggleInput(source): void {
+        if (source?.audio)
+            source.audio.muted = !source.audio.muted;
+    }
+
     // The share's node destroyed, which ends it for every app it went to,
     // the way the Mac's Stop Sharing does; the app sees the stream end.
     function stopShare(source): void {
@@ -94,10 +125,10 @@ Singleton {
             Quickshell.execDetached(["pw-cli", "destroy", String(source.id)]);
     }
 
-    // Keeps properties and the streams' mute live: both stay empty on a node
-    // nothing tracks. Spread rather than flatMap, which Qt's JavaScript
-    // engine does not have.
+    // Bind links before filtering by state: untracked links report Unlinked.
+    // Their nodes also need tracking for app properties and stream mute.
+    // Spread rather than flatMap, which Qt's JavaScript engine lacks.
     PwObjectTracker {
-        objects: [].concat(...root.groups.map(g => [g.source, g.target]))
+        objects: [].concat(Pipewire.linkGroups.values, ...Pipewire.linkGroups.values.map(g => [g.source, g.target]))
     }
 }
