@@ -5,8 +5,9 @@ import Quickshell
 import Quickshell.Io
 import qs
 
-// Google Calendar, read-only, for the clock's month view: which days have
-// something on them, and what today's something is.
+// Google Calendar, for the clock's month view: which days have something on
+// them, and what today's something is. The one thing written is an event made
+// from the launcher's `,` line (insert).
 //
 // Events are fetched a month at a time, in a window a week wider either side
 // than the month itself so the faint days from the neighbouring months in the
@@ -215,6 +216,41 @@ GoogleService {
             root.months = next;
         }
         root.loaded = true;
+    }
+
+    // --- writing -------------------------------------------------------------
+    // An event on the primary calendar, made from the launcher's `,` line (see
+    // Tasks.plan). `reminders` is Google's object; left out, the calendar's
+    // defaults apply. No popup is open to show `trouble` when this fails, so a
+    // failure is also sent as a notification.
+    function insert(event: var): void {
+        const body = {
+            summary: event.title,
+            start: { dateTime: root.stamp(event.start) },
+            end: { dateTime: root.stamp(event.end) }
+        };
+        if (event.reminders)
+            body.reminders = event.reminders;
+        root.send("POST", `${root.api}/calendars/primary/events`, body, () => {
+            // Fetched again even if a fetch is in the air: that one began
+            // before the event existed.
+            const key = root.monthKey(event.start);
+            root.land(key);
+            if (root.haveCalendars)
+                root.fetchMonth(event.start, false);
+        }, (why, status) => {
+            root.fail(why, status);
+            Quickshell.execDetached(["notify-send", "-a", "quickshell", "Event not added", `${event.title}: ${why}`]);
+        });
+    }
+
+    // A local time with its offset from UTC, the form Google reads as that
+    // wall-clock time here: "2026-10-23T15:00:00+03:00".
+    function stamp(date: var): string {
+        const pad = n => n < 10 ? "0" + n : String(n);
+        const offset = -date.getTimezoneOffset();
+        const sign = offset < 0 ? "-" : "+";
+        return `${root.dayString(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}:00${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
     }
 
     // --- saying --------------------------------------------------------------

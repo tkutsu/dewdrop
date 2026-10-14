@@ -139,12 +139,16 @@ The number of unread threads in the Gmail inbox, including threads not shown in 
 _Avoid_: Unread message count, visible mail count
 
 **Agenda**:
-The read-only view of events from the Google account's selected, owned calendars, associated with the clock's calendar view.
+The view of events from the Google account's selected, owned calendars, associated with the clock's calendar view. Its day list also shows that day's dated top-level tasks after the events.
 _Avoid_: Task list, alarm schedule
 
 **Calendar event**:
 A timed or all-day entry in the agenda. An event spanning several local calendar days belongs to each day it touches.
 _Avoid_: Task, alarm
+
+**Event (from the launcher)**:
+An hour-long calendar event on the primary calendar, made from a `,` line that gives a day and a clock time (`, fri 15:00 call bank`), or alongside an alarm when the line starts with a clock time and has a title. An alarm's event has no reminders of its own, and the two are independent once made.
+_Avoid_: Timed task (Google Tasks keeps no time of day)
 
 ### Timers and alarms
 

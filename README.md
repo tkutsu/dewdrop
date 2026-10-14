@@ -31,9 +31,24 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 | `"` | Clipboard history |
 | `%` | Web search (`%y lofi` for YouTube, also ChatGPT, Claude, Translate, Maps) |
 | `@` | Gmail: unread, read in place, search |
-| `,` | Google task, or a timer/alarm if it starts with a duration or time |
+| `,` | Google task, timer, alarm or calendar event (see below) |
 | `#` | MPD library and playlists |
 | `=` | Calculator |
+
+The more of a time a `,` line gives, the bigger the thing it makes. Events last an hour and go on the primary calendar.
+
+| Typed | Makes |
+| --- | --- |
+| `, call bank` | task in the default task list |
+| `, work call bank` | task in the Work task list |
+| `, fri call bank` | task due Friday |
+| `, 25m tea` | timer |
+| `, 15:00 call bank` | alarm at 15:00 and an event 15:00–16:00 on the day it rings |
+| `, today 15:00 call bank` | event today 15:00–16:00, no alarm |
+| `, fri 15:00 call bank` | event Friday 15:00–16:00 |
+| `, 2026-11-03 9:30 dentist` | event on that date |
+
+Right-clicking a day in the calendar opens the launcher with that day typed in.
 
 Paths also select file mode automatically. Names starting with `_` try windows first.
 HTML/XHTML files open in the default application; other text files open in the editor.
