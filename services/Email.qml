@@ -252,6 +252,115 @@ GoogleService {
         root.total = unread.length;
         root.other = rest.length;
         root.loaded = true;
+        root.announce(rows);
+    }
+
+    // --- telling ---------------------------------------------------------
+    // A card for each new mail in the Primary tab, through notify-send like
+    // any other app, so it gets the notification server's own cards, Do Not
+    // Disturb and centre. New is newer than anything a poll has shown
+    // before, which a row turned up by "load more" never is. Nothing for the
+    // first poll after the bar starts, which would announce the whole inbox,
+    // nor while the popup is open and showing it anyway.
+    property real newestSeen: -1
+    property bool popupOpen: false
+    // A card about several mails was clicked: the bar opens the popup.
+    signal summoned
+
+    function announce(rows: var): void {
+        const before = root.newestSeen;
+        root.newestSeen = Math.max(0, before, ...rows.map(r => r.at));
+        if (before < 0 || root.popupOpen)
+            return;
+        const fresh = rows.filter(r => r.at > before && !root.opened[r.id]);
+        if (fresh.length > 3)
+            root.tell([`${fresh.length} new mails`, ""], ["--action=default=Open"], null, "");
+        else
+            for (const r of fresh.slice().reverse()) {
+                const code = root.codeIn(r);
+                const actions = ["--action=default=Open", "--action=archive=Archive", "--action=read=Mark read"];
+                if (code)
+                    actions.push(`--action=code=Copy ${code}`);
+                const body = [r.subject, r.snippet].filter(s => s).join("\n");
+                root.tell([r.from, root.escapeMarkup(body)], actions.concat([`--hint=string:x-gmail-thread:${r.id}`]), r, code);
+            }
+    }
+
+    // One card. `--wait` keeps notify-send until it is answered, and the
+    // action chosen is what it prints. The buttons act at once: by then the
+    // card is gone, and there is nowhere left to offer an undo.
+    function tell(text: var, options: var, row: var, code: string): void {
+        const command = ["notify-send", "--wait", "--app-name=Gmail", "--icon=Gmail-mail.google.com"].concat(options, ["--"], text);
+        card.createObject(root, { command: command, row: row, code: code }).running = true;
+    }
+
+    function answered(chosen: string, row: var, code: string): void {
+        if (!row) {
+            if (chosen === "default")
+                root.summoned();
+            return;
+        }
+        if (chosen === "default")
+            root.open(row);
+        else if (chosen === "archive")
+            root.archive(row);
+        else if (chosen === "read")
+            root.markRead(row);
+        else if (chosen === "code") {
+            root.copy(code);
+            root.markRead(row);
+        }
+    }
+
+    function escapeMarkup(text: string): string {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function copy(text: string): void {
+        Quickshell.clipboardText = text;
+    }
+
+    // --- codes -----------------------------------------------------------
+    // A one-time code in a mail: 4 to 8 digits, or 3 and 3 split by a space
+    // or a dash, perhaps behind a letter prefix (G-123456), near a word that
+    // says it is one. The nearest to such a word wins; a word after the code
+    // ("123456 is your code") counts at half the reach of one before it.
+    // Prices, years, times, dates and order numbers are not codes. Copied as
+    // the digits alone, which is what every code field takes.
+    function codeOf(text: string): string {
+        if (!text)
+            return "";
+        const keyword = /(?:^|[^A-Za-z])(?:codes?|verification|verify|otp|passcode|pin|one[- ]?time|2fa)(?![A-Za-z])|κωδικ|επαλ[ηή]θευ/gi;
+        const spots = [];
+        let k;
+        while ((k = keyword.exec(text)) !== null)
+            spots.push(k.index);
+        if (spots.length === 0)
+            return "";
+        const candidate = /(^|[^\w$€£#.,\/:+-])((?:[A-Z]{1,3}-)?(\d{3}[ -]\d{3}|\d{4,8}))(?![\w%$€£]|[.,\/:-]\d)/g;
+        let best = "";
+        let nearest = 81;
+        let m;
+        while ((m = candidate.exec(text)) !== null) {
+            const at = m.index + m[1].length;
+            const digits = m[3].replace(/\D/g, "");
+            if (/^(19|20)\d\d$/.test(digits))
+                continue;
+            const before = text.slice(Math.max(0, at - 16), at);
+            if (/(?:order|invoice|ref|reference|tracking|account|acct|no|παραγγελ\S*|αρ)\W{0,4}$/i.test(before) || /[$€£]\s?$/.test(before))
+                continue;
+            const distance = Math.min(...spots.map(s => at >= s ? at - s : (s - at) * 2));
+            if (distance < nearest) {
+                nearest = distance;
+                best = digits;
+            }
+        }
+        return best;
+    }
+
+    // A row's code: in its subject or snippet, or in its text once read.
+    function codeIn(row: var): string {
+        return row.code || root.codeOf(root.bodies[row.message] ?? "");
     }
 
     // A thread as a row: who wrote the newest unread message in it, what it
@@ -266,6 +375,8 @@ GoogleService {
         const chain = unread.length > 0 ? unread : messages.slice(-1);
         const m = chain[chain.length - 1];
         const header = (msg, name) => (msg?.payload?.headers ?? []).find(h => h.name.toLowerCase() === name)?.value ?? "";
+        const subject = header(m, "subject").trim() || "(no subject)";
+        const snippet = root.unentity(listed.snippet ?? "");
         return {
             id: listed.id,
             message: m?.id ?? "",
@@ -273,8 +384,9 @@ GoogleService {
             last: messages[messages.length - 1]?.id ?? "",
             from: root.sayFrom(header(m, "from")),
             address: root.addressOf(header(m, "from")),
-            subject: header(m, "subject").trim() || "(no subject)",
-            snippet: root.unentity(listed.snippet ?? ""),
+            subject: subject,
+            snippet: snippet,
+            code: root.codeOf(subject + "\n" + snippet),
             at: Number(m?.internalDate ?? 0),
             unread: unread.length > 0,
             starred: messages.some(m => (m.labelIds ?? []).includes("STARRED")),
@@ -847,6 +959,8 @@ GoogleService {
         const mark = Object.assign({}, root.opened);
         mark[thread.id] = Date.now();
         root.opened = mark;
+        // Dealt with here, so its card has nothing left to ask.
+        Notifications.withdraw("x-gmail-thread", thread.id);
         if (root.otherThreads.some(t => t.id === thread.id)) {
             root.otherThreads = root.otherThreads.filter(t => t.id !== thread.id);
             root.other = Math.max(0, root.other - 1);
@@ -871,6 +985,25 @@ GoogleService {
     Timer {
         id: dueTimer
         onTriggered: root.commitDue()
+    }
+
+    Component {
+        id: card
+
+        Process {
+            id: waiting
+
+            property var row
+            property string code
+
+            stdout: StdioCollector {
+                id: chosen
+            }
+            onExited: {
+                root.answered(chosen.text.trim(), waiting.row, waiting.code);
+                waiting.destroy();
+            }
+        }
     }
 
     // qs ipc call email …

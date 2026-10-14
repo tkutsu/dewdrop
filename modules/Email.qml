@@ -8,6 +8,8 @@ import qs.services
 // Unread mail, with the threads themselves in the popup. A click on the icon
 // opens the mail popup, a right click Gmail itself.
 BarItem {
+    id: root
+
     name: "Mail"
     // #custom-email.loading { opacity: 0.55 }
     opacity: Email.stale ? Theme.dimOpacity : 1
@@ -21,6 +23,15 @@ BarItem {
         glyph: Email.icon
         glyphSize: Theme.glyphSizeLarge
         badge: Email.label
+    }
+
+    // A card about several new mails was clicked: they are all here.
+    Connections {
+        target: Email
+
+        function onSummoned() {
+            OpenPopup.set(root);
+        }
     }
 
     // Left is the popup (BarItem.popupButton).
