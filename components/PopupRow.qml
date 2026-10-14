@@ -35,6 +35,9 @@ Item {
     // mail being swiped), so the row stays the selected one when the pointer
     // runs out of the popup.
     property bool held: false
+    // How far the fill is slid sideways with the contents (a swipe), leaving
+    // the popup's own background where it was.
+    property real slide: 0
 
     // Inside a Flickable the press has to stay grabbable by the flick, so the
     // default policy is kept there; a row in a fixed list can ask for the
@@ -69,7 +72,9 @@ Item {
         scale: press.scale
 
         Rectangle {
-            anchors.fill: parent
+            x: root.slide
+            width: parent.width
+            height: parent.height
             radius: Theme.selectionRadius
             color: root.name !== "" && (root.hovered || root.held) ? Theme.selection : "transparent"
         }
