@@ -6,10 +6,10 @@ import qs.services
 
 // The Mac's recording indicator: while an app is using a microphone or
 // sharing the screen (services/Privacy.qml), a pill of its own comes out of
-// the right pill with a red dot breathing on it, and what is live beside the
+// the centre pill with a red dot breathing on it, and what is live beside the
 // dot. Click it for who, and to mute or stop them (PrivacyPopup).
 //
-// Comes out of the right pill and is drawn back into it; the bar draws the
+// Comes out of the centre pill and is drawn back into it; the bar draws the
 // pill off `reveal` (Bar.drop), and nothing folds.
 BarItem {
     id: root
@@ -18,7 +18,20 @@ BarItem {
     stowed: !Privacy.active
     folds: false
     tooltip: Privacy.summary
-    popup: PrivacyPopup {}
+    popup: PrivacyPopup { morphs: true }
+
+    Glyph {
+        id: microphone
+        Layout.fillHeight: true
+        visible: Privacy.listening
+        text: Privacy.microphonesMuted ? Theme.glyph.micMuted : Theme.glyph.mic
+    }
+
+    Glyph {
+        Layout.fillHeight: true
+        visible: Privacy.sharing
+        text: Theme.glyph.screenShare
+    }
 
     // A dot, not a glyph: it is a light, and a light is round at any size.
     // It breathes rather than blinks, and dims rather than goes out, so it
@@ -31,9 +44,10 @@ BarItem {
         implicitHeight: 8
         radius: 4
         color: Theme.recording
+        visible: Privacy.recording
 
         SequentialAnimation on opacity {
-            running: Privacy.active && !Theme.reduceMotion
+            running: Privacy.recording && !Theme.reduceMotion
             loops: Animation.Infinite
             onRunningChanged: if (!running) dot.opacity = 1
 
@@ -48,17 +62,5 @@ BarItem {
                 easing.type: Easing.InOutSine
             }
         }
-    }
-
-    Glyph {
-        Layout.fillHeight: true
-        visible: Privacy.listening
-        text: Theme.glyph.mic
-    }
-
-    Glyph {
-        Layout.fillHeight: true
-        visible: Privacy.sharing
-        text: Theme.glyph.screenShare
     }
 }
