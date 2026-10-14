@@ -142,18 +142,27 @@ CASES = r'''
                     popup.setKey(row);
                     wait(30);
                     const targets = popup.keyTargets();
-                    const copy = targets.find(t => t.name === "Copy Work task");
                     const edit = targets.find(t => t.name === "Edit Work task");
-                    check(copy && edit, "copy and edit are both reachable on task row");
+                    check(edit && !targets.some(t => t.name === "Copy Work task"), "task row offers edit and no copy");
                     const point = edit.mapToItem(popup.auditList, 2, 10);
                     mouseClick(popup.auditList, point.x, point.y);
                     wait(30);
                     check(popup.editing?.id === "d" && !Tasks.isCrossed(Tasks.tasks[3]), "edit button takes pointer press without completing task");
+                    const copy = popup.keyTargets().find(t => t.name === "Copy Work task");
+                    check(copy === edit && copy.visible, "copy takes the edit button's place while editing");
                 });
                 probe("single list launcher", () => {
                     reset();
                     Tasks.lists = [Tasks.lists[0]];
                     check(Launcher.taskResults("new task")[0].subtitle === "add", "single list add preview omits task list name");
+                });
+                probe("long notes", () => {
+                    reset();
+                    Tasks.tasks = [{id: "long", listId: "home", title: "Notes", parent: "", position: "10", notes: "one\ntwo\nthree\nfour\nfive"}];
+                    wait(50);
+                    const row = popup.auditList.itemAtIndex(Tasks.rows.findIndex(r => r.id === "long"));
+                    check(popup.rowHeight === popup.lineHeight + popup.rowPad * 2, "one-line row is a line plus equal padding");
+                    check(row.height > popup.rowHeight + 40, "five lines of notes are all shown");
                 });
                 probe("orphans stay visible", () => {
                     reset();

@@ -96,9 +96,13 @@ GoogleService {
             Object.assign({}, t, { children: root.tasks.filter(c => c.listId === l.id && c.parent === t.id).sort(root.byPosition) }))
     }))
 
-    function flatRows(): var {
+    // Empty task lists stay out of the popup; a drag adds them back as places
+    // to drop.
+    function flatRows(includeEmpty: bool): var {
         const out = [];
         for (const list of root.groupedLists) {
+            if (!includeEmpty && !list.tasks.length)
+                continue;
             out.push({ kind: "header", id: list.id, title: list.title, listId: list.id });
             for (const task of list.tasks) {
                 out.push(Object.assign({}, task, { kind: "task" }));
@@ -109,8 +113,8 @@ GoogleService {
         return out;
     }
 
-    readonly property var rows: root.flatRows()
-    readonly property var dragRows: root.rows
+    readonly property var rows: root.flatRows(false)
+    readonly property var dragRows: root.flatRows(true)
     readonly property var ordered: root.rows.filter(r => r.kind !== "header")
     readonly property var topLevel: root.tasks.filter(root.isTopLevel)
     readonly property var overdue: root.topLevel.filter(t => root.dayOf(t) !== "" && root.dayOf(t) < root.today).sort(root.byDay)
