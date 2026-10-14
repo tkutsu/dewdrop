@@ -14,7 +14,7 @@ import qs
 //
 // What it does, in the order a notification meets it: decides whether it is
 // kept (the transient rules below), whether it replaces one already there,
-// whether it is shown as it arrives (do-not-disturb), and for how long.
+// shows it as it arrives, and decides for how long.
 Singleton {
     id: root
 
@@ -30,18 +30,7 @@ Singleton {
     property int stamps: 0
     readonly property int count: list.length
 
-    // Do not disturb: kept, counted, listed in the centre, never shown as they
-    // arrive — except a critical one, which is the sender saying it cannot
-    // wait. Remembered across restarts (see `state`).
-    property bool dnd: false
-
-    function setDnd(on) {
-        root.dnd = on;
-        stored.dnd = on;
-        state.writeAdapter();
-    }
-
-    readonly property string icon: dnd ? Theme.glyph.notifDnd : Theme.glyph.notif
+    readonly property string icon: Theme.glyph.notif
 
     // What the bell counts: everything kept but the one on show beside the
     // clock, which is being read right now. It joins the count as its notice
@@ -51,10 +40,7 @@ Singleton {
     // Hidden at 0, held at 99.
     readonly property string label: waiting === 0 ? "" : String(Math.min(waiting, 99))
 
-    readonly property string tooltip: {
-        const n = count === 0 ? "No notifications" : count === 1 ? "1 notification" : `${count} notifications`;
-        return n + (dnd ? "  ·  Do Not Disturb" : "");
-    }
+    readonly property string tooltip: count === 0 ? "No notifications" : count === 1 ? "1 notification" : `${count} notifications`
 
     // --- the notice beside the clock ----------------------------------------
     // The one on show, and whether it still is. The object goes null by itself
@@ -360,7 +346,7 @@ Singleton {
         root.announce(n);
     }
 
-    // On the bar beside the clock, unless do-not-disturb holds it back.
+    // Show the arriving notification on the bar beside the clock.
     function announce(n) {
         // A sender that tags its notifications (the volume and mic toasts do,
         // with x-canonical-private-synchronous) means each one to replace the
@@ -374,10 +360,6 @@ Singleton {
                     other.dismiss();
         }
 
-        if (root.dnd && n.urgency !== NotificationUrgency.Critical) {
-            root.letGo(n);
-            return;
-        }
         // The notice it replaces was only waiting on its time.
         if (root.latest && root.latest !== n)
             root.letGo(root.latest);
@@ -449,22 +431,7 @@ Singleton {
         onNotification: n => root.receive(n)
     }
 
-    FileView {
-        id: state
-
-        path: Paths.state("notifications.json")
-        printErrors: false
-        onLoaded: root.dnd = stored.dnd
-        onLoadFailed: state.writeAdapter()
-
-        JsonAdapter {
-            id: stored
-
-            property bool dnd: false
-        }
-    }
-
-    //   qs ipc call notifications toggle | clear | dnd | latest
+    //   qs ipc call notifications toggle | clear | latest
     IpcHandler {
         target: "notifications"
 
@@ -474,10 +441,6 @@ Singleton {
 
         function clear(): void {
             root.clearAll();
-        }
-
-        function dnd(): void {
-            root.setDnd(!root.dnd);
         }
 
         // The centre, opened on the newest notification — what clicking the

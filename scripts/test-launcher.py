@@ -37,9 +37,6 @@ MOCKS = {
             if (device.connected) device.disconnect();
             else device.connect();
         }''',
-    "Notifications": '''property bool dnd: false
-        property string icon: "notifications"
-        function setDnd(value) { dnd = value; }''',
     "Power": '''property var armed: null
         property var actions: [{key: "shutdown", label: "shut down", glyph: "power", arg: "--poweroff", confirm: true}]
         function arm(action) { armed = action; }
@@ -307,7 +304,7 @@ ShellRoot {
                 Launcher.query = query;
                 check(!Launcher.results.some(r => r.kind === "desktop" && popupKeys.includes(r.action.key)), "no popover-only actions for " + query);
             }
-            for (const [query, key] of [["volume", "mute"], ["wifi", "wifi"], ["bluetooth", "bluetooth-power"], ["dnd", "dnd"], ["night mode", "night"]]) {
+            for (const [query, key] of [["volume", "mute"], ["wifi", "wifi"], ["bluetooth", "bluetooth-power"], ["night mode", "night"]]) {
                 Launcher.query = query;
                 check(Launcher.results.some(r => r.kind === "desktop" && r.action.key === key), "alias " + query);
             }
@@ -360,7 +357,7 @@ ShellRoot {
             Launcher.query = "2+2";
             check(Launcher.results[0].kind === "calc", "automatic calculator precedence");
 
-            Launcher.db = ({"desktop:display": {count: 100, last: Date.now()}, "desktop:mute": {count: 10, last: Date.now()}, "desktop:dnd": {count: 2, last: Date.now()}});
+            Launcher.db = ({"desktop:display": {count: 100, last: Date.now()}, "desktop:mute": {count: 10, last: Date.now()}, "desktop:night": {count: 2, last: Date.now()}});
             Launcher.query = "";
             check(Launcher.results[0].action.key === "mute", "history ranking");
             check(!Launcher.results.some(r => r.kind === "desktop" && popupKeys.includes(r.action.key)), "old popover history cannot restore removed actions");
@@ -403,9 +400,6 @@ ShellRoot {
             activateDesktop("mute");
             check(Audio.muted && !Launcher.shown && desktop("mute").title === "Unmute sound", "mute changes state and label");
             check(Launcher.db["desktop:mute"].count === 1, "action usage recorded");
-            Launcher.show();
-            activateDesktop("dnd");
-            check(Notifications.dnd && desktop("dnd").title.endsWith("off"), "DND changes state and label");
             Launcher.show();
             activateDesktop("night");
             check(NightMode.on, "night action delegates to service");

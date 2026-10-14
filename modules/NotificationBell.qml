@@ -14,11 +14,9 @@ BarItem {
 
     tooltip: Notifications.tooltip
     popup: NotificationsPopup {}
-    // Do-not-disturb is something true right now even with nothing waiting,
-    // so the bell only goes in the drawer when it is both empty and ordinary —
-    // and never while its popup hangs off it. Empty means nothing waiting: a
-    // notice still on show beside the clock has not reached the bell yet.
-    quiet: Notifications.waiting === 0 && !Notifications.dnd && !root.popupOpen
+    // An empty bell goes in the drawer unless its popup is open. A notice
+    // still on show beside the clock has not reached the bell yet.
+    quiet: Notifications.waiting === 0 && !root.popupOpen
 
     BadgedGlyph {
         Layout.fillHeight: true
@@ -43,8 +41,7 @@ BarItem {
     }
 
     // Left is the popup (BarItem.popupButton), and right clears everything.
-    // Do not disturb is the popup's header, beside its own clear; middle pins
-    // the bell (BarItem.pinKey).
+    // Middle pins the bell (BarItem.pinKey).
     actions: ({
             [Qt.RightButton]: () => {
                 Notifications.clearAll();

@@ -114,7 +114,7 @@
     // hidden. Firefox's private window is available when showDesktopActions
     // is on. The launcher's
     // controls and power commands hide as "desktop:<key>" and "power:<key>"
-    // (desktop:dnd, power:reboot).
+    // (desktop:mute, power:reboot).
     "hiddenApps": [
         "blueman-adapters", "libreoffice-startcenter",
         "libreoffice-writer:NewDocument", "libreoffice-calc:NewDocument",

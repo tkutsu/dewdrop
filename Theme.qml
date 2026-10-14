@@ -826,9 +826,6 @@ Singleton {
 
         // One bell whatever the count: the badge carries the number.
         notif: "\u{f009c}",
-        notifDnd: "\u{f0a93}",
-        // Do not disturb, in the centre's header: the moon the system uses.
-        dnd: "\u{f0904}",            // nf-md-power_sleep
         close: "\u{f0156}",          // nf-md-close
         check: "\u{f012c}",          // nf-md-check, the one in use in a list
 

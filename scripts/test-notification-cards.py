@@ -51,9 +51,10 @@ QtObject {
     property color selection: "#222222"; property color selectionStrong: "#444444"
     property int selectionRadius: 4; property int fadeMs: 100; property int captionSize: 14
     property int blinkMs: 60
+    property bool reduceMotion: false
     property int popupTextSize: 16; property int glyphSizeLarge: 16; property int pillBorder: 1
     property string bodyFont: "sans-serif"; property var figures: ({})
-    property var glyph: ({notif: "N", close: "X", dnd: "D", plus: "+"})
+    property var glyph: ({notif: "N", close: "X", plus: "+"})
 }
 ''')
         (target / "Popup.qml").write_text('''import QtQuick
@@ -90,9 +91,7 @@ QtObject {
     property var list: []
     readonly property int count: list.length
     property var centreFocus: null
-    property bool dnd: false
     property int invoked: 0
-    function setDnd(on) { dnd = on; }
     function iconFor(n) { return ""; }
     function url(s) { return s || ""; }
     function ago(n, now) { return "now"; }
