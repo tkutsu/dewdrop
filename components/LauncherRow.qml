@@ -21,7 +21,7 @@ Rectangle {
     // The fill is the view's `highlight` above; all that marks
     // the selected row here is the colour of its text.
     color: "transparent"
-    opacity: row.enterProgress
+    opacity: row.enterProgress * (row.modelData.crossed ? 0.45 : 1)
     transform: Translate { y: 6 * (1 - row.enterProgress) }
 
     Text {
@@ -67,6 +67,7 @@ Rectangle {
         font.family: Theme.bodyFont
         font.pixelSize: Theme.labelSize
         font.weight: Theme.bodyWeight
+        font.strikeout: !!row.modelData.crossed
         elide: Text.ElideRight
 
         Behavior on color {
