@@ -41,10 +41,17 @@ CASES = r'''
                 const headerIndex = Tasks.rows.findIndex(r => r.kind === "header" && r.id === "home");
                 popup.auditList.forceLayout();
                 const header = popup.auditList.itemAtIndex(headerIndex);
-                mouseClick(popup.auditList, 28, header.y - popup.auditList.contentY + 12);
+                const headerY = header.y - popup.auditList.contentY + 12;
+                mouseClick(popup.auditList, 28, headerY);
                 wait(60);
-                check(popup.editing?.kind === "header" && popup.keyInput, "clicking task list heading opens inline editor");
+                check(popup.editing === null, "clicking a task list heading does not edit it");
                 check(Tasks.calls.length === 0 && Object.keys(Tasks.crossed).length === 0, "heading click neither completes tasks nor writes");
+                // The edit button sits under the header's plus, 10 in from the edge.
+                mouseMove(popup.auditList, popup.auditList.width - 10, headerY);
+                wait(30);
+                mouseClick(popup.auditList, popup.auditList.width - 10, headerY);
+                wait(60);
+                check(popup.editing?.kind === "header" && popup.keyInput, "heading edit button opens inline editor");
                 popup.keyInput.selectAll();
                 if (!live) anchor.Window.window.requestActivate();
                 keyRelay.forceActiveFocus();
