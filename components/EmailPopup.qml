@@ -359,13 +359,95 @@ Popup {
             readonly property real collapsedHeight: from.implicitHeight + subject.implicitHeight + lines.spacing + root.rowPad * 2
             // The verbs are out under the pointer, when the keys reach the
             // row or one of them, and all the time on the open mail.
-            readonly property bool showVerbs: row.hovered || row.isOpen || archiveButton.keyed || readButton.keyed || starButton.keyed
+            readonly property bool showVerbs: !row.swiping && (row.hovered || row.isOpen || archiveButton.keyed || readButton.keyed || starButton.keyed)
 
-            height: lines.implicitHeight + root.rowPad * 2
+            // --- swipe -------------------------------------------------------
+            // Left archives, right marks read, on the touchpad or with a
+            // mouse drag on the row's two lines. The row moves the way content
+            // scrolls on this machine, the colour of what letting go will do
+            // opens behind it, and past `reach` its glyph pops: letting go
+            // there slides the row off and folds it away. Short of it, the row
+            // springs back.
+            property real swipe: 0
+            readonly property real reach: row.width * 0.4
+            readonly property bool armed: Math.abs(row.swipe) >= row.reach
+            readonly property bool swiping: row.swipe !== 0 || row.tracking
+            property bool tracking: false
+            property bool leaving: false
+            // How far the row has folded away once it has slid off.
+            property real gone: 0
+            // The gesture's axis, fixed by its first movement, so a scroll
+            // that drifts sideways never becomes a swipe.
+            property string axis: ""
+
+            Behavior on swipe {
+                enabled: !row.tracking && !row.leaving
+                SpringAnimation {
+                    spring: Theme.drawerSpring
+                    damping: Theme.drawerDamping
+                }
+            }
+
+            function track(dx: real): void {
+                row.tracking = true;
+                row.swipe = Math.max(-row.width, Math.min(row.width, dx));
+            }
+
+            function release(): void {
+                if (!row.tracking)
+                    return;
+                row.tracking = false;
+                if (row.armed && !row.leaving) {
+                    row.leaving = true;
+                    slideOff.to = row.swipe < 0 ? -row.width : row.width;
+                    leave.kind = row.swipe < 0 ? "archive" : "read";
+                    leave.start();
+                } else {
+                    row.swipe = 0;
+                }
+            }
+
+            SequentialAnimation {
+                id: leave
+
+                property string kind: ""
+
+                NumberAnimation {
+                    id: slideOff
+                    target: row
+                    property: "swipe"
+                    duration: 140
+                    easing.type: Easing.OutCubic
+                }
+                NumberAnimation {
+                    target: row
+                    property: "gone"
+                    to: 1
+                    duration: Theme.foldMs * 0.6
+                    easing.type: Easing.InOutCubic
+                }
+                ScriptAction {
+                    script: root.act(leave.kind, row.modelData)
+                }
+            }
+
+            // The gesture ends when the touchpad says so, or failing that
+            // when it has gone quiet.
+            Timer {
+                id: quiet
+                interval: 150
+                onTriggered: {
+                    row.axis = "";
+                    row.release();
+                }
+            }
+
+            height: (lines.implicitHeight + root.rowPad * 2) * (1 - row.gone)
+            clip: row.leaving
 
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: {
-                if (reveal.bodyHovered)
+                if (reveal.bodyHovered || row.swiping)
                     return;
                 if (row.isOpen) {
                     root.expanded = "";
@@ -375,10 +457,97 @@ Popup {
                 }
             }
 
+            // What letting go will do, opening from the edge the row is
+            // leaving: archive at the right, mark read at the left.
+            Rectangle {
+                visible: row.swipe !== 0
+                x: row.swipe < 0 ? row.width + row.swipe : 0
+                width: Math.abs(row.swipe)
+                height: row.height
+                radius: Theme.selectionRadius
+                color: row.swipe < 0 ? Theme.swipeArchive : Theme.swipeRead
+                opacity: row.armed ? 1 : 0.6
+                clip: true
+
+                Glyph {
+                    // Centred in the room it would have once armed, so it
+                    // rides in with the edge and then holds still.
+                    x: (row.swipe < 0 ? parent.width - Math.min(parent.width, row.reach) / 2 : Math.min(parent.width, row.reach) / 2) - width / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: row.swipe < 0 ? Theme.glyph.mailArchive : Theme.glyph.mailRead
+                    fontSize: Theme.popupTextSize
+                    color: Theme.badgeFg
+                    scale: row.armed ? 1.3 : 1
+
+                    Behavior on scale {
+                        SpringAnimation {
+                            spring: 4
+                            damping: 0.3
+                        }
+                    }
+                }
+            }
+
+            // Where a swipe is taken: the row's two lines and not the open
+            // mail under them, whose text is dragged to select. On top, so it
+            // sees the wheel first and hands back whatever is not sideways,
+            // and its drag only takes over from a press once it has moved.
+            Item {
+                z: 1
+                width: row.width
+                height: row.collapsedHeight
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+                    onWheel: wheel => {
+                        const dx = wheel.pixelDelta.x;
+                        const dy = wheel.pixelDelta.y;
+                        // Momentum after a swipe is the swipe's; after a
+                        // scroll it is the scroll's.
+                        if (wheel.phase === Qt.ScrollMomentum) {
+                            wheel.accepted = row.axis === "x" || row.leaving;
+                            return;
+                        }
+                        if (wheel.phase === Qt.ScrollBegin)
+                            row.axis = "";
+                        if (row.axis === "" && (dx !== 0 || dy !== 0))
+                            row.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+                        if (row.axis !== "x" || row.leaving) {
+                            wheel.accepted = row.leaving;
+                            if (wheel.phase === Qt.ScrollEnd)
+                                row.axis = "";
+                            else if (row.axis !== "")
+                                quiet.restart();
+                            return;
+                        }
+                        wheel.accepted = true;
+                        row.track(row.swipe + dx);
+                        if (wheel.phase === Qt.ScrollEnd) {
+                            quiet.stop();
+                            row.axis = "";
+                            row.release();
+                        } else {
+                            quiet.restart();
+                        }
+                    }
+                }
+
+                DragHandler {
+                    target: null
+                    yAxis.enabled: false
+                    enabled: !row.leaving
+                    onActiveChanged: if (!active)
+                        row.release()
+                    onActiveTranslationChanged: if (active)
+                        row.track(activeTranslation.x)
+                }
+            }
+
             // The sender's initials on a disc, centred on the closed row's
             // two lines and staying there as the mail opens under them.
             Rectangle {
-                x: root.inset
+                x: root.inset + row.swipe
                 y: Math.round((row.collapsedHeight - height) / 2)
                 width: root.monogram
                 height: width
@@ -398,7 +567,7 @@ Popup {
             Column {
                 id: lines
 
-                x: root.textX
+                x: root.textX + row.swipe
                 y: root.rowPad
                 width: row.width - root.textX - root.inset
                 spacing: 1

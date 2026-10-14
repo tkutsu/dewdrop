@@ -144,7 +144,18 @@ ShellRoot {
     Timer {
         id: shotTimer
         interval: 600
-        onTriggered: test.shoot("undo", () => Qt.quit())
+        onTriggered: test.shoot("undo", () => {
+            // Held part way, as a hand would: one row armed, one not yet.
+            const rows = test.list(test.popup);
+            rows.itemAt(0).track(-170);
+            rows.itemAt(1).track(60);
+            swipeTimer.start();
+        })
+    }
+    Timer {
+        id: swipeTimer
+        interval: 300
+        onTriggered: test.shoot("swipe", () => Qt.quit())
     }
     // A grab that never answers must not hang the run.
     Timer {
