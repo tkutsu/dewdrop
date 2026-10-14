@@ -6,7 +6,7 @@ import qs
 //
 // A setting is a plain object, which is all a page has to write to add one:
 //
-//   type      "toggle", "choice", "slider" or "text": which control
+//   type      "toggle", "choice", "dropdown", "slider" or "text": which control
 //   title     its name
 //   text      what it does, optional
 //   tooltip   extra help shown on info-icon hover, optional
@@ -17,7 +17,7 @@ import qs
 //
 // and, by type:
 //
-//   choice    options: [{ value, label }]
+//   choice, dropdown    options: [{ value, label }]
 //   slider    from, to, step, and format(value) for the readout
 //   text      placeholder
 //
@@ -41,6 +41,7 @@ Item {
     readonly property var controls: ({
             toggle: "SettingSwitch.qml",
             choice: "SettingChoice.qml",
+            dropdown: "SettingDropdown.qml",
             slider: "SettingSlider.qml",
             text: "SettingField.qml"
         })

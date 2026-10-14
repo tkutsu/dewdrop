@@ -11,12 +11,11 @@ Item {
     required property real rowHeight
     property real rightGuard: 0
     property Component lifted: null
-    property var canNest: null
     property var canLift: null
     property var canHold: null
     property var heldModel: null
     property bool allowSingle: false
-    property var queue: []
+    property var rows: []
     property bool dragging: false
     property bool settling: false
     readonly property bool showing: dragging || settling
@@ -24,16 +23,16 @@ Item {
     property real dropY: 0
     property int from: -1
     property int to: -1
-    property int onto: -1
     property real grabOffset: 0
+    property real grabX: 0
     property real holdTop: 0
+    property real holdHeight: 0
     property var pressedModel: null
     readonly property real liftedY: Math.max(0, Math.min(height - rowHeight, pointer.mouseY - grabOffset))
+    readonly property real horizontalOffset: pointer.mouseX - root.grabX
     readonly property int scrollDirection: !dragging ? 0 : pointer.mouseY < rowHeight ? -1 : pointer.mouseY > height - rowHeight ? 1 : 0
-    readonly property bool dropRunning: drop.running
 
     signal moved(int from, int to)
-    signal nested(int from, int onto)
     signal clicked(int index)
     signal held()
 
@@ -43,14 +42,11 @@ Item {
 
         const centre = view.contentY + liftedY + rowHeight / 2;
         const index = view.indexAt(1, centre);
-        to = index < 0 ? (centre < view.originY ? 0 : queue.length - 1) : index;
-        const item = view.itemAtIndex(to);
-        const fraction = item ? (centre - item.y) / item.height : 0;
-        onto = canNest && fraction >= 1 / 3 && fraction <= 2 / 3 && canNest(from, to) ? to : -1;
+        to = index < 0 ? (centre < view.originY ? 0 : rows.length - 1) : index;
     }
 
     function shift(index) {
-        if (!showing || onto >= 0)
+        if (!showing)
             return 0;
 
         return index > from && index <= to ? -rowHeight : index < from && index >= to ? rowHeight : 0;
@@ -61,7 +57,6 @@ Item {
         dragging = false;
         settling = false;
         elevation = 0;
-        onto = -1;
         Qt.callLater(() => {
             view.contentY = Math.max(view.originY, Math.min(view.originY + Math.max(0, view.contentHeight - view.height), y));
         });
@@ -70,12 +65,14 @@ Item {
     parent: view
     anchors.fill: parent
     z: 2
+    // A server reply may arrive before or after the drop animation finishes.
     onModelChanged: Qt.callLater(() => {
         if (settling && !drop.running)
             finishDrop();
-
     })
 
+    // Keep the pointer grab on the view: delegates can be recycled or folded
+    // while held, so grabbing a row would lose the drag as its model changes.
     MouseArea {
         id: pointer
 
@@ -91,24 +88,27 @@ Item {
                 mouse.accepted = false;
                 return;
             }
-            root.queue = root.model;
+            root.rows = root.model;
             root.pressedModel = root.model;
+            root.grabX = mouse.x;
             const item = root.view.itemAtIndex(root.from);
             root.grabOffset = mouse.y + root.view.contentY - (item ? item.y : root.from * root.rowHeight);
         }
         onPressAndHold: {
-            if (root.pressedModel !== root.model || (root.canHold && !root.canHold(root.from)) || (!root.allowSingle && root.queue.length < 2))
+            if (root.pressedModel !== root.model || (root.canHold && !root.canHold(root.from)) || (!root.allowSingle && root.rows.length < 2))
                 return;
 
             root.view.cancelFlick();
-            const task = root.queue[root.from];
+            root.holdHeight = root.view.height;
+            const task = root.rows[root.from];
             if (root.heldModel)
                 root.grabOffset = Math.min(root.rowHeight - 1, root.grabOffset);
 
+            // Preserve the press location while a variable-height list folds.
             root.holdTop = mouseY - root.grabOffset;
             if (root.heldModel) {
-                root.queue = root.heldModel;
-                root.from = root.queue.findIndex((r) => {
+                root.rows = root.heldModel;
+                root.from = root.rows.findIndex((r) => {
                     return r.id === task.id && r.kind === task.kind;
                 });
             }
@@ -135,9 +135,6 @@ Item {
             root.elevation = 0;
             if (root.pressedModel !== root.model) {
                 root.to = root.from;
-                root.onto = -1;
-            } else if (root.onto >= 0) {
-                root.nested(root.from, root.onto);
             } else {
                 root.moved(root.from, root.to);
             }
@@ -166,12 +163,14 @@ Item {
         }
     }
 
+    // Rejected or unchanged moves have no new model to end the settle.
     Timer {
         interval: 1000
         running: root.settling && !drop.running
         onTriggered: root.finishDrop()
     }
 
+    // Scroll in row-sized steps so landing slots stay predictable at an edge.
     Timer {
         interval: 100
         repeat: true

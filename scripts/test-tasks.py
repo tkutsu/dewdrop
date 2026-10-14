@@ -43,9 +43,9 @@ ShellRoot {
     FloatingWindow { visible: true; title: "Quickshell task verification"; implicitWidth: 500; implicitHeight: 400
         property point windowOnScreen: Qt.point(0, 0)
         Item { id: anchor; width: 40; height: 20 }
-        Item { id: keyRelay; focus: true
-            Keys.forwardTo: popup.keyInput ? [popup.keyInput] : []
-            Keys.onPressed: event => event.accepted = popup.key(event)
+        PopupKeyRelay { id: keyRelay
+            input: popup.keyInput
+            keyHandler: event => popup.key(event)
         }
         TestCase { id: test; when: false
             function check(ok, text) { if (!ok) throw Error(text); console.log("PASS: " + text); }
@@ -56,11 +56,11 @@ ShellRoot {
                     const p = Tasks.parse(line);
                     check(p.ok && p.title === "call x" && p.list === "work" && p.day !== "", line);
                 }
-                check(Tasks.parse("call x").list === "work", "default section");
+                check(Tasks.parse("call x").list === "work", "default task list");
                 check(Tasks.parse("ToDo milk").list === "home", "case and spaces in list names");
-                check(Tasks.parse("work").error === "No task, only a section", "section without title");
+                check(Tasks.parse("work").error === "No task, only a task list", "task list without title");
                 check(!Tasks.parse("2026-02-30 work tax").ok, "invalid leading date");
-                check(!Tasks.parse("work 2026-02-30 tax").ok, "invalid date after section");
+                check(!Tasks.parse("work 2026-02-30 tax").ok, "invalid date after task list");
                 check(!Tasks.parse("tomorrow").ok, "day without title");
                 Settings.set("defaultTaskList", "missing");
                 check(Tasks.parse("call x").list === "home", "unknown default falls back");
@@ -70,14 +70,14 @@ ShellRoot {
                     {id: "c", listId: "home", title: "Child", position: "10", due: "", parent: "a", notes: ""},
                     {id: "d", listId: "work", title: "Work task", position: "10", due: "2026-12-01", parent: "", notes: ""}
                 ];
-                check(Tasks.rows.map(r => r.kind + ":" + r.id).join(",") === "header:home,task:a,subtask:c,task:b,header:work,task:d", "flat section model and manual order");
-                check(Tasks.sections[0].tasks[0].children[0].id === "c", "parent children");
+                check(Tasks.rows.map(r => r.kind + ":" + r.id).join(",") === "header:home,task:a,subtask:c,task:b,header:work,task:d,header:empty", "flat task list model and manual order");
+                check(Tasks.groupedLists[0].tasks[0].children[0].id === "c", "parent children");
                 check(Tasks.count === 2, "date based count excludes children and future tasks");
                 check(Tasks.dragRows.some(r => r.kind === "header" && r.id === "empty"), "empty drag destinations");
                 Tasks.run("work tomorrow new task");
-                check(Tasks.calls[0].url.includes("/lists/work/tasks") && Tasks.calls[0].body.title === "new task", "add routed to section");
+                check(Tasks.calls[0].url.includes("/lists/work/tasks") && Tasks.calls[0].body.title === "new task", "add routed to task list");
                 check(popup.auditList.count === Tasks.rows.length, "popup draws flat model");
-                check(Launcher.taskResults("").filter(r => r.kind === "task").map(r => r.task.id).join(",") === "a,c,b,d", "launcher section order");
+                check(Launcher.taskResults("").filter(r => r.kind === "task").map(r => r.task.id).join(",") === "a,c,b,d", "launcher task list order");
                 check(Launcher.taskResults("work fri call x")[0].subtitle.includes("Work"), "launcher add destination");
                 Tasks.calls = [];
                 const stableRows = Tasks.rows;
@@ -85,19 +85,19 @@ ShellRoot {
                 Tasks.calls[0].done({items: Tasks.lists});
                 check(Tasks.rows === stableRows, "unchanged list poll preserves row model");
                 Tasks.calls = [];
-                popup.auditReorder.queue = Tasks.dragRows;
+                popup.auditReorder.rows = Tasks.dragRows;
                 const firstIndex = Tasks.dragRows.findIndex(r => r.id === "a");
                 const workHeader = Tasks.dragRows.findIndex(r => r.kind === "header" && r.id === "work");
                 popup.moveRow(firstIndex, workHeader);
-                check(Tasks.sections[1].tasks.map(t => t.id).join(",") === "a,d", "dragging a parent past its children lands under the header");
+                check(Tasks.groupedLists[1].tasks.map(t => t.id).join(",") === "a,d", "dragging a parent past its children lands under the header");
                 Tasks.calls[0].failed("Test rollback", 400);
                 Tasks.calls = [];
-                popup.auditReorder.queue = Tasks.dragRows;
+                popup.auditReorder.rows = Tasks.dragRows;
                 const childIndex = Tasks.dragRows.findIndex(r => r.id === "c");
                 popup.moveRow(childIndex, childIndex);
                 check(Tasks.calls.length === 0 && Tasks.tasks.find(t => t.id === "c").parent === "a", "stationary hold preserves a subtask");
                 Tasks.move(Tasks.tasks.find(t => t.id === "b"), {list: "work", previous: "d"});
-                check(Tasks.sections[1].tasks.map(t => t.id).join(",") === "d,b", "optimistic cross section order");
+                check(Tasks.groupedLists[1].tasks.map(t => t.id).join(",") === "d,b", "optimistic cross task list order");
                 check(Tasks.calls[0].method === "POST" && Tasks.calls[0].body === null && Tasks.calls[0].url.includes("destinationTasklist=work") && Tasks.calls[0].url.includes("previous=d"), "move query and empty body");
                 Tasks.calls[0].failed("Recurring task cannot change lists", 400);
                 check(Tasks.ordered.map(t => t.id).join(",") === "a,c,b,d" && Tasks.trouble.includes("Recurring"), "failed move rolls back with trouble");
@@ -108,7 +108,7 @@ ShellRoot {
                 Tasks.calls[0].done({id: "b", position: "20"});
                 Tasks.calls = [];
                 Tasks.move(Tasks.tasks.find(t => t.id === "c"), {list: "home", parent: "", previous: "a"});
-                check(Tasks.sections[0].tasks.map(t => t.id).join(",") === "a,c", "subtask lifted to top level");
+                check(Tasks.groupedLists[0].tasks.map(t => t.id).join(",") === "a,c", "subtask lifted to top level");
                 Tasks.calls[0].done({id: "c", position: "20"});
                 Tasks.calls = [];
                 Tasks.move(Tasks.tasks.find(t => t.id === "a"), {list: "home", parent: "c"});
@@ -191,7 +191,7 @@ ShellRoot {
                 mousePress(popup.auditList, 25, y);
                 wait(550);
                 check(popup.auditReorder.dragging, "hold lifts task");
-                check(popup.auditReorder.queue.some(r => r.kind === "header" && r.id === "empty"), "hold reveals empty sections");
+                check(popup.auditReorder.rows.some(r => r.kind === "header" && r.id === "empty"), "hold reveals empty task lists");
                 check(popup.auditList.itemAtIndex(popup.auditReorder.from).height === popup.rowHeight, "held rows collapse to one line");
                 mouseMove(popup.auditList, 25, popup.auditList.height - 2);
                 wait(50);

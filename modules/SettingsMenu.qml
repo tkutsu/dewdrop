@@ -148,7 +148,7 @@ OverlayWindow {
                 {
                     title: "Tasks",
                     rows: [
-                        { type: "choice", id: "defaultTaskList", title: "Default section", text: "Tasks without a section word go here. If unavailable, the first list is used.", options: Tasks.lists.map(l => ({ value: l.id, label: l.title })), get: () => Tasks.defaultList.id, set: v => Settings.set("defaultTaskList", v) }
+                        { type: "dropdown", id: "defaultTaskList", title: "Default task list", text: "New tasks go here unless you name another task list. If unavailable, the first task list is used.", placeholder: "No task lists available", options: Tasks.lists.map(l => ({ value: l.id, label: l.title })), get: () => Tasks.defaultList.id, set: v => Settings.set("defaultTaskList", v) }
                     ]
                 }
             ]

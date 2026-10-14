@@ -44,14 +44,11 @@ PanelWindow {
     WlrLayershell.keyboardFocus: bar.keyed && bar.acquiringFocus ? WlrKeyboardFocus.Exclusive
         : bar.keyed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    Item {
+    PopupKeyRelay {
         id: keyReceiver
-        focus: true
         onActiveFocusChanged: if (activeFocus && bar.acquiringFocus)
             Qt.callLater(() => bar.acquiringFocus = false)
-        Keys.forwardTo: OpenPopup.keyed.length && OpenPopup.keyed[OpenPopup.keyed.length - 1].keyInput
-            ? [OpenPopup.keyed[OpenPopup.keyed.length - 1].keyInput] : []
-        Keys.onPressed: event => event.accepted = OpenPopup.key(event)
+        input: OpenPopup.keyed.length ? OpenPopup.keyed[OpenPopup.keyed.length - 1].keyInput : null
     }
 
     // Selection mode's keys while they are on the bar rather than in a popup
