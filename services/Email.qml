@@ -272,6 +272,7 @@ GoogleService {
             // The thread's newest message, read or not: where a star goes.
             last: messages[messages.length - 1]?.id ?? "",
             from: root.sayFrom(header(m, "from")),
+            address: root.addressOf(header(m, "from")),
             subject: header(m, "subject").trim() || "(no subject)",
             snippet: root.unentity(listed.snippet ?? ""),
             at: Number(m?.internalDate ?? 0),
@@ -293,6 +294,32 @@ GoogleService {
         if (!m)
             return from.trim();
         return m[1].trim() !== "" ? m[1].trim() : m[2].trim();
+    }
+
+    // "Ann Example <ann@example.com>" → "ann@example.com"; a bare address
+    // as it came.
+    function addressOf(from: string): string {
+        const m = from.match(/<([^>]+)>/);
+        return (m ? m[1] : from).trim().toLowerCase();
+    }
+
+    // The monogram's letters: the first of the first two words of the name,
+    // or the address's first letter when there is no name. Words without a
+    // letter in them ("Ann | Example Ltd") are skipped. A letter is told by
+    // having a case, which QML's regular expressions cannot say directly
+    // (no \p{L}), plus digits and the scripts that have no case.
+    function initials(name: string): string {
+        const lettered = c => /[0-9぀-ヿ㐀-鿿가-힯]/.test(c) || c.toLowerCase() !== c.toUpperCase();
+        const words = name.replace(/@.*$/, "").split(/[\s._-]+/).map(w => Array.from(w).find(lettered) ?? "").filter(c => c !== "");
+        return words.slice(0, 2).join("").toLocaleUpperCase();
+    }
+
+    // Which of Theme.monogramTones a sender wears, the same every time.
+    function toneOf(address: string, tones: int): int {
+        let h = 0;
+        for (const c of address)
+            h = (h * 31 + c.codePointAt(0)) >>> 0;
+        return h % tones;
     }
 
     // Gmail sends the snippet HTML-escaped, apostrophes included.
