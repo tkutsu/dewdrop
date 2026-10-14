@@ -414,6 +414,7 @@ Popup {
             height: (lines.implicitHeight + root.rowPad * 2) * (1 - row.gone)
             clip: row.leaving
             held: row.swiping
+            slide: row.swipe
 
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: {
