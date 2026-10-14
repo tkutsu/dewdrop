@@ -212,11 +212,18 @@ ShellRoot {
         WallpaperPopup { id: popup; x: 12; y: 12 }
         TestCase { id: test; when: false
             function check(ok, message) { if (!ok) throw new Error(message); }
+            function bounds(item) {
+                const a = item.mapToItem(popup, 0, 0), b = item.mapToItem(popup, item.width, item.height);
+                return Qt.rect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+            }
             function buttons(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
                 if (item.fullHeight !== undefined) found.framing = item;
                 if (item.cursorShape === Qt.OpenHandCursor) found.frameArea = item;
                 if (item.snapMode !== undefined && item.cellWidth !== undefined) found.grid = item;
+                if (item.name === 'Parallax zoom' && item.moved !== undefined) found.zoom = item;
+                if (item.text?.endsWith('%')) found.readout = item;
+                if (item.text === 'Parallax zoom') found.zoomLabel = item;
                 for (const child of item.children) buttons(child, found);
             }
             function run() {
@@ -235,6 +242,27 @@ ShellRoot {
                 const framing = controls.framing, area = controls.frameArea;
                 tryVerify(() => framing.height === framing.fullHeight && framing.opacity === 1, 1000);
                 check(waitForPolish(fixtureWindow), 'framing layout settles before measuring the reserved height');
+                const zoom = controls.zoom, readout = controls.readout;
+                check(zoom && readout && !controls.zoomLabel, 'zoom shows only its percentage');
+                const track = bounds(zoom), picture = bounds(area);
+                check(Math.abs(picture.x + picture.width / 2 - popup.width / 2) < 0.5, 'wallpaper preview itself is centered');
+                check(track.height > track.width && track.x > picture.x + picture.width, 'zoom track is vertical to the right of the preview');
+                check(track.x + track.width <= popup.width - 6, 'zoom track fits the wallpaper popup');
+                const hint = bounds(readout);
+                const knob = zoom.mapToItem(popup, zoom.knobX, zoom.height / 2);
+                check(hint.x > track.x + track.width && Math.abs(hint.y + hint.height / 2 - knob.y) < 0.5 && readout.text === '108%', 'zoom percentage sits beside the knob');
+                check(readout.font.pixelSize === Theme.footnoteSize && ['r', 'g', 'b', 'a'].every(k => Math.abs(readout.color[k] - Theme.label2[k]) < 1 / 255), 'zoom percentage uses the gray hint style');
+                check(hint.x + hint.width <= popup.width - 6, 'zoom hint fits the wallpaper popup');
+                const originalZoom = Settings.wallpaperParallaxZoom;
+                mouseClick(zoom, zoom.width - 1, zoom.height / 2);
+                check(readout.text === '130%' && framing.zoom === 1.3, 'top of vertical track previews maximum zoom');
+                check(bounds(readout).y < hint.y && bounds(readout).y >= picture.y, 'zoom percentage follows the knob upward and stays inside the preview');
+                tryCompare(Settings, 'wallpaperParallaxZoom', 1.3, 1000);
+                mouseClick(zoom, 1, zoom.height / 2);
+                tryCompare(Settings, 'wallpaperParallaxZoom', 1, 1000);
+                check(readout.text === '100%', 'bottom of vertical track selects minimum zoom');
+                check(bounds(readout).y > hint.y && bounds(readout).y + readout.height <= picture.y + picture.height, 'zoom percentage follows the knob downward and stays inside the preview');
+                Settings.set('wallpaperParallaxZoom', originalZoom);
                 const reserved = popup.reserveHeight;
                 check(framing.mapToItem(popup, 0, 0).y > controls.parallax.mapToItem(popup, 0, controls.parallax.height).y, 'framing opens under the parallax button');
                 mouseClick(area, area.width / 2, area.height * 0.25);
@@ -244,6 +272,7 @@ ShellRoot {
                 check(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'the framing leaves the wheel alone');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
                 tryVerify(() => framing.height === 0, 1000);
+                check(!zoom.visible, 'zoom control hides with the parallax preview');
                 check(waitForPolish(fixtureWindow), 'closed framing layout settles');
                 check(popup.reserveHeight === reserved, 'closing the framing keeps the window its size');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
@@ -272,6 +301,10 @@ ShellRoot {
                 Wallpaper.files = [];
                 wait(30);
                 check(popup.bodyWidth >= 320 && controls.parallax.width < popup.bodyWidth / 2, 'empty library retains readable section headers');
+                popup.screen = { width: 3440, height: 1440 };
+                wait(30);
+                check(bounds(zoom).x + bounds(zoom).width <= popup.width - 6 && bounds(area).x >= 6, 'ultrawide preview and zoom fit the narrow popup');
+                check(Math.abs(bounds(area).x + area.width / 2 - popup.width / 2) < 0.5, 'ultrawide preview stays centered');
                 console.log('PASS: wallpaper popup layout, pointer toggles and checkmarks');
             }
         }
@@ -365,11 +398,12 @@ import QtQuick
 import Quickshell
 QtObject {
     readonly property string wallpaperDir: Quickshell.shellPath('wallpapers')
-    readonly property real wallpaperParallaxZoom: 1.08
+    property real wallpaperParallaxZoom: 1.08
     readonly property string font: 'Sans'
     readonly property string monoFont: 'Monospace'
     property bool reduceMotion: false
     property bool reduceTransparency: false
+    function set(key, value) { this[key] = value; }
     function inTerminal(command) { return command; }
 }
 """)

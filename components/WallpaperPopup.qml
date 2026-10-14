@@ -307,14 +307,15 @@ Popup {
     // Where the parallax crop sits: the picture as the zoom frames it, with a
     // frame round the part on screen. Pressing or dragging puts the frame's
     // height where the pointer is; across is the workspace's to set. It takes
-    // no wheel, which in this popup only ever scrolls the thumbnails.
+    // no wheel, leaving those events to thumbnail scrolling.
     component Framing: Item {
         id: framing
 
         readonly property bool shown: Wallpaper.parallax && Wallpaper.current !== ""
-        readonly property real previewHeight: 144
+        readonly property real previewWidth: Math.min(Math.round(144 / root.screenAspect), width - 2 * (zoomControl.width + root.spacing))
+        readonly property real previewHeight: Math.round(previewWidth * root.screenAspect)
         readonly property real fullHeight: framing.previewHeight + root.spacing
-        readonly property real zoom: Settings.wallpaperParallaxZoom
+        readonly property real zoom: isNaN(zoomControl.draft) ? Settings.wallpaperParallaxZoom : zoomControl.draft
         readonly property real across: Wallpaper.backdrops[root.screen?.name]?.pan.fraction ?? 0.5
 
         width: root.bodyWidth
@@ -340,7 +341,7 @@ Popup {
 
             x: (root.bodyWidth - width) / 2
             y: root.spacing
-            width: Math.round(framing.previewHeight / root.screenAspect)
+            width: framing.previewWidth
             height: framing.previewHeight
 
             // The rest of the picture, dimmed: in reach, but not on screen.
@@ -394,6 +395,62 @@ Popup {
                 onPositionChanged: mouse => {
                     if (pressed)
                         seek(mouse.y);
+                }
+            }
+        }
+
+        Item {
+            id: zoomControl
+
+            x: preview.x + preview.width + root.spacing
+            y: preview.y
+            width: 14 + 4 + readout.implicitWidth
+            height: preview.height
+            visible: framing.shown
+            property real draft: NaN
+
+            // Keep the preview responsive while batching writes to settings.
+            Component.onDestruction: if (commit.running) commit.triggered()
+
+            Item {
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 14
+
+                Slider {
+                    id: zoomSlider
+
+                    name: "Parallax zoom"
+                    anchors.centerIn: parent
+                    width: parent.height
+                    rotation: -90
+                    value: (framing.zoom - 1) / 0.3
+                    wheelStep: 1 / 30
+                    onMoved: v => {
+                        zoomControl.draft = Number((1 + Math.round(v * 30) * 0.01).toFixed(2));
+                        commit.restart();
+                    }
+                }
+            }
+
+            PopupText {
+                id: readout
+
+                anchors.right: parent.right
+                y: Math.max(0, Math.min(parent.height - height, parent.height - zoomSlider.knobX - height / 2))
+                text: Math.round(framing.zoom * 100) + "%"
+                color: Theme.label2
+                font.pixelSize: Theme.footnoteSize
+            }
+
+            Timer {
+                id: commit
+
+                interval: 400
+                onTriggered: {
+                    if (zoomControl.draft !== Settings.wallpaperParallaxZoom)
+                        Settings.set("wallpaperParallaxZoom", zoomControl.draft);
+                    zoomControl.draft = NaN;
                 }
             }
         }
