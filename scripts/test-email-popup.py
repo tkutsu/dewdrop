@@ -28,7 +28,7 @@ ShellRoot {
         return Email.rowOf({id: id, snippet: "The opening of " + subject.toLowerCase() + ", and on it goes"}, {messages: [{
             id: "m" + id, internalDate: String(at),
             labelIds: starred ? ["UNREAD", "STARRED"] : ["UNREAD"],
-            payload: {headers: [{name: "From", value: from}, {name: "Subject", value: subject}]}
+            payload: {headers: [{name: "From", value: from}, {name: "Subject", value: subject}, {name: "List-Unsubscribe", value: id === "b" ? "<https://list.example/u>" : ""}, {name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click"}]}
         }]});
     }
 
@@ -69,6 +69,7 @@ ShellRoot {
             mail("c", now - 86400000 * 2, "GitHub <noreply@github.com>", "Your verification code", false)
         ];
         Email.bodies = {ma: "Shall we? Twelve thirty at the usual place.", mb: "Τα άφησα στο γραφείο.", mc: "Code 123456"};
+        Email.files = {mb: [{id: "f1", name: "κλειδιά-φωτογραφία.jpg", size: 1843200, type: "image/jpeg"}, {id: "f2", name: "notes.txt", size: 812, type: "text/plain"}]};
         Email.total = 3;
         Email.otherThreads = [mail("x", now - 7200000, "Shop <news@shop.example>", "Autumn sale", false)];
         Email.other = 1;

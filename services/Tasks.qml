@@ -463,7 +463,7 @@ GoogleService {
         return true;
     }
 
-    function add(title: string, day: string, list: string): void {
+    function add(title: string, day: string, list: string, notes: string): void {
         if (title.trim() === "")
             return;
         list = list || root.defaultList.id;
@@ -472,6 +472,8 @@ GoogleService {
         };
         if (day !== "")
             body.due = day + "T00:00:00.000Z";
+        if (notes !== "")
+            body.notes = notes;
         root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks());
     }
 
@@ -590,7 +592,7 @@ GoogleService {
             Agenda.insert(p.event);
             return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} at ${Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes())}`;
         }
-        root.add(p.task.title, p.task.day, p.task.list);
+        root.add(p.task.title, p.task.day, p.task.list, "");
         return p.task.day === "" ? `Added ${p.task.title}` : `Added ${p.task.title} for ${root.sayDay(p.task.day)}`;
     }
 
