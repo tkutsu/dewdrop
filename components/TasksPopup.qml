@@ -134,6 +134,7 @@ Popup {
         clip: true
         interactive: contentHeight > height
         boundsBehavior: Flickable.StopAtBounds
+        SmoothScroll { view: list }
         layer.enabled: contentHeight > height
         layer.effect: ScrollEdges { view: list }
         Accessible.role: Accessible.List
