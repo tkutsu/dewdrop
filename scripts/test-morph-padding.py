@@ -34,9 +34,9 @@ ShellRoot {
                 id: glass; anchors.fill: parent
                 box0: Qt.vector4d(200, Theme.barInset, 50, Theme.barHeight)
                 box1: bar.morph(Qt.vector4d(80, Theme.barInset, 100, Theme.barHeight), capture.progress)
-                box2: Qt.vector4d(250, Theme.barInset, 50, Theme.barHeight)
-                box3: bar.morph(Qt.vector4d(360, Theme.barInset, 100, Theme.barHeight), capture.progress)
-                reaches: Qt.vector4d(0, 0, 16, 0)
+                box2: bar.morph(Qt.vector4d(360, Theme.barInset, 100, Theme.barHeight), capture.progress)
+                box3: Qt.vector4d(250, Theme.barInset, 50, Theme.barHeight)
+                reaches: Qt.vector4d(0, 0, 0, 16)
                 fill: Qt.vector4d(1,0,0,1)
                 rimTop: Qt.vector4d(1,0,0,1); rimBottom: rimTop
                 Component.onCompleted: if ("overflow" in glass) glass.overflow = OVERFLOW
@@ -81,8 +81,8 @@ def main():
         frames = {i: Image.open(target / f"frame-{i}.png").convert("RGBA") for i in range(6)}
         y = 37
         checks = {
-            "music and timer stay above padding before sinking": all(frames[0].getpixel((x, y))[3] == 0 for x in (130, 410)),
-            "music and timer cross padding while still gathering": all(frames[1].getpixel((x, y))[3] > 200 for x in (130, 410)),
+            "recording and music stay above padding before sinking": all(frames[0].getpixel((x, y))[3] == 0 for x in (130, 410)),
+            "recording and music cross padding while still gathering": all(frames[1].getpixel((x, y))[3] > 200 for x in (130, 410)),
             "formed drops remain visible in padding": all(frames[2].getpixel((x, y))[3] > 200 for x in (130, 410)),
             "drops continue through padding before disappearing": all(frames[3].getpixel((x, y))[3] > 200 for x in (130, 410)),
             "completed morph removes both drops": all(frames[4].getpixel((x, y))[3] == 0 for x in (130, 410)),

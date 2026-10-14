@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Browse real morph popups using the music and timer pill bindings from Bar."""
+"""Browse morph popups using the music, timer and recording pill bindings from Bar."""
 
 import os
 from pathlib import Path
@@ -17,16 +17,17 @@ def main():
     source = (ROOT / "Bar.qml").read_text()
     functions = '    readonly property var drops: Drops.geometry(Theme)\n    function morph(box, s) { return bar.drops.morph(box, s); }\n    function morphContents(s) { return bar.drops.morphContents(s); }'
     pills = []
-    for name in ("music", "countdown"):
+    for name in ("music", "countdown", "recording"):
+        offset = {"music": 100, "countdown": 350, "recording": 600}[name]
         block = source.split(f"id: {name}Pill", 1)[1].split(f"id: {name}\n", 1)[0]
         bindings = "\n".join(line for line in block.splitlines() if re.match(
-            r"\s*(contentOpacity|contentScale|contentSink|interactive|trackReady):", line))
+            r"\s*(morphValue|contentOpacity|contentScale|contentSink|interactive|trackReady):", line))
         pills.append(f"""
         Morph {{ id: {name}Morph; open: {name}.popupOpen }}
         SidePill {{
-            control: {name}; morphValue: {name}Morph.value
+            control: {name}
             id: {name}Pill; drawsSlab: false; side: Pill.Side.Left
-            edgeOffset: {100 if name == 'music' else 350}
+            edgeOffset: {offset}
             {bindings}
             BarItem {{
                 id: {name}
@@ -43,7 +44,7 @@ import qs.components
 import "Drops.js" as Drops
 ShellRoot {
     FloatingWindow {
-        id: bar; implicitWidth: 700; implicitHeight: 100
+        id: bar; implicitWidth: 850; implicitHeight: 100
         function contents(reveal) { return 1; }
         FUNCTIONS
         Item { id: ordinary; width: 30; height: 40 }
@@ -80,6 +81,8 @@ ShellRoot {
                 shown(musicPill, music, musicMorph, "music");
                 browse(countdown);
                 shown(countdownPill, countdown, countdownMorph, "timer");
+                browse(recording);
+                shown(recordingPill, recording, recordingMorph, "recording");
                 browse(music);
                 shown(musicPill, music, musicMorph, "return to music");
                 OpenPopup.dismiss(); wait(600);
@@ -97,6 +100,14 @@ ShellRoot {
                 wait(800);
                 check(countdownMorph.value === 0, "departing direct timer morph restores its pill");
                 OpenPopup.dismiss(); wait(600);
+                recording.togglePopup(); wait(900);
+                check(recordingMorph.value === 2 && recording.popupItem?.morphRun,
+                      "direct recording opening morphs pill into popup");
+                check(recordingPill.contentOpacity === 0 && !recordingPill.enabled,
+                      "recording pill contents and hit target follow its morph");
+                OpenPopup.dismiss(); wait(800);
+                check(recordingMorph.value === 0 && recordingPill.contentOpacity === 1,
+                      "closing recording popup restores the pill");
                 Settings.user = Object.assign({}, Settings.user, {reduceMotion: true});
                 OpenPopup.set(ordinary);
                 browse(countdown);
@@ -107,6 +118,11 @@ ShellRoot {
                       "direct opening with reduced motion still skips animation");
                 OpenPopup.dismiss(); wait(150);
                 check(countdownMorph.value === 0, "reduced motion restores pill immediately");
+                recording.togglePopup(); wait(150);
+                check(recordingMorph.value === 2 && !recording.popupItem?.morphRun,
+                      "recording skips animation with reduced motion");
+                OpenPopup.dismiss(); wait(150);
+                check(recordingMorph.value === 0, "reduced motion restores recording immediately");
                 console.log(failures ? "FAILED: popup browsing morph" : "PASS: popup browsing morph complete");
             }
         }
@@ -136,7 +152,7 @@ ShellRoot {
         for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
             env.pop(key, None)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env,
-                                capture_output=True, text=True, timeout=15)
+                                capture_output=True, text=True, timeout=20)
         output = result.stdout + result.stderr
         print("\n".join(line for line in output.splitlines() if "qml:" in line or "ERROR" in line))
         ok = result.returncode == 0 and "PASS: popup browsing morph complete" in output and "FAIL:" not in output
