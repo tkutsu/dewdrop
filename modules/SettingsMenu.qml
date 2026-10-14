@@ -190,14 +190,8 @@ OverlayWindow {
             ]
         },
         {
-            title: "Appearance",
+            title: "Accessibility",
             sections: [
-                {
-                    title: "Wallpaper",
-                    rows: [
-                        { type: "slider", id: "wallpaperParallaxZoom", title: "Parallax zoom", text: "How far the picture is enlarged to leave it room to pan as you change workspace. 1× turns the motion off.", from: 1, to: 1.3, step: 0.01, format: v => v.toFixed(2) + "×", get: () => Settings.wallpaperParallaxZoom, set: v => Settings.set("wallpaperParallaxZoom", v) }
-                    ]
-                },
                 {
                     title: "Display",
                     rows: [
@@ -225,12 +219,7 @@ OverlayWindow {
                     title: "Power",
                     text: "Lock, sleep, restart and the rest, found by typing their names.",
                     rows: root.powerRows
-                }
-            ]
-        },
-        {
-            title: "Apps",
-            sections: [
+                },
                 {
                     title: "Apps",
                     text: "Off leaves an app, or one of its own actions, out of the launcher's results. Nothing is uninstalled, and its desktop file is left alone.",
