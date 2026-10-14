@@ -6,7 +6,7 @@ import qs.services
 // Unread mail in the Primary tab, newest first, as a list to clear rather than
 // one to read: every row carries its three verbs (archive, mark read, star),
 // which take over the time column under the pointer, and every verb can be
-// taken back from the foot for a few seconds (Email.act). A click on a row
+// taken back from the header for a few seconds (Email.act). A click on a row
 // opens it in place to be read; its foot holds the rest (open in Gmail). Acting
 // on the open mail opens the next one. The rest of the inbox's unread is one
 // folded row at the end. The plus at the header's right end writes a new one.
@@ -48,15 +48,8 @@ Popup {
     readonly property int railWidth: 12
     // The open mail's foot under its text: its buttons and the gap above.
     readonly property int footHeight: 26
-    // The undo line at the popup's foot, held in the window's height whether
-    // it shows or not, so it comes and goes without a resize.
-    readonly property int undoHeight: 30
+    // The latest action still waiting, taken back by the header's undo.
     readonly property var lastAction: Email.pending[Email.pending.length - 1] ?? null
-    // Its words, kept while the line folds away rather than going blank
-    // under it.
-    property string lastSaid: ""
-    onLastActionChanged: if (root.lastAction)
-        root.lastSaid = root.lastAction.said
 
     // Measure the closed rows directly: subtracting animated heights from
     // the Column's delayed layout makes the reserved window size fluctuate.
@@ -79,10 +72,10 @@ Popup {
     reserveHeight: {
         let h = root.vPadding + root.bottomPadding + Math.min(root.collapsedListHeight + root.bodyMax + 13 + root.footHeight, root.listMax);
         for (const item of root.content) {
-            if (item !== threadList && item !== undoSlot && item.visible)
+            if (item !== threadList && item.visible)
                 h += item.height + root.spacing;
         }
-        return h + root.undoHeight;
+        return h;
     }
 
     // The text of every row on show, asked for as the popup opens, so a row
@@ -179,6 +172,16 @@ Popup {
         ReconnectButton {}
 
         RetryButton { service: Email }
+
+        // Takes back the latest action still waiting.
+        PopupButton {
+            visible: root.lastAction !== null
+            framed: true
+            glyph: Theme.glyph.undo
+            label: "undo"
+            name: root.lastAction ? `Undo: ${root.lastAction.said}` : "Undo"
+            onTapped: Email.undo()
+        }
     }
 
     // What went wrong since the list loaded. Before that, the line below
@@ -311,47 +314,6 @@ Popup {
         }
     }
 
-    // The latest action still waiting, and the way to take it back. It
-    // folds in under the list, in room the window keeps for it anyway.
-    Item {
-        id: undoSlot
-
-        width: root.bodyWidth
-        height: root.lastAction ? root.undoHeight : 0
-        visible: height > 0
-        clip: true
-
-        Behavior on height {
-            NumberAnimation {
-                duration: Theme.foldMs
-                easing.type: Easing.InOutCubic
-            }
-        }
-
-        Row {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: root.undoHeight - height - 4
-            spacing: 8
-
-            PopupText {
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.lastSaid
-                font.pixelSize: Theme.footnoteSize
-                color: Theme.label2
-            }
-
-            PopupButton {
-                anchors.verticalCenter: parent.verticalCenter
-                framed: true
-                glyph: Theme.glyph.undo
-                label: "undo"
-                name: "Undo"
-                live: root.lastAction !== null
-                onTapped: Email.undo()
-            }
-        }
-    }
-
     Component {
         id: mailRow
 
@@ -472,7 +434,7 @@ Popup {
                 width: Math.abs(row.swipe)
                 height: row.height
                 radius: Theme.selectionRadius
-                color: row.swipe < 0 ? Theme.swipeArchive : Theme.swipeRead
+                color: Theme.swipeFill
                 opacity: row.armed ? 1 : 0.6
                 clip: true
 
