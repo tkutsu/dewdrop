@@ -41,6 +41,9 @@ STATE = '''
     property int total: 0
     property int other: 0
     property var otherThreads: []
+    property var files: ({})
+    property var saving: ({})
+    property string web: "https://mail.google.com/mail/u/0/"
     property real newestSeen: -1
     property bool popupOpen: false
     signal summoned
@@ -984,6 +987,108 @@ class EmailTests(unittest.TestCase):
         self.seed(['a', 'b'])
         self.js('sut.act("archive", sut.threads[0]); sut.markRead(sut.threads[0]);')
         self.check('Notifications.withdrawn.join() === "x-gmail-thread=a,x-gmail-thread=b"')
+
+    # --- the open mail's foot -------------------------------------------------
+
+    def test_attachments_leave_out_images_placed_in_the_text(self):
+        payload = {'mimeType': 'multipart/mixed', 'parts': [
+            {'mimeType': 'multipart/related', 'parts': [
+                {'mimeType': 'text/html', 'body': {'data': encoded('<p>Hi</p>')}},
+                {'mimeType': 'image/png', 'filename': 'logo.png', 'body': {'attachmentId': 'logo', 'size': 900},
+                 'headers': [{'name': 'Content-ID', 'value': '<logo@x>'}, {'name': 'Content-Disposition', 'value': 'inline; filename="logo.png"'}]},
+            ]},
+            {'mimeType': 'application/pdf', 'filename': 'report.pdf', 'body': {'attachmentId': 'pdf', 'size': 245760},
+             'headers': [{'name': 'Content-Disposition', 'value': 'attachment; filename="report.pdf"'}]},
+            # A picture sent inline but with no Content-ID is still a file.
+            {'mimeType': 'image/jpeg', 'filename': 'photo.jpg', 'body': {'attachmentId': 'jpg', 'size': 3 * 1048576},
+             'headers': [{'name': 'Content-Disposition', 'value': 'inline'}]},
+            {'mimeType': 'text/plain', 'body': {'data': encoded('no file')}},
+        ]}
+        parts = json.loads(self.js('return JSON.stringify(sut.partsOf(' + json.dumps(payload) + '));'))
+        self.assertEqual([p['name'] for p in parts], ['report.pdf', 'photo.jpg'])
+        self.assertEqual(parts[0], {'id': 'pdf', 'name': 'report.pdf', 'size': 245760, 'type': 'application/pdf'})
+        self.check('sut.partsOf(null).length === 0')
+        self.check('sut.sayFile({name:"report.pdf", size:245760}) === "report.pdf · 240 KB"')
+        self.check('sut.sayFile({name:"a.txt", size:12}) === "a.txt · 12 B"')
+        self.check('sut.sayFile({name:"photo.jpg", size:3*1048576}) === "photo.jpg · 3.0 MB"')
+        self.check('sut.sayFile({name:"a-very-long-file-name-from-the-scanner.pdf", size:2048}) === "a-very-long-file-n…nner.pdf · 2 KB"')
+
+    def test_body_read_collects_the_files(self):
+        self.js('''
+            sut.read({messages:[{id:"m",snippet:"s"}]});
+            sut.reply({payload:{mimeType:"multipart/mixed",parts:[
+                {mimeType:"text/plain",body:{data:"SGVsbG8"}},
+                {mimeType:"application/pdf",filename:"a.pdf",body:{attachmentId:"x",size:10}}]}});
+        ''')
+        self.check('sut.files.m.length === 1 && sut.files.m[0].name === "a.pdf" && sut.bodies.m === "Hello"')
+        self.js('sut.read({messages:[{id:"n",snippet:"s"}]}); sut.reply({payload:{mimeType:"text/plain",body:{data:"SGVsbG8"}}});')
+        self.check('sut.files.n === undefined')
+
+    def test_unsubscribe_header_shapes(self):
+        cases = [
+            ('<mailto:leave@list.example>, <https://list.example/u?id=1>', 'List-Unsubscribe=One-Click', {'url': 'https://list.example/u?id=1', 'oneClick': True}),
+            ('<https://list.example/u?id=1>', '', {'url': 'https://list.example/u?id=1', 'oneClick': False}),
+            ('<https://a.example/u>,\r\n <https://b.example/u>', 'list-unsubscribe = one-click', {'url': 'https://a.example/u', 'oneClick': True}),
+            ('< https://list.example/u >', '', {'url': 'https://list.example/u', 'oneClick': False}),
+            ('<mailto:leave@list.example?subject=unsubscribe>', 'List-Unsubscribe=One-Click', None),
+            ('<http://list.example/u>', '', None),
+            ('https://list.example/u', '', None),
+            ('', '', None),
+        ]
+        for header, post, expected in cases:
+            with self.subTest(header=header):
+                got = json.loads(self.js('return JSON.stringify(sut.unsubscribeOf(%s, %s));' % (json.dumps(header), json.dumps(post))))
+                self.assertEqual(got, expected)
+
+    def test_rows_read_their_unsubscribe_headers(self):
+        self.check('sut.headersUrl("t").includes("metadataHeaders=List-Unsubscribe&metadataHeaders=List-Unsubscribe-Post")')
+        self.js('''sut.found = sut.rowOf({id:"t"}, {messages:[{id:"m",internalDate:"1",labelIds:["UNREAD"],payload:{headers:[
+            {name:"List-Unsubscribe",value:"<https://shop.example/u>"},{name:"List-Unsubscribe-Post",value:"List-Unsubscribe=One-Click"}]}}]});''')
+        self.check('sut.found.unsubscribe.url === "https://shop.example/u" && sut.found.unsubscribe.oneClick')
+
+    def test_mail_to_task_waits_with_its_archive(self):
+        tasks = self.create('import QtQuick\nQtObject { property var added: []; function add(title, day, list, notes) { added = added.concat([[title, day, list, notes]]); } }')
+        self.engine.rootContext().setContextProperty('Tasks', tasks)
+        self.addCleanup(self.engine.rootContext().setContextProperty, 'Tasks', None)
+        self.seed(['a'])
+        self.js('sut.threads = [Object.assign({}, sut.threads[0], {from: "Ann", address: "ann@x.com", subject: "Lunch?"})];')
+        self.js('sut.act("archive", sut.threads[0], {said: "Task made", also: sut.makeTask}); sut.undo(); sut.flush();')
+        self.check('Tasks.added.length === 0 && sut.requests.length === 0')
+        self.js('sut.act("archive", sut.threads[0], {said: "Task made", also: sut.makeTask}); sut.flush();')
+        self.check('Tasks.added.length === 1 && sut.requests.length === 1')
+        self.check('JSON.stringify(Tasks.added[0]) === JSON.stringify(["Lunch?", "", "", "Ann <ann@x.com>\\n" + sut.web + "#all/a"])')
+
+    def test_one_click_unsubscribe_posts_without_the_token(self):
+        http = self.create('import QtQuick\nQtObject { property var sent: []; function request(method, url, body, headers, timeout, ok, failed) { sent = sent.concat([{method: method, url: url, body: body, headers: headers}]); ok({status: 200}); } }')
+        self.engine.rootContext().setContextProperty('Http', http)
+        self.addCleanup(self.engine.rootContext().setContextProperty, 'Http', None)
+        self.seed(['a'])
+        self.js('sut.threads = [Object.assign({}, sut.threads[0], {unsubscribe: {url: "https://shop.example/u", oneClick: true}})];')
+        self.js('sut.act("archive", sut.threads[0], {said: "Unsubscribed", also: sut.unsubscribe});')
+        self.check('Http.sent.length === 0')
+        self.js('sut.flush();')
+        self.check('Http.sent.length === 1 && Http.sent[0].method === "POST" && Http.sent[0].url === "https://shop.example/u"')
+        self.check('Http.sent[0].body === "List-Unsubscribe=One-Click" && Object.keys(Http.sent[0].headers).join() === "Content-Type"')
+        self.check('sut.requests.length === 1 && sut.trouble === ""')
+
+    def test_open_mail_foot_offers_what_the_mail_allows(self):
+        self.mail_rows(['a', 'b'])
+        self.js('''
+            sut.threads = [Object.assign({}, sut.threads[0], {unsubscribe: {url: "https://shop.example/u", oneClick: true}}), sut.threads[1]];
+            sut.files = {ma: [{id: "x", name: "report.pdf", size: 2048, type: "application/pdf"}]};
+        ''')
+        popup, window = self.build_popup(fold_ms=0)
+        self.js('popup.expanded = "a";')
+        QTest.qWait(40)
+        row = self.js('return popup.testList.itemAt(0);')
+        unsubscribe = self.button(row, 'Unsubscribe')
+        self.assertTrue(unsubscribe.isVisible())
+        self.button(row, 'Save report.pdf')
+        self.click(window, self.button(row, 'Make a task'))
+        self.check('sut.pending.length === 1 && sut.pending[0].said === "Task made" && sut.pending[0].also === sut.makeTask')
+        self.check('popup.expanded === "b"')
+        row = self.js('return popup.testList.itemAt(0);')
+        self.assertFalse(self.button(row, 'Unsubscribe').isVisible())
 
     def test_real_text_control_selection_copy_and_links(self):
         # Keep the real popup control; intercept the external browser boundary.
