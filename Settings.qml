@@ -43,6 +43,7 @@ Singleton {
     readonly property var hiddenApps: root.values.hiddenApps ?? []
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
+    readonly property var mailCategories: root.values.mailCategories ?? []
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
     readonly property bool reduceMotion: root.values.reduceMotion === true

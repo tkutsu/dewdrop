@@ -154,4 +154,9 @@
     // reconnect in any of their popups.
     // Default task list ID for new tasks. Leave empty to use the first task list.
     "defaultTaskList": "",
+
+    // The Gmail inbox tabs whose unread the mail badge counts and the popup
+    // lists: any of "primary", "updates", "promotions", "social", "forums".
+    // The rest folds into one Other row. Empty: the whole inbox's unread.
+    "mailCategories": [],
 }

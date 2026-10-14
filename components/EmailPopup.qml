@@ -3,13 +3,13 @@ import qs
 import qs.components
 import qs.services
 
-// Unread mail in the Primary tab, newest first, as a list to clear rather than
+// Unread mail, newest first, as a list to clear rather than
 // one to read: every row carries its three verbs (archive, mark read, star),
 // which take over the time column under the pointer, and every verb can be
 // taken back from the header for a few seconds (Email.act). A click on a row
 // opens it in place to be read; its foot holds the rest (open in Gmail). Acting
-// on the open mail opens the next one. The rest of the inbox's unread is one
-// folded row at the end. The plus at the header's right end writes a new one.
+// on the open mail opens the next one. Unread in the inbox tabs that do not
+// count (Settings.mailCategories) is one folded row at the end. The plus at the header's right end writes a new one.
 //
 // Two lines a row beside the sender's monogram, the way Gmail's list reads:
 // the sender and the time, then the subject with as much of the opening as
@@ -175,6 +175,7 @@ Popup {
 
         // Takes back the latest action still waiting.
         PopupButton {
+            id: undoButton
             visible: root.lastAction !== null
             framed: true
             glyph: Theme.glyph.undo

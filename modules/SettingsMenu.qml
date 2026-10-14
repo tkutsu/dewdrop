@@ -129,6 +129,14 @@ OverlayWindow {
 
     readonly property var powerRows: Launcher.powerCommands.map(p => root.shownInLauncher("power:" + p.key, p.name ?? (p.label[0].toUpperCase() + p.label.slice(1)), { glyph: p.glyph }))
 
+    // Gmail's inbox tabs, by the names its search takes (category:updates).
+    readonly property var mailRows: [["primary", "Primary"], ["updates", "Updates"], ["promotions", "Promotions"], ["social", "Social"], ["forums", "Forums"]].map(([key, title]) => ({
+                type: "toggle", id: "mail:" + key, title, get: () => Settings.mailCategories.includes(key), set: v => {
+                    if (v !== Settings.mailCategories.includes(key))
+                        Settings.toggleIn("mailCategories", key);
+                }
+            }))
+
     readonly property var pages: [
         {
             title: "Bar",
@@ -186,6 +194,16 @@ OverlayWindow {
                         { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
                         { type: "choice", id: "dateCase", title: "Date letter case", text: "Change the case of weekday and month names in the bar.", options: [{ value: "normal", label: "Normal" }, { value: "capitalize", label: "Capitalized" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
                     ]
+                }
+            ]
+        },
+        {
+            title: "Mail",
+            sections: [
+                {
+                    title: "Inbox tabs",
+                    text: "The tabs whose unread mail the badge counts, the popup lists and new-mail cards announce. The rest folds into one Other row. None on: all unread mail in the inbox.",
+                    rows: root.mailRows
                 }
             ]
         },
