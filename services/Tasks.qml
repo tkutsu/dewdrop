@@ -106,8 +106,8 @@ GoogleService {
             out.push({ kind: "header", id: list.id, title: list.title, listId: list.id });
             for (const task of list.tasks) {
                 out.push(Object.assign({}, task, { kind: "task" }));
-                for (const child of task.children)
-                    out.push(Object.assign({}, child, { kind: "subtask", children: [] }));
+                task.children.forEach((child, i) =>
+                    out.push(Object.assign({}, child, { kind: "subtask", children: [], number: i + 1 })));
             }
         }
         return out;

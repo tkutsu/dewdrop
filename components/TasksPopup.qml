@@ -22,7 +22,9 @@ Popup {
     readonly property int dotLeft: 5
     readonly property int indentThreshold: 24
     readonly property int dayWidth: 46
-    readonly property int actionsWidth: 24
+    // The header's plus is 20 wide at the right edge; the row buttons sit
+    // under it.
+    readonly property int actionsWidth: 20
     property var editing: null
     property string draft: ""
     readonly property var rows: Tasks.rows
@@ -203,7 +205,7 @@ Popup {
             model: root.rows
             heldModel: Tasks.dragRows
             rowHeight: root.rowHeight
-            rightGuard: root.actionsWidth + Theme.popupInset
+            rightGuard: root.actionsWidth
             allowSingle: true
             enabled: !root.editing
             canLift: index => root.rows[index].kind !== "header"
@@ -238,30 +240,31 @@ Popup {
             required property var modelData
             required property int index
             readonly property bool header: modelData.kind === "header"
+            readonly property bool sub: modelData.kind === "subtask"
+            // A family is threaded by a line down from the parent's dot,
+            // past its numbered children.
+            readonly property bool threaded: !reorder.showing && (sub || root.rows[index + 1]?.kind === "subtask")
+            readonly property bool lastChild: sub && root.rows[index + 1]?.kind !== "subtask"
             readonly property bool crossed: !header && Tasks.isCrossed(modelData)
             readonly property bool editing: root.editing?.id === modelData.id && (root.editing.kind === "header") === header
-            readonly property int indent: modelData.kind === "subtask" ? root.gutter : 0
+            readonly property int indent: sub ? root.gutter : 0
             readonly property var keyEdit: () => root.beginEdit(modelData)
             readonly property string dayText: {
                 if (header) return "";
-                const children = (modelData.children ?? []).filter(t => !Tasks.isCrossed(t));
-                if (children.length) return children.length + " left";
                 const day = Tasks.dayOf(modelData);
                 return day === "" || day === Tasks.today || day === Tasks.tomorrow ? "" : Tasks.sayDay(day);
             }
-            name: header ? "Rename task list " + modelData.title : (crossed ? "Reopen " : "Complete ") + modelData.title
-            acceptsTap: header && !editing && !reorder.showing
+            // A list name is renamed by its edit button, so the header itself
+            // neither lights nor takes a press.
+            name: header ? "" : (crossed ? "Reopen " : "Complete ") + modelData.title
+            acceptsTap: false
             width: list.width
             readonly property real fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + root.rowPad * 2) : header ? root.rowHeight
                 : Math.max(root.rowHeight, label.implicitHeight + (modelData.notes ? notes.implicitHeight + 2 : 0) + root.rowPad * 2)
             height: fullHeight + (root.rowHeight - fullHeight) * root.compact
             clip: root.compact > 0
             opacity: reorder.showing && index === reorder.from ? 0 : crossed ? 0.4 : 1
-            onTapped: {
-                if (editing || reorder.showing) return;
-                if (header) root.beginEdit(modelData);
-                else Tasks.complete(modelData);
-            }
+            onTapped: if (!editing && !reorder.showing) Tasks.complete(modelData)
             transform: Translate {
                 y: reorder.shift(row.index)
                 Behavior on y {
@@ -281,7 +284,16 @@ Popup {
             }
 
             Rectangle {
-                visible: !row.header && !row.editing
+                visible: row.threaded && !(row.editing && !row.sub)
+                x: root.gutter / 2 - 0.5
+                y: row.sub ? 0 : dot.y + dot.height / 2 + 6
+                width: 1
+                height: (row.lastChild ? root.rowPad + root.lineHeight : row.height) - y
+                color: Theme.label3
+            }
+            Rectangle {
+                id: dot
+                visible: !row.header && !row.sub && !row.editing
                 // Hang off the first line's x-height, even when the title wraps.
                 x: row.indent + (root.gutter - width) / 2
                 anchors.baseline: label.baseline
@@ -296,6 +308,16 @@ Popup {
                     }
                 }
                 color: root.dotColour(row.modelData)
+            }
+            PopupText {
+                visible: row.sub && !row.editing
+                x: row.indent
+                anchors.baseline: label.baseline
+                width: root.gutter - 4
+                text: row.modelData.number + "."
+                font.pixelSize: Theme.captionSize
+                horizontalAlignment: Text.AlignRight
+                color: Tasks.urgency(row.modelData) === "none" ? Theme.label2 : root.dotColour(row.modelData)
             }
             PopupText {
                 id: label
@@ -346,14 +368,14 @@ Popup {
             PopupButton {
                 id: actions
                 anchors.right: parent.right
-                anchors.rightMargin: Theme.popupInset
                 // Centred on the first line, however far the task wraps.
                 y: Math.round(root.rowPad + (root.lineHeight - height) / 2)
                 width: root.actionsWidth
                 height: 22
-                visible: !row.header && !reorder.showing && (row.editing || row.hovered)
+                // A list name being edited has no copy button.
+                visible: !reorder.showing && (row.editing ? !row.header : row.hovered)
                 glyph: row.editing ? Theme.glyph.copy : Theme.glyph.edit
-                name: (row.editing ? "Copy " : "Edit ") + row.modelData.title
+                name: (row.editing ? "Copy " : row.header ? "Rename task list " : "Edit ") + row.modelData.title
                 onTapped: row.editing ? Launcher.copy(root.draft) : root.beginEdit(row.modelData)
             }
             TextEdit {
