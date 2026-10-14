@@ -73,7 +73,11 @@ MOCKS = {
     "Tasks": '''property bool configured: false
         property string syntax: "task text"
         property var ordered: []
-        function commit() {}''',
+        function commit() {}
+        function plan(text) {
+            const t = Timers.parse(text.trim());
+            return t.ok ? { ok: true, kind: t.kind === "alarm" ? "alarm" : "timer", timer: t, event: null } : { ok: false, kind: "task", error: "" };
+        }''',
     "Timers": '''property var entries: []
         property string syntax: "25m or 7:30"
         function parse(text) { return Parse.parse(text); }

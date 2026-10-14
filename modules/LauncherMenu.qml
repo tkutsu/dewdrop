@@ -112,7 +112,7 @@ OverlayWindow {
                 actions.push({ key: "music-fold", label: "collapse", live: true });
             return actions;
         }
-        const labels = { calc: "copy answer", window: "focus", task: "complete", "task-add": "add task", "timer-add": "add timer", desktop: "run", power: row.action?.label, bluetooth: row.connect ? "connect" : "disconnect" };
+        const labels = { calc: "copy answer", window: "focus", task: "complete", "task-add": row.event ? "add event" : "add task", "timer-add": "add timer", desktop: "run", power: row.action?.label, bluetooth: row.connect ? "connect" : "disconnect" };
         const label = row.kind === "timer" ? (row.entry.running ? "pause" : "resume") : labels[row.kind] ?? "open";
         return [{ key: "activate", label, live: row.ok !== false }];
     }
