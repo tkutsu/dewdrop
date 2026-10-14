@@ -2,23 +2,23 @@
 
 The tasks workflow stays what it is: type a line from the phone, the launcher
 or the right pill, see it on the desktop, cross it off. This makes it better
-without adding moving parts. Google lists become sections you drag tasks
+without adding moving parts. Google lists become task lists you drag tasks
 between, tasks can be nested by dropping one onto another, and ticking a task
 crosses it out instead of making it vanish.
 
 ## Decisions
 
-- **Sections are Google task lists**, drawn in Google's list order. Whether
+- **Task lists are Google task lists**, drawn in Google's list order. Whether
   they are stages (Doing / Next / Later) or areas (Work / Home) is up to the
   user; the code treats them as plain lists.
-- **Manual order.** Inside a section, tasks sit in Google's `position` order,
+- **Manual order.** Inside a task list, tasks sit in Google's `position` order,
   which is the order you dragged them into. Dates no longer sort the popup.
   The dot and the date chip still say what is late.
 - **The bar's count stays date-based**: overdue, due today and undated, as
   now (see GLOSSARY "Task count").
 - **The launcher routes by word.** In `,` mode, the first word that is not a
-  date names a section if it matches one; otherwise the task goes to the
-  default section, chosen in settings.
+  date names a task list if it matches one; otherwise the task goes to the
+  default task list, chosen in settings.
 - **One drag component** shared by the music queue and the tasks popup.
 - **No timers on task rows.** Tasks stay tasks. Tasks on the calendar
   popover, and events from the `,` line, are planned in calendar-events.md.
@@ -34,48 +34,48 @@ Checked against the `tasks.move` reference:
 - The reference does not say whether a parent's subtasks follow it across
   lists. Check this live before relying on it (Phase 2b).
 - The API has no priority, no "in progress" status and no star. Position and
-  section stand in for all three.
+  task list stand in for all three.
 - Google Tasks shows one level of nesting, so the shell allows one level.
 
-## Phase 1: sections, manual order, launcher routing
+## Phase 1: task lists, manual order, launcher routing
 
 `services/Tasks.qml`
 
 - Keep subtasks instead of dropping them (`if (item.parent) return null`).
   Each task gets `parent` and, on parents, `children` in position order.
-- Add `sections`: one entry per list, `{ id, title, tasks }`, tasks in
+- Add `groupedLists`: one entry per list, `{ id, title, tasks }`, tasks in
   position order with their children.
-- Add `rows`: the flat model the popup draws, in order: section header, task,
+- Add `rows`: the flat model the popup draws, in order: task list header, task,
   its subtasks, next task, and so on. Each row has a `kind` of `header`,
-  `task` or `subtask`. Empty sections are left out.
+  `task` or `subtask`. Empty task lists keep their editable headers.
 - `overdue` / `due` / `undated` / `count` / `tooltip` stay as they are. They
   feed the badge and the tooltip, not the popup's order. Subtasks don't count.
 - `parse()` also returns `list`:
   - read an optional leading date word, as now;
-  - check the next word against section names, ignoring case and spaces
+  - check the next word against task list names, ignoring case and spaces
     (`todo` matches "To do");
-  - if no date was read before it, a date word may follow the section word,
+  - if no date was read before it, a date word may follow the task list word,
     so `fri work call x` and `work fri call x` both work;
   - no match: `Settings.defaultTaskList`, else the first list;
-  - a section with no title after it: error "No task, only a section".
+  - a task list with no title after it: error "No task, only a task list".
 - `add()` writes to `p.list`. `tasks add` over IPC follows for free.
-- The launcher's task rows and `list()` over IPC use section order, so the
+- The launcher's task rows and `list()` over IPC use task list order, so the
   popup, the launcher and the IPC read the same.
 
 `Settings.qml`, `settings.default.json`, `modules/SettingsMenu.qml`
 
-- Replace `omittedTaskList` with `defaultTaskList`, a `choice` control whose
+- Replace `omittedTaskList` with `defaultTaskList`, a `dropdown` control whose
   options come from `Tasks.lists`. Empty or unknown falls back to the first
   list.
-- The list-name suffix after each title goes. The section headers carry that
+- The list-name suffix after each title goes. The task list headers carry that
   now, so the omit setting has nothing left to do.
 
 `components/TasksPopup.qml`
 
 - Swap `Flickable` + `Column` + `Repeater` for a `ListView` over
   `Tasks.rows`. Phase 2b needs one flat model.
-- Headers: a thin label row with the section name. No headers when there is
-  only one list.
+- Headers: a thin label row with the task list name. Clicking it edits the
+  name in Google Tasks, including when there is only one list or it is empty.
 - Subtask rows are indented one gutter and keep their own dot.
 - A parent with open subtasks shows "N left" where its date would go. "2/5"
   would mean fetching every completed task, so this counts open ones only.
@@ -84,15 +84,15 @@ Checked against the `tasks.move` reference:
 
 `services/Launcher.qml`
 
-- The add row's subtitle shows the section the line resolved to (now always
+- The add row's subtitle shows the task list the line resolved to (now always
   `lists[0].title`).
-- Task rows follow section order when nothing is typed.
+- Task rows follow task list order when nothing is typed.
 - Two comments in `taskResults()` still describe a `,milk @fri` syntax the
-  parser no longer has; reword them for the leading day and section words.
+  parser no longer has; reword them for the leading day and task list words.
 
-Done when: the popup shows sections in manual order with subtasks under their
+Done when: the popup shows task lists in manual order with subtasks under their
 parents; `, work fri call x`, `, fri work call x`, `, call x` and `, work` all
-behave as described; and the default section setting changes where `, call x`
+behave as described; and the default task list setting changes where `, call x`
 lands.
 
 ## Phase 2a: extract the drag
@@ -115,9 +115,7 @@ ListReorder {
     rowHeight: root.rowHeight
     rightGuard: root.buttonWidth   // presses here never start a drag
     lifted: Component { QueueTrack { … } }    // what the lifted row shows
-    canNest: null            // (from, onto) => bool; unset = never
     onMoved: (from, to) => Mpd.moveTo(…)
-    onNested: (from, onto) => {}
     onClicked: index => Mpd.playAt(…)
 }
 // each delegate: transform: Translate { y: reorder.shift(index) }
@@ -139,30 +137,32 @@ lines shorter.
 Interaction:
 
 - Hold a task: every row eases to one line (`rowHeight`), anchored on the
-  held row so it stays under the pointer. Empty sections appear as headers
+  held row so it stays under the pointer. Empty task lists appear as headers
   you can drop under.
 - Drop **between** rows: the task moves there; rows slide apart as in the
-  queue. Just under a header means first in that section.
-- Drop **onto the middle third** of a task row: it becomes that task's
-  subtask. The target lights up and nothing slides. This is how Apple
-  Reminders does it.
-- Drag a subtask out between top-level rows: it becomes a task again.
+  queue. Just under a header means first in that task list.
+- Vertical motion picks the slot and keeps rows sliding apart.
+- Drag 24 px right from the grab point to indent under the task above the
+  slot. A slot among children uses their parent, keeping nesting one level.
+- Drag back left to remove the indent. An existing subtask can be promoted
+  by dragging 24 px left from its grab point.
+- The held row previews its destination indent before release.
 - Release: rows expand back to their full text.
-- `canNest` refuses: onto a subtask, onto itself, and nesting a task that has
-  subtasks (one level only). Headers are never lifted.
+- Indentation refuses tasks with subtasks, completed parents, and assigned
+  tasks. Headers are never lifted or used as parents.
 - A tap still completes. The hold is what starts a drag.
 
 `services/Tasks.qml`
 
 - `move(task, { list, parent, previous })`: show the new order at once and
   clear `snapshot` so the next fetch publishes, as `complete()` does. Then
-  `POST …/tasks/{id}/move` with `parent`, `previous` and, across sections,
+  `POST …/tasks/{id}/move` with `parent`, `previous` and, across task lists,
   `destinationTasklist`. On failure, put the old order back and set
   `trouble`.
 - Verify live whether subtasks follow a parent across lists. If they don't,
   move the children after the parent, in order.
 
-Done when: reordering, moving across sections, nesting and un-nesting all
+Done when: reordering, moving across task lists, nesting and un-nesting all
 show up on the phone after a sync; a refused move (a recurring task across
 lists) snaps back with a message.
 
@@ -214,10 +214,10 @@ here show on the phone; popup hover is unaffected.
 - Work in this worktree; merge into main and push when a phase is done.
 - Check each phase live: restart the bar and click through it.
 - New `scripts/test-tasks.py`, in the style of `scripts/test-launcher.py`:
-  parsing (date and section in either order, default section, multi-word
-  names, a section without a title), the flat row model, the order during a
+  parsing (date and task list in either order, default task list, multi-word
+  names, a task list without a title), the flat row model, the order during a
   move and after a failed one, cross-out commit timing.
-- `GLOSSARY.md`: a task list is drawn as a section; subtasks; the task count
+- `GLOSSARY.md`: a task list is drawn as a task list; subtasks; the task count
   stays date-based.
 
 ## Order

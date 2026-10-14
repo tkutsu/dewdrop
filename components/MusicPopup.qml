@@ -635,7 +635,7 @@ Popup {
         layer.effect: ScrollEdges {
             view: list
         }
-        model: reorder.showing ? reorder.queue : Mpd.queue
+        model: reorder.showing ? reorder.rows : Mpd.queue
         interactive: !reorder.showing
         // Ease wheel motion while keeping the ends firm.
         boundsBehavior: Flickable.StopAtBounds
@@ -689,10 +689,6 @@ Popup {
                 Qt.callLater(list.updateQueuePosition);
             }
 
-            function onQueueChanged() {
-                if (reorder.settling && !reorder.dropRunning)
-                    reorder.finishDrop();
-            }
         }
 
         ListReorder {
@@ -701,11 +697,11 @@ Popup {
             model: Mpd.queue
             rowHeight: root.rowHeight
             rightGuard: root.buttonWidth
-            onMoved: (from, to) => { if (from !== to) Mpd.moveTo(queue[from].pos, queue[to].pos); }
-            onClicked: index => { if (!choice.running) Mpd.playAt(queue[index].pos); }
+            onMoved: (from, to) => { if (from !== to) Mpd.moveTo(rows[from].pos, rows[to].pos); }
+            onClicked: index => { if (!choice.running) Mpd.playAt(rows[index].pos); }
             lifted: Component {
                 QueueTrack {
-                    song: reorder.showing ? reorder.queue[reorder.from] : null
+                    song: reorder.showing ? reorder.rows[reorder.from] : null
                     number: reorder.to + 1
                     current: reorder.from === Mpd.songPos
                     tailWidth: root.queueTailWidth

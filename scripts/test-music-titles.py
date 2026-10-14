@@ -130,7 +130,7 @@ ShellRoot {
                 }
                 check(painters(popup.contentItem, "Queue first").some(item => item.number === 1 && item.current),
                     "queue readout marks the playing track");
-                popup.auditReorder.queue = Mpd.queue;popup.auditReorder.from = 1;popup.auditReorder.to = 0;
+                popup.auditReorder.rows = Mpd.queue;popup.auditReorder.from = 1;popup.auditReorder.to = 0;
                 popup.auditReorder.dragging = true;wait(50);
                 check(painters(popup.contentItem, "Queue second").some(item => item.number === 1 && !item.current),
                     "lifted queue preview keeps its song and displays the drop position");

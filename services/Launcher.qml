@@ -658,17 +658,17 @@ Singleton {
             rows.unshift({
                 kind: "task-add",
                 glyph: Theme.glyph.plus,
-                // Keep the typed day and section words in the preview.
+                // Keep the typed day and task list names in the preview.
                 title: typed,
                 raw: true,
                 // Show the parsed date and destination beside the typed title.
-                subtitle: !p.ok ? p.error : "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (Tasks.lists.find(l => l.id === p.list) ? "  ·  " + Tasks.lists.find(l => l.id === p.list).title : ""),
+                subtitle: !p.ok ? p.error : "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (Tasks.lists.length > 1 && Tasks.lists.find(l => l.id === p.list) ? "  ·  " + Tasks.lists.find(l => l.id === p.list).title : ""),
                 ok: p.ok,
                 text: typed
             });
         }
 
-        // Day and section words route the add; only the title filters tasks.
+        // Day and task list names route the add; only the title filters tasks.
         const core = parsedTask?.title ?? "";
         const terms = root.prepTerms(core);
         const scored = [];
@@ -695,7 +695,7 @@ Singleton {
                     // in a fight with it for the row.
                     titleShare: 0.82,
                     // The order the list is already in is the order it should
-                    // keep when nothing is typed: sections and manual order.
+                    // keep when nothing is typed: task lists and manual order.
                     // Only a real query is allowed to reorder it.
                     dim: Tasks.urgency(task) === "none"
                 }

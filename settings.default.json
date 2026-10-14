@@ -152,6 +152,6 @@
     // Mail, Tasks and the calendar's agenda need a one-time sign-in with your
     // own Google Cloud OAuth client: run scripts/gtasks-auth, or click
     // reconnect in any of their popups.
-    // Hide these list names beside tasks, separated by commas. Leave empty to show all.
+    // Default task list ID for new tasks. Leave empty to use the first task list.
     "defaultTaskList": "",
 }

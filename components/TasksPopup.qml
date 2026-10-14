@@ -3,21 +3,32 @@ import qs
 import qs.components
 import qs.services
 
-// Google's lists are sections; tasks keep their manual order and wrap to fit.
-// A hold folds the rows to one line so a drop can choose a section or parent.
+// Google task lists keep their manual order and wrap to fit.
+// A hold folds the rows to one line so a drop can choose a task list or parent.
 Popup {
     id: root
 
-    readonly property int bodyWidth: 300
+    readonly property int bodyWidth: 340
     readonly property int rowHeight: 28
     readonly property int gutter: 16
+    readonly property int dotLeft: 5
+    readonly property int textTop: 7
+    readonly property int indentThreshold: 24
     readonly property int dayWidth: 46
-    readonly property int actionsWidth: 24
+    readonly property int actionsWidth: 48
     property var editing: null
     property string draft: ""
     readonly property var rows: Tasks.rows
+    readonly property var dropDestination: reorder.showing
+        ? root.destination(reorder.from, reorder.to, reorder.horizontalOffset) : null
+    readonly property int dragIndent: root.dropDestination?.parent ? root.gutter : 0
     property real compact: reorder.showing ? 1 : 0
-    Behavior on compact { NumberAnimation { duration: Theme.revealMs; easing.type: Easing.OutCubic } }
+    Behavior on compact {
+        NumberAnimation {
+            duration: Theme.revealMs
+            easing.type: Easing.OutCubic
+        }
+    }
     onCompactChanged: if (reorder.dragging) {
         list.forceLayout();
         const row = list.itemAtIndex(reorder.from);
@@ -26,7 +37,9 @@ Popup {
     }
 
     onRequestedVisibleChanged: if (!requestedVisible) {
-        root.cancelEdit();
+        // Outside clicks and popup browsing must not discard a changed draft.
+        if (root.editing && root.draft !== root.editText(root.editing)) root.saveEdit();
+        else root.cancelEdit();
         Tasks.commit();
     }
 
@@ -46,14 +59,23 @@ Popup {
         return Theme.taskUndated;
     }
 
+    function editText(task) {
+        if (task.kind === "header") return task.title;
+        return task.title + (task.notes ? "\n" + task.notes : "");
+    }
+
     function beginEdit(task) {
-        if (Tasks.writing || reorder.showing) return;
+        if (reorder.showing) return;
+        if (root.editing && (root.editing.id !== task.id || root.editing.kind !== task.kind)) {
+            root.saveEdit();
+            if (root.editing) return;
+        }
         root.editing = task;
-        root.draft = task.title + (task.notes ? "\n" + task.notes : "");
+        root.draft = root.editText(task);
         root.setKey(null);
         Qt.callLater(() => {
             list.forceLayout();
-            const index = root.rows.findIndex(r => r.kind !== "header" && r.id === task.id);
+            const index = root.rows.findIndex(r => (r.kind === "header") === (task.kind === "header") && r.id === task.id);
             list.positionViewAtIndex(index, ListView.Contain);
             Qt.callLater(() => list.itemAtIndex(index)?.focusEditor());
         });
@@ -66,21 +88,48 @@ Popup {
     }
 
     function saveEdit() {
-        if (root.editing && Tasks.edit(root.editing, root.draft)) root.cancelEdit();
+        if (!root.editing) return;
+        const saved = root.editing.kind === "header"
+            ? Tasks.renameList(root.editing.id, root.draft) : Tasks.edit(root.editing, root.draft);
+        if (saved) root.cancelEdit();
     }
 
-    // Translate a flat landing slot into Google's sibling coordinates.
-    function moveRow(from, to) {
-        const held = reorder.queue[from];
-        if (!held || from === to) return;
-        // A downward landing is after its target; a header always means
-        // the first task in that section. Descendants travel with a parent.
-        const boundary = to + (to > from || reorder.queue[to]?.kind === "header" ? 1 : 0);
-        const before = reorder.queue.slice(0, boundary).filter((r, i) => i !== from && r.parent !== held.id);
+    // Vertical motion picks the slot; horizontal motion chooses its depth.
+    function destination(from, to, offsetX) {
+        const held = reorder.rows[from];
+        if (!held || held.kind === "header") return null;
+        // Upward gaps precede the target; downward gaps follow it. Excluding
+        // the held family keeps a parent from landing after its own children.
+        const boundary = to + (to > from ? 1 : 0);
+        const remaining = reorder.rows.filter(r => r.id !== held.id && r.parent !== held.id);
+        const before = reorder.rows.slice(0, boundary).filter(r => r.id !== held.id && r.parent !== held.id);
         const header = before.filter(r => r.kind === "header").pop();
-        const listId = header?.listId ?? held.listId;
-        const previous = before.filter(r => r.kind === "task" && r.listId === listId).pop();
-        Tasks.move(held, { list: listId, parent: "", previous: previous?.id ?? "" });
+        const listId = header?.listId ?? Tasks.lists[0]?.id ?? held.listId;
+        const prior = before[before.length - 1];
+        const next = remaining[before.length];
+        // Keep an existing child in its family unless dragged left to promote.
+        let parent = held.parent && listId === held.listId
+            && (prior?.id === held.parent || prior?.parent === held.parent || next?.parent === held.parent) ? held.parent : "";
+        if (offsetX <= -root.indentThreshold) parent = "";
+        if (offsetX >= root.indentThreshold) {
+            // A slot among children joins their parent: nesting stays one level.
+            const candidate = prior?.parent
+                ? reorder.rows.find(r => r.id === prior.parent && r.listId === listId) : prior;
+            const canIndent = candidate?.kind === "task" && candidate.listId === listId
+                && !held.children?.length && !held.assignmentInfo && !candidate.assignmentInfo
+                && !Tasks.isCrossed(candidate);
+            parent = canIndent ? candidate.id : "";
+        }
+        const previous = before.filter(r => r.kind !== "header" && r.listId === listId && (r.parent || "") === parent).pop();
+        return { list: listId, parent: parent, previous: previous?.id ?? "" };
+    }
+
+    // A sideways-only gesture can change depth without changing the slot.
+    function moveRow(from, to, offsetX) {
+        const held = reorder.rows[from];
+        const target = root.destination(from, to, offsetX);
+        if (!target || (from === to && target.list === held.listId && target.parent === (held.parent || ""))) return;
+        Tasks.move(held, target);
     }
 
     PopupHeader {
@@ -107,8 +156,18 @@ Popup {
         width: root.bodyWidth
         leftPadding: Theme.popupInset
         rightPadding: Theme.popupInset
-        visible: !Tasks.loaded || root.rows.length === 0
-        text: !Tasks.loaded ? (Tasks.trouble || "Connecting…") : "Nothing on the list"
+        visible: Tasks.pending.length > 0
+        text: "Waiting to save..."
+        color: Theme.label2
+        font.pixelSize: Theme.footnoteSize
+    }
+
+    PopupText {
+        width: root.bodyWidth
+        leftPadding: Theme.popupInset
+        rightPadding: Theme.popupInset
+        visible: !Tasks.loaded || Tasks.tasks.length === 0
+        text: !Tasks.loaded ? (Tasks.trouble || "Connecting…") : "No tasks"
         color: Theme.label2
         wrapMode: Text.WordWrap
     }
@@ -116,7 +175,9 @@ Popup {
     ListView {
         id: list
         width: root.bodyWidth
-        height: Math.min(contentHeight, 320, (root.screen?.height ?? 800) * 0.6)
+        // Compaction changes content height, but the pointer's coordinate system
+        // must stay fixed until the held row has landed.
+        height: reorder.showing ? reorder.holdHeight : Math.min(contentHeight, 320, (root.screen?.height ?? 800) * 0.6)
         clip: true
         interactive: !reorder.showing && !root.editing && contentHeight > height
         boundsBehavior: Flickable.StopAtBounds
@@ -127,7 +188,7 @@ Popup {
         Accessible.name: "Tasks"
         Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
         Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
-        model: reorder.showing ? reorder.queue : root.rows
+        model: reorder.showing ? reorder.rows : root.rows
 
         ListReorder {
             id: reorder
@@ -135,34 +196,28 @@ Popup {
             model: root.rows
             heldModel: Tasks.dragRows
             rowHeight: root.rowHeight
-            rightGuard: root.actionsWidth
+            rightGuard: root.actionsWidth + Theme.popupInset
             allowSingle: true
-            enabled: !root.editing && Tasks.writing === 0
+            enabled: !root.editing
             canLift: index => root.rows[index].kind !== "header"
             canHold: index => !Tasks.isCrossed(root.rows[index])
-            canNest: (from, onto) => {
-                const a = queue[from], b = queue[onto];
-                return a.id !== b.id && b.kind === "task" && !a.children?.length
-                    && !a.assignmentInfo && !b.assignmentInfo && !Tasks.isCrossed(b);
-            }
-            onMoved: (from, to) => root.moveRow(from, to)
-            onNested: (from, onto) => {
-                const target = queue[onto];
-                const children = target.children ?? [];
-                Tasks.move(queue[from], { list: target.listId, parent: target.id, previous: children.length ? children[children.length - 1].id : "" });
-            }
-            onClicked: index => Tasks.complete(queue[index])
+            onMoved: (from, to) => root.moveRow(from, to, reorder.horizontalOffset)
+            onClicked: index => Tasks.complete(rows[index])
             lifted: Component {
                 Item {
                     Rectangle {
-                        x: 5; anchors.verticalCenter: parent.verticalCenter
-                        width: 6; height: 6; radius: 3
-                        color: root.dotColour(reorder.queue[reorder.from])
+                        x: root.dotLeft + root.dragIndent
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: root.dotColour(reorder.rows[reorder.from])
                     }
                     PopupText {
-                        x: root.gutter; anchors.verticalCenter: parent.verticalCenter
+                        x: root.gutter + root.dragIndent
+                        y: root.textTop
                         width: parent.width - x - Theme.popupInset
-                        text: reorder.queue[reorder.from]?.title ?? ""
+                        text: reorder.rows[reorder.from]?.title ?? ""
                         textFormat: Text.PlainText
                         font.pixelSize: Theme.captionSize
                         elide: Text.ElideRight
@@ -177,9 +232,9 @@ Popup {
             required property int index
             readonly property bool header: modelData.kind === "header"
             readonly property bool crossed: !header && Tasks.isCrossed(modelData)
-            readonly property bool editing: !header && root.editing?.id === modelData.id
+            readonly property bool editing: root.editing?.id === modelData.id && (root.editing.kind === "header") === header
             readonly property int indent: modelData.kind === "subtask" ? root.gutter : 0
-            readonly property var keyEdit: header ? null : () => root.beginEdit(modelData)
+            readonly property var keyEdit: () => root.beginEdit(modelData)
             readonly property string dayText: {
                 if (header) return "";
                 const children = (modelData.children ?? []).filter(t => !Tasks.isCrossed(t));
@@ -187,39 +242,63 @@ Popup {
                 const day = Tasks.dayOf(modelData);
                 return day === "" || day === Tasks.today || day === Tasks.tomorrow ? "" : Tasks.sayDay(day);
             }
-            name: header ? "" : (crossed ? "Reopen " : "Complete ") + modelData.title
-            acceptsTap: false
+            name: header ? "Rename task list " + modelData.title : (crossed ? "Reopen " : "Complete ") + modelData.title
+            acceptsTap: header && !editing && !reorder.showing
             width: list.width
-            readonly property real fullHeight: header ? root.rowHeight : editing ? Math.max(root.rowHeight, editor.contentHeight + 10)
+            readonly property real fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + 10) : header ? root.rowHeight
                 : Math.max(root.rowHeight, label.implicitHeight + (modelData.notes ? notes.implicitHeight + 2 : 0) + 8)
             height: fullHeight + (root.rowHeight - fullHeight) * root.compact
             clip: root.compact > 0
             opacity: reorder.showing && index === reorder.from ? 0 : crossed ? 0.4 : 1
-            onTapped: if (!header && !editing) Tasks.complete(modelData)
+            onTapped: {
+                if (editing || reorder.showing) return;
+                if (header) root.beginEdit(modelData);
+                else Tasks.complete(modelData);
+            }
             transform: Translate {
                 y: reorder.shift(row.index)
-                Behavior on y { enabled: reorder.showing; NumberAnimation { duration: Theme.revealMs; easing.type: Easing.OutCubic } }
+                Behavior on y {
+                    enabled: reorder.showing
+                    NumberAnimation {
+                        duration: Theme.revealMs
+                        easing.type: Easing.OutCubic
+                    }
+                }
             }
             Behavior on opacity { NumberAnimation { duration: Theme.fadeMs } }
 
-            function focusEditor() { editor.forceActiveFocus(); root.keyInput = editor; }
+            // The bar forwards keys while the editor keeps mouse selection.
+            function focusEditor() {
+                editor.forceActiveFocus();
+                root.keyInput = editor;
+            }
 
             Rectangle {
-                anchors.fill: parent
-                radius: Theme.selectionRadius
-                color: Theme.selectionStrong
-                visible: reorder.dragging && reorder.onto === row.index
-            }
-            Rectangle {
                 visible: !row.header && !row.editing
-                x: row.indent + 5; y: 11
-                width: 6; height: 6; radius: 3
+                // Hang off the first line's x-height, even when the title wraps.
+                x: row.indent + (root.gutter - width) / 2
+                anchors.baseline: label.baseline
+                anchors.baselineOffset: -(metrics.xHeight + height) / 2 - 1
+                width: row.hovered ? 8 : 6
+                height: width
+                radius: width / 2
+                Behavior on width {
+                    NumberAnimation {
+                        duration: Theme.selectMs
+                        easing.type: Easing.OutCubic
+                    }
+                }
                 color: root.dotColour(row.modelData)
             }
             PopupText {
                 id: label
+                FontMetrics {
+                    id: metrics
+                    font: label.font
+                }
                 visible: !row.editing
-                x: row.indent + root.gutter; y: 4
+                x: row.header ? root.dotLeft : row.indent + root.gutter
+                y: root.textTop
                 width: parent.width - x - root.actionsWidth - (row.dayText ? root.dayWidth : 0) - Theme.popupInset
                 text: row.modelData.title
                 textFormat: Text.PlainText
@@ -232,7 +311,8 @@ Popup {
             PopupText {
                 id: notes
                 visible: !row.header && !row.editing && !reorder.showing && text !== ""
-                x: label.x; y: label.y + label.implicitHeight + 2
+                x: label.x
+                y: label.y + label.implicitHeight + 2
                 width: parent.width - x - root.actionsWidth - Theme.popupInset
                 text: row.modelData.notes ?? ""
                 textFormat: Text.PlainText
@@ -246,7 +326,8 @@ Popup {
             PopupText {
                 anchors.right: actions.left
                 anchors.rightMargin: 2
-                y: 5; width: row.dayText ? root.dayWidth : 0
+                anchors.baseline: label.baseline
+                width: row.dayText ? root.dayWidth : 0
                 visible: !row.editing
                 text: row.dayText
                 font.pixelSize: Theme.footnoteSize
@@ -254,22 +335,37 @@ Popup {
                 color: Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
                 elide: Text.ElideRight
             }
-            PopupButton {
+            Row {
                 id: actions
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.popupInset
-                y: 3; width: root.actionsWidth; height: 22
+                y: 3
+                width: root.actionsWidth
+                height: 22
                 visible: !row.header && !row.editing && !reorder.showing && row.hovered
-                glyph: Theme.glyph.edit
-                name: "Edit " + row.modelData.title
-                live: Tasks.writing === 0
-                onTapped: root.beginEdit(row.modelData)
+
+                PopupButton {
+                    width: 24
+                    height: 22
+                    glyph: Theme.glyph.copy
+                    name: "Copy " + row.modelData.title
+                    onTapped: Launcher.copy(row.modelData.title)
+                }
+                PopupButton {
+                    width: 24
+                    height: 22
+                    glyph: Theme.glyph.edit
+                    name: "Edit " + row.modelData.title
+                    onTapped: root.beginEdit(row.modelData)
+                }
             }
             TextEdit {
                 id: editor
                 objectName: "taskEditor"
+                Accessible.name: row.header ? "Task list name" : "Task title and notes"
                 visible: row.editing
-                x: root.gutter; y: 4
+                x: row.header ? root.dotLeft : row.indent + root.gutter
+                y: root.textTop
                 width: parent.width - x - Theme.popupInset
                 height: Math.max(root.rowHeight - 8, contentHeight)
                 text: row.editing ? root.draft : ""
@@ -286,7 +382,7 @@ Popup {
                     if (event.key === Qt.Key_Escape) {
                         root.cancelEdit();
                         event.accepted = true;
-                    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !(event.modifiers & Qt.ShiftModifier)) {
+                    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (row.header || !(event.modifiers & Qt.ShiftModifier))) {
                         root.saveEdit();
                         event.accepted = true;
                     }
