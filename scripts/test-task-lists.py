@@ -109,11 +109,8 @@ CASES = r'''
                 Tasks.lists = [{id: "empty", title: "Empty list"}];
                 Tasks.tasks = [];
                 wait(50);
-                check(Tasks.rows.length === 1 && Tasks.rows[0].kind === "header", "single empty task list retains editable heading");
-                popup.beginEdit(Tasks.rows[0]);
-                wait(30);
-                check(popup.keyInput !== null, "empty task list name can be edited");
-                popup.cancelEdit();
+                check(Tasks.rows.length === 0, "empty task list stays out of the popup");
+                check(Tasks.dragRows.length === 1 && Tasks.dragRows[0].kind === "header", "empty task list is still a drop destination");
                 check(dropdown.currentText === "Empty list" && Tasks.defaultList.id === "empty", "deleted default falls back to first available task list");
                 Tasks.lists = [];
                 wait(30);

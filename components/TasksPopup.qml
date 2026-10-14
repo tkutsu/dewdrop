@@ -9,13 +9,20 @@ Popup {
     id: root
 
     readonly property int bodyWidth: 340
-    readonly property int rowHeight: 28
+    // The same air above the first line and below the last, however many
+    // lines a task wraps to; a one-line row is one line plus that air.
+    readonly property int rowPad: 4
+    readonly property FontMetrics caption: FontMetrics {
+        font.family: Theme.bodyFont
+        font.pixelSize: Theme.captionSize
+    }
+    readonly property int lineHeight: Math.ceil(root.caption.height)
+    readonly property int rowHeight: root.lineHeight + root.rowPad * 2
     readonly property int gutter: 16
     readonly property int dotLeft: 5
-    readonly property int textTop: 7
     readonly property int indentThreshold: 24
     readonly property int dayWidth: 46
-    readonly property int actionsWidth: 48
+    readonly property int actionsWidth: 24
     property var editing: null
     property string draft: ""
     readonly property var rows: Tasks.rows
@@ -215,7 +222,7 @@ Popup {
                     }
                     PopupText {
                         x: root.gutter + root.dragIndent
-                        y: root.textTop
+                        y: root.rowPad
                         width: parent.width - x - Theme.popupInset
                         text: reorder.rows[reorder.from]?.title ?? ""
                         textFormat: Text.PlainText
@@ -245,8 +252,8 @@ Popup {
             name: header ? "Rename task list " + modelData.title : (crossed ? "Reopen " : "Complete ") + modelData.title
             acceptsTap: header && !editing && !reorder.showing
             width: list.width
-            readonly property real fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + 10) : header ? root.rowHeight
-                : Math.max(root.rowHeight, label.implicitHeight + (modelData.notes ? notes.implicitHeight + 2 : 0) + 8)
+            readonly property real fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + root.rowPad * 2) : header ? root.rowHeight
+                : Math.max(root.rowHeight, label.implicitHeight + (modelData.notes ? notes.implicitHeight + 2 : 0) + root.rowPad * 2)
             height: fullHeight + (root.rowHeight - fullHeight) * root.compact
             clip: root.compact > 0
             opacity: reorder.showing && index === reorder.from ? 0 : crossed ? 0.4 : 1
@@ -298,7 +305,7 @@ Popup {
                 }
                 visible: !row.editing
                 x: row.header ? root.dotLeft : row.indent + root.gutter
-                y: root.textTop
+                y: root.rowPad
                 width: parent.width - x - root.actionsWidth - (row.dayText ? root.dayWidth : 0) - Theme.popupInset
                 text: row.modelData.title
                 textFormat: Text.PlainText
@@ -319,9 +326,8 @@ Popup {
                 font.pixelSize: Theme.footnoteSize
                 font.strikeout: row.crossed
                 color: Theme.label2
+                // All of it: a note is the rest of what the task says.
                 wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
             }
             PopupText {
                 anchors.right: actions.left
@@ -335,29 +341,20 @@ Popup {
                 color: Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
                 elide: Text.ElideRight
             }
-            Row {
+            // One button in one place: edit under the pointer, and copy once
+            // editing, for what the editor holds now, saved or not.
+            PopupButton {
                 id: actions
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.popupInset
-                y: 3
+                // Centred on the first line, however far the task wraps.
+                y: Math.round(root.rowPad + (root.lineHeight - height) / 2)
                 width: root.actionsWidth
                 height: 22
-                visible: !row.header && !row.editing && !reorder.showing && row.hovered
-
-                PopupButton {
-                    width: 24
-                    height: 22
-                    glyph: Theme.glyph.copy
-                    name: "Copy " + row.modelData.title
-                    onTapped: Launcher.copy(row.modelData.title)
-                }
-                PopupButton {
-                    width: 24
-                    height: 22
-                    glyph: Theme.glyph.edit
-                    name: "Edit " + row.modelData.title
-                    onTapped: root.beginEdit(row.modelData)
-                }
+                visible: !row.header && !reorder.showing && (row.editing || row.hovered)
+                glyph: row.editing ? Theme.glyph.copy : Theme.glyph.edit
+                name: (row.editing ? "Copy " : "Edit ") + row.modelData.title
+                onTapped: row.editing ? Launcher.copy(root.draft) : root.beginEdit(row.modelData)
             }
             TextEdit {
                 id: editor
@@ -365,9 +362,10 @@ Popup {
                 Accessible.name: row.header ? "Task list name" : "Task title and notes"
                 visible: row.editing
                 x: row.header ? root.dotLeft : row.indent + root.gutter
-                y: root.textTop
-                width: parent.width - x - Theme.popupInset
-                height: Math.max(root.rowHeight - 8, contentHeight)
+                y: root.rowPad
+                // Clear of the copy button; a list name has none.
+                width: parent.width - x - (row.header ? 0 : root.actionsWidth) - Theme.popupInset
+                height: Math.max(root.lineHeight, contentHeight)
                 text: row.editing ? root.draft : ""
                 textFormat: TextEdit.PlainText
                 color: Theme.fg

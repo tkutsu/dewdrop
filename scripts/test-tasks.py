@@ -70,7 +70,7 @@ ShellRoot {
                     {id: "c", listId: "home", title: "Child", position: "10", due: "", parent: "a", notes: ""},
                     {id: "d", listId: "work", title: "Work task", position: "10", due: "2026-12-01", parent: "", notes: ""}
                 ];
-                check(Tasks.rows.map(r => r.kind + ":" + r.id).join(",") === "header:home,task:a,subtask:c,task:b,header:work,task:d,header:empty", "flat task list model and manual order");
+                check(Tasks.rows.map(r => r.kind + ":" + r.id).join(",") === "header:home,task:a,subtask:c,task:b,header:work,task:d", "flat task list model and manual order");
                 check(Tasks.groupedLists[0].tasks[0].children[0].id === "c", "parent children");
                 check(Tasks.count === 2, "date based count excludes children and future tasks");
                 check(Tasks.dragRows.some(r => r.kind === "header" && r.id === "empty"), "empty drag destinations");

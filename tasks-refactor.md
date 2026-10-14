@@ -47,7 +47,8 @@ Checked against the `tasks.move` reference:
   position order with their children.
 - Add `rows`: the flat model the popup draws, in order: task list header, task,
   its subtasks, next task, and so on. Each row has a `kind` of `header`,
-  `task` or `subtask`. Empty task lists keep their editable headers.
+  `task` or `subtask`. Empty task lists are left out, except during a drag,
+  where they are places to drop.
 - `overdue` / `due` / `undated` / `count` / `tooltip` stay as they are. They
   feed the badge and the tooltip, not the popup's order. Subtasks don't count.
 - `parse()` also returns `list`:
@@ -75,7 +76,7 @@ Checked against the `tasks.move` reference:
 - Swap `Flickable` + `Column` + `Repeater` for a `ListView` over
   `Tasks.rows`. Phase 2b needs one flat model.
 - Headers: a thin label row with the task list name. Clicking it edits the
-  name in Google Tasks, including when there is only one list or it is empty.
+  name in Google Tasks, including when there is only one list.
 - Subtask rows are indented one gutter and keep their own dot.
 - A parent with open subtasks shows "N left" where its date would go. "2/5"
   would mean fetching every completed task, so this counts open ones only.
@@ -185,12 +186,12 @@ open.
 
 ## Phase 4: inline editing
 
-- An edit button on hover, in place of copy. The edit field can select and
-  copy, so copy has nowhere left to be needed. (Open: keep both?)
+- An edit button on hover. While editing, the same button copies what the
+  editor holds.
 - Also `e` on a focused row, through the popup-keys path.
 - First line is the title, the rest is notes. Enter saves, Shift+Enter adds a
   line, Esc cancels. PATCH `title` and `notes`.
-- Rows with notes show them as a faint line under the title, up to two lines.
+- Rows with notes show all of them, faint, under the title.
 - **Risk:** this needs keyboard focus in the popup. The bar takes no focus on
   purpose because a focus grab broke popup hover. Build on the existing popup
   keys (`scripts/test-popup-keys.py`) and check hover still works before
