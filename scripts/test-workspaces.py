@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 import tempfile
+
+from test_support import offscreen_ink
 root=Path(__file__).resolve().parents[1]
 folder=tempfile.TemporaryDirectory(prefix='workspace-test-')
 target=Path(folder.name)
@@ -64,13 +66,15 @@ Item {
 (target/'components/Bounce.qml').write_text((root/'components/Bounce.qml').read_text())
 (target/'components/DropLine.qml').write_text((root/'components/DropLine.qml').read_text())
 if '--real-icons' in sys.argv:
-    for name in ('AppIcon', 'FittedIcon', 'InkProbe', 'Glyph', 'BarText'):
+    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText'):
         source=(root/f'components/{name}.qml').read_text()
         if name == 'AppIcon':
             source=source.replace('id: root', 'id: root\n    property real token: Math.random()', 1)
         (target/f'components/{name}.qml').write_text(source)
-    for name in ('AppIcons', 'IconInk', 'GlyphInk'):
+    for name in ('AppIcons', 'Ink'):
         (target/f'services/{name}.qml').write_text((root/f'services/{name}.qml').read_text())
+    (target/'Paths.qml').write_text((root/'Paths.qml').read_text())
+    offscreen_ink(target)
     (target/'assets').symlink_to(root/'assets', target_is_directory=True)
 if '--real-bar' in sys.argv:
     for name in ('BarItem', 'ClickArea', 'Rim', 'Badge'):
@@ -420,7 +424,7 @@ if '--regressions' in sys.argv:
     if '--real-icons' in sys.argv:
         shell_source=shell_source.replace("win('a',w2,'incoming'),b=win('b',w3,'existing'),c=win('c',w1,'other')", "win('a',w2,'kitty'),b=win('b',w3,'firefox'),c=win('c',w1,'thunar')")
 (target/'shell.qml').write_text(shell_source)
-env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',XDG_RUNTIME_DIR=str(target/'runtime'))
+env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',XDG_RUNTIME_DIR=str(target/'runtime'),XDG_CACHE_HOME=str(target/'cache'))
 for key in ('WAYLAND_DISPLAY','HYPRLAND_INSTANCE_SIGNATURE'):env.pop(key,None)
 res=subprocess.run(['quickshell','-p',str(target),'--no-color'],env=env,capture_output=True,text=True,timeout=30)
 out=res.stdout+res.stderr

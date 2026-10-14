@@ -32,29 +32,18 @@ Item {
     // measured from, so a probe that re-ran on every change would chase its own
     // tail down to nothing.
     readonly property string measureKey: root.ink > 0 ? String(image.source) : ""
-    readonly property real extent: root.measureKey ? IconInk.extentOf(root.measureKey) : 0
+    readonly property real extent: root.measureKey ? Ink.extentOf(root.measureKey) : 0
 
-    // The probe is temporary by design: it comes into being only while there is
-    // a measurement outstanding and goes as soon as there is not, so a settled
-    // bar is carrying no canvases, no grabs and no textures for any of this.
-    Loader {
-        active: root.measureKey !== "" && root.extent <= 0 && image.status === Image.Ready
-
-        // Off `bounds` rather than `measured`, so the height and the span land
-        // in one go: the height alone is what retires this probe, and it would
-        // be gone before the span it had also found was heard.
-        sourceComponent: InkProbe {
-            target: image
-            ready: true
-            onBounds: (top, bottom, left, right, edgeLeft, edgeRight) => IconInk.remember(root.measureKey, (bottom - top + 1) / height, edgeLeft / width, (edgeRight + 1) / width)
-        }
-    }
+    // Measured on a copy in Ink's own window, at the size it is asked for here
+    // (before any shrink), so this item can come and go mid-measurement.
+    onMeasureKeyChanged: Ink.measureIcon(root.measureKey, root.size)
+    Component.onCompleted: Ink.measureIcon(root.measureKey, root.size)
 
     // Where the ink sits across the item, in whole pixels: its first column
     // from the item's left edge, and how many columns it spans. The whole box
     // until it has been measured, so a caller laying the icon out on its ink
     // starts from exactly where it would have been without.
-    readonly property var span: root.measureKey ? IconInk.spanOf(root.measureKey) : null
+    readonly property var span: root.measureKey ? Ink.spanOf(root.measureKey) : null
     readonly property int inkX: span ? artwork.x + Math.round(root.drawn * span.left) : 0
     readonly property int inkWidth: span ? artwork.x + Math.round(root.drawn * span.right) - inkX : box
 
