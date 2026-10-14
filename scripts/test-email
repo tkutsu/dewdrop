@@ -23,7 +23,8 @@ CONFIG = Path(__file__).resolve().parents[1]
 APP = QGuiApplication.instance() or QGuiApplication([])
 SERVICE = (CONFIG / 'services/Email.qml').read_text()
 POPUP = (CONFIG / 'components/EmailPopup.qml').read_text()
-METHODS = '\n'.join(re.findall(r'^    function .*?^    }', SERVICE, re.M | re.S))
+# copy() writes the real clipboard through Quickshell; the fixture records it.
+METHODS = '\n'.join(m for m in re.findall(r'^    function .*?^    }', SERVICE, re.M | re.S) if not m.startswith('    function copy('))
 BODY = textwrap.dedent(re.search(r'^(?P<indent> +)TextEdit \{.*?^(?P=indent)}', POPUP, re.M | re.S).group())
 
 STATE = '''
@@ -40,6 +41,15 @@ STATE = '''
     property int total: 0
     property int other: 0
     property var otherThreads: []
+    property real newestSeen: -1
+    property bool popupOpen: false
+    signal summoned
+    property int summons: 0
+    onSummoned: summons++
+    property var cards: []
+    property string copied: ""
+    function copy(text) { copied = text; }
+    QtObject { id: card; function createObject(parent, props) { root.cards.push(props); return props; } }
     property bool otherWanted: false
     property var pending: []
     property int undoMs: 4000
@@ -95,6 +105,8 @@ class EmailTests(unittest.TestCase):
         self.root = self.create('import QtQuick\nimport \"services/EmailEntities.js\" as EmailEntities\nItem { id: root\n' + STATE + METHODS + '\n}')
         self.engine.rootContext().setContextProperty('sut', self.root)
         self.engine.rootContext().setContextProperty('Email', self.root)
+        self.notices = self.create('import QtQuick\nQtObject { property var withdrawn: []; function withdraw(hint, value) { withdrawn = withdrawn.concat([hint + "=" + value]); } }')
+        self.engine.rootContext().setContextProperty('Notifications', self.notices)
         self.popup_state = self.create('import QtQuick\nItem { property bool shown: true; function dismiss() { shown = false; } function close(item) { dismiss(); } }')
         self.engine.rootContext().setContextProperty('OpenPopup', self.popup_state)
         self.theme = {
@@ -113,6 +125,7 @@ class EmailTests(unittest.TestCase):
         self.engine.rootContext().setContextProperty('Email', None)
         self.engine.rootContext().setContextProperty('sut', None)
         self.engine.rootContext().setContextProperty('OpenPopup', None)
+        self.engine.rootContext().setContextProperty('Notifications', None)
         self.popup_state.deleteLater()
         self.root.deleteLater()
         self.engine.deleteLater()
@@ -853,6 +866,124 @@ class EmailTests(unittest.TestCase):
         QTest.qWait(300)
         self.check('sut.pending.length === 1 && sut.pending[0].kind === "read" && sut.pending[0].row.id === "b"')
         self.check('popup.expanded === ""')
+
+    # --- codes and cards -----------------------------------------------------
+
+    def code(self, text):
+        return self.js('return sut.codeOf(' + json.dumps(text) + ');')
+
+    def test_codes_are_found(self):
+        cases = {
+            'Your verification code is 123456': '123456',
+            '123456 is your Google verification code': '123456',
+            'G-482913 is your Google verification code.': '482913',
+            'Use 482 913 to sign in. This is your one-time code.': '482913',
+            'Enter 482-913 when asked; your passcode expires soon': '482913',
+            'Κωδικός επαλήθευσης: 7731': '7731',
+            'Ο κωδικός σας είναι 55120.': '55120',
+            'Your PIN: 0420': '0420',
+            'OTP 99887766 valid for 10 minutes': '99887766',
+            'Sign-in code\n314159 — it expires in 10 minutes': '314159',
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(self.code(text), expected)
+
+    def test_near_misses_are_not_codes(self):
+        cases = [
+            'Your code of conduct for 2026',
+            'Order 123456 has shipped',
+            'Promo code inside! Order #554433, total $1299',
+            'Use the code at checkout for €1500 off',
+            'Use the code at checkout for 1500€ off',
+            'PIN reminder: meeting at 12:30 on 15/10/2026',
+            'Invoice no. 20231105 needs verification',
+            'Your code: SAVE20',
+            'Call 2101234567 for your code',
+            'Ref 445566: verification pending',
+            'Discount code: 25% off 4 items',
+            'Your code is below.' + ' Lorem ipsum dolor sit amet.' * 5 + ' 123456',
+            'No keyword here at all: 123456',
+            'barcode 123456',
+            'Price 1.234,56 with your pin',
+        ]
+        for text in cases:
+            with self.subTest(text=text):
+                self.assertEqual(self.code(text), '')
+
+    def test_rows_carry_their_code(self):
+        self.js('''
+            var row = sut.rowOf({id:"t", snippet:"Enter 778899 to continue"}, {messages:[{id:"m",internalDate:"1",labelIds:["UNREAD"],payload:{headers:[{name:"Subject",value:"Your sign-in code"}]}}]});
+            sut.found = row;
+        ''')
+        self.check('sut.found.code === "778899" && sut.codeIn(sut.found) === "778899"')
+        self.js('sut.found = sut.rowOf({id:"u", snippet:"Hello"}, {messages:[{id:"n",internalDate:"1",labelIds:["UNREAD"]}]});')
+        self.check('sut.found.code === "" && sut.codeIn(sut.found) === ""')
+        self.js('sut.bodies = {n: "Your verification code is 246810"};')
+        self.check('sut.codeIn(sut.found) === "246810"')
+
+    def row_at(self, id, at, subject='Hello'):
+        return 'sut.rowOf({id:"%s", snippet:"snip"},{messages:[{id:"m%s",internalDate:"%d",labelIds:["UNREAD"],payload:{headers:[{name:"From",value:"Ann <ann@x.com>"},{name:"Subject",value:"%s"}]}}]})' % (id, id, at, subject)
+
+    def test_first_poll_and_open_popup_send_no_cards(self):
+        self.js('sut.announce([%s]);' % self.row_at('a', 10))
+        self.check('sut.cards.length === 0')
+        self.js('sut.popupOpen = true; sut.announce([%s, %s]);' % (self.row_at('b', 20), self.row_at('a', 10)))
+        self.check('sut.cards.length === 0')
+        # Seen while the popup was open is seen.
+        self.js('sut.popupOpen = false; sut.announce([%s, %s]);' % (self.row_at('b', 20), self.row_at('a', 10)))
+        self.check('sut.cards.length === 0')
+
+    def test_an_empty_inbox_at_start_still_hears_the_first_mail(self):
+        self.js('sut.announce([]); sut.announce([%s]);' % self.row_at('a', 10))
+        self.check('sut.cards.length === 1')
+
+    def test_one_card_per_new_mail_with_its_buttons(self):
+        self.js('sut.announce([%s]);' % self.row_at('a', 10))
+        self.js('sut.announce([%s, %s, %s]);' % (self.row_at('c', 30, 'Your code is 123456'), self.row_at('b', 20, 'Tom & <Jerry>'), self.row_at('a', 10)))
+        self.check('sut.cards.length === 2')
+        command = self.js('return JSON.stringify(sut.cards.map(c => c.command));')
+        cards = json.loads(command)
+        # Oldest first, so the newest ends on top.
+        self.assertIn('--hint=string:x-gmail-thread:b', cards[0])
+        self.assertIn('--hint=string:x-gmail-thread:c', cards[1])
+        for c in cards:
+            self.assertEqual(c[:2], ['notify-send', '--wait'])
+            self.assertIn('--action=archive=Archive', c)
+            self.assertIn('--action=read=Mark read', c)
+            self.assertEqual(c[c.index('--') + 1], 'Ann')
+        self.assertIn('--action=code=Copy 123456', cards[1])
+        self.assertNotIn('--action=code=Copy 123456', cards[0])
+        self.assertEqual(cards[0][-1], 'Tom &amp; &lt;Jerry&gt;\nsnip')
+
+    def test_many_new_mails_are_one_card_and_older_rows_are_not_new(self):
+        self.js('sut.announce([%s]);' % self.row_at('a', 10))
+        rows = ', '.join(self.row_at('n%d' % i, 20 + i) for i in range(5))
+        self.js('sut.announce([%s, %s]);' % (rows, self.row_at('a', 10)))
+        cards = json.loads(self.js('return JSON.stringify(sut.cards.map(c => c.command));'))
+        self.assertEqual(len(cards), 1)
+        self.assertEqual(cards[0][-2:], ['5 new mails', ''])
+        self.assertFalse([a for a in cards[0] if 'x-gmail-thread' in a])
+        # "Load more" brings older rows into the list; they are not news.
+        self.js('sut.announce([%s, %s, %s]);' % (rows, self.row_at('a', 10), self.row_at('old', 5)))
+        self.check('sut.cards.length === 1')
+
+    def test_card_answers_act_at_once(self):
+        self.seed(['a', 'b'])
+        self.js('sut.answered("archive", sut.threads[0], "");')
+        self.check('sut.pending.length === 0 && sut.requests.length === 1 && sut.requests[0].body.removeLabelIds.includes("INBOX")')
+        self.check('sut.threads.map(t => t.id).join() === "b"')
+        self.js('sut.answered("code", sut.threads[0], "123456");')
+        self.check('sut.copied === "123456" && sut.requests.length === 2 && sut.threads.length === 0')
+        self.js('sut.answered("default", null, "");')
+        self.check('sut.summons === 1')
+        self.js('sut.answered("", null, ""); sut.answered("", {id:"x"}, "");')
+        self.check('sut.summons === 1 && sut.requests.length === 2')
+
+    def test_dealing_with_a_mail_withdraws_its_card(self):
+        self.seed(['a', 'b'])
+        self.js('sut.act("archive", sut.threads[0]); sut.markRead(sut.threads[0]);')
+        self.check('Notifications.withdrawn.join() === "x-gmail-thread=a,x-gmail-thread=b"')
 
     def test_real_text_control_selection_copy_and_links(self):
         # Keep the real popup control; intercept the external browser boundary.

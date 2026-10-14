@@ -153,6 +153,14 @@ Singleton {
             n.dismiss();
     }
 
+    // Take back the cards whose `hint` says `value`: a mail dealt with in the
+    // shell has nothing left to ask about.
+    function withdraw(hint: string, value: string): void {
+        for (const n of root.list)
+            if (n.hints?.[hint] === value)
+                n.dismiss();
+    }
+
     // The sender's most recently used window, or the app itself when it
     // named its desktop entry and has no window open. A sender that is
     // neither (notify-send, a script) has nowhere to go.

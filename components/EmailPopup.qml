@@ -140,6 +140,13 @@ Popup {
     Component.onDestruction: root.settle()
     onOtherOpenChanged: Email.otherWanted = root.otherOpen
 
+    // New mail lands in the list in front of you rather than on a card.
+    Binding {
+        target: Email
+        property: "popupOpen"
+        value: root.visible
+    }
+
     // An undone mail comes back as it left: open, if it was.
     Connections {
         target: Email
@@ -668,12 +675,13 @@ Popup {
                 // The subject takes what it needs and the snippet what is left,
                 // so a short subject shows more of the mail and a long one
                 // pushes the snippet off the end rather than being cut itself.
-                Row {
+                Item {
                     width: parent.width
+                    height: subject.implicitHeight
 
                     PopupText {
                         id: subject
-                        width: Math.min(implicitWidth, parent.width)
+                        width: Math.min(implicitWidth, parent.width - (codeChip.visible ? codeChip.width + 6 : 0))
                         text: row.modelData.subject
                         textFormat: Text.PlainText
                         font.pixelSize: Theme.captionSize
@@ -682,7 +690,8 @@ Popup {
                     }
 
                     PopupText {
-                        width: parent.width - subject.width
+                        x: subject.width
+                        width: parent.width - subject.width - (codeChip.visible ? codeChip.width + 6 : 0)
                         visible: !row.isOpen && width > 30 && text !== ""
                         leftPadding: 6
                         text: row.modelData.snippet
@@ -690,6 +699,27 @@ Popup {
                         font.pixelSize: Theme.captionSize
                         color: Theme.label2
                         elide: Text.ElideRight
+                    }
+
+                    // A login code, to copy without opening the mail. Copying
+                    // it is reading it: the mail is marked read with it, and
+                    // the undo takes back the read (the clipboard keeps it).
+                    PopupButton {
+                        id: codeChip
+
+                        readonly property string code: Email.codeIn(row.modelData)
+
+                        anchors.right: parent.right
+                        anchors.verticalCenter: subject.verticalCenter
+                        visible: code !== ""
+                        framed: true
+                        glyph: Theme.glyph.copy
+                        label: code
+                        name: "Copy code " + code
+                        onTapped: {
+                            Email.copy(code);
+                            root.act("read", row.modelData, { said: "Code copied" });
+                        }
                     }
                 }
 
