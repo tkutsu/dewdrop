@@ -655,17 +655,38 @@ Popup {
             list.contentY = Math.max(0, Math.min(list.contentHeight - list.height, Math.round(list.contentY / root.rowHeight) * root.rowHeight));
         })
 
+        property real scrollBeforeRefresh: NaN
+        property bool revealCurrentPending: false
+
+        // Restore browsing before following a track change in the same MPD reply.
+        function updateQueuePosition() {
+            if (!isNaN(scrollBeforeRefresh)) {
+                list.contentY = Math.max(0, Math.min(list.contentHeight - list.height, scrollBeforeRefresh));
+                scrollBeforeRefresh = NaN;
+            }
+            if (revealCurrentPending) {
+                revealCurrentPending = false;
+                if (Mpd.songPos >= 0 && Mpd.songPos < list.count) {
+                    list.forceLayout();
+                    list.positionViewAtIndex(Mpd.songPos, ListView.Contain);
+                }
+            }
+        }
+
         Connections {
             target: Mpd
+
+            function onSongPosChanged() {
+                list.revealCurrentPending = true;
+                Qt.callLater(list.updateQueuePosition);
+            }
 
             // The model is a plain array and is replaced whole on every
             // refresh, which puts the view back at the top with it. Removing a
             // song should not cost you your place in the queue it came out of.
             function onQueueChanging() {
-                const y = list.contentY;
-                Qt.callLater(() => {
-                    list.contentY = Math.max(0, Math.min(list.contentHeight - list.height, y));
-                });
+                list.scrollBeforeRefresh = list.contentY;
+                Qt.callLater(list.updateQueuePosition);
             }
 
             function onQueueChanged() {
