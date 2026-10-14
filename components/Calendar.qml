@@ -32,6 +32,34 @@ Popup {
     // what, without leaving the popup for the app.
     property string hoverDay: ""
     readonly property string listDay: hoverDay !== "" ? hoverDay : Agenda.today
+    // The day under the pointer or the keys right now. Moving off it to the
+    // list below keeps its list, so its tasks can be ticked off there.
+    property string litDay: ""
+
+    // Dated tasks are on the calendar too: something written down for a day,
+    // which is what a dot means. Subtasks stay with their parent.
+    readonly property var tasksByDay: {
+        const map = ({});
+        for (const task of Tasks.topLevel) {
+            const day = Tasks.dayOf(task);
+            if (day !== "")
+                map[day] = (map[day] ?? []).concat([task]);
+        }
+        return map;
+    }
+
+    onRequestedVisibleChanged: if (!requestedVisible)
+        Tasks.commit()
+
+    Timer {
+        id: letGo
+        interval: 150
+        onTriggered: {
+            const key = QsWindow.window?.keyItem;
+            if (!listHover.hovered && key?.parent !== list)
+                root.hoverDay = root.litDay;
+        }
+    }
 
     // At most this many rows, and the box stops under the last one. The
     // window keeps the height of a full list regardless, so the box grows and
@@ -97,6 +125,13 @@ Popup {
         TapHandler {
             onTapped: arrow.step()
         }
+    }
+
+    // A new task or event on that day, typed in the launcher: a title alone
+    // is a task due then, a time and a title an event.
+    function addOn(day) {
+        OpenPopup.dismiss();
+        Launcher.openWith(Launcher.taskPrefix + " " + Agenda.dayString(day) + " ");
     }
 
     function openDay(day) {
@@ -197,7 +232,7 @@ Popup {
                     readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
                     readonly property bool isToday: day.toDateString() === root.today.toDateString()
                     readonly property string dayKey: Agenda.dayString(day)
-                    readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown))
+                    readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown)) || !!root.tasksByDay[dayKey]
 
                     width: root.cell
                     height: root.cell
@@ -220,10 +255,13 @@ Popup {
                     readonly property var keyPress: () => root.openDay(dayCell.day)
                     readonly property bool lit: QsWindow.window?.keyItem ? dayCell.keyed : dayHover.hovered
                     onLitChanged: {
-                        if (dayCell.lit)
+                        if (dayCell.lit) {
+                            root.litDay = dayCell.dayKey;
                             root.hoverDay = dayCell.dayKey;
-                        else if (root.hoverDay === dayCell.dayKey)
-                            root.hoverDay = "";
+                        } else if (root.litDay === dayCell.dayKey) {
+                            root.litDay = "";
+                            letGo.restart();
+                        }
                     }
 
                     HoverHandler {
@@ -233,12 +271,17 @@ Popup {
                     Accessible.role: Accessible.Button
                     Accessible.name: Qt.formatDateTime(dayCell.day, "dddd d MMMM yyyy")
                     // Resting on a day lists its agenda below (ClickArea).
-                    Accessible.description: "Pointer: hover"
+                    Accessible.description: "Pointer: hover; right-click adds a task or event"
                     Accessible.onPressAction: if (enabled && visible)
                         root.openDay(dayCell.day)
 
                     TapHandler {
                         onTapped: root.openDay(dayCell.day)
+                    }
+
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: root.addOn(dayCell.day)
                     }
 
                     // Today gets a filled pill rather than an underline: at this
@@ -326,6 +369,8 @@ Popup {
             spacing: 0
 
             readonly property var events: Agenda.forDay(root.listDay, root.hoverDay ? Agenda.monthKey(root.shown) : Agenda.thisMonth)
+            // The day's tasks after its events, the way the dot counts both.
+            readonly property var rows: events.map(e => ({ event: e })).concat((root.tasksByDay[root.listDay] ?? []).map(t => ({ task: t })))
             // The most the list can take: a full page and the "more" line.
             readonly property real fullHeight: topPadding + root.listRowHeight * (root.listRows + 1)
 
@@ -338,10 +383,16 @@ Popup {
                 wrapMode: Text.WordWrap
             }
 
+            HoverHandler {
+                id: listHover
+                onHoveredChanged: if (!hovered)
+                    letGo.restart()
+            }
+
             // Wraps rather than elides: the one long thing that lands here
             // is the reconnect message, which is no use cut short.
             PopupText {
-                visible: parent.events.length === 0
+                visible: parent.rows.length === 0
                 width: parent.width
                 height: Math.max(root.listRowHeight, implicitHeight)
                 verticalAlignment: Text.AlignVCenter
@@ -351,39 +402,72 @@ Popup {
             }
 
             Repeater {
-                model: parent.events.slice(0, root.listRows)
+                model: parent.rows.slice(0, root.listRows)
 
-                Row {
+                // A task row crosses its task out the way the tasks popup
+                // does; an event row is only read.
+                PopupRow {
+                    id: entry
+
                     required property var modelData
+                    readonly property var task: modelData.task ?? null
+                    readonly property bool crossed: !!task && Tasks.isCrossed(task)
 
                     width: list.width
                     height: root.listRowHeight
-                    spacing: 8
+                    name: task ? (crossed ? "Reopen " : "Complete ") + task.title : ""
+                    acceptsTap: !!task
+                    opacity: crossed ? 0.4 : 1
+                    onTapped: if (task)
+                        Tasks.complete(task)
 
                     PopupText {
+                        visible: !entry.task
                         width: 42
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter
-                        text: Agenda.sayTime(modelData)
-                        color: modelData.allDay ? Theme.label3 : Theme.label2
+                        text: entry.task ? "" : Agenda.sayTime(entry.modelData.event)
+                        color: entry.modelData.event?.allDay ? Theme.label3 : Theme.label2
                         font.pixelSize: Theme.captionSize
                     }
 
+                    Glyph {
+                        visible: !!entry.task
+                        height: root.listRowHeight
+                        text: Theme.glyph.tasks
+                        fontSize: Theme.captionSize
+                        color: Theme.label2
+                    }
+
+                    // The task popup's dot, so a late task reads as late here.
+                    // At the end of the time column, so every title lines up.
+                    Rectangle {
+                        visible: !!entry.task
+                        x: 42 - width
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: entry.task ? Tasks.dotColour(entry.task) : "transparent"
+                    }
+
                     PopupText {
-                        width: list.width - 50
+                        x: 50
+                        width: list.width - x
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter
-                        text: modelData.title
+                        text: entry.task ? entry.task.title : entry.modelData.event.title
+                        font.strikeout: entry.crossed
                         elide: Text.ElideRight
                     }
                 }
             }
 
             PopupText {
-                visible: parent.events.length > root.listRows
+                visible: parent.rows.length > root.listRows
                 height: root.listRowHeight
                 verticalAlignment: Text.AlignVCenter
-                text: `+${parent.events.length - root.listRows} more`
+                text: `+${parent.rows.length - root.listRows} more`
                 color: Theme.label3
                 font.pixelSize: Theme.captionSize
             }

@@ -64,6 +64,63 @@ ShellRoot {
                 check(!Tasks.parse("tomorrow").ok, "day without title");
                 Settings.set("defaultTaskList", "missing");
                 check(Tasks.parse("call x").list === "home", "unknown default falls back");
+
+                // The `,` line: the more of a time it gives, the bigger the thing.
+                const day = d => Tasks.dayString(d);
+                const fri = Tasks.readDay("fri");
+                const at = (p, d, h, m) => p.ok && p.kind === "event" && day(p.event.start) === d
+                    && p.event.start.getHours() === h && p.event.start.getMinutes() === m
+                    && p.event.end - p.event.start === 3600000;
+                check(Tasks.plan("call bank").kind === "task" && Tasks.plan("call bank").task.list === "home", "plain line is a task");
+                check(Tasks.plan("work call bank").task.list === "work", "task list word makes a task there");
+                check(Tasks.plan("fri call bank").task.day === fri, "day word makes a dated task");
+                check(Tasks.plan("25m tea").kind === "timer", "duration is only a timer");
+                const alarm = Tasks.plan("15:00 call bank");
+                const rings = new Date(Timers.occurrence(15, 0, [], Date.now()));
+                check(alarm.kind === "alarm" && alarm.event.title === "call bank" && day(alarm.event.start) === day(rings)
+                    && alarm.event.start.getHours() === 15 && alarm.event.reminders.useDefault === false
+                    && alarm.event.reminders.overrides.length === 0, "clock time makes an alarm and a quiet event on its day");
+                check(Tasks.plan("15:00").kind === "alarm" && Tasks.plan("15:00").event === null, "untitled alarm makes no event");
+                check(at(Tasks.plan("today 15:00 call bank"), Tasks.today, 15, 0) && Tasks.plan("today 15:00 call bank").event.reminders === null, "today and a time make an event with default reminders");
+                check(at(Tasks.plan("fri 15:00 call bank"), fri, 15, 0), "weekday and time make an event");
+                check(at(Tasks.plan("2026-11-03 9:30 dentist"), "2026-11-03", 9, 30), "date and time make an event");
+                for (const time of ["21:30", "9:30pm"])
+                    check(at(Tasks.plan(`fri ${time} x`), fri, 21, 30), `event time ${time} reads as the alarm would`);
+                check(at(Tasks.plan("fri 9pm x"), fri, 21, 0) && at(Tasks.plan("fri 9:30am x"), fri, 9, 30), "am and pm event times");
+                const nine = Tasks.plan("fri 9 x");
+                check(nine.kind === "task" && nine.task.day === fri && nine.task.title === "9 x", "bare number after a day stays in a task title");
+                check(Tasks.plan("fri 15:00").error === "No event, only a time", "time with no title");
+                check(Tasks.plan("fri 15:00 work call").event.title === "work call", "section word stays in an event title");
+                check(!Tasks.plan("2026-02-30 9:30 x").ok, "invalid event date");
+
+                // What Enter will make, said before it is made.
+                const range = (a, b) => `${Timers.hhmm(a, 0)}–${Timers.hhmm(b, 0)}`;
+                const preview = line => Launcher.taskResults(" " + line)[0];
+                check(preview("15:00 call bank").subtitle === `alarm ${Timers.hhmm(15, 0)} ${Tasks.sayDay(day(rings))}  ·  event ${range(15, 16)}`, "alarm and event preview");
+                check(preview("fri 15:00 call bank").subtitle === `event  ·  ${Tasks.sayDay(fri)} ${range(15, 16)}` && preview("fri 15:00 call bank").event, "event preview");
+                check(preview("fri call bank").subtitle.startsWith("add  ·  ") && !preview("fri call bank").event, "task preview");
+                Google.scopeMissing = true;
+                check(preview("15:00 call bank").subtitle.endsWith("calendar needs reconnect") && preview("15:00 call bank").ok, "alarm still sets without the calendar");
+                check(preview("fri 15:00 call bank").subtitle === "event  ·  calendar needs reconnect" && !preview("fri 15:00 call bank").ok, "event waits for reconnect");
+                Google.scopeMissing = false;
+
+                // A time already gone today rings tomorrow, and its event is
+                // on the same day.
+                const gone = new Date(Date.now() - 120000);
+                if (gone.getDate() === new Date().getDate()) {
+                    const line = `${Timers.pad(gone.getHours())}:${Timers.pad(gone.getMinutes())} stand up`;
+                    Agenda.calls = [];
+                    Tasks.run(line);
+                    const entry = Timers.entries[Timers.entries.length - 1];
+                    const call = Agenda.calls[0];
+                    check(day(new Date(entry.endsAt)) === Tasks.tomorrow && call?.body.start.dateTime.startsWith(Tasks.tomorrow)
+                        && call.url.endsWith("/calendars/primary/events") && call.body.summary === "stand up", "past time goes to tomorrow for alarm and event");
+                    Timers.cancel(entry.id);
+                }
+                Agenda.calls = [];
+                check(Tasks.run("fri 15:00 call bank").startsWith("Added call bank") && Agenda.calls.length === 1
+                    && Agenda.calls[0].body.start.dateTime.startsWith(fri + "T15:00:00") && Agenda.calls[0].body.reminders === undefined, "event line inserts an event");
+                Agenda.calls = [];
                 Tasks.tasks = [
                     {id: "b", listId: "home", title: "Second", position: "20", due: "2026-10-01", parent: "", notes: ""},
                     {id: "a", listId: "home", title: "First", position: "10", due: "", parent: "", notes: "A note"},
@@ -218,6 +275,9 @@ def main():
         target = Path(folder)
         copy_shell(target)
         (target / "services/GoogleService.qml").write_text(BASE)
+        # Signed in, so the calendar is offered; nothing reaches Google.
+        (target / "data/quickshell").mkdir(parents=True)
+        (target / "data/quickshell/gtasks.json").write_text('{"client_id": "x", "client_secret": "x", "refresh_token": "x"}')
         p = target / "components/TasksPopup.qml"
         p.write_text(p.read_text().replace("id: root", "id: root\n    property alias auditList: list\n    property alias auditReorder: reorder", 1))
         shell = SHELL
