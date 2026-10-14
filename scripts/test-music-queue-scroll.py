@@ -79,6 +79,29 @@ ShellRoot {
                 Mpd.songPos = -1;
                 wait(30);
                 check(list.contentY === browsing, "no current track leaves the scroll position alone");
+                list.positionViewAtIndex(0, ListView.Beginning);
+                wait(30);
+                mouseClick(list, 25, 11);
+                check(Mpd.playCalls === 1, "queue tap plays exactly once");
+                mousePress(list, 25, 33);
+                wait(350);
+                check(popup.auditReorder.dragging, "queue hold starts shared drag");
+                mouseMove(list, 25, 77);
+                mouseRelease(list, 25, 77);
+                check(Mpd.moves.length === 1 && Mpd.moves[0].from === 1 && Mpd.moves[0].to === 3, "queue drop moves the original track");
+                wait(300);
+                check(!popup.auditReorder.showing, "queue reply ends drop settle");
+                const first = Mpd.queue[0];
+                mousePress(list, 25, 11);
+                wait(350);
+                const start = list.contentY;
+                mouseMove(list, 25, list.height - 2);
+                wait(250);
+                check(list.contentY > start, "shared queue drag scrolls at the edge");
+                Mpd.queueChanging(); Mpd.queue = Mpd.queue.slice();
+                mouseRelease(list, 25, list.height - 2);
+                wait(300);
+                check(Mpd.moves.length === 1, "refresh during a hold cancels the stale move");
                 console.log("DONE: queue scroll");
             }
         }
@@ -102,7 +125,19 @@ def main():
     }))
     property int songPos: 7
     property int nextPos: -1
-    property bool replaceQueue: false''')
+    property bool replaceQueue: false
+    property int playCalls: 0
+    property var moves: []
+    function playAt(pos) { playCalls++; songPos = pos; }
+    function moveTo(from, to) {
+        moves = moves.concat([{from: from, to: to}]);
+        Qt.callLater(() => {
+            const next = queue.slice();
+            next.splice(to, 0, next.splice(from, 1)[0]);
+            queueChanging();
+            queue = next.map((song, pos) => Object.assign({}, song, {pos: pos}));
+        });
+    }''')
         mpd = mpd.replace("function prev() {} function next() {}", '''
     function change(pos) {
         Qt.callLater(() => {
@@ -124,7 +159,7 @@ def main():
             'pragma Singleton\nimport QtQuick\nQtObject { property string musicPrefix: "#"; function openWith(prefix) {} }')
         path = target / "components/MusicPopup.qml"
         path.write_text(path.read_text()
-            .replace("id: root", "id: root\n    property alias auditList: list", 1)
+            .replace("id: root", "id: root\n    property alias auditList: list\n    property alias auditReorder: reorder", 1)
             .replace("height: root.transportBand\n\n                                Glyph",
                      'height: root.transportBand\n                                objectName: modelData.name\n\n                                Glyph', 1))
         (target / "shell.qml").write_text(SHELL)

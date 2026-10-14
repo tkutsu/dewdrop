@@ -153,5 +153,5 @@
     // own Google Cloud OAuth client: run scripts/gtasks-auth, or click
     // reconnect in any of their popups.
     // Hide these list names beside tasks, separated by commas. Leave empty to show all.
-    "omittedTaskList": "Personal",
+    "defaultTaskList": "",
 }
