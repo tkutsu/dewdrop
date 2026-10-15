@@ -34,13 +34,6 @@ Popup {
         width: root.bodyWidth
         title: "Bluetooth"
 
-        SettingSwitch {
-            anchors.verticalCenter: parent.verticalCenter
-            name: "Bluetooth"
-            checked: Bluetooth.on
-            onToggled: Bluetooth.toggle()
-        }
-
         // New devices only turn up while the adapter is looking, and
         // looking is loud on the radio, so it is asked for rather than
         // started every time the popup opens. Lit while it looks.
@@ -62,6 +55,13 @@ Popup {
                 OpenPopup.dismiss();
                 Quickshell.execDetached(["blueman-manager"]);
             }
+        }
+
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Bluetooth"
+            checked: Bluetooth.on
+            onToggled: Bluetooth.toggle()
         }
     }
 

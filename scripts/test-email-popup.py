@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The real mail popup in a scratch shell: rows, verbs, the next mail opening,
-undo, the Other row. Pass a directory to keep screenshots of it."""
+undo, the Other row, and pointer routing in open mail.
+Pass a directory to keep screenshots of it."""
 
 from pathlib import Path
 import subprocess
@@ -12,6 +13,7 @@ from test_support import copy_shell, shell_env
 
 SHELL = '''import QtQuick
 import Quickshell
+import QtTest
 import qs
 import qs.components
 import qs.services
@@ -22,6 +24,99 @@ ShellRoot {
     FloatingWindow {
         implicitWidth: 400; implicitHeight: 60
         Item { id: anchor; width: 40; height: 20 }
+        TestCase {
+            id: pointerTests
+            when: false
+
+            function message(item) {
+                if (item instanceof TextEdit)
+                    return item;
+                for (const child of item.children) {
+                    const found = message(child);
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            function run() {
+                const p = test.popup;
+                function open() { p.expanded = "a"; wait(400); }
+                open();
+                let row = test.list(p).itemAt(0);
+                let text = message(row);
+                row = text;
+                while (row && row.swipe === undefined) row = row.parent;
+                const first = text.positionToRectangle(0);
+                const x = first.x + 2, y = first.y + first.height / 2;
+                mouseClick(text, x, y);
+                test.check(p.expanded === "a", "clicking text keeps mail open");
+                mousePress(text, x, y);
+                wait(500);
+                mouseMove(text, text.width - 2, y);
+                mouseRelease(text, text.width - 2, y);
+                test.check(text.selectedText !== "" && row.swipe === 0 && p.expanded === "a", "holding text selects across empty space without swiping: selection=" + text.selectedText + ", swipe=" + row.swipe + ", expanded=" + p.expanded);
+
+                mouseClick(text, text.width - 2, y);
+                test.check(p.expanded === "", "trailing space closes mail");
+                open();
+                text = message(row);
+                const blankAt = text.getText(0, text.length).search(/[\\n\\u2028\\u2029]/);
+                test.check(blankAt >= 0, "fixture has a blank line");
+                const blank = text.positionToRectangle(blankAt + 1);
+                mouseClick(text, 40, blank.y + blank.height / 2);
+                test.check(p.expanded === "", "blank line closes mail");
+                open();
+                text = message(row);
+                const selection = text.selectedText;
+                mousePress(text, text.width - 2, y);
+                wait(500);
+                mouseMove(text, text.width - 62, y);
+                test.check(row.tracking && row.swipe < -40 && text.selectedText === selection, "holding empty space drags the mail: tracking=" + row.tracking + ", swipe=" + row.swipe);
+                mouseRelease(text, text.width - 62, y);
+                tryCompare(row, "swipe", 0, 4000);
+                wait(Theme.fadeMs + 50);
+                test.check(p.expanded === "a" && !row.tracking && row.swipe === 0, "short drag springs back without closing");
+
+                mouseClick(row, 4, row.height - 4);
+                test.check(p.expanded === "", "open mail gutter closes on click");
+                open();
+                const star = test.find(row, "Star");
+                mousePress(star, star.width / 2, star.height / 2);
+                wait(500);
+                mouseRelease(star, star.width / 2, star.height / 2);
+                test.check(Email.threads[0].starred && p.expanded === "a" && Math.abs(row.swipe) < 1, "held header button acts without closing or dragging: starred=" + Email.threads[0].starred + ", expanded=" + p.expanded + ", swipe=" + row.swipe);
+                Email.undo();
+
+                wait(400);
+                text = message(test.list(p).itemAt(0));
+                row = text;
+                while (row && row.swipe === undefined) row = row.parent;
+                const at = text.getText(0, text.length).indexOf("example.com");
+                const link = text.positionToRectangle(at);
+                mouseClick(text, link.x + 2, link.y + link.height / 2);
+                test.check(p.auditLink === "https://example.com" && p.expanded === "a", "link receives its click");
+
+                const task = test.find(row, "Make a task");
+                mouseClick(task, task.width / 2, task.height / 2);
+                test.check(Email.pending.length === 1 && p.expanded === "b", "footer button acts and opens next mail: pending=" + Email.pending.length + ", expanded=" + p.expanded);
+                Email.undo();
+                test.check(p.expanded === "a", "undo restores mail after pointer action");
+                wait(400);
+                text = message(test.list(p).itemAt(0));
+                row = text;
+                while (row && row.swipe === undefined) row = row.parent;
+                mousePress(row, row.width - 4, row.height - 4);
+                wait(500);
+                mouseMove(row, 4, row.height - 4);
+                mouseRelease(row, 4, row.height - 4);
+                wait(600);
+                test.check(Email.pending.length === 1 && Email.pending[0].kind === "archive" && p.expanded === "b", "full drag from empty space archives and opens next mail");
+                Email.undo();
+                p.expanded = "";
+                wait(400);
+                console.log("PASS: mail popup pointer routing");
+            }
+        }
     }
 
     function mail(id, at, from, subject, starred) {
@@ -68,7 +163,7 @@ ShellRoot {
             mail("b", now - 3600000, "Γιώργος Παπαδόπουλος <g@example.gr>", "Τα κλειδιά", true),
             mail("c", now - 86400000 * 2, "GitHub <noreply@github.com>", "Your verification code", false)
         ];
-        Email.bodies = {ma: "Shall we? Twelve thirty at the usual place.", mb: "Τα άφησα στο γραφείο.", mc: "Code 123456"};
+        Email.bodies = {ma: "Shall we? Twelve thirty at the usual place.\\n\\nhttps://example.com", mb: "Τα άφησα στο γραφείο.", mc: "Code 123456"};
         Email.files = {mb: [{id: "f1", name: "κλειδιά-φωτογραφία.jpg", size: 1843200, type: "image/jpeg"}, {id: "f2", name: "notes.txt", size: 812, type: "text/plain"}]};
         Email.total = 3;
         Email.otherThreads = [mail("x", now - 7200000, "Shop <news@shop.example>", "Autumn sale", false)];
@@ -81,7 +176,7 @@ ShellRoot {
     function run() {
         const p = test.popup;
         const row = i => p.contentItem && list(p).itemAt(i);
-        check(list(p).count === 3, "three rows");
+        check(list(p).count === 3, "three rows: " + list(p).count);
         for (const name of ["Archive", "Mark read", "Star"])
             check(find(row(0), name) !== null, "row has " + name);
         check(find(row(1), "Unstar") !== null, "a starred row offers unstar");
@@ -130,10 +225,13 @@ ShellRoot {
         interval: 900; running: true
         onTriggered: {
             try {
+                pointerTests.run();
                 test.run();
                 console.log("PASS: mail popup verbs, next mail, undo and other");
             } catch (error) {
                 console.log("FAIL: " + error + "\\n" + error.stack);
+                Qt.quit();
+                return;
             }
             test.shoot("open", () => {
                 test.popup.expanded = "";
@@ -160,7 +258,7 @@ ShellRoot {
     }
     // A grab that never answers must not hang the run.
     Timer {
-        interval: 4000; running: true
+        interval: 20000; running: true
         onTriggered: Qt.quit()
     }
 }
@@ -172,6 +270,9 @@ def main():
     with tempfile.TemporaryDirectory(prefix="quickshell-email-popup-") as folder:
         target = Path(folder)
         copy_shell(target)
+        popup = target / "components/EmailPopup.qml"
+        popup.write_text(popup.read_text().replace("id: root", 'id: root\n    property string auditLink: ""', 1)
+                         .replace("Qt.openUrlExternally(url);", "root.auditLink = url;"))
         (target / "shell.qml").write_text(SHELL % {"shots": shots})
         try:
             result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
@@ -180,7 +281,9 @@ def main():
         except subprocess.TimeoutExpired as hung:
             output = "FAIL: timed out\n" + (hung.stdout or b"").decode() + (hung.stderr or b"").decode()
         print(output, end="")
-        ok = "PASS: mail popup" in output and "FAIL:" not in output
+        ok = ("PASS: mail popup pointer routing" in output
+              and "PASS: mail popup verbs, next mail, undo and other" in output
+              and "FAIL:" not in output)
         for error in ("ReferenceError:", "TypeError:", "Binding loop", "Unable to assign", "is not a type"):
             ok = ok and error not in output
         return 0 if ok else 1
