@@ -40,7 +40,7 @@ ShellRoot {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
                 if (item.name !== undefined && item.checked !== undefined && item.tapped !== undefined) found[item.name] = item;
                 if (item.standalone === true && item.toggled !== undefined) found[item.name] = item;
-                if (item.chosen !== undefined && item.modelData !== undefined) found[item.modelData.label] = item;
+                if (item.isChosen !== undefined && item.modelData !== undefined) found[item.modelData.label] = item;
                 if (item.minute !== undefined && item.value !== undefined) found.dials.push(item);
                 for (const child of item.children) controls(child, found);
             }
@@ -99,13 +99,13 @@ ShellRoot {
                 controls(popup, found);
                 const off = found['Off'], on = found['On'], auto = found['Auto'];
                 verify(off && on && auto && !found.Schedule && !found.apply, 'one choice, applied at once, no switches');
-                verify(off.chosen, 'the choice starts on Off');
+                verify(off.isChosen, 'the choice starts on Off');
                 compare(found.dials.length, 2, 'both times use numeric dials');
                 tryVerify(() => !found.dials[0].visible, 1000, 'the hours fold away off Auto');
                 verify(!NightMode.tooltip.includes(':'), 'no schedule in the tooltip off Auto');
                 function tap(item) { mouseClick(item, item.width / 2, item.height / 2); }
                 tap(auto);
-                verify(auto.chosen && NightMode.automatic, 'Auto hands the mode to the schedule');
+                verify(auto.isChosen && NightMode.automatic, 'Auto hands the mode to the schedule');
                 tryVerify(() => found.dials[0].visible && found.dials[0].parent.parent.opacity === 1, 1000);
                 verify(NightMode.tooltip.endsWith(' · night mode off until 08:00'), NightMode.tooltip);
                 function arrows(item, found) {
@@ -173,32 +173,32 @@ ShellRoot {
                 compare(NightMode.startMinute, 1320);
                 compare(NightMode.endMinute, 420);
                 mode(true);
-                verify(auto.chosen && NightMode.automatic, 'a range around now turns night mode on');
+                verify(auto.isChosen && NightMode.automatic, 'a range around now turns night mode on');
                 compare(NightMode.tooltip, 'Night mode on until 07:00');
                 tap(off);
-                verify(off.chosen && NightMode.on, 'Off holds while the screen catches up');
+                verify(off.isChosen && NightMode.on, 'Off holds while the screen catches up');
                 mode(false);
-                verify(off.chosen && !NightMode.automatic, 'Off takes the mode back');
+                verify(off.isChosen && !NightMode.automatic, 'Off takes the mode back');
                 tryVerify(() => !found.dials[0].visible, 1000);
                 verify(!NightMode.tooltip.includes(':'), 'Off drops the schedule from the tooltip');
                 tap(on);
-                verify(on.chosen, 'On holds while the screen catches up');
+                verify(on.isChosen, 'On holds while the screen catches up');
                 mode(true);
                 compare(NightMode.tooltip, 'Night mode on');
                 tap(off);
                 tap(on);
                 mode(true);
                 wait(300);
-                verify(on.chosen && NightMode.on && NightMode.asked === '', 'the last pick wins over one still landing');
+                verify(on.isChosen && NightMode.on && NightMode.asked === '', 'the last pick wins over one still landing');
                 tap(auto);
                 mode(true);
-                verify(auto.chosen, 'back on Auto');
+                verify(auto.isChosen, 'back on Auto');
                 NightMode.setBrightness(50);
                 tryVerify(() => NightMode.brightness === 50 && !NightMode.on, 2000);
                 clock(23, 30);
                 wait(200);
                 verify(NightMode.automatic && !NightMode.on, 'manual brightness holds and keeps the schedule');
-                verify(auto.chosen && NightMode.tooltip.endsWith(' · night mode off until 22:00'), NightMode.tooltip);
+                verify(auto.isChosen && NightMode.tooltip.endsWith(' · night mode off until 22:00'), NightMode.tooltip);
                 NightMode.setAutomatic(false);
                 NightMode.setAutomatic(true);
                 mode(true);
