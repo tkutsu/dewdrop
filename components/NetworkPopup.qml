@@ -23,14 +23,6 @@ Popup {
         width: root.bodyWidth
         title: "Network"
 
-        SettingSwitch {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !!Network.wifi
-            name: "Wi-Fi"
-            checked: Network.wifiOn
-            onToggled: Network.toggleWifi()
-        }
-
         PopupButton {
             framed: true
             glyph: Theme.glyph.openApp
@@ -39,6 +31,14 @@ Popup {
                 OpenPopup.dismiss();
                 Quickshell.execDetached(["nm-connection-editor"]);
             }
+        }
+
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !!Network.wifi
+            name: "Wi-Fi"
+            checked: Network.wifiOn
+            onToggled: Network.toggleWifi()
         }
     }
 

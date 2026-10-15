@@ -339,7 +339,8 @@ Popup {
 
             // --- swipe -------------------------------------------------------
             // Left archives, right marks read, on the touchpad or with a
-            // mouse drag on the row's two lines. The row moves the way content
+            // mouse drag on a closed row or an open mail's empty space.
+            // The row moves the way content
             // scrolls on this machine, the glyph of what letting go will do
             // opens behind it, and past `reach` it pops: letting go
             // there slides the row off and folds it away. Short of it, the row
@@ -424,14 +425,72 @@ Popup {
             slide: row.swipe
 
             gesturePolicy: TapHandler.ReleaseWithinBounds
+            acceptsTap: !row.isOpen
             onTapped: {
-                if (reveal.bodyHovered || row.swiping)
+                if (row.swiping)
                     return;
                 if (row.isOpen) {
                     root.expanded = "";
                 } else {
                     root.expanded = row.modelData.id;
                     Email.read(row.modelData);
+                }
+            }
+
+            // Leave text and controls their press; only the air around them
+            // closes or swipes the open mail. Decide at press time so a drag
+            // can cross text without turning into a selection midway through.
+            function interactiveAt(item: Item, point: point): bool {
+                if (!item.visible || item.opacity === 0)
+                    return false;
+                const local = item.mapFromItem(row, point.x, point.y);
+                const inside = item.contains(local);
+                if (!inside && item.clip)
+                    return false;
+                if (item instanceof PopupButton)
+                    return inside;
+                if (item instanceof TextEdit)
+                    return inside && item.hasTextAt(local);
+                for (const child of item.children) {
+                    if (row.interactiveAt(child, point))
+                        return true;
+                }
+                return false;
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                z: 2
+                enabled: row.isOpen && !row.leaving
+                acceptedButtons: Qt.LeftButton
+                preventStealing: true
+                property real startX: 0
+                property real startY: 0
+                property bool moved: false
+                onPressed: mouse => {
+                    if (row.interactiveAt(lines, Qt.point(mouse.x, mouse.y))) {
+                        mouse.accepted = false;
+                        return;
+                    }
+                    startX = mouse.x;
+                    startY = mouse.y;
+                    moved = false;
+                }
+                onPositionChanged: mouse => {
+                    if (pressed && Math.abs(mouse.y - startY) >= Qt.styleHints.startDragDistance)
+                        moved = true;
+                    if (pressed && (row.tracking || Math.abs(mouse.x - startX) >= Qt.styleHints.startDragDistance))
+                        row.track(mouse.x - startX);
+                }
+                onReleased: mouse => {
+                    if (row.tracking)
+                        row.release();
+                    else if (!moved && contains(Qt.point(mouse.x, mouse.y)))
+                        root.expanded = "";
+                }
+                onCanceled: {
+                    row.tracking = false;
+                    row.swipe = 0;
                 }
             }
 
@@ -464,10 +523,10 @@ Popup {
                 }
             }
 
-            // Where a swipe is taken: the row's two lines and not the open
-            // mail under them, whose text is dragged to select. On top, so it
-            // sees the wheel first and hands back whatever is not sideways,
-            // and its drag only takes over from a press once it has moved.
+            // Touchpad swipes stay on the row's two lines. Closed rows also
+            // take mouse drags here; open rows route their presses above.
+            // On top, so it sees the wheel first and hands back whatever
+            // is not sideways.
             Item {
                 z: 1
                 width: row.width
@@ -512,7 +571,7 @@ Popup {
                 DragHandler {
                     target: null
                     yAxis.enabled: false
-                    enabled: !row.leaving
+                    enabled: !row.leaving && !row.isOpen
                     onActiveChanged: if (!active)
                         row.release()
                     onActiveTranslationChanged: if (active)
@@ -683,9 +742,6 @@ Popup {
                 // to the next.
                 Item {
                     id: reveal
-                    readonly property bool bodyHovered: bodyHover.hovered
-
-                    HoverHandler { id: bodyHover }
 
                     visible: height > 0
                     width: parent.width
@@ -822,6 +878,31 @@ Popup {
                                                     activeFocusOnPress: false
                                                     wrapMode: TextEdit.Wrap
                                                     textFormat: TextEdit.RichText
+
+                                                    // positionAt clamps to the nearest cursor even in
+                                                    // empty space. Check the adjacent character boxes.
+                                                    function hasTextAt(point: point): bool {
+                                                        if (linkAt(point.x, point.y) !== "")
+                                                            return true;
+                                                        const at = positionAt(point.x, point.y);
+                                                        for (let i = Math.max(0, at - 1); i <= Math.min(length - 1, at); i++) {
+                                                            const character = getText(i, i + 1);
+                                                            if (character === "\n" || character === "\u2028" || character === "\u2029")
+                                                                continue;
+                                                            const a = positionToRectangle(i);
+                                                            const b = positionToRectangle(i + 1);
+                                                            const end = a.y === b.y ? b.x : a.x + messageMetrics.advanceWidth(character);
+                                                            if (point.y >= a.y && point.y < a.y + a.height
+                                                                && point.x >= Math.min(a.x, end) && point.x <= Math.max(a.x, end))
+                                                                return true;
+                                                        }
+                                                        return false;
+                                                    }
+
+                                                    FontMetrics {
+                                                        id: messageMetrics
+                                                        font: messageText.font
+                                                    }
                                                     onLinkActivated: url => {
                                                         if (/^https?:\/\//i.test(url)) {
                                                             OpenPopup.dismiss();
