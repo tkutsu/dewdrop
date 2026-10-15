@@ -8,9 +8,7 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: 220
-
-    spacing: 6
+    readonly property int bodyWidth: Theme.popupWidth
 
     PopupHeader {
         width: root.bodyWidth

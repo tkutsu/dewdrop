@@ -27,8 +27,11 @@ Item {
     // Outlined, for the ones that stand on their own in a popup's foot rather
     // than in a run of controls at the end of a row.
     property bool framed: false
-    // On, for a toggle: held at the hovered fill and full
-    // strength, and one step past it under the pointer.
+    // On, for an option (night mode, feels like): filled in the switch's lit
+    // colour with the ink dark on it, as Control Center fills a tile that is
+    // on. The label stays the same either way; the fill is the state. It
+    // used to be held at the hovered fill, which left an option that was off
+    // looking on under the pointer that was about to press it.
     property bool lit: false
     // A framed one is a popup header's (PopupHeader), a size down from the
     // controls on a row.
@@ -62,10 +65,12 @@ Item {
         anchors.fill: parent
         visible: root.framed || root.lit || root.chosen
         radius: Theme.selectionRadius
-        color: root.chosen ? (root.blinkOn ? Theme.selection : "transparent") : root.lit ? (root.hovered ? Theme.selectionStrong : Theme.selection) : root.hovered ? Theme.selection : "transparent"
-        border.width: Theme.pillBorder
+        color: root.chosen ? (root.blinkOn ? Theme.selection : "transparent") : root.lit ? (root.hovered ? "white" : Theme.label) : root.hovered ? Theme.selection : "transparent"
+        border.width: root.lit ? 0 : Theme.pillBorder
         border.color: Theme.stroke
     }
+
+    readonly property color ink: root.lit ? "black" : Theme.fg
 
     Row {
         id: content
@@ -80,7 +85,7 @@ Item {
             text: root.glyph
             fontSize: root.glyphSize
             implicitHeight: root.height
-            color: root.warn ? Theme.warn : Theme.fg
+            color: root.warn ? Theme.warn : root.ink
         }
 
         PopupText {
@@ -88,6 +93,7 @@ Item {
             visible: root.label !== ""
             text: root.label
             font.pixelSize: root.textSize
+            color: root.ink
         }
     }
 
