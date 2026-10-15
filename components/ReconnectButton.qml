@@ -10,7 +10,7 @@ PopupButton {
     visible: Google.needsConsent
     live: !Google.consenting
     framed: true
-    label: Google.consenting ? "reconnecting…" : "reconnect"
+    label: "Reconnect…"
     warn: true
     onTapped: {
         OpenPopup.dismiss();

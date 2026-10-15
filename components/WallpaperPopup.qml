@@ -27,7 +27,6 @@ Popup {
     readonly property real rowSpacing: 6
     readonly property real sliderWidth: bodyWidth - swatchWidth - 8 - labelWidth - readoutWidth - rowSpacing * 2
 
-    spacing: 8
     // Room for the framing up front, so turning parallax on opens it inside a
     // window that keeps its size (see Popup.reserveHeight).
     reserveHeight: root.chromeHeight - framing.height + framing.fullHeight
@@ -192,8 +191,7 @@ Popup {
             PopupButton {
                 framed: true
                 lit: Wallpaper.parallax
-                glyph: Wallpaper.parallax ? Theme.glyph.check : ""
-                label: "parallax"
+                label: "Parallax"
                 onTapped: Wallpaper.setParallax(!Wallpaper.parallax)
             }
         }
@@ -326,9 +324,11 @@ Popup {
         id: framing
 
         readonly property bool shown: Wallpaper.parallax && Wallpaper.current !== ""
-        readonly property real previewWidth: Math.min(Math.round(144 / root.screenAspect), width - 2 * (zoomControl.width + root.spacing))
+        // Its own air round the picture, not the popup's between its parts.
+        readonly property int air: 8
+        readonly property real previewWidth: Math.min(Math.round(144 / root.screenAspect), width - 2 * (zoomControl.width + framing.air))
         readonly property real previewHeight: Math.round(previewWidth * root.screenAspect)
-        readonly property real fullHeight: framing.previewHeight + root.spacing
+        readonly property real fullHeight: framing.previewHeight + framing.air
         readonly property real zoom: isNaN(zoomControl.draft) ? Settings.wallpaperParallaxZoom : zoomControl.draft
         readonly property real across: Wallpaper.backdrops[root.screen?.name]?.pan.fraction ?? 0.5
 
@@ -354,7 +354,7 @@ Popup {
             id: preview
 
             x: (root.bodyWidth - width) / 2
-            y: root.spacing
+            y: framing.air
             width: framing.previewWidth
             height: framing.previewHeight
 
@@ -416,7 +416,7 @@ Popup {
         Item {
             id: zoomControl
 
-            x: preview.x + preview.width + root.spacing
+            x: preview.x + preview.width + framing.air
             y: preview.y
             width: 14 + 4 + readout.implicitWidth
             height: preview.height
@@ -470,13 +470,7 @@ Popup {
         }
     }
 
-    Rectangle {
-        width: root.bodyWidth
-        height: 1
-        color: Theme.stroke
-    }
-
-    PopupHeader {
+    PopupSection {
         width: root.bodyWidth
         title: "Monochrome"
 
@@ -486,8 +480,7 @@ Popup {
             opacity: Wallpaper.color ? 1 : 0.5
             framed: true
             lit: Wallpaper.drift
-            glyph: Wallpaper.drift ? Theme.glyph.check : ""
-            label: "drift"
+            label: "Drift"
             onTapped: Wallpaper.setDrift(!Wallpaper.drift)
         }
     }
