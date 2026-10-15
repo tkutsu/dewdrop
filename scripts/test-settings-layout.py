@@ -63,7 +63,14 @@ ShellRoot {
                     pointer.mouseClick(row, row.width / 2, row.height / 2);
                     expect(row.setting.get() === !before, "toggle can be changed");
                 }
-                if (row.setting.type === "choice") {
+                if (row.setting.type === "choice" && row.kind === "dropdown") {
+                    const box = control.item;
+                    expect(row.setting.options.length > 3 || row.setting.options.some(o => o.label.length > 8), "short choice stays a capsule");
+                    const next = (box.currentIndex + 1) % box.count;
+                    box.activated(next);
+                    expect(row.setting.get() === row.setting.options[next].value, "long choice can be selected from its pop-up button");
+                }
+                if (row.kind === "choice") {
                     const options = control.item.children.find(c => c.children.some(o => o.modelData !== undefined));
                     for (const option of options.children.filter(c => c.modelData !== undefined)) {
                         const p = option.mapToItem(row, 0, 0);
