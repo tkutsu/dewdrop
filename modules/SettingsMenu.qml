@@ -184,7 +184,7 @@ OverlayWindow {
                     rows: [
                         { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
                         { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
-                        { type: "choice", id: "timeCase", title: "Time letter case", text: "Change the letter case of the clock and alarm times.", options: [{ value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
+                        { type: "choice", id: "timeCase", title: "Time letter case", text: "Change the letter case of the clock and alarm times.", options: [{ value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
                         { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", text: "Use two-thirds font size for AM/PM in the bar, on the same baseline with no preceding space. Popup times keep AM/PM at full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
                     ]
                 },
@@ -192,7 +192,7 @@ OverlayWindow {
                     title: "Date",
                     rows: [
                         { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
-                        { type: "choice", id: "dateCase", title: "Date letter case", text: "Change the case of weekday and month names in the bar.", options: [{ value: "normal", label: "Normal" }, { value: "capitalize", label: "Capitalized" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
+                        { type: "choice", id: "dateCase", title: "Date letter case", text: "Case of day and month names.", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }, { value: "capitalize", label: "Capital" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
                     ]
                 }
             ]

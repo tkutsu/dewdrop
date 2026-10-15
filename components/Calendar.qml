@@ -336,7 +336,7 @@ Popup {
                             // The days either side are context, not padding — worth
                             // showing, faintly, so a month boundary reads at a glance.
                             color: dayCell.isToday ? "white" : (dayCell.thisMonth ? Theme.fg : Theme.label3)
-                            font.pixelSize: Theme.popupTextSize + (dayCell.isToday ? 1 : 0)
+                            font.pixelSize: Theme.popupTextSize
                             font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
                         }
 
