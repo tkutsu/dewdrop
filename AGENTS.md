@@ -10,13 +10,13 @@ Build a bar popup from the shared parts, top to bottom, following macOS's menu b
 - `PopupHeader`: the title, with controls for the whole popup on its right. When the popup has one main action (add, upgrade), the title is that button: `addable`, with `addGlyph` at its right end.
 - `PopupSection` for each later part: a hairline and a heading, with controls for that part on its right.
 - `PopupNote` for empty, in-progress and trouble lines (`warn: true` for trouble).
-- `PopupSeparator` then `PopupLink` at the foot when a fuller app exists ("Network Settings").
+- When a fuller app exists (Network Settings, btop, Gmail), a framed glyph-only `PopupButton` with `Theme.glyph.openApp` at the far right of the header. It dismisses the popup and opens the app. No footers.
 
 Width: `Theme.popupWidth` for lists and controls, `Theme.popupWideWidth` for notifications, mail and tasks. A popup sets its own width only when a graph, grid, artwork or month shapes it. Body spacing is the default `Theme.popupSpacing`.
 
 Pick a control by what it does:
 
-- On or off for the whole thing or for a section (Wi-Fi, Night Mode, Parallax): `SettingSwitch` with `checked` and `onToggled`, at the right of its header or `PopupSection`.
+- On or off for the whole thing or for a section (Wi-Fi, Parallax): `SettingSwitch` with `checked` and `onToggled`, at the right of its header or `PopupSection`. A section holding several switches gives each a named row, the switch at its far end and the whole row taking the press (Display's Night Mode: Enable Now, Schedule).
 - An option: framed `PopupButton` with `lit`, which fills it grey. The fill carries the state; the label stays fixed.
 - An action: framed `PopupButton`, `live: false` while it runs, label fixed.
 - Destructive: arm on the first press (check glyph, `warn`), act on the second, disarm when the pointer leaves the row.

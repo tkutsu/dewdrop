@@ -250,13 +250,13 @@ ShellRoot {
                 check(zoom && readout && !controls.zoomLabel, 'zoom shows only its percentage');
                 const track = bounds(zoom), picture = bounds(area);
                 check(Math.abs(picture.x + picture.width / 2 - popup.width / 2) < 0.5, 'wallpaper preview itself is centered');
-                check(track.height > track.width && track.x > picture.x + picture.width, 'zoom track is vertical to the right of the preview');
-                check(track.x + track.width <= popup.width - 6, 'zoom track fits the wallpaper popup');
+                check(track.height > track.width && track.x + track.width < picture.x, 'zoom track is vertical to the left of the preview');
+                check(track.x >= 6, 'zoom track fits the wallpaper popup');
                 const hint = bounds(readout);
                 const knob = zoom.mapToItem(popup, zoom.knobX, zoom.height / 2);
-                check(hint.x > track.x + track.width && Math.abs(hint.y + hint.height / 2 - knob.y) < 0.5 && readout.text === '108%', 'zoom percentage sits beside the knob');
+                check(hint.x + hint.width < track.x && Math.abs(hint.y + hint.height / 2 - knob.y) < 0.5 && readout.text === '108%', 'zoom percentage sits beside the knob');
                 check(readout.font.pixelSize === Theme.footnoteSize && ['r', 'g', 'b', 'a'].every(k => Math.abs(readout.color[k] - Theme.label2[k]) < 1 / 255), 'zoom percentage uses the gray hint style');
-                check(hint.x + hint.width <= popup.width - 6, 'zoom hint fits the wallpaper popup');
+                check(hint.x >= 6, 'zoom hint fits the wallpaper popup');
                 const originalZoom = Settings.wallpaperParallaxZoom;
                 mouseClick(zoom, zoom.width - 1, zoom.height / 2);
                 check(readout.text === '130%' && framing.zoom === 1.3, 'top of vertical track previews maximum zoom');

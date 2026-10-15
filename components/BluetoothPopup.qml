@@ -53,6 +53,16 @@ Popup {
             checked: Bluetooth.on
             onToggled: Bluetooth.toggle()
         }
+
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.openApp
+            name: "Bluetooth Settings"
+            onTapped: {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(["blueman-manager"]);
+            }
+        }
     }
 
     PopupSection {
@@ -122,19 +132,6 @@ Popup {
                     }
                 }
             }
-        }
-    }
-
-    PopupSeparator {
-        width: root.bodyWidth
-    }
-
-    PopupLink {
-        width: root.bodyWidth
-        text: "Bluetooth Settings"
-        onTapped: {
-            OpenPopup.dismiss();
-            Quickshell.execDetached(["blueman-manager"]);
         }
     }
 }

@@ -184,6 +184,16 @@ Popup {
             name: root.lastAction ? `Undo: ${root.lastAction.said}` : "Undo"
             onTapped: Email.undo()
         }
+
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.openApp
+            name: "Open Gmail"
+            onTapped: {
+                OpenPopup.dismiss();
+                Email.openInbox();
+            }
+        }
     }
 
     // What went wrong since the list loaded. Before that, the line below
@@ -307,19 +317,6 @@ Popup {
                 model: root.otherRows
                 delegate: mailRow
             }
-        }
-    }
-
-    PopupSeparator {
-        width: root.bodyWidth
-    }
-
-    PopupLink {
-        width: root.bodyWidth
-        text: "Open Gmail"
-        onTapped: {
-            OpenPopup.dismiss();
-            Email.openInbox();
         }
     }
 

@@ -38,7 +38,7 @@ ShellRoot {
             }
             function controls(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
-                if (item.checked !== undefined && item.toggled !== undefined) found[item.name] = item;
+                if (item.name !== undefined && item.checked !== undefined && item.tapped !== undefined) found[item.name] = item;
                 if (item.minute !== undefined && item.value !== undefined) found.dials.push(item);
                 for (const child of item.children) controls(child, found);
             }
@@ -95,9 +95,9 @@ ShellRoot {
                 mode(false);
                 const found = {dials: []};
                 controls(popup, found);
-                const scheduleToggle = found['Night mode schedule'];
-                verify(scheduleToggle && found['Night mode'] && !found.apply, 'popup controls apply automatically');
-                verify(!scheduleToggle.on, 'schedule switch starts off');
+                const scheduleToggle = found['Schedule'];
+                verify(scheduleToggle && found['Enable Now'] && !found.apply, 'popup controls apply automatically');
+                verify(!scheduleToggle.checked, 'schedule switch starts off');
                 compare(found.dials.length, 2, 'both times use numeric dials');
                 function arrows(item, found) {
                     if (item.objectName === 'increase' || item.objectName === 'decrease') found[item.objectName] = item;
@@ -165,9 +165,9 @@ ShellRoot {
                 compare(NightMode.endMinute, 420);
                 mouseClick(scheduleToggle, scheduleToggle.width / 2, scheduleToggle.height / 2);
                 mode(true);
-                verify(scheduleToggle.on && NightMode.automatic, 'schedule switch turns on');
+                verify(scheduleToggle.checked && NightMode.automatic, 'schedule switch turns on');
                 mouseClick(scheduleToggle, scheduleToggle.width / 2, scheduleToggle.height / 2);
-                verify(!NightMode.automatic && !scheduleToggle.on, 'schedule switch returns to off');
+                verify(!NightMode.automatic && !scheduleToggle.checked, 'schedule switch returns to off');
                 mouseClick(scheduleToggle, scheduleToggle.width / 2, scheduleToggle.height / 2);
                 mode(true);
                 NightMode.setBrightness(50);
