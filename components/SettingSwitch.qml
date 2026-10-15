@@ -1,16 +1,41 @@
 import QtQuick
 import qs
 
-// On or off: a track with a knob that slides to the lit end. The row it
-// sits in takes the click (SettingRow), so this only draws.
+// On or off: a track with a knob that slides to the lit end. In a SettingRow
+// the row takes the click, so this only draws. Standing alone, as a popup's
+// master switch at the end of its header (Wi-Fi, Bluetooth), it says its state
+// through `checked` and takes its own press and the keys.
 Item {
     id: root
 
     property var setting: null
-    readonly property bool on: root.setting?.get() === true
+    property bool checked: false
+    property string name: ""
+    readonly property bool standalone: root.setting === null
+    readonly property bool on: root.standalone ? root.checked : root.setting.get() === true
+
+    signal toggled
+
+    // The keys (Popup.qml); without a `keyed` the popup rings it.
+    readonly property var keyPress: root.standalone ? () => root.toggled() : null
+
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: root.name
+    Accessible.checked: root.on
+    Accessible.ignored: !root.standalone
+    Accessible.onPressAction: if (root.standalone && root.enabled && root.visible)
+        root.toggled()
+    Accessible.onToggleAction: if (root.standalone && root.enabled && root.visible)
+        root.toggled()
 
     implicitWidth: 28
     implicitHeight: 16
+
+    TapHandler {
+        enabled: root.standalone
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onTapped: root.toggled()
+    }
 
     Rectangle {
         anchors.fill: parent

@@ -10,6 +10,9 @@ import qs.services
 Popup {
     id: root
 
+    // Its parts touch; the air is their own.
+    spacing: 0
+
     // Months from "now", the way waybar's shift_up/shift_down worked.
     property int offset: 0
     // Agenda's day, which turns at midnight, so a popup left open across it
