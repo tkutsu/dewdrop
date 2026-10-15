@@ -145,7 +145,7 @@ ShellRoot {
                 check(win.changes === 1 && win.settingValue, "settings press toggles once");
                 toggle.Accessible.toggleAction();
                 check(win.changes === 2 && !win.settingValue, "settings toggle toggles once");
-                const second = choice.children[0].children.find(child => child.Accessible.name === "Test choice: Second");
+                const second = choice.children.find(c => c.children.some(o => o.modelData !== undefined)).children.find(child => child.Accessible.name === "Test choice: Second");
                 second.Accessible.pressAction();
                 check(win.changes === 3 && win.choiceValue === 1, "choice press selects once");
                 second.Accessible.toggleAction();

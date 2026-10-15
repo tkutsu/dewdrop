@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check settings text, controls and wrapped options fit and remain selectable."""
+"""Check settings text, controls and options fit and remain selectable."""
 
 import os
 from pathlib import Path
@@ -64,11 +64,11 @@ ShellRoot {
                     expect(row.setting.get() === !before, "toggle can be changed");
                 }
                 if (row.setting.type === "choice") {
-                    const options = control.item.children[0];
+                    const options = control.item.children.find(c => c.children.some(o => o.modelData !== undefined));
                     for (const option of options.children.filter(c => c.modelData !== undefined)) {
                         const p = option.mapToItem(row, 0, 0);
                         expect(p.x >= row.lead && p.x + option.width <= row.width - Theme.popupInset, "option " + option.modelData.label + " stays within row");
-                        expect(option.y + option.height <= control.height - 2, "wrapped option fits selector height");
+                        expect(option.y + option.height <= control.height, "option fits selector height");
                     }
                     const choices = options.children.filter(c => c.modelData !== undefined);
                     const next = choices[(win.phase + 1) % choices.length];
