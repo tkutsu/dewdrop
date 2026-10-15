@@ -4,9 +4,10 @@ import Quickshell.Widgets
 import qs
 
 // A tray item's DBus menu. Styled off the launcher rather than the old GTK
-// menu it replaced: same frosted panel, the same grey fill and white left
-// rule on the row you are on, and the same hairline for a separator, so the
-// two menus on this desktop read as one thing.
+// menu it replaced: same frosted panel, the same grey fill on the row you are
+// on, and the popups' hairline for a separator, so the menus on this desktop
+// read as one thing. A checked row is ticked in the column the popups' lists
+// tick theirs in (ChoiceRow).
 // Submenus open as their own popup anchored to the row that owns them.
 Popup {
     id: root
@@ -84,6 +85,10 @@ Popup {
         // one after another (blueman sends two in a row), or one at either
         // end. Each of those is an empty row the height of a gap, which reads
         // as a row that failed to load rather than as a gap.
+        // Whether any row can be ticked: then every row keeps the tick's
+        // column, as NSMenu does, so the labels start in one place.
+        readonly property bool checkable: body.entries.some(e => !e.isSeparator && e.buttonType !== QsMenuButtonType.None)
+
         readonly property var entries: {
             const all = [...opener.children.values];
             const kept = [];
@@ -207,21 +212,45 @@ Popup {
                     color: row.lit ? Theme.selection : "transparent"
                 }
 
-                // Full width, the same way the launcher's rule under the query
-                // is: a line that stops short of both edges reads as a dash
-                // sitting in the menu rather than as a divider across it.
-                Rectangle {
+                // As wide as the highlight, as the Mac has drawn them since
+                // Big Sur, and as the popups' sections are divided.
+                PopupSeparator {
                     anchors.centerIn: parent
                     visible: row.modelData.isSeparator
-                    width: parent.width + Theme.selectionInset * 2
-                    height: Theme.pillBorder
-                    color: Theme.stroke
+                    width: parent.width
                 }
+
+                // The tick column: a check on a checked row, a dash on a
+                // mixed one, the way the Mac marks them.
+                PopupText {
+                    id: mark
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: row.pad
+                    width: 18
+                    horizontalAlignment: Text.AlignHCenter
+                    visible: body.checkable && !row.modelData.isSeparator
+                    text: row.modelData.buttonType !== QsMenuButtonType.None && row.modelData.checkState === Qt.PartiallyChecked ? "–" : ""
+                    color: label.color
+                    opacity: label.opacity
+                }
+
+                Glyph {
+                    anchors.centerIn: mark
+                    visible: mark.visible && row.modelData.buttonType !== QsMenuButtonType.None && row.modelData.checkState === Qt.Checked
+                    text: Theme.glyph.check
+                    fontSize: Theme.popupTextSize
+                    color: label.color
+                    opacity: label.opacity
+                }
+
+                // Where a row's own things start: past the tick column when
+                // the menu has one, eight of air after it as in the lists.
+                readonly property int lead: body.checkable ? row.pad + 18 + 8 : row.pad
 
                 IconImage {
                     id: art
                     anchors.verticalCenter: parent.verticalCenter
-                    x: row.pad
+                    x: row.lead
                     implicitSize: Theme.popupGlyphSize
                     visible: row.modelData.icon !== ""
                     source: row.modelData.icon
@@ -230,14 +259,9 @@ Popup {
                 PopupText {
                     id: label
                     anchors.verticalCenter: parent.verticalCenter
-                    x: art.visible ? row.pad + art.implicitSize + 4 : row.pad
+                    x: art.visible ? row.lead + art.implicitSize + 4 : row.lead
                     visible: !row.modelData.isSeparator
-                    text: {
-                        // Check and radio items carry their state in the text,
-                        // the way the GTK menu drew a mark beside them.
-                        const mark = row.modelData.buttonType === QsMenuButtonType.None ? "" : (row.modelData.checkState === Qt.Checked ? "● " : "○ ");
-                        return mark + row.modelData.text;
-                    }
+                    text: row.modelData.text
                     color: row.lit ? Theme.menuSelectionText : Theme.menuText
                     opacity: row.modelData.enabled ? 1 : 0.4
                 }

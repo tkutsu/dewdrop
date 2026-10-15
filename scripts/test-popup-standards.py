@@ -101,7 +101,91 @@ ShellRoot {
 }'''
 
 
+MENU_SHELL = '''import QtQuick
+import QtTest
+import Quickshell
+import qs
+import qs.components
+ShellRoot {
+    FloatingWindow {
+        implicitWidth: 400; implicitHeight: 400
+        component Entry: QtObject {
+            property string text: ""
+            property bool isSeparator: false
+            property int buttonType: QsMenuButtonType.None
+            property int checkState: Qt.Unchecked
+            property bool enabled: true
+            property bool hasChildren: false
+            property string icon: ""
+            signal triggered
+        }
+        MenuPopup {
+            id: ticks
+            fake: [
+                Entry { text: "Plain" },
+                Entry { text: "Checked"; buttonType: QsMenuButtonType.CheckBox; checkState: Qt.Checked },
+                Entry { isSeparator: true },
+                Entry { text: "Unchecked radio"; buttonType: QsMenuButtonType.RadioButton }
+            ]
+        }
+        MenuPopup {
+            id: plain
+            y: 200
+            fake: [Entry { text: "Open" }, Entry { text: "Quit" }]
+        }
+        TestCase { id: test; when: false
+            function check(ok, message) { if (!ok) throw Error(message); console.log("PASS: " + message); }
+            function find(item, test) {
+                if (test(item)) return item;
+                for (const child of item.children) { const f = find(child, test); if (f) return f; }
+                return null;
+            }
+            function label(menu, text) { return find(menu, i => i.text === text && i.font !== undefined); }
+            function run() {
+                const rows = ["Plain", "Checked", "Unchecked radio"].map(t => label(ticks, t));
+                check(rows.every(r => r), "every row has its label");
+                check(rows.every(r => r.mapToItem(ticks, 0, 0).x === rows[0].mapToItem(ticks, 0, 0).x), "a menu with a check item starts every label in one column");
+                check(rows[0].x === Theme.popupInset + 26, "the labels start past the tick column, as a list's names do");
+                const tick = find(ticks, i => i.text === Theme.glyph.check && i.visible);
+                check(tick && Math.abs(tick.mapToItem(ticks, 0, 0).y - rows[1].mapToItem(ticks, 0, 0).y) < 8, "the checked row is ticked");
+                check(!find(ticks, i => typeof i.text === "string" && (i.text.includes("●") || i.text.includes("○"))), "no row spells its state in its text");
+                const line = find(ticks, i => i.color !== undefined && i.height === Theme.pillBorder && i.visible && i.width > 50);
+                const row = rows[0].parent;
+                check(line && line.width === row.width, "the separator is as wide as the rows' highlight");
+                const open = label(plain, "Open");
+                check(open && open.x === Theme.popupInset, "a menu without check items keeps its labels at the inset");
+            }
+        }
+        Timer { interval: 300; running: true; onTriggered: { try { test.run(); } catch (e) { console.log("FAIL: " + e + "\\n" + e.stack); } Qt.quit(); } }
+    }
+}'''
+
+
+def menus():
+    """The tray menu with its DBus rows stood in for by plain objects."""
+    with tempfile.TemporaryDirectory(prefix="quickshell-popup-menus-") as folder:
+        target = Path(folder)
+        copy_shell(target)
+        (target / "components/Popup.qml").write_text(POPUP)
+        menu = (target / "components/MenuPopup.qml").read_text()
+        opener = "    QsMenuOpener {\n        id: opener\n        menu: root.handle\n    }"
+        assert opener in menu and "required property QsMenuEntry modelData" in menu
+        menu = menu.replace(opener, "    property list<QtObject> fake\n    QtObject {\n        id: opener\n        property var children: ({values: root.fake})\n    }")
+        menu = menu.replace("required property QsMenuEntry modelData", "required property var modelData")
+        (target / "components/MenuPopup.qml").write_text(menu)
+        (target / "shell.qml").write_text(MENU_SHELL)
+        result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
+                                capture_output=True, text=True, timeout=20)
+        output = result.stdout + result.stderr
+        own = [line for line in output.splitlines() if re.search(r"components/\w+\.qml[\[:]\d+", line) and ("WARN" in line or "ERROR" in line)]
+        if os.environ.get("VERBOSE") or "FAIL:" in output or own or output.count("PASS:") != 7:
+            print(output)
+        assert "FAIL:" not in output and output.count("PASS:") == 7 and not own, "\n".join(own) or output
+        print("PASS: tray menus tick in the list's column")
+
+
 def main():
+    menus()
     with tempfile.TemporaryDirectory(prefix="quickshell-popup-standards-") as folder:
         target = Path(folder)
         copy_shell(target)
