@@ -64,6 +64,14 @@ Singleton {
     // Match the shared horizontal text inset below every popover's content.
     readonly property int popupBottomPadding: popupPadding + popupInset
     readonly property int popupRadius: popupPadding + selectionRadius
+    // The air between a popup's parts, and the two widths its body comes
+    // in. The menu extras share one width so going from one to the next is
+    // a change of contents rather than of box; the lists that are read rather
+    // than chosen from (tasks, mail) take the wider one. What draws its own
+    // shape — a graph, a grid, artwork, a month — is as wide as that.
+    readonly property int popupSpacing: 6
+    readonly property int popupWidth: 280
+    readonly property int popupWideWidth: 340
     readonly property int panelPadding: 12
     readonly property int panelRadius: panelPadding + selectionRadius
     // How far below the slab a popup hangs. The system drops a menu bar's

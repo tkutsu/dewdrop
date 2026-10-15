@@ -11,6 +11,9 @@ import qs
 Popup {
     id: root
 
+    // Its parts touch; the air is their own.
+    spacing: 0
+
     property QsMenuHandle handle
     signal dismissed
 

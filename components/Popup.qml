@@ -30,8 +30,8 @@ PopupWindow {
     property real vPadding: padding
     property real bottomPadding: Theme.popupBottomPadding
     default property alias content: body.data
-    // Popups whose body is one run of text want the parts touching; the ones
-    // that stack separate sections set this.
+    // The air between the body's parts. A popup whose parts touch (a menu's
+    // rows, a list that runs on under its header) sets 0.
     property alias spacing: body.spacing
 
     anchor {
@@ -615,6 +615,7 @@ PopupWindow {
                     id: body
                     x: root.hPadding
                     y: root.vPadding
+                    spacing: Theme.popupSpacing
                     // Blurring in as the drop swells into the box.
                     opacity: root.ink
                     layer.enabled: root.ink < 1

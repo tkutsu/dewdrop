@@ -6,6 +6,8 @@ import qs
 // the song that is playing and a tray menu its checked item, then the name,
 // weighted and lit the way the queue does its current song, then whatever the
 // row has to say at its right edge, laid out right to left by whoever uses it.
+// The name is at the popups' text size, the size a tray menu sets its rows in,
+// so a list to choose from and a menu read as the same thing.
 //
 // `busy` is for something under way — a device connecting, a network being
 // joined — and puts a spinner at the right edge in place of the rest.
@@ -46,9 +48,7 @@ PopupRow {
         width: (root.busy ? spinner.x - 8 : tail.width > 0 ? tail.x - 8 : root.width - Theme.popupInset) - x
         elide: Text.ElideRight
         text: root.text
-        font.pixelSize: Theme.captionSize
         font.weight: root.current ? Font.DemiBold : Font.Normal
-        opacity: root.current ? 1 : 0.8
     }
 
     Spinner {
