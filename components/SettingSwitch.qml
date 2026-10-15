@@ -55,7 +55,13 @@ Item {
         radius: width / 2
         y: 2
         x: root.on ? root.width - width - 2 : 2
-        color: root.on ? "black" : Theme.fg
+        color: root.on ? Theme.switchKnobOn : Theme.fg
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.fadeMs
+            }
+        }
 
         Behavior on x {
             NumberAnimation {
