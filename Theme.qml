@@ -787,7 +787,6 @@ Singleton {
         location: "\u{f07d9}",       // nf-md-map_marker_outline
         clearAll: "\u{f039f}",       // nf-md-notification_clear_all
         reconnect: "\u{f0342}",      // nf-md-login
-        drift: "\u{f174a}",          // nf-md-gradient_horizontal
         cleanup: "\u{f00e2}",        // nf-md-broom
 
         // The network module (it began as the tray's stand-in for nm-applet,

@@ -488,18 +488,6 @@ Popup {
             checked: Wallpaper.color !== ""
             onToggled: Wallpaper.setMonochrome(Wallpaper.color === "")
         }
-
-        // Only a flat colour drifts, so the option goes quiet while an image
-        // is up, but stays: it is still the setting the next colour gets.
-        PopupButton {
-            anchors.verticalCenter: parent.verticalCenter
-            opacity: Wallpaper.color ? 1 : 0.5
-            framed: true
-            lit: Wallpaper.drift
-            glyph: Theme.glyph.drift
-            label: "Drift"
-            onTapped: Wallpaper.setDrift(!Wallpaper.drift)
-        }
     }
 
     // A flat colour, for the days when none of the eleven are it. Dragging
