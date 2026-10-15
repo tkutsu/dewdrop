@@ -50,7 +50,7 @@ first pass.
 | Body spacing | 0, 3, 6, 8, 9, 10 | Tasks and Calendar 0, Mail 3, Weather, Wallpaper and Music 8, System 9, Updates 10 |
 | Padding | System overrides `hPadding` and `vPadding` to 12 | `SysPopup` |
 | Header | Notifications hand-builds a copy of `PopupHeader`; System has none | `NotificationsPopup`, `SysPopup` |
-| On/off | Wi-Fi and Bluetooth: a button whose label flips ("turn Wi-Fi off"). Night mode, feels like, parallax, drift: a lit button. Schedule: a second header with an "on"/"off" button | Network, Bluetooth, Display, Weather, Wallpaper |
+| On/off | Wi-Fi and Bluetooth: a button whose label flips ("turn Wi-Fi off"). Night mode, feels like, parallax: a lit button. Schedule: a second header with an "on"/"off" button | Network, Bluetooth, Display, Weather, Wallpaper |
 | Labels that flip | "look for devices"/"stop looking", "change"/"cancel", "refresh"/"loading..."/"checking…"/"retry" | Bluetooth, Weather, Updates |
 | Section starts | a caption line ("Batteries", "Microphones"), a second `PopupHeader` ("Schedule", "Monochrome"), a bare hairline (Sound, Music), a hairline then a caption (Recording) | |
 | Separators | the rows' width in popups, edge to edge in tray menus | `MenuPopup` |
@@ -75,7 +75,7 @@ first pass.
     the night mode schedule. It is a switch (`SettingSwitch`) at the right
     end of its header or section heading, as in the Wi-Fi menu.
   - An **option** changes what the popup shows or does: Night Mode, Feels
-    Like, Parallax, Drift, Scan. It is a lit framed button, like Control
+    Like, Parallax, Scan. It is a lit framed button, like Control
     Center's toggle tiles. Its label never changes; the fill says whether it
     is on.
   - An **action** does something once: Upgrade, Refresh, Clean Up, Clear,
@@ -214,9 +214,9 @@ width (Updates aside, with a long list); every master on/off is a switch;
   is open; pressing it again closes the search), "Refresh" (faint while
   loading). "Searching…", "Loading the forecast…", "Updating the forecast…".
   Spacing from 8 to the default.
-- **Wallpaper:** "Parallax" and "Drift". The second `PopupHeader`
-  "Monochrome" becomes a `PopupSection` with Drift on its right; the
-  hand-drawn hairline goes.
+- **Wallpaper:** "Parallax". The second `PopupHeader` "Monochrome"
+  becomes a `PopupSection` with its switch on the right; the hand-drawn
+  hairline goes.
 - **Music:** opacity literals to `label2` and `label3`. Hand-drawn hairlines
   become `PopupSeparator`. `headerButtonSize` (21) goes back to the framed
   default (20) if the artwork column still lines up. Spacing from 8 to the

@@ -5,7 +5,7 @@ import qs
 // Mac's Sound menu heads Output and Input. Smaller and greyer than the
 // popup's own title, so it reads as a part of the popup rather than a second
 // one. Controls that act on the section alone are its children, laid from the
-// right edge as PopupHeader lays its own: the wallpaper's drift.
+// right edge as PopupHeader lays its own: the wallpaper's Monochrome switch.
 //
 // The air round the hairline is the section's own, so the step from one part
 // to the next is the same in every popup. The first part under a header
