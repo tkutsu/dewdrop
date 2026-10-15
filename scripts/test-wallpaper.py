@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise wallpaper motion, glass sampling, colour drift and saved options in Qt."""
+"""Exercise wallpaper motion, glass sampling, flat colours and saved options in Qt."""
 
 import os
 from pathlib import Path
@@ -44,7 +44,7 @@ ShellRoot {
             }
             function run() {
                 tryVerify(() => Wallpaper.restored && desktop.ready, 5000);
-                check(!Wallpaper.parallax && !Wallpaper.drift && Wallpaper.parallaxY === 0.5, 'older state files default to stationary wallpaper');
+                check(!Wallpaper.parallax && Wallpaper.parallaxY === 0.5, 'older state files default to stationary wallpaper');
                 Hyprland.workspaces.values = [root.one, root.two, root.three];
                 Hyprland.toplevels.values = [root.one, root.two, root.three].map(w => ({workspace: w}));
                 Hyprland.monitor.activeWorkspace = root.one;
@@ -150,46 +150,19 @@ ShellRoot {
                 Hyprland.monitor.activeWorkspace = root.one;
                 wait(20);
                 check(!desktop.pan.running && near(desktop.pan.fraction, 0), 'a flat colour jumps rather than animating an unseen pan');
-                Wallpaper.hour = (Wallpaper.hourNow() + 12) % 24;
-                Wallpaper.setDrift(true);
-                wait(30);
-                check(Math.abs(Wallpaper.hour - Wallpaper.hourNow()) < 0.02, 'enabling drift refreshes the clock');
-                Wallpaper.hour = 12;
-                wait(100);
-                const day = Qt.color(Wallpaper.onScreen);
-                check(near(day.r, Qt.color('#8090a0').r), 'midday preserves the selected colour');
-                Wallpaper.hour = 19;
-                wait(100);
-                const dusk = Qt.color(Wallpaper.onScreen);
-                check(dusk.r / dusk.b > day.r / day.b, 'dusk makes the colour warmer');
-                Wallpaper.hour = 0;
-                wait(100);
-                const night = Qt.color(Wallpaper.onScreen);
-                check(night.r + night.g + night.b < day.r + day.g + day.b, 'night makes the colour darker');
-                tryVerify(() => near(desktop.front.color.r, night.r) && near(desktop.front.color.b, night.b), 1000);
-                const end = Wallpaper.drifted('#8090a0', 24);
-                check(near(night.r, end.r) && near(night.b, end.b), 'drift is continuous across midnight');
-                Wallpaper.setDrift(false);
-                wait(100);
-                check(Wallpaper.onScreen === '#8090a0', 'disabling drift restores the base colour');
-                Wallpaper.setDrift(true);
-                Wallpaper.hour = 0;
-                WallClock.wokeUp();
-                check(Math.abs(Wallpaper.hour - Wallpaper.hourNow()) < 0.02, 'wake refreshes the drift clock');
+                tryVerify(() => near(desktop.front.color.r, Qt.color('#8090a0').r) && near(desktop.front.color.b, Qt.color('#8090a0').b), 1000);
                 Wallpaper.setColor('#000000');
-                Wallpaper.hour = 0;
-                check(Wallpaper.onScreen !== '', 'black remains a valid drifting colour');
+                check(desktop.wantedColor === '#000000' && desktop.wantedPath === '', 'black remains a valid flat colour');
                 Wallpaper.show(0);
-                check(Wallpaper.onScreen === '' && Wallpaper.drift, 'image selection suspends drift without losing its preference');
+                check(desktop.wantedColor === '' && desktop.wantedPath !== '', 'an image replaces the flat colour');
                 Wallpaper.setColor('#8090a0');
                 Wallpaper.setParallax(true);
-                Wallpaper.setDrift(true);
                 Settings.reduceMotion = true;
                 check(!desktop.parallax && desktop.wantedZoom === 1, 'reduce motion turns parallax off');
                 Settings.reduceMotion = false;
                 check(desktop.parallax && desktop.wantedZoom > 1, 'parallax returns with motion');
                 wait(150);
-                console.log('PASS: workspace pan, compaction, wrapping, glass sampling, crossfades and colour drift');
+                console.log('PASS: workspace pan, compaction, wrapping, glass sampling, crossfades and flat colours');
             }
         }
         Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log('FAIL: ' + e); } Qt.quit(); } }
@@ -237,8 +210,7 @@ ShellRoot {
                 check(popup.width === popup.bodyWidth + Theme.popupPadding * 2, 'trailing thumbnail gap does not widen the popup');
                 const gridBounds = bounds(controls.grid);
                 check(Math.abs(gridBounds.x + popup.gridWidth / 2 - popup.width / 2) < 0.5, 'visible thumbnails have equal frame insets');
-                check(controls.parallax && controls.monochrome && controls.drift, 'parallax and monochrome sections have switches, and drift its option');
-                check(controls.drift.framed && controls.drift.glyph === Theme.glyph.drift, 'drift is a framed option with its mark');
+                check(controls.parallax && controls.monochrome && !controls.drift, 'parallax and monochrome sections have switches, and drift is gone');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
                 check(!Wallpaper.parallax && !controls.parallax.on, 'parallax switch turns off');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
@@ -290,11 +262,6 @@ ShellRoot {
                 tryVerify(() => grid.contentY > 0, 1000);
                 Wallpaper.files = files;
                 wait(50);
-                mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
-                check(!Wallpaper.drift && !controls.drift.lit, 'drift button switches off');
-                mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
-                check(Wallpaper.drift && controls.drift.lit && controls.drift.label === 'Drift', 'drift button lights up and keeps its label');
-                check(bounds(controls.drift).y < popup.height - 60, 'drift sits above the colour controls');
                 const mono = controls.monochrome, wasColour = Wallpaper.color !== '';
                 mouseClick(mono, mono.width / 2, mono.height / 2);
                 check((Wallpaper.color !== '') !== wasColour && mono.on !== wasColour, 'the monochrome switch swaps the colour and a picture');
@@ -331,8 +298,8 @@ ShellRoot {
     TestCase { id: test; when: false
         function run() {
             tryVerify(() => Wallpaper.restored, 5000);
-            if (Wallpaper.color !== '#8090a0' || !Wallpaper.drift || !Wallpaper.parallax || Math.abs(Wallpaper.parallaxY - 0.2) > 0.001)
-                throw new Error('saved colour, drift, parallax and its height did not restore');
+            if (Wallpaper.color !== '#8090a0' || !Wallpaper.parallax || Math.abs(Wallpaper.parallaxY - 0.2) > 0.001)
+                throw new Error('saved colour, parallax and its height did not restore');
             console.log('PASS: wallpaper options survive restart');
         }
     }
@@ -426,7 +393,7 @@ QtObject {
         (target / 'wallpapers/.current_wallpaper').write_text(str(target / 'wallpapers/a.png') + '\n\n\n')
         run_shell(target, SCENARIO)
         saved = (target / 'wallpapers/.current_wallpaper').read_text().splitlines()
-        assert saved == ['#8090a0', '#8090a0', 'drift', 'parallax', '0.2'], saved
+        assert saved == ['#8090a0', '#8090a0', '', 'parallax', '0.2'], saved
         run_shell(target, RELOAD)
         # Compare actual Qt-rendered desktop and bar pixels, not only crop formulas.
         from PIL import Image

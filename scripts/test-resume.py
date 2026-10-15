@@ -143,9 +143,8 @@ ShellRoot {
                 Wallpaper.current = "fixture-wallpaper";
                 Wallpaper.files = ["fixture-wallpaper"];
                 Wallpaper.restored = true;
-                Wallpaper.hour = -1;
                 WallClock.wokeUp();
-                check(Math.abs(Wallpaper.hour - Wallpaper.hourNow()) < 0.02 && Wallpaper.current === "fixture-wallpaper", "wake updates wallpaper time while preserving the image");
+                check(Wallpaper.current === "fixture-wallpaper", "wake preserves the wallpaper image");
                 measureCheck.restart();
             } catch (error) { test.fail(error); }
         }
@@ -158,8 +157,6 @@ ShellRoot {
                 // The stubbed identify prints nothing, like one that cannot read the file.
                 check(Wallpaper.measuredPath === "fixture-wallpaper" && Wallpaper.currentSize.width === 0, "a size magick cannot read still counts as measured");
                 Wallpaper.setColor("#112233");
-                Wallpaper.setDrift(true);
-                Wallpaper.hour = -1;
                 WallClock.wokeUp();
                 wallpaperCheck.restart();
             } catch (error) { test.fail(error); }
@@ -171,7 +168,6 @@ ShellRoot {
         onTriggered: {
             try {
                 check(Wallpaper.color === "#112233" && Wallpaper.lastColor === "#112233" && Wallpaper.current === "", "colour selection remains consistent after wake");
-                check(Wallpaper.onScreen === String(Wallpaper.drifted(Wallpaper.color, Wallpaper.hour)), "wake refreshes the drifting wallpaper colour");
                 checksBeforeLog = Updates.testRefreshes;
                 packageLog.setText("fixture package transaction finished\\n");
                 packageEarlyCheck.restart();

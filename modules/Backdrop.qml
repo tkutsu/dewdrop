@@ -39,8 +39,8 @@ PanelWindow {
         const a = root.front.average, b = root.back.average, t = root.progress;
         return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1);
     }
-    readonly property string wantedPath: Wallpaper.onScreen ? "" : Wallpaper.current
-    readonly property string wantedColor: Wallpaper.onScreen
+    readonly property string wantedPath: Wallpaper.color ? "" : Wallpaper.current
+    readonly property string wantedColor: Wallpaper.color
 
     property var monitor: Hyprland.monitorFor(root.screen)
     readonly property var activeWorkspace: root.monitor?.activeWorkspace ?? null

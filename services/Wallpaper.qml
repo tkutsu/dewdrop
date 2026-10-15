@@ -90,12 +90,6 @@ Singleton {
     // picture picked at random.
     property string lastImage: ""
 
-    // Whether a flat colour drifts with the time of day: warmer towards dusk,
-    // darker through the night, itself again by mid-morning — the way a
-    // dynamic desktop follows the sun, done to one colour instead of a set of
-    // photographs. Remembered with the wallpaper.
-    property bool drift: false
-
     // Workspace motion is remembered even while a solid colour is selected.
     property bool parallax: false
     // Where the parallax crop sits in the zoom's spare height, from 0 at the
@@ -110,72 +104,6 @@ Singleton {
     function setParallaxY(y) {
         root.parallaxY = y;
         root.save();
-    }
-
-    function setDrift(on) {
-        root.drift = on;
-        root.save();
-    }
-
-    // The hour of the day as a fraction, for the drift. Moved on the minute,
-    // and only while there is a drifting colour to move — the same rule the
-    // clock follows, since nothing here changes faster than that.
-    property real hour: root.hourNow()
-
-    function hourNow() {
-        const d = new Date();
-        return d.getHours() + d.getMinutes() / 60;
-    }
-
-    Timer {
-        running: root.drift && root.color !== ""
-        interval: 60000
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: root.hour = root.hourNow()
-    }
-
-    // How warm and how dark the colour goes at each hour, as a handful of
-    // points to interpolate between rather than a formula: the shape of a day
-    // is easier to read off a table than out of trigonometry. Warm is how far
-    // towards `dusk` the colour is mixed, dark how far its value comes down,
-    // both as fractions of the most either is allowed to go (driftWarm,
-    // driftDark). Twenty-four is midnight again, so the table wraps.
-    readonly property var driftCurve: [
-        [0, 0.6, 1],
-        [5, 0.6, 1],
-        [7, 0.3, 0.3],
-        [9, 0, 0],
-        [16, 0, 0],
-        [19, 1, 0.3],
-        [21, 0.8, 0.8],
-        [24, 0.6, 1]
-    ]
-    readonly property color dusk: "#ff8f4a"
-    readonly property real driftWarm: 0.18
-    readonly property real driftDark: 0.3
-
-    function drifted(hex, hour) {
-        const curve = root.driftCurve;
-        let i = 0;
-        while (i < curve.length - 2 && curve[i + 1][0] <= hour)
-            i++;
-        const [h0, w0, d0] = curve[i];
-        const [h1, w1, d1] = curve[i + 1];
-        const t = (hour - h0) / (h1 - h0);
-        const warm = (w0 + (w1 - w0) * t) * root.driftWarm;
-        const dark = (d0 + (d1 - d0) * t) * root.driftDark;
-        const c = Qt.color(hex);
-        const mix = (a, b) => (a + (b - a) * warm) * (1 - dark);
-        return Qt.rgba(mix(c.r, root.dusk.r), mix(c.g, root.dusk.g), mix(c.b, root.dusk.b), 1);
-    }
-
-    // The colour the backdrop actually draws: the one that was set, or where
-    // the day has taken it. Empty while an image is up.
-    readonly property string onScreen: {
-        if (!root.color)
-            return "";
-        return root.drift ? String(root.drifted(root.color, root.hour)) : root.color;
     }
 
     // --- tinting the material --------------------------------------------------
@@ -211,7 +139,7 @@ Singleton {
 
     readonly property var presentation: Quickshell.screens.map(s => root.backdrops[s.name]).find(view => view?.ready) ?? null
 
-    readonly property string behind: root.presentation ? String(root.presentation.average) : root.onScreen || root.sampled
+    readonly property string behind: root.presentation ? String(root.presentation.average) : root.color || root.sampled
 
     // The surface colour itself: the hue of what is behind, kept to a near
     // black. Saturation is capped so a vivid wallpaper tints the glass rather
@@ -246,7 +174,7 @@ Singleton {
     // decoration.lua keeps a neutral grey for while the shell is down, and a
     // config reload puts that grey back, so the border is sent again after one.
     // Keep border IPC tied to selection, rather than sending it every fade frame.
-    readonly property color borderTint: root.tintOf(root.onScreen || root.sampled)
+    readonly property color borderTint: root.tintOf(root.color || root.sampled)
     readonly property color border: Qt.hsla(Math.max(0, root.borderTint.hslHue), root.borderTint.hslSaturation, 0.38, 1)
 
     function paintBorder() {
@@ -256,7 +184,7 @@ Singleton {
 
     // Not while a new image is still being sampled: the tint is black for that
     // moment, and Hyprland would animate to grey and back.
-    onBorderChanged: if (root.onScreen || root.sampled)
+    onBorderChanged: if (root.color || root.sampled)
         root.paintBorder()
 
     Connections {
@@ -378,17 +306,11 @@ Singleton {
             root._random();
     }
 
-    // What is on screen, the last colour, drift, workspace parallax and its
-    // height. New lines follow the old ones so earlier state files still read.
+    // What is on screen, the last colour, an empty line where the colour's
+    // old drift setting was, workspace parallax and its height. New lines
+    // follow the old ones so earlier state files still read.
     function save() {
-        state.setText(`${root.color || root.current}\n${root.lastColor}\n${root.drift ? "drift" : ""}\n${root.parallax ? "parallax" : ""}\n${Math.round(root.parallaxY * 1000) / 1000}\n`);
-    }
-
-    Connections {
-        target: WallClock
-        function onWokeUp(): void {
-            root.hour = root.hourNow();
-        }
+        state.setText(`${root.color || root.current}\n${root.lastColor}\n\n${root.parallax ? "parallax" : ""}\n${Math.round(root.parallaxY * 1000) / 1000}\n`);
     }
 
     function openFolder() {
@@ -411,7 +333,6 @@ Singleton {
                 // existed.
                 const last = (lines[1] ?? "").trim();
                 root.lastColor = last || root.color;
-                root.drift = (lines[2] ?? "").trim() === "drift";
                 root.parallax = (lines[3] ?? "").trim() === "parallax";
                 const y = parseFloat(lines[4]);
                 root.parallaxY = y >= 0 && y <= 1 ? y : 0.5;
