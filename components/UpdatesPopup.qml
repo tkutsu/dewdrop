@@ -5,8 +5,8 @@ import qs.services
 
 // The updater tooltip was two counts. The counts are already the line totals of
 // a list of package names, so show the list: each name with its versions at
-// the right edge, AUR packages first, and the counts by source at the foot.
-// The title is the upgrade itself, its arrow where a popup keeps its plus.
+// the right edge, AUR packages first, and the counts in the title. The title
+// is the upgrade itself, its arrow where a popup keeps its plus.
 Popup {
     id: root
 
@@ -19,20 +19,18 @@ Popup {
     })
     readonly property int remaining: Math.max(0, root.entries.length - root.shown)
 
-    // As wide as the longest name and its versions with a gap between, and
-    // never narrower than the other popups.
-    readonly property FontMetrics mono: FontMetrics {
-        font.family: Theme.monoFont
-        font.pixelSize: Theme.captionSize
-    }
-    readonly property real bodyWidth: Math.max(Theme.popupWidth, header.implicitWidth,
-        ...root.rows.map(r => Math.ceil(root.mono.advanceWidth(r.name) + 16 + root.mono.advanceWidth(r.versions)) + Theme.popupInset * 2))
+    // A list to read, as wide as Mail and Tasks; a long name gives way to its
+    // versions.
+    readonly property real bodyWidth: Theme.popupWideWidth
 
     PopupHeader {
         id: header
 
         width: root.bodyWidth
-        title: "Update"
+        // How many, and how many of those the AUR's, on the title the
+        // upgrade is pressed on.
+        title: Updates.pending === 0 ? "Updates"
+            : `${Updates.pending} ${Updates.pending === 1 ? "Update" : "Updates"}` + (Updates.aur > 0 ? ` (${Updates.aur} AUR)` : "")
         // The upgrade itself, in a terminal; only while there is something
         // to take.
         addable: Updates.pending > 0
@@ -126,16 +124,5 @@ Popup {
             color: Theme.label2
             font.pixelSize: Theme.captionSize
         }
-    }
-
-    // How many from each source, the AUR only when it has any.
-    PopupText {
-        width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
-        visible: Updates.loaded && Updates.pending > 0
-        text: [Updates.official > 0 ? `${Updates.official} official` : "", Updates.aur > 0 ? `${Updates.aur} AUR` : ""].filter(Boolean).join(" · ")
-        color: Theme.label2
-        font.pixelSize: Theme.footnoteSize
     }
 }

@@ -4,8 +4,8 @@ import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
 // module: the brightness on a track the pointer can grab, then night mode as
-// a section of its own, with a switch for now, a switch for the schedule and
-// the schedule's hours.
+// a section with its switch on the heading, and under it the schedule's
+// switch and hours.
 Popup {
     id: root
 
@@ -45,12 +45,13 @@ Popup {
     PopupSection {
         width: root.bodyWidth
         title: "Night Mode"
-    }
 
-    SwitchRow {
-        name: "Enable Now"
-        checked: NightMode.on
-        onTapped: NightMode.toggle()
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Night mode"
+            checked: NightMode.on
+            onToggled: NightMode.toggle()
+        }
     }
 
     SwitchRow {

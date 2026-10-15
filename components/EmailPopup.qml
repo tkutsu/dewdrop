@@ -4,10 +4,11 @@ import qs.components
 import qs.services
 
 // Unread mail, newest first, as a list to clear rather than
-// one to read: every row carries its three verbs (archive, mark read, star),
-// which take over the time column under the pointer, and every verb can be
-// taken back from the header for a few seconds (Email.act). A click on a row
-// opens it in place to be read; its foot holds the rest (open in Gmail). Acting
+// one to read: a swipe archives or marks read, and every verb can be taken
+// back from the header for a few seconds (Email.act). A click on a row opens
+// it in place to be read, with its three verbs (archive, mark read, star) over
+// the time column and its foot holding the rest (open in Gmail, a task,
+// unsubscribe, the login code, the attachments). Acting
 // on the open mail opens the next one. Unread in the inbox tabs that do not
 // count (Settings.mailCategories) is one folded row at the end. The plus at the header's right end writes a new one.
 //
@@ -332,9 +333,9 @@ Popup {
             width: root.bodyWidth
             readonly property bool isOpen: root.expanded === row.modelData.id
             readonly property real collapsedHeight: from.implicitHeight + subject.implicitHeight + lines.spacing + root.rowPad * 2
-            // The verbs are out under the pointer, when the keys reach the
-            // row or one of them, and all the time on the open mail.
-            readonly property bool showVerbs: !row.swiping && (row.hovered || row.isOpen || archiveButton.keyed || readButton.keyed || starButton.keyed)
+            // The verbs are out on the open mail only; a row under the
+            // pointer keeps its time, and a swipe or a click does the rest.
+            readonly property bool showVerbs: !row.swiping && row.isOpen
 
             // --- swipe -------------------------------------------------------
             // Left archives, right marks read, on the touchpad or with a
@@ -649,7 +650,7 @@ Popup {
 
                     PopupText {
                         id: subject
-                        width: Math.min(implicitWidth, parent.width - (codeChip.visible ? codeChip.width + 6 : 0))
+                        width: Math.min(implicitWidth, parent.width)
                         text: row.modelData.subject
                         textFormat: Text.PlainText
                         font.pixelSize: Theme.captionSize
@@ -659,7 +660,7 @@ Popup {
 
                     PopupText {
                         x: subject.width
-                        width: parent.width - subject.width - (codeChip.visible ? codeChip.width + 6 : 0)
+                        width: parent.width - subject.width
                         visible: !row.isOpen && width > 30 && text !== ""
                         leftPadding: 6
                         text: row.modelData.snippet
@@ -667,27 +668,6 @@ Popup {
                         font.pixelSize: Theme.captionSize
                         color: Theme.label2
                         elide: Text.ElideRight
-                    }
-
-                    // A login code, to copy without opening the mail. Copying
-                    // it is reading it: the mail is marked read with it, and
-                    // the undo takes back the read (the clipboard keeps it).
-                    PopupButton {
-                        id: codeChip
-
-                        readonly property string code: Email.codeIn(row.modelData)
-
-                        anchors.right: parent.right
-                        anchors.verticalCenter: subject.verticalCenter
-                        visible: code !== ""
-                        framed: true
-                        glyph: Theme.glyph.copy
-                        label: code
-                        name: "Copy code " + code
-                        onTapped: {
-                            Email.copy(code);
-                            root.act("read", row.modelData, { said: "Code copied" });
-                        }
                     }
                 }
 
@@ -864,31 +844,6 @@ Popup {
                                                         }
                                                     }
                                                 }
-
-                                                // What came with it: saved to
-                                                // Downloads and opened.
-                                                Flow {
-                                                    readonly property var parts: Email.files[link.modelData.id] ?? []
-
-                                                    visible: parts.length > 0
-                                                    width: parent.width
-                                                    topPadding: 4
-                                                    spacing: 4
-
-                                                    Repeater {
-                                                        model: parent.parts
-
-                                                        delegate: PopupButton {
-                                                            required property var modelData
-
-                                                            framed: true
-                                                            glyph: Theme.glyph.attachment
-                                                            label: Email.saving[modelData.id] ? "Saving" : Email.sayFile(modelData)
-                                                            name: "Save " + modelData.name
-                                                            onTapped: Email.save(link.modelData.id, modelData)
-                                                        }
-                                                    }
-                                                }
                                             }
                                         }
                                     }
@@ -898,7 +853,7 @@ Popup {
                     }
 
                     // The open mail's foot: what to do with it besides the
-                    // three verbs above.
+                    // three verbs above, and what to take out of it.
                     Row {
                         id: foot
 
@@ -920,7 +875,7 @@ Popup {
                         PopupButton {
                             framed: true
                             glyph: Theme.glyph.tasks
-                            label: "Add Task"
+                            label: "Task"
                             name: "Make a task"
                             onTapped: root.act("archive", row.modelData, {
                                 said: "Task made",
@@ -937,7 +892,7 @@ Popup {
                             visible: unsubscribe !== null
                             framed: true
                             glyph: Theme.glyph.mailUnsubscribe
-                            label: "Unsubscribe"
+                            label: "Unsub"
                             name: "Unsubscribe"
                             onTapped: {
                                 if (unsubscribe.oneClick) {
@@ -950,6 +905,38 @@ Popup {
                                     Qt.openUrlExternally(unsubscribe.url);
                                 }
                             }
+                        }
+
+                        // A login code, to copy without reading for it.
+                        // Copying it is reading it: the mail is marked read
+                        // with it, and the undo takes back the read (the
+                        // clipboard keeps it).
+                        PopupButton {
+                            readonly property string code: Email.codeIn(row.modelData)
+
+                            visible: code !== ""
+                            framed: true
+                            glyph: Theme.glyph.copy
+                            label: code
+                            name: "Copy code " + code
+                            onTapped: {
+                                Email.copy(code);
+                                root.act("read", row.modelData, { said: "Code copied" });
+                            }
+                        }
+
+                        // Everything the thread came with, into Downloads.
+                        // Faint while any of it is still on its way.
+                        PopupButton {
+                            readonly property var parts: Email.partsIn(row.modelData)
+
+                            visible: parts.length > 0
+                            live: !parts.some(p => Email.saving[p.part.id])
+                            framed: true
+                            glyph: Theme.glyph.download
+                            label: "Download"
+                            name: parts.length === 1 ? "Download " + parts[0].part.name : `Download ${parts.length} attachments`
+                            onTapped: Email.saveAll(parts)
                         }
                     }
                 }

@@ -69,10 +69,13 @@ Item {
         border.color: Theme.stroke
     }
 
+    // The word first and its mark after it, the way the title's plus ends
+    // the header.
     Row {
         id: content
 
         anchors.centerIn: parent
+        layoutDirection: Qt.RightToLeft
         scale: press.scale
         spacing: 3
         opacity: root.chosen ? 1 : !root.live ? 0.15 : root.hovered || root.lit ? 1 : (root.framed ? 0.7 : 0.6)

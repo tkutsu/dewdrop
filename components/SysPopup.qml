@@ -14,8 +14,9 @@ import qs.services
 Popup {
     id: root
 
+    // The figures sit at the rows' inset; the header is at the top edge every
+    // popup's is.
     hPadding: Theme.popupPadding + Theme.popupInset
-    vPadding: hPadding
     spacing: 9
 
     // A fixed width, and every figure in a mono face. The contents are replaced
