@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 import qs.components
 import qs.services
@@ -8,10 +9,7 @@ import qs.services
 Popup {
     id: root
 
-    // Its parts touch; the air is their own.
-    spacing: 0
-
-    readonly property int bodyWidth: 340
+    readonly property int bodyWidth: Theme.popupWideWidth
     // The same air above the first line and below the last, however many
     // lines a task wraps to; a one-line row is one line plus that air.
     readonly property int rowPad: 4
@@ -144,35 +142,25 @@ Popup {
         RetryButton { service: Tasks }
     }
 
-    PopupText {
+    PopupNote {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
         visible: Tasks.loaded && Tasks.trouble !== "" && Tasks.trouble !== Google.reconnect
         text: Tasks.trouble
-        color: Theme.warn
+        warn: true
         font.pixelSize: Theme.footnoteSize
-        wrapMode: Text.WordWrap
     }
 
-    PopupText {
+    PopupNote {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
         visible: Tasks.pending.length > 0
-        text: "Waiting to save..."
-        color: Theme.label2
+        text: "Waiting to save…"
         font.pixelSize: Theme.footnoteSize
     }
 
-    PopupText {
+    PopupNote {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
         visible: !Tasks.loaded || Tasks.tasks.length === 0
         text: !Tasks.loaded ? (Tasks.trouble || "Connecting…") : "No tasks"
-        color: Theme.label2
-        wrapMode: Text.WordWrap
     }
 
     ListView {
@@ -402,6 +390,21 @@ Popup {
                     }
                 }
             }
+        }
+    }
+
+    // There is no Google Tasks app here, so the page (as the bar's right
+    // click opens it).
+    PopupSeparator {
+        width: root.bodyWidth
+    }
+
+    PopupLink {
+        width: root.bodyWidth
+        text: "Open Google Tasks"
+        onTapped: {
+            OpenPopup.dismiss();
+            Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
         }
     }
 }

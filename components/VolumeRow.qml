@@ -15,7 +15,7 @@ Row {
     property alias iconFontSize: glyph.fontSize
     property alias wheelStep: slider.wheelStep
     property alias wheelSnap: slider.wheelSnap
-    property alias readoutOpacity: readout.opacity
+    property alias readoutColor: readout.color
     property alias readoutFontSize: readout.font.pixelSize
     signal moved(real value)
     signal iconTapped

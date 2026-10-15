@@ -39,7 +39,7 @@ def main():
         target = Path(folder)
         (target / "services").mkdir()
         (target / "NotificationsPopup.qml").write_text(popup)
-        for name in ("PopupButton", "PopupText", "PopupHeader", "NotificationPicture", "ChoiceBlink", "SmoothScroll"):
+        for name in ("PopupButton", "PopupText", "PopupHeader", "PopupNote", "NotificationPicture", "ChoiceBlink", "SmoothScroll"):
             (target / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
         (target / "PressGlass.qml").write_text('import QtQuick\nQtObject { required property Item icon; required property var area; property bool down: false; property real scale: 1 }\n')
         (target / "ScrollUnder.qml").write_text('import QtQuick\nItem { required property Flickable view; required property Item box }\n')
@@ -258,7 +258,7 @@ ShellRoot {
                 check(popup.expandedGroup === other.appName && cardCount(popup) === 4, "opening another group closes the first");
                 Notifications.centreFocus = second; wait(130);
                 check(popup.expandedGroup === notice.appName, "opening on a focused notification opens its group");
-                const headerClear = button(named(popup, "group-header"), "clear");
+                const headerClear = button(named(popup, "group-header"), "Clear");
                 mouseClick(headerClear, headerClear.width / 2, headerClear.height / 2);
                 checkSoon(() => Notifications.count === 3 && Notifications.list.includes(single), "the header's clear clears only its group");
                 console.log("PASS: notification cards, actions, dismissal and grouping");

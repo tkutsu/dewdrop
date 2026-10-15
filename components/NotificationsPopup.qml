@@ -36,7 +36,6 @@ Popup {
     // which leaves the popup a popup rather than a panel down the side.
     readonly property int listMax: Math.round((root.screen?.height ?? 1080) * 2 / 3)
 
-    spacing: 6
     // Animate the cards inside a fixed window to avoid compositor repositioning.
     reserveHeight: root.chromeHeight - cards.height + root.listMax
 
@@ -100,83 +99,33 @@ Popup {
         precision: SystemClock.Minutes
     }
 
-    Item {
+    PopupHeader {
         width: root.bodyWidth
-        height: 22
         // Over the cards, which run on under it (ScrollUnder).
         z: 1
+        title: "Notifications"
 
-        Item {
+        PopupButton {
             id: clearAll
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            height: parent.height
-            property bool keyed: false
-            readonly property bool chosen: choice.item === clearAll
-            readonly property bool live: Notifications.count > 0 && !choice.running
-            readonly property bool hovered: clearAll.chosen ? choice.lit : QsWindow.window?.keyItem ? clearAll.keyed : clearHover.hovered
-            readonly property var keyPress: clearAll.live ? () => clearAll.clear() : null
-
-            Accessible.role: Accessible.Button
-            Accessible.name: "Clear all notifications"
-            Accessible.ignored: !clearAll.live
-            Accessible.onPressAction: if (clearAll.enabled && clearAll.visible)
-                clearAll.clear()
-
-            function clear(): void {
-                if (!clearAll.live)
-                    return;
+            visible: Notifications.count > 0
+            framed: true
+            label: "Clear All"
+            name: "Clear all notifications"
+            blink: choice
+            live: !choice.running
+            onTapped: {
                 const items = Notifications.list.slice();
                 choice.start(clearAll, () => root.clear(items));
             }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Theme.selectionRadius
-                border.width: 0
-                color: clearAll.hovered && (clearAll.live || clearAll.chosen) ? Theme.selection : "transparent"
-            }
-
-            HoverHandler { id: clearHover }
-
-            TapHandler {
-                gesturePolicy: TapHandler.ReleaseWithinBounds
-                onTapped: clearAll.clear()
-            }
-
-            PopupText {
-                x: root.inset
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, clearAll.width - x - clearLabel.width - 14)
-                text: "Notifications"
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-
-            PopupText {
-                id: clearLabel
-                anchors.right: parent.right
-                anchors.rightMargin: root.inset
-                anchors.verticalCenter: parent.verticalCenter
-                visible: Notifications.count > 0
-                text: "clear"
-                font.pixelSize: Theme.captionSize
-                opacity: clearAll.chosen ? 1 : !clearAll.live ? 0.15 : clearAll.hovered ? 1 : 0.7
-            }
         }
-
     }
 
     // Nothing waiting: a line saying so, rather than a header over nothing.
-    PopupText {
+    PopupNote {
         visible: Notifications.count === 0
         width: root.bodyWidth
-        leftPadding: root.inset
-        rightPadding: root.inset
         bottomPadding: 2
         text: "No notifications"
-        color: Theme.label2
     }
 
     // --- the cards --------------------------------------------------------------
@@ -279,7 +228,7 @@ Popup {
                 PopupButton {
                     id: groupClear
                     framed: true
-                    label: "clear"
+                    label: "Clear"
                     blink: choice
                     live: !choice.running
                     onTapped: {

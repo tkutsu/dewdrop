@@ -18,7 +18,9 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: 340
+    readonly property int bodyWidth: Theme.popupWideWidth
+    // The air between threads, closer than between the popup's parts.
+    readonly property int rowGap: 3
     readonly property int rowPad: 4
     // The text's inset from the edge of the row's highlight.
     readonly property int inset: Theme.popupInset
@@ -62,7 +64,7 @@ Popup {
             h += child.collapsedHeight ?? child.height;
             n++;
         }
-        return h + Math.max(0, n - 1) * root.spacing;
+        return h + Math.max(0, n - 1) * root.rowGap;
     }
 
     // The window is held at the height of a fully open mail, so a row opening
@@ -154,10 +156,9 @@ Popup {
         }
     }
 
-    spacing: 3
-
     // A new mail at the right end, where every popup under the bar keeps its
-    // plus. Gmail itself is a right click on the bar icon.
+    // plus. Gmail itself is the row at the foot, and a right click on the bar
+    // icon.
     PopupHeader {
         width: root.bodyWidth
         // Over the threads, which run on under it (ScrollUnder).
@@ -179,7 +180,7 @@ Popup {
             visible: root.lastAction !== null
             framed: true
             glyph: Theme.glyph.undo
-            label: "undo"
+            label: "Undo"
             name: root.lastAction ? `Undo: ${root.lastAction.said}` : "Undo"
             onTapped: Email.undo()
         }
@@ -187,27 +188,21 @@ Popup {
 
     // What went wrong since the list loaded. Before that, the line below
     // says it in place of the list.
-    PopupText {
+    PopupNote {
         width: root.bodyWidth
-        leftPadding: root.inset
-        rightPadding: root.inset
         visible: Email.loaded && Email.trouble !== "" && Email.trouble !== Google.reconnect
         text: Email.trouble
-        color: Theme.warn
+        warn: true
         font.pixelSize: Theme.footnoteSize
-        opacity: 0.8
+        wrapMode: Text.NoWrap
         elide: Text.ElideRight
     }
 
-    PopupText {
+    PopupNote {
         width: root.bodyWidth
-        leftPadding: root.inset
-        rightPadding: root.inset
         visible: !Email.loaded || root.rows.length === 0
         text: !Email.loaded ? Email.tooltip : Email.total === 0 ? "No unread mail"
-            : Email.trouble || (Email.loading ? "Reading mail..." : "Unread mail details unavailable")
-        color: Theme.label2
-        wrapMode: Text.WordWrap
+            : Email.trouble || (Email.loading ? "Reading mail…" : "Unread mail details unavailable")
     }
 
     Flickable {
@@ -242,7 +237,7 @@ Popup {
         Column {
             id: rowList
             width: parent.width
-            spacing: root.spacing
+            spacing: root.rowGap
 
             Repeater {
                 id: list
@@ -270,7 +265,7 @@ Popup {
                     x: root.textX
                     y: root.rowPad
                     width: parent.width - root.textX - root.inset
-                    text: root.loadingMore ? "Loading..." : `Load more (${Email.total - root.rows.length})`
+                    text: root.loadingMore ? "Loading…" : `Load more (${Email.total - root.rows.length})`
                     font.pixelSize: Theme.footnoteSize
                     color: Theme.label2
                 }
@@ -312,6 +307,19 @@ Popup {
                 model: root.otherRows
                 delegate: mailRow
             }
+        }
+    }
+
+    PopupSeparator {
+        width: root.bodyWidth
+    }
+
+    PopupLink {
+        width: root.bodyWidth
+        text: "Open Gmail"
+        onTapped: {
+            OpenPopup.dismiss();
+            Email.openInbox();
         }
     }
 
@@ -878,7 +886,7 @@ Popup {
 
                                                             framed: true
                                                             glyph: Theme.glyph.attachment
-                                                            label: Email.saving[modelData.id] ? "saving…" : Email.sayFile(modelData)
+                                                            label: Email.saving[modelData.id] ? "Saving…" : Email.sayFile(modelData)
                                                             name: "Save " + modelData.name
                                                             onTapped: Email.save(link.modelData.id, modelData)
                                                         }
@@ -903,7 +911,7 @@ Popup {
                         PopupButton {
                             framed: true
                             glyph: Theme.glyph.openApp
-                            label: "open"
+                            label: "Open"
                             name: "Open in Gmail"
                             onTapped: {
                                 OpenPopup.dismiss();
@@ -915,7 +923,7 @@ Popup {
                         PopupButton {
                             framed: true
                             glyph: Theme.glyph.tasks
-                            label: "task"
+                            label: "Add Task"
                             name: "Make a task"
                             onTapped: root.act("archive", row.modelData, {
                                 said: "Task made",
@@ -932,7 +940,7 @@ Popup {
                             visible: unsubscribe !== null
                             framed: true
                             glyph: Theme.glyph.mailUnsubscribe
-                            label: "unsubscribe"
+                            label: "Unsubscribe"
                             name: "Unsubscribe"
                             onTapped: {
                                 if (unsubscribe.oneClick) {

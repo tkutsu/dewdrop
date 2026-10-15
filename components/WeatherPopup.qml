@@ -16,7 +16,6 @@ Popup {
     readonly property var day: Weather.days[root.selected] ?? null
     readonly property var hours: root.day?.hours ?? []
     acceptsKeyboard: root.choosing
-    spacing: 8
     onDayChanged: Qt.callLater(reel.syncDay)
     onChoosingChanged: Qt.callLater(reel.syncDay)
 
@@ -33,12 +32,16 @@ Popup {
         PopupButton {
             framed: true
             lit: Weather.feelsLike
-            label: "feels like"
+            label: "Feels Like"
             onTapped: Weather.feelsLike = !Weather.feelsLike
         }
+        // Lit while the search is open; pressed again, it closes it and
+        // keeps the place there was.
         PopupButton {
             framed: true
-            label: root.choosing && Weather.location ? "cancel" : "change"
+            lit: root.choosing && !!Weather.location
+            label: "Change Location…"
+            name: root.choosing && Weather.location ? "Cancel changing location" : "Change location"
             onTapped: {
                 if (root.choosing && Weather.location) {
                     root.choosing = false;
@@ -51,7 +54,7 @@ Popup {
         }
         PopupButton {
             framed: true
-            label: Weather.loading ? "loading..." : "refresh"
+            label: "Refresh"
             live: !!Weather.location && !Weather.loading
             onTapped: Weather.refresh(true)
         }
@@ -256,7 +259,7 @@ Popup {
                 width: parent.width
                 leftPadding: Theme.popupInset
                 rightPadding: Theme.popupInset
-                text: Weather.searching ? "Searching..." : Weather.searchTrouble || (Weather.query.trim().length < 2 ? "Type at least two characters, then choose a location." : "Choose a location below.")
+                text: Weather.searching ? "Searching…" : Weather.searchTrouble || (Weather.query.trim().length < 2 ? "Type at least two characters, then choose a location." : "Choose a location below.")
                 color: Weather.searchTrouble ? Theme.warn : Theme.label2
                 font.pixelSize: Theme.captionSize
                 wrapMode: Text.WordWrap
@@ -348,7 +351,7 @@ Popup {
             anchors.centerIn: parent
             width: parent.width - 24
             visible: !root.choosing && Weather.days.length === 0
-            text: Weather.loading ? "Loading the forecast..." : Weather.trouble || "Choose a location to see its forecast."
+            text: Weather.loading ? "Loading the forecast…" : Weather.trouble || "Choose a location to see its forecast."
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             color: Weather.trouble ? Theme.warn : Theme.label2
@@ -364,7 +367,7 @@ Popup {
         font.pixelSize: Theme.footnoteSize
         color: Weather.trouble ? Theme.warn : Theme.label2
         wrapMode: Text.WordWrap
-        text: Weather.trouble ? `${Weather.trouble} Showing the last forecast.` : "Updating forecast..."
+        text: Weather.trouble ? `${Weather.trouble} Showing the last forecast.` : "Updating the forecast…"
     }
 
     Item {
