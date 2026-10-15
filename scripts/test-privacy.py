@@ -247,7 +247,7 @@ def main():
         source = source.replace("SequentialAnimation on opacity {", "SequentialAnimation on opacity {\n            id: pulse", 1)
         recording.write_text(source)
         popup = target / "components/PrivacyPopup.qml"
-        popupSource = popup.read_text().replace("id: root", "id: root\n    property alias testMicRows: micRows\n    property alias testInputRows: inputRows\n    property alias testShareRows: shareRows\n    property alias testDivider: shareDivider", 1)
+        popupSource = popup.read_text().replace("id: root", "id: root\n    property alias testMicRows: micRows\n    property alias testInputRows: inputRows\n    property alias testShareRows: shareRows\n    property alias testDivider: shareSection", 1)
         popupSource = popupSource.replace("id: entry", "id: entry\n        property alias testDot: statusDot\n        property alias testPulse: recordingPulse\n        property alias testTitle: line\n        property alias testIcon: leadingIcon", 1)
         popup.write_text(popupSource.replace("SequentialAnimation on opacity {", "SequentialAnimation on opacity {\n                id: recordingPulse", 1))
         service = target / "services/Privacy.qml"

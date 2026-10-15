@@ -13,12 +13,10 @@ Popup {
     readonly property var entries: Updates.aurList.concat(Updates.officialList)
     readonly property int remaining: Math.max(0, entries.length - shown)
 
-    spacing: 10
-
     PopupHeader {
         id: header
 
-        width: Math.max(list.width, footer.implicitWidth, implicitWidth)
+        width: Math.max(Theme.popupWidth, list.width, footer.implicitWidth, implicitWidth)
         title: "Updates"
 
         // The upgrade itself, in a terminal. Faint with nothing to take.
@@ -26,7 +24,7 @@ Popup {
             framed: true
             live: Updates.pending > 0
             glyph: Theme.glyph.update
-            label: "upgrade"
+            label: "Upgrade"
             onTapped: {
                 OpenPopup.dismiss();
                 Quickshell.execDetached([Paths.script("taskbar-update.sh")]);
@@ -34,12 +32,13 @@ Popup {
         }
 
         // The same check as a right-click on the bar, where it can be found.
-        // Faint while one is out, rather than queueing another.
+        // Faint while one is out, rather than queueing another; the note
+        // under the header says what it is doing.
         PopupButton {
             framed: true
             live: !Updates.loading
             glyph: Theme.glyph.refresh
-            label: Updates.loading ? "checking…" : Updates.trouble !== "" ? "retry" : "refresh"
+            label: "Refresh"
             onTapped: Updates.retryNow()
         }
 
@@ -50,7 +49,7 @@ Popup {
         PopupButton {
             framed: true
             glyph: Theme.glyph.cleanup
-            label: "clean up"
+            label: "Clean Up…"
             onTapped: {
                 OpenPopup.dismiss();
                 Quickshell.execDetached([Paths.script("dropdown-run.sh"), "cleanup", Paths.script("cleanup.sh")]);
@@ -65,11 +64,13 @@ Popup {
         rightPadding: Theme.popupInset
         spacing: 3
 
-        PopupText {
-            visible: Updates.trouble !== "" || !Updates.loaded || Updates.pending === 0
-            text: Updates.trouble !== "" ? Updates.trouble : !Updates.loaded ? "Checking for updates…" : "System up to date"
-            color: Theme.label2
-            wrapMode: Text.WordWrap
+        PopupNote {
+            visible: Updates.trouble !== "" || !Updates.loaded || Updates.loading || Updates.pending === 0
+            // Its column has the inset already.
+            leftPadding: 0
+            rightPadding: 0
+            text: Updates.trouble !== "" ? Updates.trouble : Updates.loading || !Updates.loaded ? "Checking for updates…" : "System up to date"
+            warn: Updates.trouble !== ""
         }
 
         Repeater {

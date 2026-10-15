@@ -4,13 +4,12 @@ import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
 // module: the brightness on a track the pointer can grab, and night mode as
-// a toggle beside the title, drawn the way the notification centre draws do
-// not disturb.
+// an option beside the title, lit while it is on. Under them the schedule,
+// with its own switch.
 Popup {
     id: root
 
-    spacing: 6
-    readonly property real bodyWidth: 270
+    readonly property real bodyWidth: Theme.popupWidth
 
     PopupHeader {
         width: root.bodyWidth
@@ -19,8 +18,7 @@ Popup {
         PopupButton {
             framed: true
             lit: NightMode.on
-            glyph: NightMode.on ? Theme.glyph.check : ""
-            label: "night mode"
+            label: "Night Mode"
             onTapped: NightMode.toggle()
         }
     }
@@ -51,27 +49,20 @@ Popup {
         }
     }
 
-    Rectangle {
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-    }
-
-    PopupHeader {
+    PopupSection {
         width: root.bodyWidth
         title: "Schedule"
 
-        PopupButton {
-            framed: true
-            lit: NightMode.automatic
-            glyph: NightMode.automatic ? Theme.glyph.check : ""
-            label: NightMode.automatic ? "on" : "off"
-            onTapped: NightMode.setAutomatic(!NightMode.automatic)
+        SettingSwitch {
+            name: "Night mode schedule"
+            checked: NightMode.automatic
+            onToggled: NightMode.setAutomatic(!NightMode.automatic)
         }
     }
 
     Row {
         width: root.bodyWidth
+        leftPadding: Theme.popupInset
         spacing: 8
 
         TimeDial {

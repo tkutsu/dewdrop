@@ -5,8 +5,9 @@ import qs
 import qs.services
 
 // What the audio module's tooltip could not be, and what pavucontrol was
-// opened for: which output is playing, a volume the pointer can grab, and one
-// for each app that is making a sound.
+// opened for: a volume the pointer can grab, which output is playing, one for
+// each app that is making a sound, and the input. Laid out as the Mac's Sound
+// menu: the volume under the title, then Output and Input as sections.
 Popup {
     id: root
 
@@ -17,19 +18,22 @@ Popup {
         objects: Audio.sinks.concat(Audio.outStreams, Audio.sources)
     }
 
-    spacing: 6
+    readonly property int bodyWidth: Theme.popupWidth
+    // The track takes what the row's speaker, readout and gaps leave
+    // (VolumeRow: the inset, the speaker, two gaps, the readout, the inset).
+    readonly property real sliderWidth: root.bodyWidth - Theme.popupInset * 6 - (Theme.popupTextSize + 2) - 34
 
     PopupHeader {
-        width: content.width
+        width: root.bodyWidth
         title: "Sound"
     }
 
     // The wheel moves whichever volume is under the pointer: an app's over
     // its row, the output's anywhere else, in the same steps as the wheel on
     // the bar icon, though down is louder here: the rows are sliders, and
-    // the wheel goes the way it does on every Slider. A gap between sections
-    // counts as the one below it, so the rule under the master row is the
-    // border between the two. Accumulated
+    // the wheel goes the way it does on every Slider. A gap between parts
+    // counts as the one below it, and the Input heading carries the mic, so
+    // the wheel over it moves the input. Accumulated
     // the same way BarItem does it, so a touchpad's fractions add up to notches
     // instead of each one being a step. A MouseArea under the contents rather
     // than a WheelHandler, which never saw a wheel event in here; taking no
@@ -60,16 +64,28 @@ Popup {
 
         Column {
             id: content
-            spacing: 6
+            spacing: Theme.popupSpacing
+
+            VolumeRow {
+                id: master
+                sliderWidth: root.sliderWidth
+                icon: Audio.icon
+                volume: Audio.volume
+                onMoved: value => Audio.setVolume(value)
+                onIconTapped: Audio.toggleMute()
+            }
 
             // The outputs, the one in use ticked, as the Bluetooth and
             // network popups list theirs.
-            PopupText {
-                leftPadding: Theme.popupInset
-                rightPadding: Theme.popupInset
+            PopupSection {
+                width: root.bodyWidth
+                title: "Output"
+            }
+
+            PopupNote {
+                width: root.bodyWidth
                 visible: Audio.sinks.length === 0
                 text: "No audio output"
-                color: Theme.label2
             }
 
             Column {
@@ -83,7 +99,7 @@ Popup {
 
                         required property var modelData
 
-                        width: master.width
+                        width: root.bodyWidth
                         text: modelData.description || modelData.name
                         current: modelData === Audio.sink
                         onTapped: Audio.setDefault(output.modelData)
@@ -91,19 +107,10 @@ Popup {
                 }
             }
 
-            VolumeRow {
-                id: master
-                icon: Audio.icon
-                volume: Audio.volume
-                onMoved: value => Audio.setVolume(value)
-                onIconTapped: Audio.toggleMute()
-            }
-
-            Rectangle {
+            PopupSection {
                 visible: Audio.streams.length > 0
-                width: master.width
-                height: Theme.pillBorder
-                color: Theme.stroke
+                width: root.bodyWidth
+                title: "Apps"
             }
 
             Repeater {
@@ -121,7 +128,7 @@ Popup {
                     spacing: 2
 
                     PopupText {
-                        width: master.width
+                        width: root.bodyWidth
                         leftPadding: 32
                         elide: Text.ElideRight
                         text: Audio.appName(app.modelData)
@@ -132,6 +139,7 @@ Popup {
                     // The speaker is the app's mute, the way the bar's is
                     // the output's: struck through while it is silenced.
                     VolumeRow {
+                        sliderWidth: root.sliderWidth
                         name: Audio.appName(app.modelData)
                         icon: Audio.level(app.volume, app.muted)
                         volume: app.volume
@@ -147,16 +155,15 @@ Popup {
                 }
             }
 
-            // The input, after a rule, laid out as the output is: the
-            // microphones to choose between when there is more than one, then
-            // its level, the mic glyph its mute. Each part carries the source
-            // as its node, so the wheel over any of it moves the mic.
-            Rectangle {
+            // The input, laid out as the output is: the microphones to
+            // choose between when there is more than one, then its level, the
+            // mic glyph its mute. Each part carries the source as its node,
+            // so the wheel over any of it moves the mic.
+            PopupSection {
                 readonly property var modelData: Audio.source
                 visible: !!Audio.source
-                width: master.width
-                height: Theme.pillBorder
-                color: Theme.stroke
+                width: root.bodyWidth
+                title: "Input"
             }
 
             Column {
@@ -173,7 +180,7 @@ Popup {
 
                         required property var modelData
 
-                        width: master.width
+                        width: root.bodyWidth
                         text: modelData.description || modelData.name
                         current: modelData === Audio.source
                         onTapped: Audio.setDefaultSource(input.modelData)
@@ -184,6 +191,7 @@ Popup {
             VolumeRow {
                 readonly property var modelData: Audio.source
                 visible: !!Audio.source
+                sliderWidth: root.sliderWidth
                 name: "Microphone"
                 icon: Audio.micMuted ? Theme.glyph.micMuted : Theme.glyph.mic
                 volume: Audio.micVolume
