@@ -36,6 +36,11 @@ Rectangle {
                     root.setting.set(option.modelData.value)
                 Accessible.onToggleAction: if (!option.chosen && option.enabled && option.visible)
                     root.setting.set(option.modelData.value)
+                // A popup's keys (Popup.qml) reach each option.
+                readonly property var keyPress: () => {
+                    if (!option.chosen)
+                        root.setting.set(option.modelData.value);
+                }
 
                 width: label.implicitWidth + 20
                 height: 18

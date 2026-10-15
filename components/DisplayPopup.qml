@@ -4,8 +4,8 @@ import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
 // module: the brightness on a track the pointer can grab, then night mode as
-// a section with its switch on the heading, and under it the schedule's
-// switch and hours.
+// a section with Off, On and Auto on its heading, and the schedule's hours
+// opening under it on Auto.
 Popup {
     id: root
 
@@ -42,75 +42,77 @@ Popup {
         }
     }
 
-    PopupSection {
+    Column {
         width: root.bodyWidth
-        title: "Night Mode"
 
-        SettingSwitch {
-            anchors.verticalCenter: parent.verticalCenter
-            name: "Night mode"
-            checked: NightMode.on
-            onToggled: NightMode.toggle()
-        }
-    }
+        PopupSection {
+            width: root.bodyWidth
+            title: "Night Mode"
 
-    SwitchRow {
-        name: "Schedule"
-        checked: NightMode.automatic
-        onTapped: NightMode.setAutomatic(!NightMode.automatic)
-    }
-
-    Row {
-        width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        spacing: 8
-
-        TimeDial {
-            id: start
-            name: "Night mode start"
-            minute: NightMode.startMinute
-            other: end.draftMinute
-            onEdited: NightMode.queueSchedule(start.value, end.value)
+            SettingChoice {
+                anchors.verticalCenter: parent.verticalCenter
+                setting: ({
+                    title: "Night mode",
+                    options: [{ value: "off", label: "Off" }, { value: "on", label: "On" }, { value: "auto", label: "Auto" }],
+                    get: () => NightMode.mode,
+                    set: mode => NightMode.setMode(mode)
+                })
+            }
         }
 
-        PopupText {
-            anchors.verticalCenter: parent.verticalCenter
-            text: "to"
-            color: Theme.label2
-        }
+        // The hours, unfolding the way Wallpaper's framing does. They carry
+        // their own air, so a folded schedule leaves none behind.
+        Item {
+            readonly property bool shown: NightMode.mode === "auto"
 
-        TimeDial {
-            id: end
-            name: "Night mode end"
-            minute: NightMode.endMinute
-            other: start.draftMinute
-            onEdited: NightMode.queueSchedule(start.value, end.value)
-        }
-    }
+            width: root.bodyWidth
+            height: shown ? hours.y + hours.height : 0
+            opacity: shown ? 1 : 0
+            visible: height > 0
+            clip: true
 
-    // A setting the whole row answers to, as a toggle row in the settings
-    // window does: its name at the inset, the switch drawing its state at the
-    // far end.
-    component SwitchRow: PopupRow {
-        id: switchRow
-        property bool checked: false
-        width: root.bodyWidth
-        height: 22
-        gesturePolicy: TapHandler.ReleaseWithinBounds
-        Accessible.role: Accessible.CheckBox
-        Accessible.checked: switchRow.checked
+            Behavior on height {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                    easing.type: Easing.InOutQuad
+                }
+            }
 
-        PopupText {
-            x: Theme.popupInset
-            anchors.verticalCenter: parent.verticalCenter
-            text: switchRow.name
-        }
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
 
-        SettingSwitch {
-            anchors.right: parent.right
-            anchors.rightMargin: Theme.popupInset
-            anchors.verticalCenter: parent.verticalCenter
-            setting: ({ get: () => switchRow.checked })
+            Row {
+                id: hours
+
+                y: Theme.popupSpacing
+                leftPadding: Theme.popupInset
+                spacing: 8
+
+                TimeDial {
+                    id: start
+                    name: "Night mode start"
+                    minute: NightMode.startMinute
+                    other: end.draftMinute
+                    onEdited: NightMode.queueSchedule(start.value, end.value)
+                }
+
+                PopupText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "to"
+                    color: Theme.label2
+                }
+
+                TimeDial {
+                    id: end
+                    name: "Night mode end"
+                    minute: NightMode.endMinute
+                    other: start.draftMinute
+                    onEdited: NightMode.queueSchedule(start.value, end.value)
+                }
+            }
         }
     }
 
