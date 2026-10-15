@@ -780,7 +780,7 @@ GoogleService {
             }
             const decoded = function (data) {
                 const text = root.utf8(root.unbase64(data ?? ""));
-                const clean = root.unquote(types[index] === "text/html" ? root.untag(text) : text);
+                const clean = root.unquote(root.tidy(types[index] === "text/html" ? root.untag(text) : text));
                 if (clean !== "")
                     then(clean);
                 else
@@ -859,19 +859,49 @@ GoogleService {
     function untag(html: string): string {
         return root.unentity(html
             .replace(/<!--[\s\S]*?-->/g, "")
-            .replace(/<(style|script|head)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+            .replace(/<(style|script|head|title|noscript|template|svg|xml|object)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
+            // What the sender hid: the preview line newsletters pad the
+            // inbox's snippet with, and Outlook-only copies.
+            .replace(/<(div|span|p|td|table|a)\b[^>]*\bstyle\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|mso-hide\s*:\s*all|max-height\s*:\s*0(?:px)?\s*(?:;|["']))[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
             .replace(/<(?:div|blockquote)\b[^>]*(?:\bclass\s*=\s*["'][^"']*\bgmail_quote\b|\btype\s*=\s*["']?cite\b)[^>]*>[\s\S]*$/gi, "")
             .replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, function (all, attrs, label) {
                 const href = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
                 const url = href ? root.unentity(href[1] ?? href[2] ?? href[3]).trim() : "";
-                return /^https?:\/\//i.test(url) ? "" + label + "" + url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "" : label;
+                return /^https?:\/\//i.test(url) ? "\ue000" + label + "\ue001" + url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "\ue002" : label;
             })
             .replace(/\s+/g, " ")
             .replace(/<br\b[^>]*>/gi, "\n")
+            .replace(/<li\b[^>]*>/gi, "\n• ")
+            // A paragraph's end keeps a blank line after it (\u2029 until
+            // the newlines are counted); a box's edge is only a line break.
+            .replace(/<\/(?:p|h[1-6]|blockquote|table|ul|ol)\s*>|<hr\b[^>]*>/gi, "\u2029")
             .replace(/<\/?(?:p|div|tr|li|h[1-6]|blockquote|table|ul|ol)\b[^>]*>/gi, "\n")
             .replace(/<\/?(?:td|th)\b[^>]*>/gi, " ")
             .replace(/<[^>]+>/g, ""))
-            .replace(/[^\S\n]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n");
+            .replace(/[^\S\n\u2029]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n")
+            .replace(/\s*\u2029[\s\u2029]*/g, "\n\n").trim();
+    }
+
+    // A mail as text, whichever part it came from: no markup, nothing that
+    // takes no room, and the layout's scaffolding gone.
+    function tidy(text: string): string {
+        // A plain part that is really HTML.
+        if (/<\/(?:p|div|td|tr|table|span|a|b|strong|font)\s*>|<br\s*\/?>/i.test(text))
+            text = root.untag(text);
+        return text
+            // Tags left over or written out as entities.
+            .replace(/<\/?(?:!doctype|html|head|body|meta|link|style|script|div|span|p|br|hr|table|tbody|thead|tfoot|tr|td|th|img|a|b|i|u|s|em|strong|font|center|ul|ol|li|h[1-6]|blockquote|pre|code|sup|sub|small|big|o:p|v:[a-z]+|xml)(?=[\s\/>])[^>\n]*>/gi, "")
+            // Characters that draw nothing: soft hyphens, zero-width spaces
+            // and joiners (bar the emoji one), direction marks, the fillers a
+            // preview line is padded with.
+            .replace(/[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180e\u200b\u200c\u200e\u200f\u202a-\u202e\u2060-\u2064\u2066-\u206f\u3164\ufeff\uffa0]/g, "")
+            // Gmail's stand-ins for pictures it did not inline.
+            .replace(/\[(?:image|cid):[^\]\n]*\]/gi, "")
+            // Rules drawn in characters.
+            .replace(/^[^\S\n]*[-=_*~•·|#.]{3,}[^\S\n]*$/gm, "")
+            .replace(/[^\S\n]+$/gm, "")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim();
     }
 
     // Only generated anchors reach the UI; mail HTML never reaches Qt's renderer.

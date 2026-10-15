@@ -39,8 +39,8 @@ Popup {
     // list below keeps its list, so its tasks can be ticked off there.
     property string litDay: ""
 
-    // Dated tasks are on the calendar too: something written down for a day,
-    // which is what a dot means. Subtasks stay with their parent.
+    // Dated tasks are in the day's list too, after its events, though only an
+    // event earns a day its dot. Subtasks stay with their parent.
     readonly property var tasksByDay: {
         const map = ({});
         for (const task of Tasks.topLevel) {
@@ -235,7 +235,9 @@ Popup {
                     readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
                     readonly property bool isToday: day.toDateString() === root.today.toDateString()
                     readonly property string dayKey: Agenda.dayString(day)
-                    readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown)) || !!root.tasksByDay[dayKey]
+                    // Events only: a day with nothing but tasks keeps a bare
+                    // numeral, and its tasks are in the list when it is rested on.
+                    readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown))
 
                     width: root.cell
                     height: root.cell

@@ -37,7 +37,7 @@ ShellRoot {
                 ];
                 wait(50);
                 const cell = find(popup.contentItem, i => i.dayKey === fri);
-                check(cell && cell.busy, "a dated task gives its day a dot");
+                check(cell && !cell.busy, "a day with only tasks has no dot");
                 check(popup.tasksByDay[fri].map(t => t.id).join(",") === "a", "subtasks stay off the calendar");
                 const list = find(popup.contentItem, i => i.rows !== undefined && i.events !== undefined);
                 mouseMove(cell, 14, 14);
