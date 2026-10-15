@@ -29,6 +29,16 @@ Popup {
             checked: Network.wifiOn
             onToggled: Network.toggleWifi()
         }
+
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.openApp
+            name: "Network Settings"
+            onTapped: {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(["nm-connection-editor"]);
+            }
+        }
     }
 
     // The cable, when one is plugged in. Not a thing to press: it is up
@@ -114,19 +124,6 @@ Popup {
                     fontSize: Theme.popupGlyphSize
                 }
             }
-        }
-    }
-
-    PopupSeparator {
-        width: root.bodyWidth
-    }
-
-    PopupLink {
-        width: root.bodyWidth
-        text: "Network Settings"
-        onTapped: {
-            OpenPopup.dismiss();
-            Quickshell.execDetached(["nm-connection-editor"]);
         }
     }
 }

@@ -420,7 +420,7 @@ Popup {
         Item {
             id: zoomControl
 
-            x: preview.x + preview.width + framing.air
+            x: preview.x - framing.air - width
             y: preview.y
             width: 14 + 4 + readout.implicitWidth
             height: preview.height
@@ -431,6 +431,7 @@ Popup {
             Component.onDestruction: if (commit.running) commit.triggered()
 
             Item {
+                anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 width: 14
@@ -454,7 +455,7 @@ Popup {
             PopupText {
                 id: readout
 
-                anchors.right: parent.right
+                anchors.left: parent.left
                 y: Math.max(0, Math.min(parent.height - height, parent.height - zoomSlider.knobX - height / 2))
                 text: Math.round(framing.zoom * 100) + "%"
                 color: Theme.label2

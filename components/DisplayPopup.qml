@@ -4,7 +4,8 @@ import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
 // module: the brightness on a track the pointer can grab, then night mode as
-// its own section with a switch, and the schedule with another.
+// a section of its own, with a switch for now, a switch for the schedule and
+// the schedule's hours.
 Popup {
     id: root
 
@@ -44,23 +45,18 @@ Popup {
     PopupSection {
         width: root.bodyWidth
         title: "Night Mode"
-
-        SettingSwitch {
-            name: "Night mode"
-            checked: NightMode.on
-            onToggled: NightMode.toggle()
-        }
     }
 
-    PopupSection {
-        width: root.bodyWidth
-        title: "Schedule"
+    SwitchRow {
+        name: "Enable Now"
+        checked: NightMode.on
+        onTapped: NightMode.toggle()
+    }
 
-        SettingSwitch {
-            name: "Night mode schedule"
-            checked: NightMode.automatic
-            onToggled: NightMode.setAutomatic(!NightMode.automatic)
-        }
+    SwitchRow {
+        name: "Schedule"
+        checked: NightMode.automatic
+        onTapped: NightMode.setAutomatic(!NightMode.automatic)
     }
 
     Row {
@@ -88,6 +84,32 @@ Popup {
             minute: NightMode.endMinute
             other: start.draftMinute
             onEdited: NightMode.queueSchedule(start.value, end.value)
+        }
+    }
+
+    // A setting the whole row answers to, as a toggle row in the settings
+    // window does: its name at the inset, the switch drawing its state at the
+    // far end.
+    component SwitchRow: PopupRow {
+        id: switchRow
+        property bool checked: false
+        width: root.bodyWidth
+        height: 22
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        Accessible.role: Accessible.CheckBox
+        Accessible.checked: switchRow.checked
+
+        PopupText {
+            x: Theme.popupInset
+            anchors.verticalCenter: parent.verticalCenter
+            text: switchRow.name
+        }
+
+        SettingSwitch {
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.popupInset
+            anchors.verticalCenter: parent.verticalCenter
+            setting: ({ get: () => switchRow.checked })
         }
     }
 

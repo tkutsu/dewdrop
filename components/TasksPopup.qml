@@ -140,6 +140,18 @@ Popup {
         onAdd: Launcher.openWith(Launcher.taskPrefix)
         ReconnectButton {}
         RetryButton { service: Tasks }
+
+        // There is no Google Tasks app here, so the page (as the bar's right
+        // click opens it).
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.openApp
+            name: "Open Google Tasks"
+            onTapped: {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
+            }
+        }
     }
 
     PopupNote {
@@ -390,21 +402,6 @@ Popup {
                     }
                 }
             }
-        }
-    }
-
-    // There is no Google Tasks app here, so the page (as the bar's right
-    // click opens it).
-    PopupSeparator {
-        width: root.bodyWidth
-    }
-
-    PopupLink {
-        width: root.bodyWidth
-        text: "Open Google Tasks"
-        onTapped: {
-            OpenPopup.dismiss();
-            Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
         }
     }
 }

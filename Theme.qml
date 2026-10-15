@@ -70,6 +70,9 @@ Singleton {
     // than chosen from (notifications, mail, tasks) take the wider one. What draws its own
     // shape — a graph, a grid, artwork, a month — is as wide as that.
     readonly property int popupSpacing: 6
+    // Extra air over a section's hairline, so a section reads as a new part
+    // rather than the next row of the one before.
+    readonly property int popupSectionGap: 8
     readonly property int popupWidth: 280
     readonly property int popupWideWidth: 400
     readonly property int panelPadding: 12
@@ -846,8 +849,9 @@ Singleton {
         edit: "\u{f03eb}",            // nf-md-pencil
         copy: "\u{f018f}",            // nf-md-content_copy
 
-        // The thread in the Gmail app, from the open mail's foot.
-        openApp: "\u{f03cc}",          // nf-md-open_in_new
+        // Out to the fuller app: a popup header's way to Network Settings,
+        // btop or Gmail, and the open mail's thread in Gmail.
+        openApp: "\u{f005c}",          // nf-md-arrow_top_right
 
         // A mail row's three verbs: archive, mark read (the envelope
         // opened) and star, outlined until it is starred.
