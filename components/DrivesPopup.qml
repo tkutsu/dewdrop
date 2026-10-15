@@ -36,8 +36,8 @@ Popup {
             objectProp: "disk"
         }
 
-        // The grid the batteries below and the other lists use: the tick on
-        // a drive that is mounted, its size at the right, then the eject.
+        // The one-line list row, without the tick column: the name at the
+        // inset, its size at the right, then the eject.
         delegate: ChoiceRow {
             id: row
 
@@ -45,8 +45,8 @@ Popup {
             readonly property bool mounted: modelData.total > 0
 
             width: root.bodyWidth
+            hasMark: false
             text: modelData.name
-            current: row.mounted
             busy: !!Drives.ejecting[modelData.disk]
             onTapped: Drives.open(row.modelData)
 
@@ -90,6 +90,7 @@ Popup {
             readonly property int percent: Math.round(modelData.percentage * 100)
 
             width: root.bodyWidth
+            hasMark: false
             text: modelData.model || "Battery"
 
             PopupText {
