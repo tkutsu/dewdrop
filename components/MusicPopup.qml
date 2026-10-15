@@ -51,7 +51,6 @@ Popup {
     // button itself for why it takes two.
     property bool quitArmed: false
 
-    spacing: 8
 
     // The window is always the height of the popup with the playlists
     // unfolded, so folding them only redraws inside it (see Popup.reserveHeight).
@@ -348,7 +347,7 @@ Popup {
                 width: root.columnWidth
                 rightPadding: Theme.popupInset
                 text: [Mpd.artist, Mpd.album].filter(part => part).join("  ·  ")
-                opacity: 0.75
+                color: Theme.label2
                 elide: Text.ElideRight
             }
 
@@ -366,7 +365,7 @@ Popup {
                 iconFontSize: Theme.popupGlyphSize
                 sliderWidth: root.sliderWidth
                 readoutWidth: root.readoutWidth - Theme.popupInset
-                readoutOpacity: 0.75
+                readoutColor: Theme.label2
                 readoutFontSize: Theme.captionSize
                 wheelStep: 0.05
                 wheelSnap: true
@@ -415,7 +414,7 @@ Popup {
                     rightPadding: Theme.popupInset
                     horizontalAlignment: Text.AlignRight
                     text: Mpd.duration > 0 ? `${Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}` : Mpd.clock(Mpd.elapsed)
-                    opacity: 0.75
+                    color: Theme.label2
                     font.pixelSize: Theme.captionSize
                 }
             }
@@ -440,10 +439,8 @@ Popup {
         // Nothing saved, nothing to say.
         visible: Mpd.playlists.length > 0
 
-        Rectangle {
+        PopupSeparator {
             width: root.bodyWidth
-            height: Theme.pillBorder
-            color: Theme.stroke
         }
 
         PopupRow {
@@ -466,7 +463,7 @@ Popup {
                 text: Mpd.playlistsOpen ? Theme.glyph.sectionOpen : Theme.glyph.sectionShut
                 fontSize: Theme.footnoteSize
                 implicitHeight: root.rowHeight
-                opacity: 0.5
+                color: Theme.label2
             }
 
             PopupText {
@@ -475,9 +472,10 @@ Popup {
                 anchors.left: fold.right
                 anchors.leftMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
-                text: "playlists"
+                text: "Playlists"
+                color: Theme.label2
                 font.pixelSize: Theme.captionSize
-                opacity: 0.8
+                font.weight: Font.DemiBold
             }
 
             PopupText {
@@ -485,8 +483,8 @@ Popup {
                 anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: String(Mpd.playlists.length)
+                color: Theme.label3
                 font.pixelSize: Theme.footnoteSize
-                opacity: 0.4
             }
         }
 
@@ -529,7 +527,6 @@ Popup {
                     }
                     text: entry.modelData
                     font.pixelSize: Theme.captionSize
-                    opacity: 0.8
                     elide: Text.ElideRight
                 }
 
@@ -606,10 +603,8 @@ Popup {
         }
     }
 
-    Rectangle {
+    PopupSeparator {
         width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
         visible: list.count > 0
     }
 

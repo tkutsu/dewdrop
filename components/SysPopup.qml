@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 import qs.components
 import qs.services
@@ -88,7 +89,6 @@ Popup {
             text: head.glyph
             fontSize: root.fontSize + 2
             implicitHeight: head.height
-            opacity: 0.8
         }
 
         PopupText {
@@ -127,7 +127,7 @@ Popup {
             id: key
             text: line.label
             font.pixelSize: root.fontSize
-            opacity: 0.55
+            color: Theme.label2
             // As above: the figure is measured and the label takes the rest.
             width: root.w - figure.implicitWidth - 10
             elide: Text.ElideRight
@@ -139,7 +139,6 @@ Popup {
             anchors.baseline: key.baseline
             text: line.value
             font.pixelSize: root.fontSize
-            opacity: 0.85
         }
     }
 
@@ -339,7 +338,7 @@ Popup {
         }
 
         Line {
-            label: "clock"
+            label: "Clock"
             value: `${Sys.cpuMhz} MHz`
         }
 
@@ -348,7 +347,7 @@ Popup {
         // nvidia-smi will say it.
         Line {
             visible: Sys.fans.length > 0
-            label: "fans"
+            label: "Fans"
             value: `${Sys.fans.map(f => f.rpm).join(" / ")} rpm`
         }
 
@@ -378,8 +377,8 @@ Popup {
         }
 
         Line {
-            label: `cache ${root.gib(Sys.memCache)} GiB`
-            value: Sys.swapTotal > 0 ? `swap ${root.gib(Sys.swapUsed)} / ${root.gib(Sys.swapTotal)}` : ""
+            label: `Cache ${root.gib(Sys.memCache)} GiB`
+            value: Sys.swapTotal > 0 ? `Swap ${root.gib(Sys.swapUsed)} / ${root.gib(Sys.swapTotal)}` : ""
         }
 
         Item {
@@ -420,22 +419,22 @@ Popup {
         }
 
         Line {
-            label: "clock"
+            label: "Clock"
             value: `${root.num(gpuSection.gpu.clock)} / ${root.num(gpuSection.gpu.clockMax)} MHz`
         }
 
         Line {
-            label: "memory clock"
+            label: "Memory Clock"
             value: `${root.num(gpuSection.gpu.memClock)} MHz`
         }
 
         Line {
-            label: "vram"
+            label: "VRAM"
             value: `${root.mib(gpuSection.gpu.memUsed)} / ${root.mib(gpuSection.gpu.memTotal)} GiB`
         }
 
         Line {
-            label: `fan ${root.num(gpuSection.gpu.fan)} %`
+            label: `Fan ${root.num(gpuSection.gpu.fan)} %`
             value: `${root.num(gpuSection.gpu.power, 1)} / ${root.num(gpuSection.gpu.powerMax)} W`
         }
     }
@@ -477,13 +476,43 @@ Popup {
 
             Line {
                 visible: drive.modelData.total > 0
-                label: "free"
+                label: "Free"
                 value: root.space(drive.modelData.free, drive.modelData.total)
             }
 
             Line {
-                label: "read / write"
+                label: "Read / Write"
                 value: `${root.rate(drive.modelData.read)} / ${root.rate(drive.modelData.write)} MiB/s`
+            }
+        }
+    }
+
+    // The whole of it, in btop (as the bar's right click opens it). Out to
+    // the box's inset rather than the figures', as every popup's rows are:
+    // hung past the edges of a strip the figures' width, so the popup keeps
+    // the width the cores divide into.
+    Item {
+        width: root.w
+        height: foot.height
+
+        Column {
+            id: foot
+
+            x: -Theme.popupInset
+            width: root.w + Theme.popupInset * 2
+            spacing: Theme.popupSpacing
+
+            PopupSeparator {
+                width: parent.width
+            }
+
+            PopupLink {
+                width: parent.width
+                text: "Open btop"
+                onTapped: {
+                    OpenPopup.dismiss();
+                    Quickshell.execDetached(Settings.inTerminal(["btop"], "btop (floating)"));
+                }
             }
         }
     }

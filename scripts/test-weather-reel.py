@@ -49,7 +49,7 @@ Item {
         (components / "PopupHeader.qml").write_text('import QtQuick\nRow { property string title: ""; height: 24 }\n')
         (components / "PopupButton.qml").write_text('''import QtQuick
 Item { property bool framed: false; property bool lit: false; property bool live: true
-    property string label: ""; signal tapped; width: 70; height: 24 }
+    property string label: ""; property string name: label; signal tapped; width: 70; height: 24 }
 ''')
         (components / "Glyph.qml").write_text('import QtQuick\nText { property int fontSize: 16; font.pixelSize: fontSize }\n')
         (components / "QueuedProcess.qml").write_text('''import QtQuick

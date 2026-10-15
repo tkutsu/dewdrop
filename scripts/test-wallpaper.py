@@ -217,7 +217,7 @@ ShellRoot {
                 return Qt.rect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
             }
             function buttons(item, found) {
-                if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
+                if (item.label !== undefined && item.tapped !== undefined) found[item.label.toLowerCase()] = item;
                 if (item.fullHeight !== undefined) found.framing = item;
                 if (item.cursorShape === Qt.OpenHandCursor) found.frameArea = item;
                 if (item.snapMode !== undefined && item.cellWidth !== undefined) found.grid = item;
@@ -239,9 +239,9 @@ ShellRoot {
                 check(controls.parallax && controls.drift, 'both section headers have a toggle');
                 check(controls.parallax.framed && controls.drift.framed, 'toggles use standard framed buttons');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                check(!Wallpaper.parallax && !controls.parallax.lit && controls.parallax.glyph === '', 'parallax button switches off');
+                check(!Wallpaper.parallax && !controls.parallax.lit, 'parallax button switches off');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                check(Wallpaper.parallax && controls.parallax.glyph === Theme.glyph.check, 'parallax button switches on with standard check');
+                check(Wallpaper.parallax && controls.parallax.lit && controls.parallax.label === 'Parallax', 'parallax button lights up and keeps its label');
                 const framing = controls.framing, area = controls.frameArea;
                 tryVerify(() => framing.height === framing.fullHeight && framing.opacity === 1, 1000);
                 check(waitForPolish(fixtureWindow), 'framing layout settles before measuring the reserved height');
@@ -292,8 +292,8 @@ ShellRoot {
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
                 check(!Wallpaper.drift && !controls.drift.lit, 'drift button switches off');
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
-                check(Wallpaper.drift && controls.drift.glyph === Theme.glyph.check, 'drift button switches on with standard check');
-                check(controls.drift.y + controls.drift.parent.parent.y < popup.height - 60, 'drift sits above the colour controls');
+                check(Wallpaper.drift && controls.drift.lit && controls.drift.label === 'Drift', 'drift button lights up and keeps its label');
+                check(bounds(controls.drift).y < popup.height - 60, 'drift sits above the colour controls');
                 const preview = Quickshell.env('QUICKSHELL_WALLPAPER_PREVIEW');
                 if (preview) {
                     let saved = false;
