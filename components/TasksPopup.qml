@@ -8,6 +8,9 @@ import qs.services
 Popup {
     id: root
 
+    // Its parts touch; the air is their own.
+    spacing: 0
+
     readonly property int bodyWidth: 340
     // The same air above the first line and below the last, however many
     // lines a task wraps to; a one-line row is one line plus that air.
