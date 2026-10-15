@@ -17,7 +17,8 @@ import qs
 //
 // and, by type:
 //
-//   choice, dropdown    options: [{ value, label }]
+//   choice, dropdown    options: [{ value, label }]; a choice of more than
+//             three, or with a long label, is drawn as a dropdown
 //   slider    from, to, step, and format(value) for the readout
 //   text      placeholder
 //
@@ -45,6 +46,13 @@ Item {
             slider: "SettingSlider.qml",
             text: "SettingField.qml"
         })
+
+    // Up to three short options sit side by side in a capsule; more, or
+    // longer, go behind a pop-up button, the way a Mac's settings do.
+    function fitsCapsule(options: var): bool {
+        return options.length <= 3 && options.every(option => String(option.label).length <= 8);
+    }
+    readonly property string kind: root.setting.type === "choice" && !root.fitsCapsule(root.setting.options) ? "dropdown" : root.setting.type
 
     readonly property bool hasMark: !!(root.setting.icon || root.setting.glyph)
     readonly property int lead: root.hasMark ? 32 : Theme.popupInset
@@ -75,6 +83,8 @@ Item {
     }
 
     TapHandler {
+        id: rowTap
+
         enabled: root.setting.type === "toggle"
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: root.setting.set(!root.setting.get())
@@ -175,7 +185,12 @@ Item {
         x: root.stacked ? root.lead : root.width - width - Theme.popupInset
         y: root.stacked ? words.y + words.height + 8 : Math.round((root.height - height) / 2)
         width: Math.min(implicitWidth, root.width - root.lead - Theme.popupInset)
-        source: root.controls[root.setting.type] ?? ""
-        onLoaded: item.setting = Qt.binding(() => root.setting)
+        source: root.controls[root.kind] ?? ""
+        onLoaded: {
+            item.setting = Qt.binding(() => root.setting);
+            // A switch stretches its knob while the row is pressed.
+            if (root.setting.type === "toggle")
+                item.held = Qt.binding(() => rowTap.pressed);
+        }
     }
 }

@@ -488,6 +488,9 @@ Singleton {
     // which is a control and a step brighter.
     readonly property color meterTrack: Qt.rgba(1, 1, 1, 0.12)
     readonly property color sliderTrack: Qt.rgba(1, 1, 1, 0.2)
+    // A switch's knob off, on the bare track. On the lit track it turns to
+    // `solid`, the glass's own near-black.
+    readonly property color switchKnob: "white"
     // A slider's knob is `fg` with a dark edge. On a gradient track it crosses
     // white, yellow and black, so there the edge is darker still.
     readonly property color knobEdge: Qt.rgba(0, 0, 0, 0.35)
@@ -869,6 +872,7 @@ Singleton {
         notif: "\u{f009c}",
         close: "\u{f0156}",          // nf-md-close
         check: "\u{f012c}",          // nf-md-check, the one in use in a list
+        popUp: "\u{f054f}",          // nf-md-unfold_more_horizontal, a pop-up button's chevrons
 
         // One speaker for every output (see services/Audio.qml), drawn from
         // nf-md-volume_high so each wave can take its own opacity, the way
