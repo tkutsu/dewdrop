@@ -287,7 +287,7 @@ Singleton {
         // text because it reads as binary to `file` and is almost always
         // something about to be written.
         if (r.dir)
-            Quickshell.execDetached([Settings.fileManager, r.path]);
+            Quickshell.execDetached(Settings.inFileManager(r.path));
         else
             Quickshell.execDetached(["sh", "-c", 'f=$1; browser=$2; shift 2; case "$f" in *.[hH][tT][mM]|*.[hH][tT][mM][lL]|*.[xX][hH][tT][mM][lL]) mime=text/html; case "$f" in *.[xX][hH][tT][mM][lL]) mime=application/xhtml+xml;; esac; [ -n "$browser" ] && [ "$(xdg-mime query default "$mime")" = chromium.desktop ] && hyprctl dispatch "$browser" >/dev/null 2>&1; exec xdg-open "$f";; esac; [ -s "$f" ] && [ "$(file -Lb --mime-encoding -- "$f")" = binary ] && exec xdg-open "$f"; exec "$@"', "sh", r.path, root.browserFocus(r.path), ...Settings.inTerminal([Settings.editor, r.path])]);
         return true;

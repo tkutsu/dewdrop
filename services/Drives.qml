@@ -38,7 +38,7 @@ Singleton {
     function open(drive): void {
         const mounted = drive.volumes.find(v => v.mounted);
         if (mounted)
-            Quickshell.execDetached([Settings.fileManager, mounted.mountpoint]);
+            Quickshell.execDetached(Settings.inFileManager(mounted.mountpoint));
         else
             root.mount(drive);
     }
@@ -57,7 +57,9 @@ Singleton {
     }
 
     // Every filesystem off it, then the power: one script so that a busy
-    // volume stops the power-off rather than racing it.
+    // volume stops the power-off rather than racing it. The settle waits out
+    // udev, which opens the disk to look at it again after each unmount, and
+    // would have the power-off find it busy.
     Component {
         id: ejector
 
@@ -66,7 +68,7 @@ Singleton {
 
             required property var drive
 
-            command: ["sh", "-c", 'disk=$1; shift; for v; do udisksctl unmount --no-user-interaction -b "$v" || exit 1; done; udisksctl power-off --no-user-interaction -b "$disk"', "sh", drive.disk].concat(drive.volumes.filter(v => v.mounted).map(v => v.path))
+            command: ["sh", "-c", 'disk=$1; shift; for v; do udisksctl unmount --no-user-interaction -b "$v" || exit 1; done; udevadm settle; udisksctl power-off --no-user-interaction -b "$disk"', "sh", drive.disk].concat(drive.volumes.filter(v => v.mounted).map(v => v.path))
             stderr: StdioCollector {
                 id: err
             }
