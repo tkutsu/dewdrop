@@ -32,8 +32,9 @@ Singleton {
     // The panel is dimmed to 0 whenever night mode goes on, so a dark screen is
     // what the mode looks like from outside; say that rather than "Brightness 0%".
     // Scrolling to 0 by hand is not the mode, so key this off the flag, not the level.
+    // A schedule follows as its hours alone: "Brightness 80% · 22:00–07:00".
     readonly property string tooltip: (on ? "Night mode on" : `Brightness ${brightness}%`)
-        + (automatic ? ` (automatic ${formatTime(startMinute)}–${formatTime(endMinute)})` : "")
+        + (automatic ? ` · ${formatTime(startMinute)}–${formatTime(endMinute)}` : "")
 
     function formatTime(minute) {
         return ("0" + Math.floor(minute / 60)).slice(-2) + ":" + ("0" + minute % 60).slice(-2);
