@@ -53,7 +53,9 @@ Popup {
                 id: name
                 x: Theme.popupInset
                 y: 5
-                width: eject.x - x - 8
+                // Ends where the size begins, so a long label elides
+                // instead of running under it.
+                width: usage.x - x - 8
                 text: row.modelData.name
                 elide: Text.ElideRight
                 font.pixelSize: Theme.captionSize
@@ -61,6 +63,7 @@ Popup {
             }
 
             PopupText {
+                id: usage
                 anchors.right: eject.left
                 anchors.rightMargin: 8
                 anchors.baseline: name.baseline
