@@ -10,6 +10,7 @@ from test_support import copy_shell, shell_env
 SHELL = '''import QtQuick
 import QtTest
 import Quickshell
+import qs
 import qs.components
 import qs.services
 ShellRoot {
@@ -28,6 +29,7 @@ ShellRoot {
                 check(row && row.height === 22, "drive sits on a one-line row");
                 const name = find(row, "nixos-graphical-25.11-x86_64"), usage = find(row, "3.4 GB / 3.4 GB");
                 check(name && usage, "name and size are drawn");
+                check(name.mapToItem(row, 0, 0).x === Theme.popupInset, "name starts at the inset, with no tick column");
                 check(Math.abs(name.mapToItem(row, 0, 0).y + name.height / 2 - row.height / 2) <= 1, "name is centred in the row");
                 check(name.truncated, "long name elides");
                 check(name.mapToItem(row, name.width, 0).x <= usage.mapToItem(row, 0, 0).x, "name ends before the size");
@@ -61,7 +63,7 @@ QtObject {
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=shell_env(target), capture_output=True, text=True, timeout=5)
         output = result.stdout + result.stderr
         print(output, end='')
-        assert result.returncode == 0 and output.count('PASS:') == 5 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
+        assert result.returncode == 0 and output.count('PASS:') == 6 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
 
 
 if __name__ == '__main__':

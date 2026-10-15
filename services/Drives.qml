@@ -57,9 +57,7 @@ Singleton {
     }
 
     // Every filesystem off it, then the power: one script so that a busy
-    // volume stops the power-off rather than racing it. The settle waits out
-    // udev, which opens the disk to look at it again after each unmount, and
-    // would have the power-off find it busy.
+    // volume stops the power-off rather than racing it.
     Component {
         id: ejector
 
@@ -68,7 +66,7 @@ Singleton {
 
             required property var drive
 
-            command: ["sh", "-c", 'disk=$1; shift; for v; do udisksctl unmount --no-user-interaction -b "$v" || exit 1; done; udevadm settle; udisksctl power-off --no-user-interaction -b "$disk"', "sh", drive.disk].concat(drive.volumes.filter(v => v.mounted).map(v => v.path))
+            command: ["sh", "-c", 'disk=$1; shift; for v; do udisksctl unmount --no-user-interaction -b "$v" || exit 1; done; udisksctl power-off --no-user-interaction -b "$disk"', "sh", drive.disk].concat(drive.volumes.filter(v => v.mounted).map(v => v.path))
             stderr: StdioCollector {
                 id: err
             }
@@ -94,7 +92,9 @@ Singleton {
     Process {
         id: lsblk
 
-        command: ["lsblk", "-J", "-b", "-o", "PATH,TYPE,TRAN,RM,HOTPLUG,SIZE,LABEL,VENDOR,MODEL,FSTYPE,FSSIZE,FSUSED,MOUNTPOINT"]
+        // --tree, or the partitions come as a flat list beside their disk:
+        // lsblk only nests them by itself when NAME is one of the columns.
+        command: ["lsblk", "-J", "--tree", "-b", "-o", "PATH,TYPE,TRAN,RM,HOTPLUG,SIZE,LABEL,VENDOR,MODEL,FSTYPE,FSSIZE,FSUSED,MOUNTPOINT"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: root.drives = root.parse(text)
@@ -112,7 +112,9 @@ Singleton {
             return root.drives;
         }
         return devices.filter(d => d.type === "disk" && d.size > 0 && (d.tran === "usb" || d.rm || d.hotplug)).map(d => {
-            const volumes = [d].concat(d.children ?? []).filter(v => v.fstype && v.fstype !== "swap");
+            // A hybrid ISO stick reads as iso9660 on the disk and on its first
+            // partition alike; only the partition is the one to mount.
+            const volumes = (d.children?.length ? d.children : [d]).filter(v => v.fstype && v.fstype !== "swap");
             const mounted = volumes.filter(v => v.mountpoint);
             const label = volumes.map(v => v.label).find(l => l);
             const model = [d.vendor, d.model].filter(s => s).map(s => s.trim()).join(" ");
