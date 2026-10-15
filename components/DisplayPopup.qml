@@ -3,9 +3,8 @@ import qs
 import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
-// module: the brightness on a track the pointer can grab, and night mode as
-// an option beside the title, lit while it is on. Under them the schedule,
-// with its own switch.
+// module: the brightness on a track the pointer can grab, then night mode as
+// its own section with a switch, and the schedule with another.
 Popup {
     id: root
 
@@ -14,13 +13,6 @@ Popup {
     PopupHeader {
         width: root.bodyWidth
         title: "Display"
-
-        PopupButton {
-            framed: true
-            lit: NightMode.on
-            label: "Night Mode"
-            onTapped: NightMode.toggle()
-        }
     }
 
     // The brightness track and percentage.
@@ -46,6 +38,17 @@ Popup {
             width: 34
             horizontalAlignment: Text.AlignRight
             text: NightMode.brightness + "%"
+        }
+    }
+
+    PopupSection {
+        width: root.bodyWidth
+        title: "Night Mode"
+
+        SettingSwitch {
+            name: "Night mode"
+            checked: NightMode.on
+            onToggled: NightMode.toggle()
         }
     }
 

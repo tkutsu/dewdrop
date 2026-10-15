@@ -23,7 +23,7 @@ Popup {
     id: root
     ChoiceBlink { id: choice }
 
-    readonly property int bodyWidth: 453
+    readonly property int bodyWidth: Theme.popupWideWidth
     // The text's inset from the edge of the popup, as the other popups keep it.
     readonly property int inset: Theme.popupInset
     readonly property int cardPad: 10
@@ -109,6 +109,7 @@ Popup {
             id: clearAll
             visible: Notifications.count > 0
             framed: true
+            glyph: Theme.glyph.clearAll
             label: "Clear All"
             name: "Clear all notifications"
             blink: choice
@@ -228,6 +229,7 @@ Popup {
                 PopupButton {
                     id: groupClear
                     framed: true
+                    glyph: Theme.glyph.clearAll
                     label: "Clear"
                     blink: choice
                     live: !choice.running
