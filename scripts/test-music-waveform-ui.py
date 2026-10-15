@@ -17,10 +17,13 @@ spec.loader.exec_module(titles)
 SHELL = '''import QtQuick
 import QtTest
 import Quickshell
+import Quickshell.Io
 import qs
 import qs.components
 import qs.services
 ShellRoot {
+    readonly property var popup: popupHost.item
+    FileView { id: decodeLog; path: Quickshell.shellPath("decode.log"); blockLoading: true; printErrors: false }
     FloatingWindow {
         id: win; implicitWidth: 600; implicitHeight: 300
         Item { id: anchor; width: 40; height: 20 }
@@ -33,7 +36,7 @@ ShellRoot {
                 return null;
             }
             function run() {
-                tryVerify(()=>popup.auditWaveform.loaded.endsWith("a.wav"),2000);wait(250);
+                tryVerify(()=>popup && popup.auditWaveform.loaded.endsWith("a.wav"),2000);wait(250);
                 const source=popup.auditWaveform;
                 const slider=named(popup.contentItem,"playback");
                 const ripple=named(slider,"ripple");
@@ -95,13 +98,32 @@ ShellRoot {
                 Settings.set("reduceMotion",true);wait(30);
                 ripple.replaceSamples(Array(256).fill(0.4));
                 check(ripple.blend===1 && slider.waving,"Reduce motion replaces the waveform without animation or blanking");
+
+                const samples=JSON.stringify(source.samples), beats=JSON.stringify(source.beats), loaded=source.loaded;
+                decodeLog.reload();
+                const decodes=decodeLog.text();
+                popupHost.open=false;
+                tryVerify(()=>popup===null,2000);
+                check(popup===null,"closing music fully unloads the popup");
+                popupHost.open=true;
+                tryVerify(()=>popup!==null,1000);
+                check(popup.auditWaveform.loaded===loaded && JSON.stringify(popup.auditWaveform.samples)===samples
+                    && JSON.stringify(popup.auditWaveform.beats)===beats,"recreated music popup has the cached waveform immediately");
+                wait(450);decodeLog.reload();
+                check(decodeLog.text()===decodes,"reopening the same song starts no decoder");
+
                 Mpd.file="https://example.invalid/stream";Mpd.duration=0;wait(250);
-                check(source.samples.length===0 && !slider.waving && !slider.enabled,"streams use the existing flat tracker fallback");
+                const reopenedSlider=named(popup.contentItem,"playback");
+                check(popup.auditWaveform.samples.length===0 && !reopenedSlider.waving && !reopenedSlider.enabled,
+                    "streams use the existing flat tracker fallback");
+                Mpd.file="c.wav";Mpd.duration=120;wait(250);decodeLog.reload();
+                check(popup.auditWaveform.loaded===loaded && JSON.stringify(popup.auditWaveform.samples)===samples
+                    && decodeLog.text()===decodes,"returning from a stream reuses the last local waveform");
                 console.log("DONE: song transition");
             }
         }
     }
-    MusicPopup { id: popup; visible: true; anchorItem: anchor }
+    HoverPopup { id: popupHost; anchorItem: anchor; open: true; popup: Component { MusicPopup {} } }
     Timer { interval: 100; running: true; onTriggered: {
         try { test.run(); } catch(error) { console.log("FAIL: "+error+"\\n"+error.stack); }
         Qt.quit();
@@ -111,6 +133,8 @@ ShellRoot {
 DECODER = '''import json,sys,time
 from pathlib import Path
 name=Path(sys.argv[1]).name
+with Path(sys.argv[1]).with_name("decode.log").open("a") as log:
+    log.write(name+"\\n")
 time.sleep(0.35 if name=="b.wav" else 0.02)
 bars=[0.15+0.85*i/255 if name=="a.wav" else 1-0.85*i/255 if name=="b.wav" else 0.65 for i in range(256)]
 print(json.dumps({"bars":bars,"beats":[0.5 if name=="a.wav" else 1 if name=="b.wav" else 1.5],"duration":120}))
