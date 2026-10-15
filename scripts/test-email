@@ -218,6 +218,21 @@ class EmailTests(unittest.TestCase):
         self.check('sut.richText(sut.untag("<a href=https://example.com/x>https://example.com/x</a>")).includes(">example.com</a>")')
         self.check('sut.untag("<table><tr><td>A</td><td>B</td></tr></table>").trim() === "A B"')
 
+    def test_mail_text_is_tidied(self):
+        # Hidden preview padding and Outlook-only copies go; paragraphs keep a gap; lists get bullets.
+        html = '<div style="display:none;max-height:0">Preview &zwnj;&nbsp;&#847;</div><p>Hello</p><p>Second</p><ul><li>One</li><li>Two</li></ul><title>T</title>'
+        self.check('sut.untag(' + json.dumps(html) + ') === "Hello\\n\\nSecond\\n\\n• One\\n• Two"')
+        self.check('sut.untag("<div style=\\"mso-hide:all\\">Outlook</div><div>Seen</div>") === "Seen"')
+        # A plain part that is HTML, written-out tags, invisible padding, placeholders and rules.
+        self.check('sut.tidy("<p>Hi</p><br>there") === "Hi\\n\\nthere"')
+        self.check('sut.tidy("Hi &lt;br&gt;".replace("&lt;br&gt;", "<br/>") + " there").indexOf("<") < 0')
+        self.check('sut.tidy("A\\u200b\\u034f\\u00adB\\u200c") === "AB"')
+        self.check('sut.tidy("Logo [image: Shop logo]\\nText") === "Logo\\nText"')
+        self.check('sut.tidy("Top\\n------------\\nBottom\\n\\n\\n\\nEnd") === "Top\\n\\nBottom\\n\\nEnd"')
+        # Addresses in angle brackets are not tags; the emoji joiner stays.
+        self.check('sut.tidy("From <s@example.com>") === "From <s@example.com>"')
+        self.check('sut.tidy("\\ud83d\\udc68\\u200d\\ud83d\\udcbb") === "\\ud83d\\udc68\\u200d\\ud83d\\udcbb"')
+
     def test_html_quoted_replies_are_not_repeated_in_chain(self):
         self.check('sut.unquote(sut.untag("<div>New</div><div class=\\"gmail_quote\\"><blockquote>Old reply</blockquote></div>")) === "New"')
         self.check('sut.unquote(sut.untag("<div>New</div><blockquote type=\\"cite\\">Old reply</blockquote>")) === "New"')
