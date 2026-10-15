@@ -117,6 +117,7 @@ class EmailTests(unittest.TestCase):
             'bodyFont': 'Sans Serif', 'captionSize': 12,
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
             'scrollEdge': 16, 'footnoteSize': 10, 'popupTextSize': 12, 'selectionRadius': 4, 'foldMs': 0, 'fadeMs': 0, 'figures': {},
+            'popupWideWidth': 400, 'popupInset': 6, 'popupSpacing': 6,
             'badgeFg': '#ffffff', 'pillBorder': 1, 'stroke': '#333333', 'well': '#222222',
             'drawerSpring': 2.2, 'drawerDamping': 0.2,
             'monogramTones': ['#5e7896', '#7a6a96', '#94677c', '#94785e', '#5e8a74', '#5e8a91', '#8a8257', '#6f7680'],
@@ -544,6 +545,36 @@ class EmailTests(unittest.TestCase):
         self.js('sut.read({messages:[{id:"a",snippet:"a"}]});')
         self.check('sut.requests.length === 1')
 
+    def test_attachment_cache_follows_body_eviction(self):
+        self.js('''
+            sut.bodyKeep = 2;
+            for (const id of ["a", "b", "c"]) {
+                sut.read({messages:[{id:id,snippet:id}]});
+                sut.reply({payload:{mimeType:"multipart/mixed",parts:[
+                    {mimeType:"text/plain",body:{data:"SGVsbG8"}},
+                    {mimeType:"application/pdf",filename:id+".pdf",body:{attachmentId:id,size:10}}]}});
+            }
+        ''')
+        self.check('Object.keys(sut.bodies).join() === "b,c" && Object.keys(sut.files).join() === "b,c"')
+        self.js('sut.read({messages:[{id:"d",snippet:"no files"}]}); sut.reply({payload:null});')
+        self.check('Object.keys(sut.bodies).join() === "c,d" && Object.keys(sut.files).join() === "c"')
+        self.js('sut.read({messages:[{id:"a",snippet:"a"}]});')
+        self.check('sut.requests.length === 1 && sut.files.a === undefined')
+        self.js('sut.reply({payload:{filename:"a.pdf",body:{attachmentId:"fresh",size:20}}});')
+        self.check('sut.files.a[0].id === "fresh" && Object.keys(sut.files).join() === "a"')
+
+    def test_attachment_metadata_survives_overlapping_body_reads(self):
+        self.js('''
+            sut.read({messages:[{id:"slow",snippet:"slow"},{id:"fast",snippet:"fast"}]});
+            sut.reply({payload:{mimeType:"multipart/mixed",parts:[
+                {mimeType:"text/plain",body:{attachmentId:"inline"}},
+                {mimeType:"application/pdf",filename:"a.pdf",body:{attachmentId:"file",size:10}}]}});
+            sut.reply({payload:null});
+            sut.reply({data:"SGVsbG8"});
+        ''')
+        self.check('sut.bodies.slow === "Hello" && sut.files.slow[0].id === "file"')
+        self.check('sut.bodies.fast === "fast" && sut.files.fast === undefined && sut.bodyRequests === 0')
+
     def test_link_markup_and_escaping(self):
         self.check('sut.richText("<img src=x> https://example.com?a=1&b=2. www.example.com").includes("&lt;img src=x&gt;")')
         self.check('sut.richText("https://example.com?a=1&b=2.").includes("href=\\"https://example.com?a=1&amp;b=2\\"")')
@@ -606,10 +637,12 @@ class EmailTests(unittest.TestCase):
         self.assertIsNotNone(popup, '\n'.join(e.toString() for e in component.errors()))
         self.engine.rootContext().setContextProperty('popup', popup)
         window = QQuickWindow()
-        window.resize(340, 800)
+        window.resize(self.theme['popupWideWidth'], 800)
         popup.setParentItem(window.contentItem())
         window.show()
         QTest.qWait(30)
+        self.assertGreater(popup.width(), 0, 'Popup fixture needs its Theme geometry')
+        self.assertLessEqual(popup.width(), window.width(), 'Popup controls extend outside the fixture window')
 
         def close():
             window.close()

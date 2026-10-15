@@ -750,8 +750,6 @@ GoogleService {
             };
             root.send("GET", `${root.api}/messages/${m.id}?format=full&fields=payload`, null, function (body) {
                 const parts = root.partsOf(body?.payload);
-                if (parts.length > 0)
-                    root.files = Object.assign({}, root.files, { [m.id]: parts });
                 root.loadText(m.id, body?.payload, function (text) {
                     // A new object, so bindings on `bodies` see the change.
                     const next = ({});
@@ -759,6 +757,13 @@ GoogleService {
                         next[id] = root.bodies[id];
                     next[m.id] = text || m.snippet;
                     root.bodies = next;
+                    if (parts.length > 0)
+                        root.files = Object.assign({}, root.files, { [m.id]: parts });
+                    const files = ({});
+                    for (const id of Object.keys(next))
+                        if (id in root.files)
+                            files[id] = root.files[id];
+                    root.files = files;
                     finished();
                 }, failed);
             }, failed);

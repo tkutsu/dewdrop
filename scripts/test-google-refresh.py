@@ -63,6 +63,22 @@ ShellRoot {
         check(FakeRequest.requests[7].body === undefined,
             'empty move request sends no body rather than a null string');
         FakeRequest.reply(7, {});
+
+        clear();
+        let reached = false;
+        let next = FakeRequest.requests.length;
+        Google.authorised(() => { throw Error('fixture success callback'); }, fail);
+        Google.authorised(() => { reached = true; }, fail);
+        try { FakeRequest.reply(next, {access_token: 'fresh', expires_in: 3600}); } catch (_) {}
+        check(reached && !Google.refreshing && Google.waiting.length === 0,
+            'throwing success callback cannot strand later token callers');
+
+        clear();reached = false;next = FakeRequest.requests.length;
+        Google.authorised(go, () => { throw Error('fixture failure callback'); });
+        Google.authorised(go, () => { reached = true; });
+        try { FakeRequest.reply(next, {}, 503); } catch (_) {}
+        check(reached && !Google.refreshing && Google.waiting.length === 0,
+            'throwing failure callback cannot strand later token callers');
         console.log('PASS: Google refresh lifecycle');
     }
     Timer { interval: 100; running: true; onTriggered: {

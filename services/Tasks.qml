@@ -197,11 +197,9 @@ GoogleService {
     // --- reading -------------------------------------------------------------
     function fetchLists(): void {
         if (root.writing > 0 || root.pending.length || root.commitWanted) return;
-        const generation = (root.generations.lists ?? 0) + 1;
-        root.generations.lists = generation;
-        root.send("GET", `${root.api}/users/@me/lists`, null, function (body) {
-            if (generation !== root.generations.lists || root.writing > 0) return;
-            const lists = (body.items ?? []).map(l => ({ id: l.id, title: l.title }));
+        root.gather("lists", [{url: `${root.api}/users/@me/lists?maxResults=100`}],
+            l => ({id: l.id, title: l.title}), function (lists, failed) {
+            if (failed.length || root.writing > 0) return;
             if (JSON.stringify(lists) !== JSON.stringify(root.lists)) root.lists = lists;
             root.fetchTasks();
         });
@@ -474,7 +472,13 @@ GoogleService {
             body.due = day + "T00:00:00.000Z";
         if (notes !== "")
             body.notes = notes;
-        root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks());
+        root.send("POST", `${root.api}/lists/${list}/tasks`, body, () => root.fetchTasks(), (why, status) => {
+            root.fail(why, status);
+            const details = [body.title, root.lists.find(l => l.id === list)?.title ?? "",
+                day, notes, why].filter(s => s !== "").join("\n");
+            const escaped = details.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            Quickshell.execDetached(["notify-send", "-a", "quickshell", "Task not added", escaped]);
+        });
     }
 
     // A leading day and task list name can appear in either order.
@@ -593,7 +597,7 @@ GoogleService {
             return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} at ${Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes())}`;
         }
         root.add(p.task.title, p.task.day, p.task.list, "");
-        return p.task.day === "" ? `Added ${p.task.title}` : `Added ${p.task.title} for ${root.sayDay(p.task.day)}`;
+        return p.task.day === "" ? `Adding ${p.task.title}` : `Adding ${p.task.title} for ${root.sayDay(p.task.day)}`;
     }
 
     Timer {

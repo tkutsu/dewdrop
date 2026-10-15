@@ -3,6 +3,7 @@
 
 import importlib.machinery
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -41,6 +42,18 @@ class AttachmentTests(unittest.TestCase):
         safe = attachment.safe_name("α" * 300 + ".pdf")
         self.assertTrue(safe.endswith(".pdf"))
         self.assertLessEqual(len(safe.encode()), 200)
+
+    def test_oversized_extensions_terminate_and_fit(self):
+        names = ["report." + "x" * 201, "report." + "α" * 201,
+                 "a." + "x" * 199, "α." + "x" * 198]
+        code = "import json, runpy, sys; safe = runpy.run_path(sys.argv[1])['safe_name']; print(json.dumps([safe(n) for n in json.loads(sys.argv[2])]))"
+        result = subprocess.run([sys.executable, "-c", code, str(SCRIPT), json.dumps(names)],
+                                capture_output=True, text=True, timeout=2, check=True)
+        for safe in json.loads(result.stdout):
+            self.assertTrue(safe and not safe.startswith("."))
+            self.assertLessEqual(len(safe.encode()), 200)
+            with tempfile.TemporaryDirectory() as folder:
+                self.assertEqual(attachment.write_new(Path(folder), safe, b"ok").read_bytes(), b"ok")
 
     def test_taken_names_are_numbered(self):
         with tempfile.TemporaryDirectory() as folder:

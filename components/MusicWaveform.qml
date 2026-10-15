@@ -10,13 +10,13 @@ Scope {
 
     property bool active: false
     property bool playing: false
-    property var samples: []
-    property var beats: []
+    readonly property var samples: root.filePath ? WaveformCache.samples : []
+    readonly property var beats: root.filePath ? WaveformCache.beats : []
     property real position: Mpd.playbackElapsed
     property real pulse: 0
     readonly property string filePath: Mpd.file && !Mpd.file.includes("://") ? Mpd.musicDir + Mpd.file : ""
     readonly property string wanted: active ? filePath : ""
-    property string loaded: ""
+    readonly property string loaded: root.filePath ? WaveformCache.loaded : ""
 
     NumberAnimation {
         id: settlePulse
@@ -27,7 +27,7 @@ Scope {
         easing.type: Easing.OutQuad
     }
 
-    // Keep one decoder at a time; reopen the same song without decoding again.
+    // Keep one decoder at a time; the singleton retains the last completed song.
     function sync(): void {
         if (decode.processId > 0) {
             if (decode.target !== root.wanted)
@@ -43,12 +43,6 @@ Scope {
             settlePulse.stop();
         else
             settlePulse.restart();
-        // Keep the displayed song until a replacement has finished decoding.
-        if (!root.filePath) {
-            root.samples = [];
-            root.beats = [];
-            root.loaded = "";
-        }
         root.position = Mpd.playbackElapsed;
     }
     onWantedChanged: sync()
@@ -90,9 +84,9 @@ Scope {
                     const result = JSON.parse(text);
                     if (Array.isArray(result.bars) && result.bars.length === 256 && result.bars.every(value => Number.isFinite(value) && value >= 0 && value <= 1)
                             && Array.isArray(result.beats) && result.beats.every(value => Number.isFinite(value) && value >= 0)) {
-                        root.samples = result.bars;
-                        root.beats = result.beats;
-                        root.loaded = decode.target;
+                        WaveformCache.samples = result.bars;
+                        WaveformCache.beats = result.beats;
+                        WaveformCache.loaded = decode.target;
                     }
                 } catch (_) {}
             }

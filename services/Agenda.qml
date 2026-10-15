@@ -97,11 +97,10 @@ GoogleService {
     }
 
     function fetchCalendars(): void {
-        root.send("GET", `${root.api}/users/me/calendarList?minAccessRole=owner`, null, function (body) {
-            root.calendars = (body.items ?? []).filter(c => c.selected === true).map(c => ({
-                id: c.id,
-                title: c.summary ?? ""
-            }));
+        root.gather("calendars", [{url: `${root.api}/users/me/calendarList?minAccessRole=owner`}],
+            c => c.selected === true ? {id: c.id, title: c.summary ?? ""} : null, function (calendars, failed) {
+            if (failed.length) return;
+            root.calendars = calendars;
             root.haveCalendars = true;
             root.calendarsAt = Date.now();
             root.refreshMonths();
