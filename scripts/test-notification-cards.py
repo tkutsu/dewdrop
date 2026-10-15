@@ -49,13 +49,13 @@ QtObject {
     property color label: "white"; property color label2: "grey"; property color label3: "grey"
     property color warn: "red"; property color fg: "white"; property color stroke: "grey"
     property color selection: "#222222"; property color selectionStrong: "#444444"
-    property int popupInset: 6; property int popupPadding: 6; property int popupRadius: 10;
+    property int popupInset: 6; property int popupPadding: 6; property int popupRadius: 10; property int popupWideWidth: 400;
     property int selectionRadius: 4; property int fadeMs: 100; property int captionSize: 14
     property int blinkMs: 60
     property bool reduceMotion: false
     property int popupTextSize: 16; property int glyphSizeLarge: 16; property int pillBorder: 1
     property string bodyFont: "sans-serif"; property var figures: ({})
-    property var glyph: ({notif: "N", close: "X", plus: "+"})
+    property var glyph: ({notif: "N", close: "X", plus: "+", clearAll: "C"})
 }
 ''')
         (target / "Popup.qml").write_text('''import QtQuick
@@ -160,7 +160,7 @@ ShellRoot {
                 return null;
             }
             function run() {
-                check(popup.bodyWidth === 453, "popover is one third wider");
+                check(popup.bodyWidth === Theme.popupWideWidth, "the centre is as wide as mail and tasks");
                 // A sender's shortened payload must not be mistaken for UI elision.
                 notice.appName = "kitty";
                 notice.summary = "Done. Groups now collapse when you click their header, open another group, open a notification outside them, or close the popover. Intera...";

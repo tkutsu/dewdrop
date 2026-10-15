@@ -32,6 +32,7 @@ Popup {
         PopupButton {
             framed: true
             lit: Weather.feelsLike
+            glyph: Theme.glyph.feelsLike
             label: "Feels Like"
             onTapped: Weather.feelsLike = !Weather.feelsLike
         }
@@ -40,7 +41,8 @@ Popup {
         PopupButton {
             framed: true
             lit: root.choosing && !!Weather.location
-            label: "Change Location…"
+            glyph: Theme.glyph.location
+            label: "Change Location"
             name: root.choosing && Weather.location ? "Cancel changing location" : "Change location"
             onTapped: {
                 if (root.choosing && Weather.location) {
@@ -54,6 +56,7 @@ Popup {
         }
         PopupButton {
             framed: true
+            glyph: Theme.glyph.refresh
             label: "Refresh"
             live: !!Weather.location && !Weather.loading
             onTapped: Weather.refresh(true)

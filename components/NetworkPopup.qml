@@ -123,7 +123,7 @@ Popup {
 
     PopupLink {
         width: root.bodyWidth
-        text: "Network Settings…"
+        text: "Network Settings"
         onTapped: {
             OpenPopup.dismiss();
             Quickshell.execDetached(["nm-connection-editor"]);

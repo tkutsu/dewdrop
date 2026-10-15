@@ -12,7 +12,8 @@ import qs
 //
 // A popup that can make another of what it lists (a task, a timer, a mail)
 // sets `addable`. The title and plus share one button, shortened from the
-// right when there are other controls beside it.
+// right when there are other controls beside it. A popup whose one thing to
+// do is the title's own (Updates: upgrade) gives it another mark and name.
 Item {
     id: root
 
@@ -22,6 +23,8 @@ Item {
     // under it.
     property int inset: Theme.popupInset
     property bool addable: false
+    property string addGlyph: Theme.glyph.plus
+    property string addName: "Add " + root.title.toLowerCase()
 
     // Hidden controls take no space; visible ones keep a gap before them.
     readonly property real titleAreaWidth: Math.max(0, root.width - row.implicitWidth - (row.implicitWidth > 0 ? row.spacing : 0))
@@ -35,7 +38,7 @@ Item {
         id: target
 
         Accessible.role: Accessible.Button
-        Accessible.name: "Add " + root.title.toLowerCase()
+        Accessible.name: root.addName
         Accessible.onPressAction: if (root.addable && root.enabled && root.visible)
             root.add()
 
@@ -65,7 +68,7 @@ Item {
             Glyph {
                 anchors.centerIn: parent
                 implicitHeight: parent.height
-                text: Theme.glyph.plus
+                text: root.addGlyph
                 fontSize: Theme.popupTextSize
                 opacity: target.lit ? 1 : 0.6
             }

@@ -131,7 +131,7 @@ Popup {
 
     PopupLink {
         width: root.bodyWidth
-        text: "Bluetooth Settings…"
+        text: "Bluetooth Settings"
         onTapped: {
             OpenPopup.dismiss();
             Quickshell.execDetached(["blueman-manager"]);

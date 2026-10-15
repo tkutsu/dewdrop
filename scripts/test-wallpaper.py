@@ -218,6 +218,7 @@ ShellRoot {
             }
             function buttons(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label.toLowerCase()] = item;
+                if (item.checked !== undefined && item.toggled !== undefined) found[item.name.toLowerCase()] = item;
                 if (item.fullHeight !== undefined) found.framing = item;
                 if (item.cursorShape === Qt.OpenHandCursor) found.frameArea = item;
                 if (item.snapMode !== undefined && item.cellWidth !== undefined) found.grid = item;
@@ -236,12 +237,12 @@ ShellRoot {
                 check(popup.width === popup.bodyWidth + Theme.popupPadding * 2, 'trailing thumbnail gap does not widen the popup');
                 const gridBounds = bounds(controls.grid);
                 check(Math.abs(gridBounds.x + popup.gridWidth / 2 - popup.width / 2) < 0.5, 'visible thumbnails have equal frame insets');
-                check(controls.parallax && controls.drift, 'both section headers have a toggle');
-                check(controls.parallax.framed && controls.drift.framed, 'toggles use standard framed buttons');
+                check(controls.parallax && controls.monochrome && controls.drift, 'parallax and monochrome sections have switches, and drift its option');
+                check(controls.drift.framed && controls.drift.glyph === Theme.glyph.drift, 'drift is a framed option with its mark');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                check(!Wallpaper.parallax && !controls.parallax.lit, 'parallax button switches off');
+                check(!Wallpaper.parallax && !controls.parallax.on, 'parallax switch turns off');
                 mouseClick(controls.parallax, controls.parallax.width / 2, controls.parallax.height / 2);
-                check(Wallpaper.parallax && controls.parallax.lit && controls.parallax.label === 'Parallax', 'parallax button lights up and keeps its label');
+                check(Wallpaper.parallax && controls.parallax.on, 'parallax switch turns on');
                 const framing = controls.framing, area = controls.frameArea;
                 tryVerify(() => framing.height === framing.fullHeight && framing.opacity === 1, 1000);
                 check(waitForPolish(fixtureWindow), 'framing layout settles before measuring the reserved height');
@@ -267,7 +268,7 @@ ShellRoot {
                 check(bounds(readout).y > hint.y && bounds(readout).y + readout.height <= picture.y + picture.height, 'zoom percentage follows the knob downward and stays inside the preview');
                 Settings.set('wallpaperParallaxZoom', originalZoom);
                 const reserved = popup.reserveHeight;
-                check(bounds(area).y > bounds(controls.parallax).y + controls.parallax.height, 'framing picture clears the parallax button');
+                check(bounds(area).y > bounds(controls.parallax).y + controls.parallax.height, 'framing picture sits under the parallax switch');
                 mouseClick(area, area.width / 2, area.height * 0.25);
                 check(Math.abs(Wallpaper.parallaxY - 0.25) < 0.02, 'pressing a quarter down the picture frames a quarter down');
                 mouseWheel(area, area.width / 2, area.height / 2, 0, -120);
@@ -294,6 +295,11 @@ ShellRoot {
                 mouseClick(controls.drift, controls.drift.width / 2, controls.drift.height / 2);
                 check(Wallpaper.drift && controls.drift.lit && controls.drift.label === 'Drift', 'drift button lights up and keeps its label');
                 check(bounds(controls.drift).y < popup.height - 60, 'drift sits above the colour controls');
+                const mono = controls.monochrome, wasColour = Wallpaper.color !== '';
+                mouseClick(mono, mono.width / 2, mono.height / 2);
+                check((Wallpaper.color !== '') !== wasColour && mono.on !== wasColour, 'the monochrome switch swaps the colour and a picture');
+                mouseClick(mono, mono.width / 2, mono.height / 2);
+                check((Wallpaper.color !== '') === wasColour && mono.on === wasColour, 'and swaps back');
                 const preview = Quickshell.env('QUICKSHELL_WALLPAPER_PREVIEW');
                 if (preview) {
                     let saved = false;

@@ -85,6 +85,10 @@ Singleton {
     // that going back to a colour is one click rather than mixing it again. It
     // outlives `color`, which is cleared the moment an image goes up.
     property string lastColor: ""
+    // And the last picture, for turning the colour off again from the popup.
+    // For the session only: one that starts on a colour goes back to a
+    // picture picked at random.
+    property string lastImage: ""
 
     // Whether a flat colour drifts with the time of day: warmer towards dusk,
     // darker through the night, itself again by mid-morning — the way a
@@ -362,6 +366,18 @@ Singleton {
         root.save();
     }
 
+    // The popup's Monochrome switch: the colour there was, or back to the
+    // picture there was.
+    function setMonochrome(on) {
+        if (on)
+            return root.setColor(root.lastColor || "#2c2c2e");
+        const i = root.files.indexOf(root.lastImage);
+        if (i >= 0)
+            root.show(i);
+        else
+            root._random();
+    }
+
     // What is on screen, the last colour, drift, workspace parallax and its
     // height. New lines follow the old ones so earlier state files still read.
     function save() {
@@ -456,6 +472,7 @@ Singleton {
             root.current = "";
         } else {
             root.current = saved;
+            root.lastImage = saved;
             root.color = "";
         }
     }
