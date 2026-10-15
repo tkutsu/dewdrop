@@ -4,9 +4,10 @@ import qs
 // Options in a capsule, as a Mac's segmented control in the dark: the chosen
 // one sits on a lighter capsule raised off the well and lit from above,
 // hairlines part the rest and step aside for it, and it springs across to a
-// new pick. A press dims it; dragging along the capsule carries it through the
-// options and the one it rests on when let go is chosen. Each option takes its
-// label's room; in a wider row they share the rest evenly. For up to three
+// new pick. A press stretches it towards that choice; dragging along the
+// capsule carries it through the options and the one it rests on when let go
+// is chosen. Each option takes its label's room; in a wider row they share
+// the rest evenly. For up to three
 // short options (SettingRow.fitsCapsule); more, or longer, take a dropdown.
 Rectangle {
     id: root
@@ -21,7 +22,16 @@ Rectangle {
     // itemAt() is not a binding's dependency; the count is, so the shown one
     // is found again once the options are built.
     readonly property Item shown: root.shownIndex >= 0 && root.shownIndex < buttons.count ? buttons.itemAt(root.shownIndex) : null
-    readonly property bool held: tap.pressed || scrub.active
+    readonly property int pressedIndex: tap.pressed && !scrub.active ? root.indexAt(tap.point.position.x) : -1
+    property real stretch: root.pressedIndex >= 0 && root.shown ? Math.sign(root.pressedIndex - root.shownIndex) : 0
+
+    Behavior on stretch {
+        SpringAnimation {
+            spring: Theme.keyMarkSpring
+            damping: Theme.keyMarkDamping
+            epsilon: 0.01
+        }
+    }
 
     function choose(value) {
         if (value !== root.current)
@@ -50,6 +60,8 @@ Rectangle {
         id: tap
 
         gesturePolicy: TapHandler.ReleaseWithinBounds
+        // A held click still chooses on release; there is no long-press action.
+        longPressThreshold: 0
         onTapped: point => root.choose(root.options[root.indexAt(point.position.x)].value)
     }
 
@@ -85,25 +97,29 @@ Rectangle {
         onVisibleChanged: if (visible && !placed)
             Qt.callLater(() => { if (mark.visible) mark.placed = true; })
 
+        // Spring the selection separately so a press stretches only its leading edge.
+        property real selectionX: root.shown ? cells.x + root.shown.x : Theme.markInset
+        property real selectionWidth: root.shown?.width ?? 0
+
         visible: root.shown !== null
-        x: root.shown ? cells.x + root.shown.x : Theme.markInset
+        x: mark.selectionX + 5 * Math.min(0, root.stretch)
         y: Theme.markInset
-        width: root.shown?.width ?? 0
+        width: mark.selectionWidth + 5 * Math.abs(root.stretch)
         height: root.height - Theme.markInset * 2
         radius: height / 2
-        // Lit from above, the way the glass's rim is; flat while pressed.
+        // Lit from above, the way the glass's rim is.
         gradient: Gradient {
             GradientStop {
                 position: 0
-                color: root.held ? Theme.selection : Theme.selectionLifted
+                color: Theme.selectionLifted
             }
             GradientStop {
                 position: 1
-                color: root.held ? Theme.selection : Theme.selectionStrong
+                color: Theme.selectionStrong
             }
         }
 
-        Behavior on x {
+        Behavior on selectionX {
             enabled: mark.placed
             SpringAnimation {
                 spring: Theme.switchSpring
@@ -111,7 +127,7 @@ Rectangle {
             }
         }
 
-        Behavior on width {
+        Behavior on selectionWidth {
             enabled: mark.placed
             SpringAnimation {
                 spring: Theme.switchSpring
