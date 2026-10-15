@@ -3,7 +3,7 @@ import Quickshell
 import qs
 import qs.services
 
-// Each drive with how full it is, a click on it to open it in the file
+// Each drive with how much is on it, a click on it to open it in the file
 // manager (or mount it, if nothing on it is), and the eject at its right edge
 // to take it out safely. Under them, the batteries of wired things that have
 // one.
@@ -36,73 +36,34 @@ Popup {
             objectProp: "disk"
         }
 
-        delegate: PopupRow {
+        // The grid the batteries below and the other lists use: the tick on
+        // a drive that is mounted, its size at the right, then the eject.
+        delegate: ChoiceRow {
             id: row
 
             required property var modelData
             readonly property bool mounted: modelData.total > 0
-            readonly property bool ejecting: !!Drives.ejecting[modelData.disk]
 
-            name: row.modelData.name
             width: root.bodyWidth
-            height: 40
-            gesturePolicy: TapHandler.ReleaseWithinBounds
+            text: modelData.name
+            current: row.mounted
+            busy: !!Drives.ejecting[modelData.disk]
             onTapped: Drives.open(row.modelData)
 
             PopupText {
-                id: name
-                x: Theme.popupInset
-                y: 5
-                // Ends where the size begins, so a long label elides
-                // instead of running under it.
-                width: usage.x - x - 8
-                text: row.modelData.name
-                elide: Text.ElideRight
+                anchors.verticalCenter: parent.verticalCenter
+                text: row.mounted ? `${root.bytes(row.modelData.used)} / ${root.bytes(row.modelData.total)}` : root.bytes(row.modelData.size)
+                // Nearly full, where the meter used to turn.
+                color: row.mounted && row.modelData.used / row.modelData.total > 0.9 ? Theme.warn : Theme.label2
                 font.pixelSize: Theme.captionSize
-                font.weight: Font.DemiBold
-            }
-
-            PopupText {
-                id: usage
-                anchors.right: eject.left
-                anchors.rightMargin: 8
-                anchors.baseline: name.baseline
-                text: row.mounted ? `${root.bytes(row.modelData.used)} / ${root.bytes(row.modelData.total)}` : `${root.bytes(row.modelData.size)} · not mounted`
-                color: Theme.label2
-                font.pixelSize: Theme.captionSize
-            }
-
-            // How full it is, as the system popup's memory and disks are.
-            Rectangle {
-                x: Theme.popupInset
-                y: 26
-                width: eject.x - x - 8
-                height: 3
-                color: Theme.meterTrack
-                visible: row.mounted
-
-                Rectangle {
-                    width: Math.round(parent.width * Math.min(1, row.modelData.used / row.modelData.total))
-                    height: parent.height
-                    color: row.modelData.used / row.modelData.total > 0.9 ? Theme.warn : Theme.fg
-                }
             }
 
             PopupButton {
-                id: eject
-                name: "Eject " + row.modelData.name
-
-                anchors.right: parent.right
-                anchors.rightMargin: Theme.popupInset
                 anchors.verticalCenter: parent.verticalCenter
-                visible: !row.ejecting
+                name: "Eject " + row.text
                 glyph: Theme.glyph.eject
+                glyphSize: Theme.captionSize
                 onTapped: Drives.eject(row.modelData)
-            }
-
-            Spinner {
-                anchors.centerIn: eject
-                visible: row.ejecting
             }
         }
     }

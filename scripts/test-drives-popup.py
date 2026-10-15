@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Elide a long drive name before it reaches the size beside it."""
+"""Lay a drive out on the one-line list grid, its long name eliding before its size."""
 
 from pathlib import Path
 import subprocess
@@ -18,12 +18,19 @@ ShellRoot {
         DrivesPopup { id: popup }
         TestCase { id: test; when: false
             function check(ok, message) { if (!ok) throw Error(message); console.log("PASS: " + message); }
+            function find(item, text) {
+                if (item.text === text && item.truncated !== undefined) return item;
+                for (const child of item.children) { const found = find(child, text); if (found) return found; }
+                return null;
+            }
             function run() {
                 const row = popup.auditRows.itemAt(0);
-                check(row, "drive row exists");
-                const name = row.auditName, usage = row.auditUsage;
+                check(row && row.height === 22, "drive sits on a one-line row");
+                const name = find(row, "nixos-graphical-25.11-x86_64"), usage = find(row, "3.4 GB / 3.4 GB");
+                check(name && usage, "name and size are drawn");
+                check(Math.abs(name.mapToItem(row, 0, 0).y + name.height / 2 - row.height / 2) <= 1, "name is centred in the row");
                 check(name.truncated, "long name elides");
-                check(name.x + name.width <= usage.x, "name ends before the size");
+                check(name.mapToItem(row, name.width, 0).x <= usage.mapToItem(row, 0, 0).x, "name ends before the size");
             }
         }
         Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log("FAIL: " + e + "\\n" + e.stack); } Qt.quit(); } }
@@ -49,13 +56,12 @@ QtObject {
         source = (target / "components/DrivesPopup.qml").read_text()
         source = source.replace('id: root', 'id: root\n    property alias auditRows: auditRows', 1)
         source = source.replace('model: ScriptModel {\n            values: Drives.drives', 'id: auditRows\n        model: ScriptModel {\n            values: Drives.drives', 1)
-        source = source.replace('required property var modelData', 'required property var modelData\n            property alias auditName: name\n            property alias auditUsage: usage', 1)
         (target / "components/DrivesPopup.qml").write_text(source)
         (target / "shell.qml").write_text(SHELL)
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=shell_env(target), capture_output=True, text=True, timeout=5)
         output = result.stdout + result.stderr
         print(output, end='')
-        assert result.returncode == 0 and output.count('PASS:') == 3 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
+        assert result.returncode == 0 and output.count('PASS:') == 5 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
 
 
 if __name__ == '__main__':
