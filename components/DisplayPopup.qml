@@ -4,8 +4,8 @@ import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
 // module: the brightness on a track the pointer can grab, then night mode as
-// a section with Off, On and Auto on its heading, and the schedule's hours
-// opening under it on Auto.
+// a section with Off, On and Auto across its first row, and the schedule's
+// hours opening under them on Auto.
 Popup {
     id: root
 
@@ -48,9 +48,19 @@ Popup {
         PopupSection {
             width: root.bodyWidth
             title: "Night Mode"
+        }
+
+        // Off, On and Auto across the row, under the heading.
+        Item {
+            width: root.bodyWidth
+            height: choice.y + choice.height
 
             SettingChoice {
-                anchors.verticalCenter: parent.verticalCenter
+                id: choice
+
+                x: Theme.popupInset
+                y: Theme.popupSpacing
+                width: root.bodyWidth - Theme.popupInset * 2
                 setting: ({
                     title: "Night mode",
                     options: [{ value: "off", label: "Off" }, { value: "on", label: "On" }, { value: "auto", label: "Auto" }],
