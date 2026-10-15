@@ -24,6 +24,7 @@ Popup {
         title: "Network"
 
         SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
             visible: !!Network.wifi
             name: "Wi-Fi"
             checked: Network.wifiOn
@@ -59,6 +60,8 @@ Popup {
     PopupSection {
         width: root.bodyWidth
         visible: Network.wifiOn
+        // Straight under the header unless the cable's row is between.
+        ruled: Network.wired?.hasLink ?? false
         title: "Wi-Fi"
     }
 

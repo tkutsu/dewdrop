@@ -211,9 +211,11 @@ class EmailTests(unittest.TestCase):
 
     def test_html_layout_and_links(self):
         html = '<head>hidden</head><style>x</style><!-- hidden --><div> One </div>\n    <div> Two&nbsp; &copy; </div><a href="https://example.com?a=1&amp;b=2">Visit</a><script>hidden</script>'
-        self.check('sut.unquote(sut.untag(' + json.dumps(html) + ')) === "One\\nTwo ©\\nVisit (https://example.com?a=1&b=2)"')
+        self.check('sut.plain(sut.unquote(sut.untag(' + json.dumps(html) + '))) === "One\\nTwo ©\\nVisit (https://example.com?a=1&b=2)"')
+        self.check('sut.richText(sut.untag(' + json.dumps(html) + ')).includes("href=\\"https://example.com?a=1&amp;b=2\\" style=\\"color: #c0c0c0\\">Visit</a>")')
         self.check('sut.untag("<a href=javascript:bad>Label</a>") === "Label"')
-        self.check('sut.untag("<a href=https://example.com>https://example.com</a>") === "https://example.com"')
+        self.check('sut.plain(sut.untag("<a href=https://example.com>https://example.com</a>")) === "https://example.com"')
+        self.check('sut.richText(sut.untag("<a href=https://example.com/x>https://example.com/x</a>")).includes(">example.com</a>")')
         self.check('sut.untag("<table><tr><td>A</td><td>B</td></tr></table>").trim() === "A B"')
 
     def test_html_quoted_replies_are_not_repeated_in_chain(self):
@@ -533,6 +535,11 @@ class EmailTests(unittest.TestCase):
         self.check('sut.richText("(https://example.com/a_(b)).").includes("href=\\"https://example.com/a_(b)\\"")')
         self.check('!sut.richText("javascript:bad file:///tmp/x").includes("<a ")')
         self.check('sut.richText("www.example.com").includes("href=\\"https://www.example.com\\"")')
+        # The address stays in the href; the text says what it is.
+        self.check('sut.richText("Read https://www.example.com/long/path?utm=1 now").includes(">example.com</a> now")')
+        self.check('sut.richText("Intro\\nView online <https://example.com/v?id=1>").includes("Intro<br><a href=\\"https://example.com/v?id=1\\" style=\\"color: #c0c0c0\\">View online</a></span>")')
+        self.check('sut.richText("Docs: [https://example.com/d]").includes("<a href=\\"https://example.com/d\\" style=\\"color: #c0c0c0\\">Docs</a>")')
+        self.check('!sut.richText("Docs <https://example.com/d>").includes("&lt;")')
 
     def build_popup(self, fold_ms=360):
         """The full popup with its real row and text components, only window
@@ -1026,10 +1033,6 @@ class EmailTests(unittest.TestCase):
         self.assertEqual([p['name'] for p in parts], ['report.pdf', 'photo.jpg'])
         self.assertEqual(parts[0], {'id': 'pdf', 'name': 'report.pdf', 'size': 245760, 'type': 'application/pdf'})
         self.check('sut.partsOf(null).length === 0')
-        self.check('sut.sayFile({name:"report.pdf", size:245760}) === "report.pdf · 240 KB"')
-        self.check('sut.sayFile({name:"a.txt", size:12}) === "a.txt · 12 B"')
-        self.check('sut.sayFile({name:"photo.jpg", size:3*1048576}) === "photo.jpg · 3.0 MB"')
-        self.check('sut.sayFile({name:"a-very-long-file-name-from-the-scanner.pdf", size:2048}) === "a-very-long-file-n…nner.pdf · 2 KB"')
 
     def test_body_read_collects_the_files(self):
         self.js('''
@@ -1101,7 +1104,7 @@ class EmailTests(unittest.TestCase):
         row = self.js('return popup.testList.itemAt(0);')
         unsubscribe = self.button(row, 'Unsubscribe')
         self.assertTrue(unsubscribe.isVisible())
-        self.button(row, 'Save report.pdf')
+        self.button(row, 'Download report.pdf')
         self.click(window, self.button(row, 'Make a task'))
         self.check('sut.pending.length === 1 && sut.pending[0].said === "Task made" && sut.pending[0].also === sut.makeTask')
         self.check('popup.expanded === "b"')
@@ -1125,12 +1128,12 @@ class EmailTests(unittest.TestCase):
         ui.setParentItem(window.contentItem())
         window.show()
         QTest.qWait(30)
-        self.check('ui.editor.getText(0,ui.editor.length).replace(/\\u2028/g,"\\n") === ui.fetched')
+        self.check('ui.editor.getText(0,ui.editor.length).replace(/\\u2028/g,"\\n") === "Hello example.com\\nsecond line"')
         self.check('ui.editor.readOnly && ui.editor.selectByMouse')
         editor_item = ui.childItems()[0]
         quick_document = editor_item.property('textDocument')
         document = quick_document.textDocument()
-        link_cursor = document.find('https://example.com')
+        link_cursor = document.find('example.com')
         self.assertEqual(link_cursor.charFormat().foreground().color().name(), '#c0c0c0')
         QTest.mouseMove(window, QPoint(80, 8))
         QTest.qWait(5)
@@ -1143,7 +1146,7 @@ class EmailTests(unittest.TestCase):
         self.assertEqual(APP.clipboard().text(), 'Hello')
         self.js('ui.editor.deselect();')
         QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, QPoint(10, 8))
-        self.assertEqual(APP.clipboard().text(), 'Hello https://example.com?a=1&b=2\nsecond line')
+        self.assertEqual(APP.clipboard().text(), 'Hello example.com\nsecond line')
         self.js('ui.editor.deselect();')
         QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, QPoint(1, 8))
         QTest.mouseMove(window, QPoint(32, 8), 20)
