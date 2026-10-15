@@ -10,9 +10,7 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: 264
-
-    spacing: 6
+    readonly property int bodyWidth: Theme.popupWidth
 
     // Decimal, as the size printed on the stick is.
     function bytes(n: real): string {
@@ -69,13 +67,10 @@ Popup {
         }
     }
 
-    PopupText {
+    PopupSection {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
         visible: Drives.batteries.length > 0
-        text: "Batteries"
-        color: Theme.label2
-        font.pixelSize: Theme.captionSize
+        title: "Batteries"
     }
 
     Repeater {

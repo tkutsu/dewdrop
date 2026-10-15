@@ -12,18 +12,17 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: 236
+    readonly property int bodyWidth: Theme.popupWidth
     readonly property int rowHeight: 22
 
     // The readout is a fixed column rather than as wide as what it says. It
     // changes every second, and a popup that sized itself to it would ask the
     // compositor to reposition the window once a second for as long as it was
     // open — see Popup.reserveHeight for what that looks like.
-    readonly property int readoutWidth: Settings.twelveHour ? 76 : 48
+    readonly property int readoutWidth: Settings.twelveHour ? 84 : 56
     readonly property int buttonWidth: 20
     readonly property int gutter: 18
 
-    spacing: 6
     ChoiceBlink { id: choice }
 
     // Ringing first, because it is the only row here that is asking for
@@ -129,24 +128,18 @@ Popup {
         onAdd: Launcher.openWith(Launcher.taskPrefix)
     }
 
-    PopupText {
+    PopupNote {
         visible: Timers.phoneWarning !== ""
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
         text: Timers.phoneWarning
-        color: Theme.warn
+        warn: true
         font.pixelSize: Theme.footnoteSize
-        wrapMode: Text.WordWrap
     }
 
-    PopupText {
+    PopupNote {
         visible: root.rows.length === 0
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
         text: "Nothing set"
-        opacity: 0.6
     }
 
     Repeater {
@@ -170,8 +163,7 @@ Popup {
                 text: row.modelData.glyph
                 fontSize: Theme.popupGlyphSize
                 implicitHeight: root.rowHeight
-                color: row.modelData.warn ? Theme.warn : Theme.fg
-                opacity: row.modelData.dim ? 0.45 : 1
+                color: row.modelData.warn ? Theme.warn : row.modelData.dim ? Theme.label2 : Theme.fg
             }
 
             PopupText {
@@ -184,9 +176,7 @@ Popup {
                     verticalCenter: parent.verticalCenter
                 }
                 text: row.modelData.title
-                color: row.modelData.warn ? Theme.warn : Theme.fg
-                font.pixelSize: Theme.captionSize
-                opacity: row.modelData.dim ? 0.45 : 0.9
+                color: row.modelData.warn ? Theme.warn : row.modelData.dim ? Theme.label2 : Theme.fg
                 elide: Text.ElideRight
             }
 
@@ -206,8 +196,7 @@ Popup {
                 // The one thing on a row that moves. A binding here rather
                 // than a value in the model is what keeps the row itself still.
                 text: row.modelData.entry ? Timers.clock(Timers.remaining(row.modelData.entry)) : row.modelData.readout
-                font.pixelSize: Theme.captionSize
-                opacity: row.modelData.dim ? 0.45 : 0.75
+                color: row.modelData.dim ? Theme.label2 : Theme.fg
             }
 
             // Always drawn rather than appearing on hover: these rows are

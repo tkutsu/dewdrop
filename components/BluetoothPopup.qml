@@ -6,15 +6,14 @@ import qs.services
 
 // The devices, and one click on a row to connect it, drop it or pair it. A
 // tick on what is connected, a spinner while something is on its way, and
-// the battery at the right edge once there is nothing else to say. The whole
-// of blueman is a right click on the bar icon away, for anything this is not.
+// the battery at the right edge once there is nothing else to say. The
+// adapter's switch is at the end of the title, as on the Mac, and the whole
+// of blueman is the row at the foot, for anything this is not (a right click
+// on the bar icon opens it too).
 Popup {
     id: root
 
-    // Wide enough for the header: the title and both of its buttons.
-    readonly property int bodyWidth: 264
-
-    spacing: 6
+    readonly property int bodyWidth: Theme.popupWidth
 
     // Scanning is started from the header and only lasts as long as the popup:
     // nobody is reading the list once it has closed.
@@ -26,7 +25,7 @@ Popup {
 
     function detail(device): string {
         if (!device.paired)
-            return "pair";
+            return "Pair";
         const battery = Bluetooth.battery(device);
         return device.connected && battery >= 0 ? battery + "%" : "";
     }
@@ -35,32 +34,37 @@ Popup {
         width: root.bodyWidth
         title: "Bluetooth"
 
-        PopupButton {
-            framed: true
-            glyph: Bluetooth.on ? Theme.glyph.bluetoothOff : Theme.glyph.bluetooth
-            label: Bluetooth.on ? "turn off" : "turn on"
-            onTapped: Bluetooth.toggle()
-        }
-
         // New devices only turn up while the adapter is looking, and
         // looking is loud on the radio, so it is asked for rather than
-        // started every time the popup opens.
+        // started every time the popup opens. Lit while it looks.
         PopupButton {
             framed: true
             visible: Bluetooth.on
+            lit: Bluetooth.scanning
             glyph: Theme.glyph.refresh
-            label: Bluetooth.scanning ? "stop looking" : "look for devices"
+            label: "Scan"
+            name: Bluetooth.scanning ? "Stop scanning" : "Scan for devices"
             onTapped: Bluetooth.scan(!Bluetooth.scanning)
+        }
+
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Bluetooth"
+            checked: Bluetooth.on
+            onToggled: Bluetooth.toggle()
         }
     }
 
-    PopupText {
+    PopupSection {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
+        visible: Bluetooth.on
+        title: "Devices"
+    }
+
+    PopupNote {
+        width: root.bodyWidth
         visible: !Bluetooth.on || Bluetooth.devices.length === 0
         text: !Bluetooth.on ? "Bluetooth is off" : Bluetooth.scanning ? "Looking for devices…" : "No devices paired"
-        color: Theme.label2
     }
 
     Column {
@@ -77,6 +81,11 @@ Popup {
                 id: row
 
                 required property var modelData
+                // Forget asks twice: the device has to be paired again after.
+                // Armed until the pointer leaves the row.
+                property bool forgetting: false
+                onHoveredChanged: if (!row.hovered)
+                    row.forgetting = false
 
                 width: root.bodyWidth
                 text: modelData.name
@@ -102,14 +111,30 @@ Popup {
 
                     anchors.verticalCenter: parent.verticalCenter
                     visible: row.hovered && row.modelData.paired
-                    name: "Forget " + row.text
-                    glyph: Theme.glyph.close
+                    name: (row.forgetting ? "Confirm forget " : "Forget ") + row.text
+                    glyph: row.forgetting ? Theme.glyph.check : Theme.glyph.close
                     glyphSize: Theme.captionSize
+                    warn: row.forgetting
                     onTapped: {
-                        row.modelData.forget();
+                        if (row.forgetting)
+                            row.modelData.forget();
+                        row.forgetting = !row.forgetting;
                     }
                 }
             }
+        }
+    }
+
+    PopupSeparator {
+        width: root.bodyWidth
+    }
+
+    PopupLink {
+        width: root.bodyWidth
+        text: "Bluetooth Settings…"
+        onTapped: {
+            OpenPopup.dismiss();
+            Quickshell.execDetached(["blueman-manager"]);
         }
     }
 }

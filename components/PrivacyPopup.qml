@@ -7,20 +7,11 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: 300
-
-    spacing: 6
+    readonly property int bodyWidth: Theme.popupWidth
 
     PopupHeader {
         width: root.bodyWidth
         title: "Recording"
-    }
-
-    component Section: PopupText {
-        width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        color: Theme.label2
-        font.pixelSize: Theme.captionSize
     }
 
     // Both capture lists use the standard icon/name grid and 20px controls.
@@ -98,17 +89,16 @@ Popup {
         }
     }
 
-    PopupText {
+    PopupNote {
         visible: !Privacy.active
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
         text: "No active captures"
-        color: Theme.label2
     }
 
-    Section {
+    PopupSection {
         visible: Privacy.listening
-        text: "Apps receiving audio"
+        width: root.bodyWidth
+        title: "Apps Using the Microphone"
     }
 
     Column {
@@ -142,9 +132,10 @@ Popup {
         }
     }
 
-    Section {
+    PopupSection {
         visible: Privacy.listening
-        text: "Microphones"
+        width: root.bodyWidth
+        title: "Microphones"
     }
 
     Column {
@@ -210,17 +201,11 @@ Popup {
         }
     }
 
-    Rectangle {
-        id: shareDivider
-        visible: Privacy.listening && Privacy.sharing
-        width: root.bodyWidth
-        height: Theme.pillBorder
-        color: Theme.stroke
-    }
-
-    Section {
+    PopupSection {
+        id: shareSection
         visible: Privacy.sharing
-        text: "Screen shares"
+        width: root.bodyWidth
+        title: "Screen Sharing"
     }
 
     Column {

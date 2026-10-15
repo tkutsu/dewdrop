@@ -46,7 +46,7 @@ ShellRoot {
                     check(named(pill, "rolling").visible && !named(pill, "words").visible, "bar alarm uses smaller AM/PM renderer");
                     const readout = named(popup, "readout");
                     check(readout.text === "8:05 pm", "popup keeps readable spacing and selected case");
-                    check(readout.font.pixelSize === Theme.captionSize && !named(popup, "readoutAmPm"), "popup keeps the entire time at full size");
+                    check(readout.font.pixelSize === Theme.popupTextSize && !named(popup, "readoutAmPm"), "popup keeps the entire time at full size");
                     Settings.set("timeCase", "uppercase");
                     Settings.set("smallAmPm", false);
                 } else if (test.phase === 2) {
@@ -57,7 +57,7 @@ ShellRoot {
                 } else if (test.phase === 3) {
                     const title = named(popup, "title");
                     check(title.text === "8:05 PM", "ringing popup time keeps readable spacing");
-                    check(title.font.pixelSize === Theme.captionSize && !named(popup, "titleAmPm"), "ringing popup time keeps full-size AM/PM");
+                    check(title.font.pixelSize === Theme.popupTextSize && !named(popup, "titleAmPm"), "ringing popup time keeps full-size AM/PM");
                     check(pill.shownSmallRanges.length === 1, "ringing bar time uses smaller AM/PM");
                     Timers.ringing = [{id: "ring", kind: "alarm", hour: 20, minute: 5, label: "Dinner PM", firedAt: Timers.now}];
                 } else {

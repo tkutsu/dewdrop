@@ -7,14 +7,13 @@ import qs.services
 // The networks in range, and one click on a row to join or leave it. A tick
 // on the one in use and a spinner while one is being joined; at the right
 // edge a lock on a network that will ask for a password, then its signal in
-// the bar's cone. NetworkManager's own editor is a right click on the bar icon
-// away, for anything this is not.
+// the bar's cone. Wi-Fi's switch is at the end of the title, as on the Mac,
+// and NetworkManager's own editor is the row at the foot, for anything this
+// is not (a right click on the bar icon opens it too).
 Popup {
     id: root
 
-    readonly property int bodyWidth: 240
-
-    spacing: 6
+    readonly property int bodyWidth: Theme.popupWidth
 
     // Scanning runs while the list is on screen and not otherwise.
     Component.onCompleted: Network.watchers++
@@ -24,12 +23,11 @@ Popup {
         width: root.bodyWidth
         title: "Network"
 
-        PopupButton {
+        SettingSwitch {
             visible: !!Network.wifi
-            framed: true
-            glyph: Network.wifiOn ? Theme.glyph.wifiOff : Theme.glyph.wifiStrength[4]
-            label: Network.wifiOn ? "turn Wi-Fi off" : "turn Wi-Fi on"
-            onTapped: Network.toggleWifi()
+            name: "Wi-Fi"
+            checked: Network.wifiOn
+            onToggled: Network.toggleWifi()
         }
     }
 
@@ -48,13 +46,16 @@ Popup {
         }
     }
 
-    PopupText {
+    PopupSection {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
+        visible: Network.wifiOn
+        title: "Wi-Fi"
+    }
+
+    PopupNote {
+        width: root.bodyWidth
         visible: !Network.wifiOn || Network.networks.length === 0
         text: !Network.wifi ? "No Wi-Fi adapter" : !Network.wifiOn ? "Wi-Fi is off" : "Looking for networks…"
-        color: Theme.label2
     }
 
     Column {
@@ -71,6 +72,11 @@ Popup {
                 id: row
 
                 required property var modelData
+                // Forget asks twice: it takes the password with it. Armed
+                // until the pointer leaves the row.
+                property bool forgetting: false
+                onHoveredChanged: if (!row.hovered)
+                    row.forgetting = false
 
                 width: root.bodyWidth
                 text: modelData.name
@@ -83,11 +89,14 @@ Popup {
                 PopupButton {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: row.hovered && row.modelData.known
-                    name: "Forget " + row.text
-                    glyph: Theme.glyph.close
+                    name: (row.forgetting ? "Confirm forget " : "Forget ") + row.text
+                    glyph: row.forgetting ? Theme.glyph.check : Theme.glyph.close
                     glyphSize: Theme.captionSize
+                    warn: row.forgetting
                     onTapped: {
-                        Network.forget(row.modelData);
+                        if (row.forgetting)
+                            Network.forget(row.modelData);
+                        row.forgetting = !row.forgetting;
                     }
                 }
 
@@ -105,6 +114,19 @@ Popup {
                     fontSize: Theme.popupGlyphSize
                 }
             }
+        }
+    }
+
+    PopupSeparator {
+        width: root.bodyWidth
+    }
+
+    PopupLink {
+        width: root.bodyWidth
+        text: "Network Settings…"
+        onTapped: {
+            OpenPopup.dismiss();
+            Quickshell.execDetached(["nm-connection-editor"]);
         }
     }
 }
