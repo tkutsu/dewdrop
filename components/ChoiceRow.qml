@@ -22,8 +22,10 @@ PopupRow {
     default property alias trail: tail.data
 
     // The mark's column, as the music queue's: in six, eighteen wide, eight
-    // of air before the name.
-    readonly property int lead: 32
+    // of air before the name. A list that never ticks anything leaves it out
+    // and starts its names at the inset, as SettingRow does.
+    property bool hasMark: true
+    readonly property int lead: root.hasMark ? 32 : Theme.popupInset
 
     height: 22
     gesturePolicy: TapHandler.ReleaseWithinBounds
