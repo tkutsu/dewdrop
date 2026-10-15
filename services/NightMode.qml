@@ -32,9 +32,18 @@ Singleton {
     // The panel is dimmed to 0 whenever night mode goes on, so a dark screen is
     // what the mode looks like from outside; say that rather than "Brightness 0%".
     // Scrolling to 0 by hand is not the mode, so key this off the flag, not the level.
-    // A schedule follows as its hours alone: "Brightness 80% · 22:00–07:00".
+    // On Auto it says what comes next, as Control Center does: "Night mode on
+    // until 07:00", "Brightness 80% · night mode off until 22:00". A manual
+    // change holds until the next boundary, so that is the end when on and the
+    // start when off.
     readonly property string tooltip: (on ? "Night mode on" : `Brightness ${brightness}%`)
-        + (automatic ? ` · ${formatTime(startMinute)}–${formatTime(endMinute)}` : "")
+        + (!automatic ? "" : on ? ` until ${formatTime(endMinute)}` : ` · night mode off until ${formatTime(startMinute)}`)
+
+    // Off, On or Auto, as the popup's choice shows it. A pick holds while
+    // display.sh runs: the flag only moves once the DDC write lands, and until
+    // then the choice would light the mode being left.
+    property string asked: ""
+    readonly property string mode: asked || (automatic ? "auto" : on ? "on" : "off")
 
     function formatTime(minute) {
         return ("0" + Math.floor(minute / 60)).slice(-2) + ":" + ("0" + minute % 60).slice(-2);
@@ -63,6 +72,32 @@ Singleton {
         root.resetScheduleRetry();
         root.saveSchedule();
         root.checkSchedule();
+    }
+
+    // Auto hands the mode to the schedule. Off and On take it back, and a pick
+    // made while the last one is still landing goes next.
+    function setMode(mode) {
+        root.setAutomatic(mode === "auto");
+        root.asked = mode === "auto" || (!chooser.running && root.on === (mode === "on")) ? "" : mode;
+        if (root.asked && !chooser.running)
+            root.choose();
+    }
+
+    function choose() {
+        chooser.command = [Paths.script("display.sh"), root.asked === "on" ? "night-on" : "night-off"];
+        chooser.running = true;
+    }
+
+    Process {
+        id: chooser
+        onExited: function (code) {
+            nightFlag.reload();
+            nightFlag.waitForJob();
+            if (code === 0 && root.asked && root.on !== (root.asked === "on"))
+                return root.choose();
+            root.asked = "";
+            root.checkSchedule();
+        }
     }
 
     function setSchedule(start, end) {
@@ -100,7 +135,7 @@ Singleton {
     // slider holds until the next start or end instead of being undone on the
     // next tick. The shared clock still catches boundaries skipped in suspend.
     function checkSchedule() {
-        if (!root.restored || !root.flagKnown || !root.automatic || modeSetter.running)
+        if (!root.restored || !root.flagKnown || !root.automatic || modeSetter.running || chooser.running)
             return;
         const due = root.scheduledOn(WallClock.now) ? 1 : 0;
         if (due !== root.pendingMode)
