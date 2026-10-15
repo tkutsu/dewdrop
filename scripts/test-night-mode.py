@@ -38,7 +38,7 @@ ShellRoot {
             }
             function controls(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
-                if (item.checked !== undefined && item.toggled !== undefined) found.schedule = item;
+                if (item.checked !== undefined && item.toggled !== undefined) found[item.name] = item;
                 if (item.minute !== undefined && item.value !== undefined) found.dials.push(item);
                 for (const child of item.children) controls(child, found);
             }
@@ -95,8 +95,8 @@ ShellRoot {
                 mode(false);
                 const found = {dials: []};
                 controls(popup, found);
-                const scheduleToggle = found.schedule;
-                verify(scheduleToggle && found['Night Mode'] && !found.apply, 'popup controls apply automatically');
+                const scheduleToggle = found['Night mode schedule'];
+                verify(scheduleToggle && found['Night mode'] && !found.apply, 'popup controls apply automatically');
                 verify(!scheduleToggle.on, 'schedule switch starts off');
                 compare(found.dials.length, 2, 'both times use numeric dials');
                 function arrows(item, found) {

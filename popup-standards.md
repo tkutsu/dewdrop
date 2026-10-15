@@ -12,6 +12,12 @@ the plan: System keeps its 12 px padding (the standard 6 plus its rows' 6
 inset looks the same, with less churn), and Music keeps its 21 px header
 buttons, which need an eye on the artwork column to change.
 
+Revised the same day after review: lit options are grey rather than white,
+every header button has an icon, labels carry no "…", Parallax, Monochrome
+and Night Mode are sections with switches, Updates' title is the upgrade
+button, and Notifications, Mail and Tasks share one 400 px width. AGENTS.md
+has the rules as they stand; the decisions below are the first pass.
+
 ## Audit
 
 ### Already standard, keep as is

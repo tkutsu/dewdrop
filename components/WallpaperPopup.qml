@@ -5,8 +5,9 @@ import Quickshell.Widgets
 import qs
 import qs.services
 
-// The wallpaper tooltip used to say "8/11". This shows the eleven, and the
-// colours that are not among them.
+// The wallpaper tooltip used to say "8/11". This shows the eleven, then
+// parallax and the colours that are not among them, each a section with its
+// own switch.
 Popup {
     id: root
 
@@ -178,27 +179,11 @@ Popup {
         }
     }
 
-    // The header, and under it while parallax is on, the framing. One block
-    // so the framing's gap opens with it instead of jumping in at the start.
     // Over the grid, which runs on under it (ScrollUnder).
-    Column {
+    PopupHeader {
         z: 1
-
-        PopupHeader {
-            width: root.bodyWidth
-            title: "Wallpaper"
-
-            PopupButton {
-                framed: true
-                lit: Wallpaper.parallax
-                label: "Parallax"
-                onTapped: Wallpaper.setParallax(!Wallpaper.parallax)
-            }
-        }
-
-        Framing {
-            id: framing
-        }
+        width: root.bodyWidth
+        title: "Wallpaper"
     }
 
     PopupText {
@@ -313,6 +298,25 @@ Popup {
                     onTapped: Wallpaper.show(cell.index)
                 }
             }
+        }
+    }
+
+    // Parallax, and under it while it is on, the framing. One block so the
+    // framing's gap opens with it instead of jumping in at the start.
+    Column {
+        PopupSection {
+            width: root.bodyWidth
+            title: "Parallax"
+
+            SettingSwitch {
+                name: "Parallax"
+                checked: Wallpaper.parallax
+                onToggled: Wallpaper.setParallax(!Wallpaper.parallax)
+            }
+        }
+
+        Framing {
+            id: framing
         }
     }
 
@@ -474,14 +478,25 @@ Popup {
         width: root.bodyWidth
         title: "Monochrome"
 
-        // Only a flat colour drifts, so the toggle goes quiet while an image
+        // Only a flat colour drifts, so the option goes quiet while an image
         // is up, but stays: it is still the setting the next colour gets.
         PopupButton {
+            anchors.verticalCenter: parent.verticalCenter
             opacity: Wallpaper.color ? 1 : 0.5
             framed: true
             lit: Wallpaper.drift
+            glyph: Theme.glyph.drift
             label: "Drift"
             onTapped: Wallpaper.setDrift(!Wallpaper.drift)
+        }
+
+        // On while a flat colour is the wallpaper. Moving a track below
+        // turns it on as well.
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Monochrome"
+            checked: Wallpaper.color !== ""
+            onToggled: Wallpaper.setMonochrome(Wallpaper.color === "")
         }
     }
 

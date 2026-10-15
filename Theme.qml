@@ -67,11 +67,11 @@ Singleton {
     // The air between a popup's parts, and the two widths its body comes
     // in. The menu extras share one width so going from one to the next is
     // a change of contents rather than of box; the lists that are read rather
-    // than chosen from (tasks, mail) take the wider one. What draws its own
+    // than chosen from (notifications, mail, tasks) take the wider one. What draws its own
     // shape — a graph, a grid, artwork, a month — is as wide as that.
     readonly property int popupSpacing: 6
     readonly property int popupWidth: 280
-    readonly property int popupWideWidth: 340
+    readonly property int popupWideWidth: 400
     readonly property int panelPadding: 12
     readonly property int panelRadius: panelPadding + selectionRadius
     // How far below the slab a popup hangs. The system drops a menu bar's
@@ -451,6 +451,8 @@ Singleton {
     // One step past it: a toggle that is on, or the pointer on a button that
     // already sits on a selection fill (the notification centre's).
     readonly property color selectionStrong: Qt.rgba(1, 1, 1, 0.2)
+    // And one past that: the pointer on something already lit.
+    readonly property color selectionLifted: Qt.rgba(1, 1, 1, 0.28)
     // The workspace mark while a press is held on the strip: the glass lifts
     // towards the pointer, and a lifted piece of glass catches more light.
     readonly property color markLifted: Qt.rgba(1, 1, 1, 0.28)
@@ -775,6 +777,13 @@ Singleton {
 
         update: "\u{f03d7}",
         refresh: "\u{f0450}",        // nf-md-refresh
+        // The popups' header controls, each with its mark beside its word.
+        download: "\u{f01da}",       // nf-md-download, the upgrade
+        feelsLike: "\u{f050f}",      // nf-md-thermometer
+        location: "\u{f07d9}",       // nf-md-map_marker_outline
+        clearAll: "\u{f039f}",       // nf-md-notification_clear_all
+        reconnect: "\u{f0342}",      // nf-md-login
+        drift: "\u{f174a}",          // nf-md-gradient_horizontal
         cleanup: "\u{f00e2}",        // nf-md-broom
 
         // The network module (it began as the tray's stand-in for nm-applet,

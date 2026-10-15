@@ -265,7 +265,7 @@ Popup {
                     x: root.textX
                     y: root.rowPad
                     width: parent.width - root.textX - root.inset
-                    text: root.loadingMore ? "Loading…" : `Load more (${Email.total - root.rows.length})`
+                    text: root.loadingMore ? "Loading" : `Load more (${Email.total - root.rows.length})`
                     font.pixelSize: Theme.footnoteSize
                     color: Theme.label2
                 }
@@ -886,7 +886,7 @@ Popup {
 
                                                             framed: true
                                                             glyph: Theme.glyph.attachment
-                                                            label: Email.saving[modelData.id] ? "Saving…" : Email.sayFile(modelData)
+                                                            label: Email.saving[modelData.id] ? "Saving" : Email.sayFile(modelData)
                                                             name: "Save " + modelData.name
                                                             onTapped: Email.save(link.modelData.id, modelData)
                                                         }

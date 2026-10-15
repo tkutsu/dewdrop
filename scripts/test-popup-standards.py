@@ -15,8 +15,8 @@ from test_support import copy_shell, shell_env
 STANDARD = ["LanguagePopup", "NetworkPopup", "BluetoothPopup", "AudioPopup", "DisplayPopup",
             "DrivesPopup", "PrivacyPopup", "TimerPopup"]
 AT_LEAST = ["UpdatesPopup"]
-WIDE = ["TasksPopup", "EmailPopup"]
-OWN = ["NotificationsPopup", "WeatherPopup", "WallpaperPopup", "MusicPopup", "SysPopup", "Calendar"]
+WIDE = ["NotificationsPopup", "TasksPopup", "EmailPopup"]
+OWN = ["WeatherPopup", "WallpaperPopup", "MusicPopup", "SysPopup", "Calendar"]
 ALL = STANDARD + AT_LEAST + WIDE + OWN
 
 # The window chrome is Popup.qml's business; here the body is all there is.
