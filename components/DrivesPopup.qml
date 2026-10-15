@@ -62,7 +62,8 @@ Popup {
                 anchors.verticalCenter: parent.verticalCenter
                 name: "Eject " + row.text
                 glyph: Theme.glyph.eject
-                glyphSize: Theme.captionSize
+                // The size of the other popups' row symbols (Wi-Fi bars).
+                glyphSize: Theme.popupGlyphSize
                 onTapped: Drives.eject(row.modelData)
             }
         }

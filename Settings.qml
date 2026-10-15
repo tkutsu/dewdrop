@@ -164,6 +164,13 @@ Singleton {
         return [root.terminal, ...(title ? ["--title=" + title] : []), "-e", ...run];
     }
 
+    // A folder in the chosen file manager. The setting may carry flags after
+    // the program, as "dolphin --new-window" does: without it Dolphin hands a
+    // folder it already has open to that window, wherever it is hidden.
+    function inFileManager(path: string): var {
+        return [...root.fileManager.split(/\s+/).filter(s => s), path];
+    }
+
     // A Google web app through its PWA wrapper in scriptsDir when the machine
     // has one, the default browser when it does not. Without a url the
     // wrapper focuses the app where it was left, and the browser opens `home`.

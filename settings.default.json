@@ -95,8 +95,9 @@
     // For the launcher's files. Empty: $EDITOR, or nvim without one.
     "editor": "",
 
-    // For the launcher's folders. xdg-open hands them to your default file
-    // manager.
+    // For folders: the launcher's, a drive's, the wallpapers'. xdg-open hands
+    // them to your default file manager. Flags may follow the program, as in
+    // "dolphin --new-window".
     "fileManager": "xdg-open",
 
     // Include apps' desktop actions in launcher results. Individual hiddenApps

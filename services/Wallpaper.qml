@@ -376,7 +376,7 @@ Singleton {
     }
 
     function openFolder() {
-        Quickshell.execDetached([Settings.fileManager, root.dir]);
+        Quickshell.execDetached(Settings.inFileManager(root.dir));
     }
 
     FileView {
