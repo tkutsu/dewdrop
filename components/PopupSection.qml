@@ -5,8 +5,7 @@ import qs
 // Mac's Sound menu heads Output and Input. Smaller and greyer than the
 // popup's own title, so it reads as a part of the popup rather than a second
 // one. Controls that act on the section alone are its children, laid from the
-// right edge as PopupHeader lays its own: the night mode schedule's switch,
-// the wallpaper's drift.
+// right edge as PopupHeader lays its own: the wallpaper's drift.
 Item {
     id: root
 
@@ -18,13 +17,14 @@ Item {
 
     PopupSeparator {
         id: rule
+        y: Theme.popupSectionGap
         width: root.width
     }
 
     Item {
         id: heading
 
-        y: rule.height + Theme.popupSpacing
+        y: rule.y + rule.height + Theme.popupSpacing
         width: root.width
         height: Math.max(20, name.implicitHeight, row.implicitHeight)
 

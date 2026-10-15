@@ -284,6 +284,33 @@ Popup {
         }
     }
 
+    // The title, and the way out to btop (as the bar's right click opens it).
+    // Out to the box's inset rather than the figures', as every popup's
+    // header is: hung past the edges of a strip the figures' width, so the
+    // popup keeps the width the cores divide into.
+    Item {
+        width: root.w
+        height: header.height
+
+        PopupHeader {
+            id: header
+
+            x: -Theme.popupInset
+            width: root.w + Theme.popupInset * 2
+            title: "System"
+
+            PopupButton {
+                framed: true
+                glyph: Theme.glyph.openApp
+                name: "Open btop"
+                onTapped: {
+                    OpenPopup.dismiss();
+                    Quickshell.execDetached(Settings.inTerminal(["btop"], "btop (floating)"));
+                }
+            }
+        }
+    }
+
     // --- CPU -----------------------------------------------------------------
     Column {
         spacing: 3
@@ -483,36 +510,6 @@ Popup {
             Line {
                 label: "Read / Write"
                 value: `${root.rate(drive.modelData.read)} / ${root.rate(drive.modelData.write)} MiB/s`
-            }
-        }
-    }
-
-    // The whole of it, in btop (as the bar's right click opens it). Out to
-    // the box's inset rather than the figures', as every popup's rows are:
-    // hung past the edges of a strip the figures' width, so the popup keeps
-    // the width the cores divide into.
-    Item {
-        width: root.w
-        height: foot.height
-
-        Column {
-            id: foot
-
-            x: -Theme.popupInset
-            width: root.w + Theme.popupInset * 2
-            spacing: Theme.popupSpacing
-
-            PopupSeparator {
-                width: parent.width
-            }
-
-            PopupLink {
-                width: parent.width
-                text: "Open btop"
-                onTapped: {
-                    OpenPopup.dismiss();
-                    Quickshell.execDetached(Settings.inTerminal(["btop"], "btop (floating)"));
-                }
             }
         }
     }
