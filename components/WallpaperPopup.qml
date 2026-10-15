@@ -309,6 +309,7 @@ Popup {
             title: "Parallax"
 
             SettingSwitch {
+                anchors.verticalCenter: parent.verticalCenter
                 name: "Parallax"
                 checked: Wallpaper.parallax
                 onToggled: Wallpaper.setParallax(!Wallpaper.parallax)
@@ -479,6 +480,15 @@ Popup {
         width: root.bodyWidth
         title: "Monochrome"
 
+        // On while a flat colour is the wallpaper. Moving a track below
+        // turns it on as well.
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Monochrome"
+            checked: Wallpaper.color !== ""
+            onToggled: Wallpaper.setMonochrome(Wallpaper.color === "")
+        }
+
         // Only a flat colour drifts, so the option goes quiet while an image
         // is up, but stays: it is still the setting the next colour gets.
         PopupButton {
@@ -489,15 +499,6 @@ Popup {
             glyph: Theme.glyph.drift
             label: "Drift"
             onTapped: Wallpaper.setDrift(!Wallpaper.drift)
-        }
-
-        // On while a flat colour is the wallpaper. Moving a track below
-        // turns it on as well.
-        SettingSwitch {
-            anchors.verticalCenter: parent.verticalCenter
-            name: "Monochrome"
-            checked: Wallpaper.color !== ""
-            onToggled: Wallpaper.setMonochrome(Wallpaper.color === "")
         }
     }
 

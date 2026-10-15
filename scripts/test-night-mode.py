@@ -39,6 +39,7 @@ ShellRoot {
             function controls(item, found) {
                 if (item.label !== undefined && item.tapped !== undefined) found[item.label] = item;
                 if (item.name !== undefined && item.checked !== undefined && item.tapped !== undefined) found[item.name] = item;
+                if (item.standalone === true && item.toggled !== undefined) found[item.name] = item;
                 if (item.minute !== undefined && item.value !== undefined) found.dials.push(item);
                 for (const child of item.children) controls(child, found);
             }
@@ -96,7 +97,7 @@ ShellRoot {
                 const found = {dials: []};
                 controls(popup, found);
                 const scheduleToggle = found['Schedule'];
-                verify(scheduleToggle && found['Enable Now'] && !found.apply, 'popup controls apply automatically');
+                verify(scheduleToggle && found['Night mode'] && !found.apply, 'popup controls apply automatically');
                 verify(!scheduleToggle.checked, 'schedule switch starts off');
                 compare(found.dials.length, 2, 'both times use numeric dials');
                 function arrows(item, found) {

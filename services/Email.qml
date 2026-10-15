@@ -431,18 +431,42 @@ GoogleService {
         return found;
     }
 
-    // "report.pdf · 240 KB", with a long name cut in the middle so its
-    // extension still shows.
-    function sayFile(part: var): string {
-        const name = part.name.length > 28 ? part.name.slice(0, 18) + "…" + part.name.slice(-8) : part.name;
-        const size = part.size < 1024 ? `${part.size} B` : part.size < 1048576 ? `${Math.round(part.size / 1024)} KB` : `${(part.size / 1048576).toFixed(1)} MB`;
-        return `${name} · ${size}`;
-    }
-
     // Into ~/Downloads, under a new name if the one it has is taken, then
     // opened. scripts/gmail-attachment fetches and writes it; the token goes
     // to it in its environment, where the process list does not show it.
-    function save(message: string, part: var): void {
+    // Every attachment of a thread's open messages, each with the message
+    // it hangs off: { message, part }.
+    function partsIn(thread: var): var {
+        const found = [];
+        for (const m of thread?.messages ?? [])
+            for (const part of root.files[m.id] ?? [])
+                found.push({ message: m.id, part: part });
+        return found;
+    }
+
+    // All of them at once. One is opened as a single save is; several open
+    // the folder they landed in, once the last is down, rather than a window
+    // each.
+    function saveAll(parts: var): void {
+        const due = parts.filter(p => !root.saving[p.part.id]);
+        if (due.length === 1) {
+            root.save(due[0].message, due[0].part);
+            return;
+        }
+        let left = due.length;
+        let folder = "";
+        for (const p of due)
+            root.save(p.message, p.part, path => {
+                if (path)
+                    folder = path.slice(0, path.lastIndexOf("/"));
+                if (--left === 0 && folder)
+                    Quickshell.execDetached(["xdg-open", folder]);
+            });
+    }
+
+    // `landed` hears where the file went ("" when it did not), and opens
+    // it unless told otherwise.
+    function save(message: string, part: var, landed: var): void {
         if (root.saving[part.id])
             return;
         root.saving = Object.assign({}, root.saving, { [part.id]: true });
@@ -451,13 +475,19 @@ GoogleService {
             delete next[part.id];
             root.saving = next;
         };
+        const then = landed ?? (path => {
+            if (path)
+                Quickshell.execDetached(["xdg-open", path]);
+        });
         root.authorised(() => saver.createObject(root, {
                 command: [Quickshell.shellPath("scripts/gmail-attachment"), message, part.id, part.name],
                 environment: { GMAIL_TOKEN: Google.accessToken },
                 part: part,
-                done: done
+                done: done,
+                landed: then
             }).running = true, function (why, status) {
             done();
+            then("");
             root.fail(why, status);
         });
     }
@@ -834,7 +864,7 @@ GoogleService {
             .replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, function (all, attrs, label) {
                 const href = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
                 const url = href ? root.unentity(href[1] ?? href[2] ?? href[3]).trim() : "";
-                return /^https?:\/\//i.test(url) && root.unentity(label.replace(/<[^>]+>/g, "")).trim() !== url ? `${label} (${url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")})` : label;
+                return /^https?:\/\//i.test(url) ? "" + label + "" + url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "" : label;
             })
             .replace(/\s+/g, " ")
             .replace(/<br\b[^>]*>/gi, "\n")
@@ -845,22 +875,69 @@ GoogleService {
     }
 
     // Only generated anchors reach the UI; mail HTML never reaches Qt's renderer.
+    // A link in an HTML mail, as untag leaves it: \ue000 its words \ue001
+    // where it goes \ue002, private characters no mail text uses, for
+    // richText to make a link of and plain to spell out.
+    function linkPattern(): var {
+        return /\ue000([^\ue001]*)\ue001([^\ue002]*)\ue002/g;
+    }
+
+    // A link says what it is rather than where it goes: an HTML link its
+    // words, "View online <https://\u2026>" in a plain mail its words, and a bare
+    // address its site. The address itself is a click away.
     function richText(text: string): string {
         const escape = value => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-        const pattern = /(?:https?:\/\/|www\.)[^\s<>"\u200b-\u200d\ufeff]+/gi;
+        const site = url => url.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[\/?#]/)[0];
+        const link = (url, words) => `<a href="${escape(/^www\./i.test(url) ? "https://" + url : url)}" style="color: #c0c0c0">${escape(words || site(url))}</a>`;
+        const closers = { "<": ">", "[": "]", "(": ")" };
+        const pattern = /(?:https?:\/\/|www\.)[^\s<>"\]\u200b-\u200d\ufeff]+/gi;
+        const linkify = function (part) {
+            let result = "";
+            let offset = 0;
+            let match;
+            pattern.lastIndex = 0;
+            while ((match = pattern.exec(part)) !== null) {
+                let url = match[0].replace(/[.,;:!?]+$/, "");
+                // Keep balanced parentheses in URLs, but leave prose punctuation out.
+                while (url.endsWith(")") && (url.match(/\)/g) ?? []).length > (url.match(/\(/g) ?? []).length)
+                    url = url.slice(0, -1);
+                const end = match.index + url.length;
+                let before = part.slice(offset, match.index);
+                let words = "";
+                // "Label <url>": the bracket goes, and a short label on the
+                // same line becomes the link.
+                const close = closers[before.slice(-1)];
+                if (close && part[end] === close) {
+                    before = before.slice(0, -1);
+                    const start = before.lastIndexOf("\n") + 1;
+                    const label = before.slice(start).trim().replace(/:$/, "");
+                    if (label.length > 0 && label.length <= 40) {
+                        words = label;
+                        before = before.slice(0, start) + before.slice(start).match(/^\s*/)[0];
+                    }
+                }
+                result += escape(before) + link(url, words);
+                offset = end + (close && part[end] === close ? 1 : 0);
+            }
+            return result + escape(part.slice(offset));
+        };
         let result = "";
         let offset = 0;
+        const marked = root.linkPattern();
         let match;
-        while ((match = pattern.exec(text)) !== null) {
-            let url = match[0].replace(/[.,;:!?]+$/, "");
-            // Keep balanced parentheses in URLs, but leave prose punctuation out.
-            while (url.endsWith(")") && (url.match(/\)/g) ?? []).length > (url.match(/\(/g) ?? []).length)
-                url = url.slice(0, -1);
-            result += escape(text.slice(offset, match.index));
-            result += `<a href="${escape(/^www\./i.test(url) ? "https://" + url : url)}" style="color: #c0c0c0">${escape(url)}</a>`;
-            offset = match.index + url.length;
+        while ((match = marked.exec(text)) !== null) {
+            result += linkify(text.slice(offset, match.index));
+            const words = match[1].trim();
+            result += /^https?:\/\//i.test(match[2]) ? link(match[2], words === match[2] ? "" : words) : escape(match[1]);
+            offset = match.index + match[0].length;
         }
-        return "<span style=\"white-space: pre-wrap\">" + result.concat(escape(text.slice(offset))).replace(/\n/g, "<br>") + "</span>";
+        return "<span style=\"white-space: pre-wrap\">" + (result + linkify(text.slice(offset))).replace(/\n/g, "<br>") + "</span>";
+    }
+
+    // The same text for a reader that shows no links: "label (url)".
+    function plain(text: string): string {
+        return text.replace(root.linkPattern(),
+            (all, words, url) => !words.trim() || words.trim() === url ? url : `${words} (${url})`);
     }
 
     // The mail without what it is replying to: everything from the
@@ -1118,6 +1195,7 @@ GoogleService {
 
             property var part
             property var done
+            property var landed
 
             stdout: StdioCollector {
                 id: saved
@@ -1127,10 +1205,9 @@ GoogleService {
             }
             onExited: code => {
                 download.done();
-                if (code === 0)
-                    Quickshell.execDetached(["xdg-open", saved.text.trim()]);
-                else
+                if (code !== 0)
                     root.trouble = `Could not save ${download.part.name}: ${why.text.trim().split("\n").pop() || "the download failed"}`;
+                download.landed(code === 0 ? saved.text.trim() : "");
                 download.destroy();
             }
         }

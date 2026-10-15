@@ -68,6 +68,7 @@ MOCKS = {
         function read(thread) {}
         function markRead(thread) {}
         function sayWhen(at) { return "10:00"; }
+        function plain(text) { return text; }
         property int searches: 0
         function search(query, all) { searches++; }''',
     "Tasks": '''property bool configured: false

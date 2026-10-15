@@ -11,11 +11,11 @@ import tempfile
 from test_support import copy_shell, shell_env
 
 # The menu extras: one width, so browsing from one to the next only changes
-# what is in the box. Updates is at least that wide.
+# what is in the box. The lists that are read take the wide one.
 STANDARD = ["LanguagePopup", "NetworkPopup", "BluetoothPopup", "AudioPopup", "DisplayPopup",
             "DrivesPopup", "PrivacyPopup", "TimerPopup"]
-AT_LEAST = ["UpdatesPopup"]
-WIDE = ["NotificationsPopup", "TasksPopup", "EmailPopup"]
+AT_LEAST = []
+WIDE = ["NotificationsPopup", "TasksPopup", "EmailPopup", "UpdatesPopup"]
 OWN = ["WeatherPopup", "WallpaperPopup", "MusicPopup", "SysPopup", "Calendar"]
 ALL = STANDARD + AT_LEAST + WIDE + OWN
 

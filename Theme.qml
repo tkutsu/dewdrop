@@ -70,9 +70,10 @@ Singleton {
     // than chosen from (notifications, mail, tasks) take the wider one. What draws its own
     // shape — a graph, a grid, artwork, a month — is as wide as that.
     readonly property int popupSpacing: 6
-    // Extra air over a section's hairline, so a section reads as a new part
-    // rather than the next row of the one before.
-    readonly property int popupSectionGap: 8
+    // The air over a section's hairline, on top of popupSpacing, and half of
+    // it under the line before the heading: a section reads as a new part
+    // rather than the next row of the one before, and its heading as its own.
+    readonly property int popupSectionGap: 12
     readonly property int popupWidth: 280
     readonly property int popupWideWidth: 400
     readonly property int panelPadding: 12

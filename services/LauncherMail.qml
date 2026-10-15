@@ -57,7 +57,7 @@ Singleton {
     property var open: null
     // Its text, "" until it lands.
     readonly property string text: !root.open ? "" : (root.open.messages ?? []).map(message => {
-        const body = Email.bodies[message.id] ?? message.snippet ?? "";
+        const body = Email.plain(Email.bodies[message.id] ?? message.snippet ?? "");
         return `${message.from}  ${Email.sayWhen(message.at)}\n${body}`;
     }).join("\n\n")
 
