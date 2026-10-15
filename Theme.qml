@@ -488,9 +488,6 @@ Singleton {
     // which is a control and a step brighter.
     readonly property color meterTrack: Qt.rgba(1, 1, 1, 0.12)
     readonly property color sliderTrack: Qt.rgba(1, 1, 1, 0.2)
-    // A switch's knob on its lit track: the off track's grey, made solid, so
-    // on and off are each other turned round.
-    readonly property color switchKnobOn: Qt.rgba(0.25, 0.25, 0.25, 1)
     // A slider's knob is `fg` with a dark edge. On a gradient track it crosses
     // white, yellow and black, so there the edge is darker still.
     readonly property color knobEdge: Qt.rgba(0, 0, 0, 0.35)

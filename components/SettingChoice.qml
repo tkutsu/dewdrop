@@ -1,10 +1,8 @@
 import QtQuick
 import qs
 
-// Options in a capsule, as Apple's segmented control: the chosen one sits
-// under the glass mark the workspaces and the power menu use, and a new pick
-// flows it across on the switch spring. Each option takes its label's room;
-// given a wider row, they share out the rest evenly.
+// Options in a capsule with the same plain fill and timed slide as a switch.
+// Each option takes its label's room; in a wider row they share the rest evenly.
 Rectangle {
     id: root
 
@@ -16,10 +14,7 @@ Rectangle {
     // is found again once the options are built.
     readonly property Item chosen: root.chosenIndex >= 0 && root.chosenIndex < buttons.count ? buttons.itemAt(root.chosenIndex) : null
 
-    // The mark rests until a pick moves it, so it doesn't flow in from the
-    // edge while the options are first laid out.
     function choose(value) {
-        mark.placed = true;
         if (value !== root.current)
             root.setting.set(value);
     }
@@ -32,21 +27,37 @@ Rectangle {
     radius: height / 2
     color: Theme.well
 
-    FlowMark {
+    Rectangle {
         id: mark
 
-        anchors.fill: parent
+        // Place the initial selection directly, then animate later changes.
+        property bool placed: false
+        onVisibleChanged: if (visible && !placed)
+            Qt.callLater(() => { if (mark.visible) mark.placed = true; })
+
         visible: root.chosen !== null
-        held: root.chosen?.held ?? false
-        spring: Theme.switchSpring
-        damping: Theme.switchDamping
-        slabHeight: root.height
-        wantLeft: root.chosen ? cells.x + root.chosen.x : 0
-        wantRight: root.chosen ? cells.x + root.chosen.x + root.chosen.width : 0
-        atFirst: root.chosenIndex === 0
-        atLast: root.chosenIndex === root.options.length - 1
-        wallLeft: Theme.pillBorder
-        wallRight: root.width - Theme.pillBorder
+        x: root.chosen ? cells.x + root.chosen.x : Theme.markInset
+        y: Theme.markInset
+        width: root.chosen?.width ?? 0
+        height: root.height - Theme.markInset * 2
+        radius: height / 2
+        color: Theme.selectionStrong
+
+        Behavior on x {
+            enabled: mark.placed
+            NumberAnimation {
+                duration: Theme.fadeMs
+                easing.type: Easing.InOutCubic
+            }
+        }
+
+        Behavior on width {
+            enabled: mark.placed
+            NumberAnimation {
+                duration: Theme.fadeMs
+                easing.type: Easing.InOutCubic
+            }
+        }
     }
 
     Row {
@@ -65,7 +76,6 @@ Rectangle {
 
                 required property var modelData
                 readonly property bool isChosen: option === root.chosen
-                readonly property bool held: tap.pressed
                 readonly property real natural: label.implicitWidth + 20
 
                 Accessible.role: Accessible.RadioButton
@@ -101,7 +111,7 @@ Rectangle {
                 }
 
                 TapHandler {
-                    id: tap
+                    gesturePolicy: TapHandler.ReleaseWithinBounds
                     onTapped: root.choose(option.modelData.value)
                 }
             }

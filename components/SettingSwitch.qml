@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import qs
 
 // On or off: a track with a knob that slides to the lit end. In a SettingRow
@@ -37,25 +38,48 @@ Item {
         onTapped: root.toggled()
     }
 
-    Rectangle {
+    // Cut out the knob so these translucent tones swap without stacking.
+    Shape {
         anchors.fill: parent
-        radius: height / 2
-        color: root.on ? Theme.label : Theme.sliderTrack
+        preferredRendererType: Shape.CurveRenderer
 
-        Behavior on color {
-            ColorAnimation {
-                duration: Theme.fadeMs
+        ShapePath {
+            strokeWidth: -1
+            strokeColor: "transparent"
+            fillRule: ShapePath.OddEvenFill
+            fillColor: root.on ? Theme.selectionStrong : Theme.well
+
+            Behavior on fillColor {
+                ColorAnimation {
+                    duration: Theme.fadeMs
+                }
+            }
+
+            PathRectangle {
+                width: root.width
+                height: root.height
+                radius: root.height / 2
+            }
+
+            PathRectangle {
+                x: knob.x
+                y: knob.y
+                width: knob.width
+                height: knob.height
+                radius: knob.radius
             }
         }
     }
 
     Rectangle {
+        id: knob
+
         width: root.height - 4
         height: width
         radius: width / 2
         y: 2
         x: root.on ? root.width - width - 2 : 2
-        color: root.on ? Theme.switchKnobOn : Theme.fg
+        color: root.on ? Theme.well : Theme.selectionStrong
 
         Behavior on color {
             ColorAnimation {

@@ -184,10 +184,14 @@ Singleton {
             const queued = root.waiting;
             root.waiting = [];
             for (const held of queued) {
-                if (why !== "")
-                    held.bad(why, status ?? 0);
-                else
-                    held.go();
+                try {
+                    if (why !== "")
+                        held.bad(why, status ?? 0);
+                    else
+                        held.go();
+                } catch (error) {
+                    console.warn("Google token callback failed:", error);
+                }
             }
         };
         Http.sendForm(root.tokenEndpoint, {

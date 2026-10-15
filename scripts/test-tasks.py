@@ -2,6 +2,7 @@
 """Exercise the real task service and popup with an isolated Google transport."""
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -274,7 +275,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix="qs-tasks-") as folder:
         target = Path(folder)
         copy_shell(target)
-        (target / "services/GoogleService.qml").write_text(BASE)
+        source = (target / "services/GoogleService.qml").read_text()
+        gather = re.search(r'^    function gather\(.*?^    }', source, re.M | re.S).group()
+        base = BASE.replace('Singleton {', 'Singleton {\n    id: base', 1)
+        base = base.replace('    function gather(key, sources, map, done) {}', gather)
+        (target / "services/GoogleService.qml").write_text(base)
         # Signed in, so the calendar is offered; nothing reaches Google.
         (target / "data/quickshell").mkdir(parents=True)
         (target / "data/quickshell/gtasks.json").write_text('{"client_id": "x", "client_secret": "x", "refresh_token": "x"}')

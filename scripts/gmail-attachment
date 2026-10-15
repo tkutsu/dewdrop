@@ -29,9 +29,9 @@ def safe_name(name):
     name = name.strip().lstrip(".").strip()
     if len(name.encode()) > 200:
         stem, suffix = os.path.splitext(name)
-        while len((stem + suffix).encode()) > 200:
+        while stem and len((stem + suffix).encode()) > 200:
             stem = stem[:-1]
-        name = stem + suffix
+        name = (stem + suffix).encode()[:200].decode("utf-8", errors="ignore").lstrip(".")
     return name or "attachment"
 
 
