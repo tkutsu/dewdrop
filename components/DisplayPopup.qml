@@ -50,7 +50,7 @@ Popup {
             title: "Night Mode"
         }
 
-        // Off, On and Auto across the row, under the heading.
+        // Off, On and Auto under the heading, as wide as their labels.
         Item {
             width: root.bodyWidth
             height: choice.y + choice.height
@@ -60,7 +60,6 @@ Popup {
 
                 x: Theme.popupInset
                 y: Theme.popupSpacing
-                width: root.bodyWidth - Theme.popupInset * 2
                 setting: ({
                     title: "Night mode",
                     options: [{ value: "off", label: "Off" }, { value: "on", label: "On" }, { value: "auto", label: "Auto" }],
@@ -97,7 +96,7 @@ Popup {
             Row {
                 id: hours
 
-                y: Theme.popupSpacing
+                y: Theme.popupSpacing * 2
                 leftPadding: Theme.popupInset
                 spacing: 8
 
@@ -135,7 +134,7 @@ Popup {
         readonly property string value: NightMode.formatTime(draftMinute)
         signal edited
         width: 70
-        height: 40
+        height: 28
         radius: Theme.selectionRadius
         color: Theme.selection
         border.width: Theme.pillBorder
@@ -182,7 +181,7 @@ Popup {
         property real repeatDelay: 450
         signal stepped
         width: 22
-        height: 20
+        height: 14
 
         Rectangle {
             anchors.fill: parent

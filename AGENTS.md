@@ -16,7 +16,7 @@ Width: `Theme.popupWidth` for lists and controls, `Theme.popupWideWidth` for not
 
 Pick a control by what it does:
 
-- On or off for the whole thing or for a section (Wi-Fi, Parallax): `SettingSwitch` with `checked` and `onToggled`, first among the controls of its header or `PopupSection` so the buttons follow it, with `anchors.verticalCenter: parent.verticalCenter`. More states than two (Night Mode's Off, On, Auto) take a `SettingChoice` on its own row under the heading, across the popup between the insets, never a second switch; what only one state uses unfolds under it while that state is chosen (Night Mode's hours).
+- On or off for the whole thing or for a section (Wi-Fi, Parallax): `SettingSwitch` with `checked` and `onToggled`, first among the controls of its header or `PopupSection` so the buttons follow it, with `anchors.verticalCenter: parent.verticalCenter`. More states than two (Night Mode's Off, On, Auto) take a `SettingChoice` on its own row under the heading, at the inset and as wide as its labels, never a second switch; what only one state uses unfolds under it while that state is chosen (Night Mode's hours).
 - An option: framed `PopupButton` with `lit`, which fills it grey. The fill carries the state; the label stays fixed.
 - An action: framed `PopupButton`, `live: false` while it runs, label fixed.
 - Destructive: arm on the first press (check glyph, `warn`), act on the second, disarm when the pointer leaves the row.
