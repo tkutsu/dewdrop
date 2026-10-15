@@ -6,7 +6,11 @@ already shared: one frosted box, one shadow, one keyboard model, one header.
 What drifts is everything inside the box: widths, how a toggle looks, how a
 section starts, text sizes and dimming, capitalisation, empty states.
 
-**Status:** planned 2026-10-15. Nothing built yet.
+**Status:** built 2026-10-15, all five phases. The rules a new popup follows
+are in AGENTS.md; this file keeps the audit and the reasons. Two changes from
+the plan: System keeps its 12 px padding (the standard 6 plus its rows' 6
+inset looks the same, with less churn), and Music keeps its 21 px header
+buttons, which need an eye on the artwork column to change.
 
 ## Audit
 
