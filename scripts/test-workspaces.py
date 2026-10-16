@@ -139,6 +139,12 @@ ShellRoot {
  check(Math.abs(left(icon(dest,'a'))-(dest.x+icon(dest,'a').x))<1,'moved icon settles in destination slot');
  const atRest=pill.lastWhole;test.wait(1500);check(pill.lastWhole===atRest,'placement snapshot stays unchanged at rest');
 
+ // Steam's dropdowns are override-redirect X11 windows: Hyprland reports them, but with no Wayland handle.
+ const menu=toplevel.createObject(suite,{address:'menu',workspace:w3});
+ Hyprland.toplevels.values=[b,c,a,menu];test.wait(100);
+ check(!icon(dest,'menu') && icons(dest).length===2,'a menu window without a Wayland handle draws no icon');
+ Hyprland.toplevels.values=[b,c,a];test.wait(100);
+
  a.workspace=w2;a.wayland={appId:'same'};b.wayland={appId:'same'};
  reset([b,c,a],[w1,w2,w3]);
  const group=button(3);
