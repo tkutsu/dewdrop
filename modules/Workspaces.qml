@@ -549,6 +549,10 @@ BarItem {
                         for (const toplevel of Hyprland.toplevels.values) {
                             if (root.workspaceOf(toplevel) !== button.workspaceInfo.id)
                                 continue;
+                            // X11 menus (Steam's dropdowns) reach Hyprland's window list
+                            // but never get a Wayland toplevel handle; every app window does.
+                            if (!toplevel.wayland)
+                                continue;
                             // A window that opened since the last `hyprctl clients`
                             // refresh has an empty lastIpcObject, and every one of those
                             // used to pile into a single classless group under the
