@@ -259,12 +259,7 @@ BarItem {
                     id: titleWidth
                     duration: Theme.reduceMotion ? Theme.turnMs : 640
                     easing.type: Theme.reduceMotion ? Easing.OutCubic : Easing.BezierSpline
-                    // Match the drawer's soft spring, then settle without its tiny tail.
-                    easing.bezierCurve: [
-                        0.08, 0,    0.18, 0.72, 0.32, 1,
-                        0.38, 1.12, 0.43, 1.12, 0.49, 1.12,
-                        0.64, 1.12, 0.72, 1,    1,    1
-                    ]
+                    easing.bezierCurve: Theme.mediaTitleCurve
                 }
             }
 
