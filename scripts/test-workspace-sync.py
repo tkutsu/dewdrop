@@ -92,6 +92,12 @@ ShellRoot {
  screen.activeWorkspace=one;test.wait(700);
  check(WorkspaceSync.settled,'matching window, workspace and monitor replies release the freeze');
 
+ // Unmapped XWayland windows (Steam's helpers) enter the model without a workspace and never leave it.
+ const ghost=toplevel.createObject(root,{address:'b',workspace:null});
+ Hyprland.toplevels.values=[window,ghost];WorkspaceSync.unsettle();test.wait(700);
+ check(WorkspaceSync.settled,'windows without a workspace do not keep the strip frozen');
+ Hyprland.toplevels.values=[window];
+
  const stale=workspace.createObject(root,{id:9,name:'9'});
  const unused=workspace.createObject(root,{id:-1,name:'unused'});
  Hyprland.workspaces.values=[one,later,stale,unused];WorkspaceSync.unsettle();test.wait(700);
