@@ -44,7 +44,8 @@ Singleton {
         if (root.hasPlaceholder)
             return false;
         const actualWorkspaces = Hyprland.workspaces.values;
-        const actualWindows = Hyprland.toplevels.values;
+        // Unmapped XWayland windows reach the model without a workspace and are never removed.
+        const actualWindows = Hyprland.toplevels.values.filter(t => t.workspace);
         if (!workspaces.every(expected => actualWorkspaces.some(w => w.id === expected.id && w.name === expected.name)))
             return false;
         // Public refreshes leave unused old IDs behind; they do not belong to the drawn strip.
