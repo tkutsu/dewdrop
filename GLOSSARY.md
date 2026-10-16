@@ -49,7 +49,7 @@ A drawer module the user has chosen to keep visible even when quiet and the draw
 _Avoid_: Enabled module, always-on module
 
 **Stowed module**:
-A module currently folded out of view. Drawer modules are stowed when quiet, unpinned, and the drawer is closed; the music, countdown, and notice modules can also be stowed when they have nothing to display.
+A module currently folded out of view. Drawer modules are stowed when quiet, unpinned, and the drawer is closed; the music, now playing, countdown, and notice modules can also be stowed when they have nothing to display.
 _Avoid_: Disabled module, removed module
 
 ### Popups and overlays
@@ -219,6 +219,10 @@ _Avoid_: Play action, play-next action
 **Play action**:
 Replacing the current queue with the selected music and starting playback.
 _Avoid_: Resume, queue action
+
+**Now Playing**:
+Media playing outside the music player, such as a browser video, shown in its own pill beyond the music pill with only its title and play/pause. It follows the player that played last while that player stays paused.
+_Avoid_: Music (for media outside the music player), media player (for the pill)
 
 ### Desktop controls
 

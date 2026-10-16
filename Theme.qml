@@ -145,6 +145,14 @@ Singleton {
     // walks across the bar every time a remix credit turns up.
     readonly property int mediaTitleWidth: 170
 
+    // How that title's room springs to a new title's width: the drawer's soft
+    // spring, settled without its tiny tail.
+    readonly property var mediaTitleCurve: [
+        0.08, 0,    0.18, 0.72, 0.32, 1,
+        0.38, 1.12, 0.43, 1.12, 0.49, 1.12,
+        0.64, 1.12, 0.72, 1,    1,    1
+    ]
+
     // The air between neighbouring islands. Apple's spacing between groups of
     // capsules, two thirds of a pill's height: far enough that two pills read
     // as separate islands rather than as one pill with a seam in it, near

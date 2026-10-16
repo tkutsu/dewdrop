@@ -191,7 +191,9 @@ PanelWindow {
     // Split inside the clock's straight middle: each glass supports four boxes,
     // while this group can contain the clock and four independent side pills.
     readonly property real glassSplit: Math.round(clockPill.x + clockPill.width / 2)
-    readonly property real leftLip: recording.reveal > 0 ? bar.drops.lip(recording.reveal, recording.stowed) : bar.drops.lip(music.reveal, music.stowed)
+    // Whichever pill is against the clock's left end, whose drop pushes it out.
+    readonly property Item clockNeighbour: recording.reveal > 0 ? recording : music.reveal > 0 ? music : nowPlaying
+    readonly property real leftLip: bar.drops.lip(bar.clockNeighbour.reveal, bar.clockNeighbour.stowed)
     readonly property real rightLip: bar.drops.lip(countdown.reveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(notice.reveal, notice.stowed))
     readonly property vector4d clockGlass: Qt.vector4d(clockPill.x - leftLip, Theme.barInset, clockPill.width + leftLip + rightLip, Theme.barHeight)
 
@@ -208,10 +210,14 @@ PanelWindow {
             box0: bar.clockGlass
             box1: bar.recordingDrop
             box2: bar.musicDrop
+            box3: bar.nowPlayingDrop
             overflow: Qt.vector4d(0, 1, 1, 0)
-            bulge0: recording.reveal > 0 ? bar.drops.bulge(bar.clockLeft - bar.leftLip, -1, recording.reveal, recording.stowed) : bar.drops.bulge(bar.clockLeft - bar.leftLip, -1, music.reveal, music.stowed)
-            bulge1: recording.reveal > 0 ? bar.drops.bulge(bar.musicEdge, -1, music.reveal, music.stowed) : Qt.vector4d(0, 0, 0, 0)
-            reaches: Qt.vector4d(0, bar.drops.dropReach(recording.reveal, recording.stowed), bar.drops.dropReach(music.reveal, music.stowed), 0)
+            // The clock's end swells with whatever goes into it; bulge1 is
+            // for a drop going into another pill, which two would only want
+            // at once if both left together.
+            bulge0: bar.drops.bulge(bar.clockLeft - bar.leftLip, -1, bar.clockNeighbour.reveal, bar.clockNeighbour.stowed)
+            bulge1: recording.reveal > 0 && bar.musicBulge.z > 0 ? bar.musicBulge : bar.clockNeighbour !== nowPlaying ? bar.nowPlayingBulge : Qt.vector4d(0, 0, 0, 0)
+            reaches: Qt.vector4d(0, bar.drops.dropReach(recording.reveal, recording.stowed), bar.drops.dropReach(music.reveal, music.stowed), bar.drops.dropReach(nowPlaying.reveal, nowPlaying.stowed))
         }
     }
 
@@ -299,7 +305,14 @@ PanelWindow {
     readonly property vector4d recordingBase: bar.drops.drop(bar.clockLeft, -1, recordingPill.width, recording.reveal, recording.stowed)
     readonly property vector4d recordingDrop: bar.drops.morph(bar.recordingBase, recordingMorph.value)
     readonly property real musicEdge: recording.reveal > 0 ? Math.min(bar.clockLeft, bar.recordingBase.x) : bar.clockLeft
-    readonly property vector4d musicDrop: bar.drops.morph(bar.drops.drop(bar.musicEdge, -1, musicPill.width, music.reveal, music.stowed), musicMorph.value)
+    readonly property vector4d musicBase: bar.drops.drop(bar.musicEdge, -1, musicPill.width, music.reveal, music.stowed)
+    readonly property vector4d musicDrop: bar.drops.morph(bar.musicBase, musicMorph.value)
+    readonly property vector4d musicBulge: bar.drops.bulge(bar.musicEdge, -1, music.reveal, music.stowed)
+    // Off music's glass at rest rather than as it morphs, so its popover
+    // opening does not pull this pill in after it.
+    readonly property real nowPlayingEdge: music.reveal > 0 ? Math.min(bar.musicEdge, bar.musicBase.x) : bar.musicEdge
+    readonly property vector4d nowPlayingDrop: bar.drops.drop(bar.nowPlayingEdge, -1, nowPlayingPill.width, nowPlaying.reveal, nowPlaying.stowed)
+    readonly property vector4d nowPlayingBulge: bar.drops.bulge(bar.nowPlayingEdge, -1, nowPlaying.reveal, nowPlaying.stowed)
     readonly property vector4d countdownDrop: bar.drops.morph(bar.drops.drop(bar.clockRight, 1, countdownPill.width, countdown.reveal, countdown.stowed), countdownMorph.value)
 
     // The music and timer pills turn into their popovers rather than opening
@@ -350,6 +363,24 @@ PanelWindow {
 
         Music {
             id: music
+            foldDuration: Theme.dropMs
+            foldEasing: Easing.Linear
+        }
+    }
+
+    // Whatever else is playing, beyond music: or beside recording or the
+    // clock when music is not there. Anchored by its right edge, as music is.
+    SidePill {
+        id: nowPlayingPill
+        control: nowPlaying
+
+        side: Pill.Side.Right
+        edgeOffset: bar.width - bar.nowPlayingEdge + Theme.pillSpread
+        progress: nowPlaying.progress
+        rate: nowPlaying.rate
+
+        NowPlaying {
+            id: nowPlaying
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
         }
