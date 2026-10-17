@@ -30,6 +30,7 @@ Singleton {
     readonly property var screens: root.values.screens ?? []
     readonly property bool groupWindows: root.values.groupWindows === true
     readonly property bool groupWindowBadges: root.values.groupWindowBadges === true
+    readonly property bool groupWindowFrames: root.values.groupWindowFrames === true
     readonly property var moduleKeys: ModuleOrder.normalise([])
     readonly property var centralComponents: {
         const keys = root.moduleKeys.filter(key => (root.values[key + "Position"]

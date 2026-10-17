@@ -212,7 +212,8 @@ OverlayWindow {
                     title: "Workspaces",
                     rows: [
                         { type: "toggle", id: "groupWindows", title: "Group Windows by App", tooltip: "Click a group to expand its windows.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) },
-                        { type: "toggle", id: "groupWindowBadges", title: "Show Group Window Counts", get: () => Settings.groupWindowBadges, set: v => Settings.set("groupWindowBadges", v) }
+                        { type: "toggle", id: "groupWindowBadges", title: "Show Group Window Counts", get: () => Settings.groupWindowBadges, set: v => Settings.set("groupWindowBadges", v) },
+                        { type: "toggle", id: "groupWindowFrames", title: "Frame Grouped Icons", get: () => Settings.groupWindowFrames, set: v => Settings.set("groupWindowFrames", v) }
                     ]
                 },
                 {

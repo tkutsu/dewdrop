@@ -255,6 +255,11 @@ Singleton {
     // touch.
     readonly property real focusDotClearance: 1.5
 
+    // The screenshot button's corners drawn round a collapsed app group
+    // (Settings.groupWindowFrames). At 26 they clear the icon's 13px ink and
+    // the focus dot sits between the lower two.
+    readonly property int groupFrameSize: 26
+
     // The pin mark on a pinned module's lower right corner, shown while the
     // drawer is open: the count badge's disc, with a pin in place of the
     // number.
