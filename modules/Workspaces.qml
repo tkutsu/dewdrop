@@ -812,7 +812,7 @@ BarItem {
                                     anchors.centerIn: parent
                                     visible: app.framed > 0
                                     opacity: app.framed * app.inkOpacity
-                                    text: Theme.glyph.satty
+                                    text: Theme.glyph.groupFrame
                                     fontSize: Theme.groupFrameSize
                                     transform: Translate { y: app.shift }
                                 }
