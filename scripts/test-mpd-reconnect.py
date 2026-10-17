@@ -28,18 +28,32 @@ ShellRoot {
         try {
             check(!Mpd.connected && !Mpd.auditCommand.active && Mpd.auditCommand.tries === 0,
                 "absent MPD retries only its status connection");
+            check(Mpd.musicDir === "", "music directory is unavailable until MPD reports it");
             Mpd.run(["play"]);
             check(Mpd.outbox.includes("play") && Mpd.auditCommand.tries === 0,
                 "a command queues while MPD is absent");
             until(() => Mpd.connected && Mpd.auditCommand.connected && Mpd.outbox === "",
                 "status recovery opens the command connection and flushes its outbox");
+            until(() => Mpd.musicDir === Quickshell.shellPath("music one") + "/", "music directory comes from MPD config");
+            Mpd.file = "Album/song.flac";
+            Library.tracks = [{file: Mpd.file}];
+            check(Mpd.albumDir === Mpd.musicDir + "Album/" && Library.coverDir("track", 0) === Mpd.albumDir,
+                "player and library artwork use MPD's directory");
             Mpd.run(["fixture_disconnect"]);
             until(() => !Mpd.connected && !Mpd.auditCommand.active,
                 "losing MPD deactivates the command connection");
             check(!Mpd.auditCommand.auditRetry.running, "command retries stop while the status connection is down");
+            check(Mpd.musicDir === "" && Mpd.albumDir === "" && Library.coverDir("track", 0) === "",
+                "disconnect clears local paths instead of using relative files");
             Mpd.run(["pause"]);
             until(() => Mpd.connected && Mpd.auditCommand.connected && Mpd.outbox === "",
                 "a second recovery also delivers its queued command");
+            until(() => Mpd.musicDir === Quickshell.shellPath("music two") + "/", "reconnect reads the new directory and normalizes its trailing slash");
+            Mpd.run(["fixture_disconnect"]);
+            until(() => !Mpd.connected, "disconnect before a denied config");
+            until(() => Mpd.auditCommand.connected, "playback reconnects when config is denied");
+            test.wait(100);
+            check(Mpd.musicDir === "" && Mpd.albumDir === "", "a denied config leaves local paths unavailable");
             console.log("PASS: MPD reconnects");
         } catch (error) { console.log("FAIL: " + error + "\\n" + error.stack); }
         Qt.quit();
@@ -52,7 +66,9 @@ def main():
         target = Path(folder)
         copy_shell(target)
         path = target / "mpd.sock"
-        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string mpdSocket: ' + json.dumps(str(path)) + '; property string musicDir: ""; property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
+        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string mpdSocket: ' + json.dumps(str(path)) + '; property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
+        for name in ("music one", "music two"):
+            (target / name / "Album").mkdir(parents=True)
         (target / "services/Audio.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool connected: true; function level(value, muted) { return ""; } }')
         source = (target / "services/Mpd.qml").read_text().replace("id: root", "id: root\n    property alias auditStatus: link\n    property alias auditCommand: cmdLink", 1)
         (target / "services/Mpd.qml").write_text(source)
@@ -64,7 +80,7 @@ def main():
         clients = []
         received = []
 
-        def reply(client):
+        def reply(client, generation):
             try:
                 client.sendall(b"OK MPD 0.24.0\n")
                 for raw in client.makefile("rb"):
@@ -73,6 +89,12 @@ def main():
                     if line == "fixture_disconnect":
                         disconnect.set()
                         return
+                    if line == "config":
+                        if generation < 3:
+                            directory = str(target / ("music one" if generation == 1 else "music two"))
+                            client.sendall(f"music_directory: {directory + ('/' if generation == 2 else '')}\nOK\n".encode())
+                        else:
+                            client.sendall(b"ACK [4@0] {config} not permitted\n")
                     if line == "command_list_end":
                         client.sendall(b"OK\n")
             except OSError:
@@ -81,7 +103,9 @@ def main():
         def serve():
             if stop.wait(0.5):
                 return
+            generation = 0
             while not stop.is_set():
+                generation += 1
                 with socket.socket(socket.AF_UNIX) as listener:
                     listener.bind(str(path))
                     listener.listen()
@@ -92,7 +116,7 @@ def main():
                         except TimeoutError:
                             continue
                         clients.append(client)
-                        threading.Thread(target=reply, args=(client,), daemon=True).start()
+                        threading.Thread(target=reply, args=(client, generation), daemon=True).start()
                 path.unlink()
                 for client in clients:
                     try:
@@ -114,6 +138,7 @@ def main():
         output = result.stdout + result.stderr
         print(output, end="")
         assert received.count("play") == 1 and received.count("pause") == 1, received
+        assert received.count("config") == 3, received
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Unable to assign", "Binding loop")
         return 0 if result.returncode == 0 and "PASS: MPD reconnects" in output and not any(error in output for error in errors) else 1
 

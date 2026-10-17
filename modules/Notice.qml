@@ -15,6 +15,7 @@ import qs.services
 BarItem {
     id: root
     name: root.kept.line || "Notification"
+    textPress: true
 
     readonly property var entry: Notifications.latest
 
@@ -61,6 +62,10 @@ BarItem {
     stowed: !Notifications.showing
     folds: false
     spacing: Theme.appIconGap + 4
+    readonly property bool sliding: pill?.slidesContent ?? false
+    readonly property real glassWidth: sliding ? pill.foldBox.z : width
+    readonly property real glassLeft: sliding ? pill.foldBox.x : 0
+    readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - icon.width) / 2))
 
     // The pointer resting on it keeps it up — see Notifications.held.
     onContainsMouseChanged: Notifications.held = containsMouse
@@ -72,35 +77,59 @@ BarItem {
         notification: root.entry
     }
 
+    // Keep the sender opaque through its bounce, then fade before joining.
     AppIcon {
         id: icon
-        Layout.alignment: Qt.AlignVCenter
+        scale: root.sliding ? root.pill.iconScale : 1
+        Layout.fillHeight: true
         windowClass: root.kept.key
         source: root.kept.picture
-        // An urgent notice wants you the way a tray icon asking for
-        // attention does, and says it the same way, until it is answered.
         urgent: Notifications.urgent
         fallbackGlyph: Theme.glyph.notif
+        opacity: root.sliding ? (root.pill.bounceBeforeCollapse ? root.pill.iconOpacity
+            : Math.min(1, body.width / Math.max(1, body.implicitWidth))) : 1
+        transform: Translate { x: root.glassLeft + root.iconInset - root.padLeft }
     }
 
-    BarText {
+    Item {
+        id: bodyRoom
         Layout.fillHeight: true
-        text: root.kept.line
-        // Summed from the parts rather than read off the row's width, which
-        // is this line's own width plus theirs and would be a binding loop.
-        // Never under a pixel: 0 is no ceiling at all.
-        maxWidth: Math.max(1, root.room - root.padLeft - root.padRight - icon.implicitWidth - root.spacing - (burst.shown ? burst.implicitWidth + root.spacing : 0))
-    }
+        implicitWidth: body.implicitWidth
+        transform: Translate { x: root.glassLeft + root.iconInset - root.padLeft }
 
-    // How many more came in behind this one while it was up. Quieter than the
-    // line, the way a count is: it is how much there is, not what it says.
-    BarText {
-        id: burst
-        readonly property bool shown: root.kept.burst > 0
-        Layout.fillHeight: true
-        visible: shown
-        text: "+" + root.kept.burst
-        color: Theme.label2
+        Marquee {
+            id: body
+            width: Math.max(0, Math.min(implicitWidth * (root.sliding ? root.pill.textReveal : 1),
+                root.glassWidth - root.iconInset - root.padRight - icon.width - root.spacing))
+            height: parent.height
+            contentWidth: parts.implicitWidth
+            active: true
+            paused: true
+
+            RowLayout {
+                id: parts
+                width: implicitWidth
+                height: parent.height
+                spacing: root.spacing
+
+                BarText {
+                    Layout.fillHeight: true
+                    text: root.kept.line
+                    maxWidth: Math.max(1, root.room - root.padLeft - root.padRight
+                        - icon.implicitWidth - root.spacing
+                        - (burst.shown ? burst.implicitWidth + root.spacing : 0))
+                }
+
+                BarText {
+                    id: burst
+                    readonly property bool shown: root.kept.burst > 0
+                    Layout.fillHeight: true
+                    visible: shown
+                    text: "+" + root.kept.burst
+                    color: Theme.label2
+                }
+            }
+        }
     }
 
     // Left runs its default action, as clicking its card in the centre does

@@ -50,6 +50,15 @@ class WeatherRequests(unittest.TestCase):
             self.request(args=["40", "20", "Europe/Athens"])
             self.assertEqual(fetch.call_count, 3)
 
+    def test_fresh_legacy_forecast_is_refetched_for_visibility_and_daily_icons(self):
+        weather.write_json(self.cache, {"key": [37.98, 23.73, "Europe/Athens"],
+                                       "forecast": self.forecast, "fetchedAt": 10000})
+        with patch.object(weather, "fetch", return_value=self.forecast) as fetch:
+            self.request()
+            self.request()
+            fetch.assert_called_once()
+        self.assertEqual(weather.read_json(self.cache)["version"], weather.CACHE_VERSION)
+
     def test_older_cache_is_updated_and_preserved_on_failure(self):
         old = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000}]}] * 7}
         cached = {"key": [37.98, 23.73, "Europe/Athens"], "forecast": old, "fetchedAt": 10000}
@@ -172,6 +181,66 @@ class WeatherTemperatures(unittest.TestCase):
             weather.fetch("forecast", ["37.98", "23.73", "Europe/Athens"])
         params = parse_qs(urlsplit(opened.call_args.args[0]).query)
         self.assertIn("wind_direction_10m", params["hourly"][0].split(","))
+
+    def test_fog_requires_provider_fog_and_visibility_below_200_metres(self):
+        self.body["hourly"]["weather_code"] = [45, 45, 48, 45, 45, 0, 61]
+        self.body["hourly"]["visibility"] = [199, 200, 999, None, -1, 100, 100]
+        self.body["hourly"]["cloud_cover"] = [100, 100, 20, 60, 100, 100, 100]
+        hours = [day["hours"][0] for day in weather.normalize(self.body)["days"]]
+        self.assertEqual([hour["description"] for hour in hours],
+                         ["Fog", "Overcast", "Clear", "Partly cloudy", "Overcast", "Clear", "Rain"])
+        self.assertEqual(hours[2]["visibility"], 999)
+        self.assertIsNone(hours[4]["visibility"])
+        self.assertEqual(weather.normalize(self.body)["days"][2]["severeDescription"], "Clear")
+
+    def test_thick_fog_includes_zero_visibility_and_rime_fog(self):
+        self.body["hourly"]["weather_code"] = [45, 48, 48, 45, 48, 45, 45]
+        self.body["hourly"]["visibility"] = [0, 0, 199, 200, 200, 1000, float("nan")]
+        self.body["hourly"]["cloud_cover"] = [100] * 7
+        days = weather.normalize(self.body)["days"]
+        self.assertEqual([day["hours"][0]["description"] for day in days],
+                         ["Fog", "Fog", "Fog", "Overcast", "Overcast", "Overcast", "Overcast"])
+        self.assertEqual([day["severeDescription"] for day in days],
+                         ["Fog", "Fog", "Fog", "Overcast", "Overcast", "Overcast", "Overcast"])
+
+    def test_unverified_fog_without_cloud_cover_is_unavailable(self):
+        self.body["hourly"]["weather_code"][0] = 45
+        hour = weather.normalize(self.body)["days"][0]["hours"][0]
+        self.assertEqual(hour["description"], "Unavailable")
+
+    def test_forecast_requests_visibility_and_cloud_cover(self):
+        with patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(self.body))) as opened:
+            weather.fetch("forecast", ["37.98", "23.73", "Europe/Athens"])
+        fields = parse_qs(urlsplit(opened.call_args.args[0]).query)["hourly"][0].split(",")
+        self.assertIn("visibility", fields)
+        self.assertIn("cloud_cover", fields)
+
+    def full_days(self):
+        """Expand the seven-day fixture so daily summaries see day and night."""
+        for key, values in self.body["hourly"].items():
+            self.body["hourly"][key] = [value + hour * 3600 if key == "time" else
+                                      int(7 <= hour < 19) if key == "is_day" else value
+                                      for value in values for hour in range(24)]
+
+    def test_daily_icons_pair_predominant_daylight_with_worst_full_day(self):
+        self.full_days()
+        # An overnight rain hour is significant, while daylight stays clear.
+        self.body["hourly"]["weather_code"][23] = 61
+        self.body["daily"]["weather_code"][0] = 45  # Must not bypass corrected hours.
+        day = weather.normalize(self.body)["days"][0]
+        self.assertEqual((day["description"], day["severeDescription"]), ("Clear", "Rain"))
+        self.assertEqual((day["icon"], day["severeIcon"]),
+                         (weather.condition(0)[1], weather.condition(61)[1]))
+
+    def test_daily_predominance_ignores_night_and_handles_no_daylight(self):
+        self.full_days()
+        self.body["hourly"]["weather_code"][:24] = [3] * 7 + [0] * 12 + [3] * 5
+        self.body["hourly"]["is_day"][24:48] = [0] * 24
+        self.body["hourly"]["weather_code"][24:48] = [2] * 24
+        days = weather.normalize(self.body)["days"]
+        self.assertEqual((days[0]["description"], days[0]["severeDescription"]), ("Clear", "Overcast"))
+        self.assertEqual(days[1]["icon"], weather.condition(2)[1])
+        self.assertEqual(days[1]["icon"], days[1]["severeIcon"])
 
 
 if __name__ == "__main__":

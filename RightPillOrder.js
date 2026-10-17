@@ -1,21 +1,21 @@
 const defaults = ["audio", "email", "tasks", "updater", "bell", "satty", "idle",
-    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language"];
+    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "date", "time"];
 
 // Keep saved positions while accepting modules added since the last drop.
-function normalise(order) {
+function normalise(order, supported = defaults) {
     const keys = [];
     for (const key of Array.isArray(order) ? order : [])
-        if (defaults.includes(key) && !keys.includes(key))
+        if (supported.includes(key) && !keys.includes(key))
             keys.push(key);
-    for (const key of defaults)
+    for (const key of supported)
         if (!keys.includes(key))
             keys.push(key);
     return keys;
 }
 
 // Refill only visible slots, leaving every hidden module in its saved position.
-function move(order, key, beforeKey, visibleKeys) {
-    const keys = normalise(order);
+function move(order, key, beforeKey, visibleKeys, supported = defaults) {
+    const keys = normalise(order, supported);
     const visible = keys.filter(k => visibleKeys.includes(k));
     if (!visible.includes(key) || beforeKey === key
         || (beforeKey !== null && !visible.includes(beforeKey)))

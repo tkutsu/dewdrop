@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Save one Gmail attachment to ~/Downloads and print where it went.
+"""Save one Gmail attachment to the downloads folder and print where it went.
 
     GMAIL_TOKEN=... gmail-attachment MESSAGE_ID ATTACHMENT_ID FILENAME
 
@@ -8,6 +8,7 @@ and opens the printed path. The access token comes in the environment, never as
 an argument, so it does not show in the process list. The file name is the
 sender's choice, so it is made safe before it touches the disk, and a name
 already taken in the folder gets a number rather than being overwritten.
+GMAIL_DOWNLOAD_DIR overrides the default ~/Downloads folder.
 """
 
 import base64
@@ -74,7 +75,7 @@ def main(argv):
     except (urllib.error.URLError, TimeoutError) as error:
         print(f"no network: {error}", file=sys.stderr)
         return 1
-    folder = Path.home() / "Downloads"
+    folder = Path(os.environ.get("GMAIL_DOWNLOAD_DIR") or Path.home() / "Downloads").expanduser()
     folder.mkdir(parents=True, exist_ok=True)
     print(write_new(folder, safe_name(name), data))
     return 0

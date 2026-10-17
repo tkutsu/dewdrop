@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise shared shell state and phone delivery with isolated files and HTTP."""
+"""Exercise shared shell state with isolated files and HTTP."""
 
 import json
 import os
@@ -45,17 +45,12 @@ ShellRoot {
     id: root
     property int accepted: 0
     property int failed: 0
-    property string acknowledged: ""
     property var api: TestApi
     component WeatherSelection: Item {
         id: root
         WEATHER_SELECTION
     }
     WeatherSelection { id: weatherSelection }
-    Connections {
-        target: Pushover
-        function onAcknowledged(id, firedAt) { root.acknowledged = id + ":" + firedAt; }
-    }
     function check(ok, message) { if (!ok) throw Error(message); }
     function run() {
         try {
@@ -178,29 +173,16 @@ ShellRoot {
             FakeRequest.reply(0, {});
             check(root.accepted === 1 && root.failed === 0, "HTTP completion occurs only once");
 
-            Pushover.notifyPhone("Timer", "bread", {id: "timer", firedAt: 123000});
-            FakeRequest.reply(1, {status: 1, receipt: "r".repeat(30)});
-            Pushover.pollPhone();
-            FakeRequest.reply(2, {status: 1, acknowledged: 1});
-            check(root.acknowledged === "timer:123000" && Pushover.phoneAlerts.length === 0, "phone acknowledgement identifies the occurrence");
-
-            Pushover.notifyPhone("Timer", "bread", {id: "dismissed", firedAt: 124000});
-            Pushover.dismiss();
-            FakeRequest.reply(3, {status: 1, receipt: "s".repeat(30)});
-            check(FakeRequest.requests[4].url.endsWith("/cancel.json"), "dismissal before receipt cancels when it arrives");
-            FakeRequest.reply(4, {status: 1});
-            check(Pushover.phoneAlerts.length === 0, "cancelled delivery retires its receipt");
-
             Http.send("GET", "https://fixture.invalid/timeout", null, {}, 5,
                 () => root.accepted++, () => root.failed++);
             Google.accessToken = "fixture";
             Google.tokenExpiry = Date.now() + 3600000;
             api.send("GET", "https://fixture.invalid/google", null, () => root.accepted++, () => root.failed++);
             check(api.loading, "Google service counts a request without a caller authorisation wrapper");
-            FakeRequest.reply(6, {}, 401);
-            check(FakeRequest.requests[7].url === Google.tokenEndpoint, "expired token refreshes once");
-            FakeRequest.reply(7, {access_token: "renewed-fixture", expires_in: 3600});
-            FakeRequest.reply(8, {});
+            FakeRequest.reply(2, {}, 401);
+            check(FakeRequest.requests[3].url === Google.tokenEndpoint, "expired token refreshes once");
+            FakeRequest.reply(3, {access_token: "renewed-fixture", expires_in: 3600});
+            FakeRequest.reply(4, {});
             check(!api.loading && root.accepted === 2, "Google request retries with its refreshed token and settles the counter");
             finish.restart();
         } catch (error) { console.log("FAIL: " + error); Qt.quit(); }
@@ -211,10 +193,10 @@ ShellRoot {
         interval: 30
         onTriggered: {
             try {
-                check(root.failed === 1 && FakeRequest.requests[5].aborted, "timeout aborts once");
-                FakeRequest.reply(5, {});
+                check(root.failed === 1 && FakeRequest.requests[1].aborted, "timeout aborts once");
+                FakeRequest.reply(1, {});
                 check(root.accepted === 2 && root.failed === 1, "late response cannot complete a timed-out request");
-                console.log("PASS: weather outlook, HTTP deadlines and phone receipts");
+                console.log("PASS: weather outlook, HTTP deadlines");
             } catch (error) { console.log("FAIL: " + error); }
             Qt.quit();
         }
@@ -228,7 +210,7 @@ def main():
         target = Path(folder)
         services = target / "services"
         services.mkdir()
-        for name in ("Weather.qml", "Pushover.qml", "Http.qml", "Google.qml", "GoogleService.qml", "WallClock.qml"):
+        for name in ("Weather.qml", "Http.qml", "Google.qml", "GoogleService.qml", "WallClock.qml"):
             source = (ROOT / "services" / name).read_text()
             if name in ("Http.qml", "Google.qml"):
                 source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")
@@ -245,7 +227,6 @@ def main():
         (target / "state").mkdir()
         (target / "data").mkdir()
         (target / "data/gtasks.json").write_text(json.dumps({"client_id": "fixture", "client_secret": "fixture", "refresh_token": "fixture"}))
-        (target / "data/pushover.json").write_text(json.dumps({"token": "t" * 30, "user": "u" * 30}))
         notifications = (ROOT / "services/Notifications.qml").read_text()
         methods = "\n".join(re.findall(r'^    function (?:ago|remember)\([^\n]*\n.*?^    }', notifications, re.M | re.S))
         (services / "Notifications.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nSingleton { id: root; property var list: []; property var centreFocus: null; property var arrived: ({}); property var passing: ({}); property var observed: ({}); QtObject { id: retained; property string arrivalsJson: '{}' }\n" + methods + "\n}\n")

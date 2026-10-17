@@ -119,6 +119,12 @@ ShellRoot {
                 Mpd.file="c.wav";Mpd.duration=120;wait(250);decodeLog.reload();
                 check(popup.auditWaveform.loaded===loaded && JSON.stringify(popup.auditWaveform.samples)===samples
                     && decodeLog.text()===decodes,"returning from a stream reuses the last local waveform");
+                const directory=Mpd.musicDir;
+                Mpd.musicDir="";wait(100);decodeLog.reload();
+                check(popup.auditWaveform.filePath==="" && popup.auditWaveform.samples.length===0 && decodeLog.text()===decodes,
+                    "missing MPD directory never starts a decoder with a relative path");
+                Mpd.musicDir=directory;wait(100);
+                check(popup.auditWaveform.loaded===loaded,"MPD directory recovery reuses the cached waveform");
                 console.log("DONE: song transition");
             }
         }

@@ -17,6 +17,7 @@ Singleton {
     id: root
 
     readonly property string dir: Settings.wallpaperDir
+    onDirChanged: Qt.callLater(() => root.rescan())
 
     property var files: []
 
@@ -350,12 +351,15 @@ Singleton {
     // flat FolderListModel would see almost none of them.
     Process {
         id: scan
+        property string folder: ""
+        onExited: if (scan.folder !== root.dir) root.rescan()
         // Path, mtime, size: the last two only for the thumbnails to notice a
         // file replaced in place.
-        command: ["find", root.dir, "-type", "f", "(", "-iname", "*.jpg", "-o", "-iname", "*.jpeg", "-o", "-iname", "*.png", ")", "-printf", "%p\t%T@\t%s\n"]
+        command: ["find", scan.folder, "-type", "f", "(", "-iname", "*.jpg", "-o", "-iname", "*.jpeg", "-o", "-iname", "*.png", ")", "-printf", "%p\t%T@\t%s\n"]
 
         stdout: StdioCollector {
             onStreamFinished: {
+                if (scan.folder !== root.dir) return;
                 const listing = text.split("\n").filter(l => l !== "").sort();
                 root.files = listing.map(l => l.split("\t").slice(0, -2).join("\t"));
                 root.thumbnailAll(listing.join("\n"));
@@ -375,8 +379,10 @@ Singleton {
     function rescan(then) {
         if (then)
             root._pending = root._pending.concat([then]);
-        if (!scan.running)
+        if (!scan.running) {
+            scan.folder = root.dir;
             scan.running = true;
+        }
     }
 
     // Startup: keep the saved wallpaper if it is still on disk, else pick at

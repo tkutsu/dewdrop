@@ -5,10 +5,13 @@ import qs
 import qs.components
 import qs.services
 
-// The date opens the calendar; the neighbouring time opens timers.
+// The date opens the calendar.
 BarItem {
     id: root
     name: "Calendar"
+    textPress: true
+    Layout.leftMargin: -1
+    Layout.rightMargin: -1
 
     popup: Calendar {}
 
@@ -58,6 +61,7 @@ BarItem {
     // Date format letters use Qt's localized weekday and month names.
     BarText {
         Layout.fillHeight: true
+        tightWidth: true
         text: Settings.applyCase(Qt.formatDate(clock.date, Settings.dateFormat), Settings.dateCase)
     }
 
@@ -65,7 +69,7 @@ BarItem {
     actions: ({
             [Qt.RightButton]: () => {
                 OpenPopup.dismiss();
-                Quickshell.execDetached(Settings.webApp("pwa-gcalendar.sh", "", "https://calendar.google.com/"));
+                Quickshell.execDetached(Settings.webApp("calendar", "", "https://calendar.google.com/"));
             },
             [Qt.MiddleButton]: () => {
                 // was: t=$(date '+%F %T'); wl-copy; notify-send

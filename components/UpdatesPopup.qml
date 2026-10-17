@@ -55,7 +55,8 @@ Popup {
         // The system's maintenance: caches, orphans, snapshots, logs. A button
         // you have to open the popup to reach rather than a click on the bar,
         // because it removes packages without asking. Runs where the upgrade
-        // does: a dropdown pane, or a kitty window when the dropdown is shut.
+        // does: a dropdown pane, starting the dropdown if needed. A Kitty
+        // window is the fallback if the dropdown cannot become ready.
         PopupButton {
             framed: true
             glyph: Theme.glyph.cleanup

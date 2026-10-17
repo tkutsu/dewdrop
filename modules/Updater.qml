@@ -35,7 +35,9 @@ BarItem {
         Layout.fillHeight: true
         glyph: Updates.icon
         glyphSize: Theme.glyphSizeLarge
-        badge: Updates.label
+        badge: Settings.badgeStyle("updater") === "hide" ? "" : Updates.label
+        dot: Settings.badgeStyle("updater") === "dot"
+        underdot: Settings.badgeStyle("updater") === "underdot"
     }
 
     // Left is the popup (BarItem.popupButton). Cleaning up is the button at

@@ -7,7 +7,7 @@ function geometry(theme) {
     // joins it to the neighbour is a neck and not a straight run of glass.
     const bead = Math.round(theme.barHeight * 0.8);
 
-    // The first `settle` of leaving belongs to the contents alone (contents).
+    // The glass starts gathering after this first part of leaving.
     const settle = 0.2;
 
     // A pill's share of the glass at a given `reveal`. `edge` is the
@@ -45,7 +45,13 @@ function geometry(theme) {
     // `reveal`. Going in, it is shoved out by the bead and wobbles back.
     // Letting go, it gives a little the other way.
     function lip(reveal, leaving) {
-        return leaving ? wobble((0.38 - reveal) / 0.38, 5) : wobble((reveal - 0.55) / 0.3, -3);
+        if (theme.reduceMotion)
+            return 0;
+        const phase = leaving ? (0.38 - reveal) / 0.38 : (reveal - 0.55) / 0.3;
+        const c = Math.max(0, Math.min(1, phase));
+        // Ease into the impact and taper its rebound to rest without a snap.
+        const envelope = ease(c / 0.18) * (1 - ease(c));
+        return (leaving ? 5 : -3) * envelope * Math.exp(-3 * c) * Math.sin(2 * Math.PI * c);
     }
 
     // Where the neighbour's glass bulges, above and below, at the end a drop
@@ -54,9 +60,9 @@ function geometry(theme) {
     // lies from it, as for `drop`.
     function bulge(end, dir, reveal, leaving) {
         const phase = (0.36 - reveal) / 0.12;
-        if (!leaving || phase <= 0 || phase >= 1)
+        if (theme.reduceMotion || !leaving || phase <= 0 || phase >= 1)
             return Qt.vector4d(0, 0, 0, 0);
-        const swell = 1.2 * Math.sin(Math.PI * phase);
+        const swell = 1.2 * Math.pow(Math.sin(Math.PI * phase), 2);
         if (swell <= 0)
             return Qt.vector4d(0, 0, 0, 0);
         const w = theme.barHeight * 1.2;
@@ -76,13 +82,24 @@ function geometry(theme) {
         return theme.pillSpread * (1 + 0.5 * ease((t - 0.25) / 0.3) * (1 - ease((t - 0.8) / 0.2)));
     }
 
-    // How much of a pill's contents show at a given `reveal`, and its outline
-    // with them. The first `settle` of leaving is theirs alone: they are gone
-    // before the glass under them moves, and arriving, they come in only once
-    // it has come to rest. Anything sooner and the outline, drawn round the
-    // pill at rest, hung in the air outside glass that was not there yet.
+    // Fade across the whole gathering stage, reaching zero at the circle.
+    // The contents and tracker follow the glass while they are still visible.
     function contents(reveal) {
-        return ease((reveal - (1 - settle)) / settle);
+        return ease((reveal - 0.5) / 0.5);
+    }
+
+    // A damped forward spring: lift, dip, smaller rebound, then settle.
+    function iconScale(progress) {
+        if (theme.reduceMotion)
+            return 1;
+        const c = Math.max(0, Math.min(1, progress));
+        return 1 + 0.3 * ease(c / 0.08) * Math.exp(-3 * c) * Math.sin(3 * Math.PI * c)
+            * (1 - ease((c - 0.8) / 0.2));
+    }
+
+    // Empty pills have no contents to fade before their glass starts leaving.
+    function emptyReveal(reveal) {
+        return reveal * (1 - settle);
     }
 
     function ease(x) {
@@ -129,5 +146,5 @@ function geometry(theme) {
         return Math.max(0, Math.min(1, 1 - 2 * s));
     }
 
-    return { drop, lip, bulge, dropReach, contents, morph, morphContents };
+    return { drop, lip, bulge, dropReach, contents, iconScale, emptyReveal, morph, morphContents };
 }

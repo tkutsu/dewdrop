@@ -379,11 +379,11 @@ Singleton {
     // here; the panel only knows how to find a picture in a folder.
     readonly property string coverDir: {
         const r = Launcher.selected;
-        if (!Launcher.musicMode || !r || r.kind.indexOf("music-") !== 0)
+        if (!Mpd.musicDir || !Launcher.musicMode || !r || r.kind.indexOf("music-") !== 0)
             return "";
         const kind = r.kind.slice(6);
         if (kind === "queue")
-            return Settings.musicDir + r.track.file.slice(0, r.track.file.lastIndexOf("/") + 1);
+            return Mpd.musicDir + r.track.file.slice(0, r.track.file.lastIndexOf("/") + 1);
         if (kind !== "artist" && kind !== "album" && kind !== "track")
             return "";
         return Library.coverDir(kind, r.at);

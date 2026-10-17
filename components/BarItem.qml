@@ -55,7 +55,7 @@ ClickArea {
     // The pill whose row this module sits in, if it does: while the pill
     // drags a module to a new place, tooltips and popups keep still.
     readonly property Item pill: parent?.parent instanceof Pill ? parent.parent : null
-    readonly property bool pillDragging: pill?.dragging ?? false
+    readonly property bool pillDragging: (pill?.dragging ?? false) || (pill?.reorderPeer?.dragging ?? false)
     readonly property bool reordering: pillDragging && pill.dragSource === root
     readonly property bool inkLit: true
 
@@ -90,11 +90,13 @@ ClickArea {
     // (PressGlass). A module that answers to several targets inside itself
     // (Music) turns this off and presses each target on its own instead.
     property bool dips: true
+    property bool textPress: false
 
     PressGlass {
         id: press
         icon: layout
         area: root
+        textPress: root.textPress
         down: root.dips && (root.acting || pin.acting || opener.acting)
     }
 
@@ -111,12 +113,13 @@ ClickArea {
     // than `visible`, which the drawer below drives.
     property bool present: true
 
-    // The module's key in the right pill's saved order.
+    // The module's key in its pill's saved order.
     property string settingsKey: pinKey
+    property bool leadingControl: false
     readonly property bool here: present
 
     // Nothing to say right now: no unread mail, no updates, a tool rather than
-    // a status. The right pill keeps modules like that in its drawer, so the
+    // a status. The drawer hides modules like that in either pill, so the
     // bar shows what is true at the moment and the rest is a click away.
     property bool quiet: false
 
@@ -125,14 +128,18 @@ ClickArea {
     // go back to its own `quiet`. Empty for everything else, which keeps
     // middle click for itself.
     property string pinKey: ""
+    // Visibility can follow a mode while middle click keeps the module's action.
+    property string visibilityKey: pinKey
     // Off for a module whose middle click is its own (the tray's icons):
     // it is still in the drawer, but pinned only from the settings window.
     property bool middlePins: true
+    // Brief feedback can bring a module out without changing its saved mode.
+    property bool forceShown: false
     // Whether the module stands out of the drawer while it is closed: when
     // it has something to say and is not kept in, is pinned, or owns the
     // open popup. A quiet popup owner waits until its popup closes before
     // folding away.
-    readonly property bool showsClosed: pinKey === "" || popupOpen || DrawerPins.pinned(pinKey) || (!quiet && !DrawerPins.kept(pinKey))
+    readonly property bool showsClosed: forceShown || visibilityKey === "" || popupOpen || DrawerPins.pinned(visibilityKey) || (!quiet && !DrawerPins.kept(visibilityKey))
 
     // Whether to mark a pinned module as pinned. Set by the drawer's owner
     // while the drawer is open, which is when pinned and unpinned stand side
@@ -142,6 +149,9 @@ ClickArea {
     // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
     // `showsClosed` and whether the drawer is open.
     property bool stowed: false
+
+    // A side pill can wait for its empty popover to return before leaving.
+    property bool exitHeld: false
 
     // Modules add their own finite motion; folds include the spring's full settling.
     property bool contentAnimating: false

@@ -51,7 +51,7 @@ def main():
         (target / 'modules/SettingsMenu.qml').write_text(source)
         (target / 'services/Preferences.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool shown: false; property int dismissMs: 260; function hide() { shown = false; } }')
         (target / 'components/OverlayWindow.qml').write_text('import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true }')
-        (target / 'components/BackdropProbe.qml').write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property real luma: 0.5 }')
+        (target / 'components/BackdropProbe.qml').write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property bool ringOnly: false; property real luma: 0.5 }')
         (target / 'components/SettingRow.qml').write_text('import QtQuick\nItem { required property var setting }')
         (target / 'components/Glyph.qml').write_text('import QtQuick\nItem { property string text; property real fontSize; property color color }')
         (target / 'shell.qml').write_text(SHELL)

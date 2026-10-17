@@ -31,17 +31,13 @@ BarItem {
         Layout.fillHeight: true
         glyph: Tasks.icon
         glyphSize: Theme.glyphSizeLarge
-        badge: Tasks.label
+        badge: Settings.badgeStyle("tasks") === "hide" ? "" : Tasks.label
+        dot: Settings.badgeStyle("tasks") === "dot"
+        underdot: Settings.badgeStyle("tasks") === "underdot"
     }
 
     // Left is the popup (BarItem.popupButton).
     actions: ({
-            // The site rather than one of the PWA wrappers beside it: there is
-            // no Google Tasks web app installed here, and a wrapper round an
-            // app id nobody has is a launcher that silently does nothing.
-            [Qt.RightButton]: () => {
-                OpenPopup.dismiss();
-                Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
-            }
+            [Qt.RightButton]: () => Tasks.openApp()
         })
 }

@@ -83,7 +83,9 @@ Popup {
             spacing: 2
 
             Glyph {
+                id: currentSky
                 height: 24
+                // Use the current hour's corrected condition, including thick fog.
                 text: Weather.thisHour?.icon ?? Weather.icon
                 color: Weather.tint(text)
                 fontSize: Theme.iconSize
@@ -306,6 +308,7 @@ Popup {
                     required property var modelData
                     required property int index
                     name: "Forecast for " + daily.modelData.date
+                    Accessible.description: daily.modelData.description ? `Predominant daylight: ${daily.modelData.description}. Most severe: ${daily.modelData.severeDescription}.` : ""
                     width: Math.floor((root.bodyWidth - week.spacing * (Weather.days.length - 1)) / Math.max(1, Weather.days.length))
                     height: root.panelHeight
                     onTapped: root.picked = daily.modelData.date
@@ -323,13 +326,23 @@ Popup {
                         text: Weather.dayLabel(daily.modelData)
                         font.pixelSize: Theme.captionSize
                     }
-                    Glyph {
+                    Row {
+                        id: dailyIcons
                         y: 22
                         anchors.horizontalCenter: parent.horizontalCenter
                         height: 20
-                        text: daily.modelData.icon
-                        color: Weather.tint(daily.modelData.icon)
-                        fontSize: Theme.popupGlyphSize
+                        spacing: 4
+
+                        Repeater {
+                            model: daily.modelData.severeIcon && daily.modelData.severeIcon !== daily.modelData.icon ? [daily.modelData.icon, daily.modelData.severeIcon] : [daily.modelData.icon]
+                            delegate: Glyph {
+                                required property string modelData
+                                height: 20
+                                text: modelData
+                                color: Weather.tint(modelData)
+                                fontSize: Theme.popupGlyphSize
+                            }
+                        }
                     }
                     PopupText {
                         y: 46

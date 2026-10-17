@@ -279,6 +279,64 @@ ShellRoot {
 """
 
 
+MOVING_LAYOUT = r"""
+import QtQuick
+import QtQuick.Window
+import QtTest
+import Quickshell
+import qs
+import qs.components
+ShellRoot {
+    Window {
+        visible: true; width: 600; height: 100
+        Item {
+            id: host; width: 600; height: 80
+            Pill {
+                id: pill; side: Pill.Side.Right; order: RightPillOrder.keys; drawsSlab: false
+                BarItem { id: audio; pinKey: 'audio'; stowed: true; Rectangle { implicitWidth: 60; implicitHeight: 20 } }
+                BarItem { id: network; pinKey: 'network'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
+                BarItem { id: launcher; Rectangle { implicitWidth: 40; implicitHeight: 20 } }
+            }
+        }
+        TestCase {
+            id: test; when: false
+            function run() {
+                const saved = JSON.stringify(RightPillOrder.keys);
+                for (let cycle = 0; cycle < 4; cycle++) {
+                    const point = network.mapToItem(host, network.width / 2, 20);
+                    mousePress(host, point.x, point.y);
+                    audio.stowed = !audio.stowed; wait(30);
+                    mouseMove(host, point.x + 20, point.y, 20);
+                    mouseMove(host, point.x + 21, point.y, 20);
+                    if (!pill.dragging || pill.dragSource !== network) throw Error('fold changed the pressed module');
+                    mouseRelease(host, point.x + 21, point.y); wait(30);
+                    if (JSON.stringify(RightPillOrder.keys) !== saved) throw Error('fold reordered modules on a drop in the original slot');
+                }
+                const fixedPoint = launcher.mapToItem(host, launcher.width / 2, 20);
+                mousePress(host, fixedPoint.x, fixedPoint.y);
+                audio.stowed = false; wait(30);
+                mouseMove(host, fixedPoint.x - 20, fixedPoint.y, 20);
+                mouseMove(host, fixedPoint.x - 21, fixedPoint.y, 20);
+                if (pill.dragging) throw Error('fold turned a fixed control into a drag source');
+                mouseRelease(host, fixedPoint.x - 21, fixedPoint.y); wait(30);
+                if (JSON.stringify(RightPillOrder.keys) !== saved) throw Error('fixed control rewrote order');
+                const absentPoint = network.mapToItem(host, network.width / 2, 20);
+                mousePress(host, absentPoint.x, absentPoint.y);
+                network.present = false; wait(30);
+                mouseMove(host, absentPoint.x - 20, absentPoint.y, 20);
+                mouseMove(host, absentPoint.x - 21, absentPoint.y, 20);
+                if (pill.dragging) throw Error('absent pressed module started a drag');
+                mouseRelease(host, absentPoint.x - 21, absentPoint.y); wait(30);
+                if (JSON.stringify(RightPillOrder.keys) !== saved) throw Error('absent source rewrote order');
+                console.log('PASS: folding pill retains the pressed source; fixed and absent sources cannot reorder');
+            }
+        }
+    }
+    Timer { interval: 200; running: true; onTriggered: { try { test.run(); } catch(e) { console.log('FAIL: '+e); } Qt.quit(); } }
+}
+"""
+
+
 def run_shell(target, source):
     (target / 'shell.qml').write_text(source)
     env = shell_env(target)
@@ -366,7 +424,7 @@ def main():
 import Quickshell
 import qs
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 16) console.log('FAIL: defaults');
+    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 19) console.log('FAIL: defaults');
     else if (RightPillOrder.move('audio', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();
@@ -378,6 +436,7 @@ ShellRoot { Timer { interval: 150; running: true; onTriggered: {
             run_shell(target, load)
             assert state.read_text() == malformed, 'malformed state was rewritten'
         state.unlink()  # This is the fixture's exact file inside its temporary directory.
+        run_shell(target, MOVING_LAYOUT)
         run_shell(target, POINTER)
         saved = json.loads(state.read_text())['order']
         restart = """import QtQuick
@@ -402,7 +461,7 @@ ShellRoot { Timer { interval: 150; running: true; onTriggered: {
 } } }"""
         run_shell(target, save_volume)
         saved = json.loads(state.read_text())['order']
-        assert saved[-1] == 'audio', 'fixture must save volume in the last visible slot'
+        assert [key for key in saved if key in ('audio', 'network', 'language')][-1] == 'audio', 'fixture must save volume in the last visible slot'
         run_shell(target, RESTORED_LAYOUT.replace('EXPECTED_ORDER', json.dumps(saved)))
         assert json.loads(state.read_text())['order'] == saved, 'restoring the layout rewrote the order'
         check_placement(target)

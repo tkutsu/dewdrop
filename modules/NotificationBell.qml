@@ -6,7 +6,7 @@ import qs
 import qs.components
 import qs.services
 
-// The bell: how many notifications are being kept, and the way into them. Its
+// The bell: whether notifications are waiting, and the way into them. Its
 // popup is the notification centre.
 BarItem {
     id: root
@@ -21,7 +21,9 @@ BarItem {
     BadgedGlyph {
         Layout.fillHeight: true
         glyph: Notifications.icon
-        badge: Notifications.label
+        badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
+        dot: Settings.badgeStyle("bell") === "dot"
+        underdot: Settings.badgeStyle("bell") === "underdot"
     }
 
     // The centre asked for from elsewhere: the notice beside the clock, or

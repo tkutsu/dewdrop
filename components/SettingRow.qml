@@ -29,6 +29,8 @@ Item {
     id: root
 
     required property var setting
+    enabled: root.setting.enabled ?? true
+    opacity: enabled ? 1 : 0.45
 
     Accessible.role: Accessible.CheckBox
     Accessible.name: root.setting.title

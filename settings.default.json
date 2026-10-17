@@ -25,9 +25,34 @@
     // per window by a click. false gives every window its own icon.
     "groupWindows": true,
 
+    // Count windows on collapsed app groups in the left pill. Single windows
+    // and expanded groups have no count badge.
+    "groupWindowBadges": false,
+
+    // Drag modules between the central and right pills, or within a pill to
+    // reorder them. Moving to the right pins the module; Drawer settings can
+    // return it to Auto or keep it behind the chevron, in either pill.
+    // The last central module is locked. Positions use <module>Position:
+    // centre or right.
+    "datePosition": "centre",
+    "weatherPosition": "centre",
+    "timePosition": "centre",
+
     // Scroll overflowing track titles in the music pill and player.
     // Off keeps titles truncated. Reduce motion also stops scrolling.
     "scrollMusicTitles": true,
+
+    // Show the Now Playing pill for apps that report media through MPRIS.
+    "showMpris": true,
+
+    // Module indicators: "badge" shows the count, "dot" shows a corner dot,
+    // "underdot" centers a dot below the icon, "hide" hides the indicator.
+    // Module visibility stays the same.
+    "emailBadgeStyle": "badge",
+    "tasksBadgeStyle": "badge",
+    "countdownBadgeStyle": "badge",
+    "bellBadgeStyle": "badge",
+    "updaterBadgeStyle": "badge",
 
     // The date, as a Qt date format: "ddd d MMM" reads Tue 13 Oct,
     // "dd/MM/yyyy" reads 13/10/2026. Weekday and month names use your locale.
@@ -51,6 +76,12 @@
     // the same baseline without a preceding space. Popup times keep AM/PM at
     // full size with a space for readability. Requires a 12h clock format.
     "smallAmPm": false,
+
+    // Independent feedback options when the active keyboard layout changes.
+    // Notifications are transient; the module reveal lasts three seconds.
+    // Show and bounce reveals the module for three seconds and bounces once.
+    "layoutChangeNotification": false,
+    "layoutChangeBounce": false,
 
     // What the language module shows for each keyboard layout, keyed by the
     // name `hyprctl devices` gives it. A layout not listed here shows its
@@ -136,18 +167,29 @@
     // The images the wallpaper module cycles through (jpg and png).
     "wallpaperDir": "~/Pictures/Wallpapers",
 
-    // mpd's music_directory: album covers are read from beside the files.
-    "musicDir": "~/Music",
+    // Mail attachments saved from the bar.
+    "downloadsDir": "~/Downloads",
+
+    // Shell command run by the screenshot button, with no arguments added.
+    // The tool handles capture and output. Empty hides the button.
+    "screenshotCommand": "",
+
+    // Extra fd ignore file for launcher searches. Empty uses fd's normal rules.
+    "fileSearchIgnore": "",
 
     // The bar speaks to mpd over a unix socket, which mpd.conf has to open
     // alongside whatever else it listens on:
     //   bind_to_address "$XDG_RUNTIME_DIR/mpd.sock"
     "mpdSocket": "$XDG_RUNTIME_DIR/mpd.sock",
 
-    // Your own scripts, shared with the keybinds: power.sh, display.sh,
-    // thumb.sh, the pwa-*.sh launchers, the screenshot and update runners, and f/ignore, the launcher's file-search denylist.
-    // Without pwa-gmail.sh and pwa-gcalendar.sh, Gmail and Calendar open in the browser.
+    // External helpers for power, display, updates and cleanup.
     "scriptsDir": "~/_scripts",
+
+    // App desktop IDs for gmail, calendar and tasks. An empty value detects
+    // an installed Chromium PWA; "browser" always opens the website.
+    // Choose another browser's PWA in Settings > Apps & Services.
+    // Missing apps use the website.
+    "webApps": {},
 
     // --- Google ------------------------------------------------------------
     // Mail, Tasks and the calendar's agenda need a one-time sign-in with your

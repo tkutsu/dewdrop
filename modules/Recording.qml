@@ -20,46 +20,90 @@ BarItem {
     tooltip: Privacy.summary
     popup: PrivacyPopup { morphs: true }
 
+    // Hold the departing symbols after capture ends, just as media keeps its title.
+    readonly property var current: Privacy.active ? {
+        listening: Privacy.listening, sharing: Privacy.sharing,
+        muted: Privacy.microphonesMuted, recording: Privacy.recording
+    } : null
+    property var kept: ({listening: false, sharing: false, muted: false, recording: false})
+    onCurrentChanged: if (current) kept = current
+
+    readonly property bool sliding: pill?.slidesContent ?? false
+    readonly property real glassWidth: sliding ? pill.foldBox.z : width
+    readonly property real glassLeft: sliding ? pill.foldBox.x : 0
+    readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - microphone.width) / 2))
+    readonly property real contentLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
+    readonly property bool iconAbsorbed: sliding && (reveal <= 0
+        || glassLeft + iconInset >= pill.width + Theme.pillSpread)
+
     Glyph {
         id: microphone
+        scale: root.sliding ? root.pill.iconScale : 1
         Layout.fillHeight: true
-        visible: Privacy.listening
-        text: Privacy.microphonesMuted ? Theme.glyph.micMuted : Theme.glyph.mic
+        visible: root.kept.listening || root.kept.sharing
+        opacity: root.iconAbsorbed ? 0 : 1
+        text: root.kept.listening ? (root.kept.muted ? Theme.glyph.micMuted : Theme.glyph.mic) : Theme.glyph.screenShare
+        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
     }
 
-    Glyph {
+    Item {
+        id: details
         Layout.fillHeight: true
-        visible: Privacy.sharing
-        text: Theme.glyph.screenShare
-    }
+        implicitWidth: parts.implicitWidth
+        visible: implicitWidth > 0
+        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
 
-    // A dot, not a glyph: it is a light, and a light is round at any size.
-    // It breathes rather than blinks, and dims rather than goes out, so it
-    // reads as "on" from across the room and is not something flashing at you.
-    Rectangle {
-        id: dot
+        Marquee {
+            width: Math.max(0, details.width - root.contentLoss)
+            height: parent.height
+            contentWidth: parts.implicitWidth
+            active: true
+            paused: true
+            travel: root.contentLoss
 
-        Layout.alignment: Qt.AlignVCenter
-        implicitWidth: 8
-        implicitHeight: 8
-        radius: 4
-        color: Theme.recording
-        visible: Privacy.recording
+            RowLayout {
+                id: parts
+                width: implicitWidth
+                height: parent.height
+                spacing: root.spacing
 
-        SequentialAnimation on opacity {
-            running: Privacy.recording && !Theme.reduceMotion
-            loops: Animation.Infinite
-            onRunningChanged: if (!running) dot.opacity = 1
+                Glyph {
+                    scale: root.sliding ? root.pill.iconScale : 1
+                    Layout.fillHeight: true
+                    visible: root.kept.listening && root.kept.sharing
+                    text: Theme.glyph.screenShare
+                }
 
-            NumberAnimation {
-                to: 0.4
-                duration: 900
-                easing.type: Easing.InOutSine
-            }
-            NumberAnimation {
-                to: 1
-                duration: 900
-                easing.type: Easing.InOutSine
+                // A dot, not a glyph: it is a light, and a light is round at any size.
+                // It breathes rather than blinks, and dims rather than goes out, so it
+                // reads as "on" from across the room and is not something flashing at you.
+                Rectangle {
+                    id: dot
+
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: 8
+                    implicitHeight: 8
+                    radius: 4
+                    color: Theme.recording
+                    visible: root.kept.recording
+
+                    SequentialAnimation on opacity {
+                        running: Privacy.recording && !Theme.reduceMotion
+                        loops: Animation.Infinite
+                        onRunningChanged: if (!running) dot.opacity = 1
+
+                        NumberAnimation {
+                            to: 0.4
+                            duration: 900
+                            easing.type: Easing.InOutSine
+                        }
+                        NumberAnimation {
+                            to: 1
+                            duration: 900
+                            easing.type: Easing.InOutSine
+                        }
+                    }
+                }
             }
         }
     }

@@ -11,6 +11,30 @@ from test_support import copy_shell, shell_env
 
 ROOT = Path(__file__).resolve().parents[1]
 
+FOLDER_SWITCH = r"""
+import QtQuick
+import QtTest
+import Quickshell
+import qs
+import qs.services
+ShellRoot {
+    TestCase { id: test; when: false
+        function run() {
+            tryVerify(() => Wallpaper.files.length === 2, 3000);
+            Settings.wallpaperDir = Quickshell.shellPath('other wallpapers');
+            tryVerify(() => Wallpaper.files.length === 1 && Wallpaper.files[0] === Quickshell.shellPath('other wallpapers/only.png'), 3000);
+            Settings.wallpaperDir = Quickshell.shellPath('wallpapers');
+            tryVerify(() => Wallpaper.files.length === 2 && Wallpaper.files.every(f => f.startsWith(Settings.wallpaperDir + '/')), 3000);
+            console.log('PASS: changing the wallpaper folder refreshes the file list');
+        }
+    }
+    Timer { interval: 100; running: true; onTriggered: {
+        try { test.run(); } catch (e) { console.log('FAIL: ' + e); }
+        Qt.quit();
+    } }
+}
+"""
+
 SCENARIO = r"""
 import QtQuick
 import QtQuick.Window
@@ -373,7 +397,7 @@ QtObject {
 import QtQuick
 import Quickshell
 QtObject {
-    readonly property string wallpaperDir: Quickshell.shellPath('wallpapers')
+    property string wallpaperDir: Quickshell.shellPath('wallpapers')
     property real wallpaperParallaxZoom: 1.08
     readonly property string font: 'Sans'
     readonly property string monoFont: 'Monospace'
@@ -404,6 +428,9 @@ QtObject {
                 assert max(abs(a - b) for a, b in zip(desktop.getpixel((x, y)), strip.getpixel((x, y)))) <= 3, (x, y, desktop.getpixel((x, y)), strip.getpixel((x, y)))
         print('PASS: glass strip pixels match the rendered desktop')
         run_shell(target, UI)
+        (target / 'other wallpapers').mkdir()
+        shutil.copy(target / 'wallpapers/a.png', target / 'other wallpapers/only.png')
+        run_shell(target, FOLDER_SWITCH)
 
 
 if __name__ == '__main__':

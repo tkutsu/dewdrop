@@ -4,7 +4,7 @@ import qs
 import qs.components
 import qs.services as Services
 
-// The strongest condition forecast in the next six hours, between date and time.
+// The strongest condition forecast in the next six hours.
 BarItem {
     name: "Weather"
     settingsKey: "weather"

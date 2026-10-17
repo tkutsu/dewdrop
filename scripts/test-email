@@ -614,7 +614,7 @@ class EmailTests(unittest.TestCase):
             'Glyph.qml': 'import QtQuick\nText { property int fontSize }',
             'ReconnectButton.qml': 'import QtQuick\nItem {}',
             'RetryButton.qml': 'import QtQuick\nItem { property var service }',
-            'PressGlass.qml': 'import QtQuick\nQtObject { required property Item icon; required property var area; property bool down; property real scale: 1 }',
+            'PressGlass.qml': 'import QtQuick\nQtObject { required property Item icon; required property var area; property bool down; property bool textPress: false; property real scale: 1 }',
         }
         directory = tempfile.mkdtemp(prefix='email-popup-test-')
         self.addCleanup(shutil.rmtree, directory, True)

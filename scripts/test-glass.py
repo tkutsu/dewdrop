@@ -8,6 +8,8 @@ import shutil
 import subprocess
 import tempfile
 
+from test_support import offscreen_ink
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -27,7 +29,12 @@ def main():
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / name, destination)
         (target / "settings.json").write_text("{}\n")
+        offscreen_ink(target)
+        clock_button = re.search(r'        BarItem \{\n            id: timeClock.*?^        \}',
+                                 (ROOT / "Bar.qml").read_text(), re.M | re.S).group()
+        clock_button = clock_button.replace('id: timeClock', 'id: clockButton', 1)
         (target / "shell.qml").write_text('''import QtQuick
+import QtQuick.Layouts
 import QtTest
 import Quickshell
 import qs
@@ -38,6 +45,7 @@ ShellRoot {
     property int clicks: 0
     property int failures: 0
     property bool isOpen: false
+    QtObject { id: clock; property date date: new Date(2026, 9, 16, 10, 5); property var actions: ({}) }
     FUNCTION
     BULGE
     Morph { id: morph; open: bar.isOpen }
@@ -58,6 +66,7 @@ ShellRoot {
             }
         }
         PressGlass { id: feedback; icon: button; area: button }
+        Item { y: 40; width: 200; height: 30; CLOCK_BUTTON }
         Item { id: anchor; x: 140; y: 4; width: 40; height: 30 }
         TestCase { id: test; when: false }
     }
@@ -127,12 +136,32 @@ ShellRoot {
                 test.wait(20); enlarged = enlarged || feedback.scale > 1;
             }
             check(!enlarged && Math.abs(feedback.scale - 1) < 0.001, "release restores normal size without zooming past it");
+            feedback.textPress = true;
+            test.mousePress(button, 90, 15); test.wait(600);
+            for (const width of [40, 200, 500]) {
+                button.implicitWidth = width; test.wait(30);
+                const lost = button.width * (1 - feedback.scale);
+                check(feedback.scale >= 0.98 && lost <= 2.000001 && lost > 0,
+                    "text press stays within 2% and 2 px at width " + width);
+            }
+            Settings.user = {reduceMotion: true};
+            check(feedback.scale === 1, "Reduce motion also keeps pressed text at normal size");
+            Settings.user = {};
+            test.mouseRelease(button, button.width / 2, 15);
+            test.wait(1200);
+            check(Math.abs(feedback.scale - 1) < 0.001, "text release returns to normal size");
+            GlassPress.press(clockButton.keyBox, clockButton.mapToItem(null, clockButton.width / 2, 15));
+            test.wait(600);
+            check(clockButton.keyBox.scale >= 0.98 && clockButton.keyBox.scale < 1
+                    && clockButton.keyBox.width * (1 - clockButton.keyBox.scale) <= 2.000001,
+                "the actual bar time uses the subtle text press");
+            GlassPress.release(clockButton.keyBox);
             console.log("RESULT: " + failures + " failures");
             Qt.quit();
         }
     }
 }
-'''.replace("FUNCTION", function("morph")).replace("BULGE", function("bulge")))
+'''.replace("FUNCTION", function("morph")).replace("BULGE", function("bulge")).replace("CLOCK_BUTTON", clock_button))
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",

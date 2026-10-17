@@ -16,6 +16,20 @@ Singleton {
     id: root
 
     property string layout: ""
+    signal switched()
+    property string previousLayout: ""
+
+    // Initial discovery is silent; only later layout changes trigger feedback.
+    onLayoutChanged: {
+        const previous = root.previousLayout;
+        root.previousLayout = root.layout;
+        if (!previous || !root.layout)
+            return;
+        root.switched();
+        if (Settings.layoutChangeNotification)
+            Quickshell.execDetached(["notify-send", "-e", "-a", "Bar", "-i", "input-keyboard", "-u", "low", "-t", "3000", "-h", "string:x-canonical-private-synchronous:keyboard-layout", "Keyboard Layout", root.layout]);
+    }
+
     // Which keyboard's layout the bar is showing. A different event source
     // prompts a query because Hyprland may have selected a new main keyboard.
     property string mainKeyboard: ""

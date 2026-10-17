@@ -122,13 +122,13 @@ ShellRoot {
 def main():
     with tempfile.TemporaryDirectory(prefix="qs-timer-time-") as folder:
         target = Path(folder)
-        for name in ("Settings.qml", "Paths.qml", "settings.default.json", "services/Timers.qml", "services/TimersParse.js", "services/WallClock.qml"):
+        for name in ("Settings.qml", "RightPillOrder.js", "Paths.qml", "settings.default.json", "services/Timers.qml", "services/TimersParse.js", "services/WallClock.qml"):
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
         (target / "settings.json").write_text("{}\n")
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { readonly property var glyph: ({timerRing: "ring", alarm: "alarm", timer: "timer", timerPaused: "paused"}) }\n')
-        (target / "services/Pushover.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { readonly property string phoneWarning: ""; signal failed(string reason); signal acknowledged(string id, double firedAt); function notifyPhone(title, body, entry) {} function dismiss() {} }\n')
+        (target / "services/PhoneAlarms.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { readonly property string phoneWarning: ""; signal failed(string reason); signal acknowledged(string id, double firedAt); signal finished(); function hasLive(id, firedAt) { return false; } function notifyPhone(title, body, entry) {} function dismiss() {} }\n')
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)
         (target / "state/quickshell").mkdir(parents=True)

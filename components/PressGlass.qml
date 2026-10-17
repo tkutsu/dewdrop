@@ -12,7 +12,10 @@ QtObject {
     required property Item icon
     required property var area
     property bool down: area.pressed
-    readonly property real scale: 1 - Math.max(0, Math.min(1, GlassPress.popOf(icon))) * GlassPress.iconShrink
+    // Text loses at most 2% or 2 px of width; icons keep their deeper press.
+    property bool textPress: false
+    readonly property real shrink: textPress ? Math.min(0.02, 2 / Math.max(1, icon.width)) : GlassPress.iconShrink
+    readonly property real scale: 1 - Math.max(0, Math.min(1, GlassPress.popOf(icon))) * shrink
 
     // Where the pointer is, in the window's pixels: under a MouseArea's
     // pointer, at a TapHandler's point, or else the icon's middle.

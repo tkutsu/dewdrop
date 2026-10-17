@@ -4,11 +4,9 @@ import Quickshell
 import qs
 import qs.components
 
-// custom/satty. taskbar-satty.sh owns the flock that makes the keybind and the
-// bar click toggle the same screenshot flow, and the choice between a quick
-// copy and the editor: the button the region is dragged with.
+// The chosen capture command owns selection, editing, saving and the clipboard.
 BarItem {
-    readonly property string script: Paths.script("taskbar-satty.sh")
+    present: Settings.screenshotCommand !== ""
 
     // A tool, never news: it waits in the drawer unless it is pinned out.
     quiet: true
@@ -21,6 +19,9 @@ BarItem {
     }
 
     actions: ({
-            [Qt.LeftButton]: () => Quickshell.execDetached([script])
+            [Qt.LeftButton]: () => {
+                if (Settings.screenshotCommand !== "")
+                    Quickshell.execDetached(["sh", "-c", Settings.screenshotCommand]);
+            }
         })
 }

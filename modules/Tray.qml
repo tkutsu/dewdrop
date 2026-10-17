@@ -100,7 +100,7 @@ BarItem {
             }
 
             // Kept in the drawer and the drawer shut: folded out of the row.
-            readonly property bool tucked: DrawerPins.kept("tray:" + modelData.id) && !root.drawerOut && !DrawerPins.pinned(root.pinKey)
+            readonly property bool tucked: DrawerPins.kept("tray:" + modelData.id) && !root.drawerOut && !DrawerPins.pinned(root.visibilityKey)
             property real out: tucked ? 0 : 1
 
             Behavior on out {

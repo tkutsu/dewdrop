@@ -69,15 +69,8 @@ Singleton {
     // What fd last found, tagged with the query it was for. See QueuedProcess.
     property var fdHits: null
 
-    // What never turns up in a search. Not a list here, because
-    // ~/.config/fish/functions/f.fish searches the same machine from the
-    // terminal and has to skip exactly the same things — two copies of a
-    // 230-entry denylist drift the moment either is edited. fd reads the file
-    // itself, so neither side parses it.
-    //
-    // A missing file costs a warning on fd's stderr, which nothing here reads,
-    // and an unfiltered walk. The mode gets noisy rather than breaking.
-    readonly property string fdIgnore: Paths.script("f/ignore")
+    // A configurable fd ignore file can be shared with terminal file searches.
+    readonly property string fdIgnore: Settings.fileSearchIgnore
 
     // A slash separates terms the same way a space does, so a path can be
     // described either way round: "downloads torrents" and "downloads/torrents"
@@ -125,8 +118,10 @@ Singleton {
         // would all come from whichever one fd reached first. The ranking
         // below still puts a name match over a path match; this is about
         // giving it enough to rank.
+        // Git ignores govern tracking, not launcher visibility: local plans
+        // still belong in file search. Keep .ignore and fdIgnore exclusions.
         // Resolve an existing absolute path before searching the home directory.
-        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", Settings.expand(fd.arg), "fd", "--hidden", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d", "--ignore-file", root.fdIgnore].concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
+        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", Settings.expand(fd.arg), "fd", "--hidden", "--no-ignore-vcs", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d"].concat(root.fdIgnore ? ["--ignore-file", root.fdIgnore] : []).concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
 
         onResult: function (arg, text) {
             if (!Launcher.shown || arg !== fd.want)

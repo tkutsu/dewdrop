@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 import Quickshell
 import qs
@@ -23,12 +24,19 @@ Item {
     }
 
     default property alias content: row.data
+    readonly property alias moduleHost: row
 
-    // Empty on the other pills; the right pill fixes its unkeyed ends in place.
+    // Ordered pills keep unkeyed controls at their ends.
     property var order: []
+    property var leadingOrder: []
+    property var orderController: RightPillOrder
+    property Item reorderPeer: null
+    property var transferableKeys: []
+    property var lockedKeys: []
+    signal moduleReceived(string key)
     readonly property var modules: row.children.filter(item => item.settingsKey)
     property alias dragging: reorder.dragging
-    readonly property bool animating: dragging || row.children.some(item => item.animating === true)
+    readonly property bool animating: dragging || centreMove.running || row.children.some(item => item.animating === true)
     onAnimatingChanged: Tooltips.setMoving(root, animating)
     Component.onDestruction: Tooltips.setMoving(root, false)
     property alias dragSource: reorder.dragSource
@@ -37,17 +45,27 @@ Item {
     function arrange(): void {
         if (order.length === 0)
             return;
-        for (const item of row.children) {
+        const leading = row.children.filter(item => !item.settingsKey && (item.leadingControl || item === row.children[0]));
+        leading.sort((a, b) => {
+            const first = leadingOrder.indexOf(a);
+            const second = leadingOrder.indexOf(b);
+            return (first < 0 ? leadingOrder.length : first) - (second < 0 ? leadingOrder.length : second);
+        });
+        for (let i = 0; i < row.children.length; i++) {
+            const item = row.children[i];
             const index = order.indexOf(item.settingsKey);
             item.Layout.row = 0;
-            item.Layout.column = index >= 0 ? index + 1 : item === row.children[0] ? 0 : order.length + 1;
+            item.Layout.column = index >= 0 ? leading.length + index
+                : leading.includes(item) ? leading.indexOf(item) : leading.length + order.length + i;
         }
     }
 
     onOrderChanged: arrange()
+    onLeadingOrderChanged: arrange()
     Component.onCompleted: {
         arrange();
         Tooltips.setMoving(root, animating);
+        Qt.callLater(() => root._positionReady = true);
     }
 
     // Where on the bar this pill sits. It anchors itself from this rather than
@@ -56,7 +74,7 @@ Item {
     // cannot drift apart.
     property int side: Pill.Side.Centre
 
-    readonly property int moduleGap: Theme.gap + (side === Pill.Side.Right ? 3 : 0)
+    property int moduleGap: Theme.gap + (side === Pill.Side.Right ? 3 : 0)
 
     // How far short of its side the pill stops. Zero for the three that back
     // onto a screen edge or the centre line; the ones either side of the clock
@@ -82,6 +100,7 @@ Item {
 
     // Keep the path and its faint remainder aligned as the line thickens.
     property real trackWidth: Theme.pillTrack
+    property Item trackSlab: slab
 
     // Whether the pill draws its own slab. Not for the ones around the clock,
     // whose glass is drawn for all of them at once by the bar (Liquid.qml) so
@@ -90,6 +109,9 @@ Item {
     property bool drawsSlab: true
     property real contentOpacity: 1
     property real contentScale: 1
+    property real contentZoom: 1
+    property real contentBlur: 0
+    property real contentShiftX: 0
     property real contentSink: 0
     property bool interactive: true
     enabled: interactive && contentOpacity > 0.01
@@ -154,6 +176,21 @@ Item {
         return x;
     }
 
+    // A point in this pill, including a gap with no item of its own.
+    property real centreAt: centreOn ? centreOnX : width / 2
+    property bool animatePosition: false
+    property bool _positionReady: false
+    // Animate the left edge so width changes cannot jump the centre anchor.
+    property real _centreLeft: parent ? parent.width / 2 - centreAt : 0
+    Behavior on _centreLeft {
+        enabled: root.animatePosition && root._positionReady && !Theme.reduceMotion
+        NumberAnimation {
+            id: centreMove
+            duration: Theme.foldMs
+            easing.type: Easing.InOutCubic
+        }
+    }
+
     anchors {
         top: parent.top
         left: root.side === Pill.Side.Left ? parent.left : undefined
@@ -161,9 +198,8 @@ Item {
         right: root.side === Pill.Side.Right ? parent.right : undefined
         rightMargin: root.side === Pill.Side.Right ? root.edgeOffset : 0
         horizontalCenter: root.side === Pill.Side.Centre ? parent.horizontalCenter : undefined
-        // What the centre anchor would have to be off by for centreOn to land
-        // where the pill's own middle was going to.
-        horizontalCenterOffset: root.centreOn ? Math.round(root.width / 2 - root.centreOnX) : 0
+        // Compensate for width changes immediately while the left edge travels.
+        horizontalCenterOffset: root._centreLeft + root.width / 2 - (root.parent?.width ?? 0) / 2
     }
 
     implicitWidth: row.implicitWidth
@@ -215,7 +251,7 @@ Item {
 
     ProgressTrack {
         id: track
-        slab: slab
+        slab: root.trackSlab
         progress: root.progress
         rate: root.rate
         trackOpacity: root.trackOpacity
@@ -318,9 +354,22 @@ Item {
         anchors.fill: parent
         columnSpacing: 0
         opacity: root.contentOpacity
+        // Render only the ink into the effect; the glass and track are siblings.
+        layer.enabled: root.contentBlur > 0 && opacity > 0 && !Theme.reduceMotion
+        layer.smooth: true
+        layer.effect: MultiEffect {
+            blurEnabled: true
+            blurMax: 8
+            blur: root.contentBlur
+        }
         transform: [
-            Scale { origin.x: row.width / 2; xScale: root.contentScale },
-            Translate { y: root.contentSink }
+            Scale {
+                origin.x: row.width / 2
+                origin.y: row.height / 2
+                xScale: root.contentScale * root.contentZoom
+                yScale: root.contentZoom
+            },
+            Translate { x: root.contentShiftX; y: root.contentSink }
         ]
         onChildrenChanged: root.arrange()
     }

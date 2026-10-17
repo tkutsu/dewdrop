@@ -42,6 +42,11 @@ ShellRoot {
             check(Launcher.index === 1 && rows[1].glyph === Theme.glyph.paused && rows.filter(row => row.glyph).length === 1, "only the current track has a playback icon");
             check(Library.reads === 0, "queue browsing does not load the library");
             check(LauncherMusic.coverDir === "/music/album/", "queue selections show their artwork directory");
+            Mpd.musicDir = "";
+            check(LauncherMusic.coverDir === "", "queue artwork stays unavailable without MPD's directory");
+            Mpd.musicDir = "/changed music/";
+            check(LauncherMusic.coverDir === "/changed music/album/", "queue artwork follows MPD's directory");
+            Mpd.musicDir = "/music/";
             check(!LauncherMusic.activate(Launcher.selected, "queue") && Mpd.state === "pause", "activating the playing row pauses and keeps the launcher open");
             check(rows[1].glyph === Theme.glyph.playing && rows.filter(row => row.glyph).length === 1, "only the paused current track shows the play icon");
             check(!LauncherMusic.activate(Launcher.selected, "queue") && Mpd.commands.join(",") === "pause,resume", "play resumes the paused current track");
@@ -157,6 +162,7 @@ def main():
                 function noteRow(glyph, title) { return {kind: "note", glyph, title}; }
                 onQueryChanged: LauncherMusic.route(query.startsWith("#"), classifyQuery(query).text)''',
             "Mpd": '''property bool connected: false
+                property string musicDir: "/music/"
                 property bool starting: false
                 property var queue: []
                 property int songPos: -1
@@ -182,7 +188,7 @@ def main():
         for name, body in mocks.items():
             (services / f"{name}.qml").write_text("pragma Singleton\nimport QtQuick\nimport qs.services\nQtObject {\n" + body + "\n}\n")
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { readonly property var glyph: ({playing: "play", paused: "pause", track: "track", playlist: "playlist"}) }\n')
-        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { readonly property string musicDir: "/music/" }\n')
+        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject {}\n')
         (target / "shell.qml").write_text(SHELL)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
                                 capture_output=True, text=True, timeout=5)

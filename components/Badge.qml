@@ -1,7 +1,7 @@
 import QtQuick
 import qs
 
-// The count that sits on an icon's top right corner: a disc of the workspace
+// A count or attention dot on an icon's top right corner. Counts use the workspace
 // mark's glass, made solid (Theme.badgeBg) over its own pill, with a white number. It grows into a pill rather than staying round, because "20" and "99"
 // have to fit the same badge a "2" does.
 //
@@ -15,6 +15,8 @@ Item {
     id: root
 
     property alias text: label.text
+    property bool dot: false
+    property int dotSize: Theme.badgeDotSize
     property color fill: Theme.badgeBg(root)
     // A single digit fills the disc. Past that the badge becomes a capsule,
     // and a capsule wants more air at its ends than a disc does round its
@@ -30,15 +32,16 @@ Item {
         was = now;
     }
 
-    implicitWidth: Math.max(Theme.badgeSize, Math.ceil(label.implicitWidth) + pad * 2)
-    implicitHeight: Theme.badgeSize
+    implicitWidth: dot ? dotSize : Math.max(Theme.badgeSize, Math.ceil(label.implicitWidth) + pad * 2)
+    implicitHeight: dot ? dotSize : Theme.badgeSize
 
     Rectangle {
         anchors.fill: parent
         radius: height / 2
-        color: root.fill
+        color: root.dot ? Qt.rgba(1, 1, 1, 0.7) : root.fill
 
         Rim {
+            visible: !root.dot
             anchors.fill: parent
             radius: parent.radius
             topColor: Theme.markRimTop
@@ -47,6 +50,7 @@ Item {
 
     RollingText {
         id: label
+        visible: !root.dot
         columns: 3
         anchors.horizontalCenter: parent.horizontalCenter
         // An eight-row figure in a thirteen-row disc, left where it falls:

@@ -10,6 +10,8 @@ Item {
 
     property alias source: image.source
     property alias status: image.status
+    // Fading variants share one reference so opacity never changes their geometry.
+    property string layoutSource: image.source
     // How large the artwork is asked to be drawn...
     property int size: Theme.iconSize
     // ...and how much room the item takes, which stays put so a row of icons
@@ -31,7 +33,7 @@ Item {
     // at all. Nothing else restarts it — the answer resizes the thing it was
     // measured from, so a probe that re-ran on every change would chase its own
     // tail down to nothing.
-    readonly property string measureKey: root.ink > 0 ? String(image.source) : ""
+    readonly property string measureKey: root.ink > 0 ? root.layoutSource : ""
     readonly property real extent: root.measureKey ? Ink.extentOf(root.measureKey) : 0
 
     // Measured on a copy in Ink's own window, at the size it is asked for here

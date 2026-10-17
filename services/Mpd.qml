@@ -51,11 +51,10 @@ Singleton {
     // anything reading it has this one moment to note where it was.
     signal queueChanging
 
-    // mpd's music_directory, so a song's relative path can be turned into the
-    // album's directory. Album art over the protocol means readpicture/albumart
-    // binary chunks; the file sitting next to the music is the same picture.
-    readonly property string musicDir: Settings.musicDir
-    readonly property string albumDir: file ? musicDir + file.slice(0, file.lastIndexOf("/") + 1) : ""
+    // MPD's config reply supplies the local root for artwork and song files.
+    property string musicDirectory: ""
+    readonly property string musicDir: root.musicDirectory.startsWith("/") ? root.musicDirectory.replace(/\/+$/, "") + "/" : ""
+    readonly property string albumDir: musicDir && file && !file.includes("://") ? musicDir + file.slice(0, file.lastIndexOf("/") + 1) : ""
 
     // Found by listing the directory rather than by trying each candidate name
     // as an image source: a miss there is a failed file open per name, logged.
@@ -332,15 +331,16 @@ Singleton {
         id: cmdLink
         path: Settings.mpdSocket
         active: link.connected
+        onConnectedChanged: if (!cmdLink.connected) root.musicDirectory = ""
 
-        // Nothing here asks a question, so every reply is an OK to be dropped
-        // — except the greeting, which is the moment to send what was typed
-        // while the link was down, and the ACK that says a command was
-        // refused, which is worth a line in the log rather than a queue that
-        // quietly did not change.
+        // Read config once per connection; command replies otherwise need
+        // only their errors reported. A refused config never blocks playback.
         onLine: line => {
-            if (line.startsWith("OK MPD"))
+            if (line.startsWith("OK MPD")) {
+                cmdLink.write("config\n");
                 root.flush();
+            } else if (line.startsWith("music_directory: "))
+                root.musicDirectory = line.slice("music_directory: ".length);
             else if (line.startsWith("ACK"))
                 console.warn("mpd refused:", line);
         }

@@ -34,6 +34,8 @@ Row {
     property color color: Theme.fg
     property int fontSize: Theme.textSize
     property int weight: Theme.bodyWeight
+    // Trim only the run's outer edges; keep the internal character advances.
+    property bool tightWidth: false
     // Smaller character ranges share the full-size text's baseline.
     property var smallRanges: []
     readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize * 2 / 3))
@@ -150,6 +152,8 @@ Row {
                 nudge: column.small ? root.smallNudge : 0
                 weight: root.weight
                 text: column.shown
+                trimLeft: root.tightWidth && column.index === root.text.length - 1
+                trimRight: root.tightWidth && column.index === 0
                 color: root.color
                 y: -column.travel * (1 - column.b)
                 scale: root.smallest + (1 - root.smallest) * column.g
@@ -180,6 +184,8 @@ Row {
                 nudge: column.small ? root.smallNudge : 0
                 weight: root.weight
                 text: column.was
+                trimLeft: root.tightWidth && column.index === root.text.length - 1
+                trimRight: root.tightWidth && column.index === 0
                 color: root.color
                 y: column.travel * column.b
                 scale: 1 - (1 - root.smallest) * column.g
