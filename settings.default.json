@@ -29,10 +29,6 @@
     // and expanded groups have no count badge.
     "groupWindowBadges": false,
 
-    // Draw the screenshot button's corner frame round collapsed app groups in
-    // the left pill, so a group reads apart from a single window.
-    "groupWindowFrames": false,
-
     // Drag modules between the central and right pills, or within a pill to
     // reorder them. Moving to the right pins the module; Drawer settings can
     // return it to Auto or keep it behind the chevron, in either pill.

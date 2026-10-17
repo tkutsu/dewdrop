@@ -255,11 +255,6 @@ Singleton {
     // touch.
     readonly property real focusDotClearance: 1.5
 
-    // The corners drawn round a collapsed app group (glyph.groupFrame,
-    // Settings.groupWindowFrames). At 22 they clear the icon's 13px ink and
-    // the focus dot sits between the lower two.
-    readonly property int groupFrameSize: 22
-
     // The pin mark on a pinned module's lower right corner, shown while the
     // drawer is open: the count badge's disc, with a pin in place of the
     // number.
@@ -784,7 +779,6 @@ Singleton {
         satty: "\u{f0d5d}",           // nf-md-camera_outline
         wallpaper: "\u{f0e09}",
         window: "\u{f4c3}",           // workspace taskbar fallback
-        groupFrame: "\u{f13d8}",      // nf-md-scan_helper, round a collapsed group
 
         idleOn: panel("caffeine-cup-full"),
         idleOff: panel("caffeine-cup-empty"),
