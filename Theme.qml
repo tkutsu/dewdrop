@@ -234,8 +234,9 @@ Singleton {
     // Drawings in glyph slots share the artwork's visible target (see Glyph).
     readonly property real glyphInk: 13 / 20
 
-    // The count badge on a module's glyph (BadgedGlyph): unread mail, updates.
+    // Corner indicators on module glyphs: a count badge or a small dot.
     readonly property int badgeSize: 13
+    readonly property int badgeDotSize: 5
     // 10 rather than 9: at 9 a figure's ink came out half a pixel right of
     // the disc's middle (a 3 by 0.4px), at 10 it lands within a fifth of one.
     readonly property int badgeTextSize: 10
@@ -531,7 +532,7 @@ Singleton {
                 y += p.y;
             }
             if (p.surface !== undefined) {
-                ground = area && p.backdrop?.columns?.length
+                ground = area && p.backdrop?.sampled
                     ? glassOver(p.backdrop.averageRegion(Qt.rect(x - p.backdrop.x, y - p.backdrop.y, area.width, area.height)))
                     : p.surface;
                 break;
@@ -644,7 +645,7 @@ Singleton {
     // out (Bar.drop). Longer than a fold: it is three moves in a row, the
     // contents going, the pill rounding up and the drop travelling in, and
     // each of them needs time enough to read as a move of its own.
-    readonly property int dropMs: 670
+    readonly property int dropMs: 650
 
     // Stiffness shared by the pill and selection springs; each uses its own damping.
     readonly property real springStiffness: reduceMotion ? calmSpring : 2.5
@@ -840,6 +841,8 @@ Singleton {
         // The ringing one is the same face with a mark on it: at bar size a
         // separate "it went off" icon reads as a different module appearing.
         timer: "\u{f051b}",           // nf-md-timer_outline
+        calendar: "\u{f00ed}",        // nf-md-calendar
+        weather: "\u{f0599}",         // nf-md-weather_sunny
         timerPaused: "\u{f1adf}",     // nf-md-timer_pause_outline
         timerRing: "\u{f1acd}",       // nf-md-timer_alert_outline
         alarm: "\u{f0020}",           // nf-md-alarm

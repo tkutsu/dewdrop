@@ -13,6 +13,8 @@ Item {
     id: root
 
     property string text
+    // Optional shared geometry for drawings whose parts differ only in opacity.
+    property string layoutSource: ""
     property int fontSize: Theme.glyphSize
     property color color: Theme.fg
     property color inkColor: Theme.barInk(root, root.color)
@@ -37,13 +39,15 @@ Item {
     // Off `text` itself rather than `drawing`: this runs from onTextChanged,
     // which can come before that binding has heard of the new text.
     function settle() {
-        if (!root.text.startsWith("file:") || Ink.extentOf(root.text) > 0)
+        const source = root.layoutSource || root.text;
+        if (!root.text.startsWith("file:") || Ink.extentOf(source) > 0)
             root.shown = root.text;
         else
-            Ink.measureIcon(root.text, root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize));
+            Ink.measureIcon(source, root.text.endsWith("#em") ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize));
     }
 
     onTextChanged: settle()
+    onLayoutSourceChanged: settle()
     Component.onCompleted: settle()
 
     Connections {
@@ -90,6 +94,7 @@ Item {
 
         sourceComponent: FittedIcon {
             source: root.shownDrawing ? root.shown : ""
+            layoutSource: root.layoutSource || source
             // A cut from the font stays at the font size rather than fitting its ink.
             size: root.fontCut ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
             box: size

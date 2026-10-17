@@ -15,9 +15,11 @@ Item {
     readonly property bool overflowing: visible && width > 0 && overflow > 0
     readonly property bool scrolling: active && !paused && overflowing
     property real offset: 0
+    // Extra travel lets a contracting media pill draw text behind its icon.
+    property real travel: 0
     // Pausing motion still leaves overflowing text clipped at the edges.
-    readonly property real leftFade: active && overflowing ? Math.min(16, width / 2, offset) : 0
-    readonly property real rightFade: active && overflowing ? Math.min(16, width / 2, overflow - offset) : 0
+    readonly property real leftFade: (active || travel > 0) && overflowing ? Math.min(16, width / 2, offset + travel) : 0
+    readonly property real rightFade: (active || travel > 0) && overflowing ? Math.max(0, Math.min(16, width / 2, overflow - offset - travel)) : 0
 
     implicitWidth: maxWidth > 0 ? Math.min(contentWidth, maxWidth) : contentWidth
     clip: true
@@ -46,7 +48,7 @@ Item {
 
     Item {
         id: line
-        x: -root.offset
+        x: -root.offset - root.travel
         width: root.contentWidth
         height: root.height
     }

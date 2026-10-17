@@ -19,9 +19,12 @@ def main():
         for name in ("slot", "words", "rolling", "name", "hold"):
             countdown = countdown.replace(f"id: {name}\n", f'id: {name}\n            objectName: "{name}"\n')
         (target / "Countdown.qml").write_text(countdown)
+        (target / "components/Marquee.qml").write_text((ROOT / "components/Marquee.qml").read_text())
+        (target / "shaders").mkdir()
+        (target / "shaders/query-edge.frag.qsb").write_bytes((ROOT / "shaders/query-edge.frag.qsb").read_bytes())
         (target / "components/ClickArea.qml").write_text((ROOT / "components/ClickArea.qml").read_text())
         (target / "components/PressGlass.qml").write_text('''import QtQuick
-QtObject { required property Item icon; required property var area; property bool down: false; property real scale: 1 }
+QtObject { required property Item icon; required property var area; property bool down: false; property bool textPress: false; property real scale: 1 }
 ''')
         (target / "components/TimerPopup.qml").write_text('import QtQuick\nItem { property bool morphs: false }\n')
         (target / "components/BarItem.qml").write_text('''import QtQuick
@@ -29,7 +32,8 @@ import QtQuick.Layouts
 ClickArea {
     signal scrollUp
     signal scrollDown
-    property bool stowed: false; property bool folds: false; property bool dips: false
+    property bool stowed: false; property bool exitHeld: false; property bool folds: false; property bool dips: false
+    property bool textPress: false
     property bool contentAnimating: false; property real reveal: 1
     property Component popup: null; property int popupButton: Qt.NoButton
     property bool popupOpen: false; function togglePopup() {}
@@ -44,6 +48,8 @@ Text { property int maxWidth: 300; font.pixelSize: 16; verticalAlignment: Text.A
 ''')
         (target / "components/RollingText.qml").write_text('import QtQuick\nText { property bool countsDown: false; property var smallRanges: []; font.pixelSize: 16 }\n')
         (target / "components/Glyph.qml").write_text('import QtQuick\nText { property int fontSize: 16; font.pixelSize: fontSize }\n')
+        (target / "components/BadgedGlyph.qml").write_text('import QtQuick\nText { property alias glyph: icon.text; property int glyphSize: 16; property string badge: ""; property bool dot: false; property bool underdot: false; id: icon; font.pixelSize: glyphSize }\n')
+        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function badgeStyle(key) { return "badge"; } }\n')
         (target / "components/Bounce.qml").write_text('import QtQuick\nQtObject { property bool running: false; property int periodMs: 1000; property real offset: 0 }\n')
         (target / "Theme.qml").write_text('''pragma Singleton
 import QtQuick
@@ -57,7 +63,7 @@ QtObject {
         (target / "services/Timers.qml").write_text('''pragma Singleton
 import QtQuick
 QtObject {
-    property bool loaded: true; property var ringing: []; property var focus: null
+    property bool loaded: true; property var entries: []; property var ringing: []; property var focus: null
     property var nextAlarm: null; property real progress: 0.5; property int beatMs: 1000
     property string glyph: "T"; property string label: "00:30"
     property int hushes: 0; property int toggles: 0; property int cancellations: 0

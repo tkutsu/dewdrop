@@ -21,7 +21,7 @@ def main():
         components.mkdir(exist_ok=True)
         services.mkdir(exist_ok=True)
         source = (ROOT / "components/WeatherPopup.qml").read_text()
-        for name in ("reel", "outgoing", "incoming", "slide", "daily", "current"):
+        for name in ("reel", "outgoing", "incoming", "slide", "daily", "dailyIcons", "current", "currentSky"):
             source = source.replace(f"id: {name}\n", f'id: {name}\n        objectName: "{name}"\n')
         (components / "WeatherPopup.qml").write_text(source)
         for name in ("WeatherGraph.qml", "PopupText.qml", "PopupRow.qml"):
@@ -210,7 +210,14 @@ ShellRoot {
                 Weather.location = {label: "Fixture", latitude: 0, longitude: 0, timezone: "UTC"};
                 Weather.now = 10000;
                 Weather.updatedAt = 10000;
-                Weather.days = [day("2026-10-08", 0, 20), day("2026-10-09", 86400, 40), day("2026-10-10", 172800, 15)];
+                const forecast = [day("2026-10-08", 0, 20), day("2026-10-09", 86400, 40), day("2026-10-10", 172800, 15)];
+                forecast[0].icon = "\\u{f0599}";
+                forecast[0].description = "Clear";
+                forecast[0].severeIcon = "\\u{f0597}";
+                forecast[0].severeDescription = "Rain";
+                forecast[0].hours[2].icon = "\\u{f0591}";
+                forecast[1].icon = forecast[1].severeIcon = "\\u{f0590}";
+                Weather.days = forecast;
                 popup.choosing = false;
                 wait(60);
                 const reel = named(popup, "reel");
@@ -218,6 +225,14 @@ ShellRoot {
                 midnightLines(named(reel, "outgoing"));
                 const current = named(popup, "current");
                 check(current.text === "20°", "header leads with the current temperature");
+                const firstDay = named(popup, "daily", 0);
+                const icons = named(firstDay, "dailyIcons");
+                const pair = icons.children.filter(child => child.text !== undefined);
+                check(pair.length === 2 && pair[0].text === forecast[0].icon && pair[1].text === forecast[0].severeIcon, "daily icons put predominant daylight first and most severe second");
+                check(icons.width <= firstDay.width && icons.x >= 0, "both daily icons fit inside their day");
+                const matching = named(named(popup, "daily", 1), "dailyIcons");
+                check(matching.children.filter(child => child.text !== undefined).length === 1, "matching daily conditions show one icon");
+                check(named(popup, "currentSky").text === "\\u{f0591}", "current-hour fog stays separate from the daily rain icon");
                 Weather.feelsLike = true;
                 wait(40);
                 check(current.text === "18°", "header switches to feels like");

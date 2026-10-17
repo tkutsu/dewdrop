@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
@@ -92,7 +93,9 @@ PanelWindow {
 
     OutsideClick {
         id: outside
-        enabled: root.shown && root.dismissOnOutsidePress
+        // Qt reparents dropdown menus into its overlay, outside inputItem's
+        // hover tree. Let an open menu handle its own selection and dismissal.
+        enabled: root.shown && root.dismissOnOutsidePress && !root.inputItem.Controls.Overlay.overlay?.visible
         inside: pointer.hovered
         onReleased: Qt.callLater(() => {
             if (root.shown)

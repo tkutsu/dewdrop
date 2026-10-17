@@ -469,6 +469,7 @@ Singleton {
     // same picture for the cost of a directory listing, which is the trade
     // Mpd.cover already makes for what is playing.
     function coverDir(kind, at) {
+        if (!Mpd.musicDir) return "";
         let file = "";
         if (kind === "track") {
             file = root.tracks[at].file;

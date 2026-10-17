@@ -10,6 +10,8 @@ My Hyprland bar, launcher, notifications and popups, written for [Quickshell](ht
 - One icon per app on each workspace, drag a window to another workspace, scroll to switch
 - Popups grow from their item and switch on hover once one is open; the arrows walk an open popup, Return presses, Escape closes
 - Quiet modules fold into a drawer; pin any of them from settings or with a middle click
+- Drag modules to reorder them or move them between the central and right pills, keeping at least one in the centre. Settings > Bar controls their visibility.
+- Paused MPD and MPRIS players collapse to a music note or app icon beside the clock; click to expand them again
 - Wallpaper pans as you change workspace; the window border takes its colour
 - Settings window with search, including macOS's Reduce motion and Reduce transparency
 - Power menu: sleep, restart, shut down, log out, kill a window
@@ -50,18 +52,25 @@ The more of a time a `,` line gives, the bigger the thing it makes. Events last 
 
 Right-clicking a day in the calendar opens the launcher with that day typed in.
 
+Cancelling a named alarm also removes the Google Calendar event created with it.
+Turning the alarm off or dismissing it after it rings keeps the event. This link
+is saved for new alarms; alarms created before this feature keep their events.
+If Calendar cannot remove the event, QS shows a notification; remove it in Calendar.
+
 Paths also select file mode automatically. Names starting with `_` try windows first.
 HTML/XHTML files open in the default application; other text files open in the editor.
-Settings > Launcher > Desktop actions shows or hides all app shortcuts together. They start hidden.
+File search includes hidden and Git-ignored files, while respecting `.ignore` files and the optional ignore file in Settings > Launcher > File Search.
+Settings > Launcher > Desktop Actions shows or hides all app shortcuts together. They start hidden.
 
 ### Built in
 
 - Notification server, with a notification centre
-- Timers and repeating alarms, with optional Pushover phone alerts
+- Timers and repeating alarms, with optional local Android phone alerts
 - Google Tasks, Calendar agenda
 - Gmail's unread (the whole inbox, or the tabs picked in settings), cleared from the popup: archive, mark read and star on every row or by swiping it, each undoable for a few seconds; login codes to copy, attachments to save, unsubscribe, mail to task; a notification for each new mail
-- Weather (Open-Meteo, no account)
+- Weather (Open-Meteo, no account), with an hourly forecast and a seven-day outlook showing the predominant daylight condition and a second icon when the worst condition differs
 - MPD player with cover, seek and an editable queue
+- Now Playing for browsers and other MPRIS apps, with an app icon, play/pause and scroll to seek; hide it in Settings > Apps & Services > Music
 - Audio output and per-app volume
 - Recording indicator: while an app uses a microphone or shares the screen, a pill with a red dot comes out of the right pill; its popup mutes an app's mic or stops the share
 - Wi-Fi and Bluetooth
@@ -99,6 +108,12 @@ qs
 
 On first run the shell copies `settings.default.json` to `settings.json`. Change settings with the gear in the bar or by editing `settings.json`, which is picked up on save. Every setting is explained in `settings.default.json`.
 
+## Icons
+
+Dewdrop does not require Themis. The SVGs used for its own controls are bundled in `icons/`; other interface glyphs use Symbols Nerd Font. Application icons in the left bar and application and file icons in the launcher come from desktop entries and your active system icon theme. They are not bundled. Missing icons fall back to a generic glyph.
+
+For a matching monochrome look, install [Themis Icons](https://github.com/tkutsu/themis-icons) and select `themis` as your Qt icon theme. It completes the theme visually, especially in the left bar and launcher, but other icon themes work too.
+
 ## Optional features
 
 Each of these turns on when its tools are installed. Without them the rest of the shell keeps working.
@@ -110,17 +125,32 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Drives | UDisks2 (`udisksctl`), UPower |
 | Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket` |
 | Launcher file search | `fd` |
+| File previews | `file`; `pdftoppm` (poppler) for PDFs, `ffmpeg` for videos, LibreOffice (`soffice`) for office documents. ImageMagick handles additional image formats. Missing renderers leave a generic icon. |
 | Calculator | `qalc` |
 | Clipboard history | `cliphist`, `wl-clipboard`, and `wl-paste --watch cliphist store` running in your session |
 | Package updates | Arch only: `checkupdates` (pacman-contrib) and `yay` |
 | GPU stats | NVIDIA only: `nvidia-smi` |
 | Weather | Python 3, no account needed |
 | Google Tasks, Calendar, Gmail | Your own Google Cloud OAuth client. Run `scripts/gtasks-auth` once, or press reconnect in any of their popups. |
-| Phone alarms | A Pushover app. Put `{"token": "...", "user": "..."}` in `~/.local/share/quickshell/pushover.json`. |
+| Phone alarms | Android Automate and Python 3. Direct home Wi-Fi delivery; follow the [Automate setup tutorial](automate-setup.md). See [phone-alarms.md](phone-alarms.md) for configuration and protocol details. |
 
 ## Scripts outside this repo
 
-Some actions run scripts from `scriptsDir` (`~/_scripts` by default): `power.sh` for the power menu, `display.sh` for brightness and night mode, `thumb.sh` for file previews, `taskbar-satty.sh` for screenshots, and `taskbar-update.sh` for updates. They are not published yet. Gmail and Calendar use `pwa-gmail.sh` and `pwa-gcalendar.sh` when you have them and open in your browser when you do not.
+Power, display, update and cleanup actions still use external helpers from `scriptsDir` (`~/_scripts` by default). File previews use the bundled `scripts/thumb.sh`.
+
+The update and cleanup runner opens a new dropdown pane, starting the dropdown when needed. It waits about five seconds for the control socket, then falls back to a regular Kitty window if the dropdown is unavailable.
+
+Settings > Apps & Services > Screenshots accepts a shell command. The bar adds no arguments and expects no output; the tool handles selection, editing, saving and the clipboard. An empty command hides the screenshot button. Settings > Launcher > File Search accepts an optional fd ignore file, which can also be shared with a terminal file picker.
+
+Gmail, Google Calendar and Google Tasks open their installed Chromium PWAs when available, or their websites otherwise. Their sections in Settings > Apps & Services let you choose another installed app or always use the website. Mail also has its attachment folder; External Helpers has the scripts folder. Settings > Appearance has fonts and the wallpaper folder. Parallax zoom stays in the wallpaper popup. The music directory is read directly from MPD when it connects.
+
+### TODO: Remaining external helpers
+
+- [ ] Bundle power actions and the blackout shader while preserving the external session-save command.
+- [ ] Bundle display control with settings for the monitor bus and colour temperatures, keeping keyboard shortcuts on the same implementation.
+- [ ] Bundle the updater and terminal runner, including dropdown detection; keep Arch and Kitty dependencies explicit.
+- [ ] Add a configurable external cleanup command for machine-specific maintenance.
+- [ ] Point the remaining Google setup hint at the bundled `scripts/gtasks-auth`.
 
 ## License
 

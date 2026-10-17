@@ -62,6 +62,7 @@ Item {
         id: press
         icon: body
         area: tap
+        textPress: true
         down: root.name !== "" && tap.pressed
     }
 

@@ -141,16 +141,11 @@ Popup {
         ReconnectButton {}
         RetryButton { service: Tasks }
 
-        // There is no Google Tasks app here, so the page (as the bar's right
-        // click opens it).
         PopupButton {
             framed: true
             glyph: Theme.glyph.openApp
             name: "Open Google Tasks"
-            onTapped: {
-                OpenPopup.dismiss();
-                Quickshell.execDetached(["xdg-open", "https://tasks.google.com/"]);
-            }
+            onTapped: Tasks.openApp()
         }
     }
 

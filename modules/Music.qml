@@ -17,22 +17,41 @@ import qs.services
 BarItem {
     id: root
 
-    // For the pill around it, which is this module and nothing else and so
-    // is drawn into its neighbour with it when there is nothing to play: the
-    // bar draws the pill off `reveal` (see Bar.drop), and nothing folds.
-    stowed: !Mpd.loaded
+    // A paused player rests in the clock pill until its note is pressed.
+    // Keep that choice until playback changes or the queue goes away.
+    readonly property bool paused: Mpd.loaded && Mpd.state === "pause"
+    property bool expanded: false
+    onPausedChanged: expanded = false
+
+    // Reveal the controls immediately while mpd acknowledges the resume.
+    function expand() {
+        if (!root.paused)
+            return;
+        root.expanded = true;
+        Mpd.toggle();
+    }
+
+    // The bar draws the pill into its neighbour off `reveal` (Bar.drop).
+    stowed: (!Mpd.loaded || (paused && !expanded)) && !exitHeld
     folds: false
 
-    // And the popup goes with it: mpd put down from the popup's own quit
-    // button, or the queue emptied, would otherwise leave it hanging from a
-    // pill that is no longer there.
-    onStowedChanged: if (stowed)
+    // Pause closes immediately. On unload the side pill closes the popover
+    // and holds the empty capsule until it is ready to leave.
+    onStowedChanged: if (stowed && (Mpd.loaded || !root.pill?.closeWhenEmpty))
         OpenPopup.close(root)
 
     // Whether a change is run rather than set: only for a pill at rest. One
     // arriving or leaving is drawn off its width at rest (see Bar.drop), and
     // its contents are hidden anyway.
     readonly property bool settled: reveal >= 1
+    readonly property bool sliding: pill?.slidesContent ?? false
+    readonly property real glassWidth: sliding ? pill.foldBox.z : width
+    readonly property real glassLeft: sliding ? pill.foldBox.x : 0
+    readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - note.width) / 2))
+    readonly property real titleLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
+    readonly property bool iconInCentre: reveal <= 0 || (sliding
+        ? glassLeft + iconInset >= pill.width + Theme.pillSpread
+        : reveal <= 0.3)
 
     // And for the outline it draws: how far through the track we are. Held
     // like the title below, so the line fades with the pill rather than
@@ -195,12 +214,30 @@ BarItem {
     // to a hover is the pill answering, not a new title arriving — and the
     // pill's edge passes over the glyph, which stays put beside the title. Its tap is off while folded, where the glyph sits
     // out past the pill's edge.
-    MediaStep {
-        id: previousStep
-        previous: true
-        open: root.handsOut
-        settled: root.settled
-        onTriggered: Mpd.prev()
+    Item {
+        id: leading
+        Layout.fillHeight: true
+        implicitWidth: Math.max(note.implicitWidth + Theme.mediaGap, previousStep.implicitWidth)
+        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
+
+        MediaStep {
+            id: previousStep
+            width: implicitWidth
+            height: parent.height
+            previous: true
+            open: root.handsOut && root.settled
+            settled: root.settled
+            onTriggered: Mpd.prev()
+        }
+
+        Glyph {
+            id: note
+            scale: root.sliding ? root.pill.iconScale : 1
+            height: parent.height
+            text: Theme.glyph.track
+            visible: !root.sliding || !root.iconInCentre
+            opacity: root.settled ? 1 - previousStep.opacity : 1
+        }
     }
 
     RowLayout {
@@ -217,7 +254,7 @@ BarItem {
 
         MediaStep {
             id: nextStep
-            open: root.handsOut
+            open: root.handsOut && root.settled
             settled: root.settled
             onTriggered: Mpd.next()
         }
@@ -234,11 +271,17 @@ BarItem {
             Layout.fillHeight: true
             implicitWidth: title.implicitWidth
             scale: titlePress.scale
+            transform: Translate {
+                x: root.sliding && !root.settled
+                    ? root.glassLeft + root.iconInset - root.padLeft
+                        + note.width + Theme.mediaGap - leading.width - nextStep.width : 0
+            }
 
             PressGlass {
                 id: titlePress
                 icon: titleRoom
                 area: popupTap
+                textPress: true
             }
 
             Accessible.role: Accessible.Button
@@ -266,13 +309,14 @@ BarItem {
             Marquee {
                 id: title
 
-                width: Math.min(implicitWidth, titleRoom.width)
+                width: Math.max(0, Math.min(implicitWidth, titleRoom.width - root.titleLoss))
                 height: parent.height
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
                 contentWidth: titleText.implicitWidth
-                active: Settings.scrollMusicTitles && !Theme.reduceMotion && root.settled
-                paused: root.contentAnimating
+                active: Settings.scrollMusicTitles && !Theme.reduceMotion
+                paused: root.contentAnimating || !root.settled
+                travel: root.titleLoss
                 opacity: root.titleMix
 
                 BarText {
@@ -284,12 +328,12 @@ BarItem {
             }
 
             BarText {
-                width: Math.min(implicitWidth, titleRoom.width)
+                width: Math.max(0, Math.min(implicitWidth, titleRoom.width - root.titleLoss))
                 height: parent.height
                 clip: true
                 text: root.outgoingLabel
                 maxWidth: Theme.mediaTitleWidth
-                visible: root.titleMix < 1 && text !== ""
+                visible: root.settled && root.titleMix < 1 && text !== ""
                 opacity: 1 - root.titleMix
             }
         }
@@ -304,6 +348,8 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: play.implicitWidth + Theme.mediaGap
         scale: playPress.scale
+        opacity: root.sliding ? pill.geometry.contents(root.reveal) : 1
+        transform: Translate { x: root.glassLeft + root.glassWidth - (root.pill?.width ?? root.width) }
 
         PressGlass {
             id: playPress

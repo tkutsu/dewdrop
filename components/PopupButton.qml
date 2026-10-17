@@ -111,6 +111,7 @@ Item {
         id: press
         icon: content
         area: tap
+        textPress: root.label !== ""
         down: root.pressFeedback && root.live && tap.pressed
     }
 }

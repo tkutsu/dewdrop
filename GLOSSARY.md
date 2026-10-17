@@ -155,7 +155,7 @@ A timed or all-day entry in the agenda. An event spanning several local calendar
 _Avoid_: Task, alarm
 
 **Event (from the launcher)**:
-An hour-long calendar event on the primary calendar, made from a `,` line that gives a day and a clock time (`, fri 15:00 call bank`), or alongside an alarm when the line starts with a clock time and has a title. An alarm's event has no reminders of its own, and the two are independent once made.
+An hour-long calendar event on the primary calendar, made from a `,` line that gives a day and a clock time (`, fri 15:00 call bank`), or alongside an alarm when the line starts with a clock time and has a title. An alarm's linked event has no reminders of its own and is removed when the alarm is cancelled; turning the alarm off or dismissing its ring keeps the event.
 _Avoid_: Timed task (Google Tasks keeps no time of day)
 
 ### Timers and alarms

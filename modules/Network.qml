@@ -44,6 +44,7 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: Network.icon
+        layoutSource: root.cone ? Theme.glyph.wifiStrength[4] : text
         fontSize: Theme.trayGlyphSize
         nudge: root.cone ? -1 : 0
     }

@@ -22,6 +22,12 @@ GoogleService {
 
     onFetch: root.fetchLists()
 
+    // Use the installed Google Tasks PWA, with the site as a fallback.
+    function openApp(): void {
+        OpenPopup.dismiss();
+        Quickshell.execDetached(Settings.webApp("tasks", "", "https://tasks.google.com/"));
+    }
+
     // --- state ---------------------------------------------------------------
     property var lists: []
     property var tasks: []
@@ -544,7 +550,7 @@ GoogleService {
     //   3. anything else: a task, with its day and task list (parse).
     // Times come from TimersParse.js and days from readDay, so "9:30", "9pm"
     // and "21:30" mean the same here as for alarms, and a bare "9" stays a
-    // nine-minute timer: "fri 9 x" is a task due Friday. See calendar-events.md.
+    // nine-minute timer: "fri 9 x" is a task due Friday.
     function plan(text: string): var {
         const typed = (text ?? "").trim();
         const timer = Timers.parse(typed);
@@ -576,6 +582,18 @@ GoogleService {
         return { title: title, start: start, end: new Date(start.getTime() + 3600000), reminders: reminders };
     }
 
+    // Remember cancellation while Google is still creating an alarm's event.
+    property var pendingAlarmEvents: ({})
+
+    Connections {
+        target: Timers
+        function onCancelled(entry: var): void {
+            const pending = root.pendingAlarmEvents[entry.id];
+            if (pending)
+                pending.cancelled = true;
+        }
+    }
+
     // What the line makes, said once it is done. The one entry point the
     // launcher and the IPC both use.
     function run(text: string): string {
@@ -585,11 +603,22 @@ GoogleService {
         if (p.kind === "timer")
             return Timers.run(text);
         if (p.kind === "alarm") {
-            const said = Timers.run(text);
+            const t = p.timer;
+            const id = Timers.addAlarm(t.hour, t.minute, t.label, []);
+            const said = `Alarm set for ${Timers.hhmm(t.hour, t.minute)}`;
             // Without the calendar the alarm still rings; the launcher said so.
             if (!p.event || Google.needsConsent)
                 return said;
-            Agenda.insert(p.event);
+            const pending = { cancelled: false };
+            root.pendingAlarmEvents[id] = pending;
+            Agenda.insert(p.event, saved => {
+                delete root.pendingAlarmEvents[id];
+                const event = { id: saved.id, title: p.event.title, start: p.event.start.getTime() };
+                if (pending.cancelled)
+                    Agenda.remove(event);
+                else
+                    Timers.linkEvent(id, event);
+            }, () => { delete root.pendingAlarmEvents[id]; });
             return `${said}, and an event`;
         }
         if (p.kind === "event") {

@@ -7,6 +7,7 @@ import math
 import os
 import tempfile
 import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError
@@ -17,6 +18,8 @@ from zoneinfo import ZoneInfo
 
 # km/h, where the six-hour summary starts saying "Strong winds".
 WINDY = 39
+# Refetch forecasts cached before the thick-fog display threshold.
+CACHE_VERSION = 3
 
 
 def condition(code, daylight=True):
@@ -47,15 +50,50 @@ def number(value):
     return value if isinstance(value, (int, float)) and math.isfinite(value) else None
 
 
+def visible_code(code, visibility, cloud_cover):
+    """Show only provider-confirmed thick fog, with visibility below 200 m."""
+    if code not in (45, 48):
+        return code
+    if visibility is not None and 0 <= visibility < 200:
+        return code
+    # Thin or unverified fog gives way to the forecast sky condition.
+    if cloud_cover is None or not 0 <= cloud_cover <= 100:
+        return -1
+    return 0 if cloud_cover <= 20 else 2 if cloud_cover <= 80 else 3
+
+
+def day_conditions(hours):
+    """Pair predominant daylight weather with the worst corrected hourly condition."""
+    known = [hour for hour in hours if hour["severity"] >= 0]
+    daylight = [hour for hour in known if hour["isDay"]] or known
+    if not known:
+        description, icon, _ = condition(-1)
+        return {"description": description, "icon": icon, "severeDescription": description, "severeIcon": icon}
+    counts = Counter(hour["description"] for hour in daylight)
+    predominant = max(daylight, key=lambda hour: (counts[hour["description"]], hour["severity"]))
+    severe = max(known, key=lambda hour: hour["severity"])
+    return {
+        "description": predominant["description"], "icon": condition(predominant["code"])[1],
+        "severeDescription": severe["description"], "severeIcon": condition(severe["code"])[1],
+    }
+
+
 def normalize(body):
     """Group hourly epochs by local calendar date, including DST transitions."""
     zone = ZoneInfo(body["timezone"])
     hourly, daily = body["hourly"], body["daily"]
+    visibilities = hourly.get("visibility", [None] * len(hourly["time"]))
+    cloud_covers = hourly.get("cloud_cover", [None] * len(hourly["time"]))
     hours_by_day = {}
     for i, stamp in enumerate(hourly["time"]):
         local = datetime.fromtimestamp(stamp, zone)
-        code = hourly["weather_code"][i]
-        description, icon, severity = condition(code, hourly["is_day"][i] == 1)
+        visibility = number(visibilities[i])
+        if visibility is not None and visibility < 0:
+            visibility = None
+        cloud_cover = number(cloud_covers[i])
+        code = visible_code(hourly["weather_code"][i], visibility, cloud_cover)
+        is_day = hourly["is_day"][i] == 1
+        description, icon, severity = condition(code, is_day)
         wind = number(hourly["wind_speed_10m"][i])
         # Strong wind outshows a dry sky; the description and severity keep
         # the sky for the six-hour summary.
@@ -68,18 +106,20 @@ def normalize(body):
             "rain": number(hourly["precipitation_probability"][i]),
             "wind": wind,
             "windDirection": number(hourly["wind_direction_10m"][i]),
+            "code": code, "isDay": is_day, "visibility": visibility,
             "description": description, "icon": icon, "severity": severity,
         })
     days = []
     for i, stamp in enumerate(daily["time"]):
         local = datetime.fromtimestamp(stamp, zone)
         date = local.date().isoformat()
+        hours = hours_by_day.get(date, [])
         days.append({
-            "date": date, "weekday": local.strftime("%a"), "icon": condition(daily["weather_code"][i])[1],
+            "date": date, "weekday": local.strftime("%a"), **day_conditions(hours),
             "high": number(daily["temperature_2m_max"][i]),
             "low": number(daily["temperature_2m_min"][i]),
             "rain": number(daily["precipitation_probability_max"][i]),
-            "hours": hours_by_day.get(date, []),
+            "hours": hours,
         })
     if len(days) != 7 or not all(day["hours"] for day in days):
         raise ValueError("Incomplete forecast")
@@ -98,7 +138,7 @@ def fetch(mode, args):
         base = "https://api.open-meteo.com/v1/forecast"
         params = {
             "latitude": lat, "longitude": lon, "timezone": args[2], "timeformat": "unixtime", "forecast_days": 7,
-            "hourly": "temperature_2m,apparent_temperature,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day",
+            "hourly": "temperature_2m,apparent_temperature,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day,visibility,cloud_cover",
             "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
         }
     else:
@@ -146,7 +186,7 @@ def request(mode, args, cache_path, force=False):
         forecast = cached.get("forecast", {})
         if cached.get("key") == key and len(forecast.get("days", [])) == 7 and number(cached.get("fetchedAt")) is not None:
             snapshot = {**forecast, "fetchedAt": cached["fetchedAt"], "cached": True}
-        if snapshot and not force and 0 <= now - snapshot["fetchedAt"] < 15 * 60:
+        if snapshot and cached.get("version") == CACHE_VERSION and not force and 0 <= now - snapshot["fetchedAt"] < 15 * 60:
             return snapshot
 
     try:
@@ -159,7 +199,7 @@ def request(mode, args, cache_path, force=False):
 
     if mode == "forecast":
         result = {**result, "fetchedAt": time.time()}
-        write_json(cache_path, {"key": key, "forecast": result, "fetchedAt": result["fetchedAt"]})
+        write_json(cache_path, {"version": CACHE_VERSION, "key": key, "forecast": result, "fetchedAt": result["fetchedAt"]})
     return result
 
 

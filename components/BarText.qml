@@ -35,9 +35,11 @@ Item {
     // Measure the ink rather than the advance width. Nerd Font icons carry wildly
     // different side bearings, so laying them out by advance leaves invisible
     // padding that varies per icon — which is why the gaps between modules never
-    // looked even. Text keeps its advance, so a clock does not jitter as its
-    // digits change.
+    // looked even. A rolling number trims only its two outside edges so the
+    // spacing between its character columns stays unchanged.
     property bool tightWidth: false
+    property bool trimLeft: tightWidth
+    property bool trimRight: tightWidth
 
     // Where the ink really is. The font's tightBoundingRect is the outline's
     // box; the rasteriser then hints the strokes onto whole rows and columns,
@@ -51,7 +53,7 @@ Item {
     // Only for what is centred or measured on ink; text laid out on its
     // advance and cap height is left to the metrics, which are what a run of
     // text should be laid out on.
-    readonly property bool probed: opticalCentre || tightWidth
+    readonly property bool probed: opticalCentre || trimLeft || trimRight
     readonly property string inkKey: Ink.keyOf(root.family, root.weight, root.fontSize, shown.text)
     readonly property var inked: probed ? Ink.boundsOf(inkKey) : null
 
@@ -76,11 +78,9 @@ Item {
     // neighbours along every time the track changes. 0 is no ceiling.
     property int maxWidth: 0
 
-    implicitWidth: {
-        if (tightWidth && inked)
-            return inked.right - inked.left + 1;
-        return tightWidth && _ink.width > 0 ? Math.ceil(_ink.width) : Math.ceil(shown.advanceWidth);
-    }
+    readonly property int _inkLeft: inked ? inked.left - inkPad : _ink.width > 0 ? Math.round(_ink.x) : 0
+    readonly property int _inkWidth: inked ? inked.right - inked.left + 1 : _ink.width > 0 ? Math.ceil(_ink.width) : Math.ceil(shown.advanceWidth)
+    implicitWidth: Math.max(0, (trimRight ? _inkLeft + _inkWidth : Math.ceil(shown.advanceWidth)) - (trimLeft ? _inkLeft : 0))
     implicitHeight: Theme.barHeight
     baselineOffset: _y + fm.ascent
 
@@ -111,11 +111,7 @@ Item {
     }
 
     readonly property rect _ink: metrics.tightBoundingRect
-    readonly property real _x: {
-        if (root.tightWidth && inked)
-            return inkPad - inked.left;
-        return root.tightWidth && _ink.width > 0 ? Math.round(-_ink.x) : 0;
-    }
+    readonly property real _x: root.trimLeft ? -root._inkLeft : 0
     // Both branches centre on ink rather than on the font box, which is what
     // the Pango `rise` values in config.jsonc were approximating by hand. Text
     // uses the cap height so a string does not hop about as its letters change;

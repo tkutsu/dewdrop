@@ -217,6 +217,16 @@ Singleton {
                 settle("Sign-in sent something unreadable", xhr.status);
                 return;
             }
+            // calendar.app.created cannot write the primary calendar and returns 404, not a scope error.
+            if (typeof parsed.scope === "string") {
+                const granted = parsed.scope.split(/\s+/);
+                const writable = ["calendar", "calendar.events", "calendar.events.owned"];
+                if (!writable.some(scope => granted.includes("https://www.googleapis.com/auth/" + scope))) {
+                    root.scopeMissing = true;
+                    settle(root.reconnect, 403);
+                    return;
+                }
+            }
             root.accessToken = parsed.access_token ?? "";
             root.tokenExpiry = Date.now() + (parsed.expires_in ?? 3600) * 1000;
             settle("");

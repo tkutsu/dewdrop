@@ -22,7 +22,9 @@ BarItem {
         Layout.fillHeight: true
         glyph: Email.icon
         glyphSize: Theme.glyphSizeLarge
-        badge: Email.label
+        badge: Settings.badgeStyle("email") === "hide" ? "" : Email.label
+        dot: Settings.badgeStyle("email") === "dot"
+        underdot: Settings.badgeStyle("email") === "underdot"
     }
 
     // A card about several new mails was clicked: they are all here.

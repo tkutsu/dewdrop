@@ -1,6 +1,6 @@
 import QtQuick
 
-// A thicker caret that blinks while its text field is active and visible.
+// A thicker caret with short fades and idle pauses while its field is visible.
 Rectangle {
     id: root
 
@@ -16,8 +16,19 @@ Rectangle {
         onRunningChanged: if (!running) root.opacity = 1
 
         PropertyAction { value: 1 }
-        PauseAnimation { duration: 1000 }
-        PropertyAction { value: 0 }
-        PauseAnimation { duration: 1000 }
+        PauseAnimation { duration: 800 }
+        NumberAnimation {
+            from: 1
+            to: 0
+            duration: 200
+            easing.type: Easing.InOutSine
+        }
+        PauseAnimation { duration: 300 }
+        NumberAnimation {
+            from: 0
+            to: 1
+            duration: 200
+            easing.type: Easing.InOutSine
+        }
     }
 }

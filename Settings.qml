@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "RightPillOrder.js" as ModuleOrder
 
 // Everything that differs from one machine to the next: which monitors,
 // the clock's format, fonts, the apps the bar opens, where the
@@ -28,6 +29,16 @@ Singleton {
     // --- values --------------------------------------------------------------
     readonly property var screens: root.values.screens ?? []
     readonly property bool groupWindows: root.values.groupWindows === true
+    readonly property bool groupWindowBadges: root.values.groupWindowBadges === true
+    readonly property var moduleKeys: ModuleOrder.normalise([])
+    readonly property var centralComponents: {
+        const keys = root.moduleKeys.filter(key => (root.values[key + "Position"]
+            ?? (["date", "weather", "time"].includes(key) ? "centre" : "right")) === "centre");
+        return keys.length ? keys : ["time"];
+    }
+    readonly property string datePosition: root.centralComponents.includes("date") ? "centre" : "right"
+    readonly property string weatherPosition: root.centralComponents.includes("weather") ? "centre" : "right"
+    readonly property string timePosition: root.centralComponents.includes("time") ? "centre" : "right"
     readonly property string dateFormat: root.values.dateFormat ?? ""
     readonly property string timeFormat: root.values.timeFormat ?? ""
     readonly property string dateCase: root.values.dateCase ?? ""
@@ -35,21 +46,27 @@ Singleton {
     readonly property bool smallAmPm: root.values.smallAmPm === true
     readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
+    readonly property bool layoutChangeNotification: root.values.layoutChangeNotification === true
+    readonly property bool layoutChangeBounce: root.values.layoutChangeBounce === true || root.user.layoutChangeShowModule === true
     readonly property string font: root.values.font ?? ""
     readonly property string monoFont: root.values.monoFont ?? ""
     readonly property string terminal: root.values.terminal ?? ""
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? ""
+    readonly property string screenshotCommand: (root.values.screenshotCommand ?? "").trim()
+    readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
     readonly property var mailCategories: root.values.mailCategories ?? []
+    readonly property var webApps: root.values.webApps ?? ({})
+    readonly property string downloadsDir: root.expand(root.values.downloadsDir || "~/Downloads")
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true
-    readonly property string musicDir: root.expand(root.values.musicDir ?? "").replace(/\/?$/, "/")
+    readonly property bool showMpris: root.values.showMpris !== false
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")
 
@@ -59,9 +76,28 @@ Singleton {
     // the file already said wins over the defaults as before, and the watcher
     // below reads the new file back like any other edit.
     function set(key: string, value: var): void {
+        if (root.moduleKeys.some(module => key === module + "Position") && value === "right" && root.positionLocked(key.replace("Position", "")))
+            return;
         const user = Object.assign({}, root.user, { [key]: value });
+        // The old reveal-only preference is now part of Show And Bounce.
+        if (key === "layoutChangeBounce")
+            delete user.layoutChangeShowModule;
         root.user = user;
         userFile.setText("// This machine's settings over settings.default.json, which documents\n// each one. The settings window (the gear) rewrites this file.\n" + JSON.stringify(user, null, 4) + "\n");
+    }
+
+    function modulePosition(key: string): string {
+        return root.centralComponents.includes(key) ? "centre" : "right";
+    }
+
+    function badgeStyle(key: string): string {
+        const style = root.values[key + "BadgeStyle"];
+        return ["dot", "underdot", "hide"].includes(style) ? style : "badge";
+    }
+
+    // The last module stays central until another one returns.
+    function positionLocked(key: string): bool {
+        return root.centralComponents.length === 1 && root.centralComponents[0] === key;
     }
 
     // Apply casing to the complete label before it is drawn in character columns.
@@ -171,11 +207,49 @@ Singleton {
         return [...root.fileManager.split(/\s+/).filter(s => s), path];
     }
 
-    // A Google web app through its PWA wrapper in scriptsDir when the machine
-    // has one, the default browser when it does not. Without a url the
-    // wrapper focuses the app where it was left, and the browser opens `home`.
-    function webApp(script: string, url: string, home: string): var {
-        return ["sh", "-c", 'w=$1 page=$2; shift 2; [ -x "$w" ] && exec "$w" "$@"; exec xdg-open "$page"', "sh", `${root.scriptsDir}/${script}`, url || home, ...(url ? [url] : [])];
+    readonly property var webAppDefinitions: ({
+        gmail: { title: "Gmail", appId: "fmgjjmmmlfnkbppncabfkddbjimcfncm" },
+        calendar: { title: "Google Calendar", appId: "kjbdgfilnfhdoflbpgamdcdgpehopbep" },
+        tasks: { title: "Google Tasks", appId: "okhfeehhillipaleckndoboggdkcebmo" }
+    })
+    readonly property var desktopApps: DesktopEntries.applications.values
+
+    // Chromium's site-derived app id is stable across profiles and app names.
+    function automaticWebApp(key: string): var {
+        const definition = root.webAppDefinitions[key];
+        return definition ? root.desktopApps.find(e => e.id.startsWith(`chrome-${definition.appId}-`)) ?? null : null;
+    }
+
+    // An unavailable explicit choice falls back to the website.
+    function webAppEntry(key: string): var {
+        const chosen = root.webApps[key] || "";
+        if (chosen === "browser") return null;
+        return chosen ? DesktopEntries.byId(chosen) : root.automaticWebApp(key);
+    }
+
+    // Offer every installed app so other browsers' PWAs can be selected too.
+    function webAppOptions(key: string): var {
+        const automatic = root.automaticWebApp(key);
+        const options = [
+            { value: "", label: automatic ? `Automatic (${automatic.name})` : "Automatic (Website)" },
+            { value: "browser", label: "Website" },
+            ...root.desktopApps.slice().sort((a, b) => a.name.localeCompare(b.name)).map(e => ({ value: e.id, label: e.name }))
+        ];
+        const chosen = root.webApps[key];
+        if (chosen && !options.some(o => o.value === chosen))
+            options.push({ value: chosen, label: chosen + " (Unavailable)" });
+        return options;
+    }
+
+    // Preserve direct links to threads, compose windows and calendar days.
+    function webApp(key: string, url: string, home: string): var {
+        const entry = root.webAppEntry(key);
+        if (!entry || !entry.command.length) return ["xdg-open", url || home];
+        const command = entry.command.slice();
+        if (url) command.push(command.some(arg => arg.startsWith("--app-id="))
+            ? `--app-launch-url-for-shortcuts-menu-item=${url}` : url);
+        const run = entry.runInTerminal ? root.inTerminal(command, entry.name, false) : command;
+        return entry.workingDirectory ? { command: run, workingDirectory: entry.workingDirectory } : run;
     }
 
     // --- the files -----------------------------------------------------------

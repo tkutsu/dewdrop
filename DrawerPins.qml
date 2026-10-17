@@ -4,7 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// Where each of the right pill's modules stands while the drawer is closed,
+// Where each module stands while the drawer is closed, in either pill,
 // keyed by BarItem.pinKey (a tray icon by "tray:<its id>"). Three ways:
 //
 //   auto    the module's own `quiet` decides: out while it has something
@@ -41,7 +41,8 @@ Singleton {
         else
             delete pins[key];
         root.pins = pins;
-        file.writeAdapter();
+        // Let the new mode propagate before persisting the adapter.
+        Qt.callLater(file.writeAdapter);
     }
 
     // The middle click: pinned goes back to auto, anything else is pinned.

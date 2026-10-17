@@ -32,6 +32,7 @@ BarItem {
     // and draws the plain selection when transparency is reduced.
     readonly property Item markItem: mark
     property bool drawsMark: true
+    property Item badgeLayer: null
     contentAnimating: folding || stripResize.running || mark.animating
 
     Timer {
@@ -642,7 +643,7 @@ BarItem {
 
                     // Keep collapse on the strip's original width spring.
                     readonly property real drawnX: x + (x >= strip.closedAt - 0.5 ? strip.closing : 0)
-                    transform: Translate { x: button.drawnX - button.x }
+                    transform: Translate { id: workspaceShift; x: button.drawnX - button.x }
 
                     // A folded app receives the window into its icon; expanded apps preserve window order.
                     function slotX(cls: string, address: string): real {
@@ -790,6 +791,26 @@ BarItem {
                                 pressed: tap.pressed && !root.dragging
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
+
+                                Badge {
+                                    id: groupCount
+                                    parent: root.badgeLayer ?? app
+                                    visible: app.visible && Settings.groupWindowBadges && app.icon.addresses.length > 1
+                                    text: String(app.icon.addresses.length)
+                                    fill: Theme.badgeBg(app, Qt.rect(0, Math.floor((app.height - Theme.iconSize) / 2), app.width, Theme.iconSize))
+                                    // Follow layout and folding while drawing above the selection's lens.
+                                    readonly property point at: {
+                                        app.x; app.scale; workspaceShift.x; strip.x; root.x; root.y; root.shift;
+                                        return app.mapToItem(parent,
+                                            Math.round(app.width - Theme.badgeSize / 2) - (text.length > 1 ? 2 : 0),
+                                            Math.round(Theme.pillTop(app.height) + Theme.badgeLine - Theme.badgeRise - height / 2));
+                                    }
+                                    x: at.x
+                                    y: at.y
+                                    opacity: root.badgeLayer ? app.opacity : 1
+                                    scale: root.badgeLayer ? app.scale : 1
+                                    transformOrigin: Item.TopLeft
+                                }
 
                                 Component.onDestruction: if (root.dragSource === app) root.cancelDrag()
 

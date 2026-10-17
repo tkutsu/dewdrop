@@ -259,6 +259,16 @@ ShellRoot {
                     check(!Launcher.results.some(row => row.path === directPath), "missing file cannot reuse a stale exact result");
             }
             check(Launcher.classifyQuery("/ notes").text === "notes", "explicit file search still strips its prefix");
+            for (const query of ["/ automate-phone-test", ".plans/automate-phone-test.md", "/ quickshell automate-phone-test"]) {
+                Launcher.query = query;
+                fileKeys.wait(400);
+                check(Launcher.results.some(row => row.path === Settings.home + "/.config/quickshell/.plans/automate-phone-test.md"), "Git-ignored plan is searchable: " + query);
+            }
+            for (const name of ["excluded-plan.md", "local-only-plan.md"]) {
+                Launcher.query = "/ " + name;
+                fileKeys.wait(400);
+                check(!Launcher.results.some(row => row.path?.endsWith("/" + name)), "file-search exclusions still apply: " + name);
+            }
             LauncherMusic.rows = [{kind: "music", title: "first"}, {kind: "music", title: "last"}];
             Launcher.query = "#";
             Launcher.index = 1;
@@ -975,7 +985,7 @@ def main():
             (target / name).parent.mkdir(exist_ok=True)
             (target / name).write_text((ROOT / name).read_text())
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
-        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property string home: "/tmp"; property string editor: "/usr/bin/true"; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
+        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property string home: "/tmp"; property string editor: "/usr/bin/true"; property string fileSearchIgnore: ""; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", mailUnread: "mail", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
@@ -992,15 +1002,25 @@ def main():
         fixture_home = target / "home"
         fixture_home.mkdir()
         (fixture_home / "notes.txt").write_text("fixture")
+        repository = fixture_home / ".config/quickshell"
+        plans = repository / ".plans"
+        plans.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", str(repository)], check=True)
+        (repository / ".git/info/exclude").write_text("/.plans/\n")
+        (plans / "automate-phone-test.md").write_text("fixture plan\n")
+        (plans / "excluded-plan.md").write_text("excluded by search settings\n")
+        (plans / "local-only-plan.md").write_text("excluded by .ignore\n")
+        (repository / ".ignore").write_text("local-only-plan.md\n")
         spaced_path = target / "image with 'quotes' $(touch should-not-exist).bin"
         spaced_path.write_bytes(b"\x00\x01\xff")
         (target / "bin/fasd").write_text("#!/bin/sh\nexit 0\n")
         (target / "bin/fasd").chmod(0o700)
-        (target / "ignore").write_text("")
+        (target / "ignore").write_text("excluded-plan.md\n")
         paths = target / "Paths.qml"
         paths.write_text(paths.read_text().replace('return "/tmp/unused/" + name;', f'return "{target / "ignore"}";'))
         settings = target / "Settings.qml"
         settings.write_text(settings.read_text().replace('home: "/tmp"', f'home: "{fixture_home}"'))
+        settings.write_text(settings.read_text().replace('fileSearchIgnore: ""', f'fileSearchIgnore: "{target / "ignore"}"'))
         env["PATH"] = str(target / "bin") + os.pathsep + env["PATH"]
         env["LAUNCHER_TEST_PATH"] = os.environ.get("LAUNCHER_TEST_PATH", str(target / "image.bin"))
         env["LAUNCHER_TEST_SPACED_PATH"] = str(spaced_path)

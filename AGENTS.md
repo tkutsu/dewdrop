@@ -1,3 +1,8 @@
+# Plans
+
+Save plans in `.plans/`, excluded locally through `.git/info/exclude`.
+Keep plans out of Git.
+
 # UI links
 
 Render every UI link in grey. Use `Theme.label2` for QML links.

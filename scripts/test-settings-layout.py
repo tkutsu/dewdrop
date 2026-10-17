@@ -1,38 +1,27 @@
 #!/usr/bin/env python3
 """Check settings text, controls and options fit and remain selectable."""
 
-import os
 from pathlib import Path
 import subprocess
-import shutil
 import tempfile
 
-from test_support import offscreen_ink
+from test_support import copy_shell, shell_env
 
-ROOT = Path(__file__).resolve().parents[1]
-source = (ROOT / 'modules/SettingsMenu.qml').read_text()
-
-
-def section_rows(title):
-    start = source.index('rows: [', source.index(f'title: "{title}",\n                    rows:')) + len('rows: ')
-    end = source.index('\n                    ]', start) + len('\n                    ]')
-    return source[start:end][1:-1]
-
-
-rows = '[' + ','.join(section_rows(title) for title in ('Time', 'Date', 'Display', 'Desktop actions')) + ']'
 qml = '''import QtQuick
 import Quickshell
 import QtTest
 import qs
 import qs.components
+import qs.modules
 ShellRoot {
+    SettingsMenu { id: menu }
     FloatingWindow {
         id: win
         property int failures: 0
         property int phase: 0
         readonly property int settingsWidth: 700 - 168 - Theme.pillBorder - 2 * Theme.panelPadding
         readonly property var widths: [win.settingsWidth, 360, 1200, win.settingsWidth]
-        implicitWidth: 1240; implicitHeight: 900
+        implicitWidth: 1240; implicitHeight: 2600
         TestCase { id: pointer; when: false }
         color: "#202020"
         Column {
@@ -40,7 +29,7 @@ ShellRoot {
             x: 12; y: 12; width: win.settingsWidth
             Repeater {
                 id: rows
-                model: SETTINGS_ROWS
+                model: []
                 SettingRow { required property var modelData; width: page.width; setting: modelData }
             }
         }
@@ -58,7 +47,7 @@ ShellRoot {
                 expect(words.x + words.width <= control.x || words.y + words.height <= control.y, "text does not overlap selector");
                 expect(words.y >= 0 && words.y + words.height <= row.height, "row contains description height");
                 expect(control.y >= 0 && control.y + control.height <= row.height, "row contains selector height");
-                if (row.setting.type === "toggle") {
+                if (row.setting.type === "toggle" && row.enabled) {
                     const before = row.setting.get();
                     pointer.mouseClick(row, row.width / 2, row.height / 2);
                     expect(row.setting.get() === !before, "toggle can be changed");
@@ -86,8 +75,14 @@ ShellRoot {
             console.log("Checked settings rows at width " + page.width);
         }
         Timer {
+            property bool prepared: false
             interval: 250; running: true; repeat: true
             onTriggered: {
+                if (!prepared) {
+                    rows.model = menu.pages.reduce((out, p) => out.concat(...p.sections.map(s => s.rows)), []).filter(r => !/^(launcher:|pin:|screen:|mail:|layout:)/.test(r.id));
+                    prepared = true;
+                    return;
+                }
                 try { win.check(); } catch (error) {
                     console.log("FAIL: " + error + "\\n" + error.stack); win.failures++;
                 }
@@ -102,25 +97,17 @@ ShellRoot {
         }
     }
 }
-'''.replace('SETTINGS_ROWS', rows)
+'''
 with tempfile.TemporaryDirectory(prefix='qs-settings-layout-') as folder:
     target = Path(folder)
-    files = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '--cached', '--others', '--exclude-standard'], text=True)
-    for name in files.splitlines():
-        path = ROOT / name
-        if not path.is_file():
-            continue
-        destination = target / name
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, destination)
-    (target / 'settings.json').write_text('{}\n')
-    offscreen_ink(target)
+    copy_shell(target)
+    (target / 'components/OverlayWindow.qml').write_text('import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: false }')
+    (target / 'components/BackdropProbe.qml').write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property bool ringOnly: false; property real luma: 0.5 }')
+    (target / 'services/Keyboard.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var layouts: [] }')
+    (target / 'services/Launcher.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var powerCommands: [] }')
+    (target / 'services/Tasks.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var lists: []; property var defaultList: ({id: ""}) }')
     (target / 'shell.qml').write_text(qml)
-    runtime = target / 'runtime'
-    runtime.mkdir(mode=0o700)
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', XDG_RUNTIME_DIR=str(runtime), XDG_STATE_HOME=str(target / 'state'), XDG_DATA_HOME=str(target / 'data'), XDG_CACHE_HOME=str(target / 'cache'))
-    for key in ('WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE'):
-        env.pop(key, None)
+    env = shell_env(target)
     try:
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=10)
     except subprocess.TimeoutExpired as error:

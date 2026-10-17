@@ -26,7 +26,7 @@ ShellRoot {
                         if ([box.x, box.y, box.z, box.w].some(v => !isFinite(v)))
                             failures.push(`drop ${reveal} ${leaving} ${dir}: ${box}`);
                     }
-                    [g.lip(reveal, leaving), g.dropReach(reveal, leaving), g.contents(reveal)]
+                    [g.lip(reveal, leaving), g.dropReach(reveal, leaving), g.contents(reveal), g.iconScale(reveal)]
                         .forEach(v => { if (!isFinite(v)) failures.push(`scalar ${reveal} ${leaving}`); });
                     g.bulge(100, 1, reveal, leaving);
                     g.morph(Qt.vector4d(0, 0, 60, 30), reveal * 2);
@@ -44,6 +44,47 @@ ShellRoot {
         } catch (e) {
             failures.push(`rest box: ${e}`);
         }
+        // Skipping an empty pill's content fade preserves its starting box,
+        // then shrinks the glass from the first movement of its reveal.
+        const emptyStart = g.drop(100, 1, 84, g.emptyReveal(1), true);
+        const emptyMoving = g.drop(100, 1, 84, g.emptyReveal(0.99), true);
+        if (emptyStart.x !== 116 || emptyStart.z !== 84 || emptyStart.w !== 30
+            || emptyMoving.z >= emptyStart.z || g.emptyReveal(0) !== 0)
+            failures.push("empty exit pauses or jumps at its handoff");
+        // An impact has one soft swell and one smaller rebound, easing to rest.
+        const lip = phase => g.lip(0.38 * (1 - phase), true);
+        const samples = Array.from({length: 101}, (_, i) => lip(i / 100));
+        if (Math.max(...samples) > 3 || Math.max(...samples) < 1 || Math.min(...samples) >= 0
+            || Math.abs(Math.min(...samples)) > Math.max(...samples) / 4)
+            failures.push("impact amplitude or rebound");
+        let crossings = 0;
+        for (let i = 1; i < 100; i++)
+            if (samples[i - 1] > 0 && samples[i] <= 0) crossings++;
+        if (crossings !== 1)
+            failures.push("impact repeats instead of settling");
+        const epsilon = 0.0001;
+        if (Math.abs(lip(epsilon) / epsilon) > 0.02
+            || Math.abs(lip(1 - epsilon) / epsilon) > 0.02 || Math.abs(lip(1)) > 0.00001)
+            failures.push("impact snaps at an endpoint");
+        const earlyBulge = g.bulge(100, 1, 0.36 - 0.12 * epsilon, true);
+        if (Math.abs((earlyBulge.w - theme.barHeight) / epsilon) > 0.02)
+            failures.push("bulge snaps into view");
+        // A forward spring always lifts first, dips, rebounds less, and settles.
+        const scales = Array.from({length: 101}, (_, i) => g.iconScale(i / 100));
+        const rebound = Math.max(...scales.slice(67));
+        if (g.iconScale(0.05) <= 1 || g.iconScale(0.15) < 1.15 || g.iconScale(0.5) >= 0.96
+            || rebound < 1.015 || rebound > 1.04
+            || Math.max(...scales) > 1.20 || Math.min(...scales) < 0.92
+            || g.iconScale(0) !== 1 || g.iconScale(1) !== 1
+            || g.iconScale(-1) !== 1 || g.iconScale(2) !== 1
+            || Math.abs((g.iconScale(epsilon) - 1) / epsilon) > 0.02
+            || Math.abs((g.iconScale(1 - epsilon) - 1) / epsilon) > 0.02)
+            failures.push("icon spring must lift immediately, dip and rebound gently before settling");
+        theme.reduceMotion = true;
+        if (g.lip(0.3, true) !== 0 || g.lip(0.65, false) !== 0 || g.bulge(100, 1, 0.3, true).z !== 0)
+            failures.push("reduced motion still wobbles");
+        if (g.iconScale(0.85) !== 1 || g.iconScale(0.65) !== 1)
+            failures.push("reduced motion still scales icons");
         console.warn(failures.length ? "DROPS FAIL " + failures.slice(0, 5).join(" | ") : "DROPS OK");
     }
 }

@@ -3,6 +3,8 @@
 
 import importlib.machinery
 import importlib.util
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -10,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parent / "gmail-attachment"
 loader = importlib.machinery.SourceFileLoader("gmail_attachment", str(SCRIPT))
@@ -73,6 +76,19 @@ class AttachmentTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(SCRIPT), "m", "a", "f.txt"], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)
         self.assertIn("GMAIL_TOKEN", result.stderr)
+
+    def test_configured_download_folder_and_default(self):
+        with tempfile.TemporaryDirectory() as folder:
+            home = Path(folder)
+            for selected in ("", str(home / "Custom Downloads")):
+                with self.subTest(selected=selected), patch.dict(os.environ, {"GMAIL_TOKEN": "fixture", "GMAIL_DOWNLOAD_DIR": selected}), \
+                        patch.object(attachment.Path, "home", return_value=home), \
+                        patch.object(attachment, "fetch", return_value=b"attachment"), \
+                        contextlib.redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(attachment.main([str(SCRIPT), "message", "part", "report.pdf"]), 0)
+                    saved = Path(output.getvalue().strip())
+                    self.assertEqual(saved.parent, Path(selected) if selected else home / "Downloads")
+                    self.assertEqual(saved.read_bytes(), b"attachment")
 
 
 if __name__ == "__main__":

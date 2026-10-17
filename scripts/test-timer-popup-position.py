@@ -36,6 +36,8 @@ ShellRoot {
         Morph { id: countdownMorph; open: countdown.popupOpen }
         SidePill {
             control: countdown; morphValue: countdownMorph.value
+            closeWhenEmpty: true
+            empty: Timers.entries.length === 0 && Timers.ringing.length === 0
             id: countdownPill
             drawsSlab: false
             side: Pill.Side.Left
@@ -54,8 +56,10 @@ ShellRoot {
                 wait(700);
                 if (Timers.timers.length !== remaining)
                     throw Error("cancel button did not cancel " + label);
-                if (!popup.opened || OpenPopup.owner !== countdown)
+                if (remaining > 0 && (!popup.opened || OpenPopup.owner !== countdown))
                     throw Error("clearing timer closed popup");
+                if (remaining === 0 && OpenPopup.owner !== null)
+                    throw Error("clearing last timer did not close popup");
             }
             function run() {
                 Settings.user = Object.assign({}, Settings.user, {reduceMotion: REDUCED});
