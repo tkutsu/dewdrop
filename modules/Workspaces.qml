@@ -755,7 +755,20 @@ BarItem {
                                 // opacity together, the way the strip itself opens.
                                 property real reveal: icon.folded ? 0 : 1
                                 readonly property int gapWidth: index > 0 ? Theme.appIconGap : 0
-                                readonly property int slotWidth: Math.round((implicitWidth + gapWidth) * reveal)
+                                // How far a collapsed group's corner frame has come in,
+                                // 0..1. The slot widens by the frame's overhang on each
+                                // side so the corners keep clear of the neighbours.
+                                property real framed: Settings.groupWindowFrames && icon.addresses.length > 1 ? 1 : 0
+                                readonly property int frameOverhang: Math.max(0, Math.ceil((groupFrame.implicitWidth - implicitWidth) / 2))
+                                readonly property real frameWidth: frameOverhang * framed
+                                readonly property int slotWidth: Math.round((implicitWidth + gapWidth + frameWidth * 2) * reveal)
+
+                                Behavior on framed {
+                                    NumberAnimation {
+                                        duration: Theme.markMs * 0.6
+                                        easing.type: Easing.OutCubic
+                                    }
+                                }
 
                                 // Only for opening and folding: a folded icon that
                                 // becomes the group's first, because the first window
@@ -778,7 +791,7 @@ BarItem {
                                 scale: reveal
                                 transformOrigin: Item.Left
                                 // Fold the gap into the slot so hiding the icon leaves no final layout jump.
-                                Layout.leftMargin: Math.round(gapWidth * reveal)
+                                Layout.leftMargin: Math.round((gapWidth + frameWidth) * reveal)
                                 Layout.rightMargin: slotWidth - implicitWidth - Layout.leftMargin
                                 windowClass: icon.windowClass
                                 // A folded icon's window is already in the first icon's addresses.
@@ -791,6 +804,18 @@ BarItem {
                                 pressed: tap.pressed && !root.dragging
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
+
+                                // Behind the artwork, riding its bounce and press.
+                                Glyph {
+                                    id: groupFrame
+                                    z: -1
+                                    anchors.centerIn: parent
+                                    visible: app.framed > 0
+                                    opacity: app.framed * app.inkOpacity
+                                    text: Theme.glyph.satty
+                                    fontSize: Theme.groupFrameSize
+                                    transform: Translate { y: app.shift }
+                                }
 
                                 Badge {
                                     id: groupCount
