@@ -47,7 +47,6 @@ property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
 ''')
 (target/'components/Badge.qml').write_text('import QtQuick\nItem { property string text; property color fill; implicitWidth: 13; implicitHeight: 13 }')
-(target/'components/Glyph.qml').write_text('import QtQuick\nItem { property string text; property int fontSize; implicitWidth: 20; implicitHeight: 30 }')
 (target/'components/HoverPopup.qml').write_text('import QtQuick\nItem { property Item anchorItem; property bool hovered; property bool pressed; property bool open; property Component popup; property var item: null; property string text }')
 (target/'OpenPopup.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var selected: null; property var owner: null; function toggle(owner) {} function browse(owner, hovered) {} }')
 (target/'components/FlowMark.qml').write_text('''import QtQuick
