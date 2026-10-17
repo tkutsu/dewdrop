@@ -781,7 +781,7 @@ Singleton {
         file: "\u{f0224}",
         folder: "\u{f0256}",
 
-        satty: "\u{f019f}",           // nf-md-crop_free
+        satty: "\u{f0d5d}",           // nf-md-camera_outline
         wallpaper: "\u{f0e09}",
         window: "\u{f4c3}",           // workspace taskbar fallback
 
