@@ -50,7 +50,7 @@ def main():
         source = source.replace('function describe(e: var): string {', 'function describe(e: var): string {\n        Count.bump();', 1)
         source = source.replace('["pw-play", root.alarmSound]', '["/usr/bin/true"]')
         (target / 'services/Timers.qml').write_text(source)
-        (target / 'services/Pushover.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string phoneWarning: ""; signal failed(string reason); signal acknowledged(string id, double firedAt); function notifyPhone(title, body, entry) {} function dismiss() {} }')
+        (target / 'services/PhoneAlarms.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string phoneWarning: ""; signal failed(string reason); signal acknowledged(string id, double firedAt); signal finished(); function hasLive(id, firedAt) { return false; } function notifyPhone(title, body, entry) {} function dismiss() {} }')
         (target / 'shell.qml').write_text(SHELL)
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=shell_env(target), capture_output=True, text=True, timeout=5)
         output = result.stdout + result.stderr

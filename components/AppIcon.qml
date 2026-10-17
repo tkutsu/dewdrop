@@ -32,6 +32,8 @@ Item {
     // The artwork's opacity, not the dot's: a dimmed icon keeps its dot as
     // legible as a lit one.
     property real inkOpacity: 1
+    // Standalone bar modules space from the artwork's visible edges.
+    property bool tightWidth: false
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -68,7 +70,7 @@ Item {
     // rather than erroring, which would hide the fallback.
     readonly property bool hasIcon: art.status === Image.Ready
 
-    implicitWidth: hasIcon ? art.implicitWidth : fallback.implicitWidth
+    implicitWidth: hasIcon ? (tightWidth ? art.inkWidth : art.implicitWidth) : fallback.implicitWidth
     // Full bar height, so the dot can be placed against the bar's dot line
     // rather than against a box that is itself floating in the middle of the row.
     implicitHeight: Theme.barHeight
@@ -98,6 +100,7 @@ Item {
         FittedIcon {
             id: art
 
+            x: root.tightWidth ? -inkX : 0
             visible: root.hasIcon
             opacity: Theme.barInk(root, Qt.rgba(1, 1, 1, 1)).a * root.inkOpacity
             Behavior on opacity {

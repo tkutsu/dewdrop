@@ -51,7 +51,7 @@ OverlayWindow {
 
     // --- the pages -----------------------------------------------------------
 
-    // The right pill, in its own order.
+    // Module mode controls, shared by both pills.
     readonly property var modules: ({
             audio: { title: "Volume", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1] },
             email: { title: "Mail", glyph: Theme.glyph.mailUnread },
@@ -61,14 +61,18 @@ OverlayWindow {
             satty: { title: "Screenshot", glyph: Theme.glyph.satty },
             idle: { title: "Caffeine", glyph: Theme.glyph.idleOff },
             wallpaper: { title: "Wallpaper", glyph: Theme.glyph.wallpaper },
-            night: { title: "Night mode", glyph: Theme.glyph.nightOff },
+            night: { title: "Night Mode", glyph: Theme.glyph.nightOff },
             sys: { title: "System", glyph: Theme.glyph.gauge },
             settings: { title: "Settings", glyph: Theme.glyph.settings },
             drives: { title: "Drives", glyph: Theme.glyph.drive },
             bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth },
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] },
             tray: { title: "Tray", glyph: Theme.glyph.tray },
-            language: { title: "Keyboard layout", glyph: Theme.glyph.keyboard }
+            language: { title: "Keyboard Layout", glyph: Theme.glyph.keyboard },
+            date: { title: "Date", glyph: Theme.glyph.calendar },
+            weather: { title: "Weather", glyph: Theme.glyph.weather },
+            time: { title: "Time", glyph: Theme.glyph.timer },
+            countdown: { title: "Timer", glyph: Theme.glyph.timer }
         })
 
     readonly property var pinOptions: [
@@ -80,6 +84,13 @@ OverlayWindow {
     function placement(key: string): var {
         const m = root.modules[key];
         return { type: "choice", id: "pin:" + key, title: m.title, glyph: m.glyph, options: root.pinOptions, get: () => DrawerPins.mode(key), set: v => DrawerPins.setMode(key, v) };
+    }
+
+    function badgeStyle(key: string): var {
+        const m = root.modules[key];
+        return { type: "choice", id: key + "BadgeStyle", title: m.title, glyph: m.glyph,
+            options: [{ value: "badge", label: "Badge" }, { value: "dot", label: "Dot" }, { value: "underdot", label: "Underdot" }, { value: "hide", label: "Hide" }],
+            get: () => Settings.badgeStyle(key), set: v => Settings.set(key + "BadgeStyle", v) };
     }
 
     // Running now, and kept in but not running, so it can still be let out.
@@ -121,8 +132,8 @@ OverlayWindow {
     // Named for what they do rather than by Launcher's own titles, which
     // say which way they would flip right now ("Turn Wi-Fi off").
     readonly property var controlRows: [
-        root.shownInLauncher("desktop:mute", "Mute sound", { glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1] }),
-        root.shownInLauncher("desktop:night", "Night mode", { glyph: Theme.glyph.nightOff }),
+        root.shownInLauncher("desktop:mute", "Mute Sound", { glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1] }),
+        root.shownInLauncher("desktop:night", "Night Mode", { glyph: Theme.glyph.nightOff }),
         root.shownInLauncher("desktop:wifi", "Wi-Fi", { glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] }),
         root.shownInLauncher("desktop:bluetooth-power", "Bluetooth", { glyph: Theme.glyph.bluetooth })
     ]
@@ -137,84 +148,135 @@ OverlayWindow {
                 }
             }))
 
+    readonly property var connectedScreens: Quickshell.screens.map(s => s.name).filter(name => name)
+    readonly property var displayRows: {
+        const selected = Array.from(Settings.screens);
+        const connected = root.connectedScreens;
+        const active = selected.filter(name => connected.includes(name));
+        const rows = [{ type: "toggle", id: "screens", title: "All Displays", enabled: connected.length > 0,
+            get: () => Settings.screens.length === 0,
+            set: v => Settings.set("screens", v ? [] : root.connectedScreens.slice()) }];
+        if (selected.length)
+            for (const name of [...new Set([...connected, ...selected])])
+                rows.push({ type: "toggle", id: "screen:" + name, title: name + (connected.includes(name) ? "" : " (Disconnected)"),
+                    enabled: !selected.includes(name) || (selected.length > 1 && (!connected.includes(name) || active.length > 1)),
+                    get: () => Settings.screenOn(name), set: v => root.setDisplay(name, v) });
+        return rows;
+    }
+
+    // Keep a selected display connected so editing visibility cannot hide every bar.
+    function setDisplay(name: string, shown: bool): void {
+        const selected = Array.from(Settings.screens);
+        const next = shown ? [...new Set([...selected, name])] : selected.filter(n => n !== name);
+        if (next.length && (!root.connectedScreens.length || next.some(n => root.connectedScreens.includes(n))))
+            Settings.set("screens", next);
+    }
+
+    readonly property var layoutRows: [...new Set(Keyboard.layouts.map(l => l.name))].map(name => ({
+        type: "text", id: "layout:" + name, title: name, placeholder: name.slice(0, 2).toUpperCase(),
+        get: () => Settings.layoutNames[name] ?? "",
+        set: v => {
+            const names = Object.assign({}, Settings.layoutNames);
+            if (v.trim()) names[name] = v.trim();
+            else delete names[name];
+            Settings.set("layoutNames", names);
+        }
+    }))
+
+    readonly property var fontFamilies: Qt.fontFamilies().slice().sort((a, b) => a.localeCompare(b))
+
+    // Keep a saved family selectable even if its font is currently missing.
+    function fontOptions(current: string): var {
+        const options = root.fontFamilies.map(name => ({ value: name, label: name }));
+        if (!root.fontFamilies.includes(current))
+            options.unshift({ value: current, label: current ? current + " (Unavailable)" : "Default" });
+        return options;
+    }
+
+    function webApp(key: string): var {
+        return { type: "dropdown", id: "webApp:" + key, title: "Open With", keywords: Settings.webAppDefinitions[key].title,
+            tooltip: "Automatic uses an installed Chromium app when available, then the website.",
+            options: Settings.webAppOptions(key), get: () => Settings.webApps[key] || "",
+            set: v => Settings.set("webApps", Object.assign({}, Settings.webApps, { [key]: v })) };
+    }
+
     readonly property var pages: [
         {
             title: "Bar",
             sections: [
                 {
+                    title: "Displays",
+                    rows: root.displayRows
+                },
+                {
                     title: "Workspaces",
                     rows: [
-                        { type: "toggle", id: "groupWindows", title: "Group windows by app", text: "One icon per app on each workspace; a click opens it into one per window. Off gives every window its own icon.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) }
+                        { type: "toggle", id: "groupWindows", title: "Group Windows by App", tooltip: "Click a group to expand its windows.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) },
+                        { type: "toggle", id: "groupWindowBadges", title: "Show Group Window Counts", get: () => Settings.groupWindowBadges, set: v => Settings.set("groupWindowBadges", v) }
                     ]
                 },
                 {
-                    title: "Music",
+                    title: "Keyboard Layout",
                     rows: [
-                        { type: "toggle", id: "scrollMusicTitles", title: "Scroll long track titles", text: "Scroll titles that do not fit in the music pill or player. Reduce motion keeps them still.", get: () => Settings.scrollMusicTitles, set: v => Settings.set("scrollMusicTitles", v) }
+                        { type: "toggle", id: "layoutChangeNotification", title: "Show Notification", text: "Transient, for three seconds.", get: () => Settings.layoutChangeNotification, set: v => Settings.set("layoutChangeNotification", v) },
+                        { type: "toggle", id: "layoutChangeBounce", title: "Show And Bounce For 3s", tooltip: "Shows the module for three seconds and bounces once. Reduce Motion dims it instead.", get: () => Settings.layoutChangeBounce, set: v => Settings.set("layoutChangeBounce", v) }
                     ]
                 },
                 {
-                    title: "Tasks",
-                    rows: [
-                        { type: "dropdown", id: "defaultTaskList", title: "Default task list", text: "New tasks go here unless you name another task list. If unavailable, the first task list is used.", placeholder: "No task lists available", options: Tasks.lists.map(l => ({ value: l.id, label: l.title })), get: () => Tasks.defaultList.id, set: v => Settings.set("defaultTaskList", v) }
-                    ]
-                }
-            ]
-        },
-        {
-            title: "Drawer",
-            sections: [
+                    title: "Count Indicators",
+                    rows: ["email", "tasks", "countdown", "bell", "updater"].map(key => root.badgeStyle(key))
+                },
                 {
-                    title: "Bar placement",
-                    text: "Auto shows an icon when it has something to show. Pinned always shows it. Drawer keeps it behind the chevron.",
+                    title: "Keyboard Labels",
+                    rows: root.layoutRows
+                },
+                {
+                    title: "Module Visibility",
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them.",
                     rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
-                    title: "Tray icons",
-                    text: "Apps' own status icons, listed while the app runs. Off keeps an icon behind the chevron while the drawer is closed; with the drawer open it is there and works as before.",
+                    title: "Tray Icons",
+                    text: "Off keeps an icon in the drawer.",
                     rows: root.trayRows
                 }
             ]
         },
         {
-            title: "Clock",
+            title: "Appearance",
+            sections: [
+                {
+                    title: "Fonts",
+                    rows: [
+                        { type: "dropdown", id: "font", title: "Interface Font", options: root.fontOptions(Settings.font), get: () => Settings.font, set: v => Settings.set("font", v) },
+                        { type: "dropdown", id: "monoFont", title: "Monospaced Font", options: root.fontOptions(Settings.monoFont), get: () => Settings.monoFont, set: v => Settings.set("monoFont", v) }
+                    ]
+                },
+                {
+                    title: "Wallpaper",
+                    rows: [
+                        { type: "text", id: "wallpaperDir", title: "Image Folder", placeholder: Settings.defaults.wallpaperDir, get: () => Settings.values.wallpaperDir, set: v => Settings.set("wallpaperDir", v.trim() || Settings.defaults.wallpaperDir) }
+                    ]
+                }
+            ]
+        },
+        {
+            title: "Date & Time",
             sections: [
                 {
                     title: "Time",
                     rows: [
-                        { type: "choice", id: "twelveHour", title: "Time display", text: "Use 12h or 24h time for the clock and alarms. Keeps seconds if shown.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "timeFormat", title: "Custom time format", text: "Format used by the clock and alarms.", tooltip: "H/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
-                        { type: "choice", id: "timeCase", title: "Time letter case", text: "Change the letter case of the clock and alarm times.", options: [{ value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
-                        { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", text: "Use two-thirds font size for AM/PM in the bar, on the same baseline with no preceding space. Popup times keep AM/PM at full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
+                        { type: "choice", id: "twelveHour", title: "Hour Format", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
+                        { type: "text", id: "timeFormat", title: "Custom Format", tooltip: "Clock and alarms.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
+                        { type: "choice", id: "timeCase", title: "Letter Case", options: [{ value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
+                        { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", tooltip: "For 12h bar readouts. Popup times stay full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
                     ]
                 },
                 {
                     title: "Date",
                     rows: [
-                        { type: "text", id: "dateFormat", title: "Custom date format", text: "Format used by the bar.", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
-                        { type: "choice", id: "dateCase", title: "Date letter case", text: "Case of day and month names.", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }, { value: "capitalize", label: "Capital" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
-                    ]
-                }
-            ]
-        },
-        {
-            title: "Mail",
-            sections: [
-                {
-                    title: "Inbox tabs",
-                    text: "The tabs whose unread mail the badge counts, the popup lists and new-mail cards announce. The rest folds into one Other row. None on: all unread mail in the inbox.",
-                    rows: root.mailRows
-                }
-            ]
-        },
-        {
-            title: "Accessibility",
-            sections: [
-                {
-                    title: "Display",
-                    rows: [
-                        { type: "toggle", id: "reduceMotion", title: "Reduce motion", text: "Springs settle without a bounce, an icon asking for attention dims instead of hopping, and wallpaper parallax stops. Popups, the launcher and the power menu open in place rather than sliding or wiping in.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) },
-                        { type: "toggle", id: "reduceTransparency", title: "Reduce transparency", text: "The pills, popups, the launcher and the power menu are drawn on a solid dark surface instead of glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
+                        { type: "text", id: "dateFormat", title: "Custom Format", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
+                        { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }, { value: "capitalize", label: "Capital" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
                     ]
                 }
             ]
@@ -223,25 +285,102 @@ OverlayWindow {
             title: "Launcher",
             sections: [
                 {
-                    title: "Desktop actions",
+                    title: "File Search",
                     rows: [
-                        { type: "toggle", id: "showDesktopActions", title: "Show desktop actions", text: "Include app shortcuts such as New Private Window and Open Profile Manager in launcher results.", get: () => Settings.showDesktopActions, set: v => Settings.set("showDesktopActions", v) }
+                        { type: "text", id: "fileSearchIgnore", title: "Ignore File", tooltip: "Extra patterns in fd's ignore-file format. Empty uses fd's normal rules.", placeholder: "No extra ignore file", get: () => Settings.values.fileSearchIgnore ?? "", set: v => Settings.set("fileSearchIgnore", v.trim()) }
+                    ]
+                },
+                {
+                    title: "Desktop Actions",
+                    rows: [
+                        { type: "toggle", id: "showDesktopActions", title: "Include App Shortcuts", tooltip: "App actions such as New Private Window.", get: () => Settings.showDesktopActions, set: v => Settings.set("showDesktopActions", v) }
                     ]
                 },
                 {
                     title: "Controls",
-                    text: "The switches the launcher offers for sound, notifications, night mode and the radios.",
                     rows: root.controlRows
                 },
                 {
                     title: "Power",
-                    text: "Lock, sleep, restart and the rest, found by typing their names.",
                     rows: root.powerRows
                 },
                 {
                     title: "Apps",
-                    text: "Off leaves an app, or one of its own actions, out of the launcher's results. Nothing is uninstalled, and its desktop file is left alone.",
+                    text: "Off hides an app or shortcut from launcher results.",
                     rows: root.appRows
+                }
+            ]
+        },
+        {
+            title: "Apps & Services",
+            sections: [
+                {
+                    title: "Default Apps",
+                    rows: [
+                        { type: "text", id: "terminal", title: "Terminal", tooltip: "Must accept --title=<title> and -e <command>.", placeholder: Settings.defaults.terminal, get: () => Settings.values.terminal, set: v => Settings.set("terminal", v.trim() || Settings.defaults.terminal) },
+                        { type: "text", id: "editor", title: "Editor", placeholder: Quickshell.env("EDITOR") || "nvim", get: () => Settings.values.editor ?? "", set: v => Settings.set("editor", v.trim()) },
+                        { type: "text", id: "fileManager", title: "File Manager", tooltip: "Flags may follow the program name.", placeholder: Settings.defaults.fileManager, get: () => Settings.values.fileManager, set: v => Settings.set("fileManager", v.trim() || Settings.defaults.fileManager) }
+                    ]
+                },
+                {
+                    title: "Screenshots",
+                    rows: [
+                        { type: "text", id: "screenshotCommand", title: "Capture Command", text: "Empty hides the screenshot button.", placeholder: "Not configured", get: () => Settings.screenshotCommand, set: v => Settings.set("screenshotCommand", v.trim()) }
+                    ]
+                },
+                {
+                    title: "External Helpers",
+                    rows: [
+                        { type: "text", id: "scriptsDir", title: "Scripts Folder", tooltip: "Helpers for power, display, updates and cleanup.", placeholder: Settings.defaults.scriptsDir, get: () => Settings.values.scriptsDir, set: v => Settings.set("scriptsDir", v.trim() || Settings.defaults.scriptsDir) }
+                    ]
+                },
+                {
+                    title: "Music",
+                    rows: [
+                        { type: "toggle", id: "showMpris", title: "Show Now Playing", tooltip: "Media from browsers and other MPRIS apps.", get: () => Settings.showMpris, set: v => Settings.set("showMpris", v) },
+                        { type: "toggle", id: "scrollMusicTitles", title: "Scroll Long Titles", tooltip: "Reduce Motion keeps titles still.", get: () => Settings.scrollMusicTitles, set: v => Settings.set("scrollMusicTitles", v) },
+                        { type: "text", id: "mpdSocket", title: "MPD Socket", placeholder: Settings.defaults.mpdSocket, get: () => Settings.values.mpdSocket, set: v => Settings.set("mpdSocket", v.trim() || Settings.defaults.mpdSocket) }
+                    ]
+                },
+                {
+                    title: "Tasks",
+                    rows: [
+                        root.webApp("tasks"),
+                        { type: "dropdown", id: "defaultTaskList", title: "Default List", tooltip: "Unavailable lists fall back to the first list.", placeholder: "No task lists available", options: Tasks.lists.map(l => ({ value: l.id, label: l.title })), get: () => Tasks.defaultList.id, set: v => Settings.set("defaultTaskList", v) }
+                    ]
+                },
+                {
+                    title: "Calendar",
+                    rows: [root.webApp("calendar")]
+                },
+                {
+                    title: "Mail",
+                    rows: [
+                        root.webApp("gmail"),
+                        { type: "text", id: "downloadsDir", title: "Attachment Folder", placeholder: Settings.defaults.downloadsDir, get: () => Settings.values.downloadsDir || Settings.defaults.downloadsDir, set: v => Settings.set("downloadsDir", v.trim() || Settings.defaults.downloadsDir) }
+                    ]
+                },
+                {
+                    title: "Mail Inbox Tabs",
+                    text: "Count and announce unread mail from these tabs. None selected includes the whole inbox; other tabs fold into Other.",
+                    rows: root.mailRows
+                }
+            ]
+        },
+        {
+            title: "Accessibility",
+            sections: [
+                {
+                    title: "Motion",
+                    rows: [
+                        { type: "toggle", id: "reduceMotion", title: "Reduce Motion", text: "Limit animation, parallax and scrolling titles.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) }
+                    ]
+                },
+                {
+                    title: "Transparency",
+                    rows: [
+                        { type: "toggle", id: "reduceTransparency", title: "Reduce Transparency", text: "Use solid surfaces instead of glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
+                    ]
                 }
             ]
         }
@@ -257,7 +396,11 @@ OverlayWindow {
             if (!terms.length && p !== root.page)
                 return;
             for (const section of page.sections) {
-                const rows = terms.length ? section.rows.filter(r => terms.every(t => (r.title + " " + (r.text ?? "")).toLowerCase().includes(t))) : section.rows;
+                const rows = terms.length ? section.rows.filter(r => {
+                    const labels = r.type === "choice" ? r.options.map(o => o.label) : [];
+                    const words = [page.title, section.title, r.title, r.text ?? "", r.tooltip ?? "", r.keywords ?? "", ...labels].join(" ").toLowerCase();
+                    return terms.every(t => words.includes(t));
+                }) : section.rows;
                 if (!rows.length)
                     continue;
                 const title = terms.length ? page.title + " · " + section.title : section.title;

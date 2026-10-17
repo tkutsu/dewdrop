@@ -226,7 +226,7 @@ Singleton {
     }
 
     // Bump when the measuring changes, so answers from the old way are dropped.
-    readonly property int _version: 1
+    readonly property int _version: 2
 
     // A grab only fails to come back if its window stopped rendering, and one
     // lost job must not hold up every one behind it.
@@ -315,6 +315,8 @@ Singleton {
             Text {
                 id: glyph
 
+                // A fractional grab width rescales the text and shifts its pixel edges.
+                width: Math.ceil(implicitWidth)
                 padding: root.glyphPad
                 text: root._job?.text ?? ""
                 color: "white"

@@ -14,7 +14,7 @@ target=Path(folder.name)
 (target/'components').mkdir()
 (target/'runtime').mkdir(mode=0o700)
 (target/'Theme.qml').write_text((root/'Theme.qml').read_text())
-(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
+(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property bool groupWindowBadges: false; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
 (target/'services/Hyprland.qml').write_text('''pragma Singleton
 import QtQuick
 import Quickshell
@@ -46,6 +46,7 @@ property real inkOpacity; readonly property real shift: 0
 property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
 ''')
+(target/'components/Badge.qml').write_text('import QtQuick\nItem { property string text; property color fill; implicitWidth: 13; implicitHeight: 13 }')
 (target/'components/HoverPopup.qml').write_text('import QtQuick\nItem { property Item anchorItem; property bool hovered; property bool pressed; property bool open; property Component popup; property var item: null; property string text }')
 (target/'OpenPopup.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var selected: null; property var owner: null; function toggle(owner) {} function browse(owner, hovered) {} }')
 (target/'components/FlowMark.qml').write_text('''import QtQuick
@@ -66,13 +67,14 @@ Item {
 (target/'components/Bounce.qml').write_text((root/'components/Bounce.qml').read_text())
 (target/'components/DropLine.qml').write_text((root/'components/DropLine.qml').read_text())
 if '--real-icons' in sys.argv:
-    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText'):
+    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText', 'Badge', 'RollingText', 'Rim'):
         source=(root/f'components/{name}.qml').read_text()
         if name == 'AppIcon':
             source=source.replace('id: root', 'id: root\n    property real token: Math.random()', 1)
         (target/f'components/{name}.qml').write_text(source)
     for name in ('AppIcons', 'Ink'):
         (target/f'services/{name}.qml').write_text((root/f'services/{name}.qml').read_text())
+    (target/'components/RollingSpring.js').write_text((root/'components/RollingSpring.js').read_text())
     (target/'Paths.qml').write_text((root/'Paths.qml').read_text())
     offscreen_ink(target)
     (target/'assets').symlink_to(root/'assets', target_is_directory=True)
@@ -152,12 +154,26 @@ ShellRoot {
  move(a,w3);test.wait(220);
  check(icon(group,'a').icon.folded,'grouped arrival uses the existing representative');
  instant(icon(group,'b'),'grouped arrival leaves its representative visible and still');
+ const groupBadge=app=>app.children.find(c=>c.text!==undefined && c.fill!==undefined);
+ check(!groupBadge(icon(group,'b')).visible,'group counts are opt-in');
+ Settings.groupWindowBadges=true;test.wait(30);
+ check(groupBadge(icon(group,'b')).visible && groupBadge(icon(group,'b')).text==='2','collapsed group counts its two windows');
+ check(!groupBadge(icon(button(1),'c')).visible,'single windows have no count badge');
+ const extra=win('extra',w3,'same');Hyprland.toplevels.values=[b,c,a,extra];test.wait(50);
+ check(groupBadge(icon(group,'b')).text==='3','group count follows a newly opened window');
  Hyprland.toplevels.values=[a,b,c];test.wait(1500);
  const tokenA=icon(group,'a').token,tokenB=icon(group,'b').token;
  pill.expand(w3,'same');test.wait(100);
+ check(!groupBadge(icon(group,'a')).visible && !groupBadge(icon(group,'b')).visible,'expanded windows have no group count');
  check(icon(group,'b').reveal>0 && icon(group,'b').reveal<1,'group expansion animates');
  test.wait(300);pill.collapse();test.wait(300);
  check(icon(group,'b').reveal===0 && icon(group,'a').token===tokenA && icon(group,'b').token===tokenB,'group folding preserves delegates');
+ check(groupBadge(icon(group,'a')).visible && groupBadge(icon(group,'a')).text==='2','collapse restores the current group total');
+ Settings.groupWindows=false;test.wait(300);
+ check(!groupBadge(icon(group,'a')).visible && !groupBadge(icon(group,'b')).visible,'ungrouped windows have no group count');
+ Settings.groupWindows=true;test.wait(300);
+ Settings.groupWindowBadges=false;test.wait(30);
+ check(!groupBadge(icon(group,'a')).visible,'group counts can be disabled');
  pill.expand(w3,'same');test.wait(300);
  WorkspaceSync.settled=false;
  w3.id=2;test.wait(40);

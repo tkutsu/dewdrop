@@ -79,6 +79,28 @@ ShellRoot {
         try { FakeRequest.reply(next, {}, 503); } catch (_) {}
         check(reached && !Google.refreshing && Google.waiting.length === 0,
             'throwing failure callback cannot strand later token callers');
+
+        for (const scope of ['calendar.readonly calendar.app.created', 'calendar.readonly']) {
+            clear();Google.scopeMissing = false;next = FakeRequest.requests.length;
+            const beforeSuccesses = successes;
+            const beforeFailures = failures;
+            Google.authorised(go, fail);Google.authorised(go, fail);
+            FakeRequest.reply(next, {access_token: 'limited', expires_in: 3600,
+                scope: scope.split(' ').map(s => 'https://www.googleapis.com/auth/' + s).join(' ')});
+            check(successes === beforeSuccesses && failures === beforeFailures + 2
+                && Google.scopeMissing && Google.needsConsent && reason === Google.reconnect
+                && !Google.refreshing && Google.waiting.length === 0,
+                'restricted Calendar grant requests reconnect and settles all callers: ' + scope);
+        }
+        for (const scope of ['calendar.events', 'calendar.events.owned', 'calendar']) {
+            clear();Google.scopeMissing = false;next = FakeRequest.requests.length;
+            const beforeSuccesses = successes;
+            Google.authorised(go, fail);
+            FakeRequest.reply(next, {access_token: 'writable', expires_in: 3600,
+                scope: 'https://www.googleapis.com/auth/' + scope});
+            check(successes === beforeSuccesses + 1 && !Google.needsConsent,
+                'primary Calendar event write grant is accepted: ' + scope);
+        }
         console.log('PASS: Google refresh lifecycle');
     }
     Timer { interval: 100; running: true; onTriggered: {

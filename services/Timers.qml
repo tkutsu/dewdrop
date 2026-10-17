@@ -60,6 +60,7 @@ Singleton {
     // the bar show a ring without having to ask whether the timer behind it is
     // also still counting.
     property var ringing: []
+    readonly property bool audible: root.ringing.some(r => root.now - r.firedAt <= root.ringMs)
 
     // The clock the whole file is read against, moved by the tick below rather
     // than by each reader calling Date.now() for itself. One value per tick
@@ -73,6 +74,9 @@ Singleton {
     // overwrite the very thing being restored.
     property bool restored: false
     property int nextId: 1
+
+    // Explicit cancellation is different from firing or dismissing a ring.
+    signal cancelled(var entry)
 
     // --- derived -------------------------------------------------------------
     readonly property var timers: root.entries.filter(e => e.kind !== "alarm")
@@ -232,9 +236,10 @@ Singleton {
         root._commit(root.entries.filter(e => e.id !== id));
     }
 
-    function _add(entry: var): void {
+    function _add(entry: var): string {
         entry.id = String(root.nextId++);
         root._commit(root.entries.concat([entry]));
+        return entry.id;
     }
 
     // --- making them ---------------------------------------------------------
@@ -258,8 +263,8 @@ Singleton {
         root.tick();
     }
 
-    function addAlarm(hour: int, minute: int, label: string, days: var): void {
-        root._add({
+    function addAlarm(hour: int, minute: int, label: string, days: var): string {
+        const id = root._add({
             id: "",
             kind: "alarm",
             label: label ?? "",
@@ -272,6 +277,13 @@ Singleton {
             days: days ?? []
         });
         root.tick();
+        return id;
+    }
+
+    // Save the Google event reference alongside the alarm for cancellation after a restart.
+    function linkEvent(id: string, event: var): void {
+        if (root.entries.some(e => e.id === id))
+            root._patch(id, { calendarEvent: event });
     }
 
     function occurrence(hour: int, minute: int, days: var, from: real): real {
@@ -317,7 +329,13 @@ Singleton {
     }
 
     function cancel(id: string): void {
+        const e = root.entries.find(x => x.id === id);
+        if (!e)
+            return;
         root._drop(id);
+        if (e.calendarEvent)
+            Agenda.remove(e.calendarEvent);
+        root.cancelled(e);
     }
 
     // Scrolling the pill. The run gets longer rather than the clock jumping
@@ -363,7 +381,7 @@ Singleton {
         // Each ring gives up on its own clock. One hush for the lot would
         // silence a timer that just went off because an older one had been
         // ringing a minute.
-        const kept = root.ringing.filter(r => root.now - r.firedAt <= root.ringMs);
+        const kept = root.ringing.filter(r => root.now - r.firedAt <= root.ringMs || PhoneAlarms.hasLive(r.id, r.firedAt));
         if (kept.length !== root.ringing.length)
             root._unring(kept);
     }
@@ -392,15 +410,14 @@ Singleton {
         const title = e.kind === "alarm" ? "Alarm" : "Timer";
         const body = e.label !== "" ? e.label : (e.kind === "alarm" ? root.hhmm(e.hour, e.minute) : root.spell(e.total));
         root.beat();
-        Pushover.notifyPhone(title, body, ringingEntry);
+        PhoneAlarms.notifyPhone(title, body, ringingEntry);
     }
 
 
-    // Dismiss locally and stop phone retries, including a receipt still on its
-    // way back from sending.
+    // Stop local sound first, then reconcile every phone occurrence, including an in-flight start.
     function hush(): void {
         root._unring([]);
-        Pushover.dismiss();
+        PhoneAlarms.dismiss();
     }
 
     function _unring(keep: var): void {
@@ -411,17 +428,18 @@ Singleton {
     // the sound stops with it. As a handler on the list rather than a line
     // inside hush(), because there is more than one way for it to empty; clearing the timers used to leave the rest
     // of the alarm playing to itself.
-    onRingingChanged: if (root.ringing.length === 0)
+    onAudibleChanged: if (!root.audible)
         ring.running = false
 
-    readonly property string phoneWarning: Pushover.phoneWarning
+    readonly property string phoneWarning: PhoneAlarms.phoneWarning
 
     Connections {
-        target: Pushover
+        target: PhoneAlarms
         function onFailed(reason: string): void {
             console.warn("Phone alert: " + reason);
             Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", "normal", "Phone alert failed", reason]);
         }
+        function onFinished(): void { root.tick(); }
         function onAcknowledged(id: string, firedAt: real): void {
             root._unring(root.ringing.filter(entry => entry.id !== id || entry.firedAt !== firedAt));
         }
@@ -432,7 +450,7 @@ Singleton {
     // on sounding until the file ran out; a Process can be told to stop, which
     // is what `running = false` does.
     function beat(): void {
-        if (!ring.running)
+        if (root.audible && !ring.running)
             ring.running = true;
     }
 
@@ -521,7 +539,7 @@ Singleton {
     // two seconds long and a beat a second would be a siren.
     Timer {
         interval: root.beatMs
-        running: root.ringing.length > 0
+        running: root.audible
         repeat: true
         onTriggered: root.beat()
     }
@@ -630,7 +648,8 @@ Singleton {
 
         function clear(): void {
             root.hush();
-            root._commit([]);
+            for (const e of root.entries)
+                root.cancel(e.id);
         }
 
         function list(): string {
@@ -638,7 +657,7 @@ Singleton {
         }
 
         function phone(): string {
-            return root.phoneWarning || "Pushover ready";
+            return root.phoneWarning || "Local phone alarms ready";
         }
     }
 }

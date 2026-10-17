@@ -4,7 +4,7 @@ import qs
 import qs.components
 
 // A preview of the file the / list is on; only / mode shows it
-// (LauncherMenu.qml widens the box). ~/_scripts/thumb.sh renders and caches;
+// (LauncherMenu.qml widens the box). scripts/thumb.sh renders and caches;
 // the ask is debounced through QueuedProcess so holding Down through forty
 // files does not leave forty ffmpegs behind.
 Item {
@@ -14,7 +14,7 @@ Item {
     // directory, an empty list, a mode that is not /.
     property string path: ""
 
-    readonly property string script: Paths.script("thumb.sh")
+    readonly property string script: Quickshell.shellPath("scripts/thumb.sh")
 
     // Path → { kind, payload } for the life of the window, so arrowing back
     // up does not shell out again (the script keeps the real cache). Written

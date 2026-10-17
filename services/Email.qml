@@ -431,7 +431,7 @@ GoogleService {
         return found;
     }
 
-    // Into ~/Downloads, under a new name if the one it has is taken, then
+    // Into the downloads folder, under a new name if its name is taken, then
     // opened. scripts/gmail-attachment fetches and writes it; the token goes
     // to it in its environment, where the process list does not show it.
     // Every attachment of a thread's open messages, each with the message
@@ -481,7 +481,7 @@ GoogleService {
         });
         root.authorised(() => saver.createObject(root, {
                 command: [Quickshell.shellPath("scripts/gmail-attachment"), message, part.id, part.name],
-                environment: { GMAIL_TOKEN: Google.accessToken },
+                environment: { GMAIL_TOKEN: Google.accessToken, GMAIL_DOWNLOAD_DIR: Settings.downloadsDir },
                 part: part,
                 done: done,
                 landed: then
@@ -1001,7 +1001,7 @@ GoogleService {
     function open(thread: var): void {
         if (thread.unread || root.cache[thread.id])
             root.drop(thread);
-        Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", `${root.web}#inbox/${thread.id}`, root.web));
+        Quickshell.execDetached(Settings.webApp("gmail", `${root.web}#inbox/${thread.id}`, root.web));
     }
 
     // Read without opening it, at once: the launcher's reader and a
@@ -1188,14 +1188,14 @@ GoogleService {
     }
 
     function openInbox(): void {
-        Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", "", root.web));
+        Quickshell.execDetached(Settings.webApp("gmail", "", root.web));
     }
 
     // A new mail, in its own Gmail window, with the subject filled in
     // when there is one (the launcher's ctrl+enter).
     function compose(subject: string): void {
         const su = subject ? `&su=${encodeURIComponent(subject)}` : "";
-        Quickshell.execDetached(Settings.webApp("pwa-gmail.sh", `${root.web}?view=cm&fs=1${su}`, root.web));
+        Quickshell.execDetached(Settings.webApp("gmail", `${root.web}?view=cm&fs=1${su}`, root.web));
     }
 
     Timer {

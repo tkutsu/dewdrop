@@ -27,7 +27,7 @@ BarItem {
     // For the pill around it, which is this module and nothing else and so
     // is drawn into the clock with it once nothing is set: the bar draws the
     // pill off `reveal` (see Bar.drop), and nothing folds.
-    stowed: !Timers.loaded
+    stowed: !Timers.loaded && !exitHeld
     folds: false
 
     popup: TimerPopup {
@@ -40,6 +40,12 @@ BarItem {
     // Whether a hover is run rather than set: only for a pill at rest (see
     // Music.settled).
     readonly property bool settled: reveal >= 1
+    readonly property bool sliding: root.pill?.slidesContent ?? false
+    readonly property real glassWidth: sliding ? pill.foldBox.z : width
+    readonly property real glassLeft: sliding ? pill.foldBox.x : 0
+    readonly property real iconInset: sliding ? Math.min(padLeft,
+        Math.max(0, (glassWidth - glyph.width) / 2)) : 0
+    readonly property real titleLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
 
     readonly property real progress: Timers.progress
     // How fast that runs while the timer does, for the pill to carry the line
@@ -47,6 +53,7 @@ BarItem {
     readonly property real rate: !ringing && Timers.focus?.running && Timers.focus.total > 0 ? 1000 / Timers.focus.total : 0
 
     readonly property bool ringing: Timers.ringing.length > 0
+    readonly property int runningCount: Timers.entries.filter(e => e.running).length
 
     // What the hands act on: the timer the pill shows, or the alarm it shows
     // when no timer is set. Pausing an alarm is switching it off, the same as
@@ -115,10 +122,11 @@ BarItem {
     spacing: 0
     // While ringing, the whole pill is one dismissal target.
     dips: root.ringing
+    textPress: true
     contentAnimating: nameWidth.running || holdWidth.running
 
     // Out only while the pill is pointed at.
-    readonly property bool handsOut: root.containsMouse
+    readonly property bool handsOut: root.settled && root.containsMouse
 
     // The glyph's slot, and the close button once the hands are out: the
     // glyph fades to what pressing it will do, as the music pill's sleeve
@@ -133,6 +141,10 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: Math.max(glyph.implicitWidth, mark.implicitWidth) + Theme.mediaGap
         scale: slotPress.scale
+        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
+        // Finish the bounce before fading into an empty joining circle.
+        opacity: root.sliding ? (root.pill.bounceBeforeCollapse ? root.pill.iconOpacity
+            : Math.min(1, labelText.width / Math.max(1, labelText.implicitWidth))) : 1
 
         PressGlass {
             id: slotPress
@@ -152,18 +164,20 @@ BarItem {
             onTapped: root.dismiss()
         }
 
-        Glyph {
+        BadgedGlyph {
             id: glyph
+            scale: root.sliding ? root.pill.iconScale : 1
             x: Math.round((slot.width - Theme.mediaGap - width) / 2)
             height: parent.height
-            text: root.shownGlyph
-            fontSize: Theme.glyphSizeLarge
-            // White even while ringing: the hop below on the alarm's beat is the
-            // signal, and orange means "warm" everywhere else on this bar.
-            color: Theme.fg
+            glyph: root.shownGlyph
+            glyphSize: Theme.glyphSizeLarge
+            badge: root.runningCount > 1 && !slot.marked && Settings.badgeStyle("countdown") !== "hide" ? String(root.runningCount) : ""
+            dot: Settings.badgeStyle("countdown") === "dot"
+            underdot: Settings.badgeStyle("countdown") === "underdot"
             opacity: slot.marked ? 0 : 1
 
             Behavior on opacity {
+                enabled: root.settled
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
@@ -180,6 +194,7 @@ BarItem {
             opacity: slot.marked ? 1 : 0
 
             Behavior on opacity {
+                enabled: root.settled
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
@@ -206,11 +221,13 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: figures ? rolling.implicitWidth : words.implicitWidth
         scale: labelPress.scale
+        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
 
         PressGlass {
             id: labelPress
             icon: labelBox
             area: labelTap
+            textPress: true
         }
 
         Accessible.role: Accessible.Button
@@ -242,20 +259,31 @@ BarItem {
             }
         }
 
-        BarText {
-            id: words
+        Marquee {
+            id: labelText
+            width: Math.max(0, Math.min(labelBox.width - root.titleLoss,
+                labelBox.width * (root.sliding ? root.pill.textReveal : 1)))
             height: parent.height
-            visible: !parent.figures
-            text: root.shownLabel
-        }
+            contentWidth: labelBox.implicitWidth
+            active: true
+            paused: true
+            travel: root.titleLoss
 
-        RollingText {
-            id: rolling
-            height: parent.height
-            visible: parent.figures
-            text: parent.figures ? root.shownLabel : ""
-            smallRanges: root.shownSmallRanges
-            countsDown: !!Timers.focus
+            BarText {
+                id: words
+                height: parent.height
+                visible: !labelBox.figures
+                text: root.shownLabel
+            }
+
+            RollingText {
+                id: rolling
+                height: parent.height
+                visible: labelBox.figures
+                text: labelBox.figures ? root.shownLabel : ""
+                smallRanges: root.shownSmallRanges
+                countsDown: !!Timers.focus
+            }
         }
     }
 
@@ -276,6 +304,7 @@ BarItem {
             id: namePress
             icon: nameBox
             area: nameTap
+            textPress: true
         }
 
         Behavior on implicitWidth {

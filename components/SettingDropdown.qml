@@ -53,8 +53,9 @@ Controls.ComboBox {
     }
 
     indicator: Glyph {
-        x: root.width - width - 6
+        x: Math.round(root.width - (root.rightPadding + width) / 2)
         anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: -1
         text: Theme.glyph.popUp
         fontSize: Theme.captionSize
         color: Theme.label2

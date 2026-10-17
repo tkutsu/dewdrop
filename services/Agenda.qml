@@ -222,7 +222,7 @@ GoogleService {
     // Tasks.plan). `reminders` is Google's object; left out, the calendar's
     // defaults apply. No popup is open to show `trouble` when this fails, so a
     // failure is also sent as a notification.
-    function insert(event: var): void {
+    function insert(event: var, done: var, failed: var): void {
         const body = {
             summary: event.title,
             start: { dateTime: root.stamp(event.start) },
@@ -230,7 +230,9 @@ GoogleService {
         };
         if (event.reminders)
             body.reminders = event.reminders;
-        root.send("POST", `${root.api}/calendars/primary/events`, body, () => {
+        root.send("POST", `${root.api}/calendars/primary/events`, body, saved => {
+            if (done)
+                done(saved);
             // Fetched again even if a fetch is in the air: that one began
             // before the event existed.
             const key = root.monthKey(event.start);
@@ -238,8 +240,30 @@ GoogleService {
             if (root.haveCalendars)
                 root.fetchMonth(event.start, false);
         }, (why, status) => {
+            if (failed)
+                failed();
             root.fail(why, status);
             Quickshell.execDetached(["notify-send", "-a", "quickshell", "Event not added", `${event.title}: ${why}`]);
+        });
+    }
+
+    // Remove only the event whose ID was returned when the alarm was created.
+    function remove(event: var): void {
+        if (!event?.id)
+            return;
+        const refresh = () => {
+            const date = new Date(event.start);
+            root.land(root.monthKey(date));
+            if (root.haveCalendars)
+                root.fetchMonth(date, false);
+        };
+        root.send("DELETE", `${root.api}/calendars/primary/events/${encodeURIComponent(event.id)}`, null, refresh, (why, status) => {
+            if (status === 404 || status === 410) {
+                refresh();
+                return;
+            }
+            root.fail(why, status);
+            Quickshell.execDetached(["notify-send", "-a", "quickshell", "Event not removed", `${event.title}: ${why}`]);
         });
     }
 

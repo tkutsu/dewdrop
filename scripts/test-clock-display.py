@@ -26,6 +26,7 @@ ShellRoot {
         RollingText {
             id: clock
             height: 30
+            tightWidth: true
             fontSize: Theme.textSize
             readonly property var display: Settings.clockDisplay(test.stamp)
             text: display.text

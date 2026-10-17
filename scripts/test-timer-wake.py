@@ -22,7 +22,7 @@ ShellRoot {
         console.log('PASS: ' + message);
     }
     function jump(at) { AuditClock.now = at;WallClock.sample(at); }
-    function reset() { Timers.hush();Timers._commit([]);Pushover.sent = []; }
+    function reset() { Timers.hush();Timers._commit([]);PhoneAlarms.sent = [];PhoneAlarms.live = false; }
     function alarm(id, endsAt, running = true, days = []) {
         return {id,kind:'alarm',label:id,running,endsAt,hour:8,minute:0,days};
     }
@@ -36,11 +36,27 @@ ShellRoot {
             jump(base + 3602000);
             check(Timers.entries.length === 0 && Timers.ringing.length === 1,
                 'WallClock wake expires an alarm immediately after resume');
-            check(wakes === 1 && Pushover.sent.length === 1, 'resume announces the alarm once; wakes=' + wakes + ', sends=' + Pushover.sent.length);
+            check(wakes === 1 && PhoneAlarms.sent.length === 1, 'resume announces the alarm once; wakes=' + wakes + ', sends=' + PhoneAlarms.sent.length);
             WallClock.wokeUp();jump(AuditClock.now + 1000);
-            check(Pushover.sent.length === 1, 'overlapping clock and wake events cannot fire the same alarm twice');
+            check(PhoneAlarms.sent.length === 1, 'overlapping clock and wake events cannot fire the same alarm twice');
             jump(AuditClock.now + Timers.ringMs + 1);
             check(Timers.ringing.length === 0, 'wall-clock changes expire an unanswered ring');
+
+            reset();base = AuditClock.now;PhoneAlarms.live = true;
+            Timers._commit([alarm('quiet-phone', base + 1000)]);jump(base + 1000);
+            const quietAt = Timers.ringing[0].firedAt;
+            jump(quietAt + Timers.ringMs + 1);
+            check(Timers.ringing.length === 1 && !Timers.audible,
+                'local sound stops at one minute while the phone entry stays dismissible');
+            Timers._commit([alarm('newer-ring', AuditClock.now + 1000)]);jump(AuditClock.now + 1000);
+            PhoneAlarms.acknowledged('quiet-phone', quietAt);
+            check(Timers.ringing.length === 1 && Timers.ringing[0].id === 'newer-ring' && Timers.audible,
+                'an older phone dismissal leaves the newer local ring sounding');
+            PhoneAlarms.live = false;PhoneAlarms.finished();
+            check(Timers.ringing.length === 1 && Timers.audible,
+                'natural phone timeout does not hush a local ring early');
+            jump(AuditClock.now + Timers.ringMs + 1);
+            check(Timers.ringing.length === 0, 'silent phone entry ends when neither device is live');
 
             reset();base = AuditClock.now;
             Timers._commit([alarm('future', base + 7200000)]);
@@ -68,7 +84,7 @@ ShellRoot {
             check(Timers.timers.length === 1 && Timers.leftMs === 20000 && Timers.ringing.length === 1,
                 'resume expires the alarm and preserves the running countdown remainder');
             jump(base + 46000);
-            check(Timers.entries.length === 0 && Pushover.sent.length === 2,
+            check(Timers.entries.length === 0 && PhoneAlarms.sent.length === 2,
                 'overdue running countdown fires once on the shared clock');
 
             reset();base = AuditClock.now;
@@ -77,7 +93,7 @@ ShellRoot {
             const left = Timers.timers[0].left;
             Timers._add(alarm('disabled', base + 1000, false));
             jump(base + 7200000);
-            check(Timers.timers[0].left === left && Timers.alarms.length === 1 && Pushover.sent.length === 0,
+            check(Timers.timers[0].left === left && Timers.alarms.length === 1 && PhoneAlarms.sent.length === 0,
                 'resume preserves paused countdowns and disabled alarms');
             Timers.resume(paused);
             check(Timers.timers[0].endsAt === AuditClock.now + left && Timers.counting,
@@ -86,20 +102,20 @@ ShellRoot {
             reset();base = AuditClock.now;
             Timers._commit([alarm('old', base + 1000)]);
             jump(base + 1000 + Timers.graceMs + 1);
-            check(Timers.entries.length === 0 && Pushover.sent.length === 0,
+            check(Timers.entries.length === 0 && PhoneAlarms.sent.length === 0,
                 'alarm outside the existing grace period is dropped quietly');
             reset();base = AuditClock.now;
             Timers._commit([alarm('boundary', base + 1000)]);
             jump(base + 1000 + Timers.graceMs);
-            check(Pushover.sent.length === 1, 'the grace-period boundary remains inclusive');
+            check(PhoneAlarms.sent.length === 1, 'the grace-period boundary remains inclusive');
 
             reset();base = AuditClock.now;
             Timers._commit([alarm('repeat', base + 1000, true, [0,1,2,3,4,5,6])]);
             jump(base + 2000);
-            check(Timers.entries.length === 1 && Timers.entries[0].endsAt > AuditClock.now && Pushover.sent.length === 1,
+            check(Timers.entries.length === 1 && Timers.entries[0].endsAt > AuditClock.now && PhoneAlarms.sent.length === 1,
                 'saved repeating alarms retain their next occurrence after resume');
             jump(AuditClock.now + 1000);
-            check(Pushover.sent.length === 1, 'the rescheduled repeating alarm cannot fire twice');
+            check(PhoneAlarms.sent.length === 1, 'the rescheduled repeating alarm cannot fire twice');
 
             reset();const ticks = Timers.auditTicks;
             jump(AuditClock.now + 5000);
@@ -125,10 +141,10 @@ ShellRoot {
             Timers._commit([{id:'native',kind:'alarm',label:'native',running:true,endsAt:due,hour:8,minute:0,days:[]}]);
             test.tryVerify(() => Timers.ringing.length === 1, 1200);
             const late = Timers.ringing[0].firedAt - due;
-            if (late < 0 || late > 250 || Pushover.sent.length !== 1)
-                throw Error('native deadline late=' + late + ', sends=' + Pushover.sent.length);
+            if (late < 0 || late > 250 || PhoneAlarms.sent.length !== 1)
+                throw Error('native deadline late=' + late + ', sends=' + PhoneAlarms.sent.length);
             test.wait(150);
-            if (Pushover.sent.length !== 1 || Timers.auditAlarm.running)
+            if (PhoneAlarms.sent.length !== 1 || Timers.auditAlarm.running)
                 throw Error('native alarm fired again or left its deadline armed');
             console.log('PASS: native alarm deadline without WallClock polling; lateness=' + late + 'ms');
         } catch (error) { console.log('FAIL: ' + error); }
@@ -153,13 +169,16 @@ def run_case(shell, live, expected):
         source = source.replace('id: root', 'id: root\n    property alias auditSampler: sampler', 1)
         source = source.replace('    Timer {', '    Timer {\n        id: sampler', 1)
         (target / 'services/WallClock.qml').write_text(source)
-        (target / 'services/Pushover.qml').write_text('''pragma Singleton
+        (target / 'services/PhoneAlarms.qml').write_text('''pragma Singleton
 import QtQuick
 QtObject {
     property var sent: []
     property string phoneWarning: ""
     signal failed(string reason)
     signal acknowledged(string id, double firedAt)
+    signal finished()
+    property bool live: false
+    function hasLive(id, firedAt) { return live; }
     function notifyPhone(title, body, entry) { sent = [...sent, entry]; }
     function dismiss() {}
 }''')

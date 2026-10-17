@@ -21,7 +21,7 @@ def main():
         offset = {"music": 100, "countdown": 350, "recording": 600}[name]
         block = source.split(f"id: {name}Pill", 1)[1].split(f"id: {name}\n", 1)[0]
         bindings = "\n".join(line for line in block.splitlines() if re.match(
-            r"\s*(morphValue|contentOpacity|contentScale|contentSink|interactive|trackReady):", line))
+            r"\s*(slidesContent|morphValue|contentOpacity|contentScale|contentSink|interactive|trackReady):", line))
         pills.append(f"""
         Morph {{ id: {name}Morph; open: {name}.popupOpen }}
         SidePill {{

@@ -14,7 +14,7 @@ Scope {
     readonly property var beats: root.filePath ? WaveformCache.beats : []
     property real position: Mpd.playbackElapsed
     property real pulse: 0
-    readonly property string filePath: Mpd.file && !Mpd.file.includes("://") ? Mpd.musicDir + Mpd.file : ""
+    readonly property string filePath: Mpd.musicDir && Mpd.file && !Mpd.file.includes("://") ? Mpd.musicDir + Mpd.file : ""
     readonly property string wanted: active ? filePath : ""
     readonly property string loaded: root.filePath ? WaveformCache.loaded : ""
 
