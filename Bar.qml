@@ -195,7 +195,7 @@ PanelWindow {
 
     // Centre the middle pinned icon or label, or the gap between two pinned
     // components (Pill.centreAt). Folding modules do not choose the anchor.
-    readonly property var movableModules: [clock, weather, timeClock, audio, email, tasks, updater, bell,
+    readonly property var movableModules: [clock, weather, timeClock, audio, email, tasks, updater, feeds, bell,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
     readonly property var centreKeys: {
         const keys = Settings.centralComponents;
@@ -642,6 +642,12 @@ PanelWindow {
         Updater {
             id: updater
             pinKey: "updater"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
+        Feeds {
+            id: feeds
+            pinKey: "feeds"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }

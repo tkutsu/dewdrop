@@ -94,7 +94,7 @@ ShellRoot {
                 bar.check(destination.children.some(child => child._at !== undefined && !isNaN(child.target)), 'destination shows insertion line');
                 mouseRelease(destination, x, 20); settle();
                 bar.check(item.pill === destination && !source.dragging, key + ': same live module arrives');
-                bar.check(bar.movableModules.length === 19 && clockPill.modules.length + rightPill.modules.length === 19, 'every module has exactly one instance');
+                bar.check(bar.movableModules.length === 20 && clockPill.modules.length + rightPill.modules.length === 20, 'every module has exactly one instance');
                 bar.check(item.pinKey === (destination === rightPill ? key : ''), 'pin controls follow placement');
                 if (destination === rightPill) bar.check(DrawerPins.pinned(key), key + ': transfer automatically pins');
                 else bar.check(!item.stowed && item.visible, key + ': open drawer reveals central modules');
@@ -284,11 +284,11 @@ def main():
         (target / 'modules/Clock.qml').write_text('import QtQuick\nimport qs.components\nBarItem { id: root; property date date: new Date(); property int middleClicks: 0; actions: ({ [Qt.MiddleButton]: () => root.middleClicks++ }); popup: Component { Item {} } Rectangle { implicitWidth: 90; implicitHeight: 20 } }\n')
         (target / 'modules/Drawer.qml').write_text('import QtQuick\nimport qs.components\nBarItem { property bool open: false; property bool out: open; property real windup: 0; property bool holding: false; property bool pointerNear: false; present: holding; Rectangle { implicitWidth: 8; implicitHeight: 20 } }\n')
         (target / 'modules/LauncherButton.qml').write_text('import QtQuick\nimport qs.components\nBarItem { Rectangle { implicitWidth: 16; implicitHeight: 20 } }\n')
-        names = ['Audio', 'Email', 'Tasks', 'Updater', 'NotificationBell', 'Satty', 'IdleInhibit', 'Wallpaper', 'NightMode', 'Sys', 'SettingsButton', 'Drives', 'Bluetooth', 'Network', 'Tray', 'Language']
+        names = ['Audio', 'Email', 'Tasks', 'Updater', 'Feeds', 'NotificationBell', 'Satty', 'IdleInhibit', 'Wallpaper', 'NightMode', 'Sys', 'SettingsButton', 'Drives', 'Bluetooth', 'Network', 'Tray', 'Language']
         for name in names:
             tucked = re.search(r'            readonly property bool tucked: [^\n]+', (ROOT / 'modules/Tray.qml').read_text()).group(0)
             extra = 'id: root; property bool drawerOut: false; readonly property bool tucks: DrawerPins.kept("tray:fixture"); readonly property bool entryTucked: entry.tucked; Item { id: entry; property var modelData: ({id: "fixture"}); ' + tucked + ' }' if name == 'Tray' else ''
-            quiet = 'true' if name in ('Email', 'Updater', 'SettingsButton') else 'false'
+            quiet = 'true' if name in ('Email', 'Updater', 'Feeds', 'SettingsButton') else 'false'
             if name == 'Tray': quiet = 'DrawerPins.kept("tray:fixture")'
             (target / f'modules/{name}.qml').write_text(f'import QtQuick\nimport qs\nimport qs.components\nBarItem {{ {extra} quiet: {quiet}; popup: Component {{ Item {{}} }} Rectangle {{ implicitWidth: 22; implicitHeight: 20 }} }}\n')
         (target / 'services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property bool outlook: true; property bool stale: false; function refresh(force) {} }\n")
