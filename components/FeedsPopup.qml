@@ -29,6 +29,7 @@ Popup {
     readonly property string requestedSection: root.sections.find(s => Feeds.unfolded(s.section))?.section ?? ""
     property string shownSection: ""
     property real sectionOpacity: 1
+    property real sectionExpansion: 1
     property bool sectionReady: false
 
     onRequestedSectionChanged: root.updateSection()
@@ -45,8 +46,10 @@ Popup {
         if (Settings.reduceMotion || !root.visible) {
             root.shownSection = root.requestedSection;
             root.sectionOpacity = 1;
-        } else if (root.shownSection !== root.requestedSection || root.sectionOpacity < 1) {
+            root.sectionExpansion = 1;
+        } else if (root.shownSection !== root.requestedSection || root.sectionOpacity < 1 || root.sectionExpansion < 1) {
             fadeOut.duration = root.shownSection === "" ? 0 : Theme.fadeMs;
+            expandIn.duration = root.requestedSection === "" ? 0 : Theme.foldMs;
             sectionTransition.start();
         }
     }
@@ -61,12 +64,19 @@ Popup {
             to: 0
             easing.type: Easing.InOutCubic
         }
-        ScriptAction { script: root.shownSection = root.requestedSection }
+        ScriptAction {
+            script: {
+                root.sectionExpansion = 0;
+                root.shownSection = root.requestedSection;
+                root.sectionOpacity = 1;
+            }
+        }
         NumberAnimation {
+            id: expandIn
             target: root
-            property: "sectionOpacity"
+            property: "sectionExpansion"
+            from: 0
             to: 1
-            duration: root.requestedSection === "" ? 0 : Theme.fadeMs
             easing.type: Easing.InOutCubic
         }
     }
@@ -207,7 +217,7 @@ Popup {
                         id: reveal
 
                         width: parent.width
-                        height: part.shown ? rows.implicitHeight + root.rowGap : 0
+                        height: part.shown ? (rows.implicitHeight + root.rowGap) * root.sectionExpansion : 0
                         clip: true
                         enabled: fold.open && !sectionTransition.running
                         opacity: root.sectionOpacity
