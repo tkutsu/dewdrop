@@ -248,11 +248,24 @@ Singleton {
     // popup opens. Only the listed links are looked for.
     readonly property int historyMs: 5 * 60000
 
+    // Every item listed, and the links each can be opened by.
+    function unseenItems(): var {
+        return root.unseenVideos.concat(...root.unseenSources.map(s => s.items));
+    }
+
+    function links(items: var): var {
+        const all = new Set();
+        for (const item of items)
+            for (const link of [item.url, item.comments])
+                if (link)
+                    all.add(link);
+        return [...all];
+    }
+
     function checkHistory(): void {
-        const items = root.unseenVideos.concat(...root.unseenSources.map(s => s.items));
-        if (history.running || items.length === 0)
+        const links = root.links(root.unseenItems());
+        if (history.running || links.length === 0)
             return;
-        const links = [...new Set(items.flatMap(i => [i.url, i.comments ?? ""]).filter(u => u !== ""))];
         history.command = ["python3", "-I", Quickshell.shellPath("scripts/feeds-seen.py"),
             String(Math.floor(Date.now() / 1000) - root.days * 86400), ...links];
         history.running = true;
@@ -260,8 +273,7 @@ Singleton {
 
     function seenInBrowser(text: string): void {
         const opened = new Set(text.split("\n").filter(line => line !== ""));
-        const items = root.unseenVideos.concat(...root.unseenSources.map(s => s.items))
-            .filter(i => opened.has(i.url) || opened.has(i.comments));
+        const items = root.unseenItems().filter(i => opened.has(i.url) || opened.has(i.comments));
         if (items.length > 0)
             root.markSeen(items);
     }
