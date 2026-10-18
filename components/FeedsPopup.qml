@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Widgets
 import qs
 import qs.components
@@ -26,8 +27,7 @@ Popup {
     // Ages move on the minute.
     readonly property real now: Google.now.getTime()
 
-    // Every part with something unseen, the folded ones first so they stay
-    // in reach above whatever is open.
+    // Closed headers stay above the open section.
     readonly property var sections: {
         const all = [{ section: "videos", title: "YouTube", videos: Feeds.unseenVideos, stories: [] }]
             .concat(Feeds.unseenSources.map(s => ({ section: s.url, title: s.title, videos: [], stories: s.items })))
@@ -134,32 +134,70 @@ Popup {
             width: parent.width
             spacing: root.rowGap
 
+            move: Transition {
+                NumberAnimation {
+                    properties: "x,y"
+                    duration: Settings.reduceMotion ? 0 : Theme.foldMs
+                    easing.type: Easing.InOutCubic
+                }
+            }
+
             Repeater {
-                model: root.sections
+                // Stable keys preserve delegates when closed headers move up.
+                model: ScriptModel {
+                    values: root.sections.map(s => s.section)
+                }
 
                 delegate: Column {
                     id: part
 
-                    required property var modelData
+                    required property string modelData
+                    readonly property var source: root.sections.find(s => s.section === part.modelData)
+                        ?? { title: "", videos: [], stories: [] }
 
                     width: root.bodyWidth
-                    spacing: root.rowGap
+                    spacing: 0
 
                     Fold {
                         id: fold
-                        section: part.modelData.section
-                        title: part.modelData.title
-                        unseen: part.modelData.videos.length + part.modelData.stories.length
+                        section: part.modelData
+                        title: part.source.title
+                        unseen: part.source.videos.length + part.source.stories.length
                     }
 
-                    Repeater {
-                        model: fold.open ? part.modelData.videos : []
-                        delegate: videoRow
-                    }
+                    Item {
+                        id: reveal
 
-                    Repeater {
-                        model: fold.open ? part.modelData.stories : []
-                        delegate: storyRow
+                        width: parent.width
+                        height: fold.open ? rows.implicitHeight + root.rowGap : 0
+                        clip: true
+                        enabled: fold.open
+
+                        Behavior on height {
+                            NumberAnimation {
+                                duration: Settings.reduceMotion ? 0 : Theme.foldMs
+                                easing.type: Easing.InOutCubic
+                            }
+                        }
+
+                        Column {
+                            id: rows
+
+                            y: root.rowGap
+                            width: parent.width
+                            spacing: root.rowGap
+
+                            // Keep closing rows alive until they are clipped away.
+                            Repeater {
+                                model: fold.open || reveal.height > 0 ? part.source.videos : []
+                                delegate: videoRow
+                            }
+
+                            Repeater {
+                                model: fold.open || reveal.height > 0 ? part.source.stories : []
+                                delegate: storyRow
+                            }
+                        }
                     }
                 }
             }
@@ -297,7 +335,7 @@ Popup {
 
     // A part's header: its name and how many in it are new. A click opens
     // or folds it; folded is how each starts, so the popup opens as a short
-    // stack of these, and Feeds remembers the ones left open.
+    // stack of these, and Feeds remembers the one left open.
     component Fold: PopupRow {
         id: fold
 
@@ -315,9 +353,17 @@ Popup {
         Glyph {
             x: root.inset
             anchors.verticalCenter: parent.verticalCenter
-            text: fold.open ? Theme.glyph.sectionOpen : Theme.glyph.sectionShut
+            text: Theme.glyph.sectionShut
+            rotation: fold.open ? 90 : 0
             fontSize: Theme.footnoteSize
             color: Theme.label2
+
+            Behavior on rotation {
+                NumberAnimation {
+                    duration: Settings.reduceMotion ? 0 : Theme.foldMs
+                    easing.type: Easing.InOutCubic
+                }
+            }
         }
 
         PopupText {
