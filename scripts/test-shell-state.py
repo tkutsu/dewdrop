@@ -210,7 +210,7 @@ def main():
         target = Path(folder)
         services = target / "services"
         services.mkdir()
-        for name in ("Weather.qml", "Http.qml", "Google.qml", "GoogleService.qml", "WallClock.qml"):
+        for name in ("Weather.qml", "Http.qml", "Google.qml", "GoogleAccount.qml", "GoogleService.qml", "WallClock.qml"):
             source = (ROOT / "services" / name).read_text()
             if name in ("Http.qml", "Google.qml"):
                 source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")

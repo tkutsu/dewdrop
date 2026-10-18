@@ -8,28 +8,30 @@ import qs
 // New videos from YouTube channels and new stories from a few RSS feeds,
 // counted on the bar until they have been opened.
 //
-// The channels are the account's subscriptions (YouTube Data API, through the
-// shared Google sign-in) plus Settings.feedChannels, which can name ones you
-// do not subscribe to. Their videos come from YouTube's public feeds rather
-// than the API: those cost no quota, and the UULF playlist they are read from
-// is a channel's uploads without its Shorts. Lives and premieres are in it
-// too, and only the API can tell them apart, so every new video is asked
-// about once (videos.list, fifty to a request) and the answer is kept.
+// The channels are the subscriptions of the account YouTubeAccount signs in
+// as (often a brand account, which is why it is not the main Google one),
+// plus Settings.feedChannels, which can name ones you do not subscribe to.
+// Their videos come from YouTube's public feeds rather than the API: those
+// cost no quota, and the UULF playlist they are read from is a channel's
+// uploads without its Shorts. Lives and premieres are in it too, and only the
+// API can tell them apart, so every new video is asked about once
+// (videos.list, fifty to a request) and the answer is kept.
+//
+// The RSS feeds need no sign-in and are read whether YouTube is connected or
+// not, so this is its own service rather than a GoogleService.
 //
 // Seen is per item, and anything published before `since` counts as seen:
 // "Mark All Seen" only moves that instant.
-GoogleService {
+Singleton {
     id: root
 
     readonly property string api: "https://www.googleapis.com/youtube/v3"
-    readonly property string scope: "youtube.readonly"
     readonly property string web: "https://www.youtube.com/feed/subscriptions"
 
-    service: "YouTube"
     // A channel posts a few times a week; half an hour is plenty, and the
     // feeds are fetched without quota anyway.
-    pollMs: 30 * 60000
-
+    readonly property int pollMs: 30 * 60000
+    readonly property int retryMs: 2 * 60000
     // How far back the popup looks, and how many stories a feed shows.
     readonly property int days: 7
     readonly property int storiesShown: 12
@@ -38,18 +40,12 @@ GoogleService {
     readonly property int parallel: 6
     readonly property int timeoutMs: 15000
 
-    onFetch: root.collect()
-
     // --- state ---------------------------------------------------------------
     // Newest first: {id, title, channel, published, duration, url, thumb}.
     property var videos: []
     // One per feed URL, in settings order: {title, url, items}, each item
     // {id, title, url, comments, points, replies, published}.
     property var sources: []
-    // The token predates the YouTube scope: the videos wait for a reconnect.
-    // Kept apart from Google.scopeMissing, which would stop Mail, Tasks and the
-    // calendar too until the consent ran.
-    property bool needsYouTube: false
 
     // What each channel's feed said last, by channel id, so one feed failing
     // keeps its videos rather than dropping them for a poll.
@@ -58,14 +54,25 @@ GoogleService {
     property var handles: ({})
     property var subscribed: []
 
+    // Whether anything has been heard back yet, and what went wrong since.
+    // RetryButton reads `retryable`, `loading` and `retryNow`.
+    property bool loaded: false
+    property string trouble: ""
+    property int requests: 0
+    // A refresh asked for while one was out: run when it lands, so a sign-in
+    // that finishes mid-read is not left until the next poll.
+    property bool again: false
+    readonly property bool loading: root.requests > 0
+    readonly property bool stale: !root.loaded
+    readonly property bool retryable: root.trouble !== "" && !YouTubeAccount.needsConsent
+    readonly property bool connected: !YouTubeAccount.needsConsent
+
     readonly property int count: root.videos.filter(v => root.unread(v)).length
         + root.sources.reduce((n, s) => n + s.items.filter(i => root.unread(i)).length, 0)
     readonly property string icon: Theme.glyph.feeds
     readonly property string label: root.count === 0 ? "" : String(Math.min(root.count, 99))
 
     readonly property string tooltip: {
-        if (!root.configured)
-            return `Google not connected\nRun ${Google.setup}`;
         if (root.trouble !== "")
             return root.trouble;
         if (!root.loaded)
@@ -102,23 +109,108 @@ GoogleService {
         root.save();
     }
 
-    // --- fetching ------------------------------------------------------------
-    // Everything below runs inside the base's request count (base.send, or
-    // `requests` held by hand round a plain GET), so `loading` stays up until
-    // the last feed has landed and `loaded` means the whole picture.
-    function collect(): void {
-        root.readSources();
-        root.needsYouTube = !Google.grants(root.scope);
-        if (root.needsYouTube) {
-            root.loaded = true;
+    // --- polling -------------------------------------------------------------
+    function refresh(): void {
+        if (root.loading) {
+            root.again = true;
             return;
         }
-        root.gather("subscriptions", [{
-                url: `${root.api}/subscriptions?part=snippet&mine=true&maxResults=50&fields=nextPageToken,items/snippet(resourceId/channelId)`
-            }], raw => raw.snippet.resourceId.channelId, function (ids, failed) {
-            if (failed.length === 0)
-                root.subscribed = ids;
-            root.resolve(Settings.feedChannels, extra => root.readChannels(root.subscribed.concat(extra)));
+        root.trouble = "";
+        retry.stop();
+        root.hold(() => {
+            root.readSources();
+            if (root.connected)
+                root.readSubscriptions("", [], ids => {
+                    if (ids !== null)
+                        root.subscribed = ids;
+                    root.resolve(Settings.feedChannels, extra => root.readChannels(root.subscribed.concat(extra)));
+                });
+        })();
+    }
+
+    function retryNow(): void {
+        root.refresh();
+    }
+
+    // Wraps a callback so the module stays dim until the last request of a
+    // refresh has landed, however the requests chain.
+    function hold(callback: var): var {
+        root.requests++;
+        return function (...args) {
+            try {
+                callback(...args);
+            } finally {
+                if (--root.requests === 0) {
+                    root.loaded = true;
+                    if (root.again) {
+                        root.again = false;
+                        Qt.callLater(root.refresh);
+                    }
+                }
+            }
+        };
+    }
+
+    // One YouTube Data API GET. `fail` defaults to setting `trouble`.
+    function get(path: string, then: var, fail: var): void {
+        // One hold, settled once whichever way it ends.
+        const settle = root.hold((ok, args) => ok ? then(...args) : (fail ?? root.fail)(...args));
+        const bad = (...args) => settle(false, args);
+        YouTubeAccount.authorised(() => YouTubeAccount.send("GET", `${root.api}/${path}`, null, (...args) => settle(true, args), bad), bad);
+    }
+
+    function fail(why: string, status: int): void {
+        root.trouble = status === 403 && why !== YouTubeAccount.reconnect
+            ? "Enable the YouTube Data API v3 in the Google console" : why;
+        if (status === 0 || status === 408 || status === 429 || status >= 500)
+            retry.restart();
+    }
+
+    Timer {
+        interval: root.pollMs
+        running: true
+        repeat: true
+        onTriggered: root.refresh()
+    }
+
+    Timer {
+        id: retry
+        interval: root.retryMs
+        onTriggered: root.refresh()
+    }
+
+    Component.onCompleted: root.refresh()
+
+    // The sign-in landed, at startup or after Connect: read it.
+    Connections {
+        target: YouTubeAccount
+
+        function onReady(): void {
+            root.refresh();
+        }
+    }
+
+    Connections {
+        target: WallClock
+
+        function onWokeUp(): void {
+            root.refresh();
+        }
+    }
+
+    // --- fetching ------------------------------------------------------------
+    // Every page of the subscriptions, or null if one failed.
+    function readSubscriptions(token: string, ids: var, then: var): void {
+        const page = token === "" ? "" : `&pageToken=${encodeURIComponent(token)}`;
+        root.get(`subscriptions?part=snippet&mine=true&maxResults=50&fields=nextPageToken,items/snippet(resourceId/channelId)${page}`, function (body) {
+            const all = ids.concat((body?.items ?? []).map(item => item.snippet.resourceId.channelId));
+            if (body?.nextPageToken)
+                root.readSubscriptions(body.nextPageToken, all, then);
+            else
+                then(all);
+        }, function (why, status) {
+            root.fail(why, status);
+            then(null);
         });
     }
 
@@ -143,7 +235,7 @@ GoogleService {
             return;
         }
         for (const handle of lookups)
-            root.send("GET", `${root.api}/channels?part=id&forHandle=${encodeURIComponent(handle)}&fields=items/id`, null, function (body) {
+            root.get(`channels?part=id&forHandle=${encodeURIComponent(handle)}&fields=items/id`, function (body) {
                 const id = body?.items?.[0]?.id;
                 if (id) {
                     root.handles = Object.assign({}, root.handles, { [handle]: id });
@@ -194,7 +286,6 @@ GoogleService {
             root.videos = recent.filter(v => verdicts[v.video] && !verdicts[v.video].live)
                 .map(v => Object.assign({}, v, { duration: verdicts[v.video].duration }))
                 .sort((a, b) => b.published - a.published);
-            root.loaded = true;
             root.prune(cutoff);
             root.save();
         };
@@ -203,7 +294,7 @@ GoogleService {
             return;
         }
         for (const batch of batches) {
-            root.send("GET", `${root.api}/videos?part=contentDetails,liveStreamingDetails&id=${batch.map(v => v.video).join(",")}&fields=items(id,contentDetails/duration,liveStreamingDetails)`, null, function (body) {
+            root.get(`videos?part=contentDetails,liveStreamingDetails&id=${batch.map(v => v.video).join(",")}&fields=items(id,contentDetails/duration,liveStreamingDetails)`, function (body) {
                 // A video the API does not return yet (still processing, or
                 // private) gets no verdict and is asked about next poll.
                 for (const item of body?.items ?? []) {
@@ -238,10 +329,10 @@ GoogleService {
         });
     }
 
-    // Plain GETs, a few at a time, each counted as a request of the base's
-    // so the module stays dim until they are in. A feed that fails keeps
-    // whatever it said last (the caller's fallback); one dead channel is not
-    // trouble worth a warning on the bar.
+    // Plain GETs, a few at a time, held like the API's so the module stays
+    // dim until they are in. A feed that fails keeps whatever it said last
+    // (the caller's fallback); one dead channel is not trouble worth a
+    // warning on the bar.
     function pool(jobs: var, done: var): void {
         let next = 0;
         let outstanding = jobs.length;
@@ -249,8 +340,7 @@ GoogleService {
             done();
             return;
         }
-        root.requests++;
-        const finish = root.settle(done);
+        const finish = root.hold(done);
         const start = function () {
             if (next >= jobs.length)
                 return;
