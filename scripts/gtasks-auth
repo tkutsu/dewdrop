@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time Google consent (Tasks, Calendar, Gmail and YouTube) for the Quickshell bar.
+"""One-time Google consent (Tasks, Calendar and Gmail; YouTube with --youtube) for the Quickshell bar.
 
 Google has no device-code flow for the Tasks scope, so the only way to get a
 refresh token on a desktop is the loopback redirect: open a browser at the
@@ -39,12 +39,15 @@ import webbrowser
 # It can also send and move mail to the bin, but it cannot delete mail for good.
 # The agenda reads every calendar and writes events made from the launcher:
 # calendar.events covers the writing, and listing the calendars still needs
-# calendar.readonly. youtube.readonly lists the subscriptions the feeds module
-# follows and tells their livestreams and premieres from uploads.
+# calendar.readonly.
 SCOPE = " ".join(
     "https://www.googleapis.com/auth/" + s
-    for s in ("tasks", "calendar.readonly", "calendar.events", "gmail.modify", "youtube.readonly")
+    for s in ("tasks", "calendar.readonly", "calendar.events", "gmail.modify")
 )
+# --youtube: a second sign-in of its own, for the feeds module's
+# subscriptions, which often belong to a brand account that has no Gmail,
+# Tasks or Calendar. One token can only be one account.
+YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 TASKS_API = "https://tasks.googleapis.com/tasks/v1"
@@ -52,9 +55,9 @@ CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
 YOUTUBE_API = "https://www.googleapis.com/youtube/v3"
 # Paths.data("gtasks.json") on the shell side: the same XDG rule.
-DEST = os.path.join(
-    os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "quickshell", "gtasks.json"
-)
+DATA = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "quickshell")
+DEST = os.path.join(DATA, "gtasks.json")
+YOUTUBE_DEST = os.path.join(DATA, "youtube.json")
 
 DONE_PAGE = b"""<!doctype html><meta charset="utf-8">
 <title>Connected</title>
@@ -119,7 +122,7 @@ def post_form(url: str, fields: dict) -> dict:
         raise SystemExit(f"Google refused the request ({err.code}):\n{detail}")
 
 
-def consent(client_id: str, client_secret: str) -> dict:
+def consent(client_id: str, client_secret: str, scope: str) -> dict:
     port = free_port()
     redirect_uri = f"http://127.0.0.1:{port}"
     verifier = b64url(secrets.token_bytes(32))
@@ -130,7 +133,7 @@ def consent(client_id: str, client_secret: str) -> dict:
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
-        "scope": SCOPE,
+        "scope": scope,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
         "state": state,
@@ -138,9 +141,11 @@ def consent(client_id: str, client_secret: str) -> dict:
         # offline asks for one at all, and consent forces the screen even for an
         # account that has already said yes once — without it a second run gets
         # an access token and no refresh token, and the shell has nothing to
-        # come back with in an hour.
+        # come back with in an hour. select_account puts the chooser up every
+        # time, so the run for one sign-in never quietly takes the account
+        # the browser last used for the other.
         "access_type": "offline",
-        "prompt": "consent",
+        "prompt": "select_account consent",
     }
     url = f"{AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
 
@@ -183,12 +188,13 @@ def consent(client_id: str, client_secret: str) -> dict:
     return tokens
 
 
-def save(client_id: str, client_secret: str, refresh_token: str) -> None:
-    os.makedirs(os.path.dirname(DEST), exist_ok=True)
+def save(client_id: str, client_secret: str, refresh_token: str, dest: str | None = None) -> None:
+    dest = dest or DEST
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
     # Written through a private temporary file rather than opened and filled:
     # between the open and the write, a file created with the default umask is
     # a refresh token readable by anything on the machine.
-    fd, tmp = tempfile.mkstemp(prefix="gtasks-", dir=os.path.dirname(DEST))
+    fd, tmp = tempfile.mkstemp(prefix="gtasks-", dir=os.path.dirname(dest))
     try:
         with os.fdopen(fd, "w") as handle:
             json.dump(
@@ -201,20 +207,20 @@ def save(client_id: str, client_secret: str, refresh_token: str) -> None:
                 indent=2,
             )
             handle.write("\n")
-        os.replace(tmp, DEST)
+        os.replace(tmp, dest)
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
 
 
-def check() -> int:
-    """Prove the saved credentials still work, by doing what the shell does."""
+def access_token(dest: str) -> str | None:
+    """A fresh access token from the refresh token saved at dest."""
     try:
-        with open(DEST) as handle:
+        with open(dest) as handle:
             saved = json.load(handle)
     except FileNotFoundError:
-        print(f"No credentials at {DEST}. Run this without --check first.")
-        return 1
+        print(f"No credentials at {dest}. Run this without --check first.")
+        return None
 
     tokens = post_form(
         TOKEN_ENDPOINT,
@@ -225,7 +231,14 @@ def check() -> int:
             "grant_type": "refresh_token",
         },
     )
-    access = tokens["access_token"]
+    return tokens["access_token"]
+
+
+def check() -> int:
+    """Prove the saved credentials still work, by doing what the shell does."""
+    access = access_token(DEST)
+    if access is None:
+        return 1
 
     request = urllib.request.Request(
         f"{TASKS_API}/users/@me/lists",
@@ -268,22 +281,31 @@ def check() -> int:
         with urllib.request.urlopen(request, timeout=30) as response:
             inbox = json.load(response)
     except urllib.error.HTTPError as err:
-        print(f"Gmail not reachable ({err.code}). Enable the Gmail API and run this without --check.")
+        # A brand account has no mailbox: Google says 400, not 403.
+        print(f"Gmail not reachable ({err.code}). Enable the Gmail API, or sign in with the account that has the mail, and run this without --check.")
         return 1
     print(f"Inbox: {inbox.get('threadsUnread', 0)} unread thread(s).")
+    return 0
 
-    # YouTube, for the feeds module.
-    request = urllib.request.Request(
-        f"{YOUTUBE_API}/subscriptions?part=id&mine=true&maxResults=1",
-        headers={"Authorization": f"Bearer {access}"},
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            subscriptions = json.load(response)
-    except urllib.error.HTTPError as err:
-        print(f"YouTube not reachable ({err.code}). Enable the YouTube Data API v3 and run this without --check.")
+
+def check_youtube() -> int:
+    """Which channel the YouTube sign-in is, and how many subscriptions."""
+    access = access_token(YOUTUBE_DEST)
+    if access is None:
         return 1
-    print(f"YouTube: {subscriptions.get('pageInfo', {}).get('totalResults', 0)} subscription(s).")
+    try:
+        for path in ("channels?part=snippet&mine=true", "subscriptions?part=id&mine=true&maxResults=1"):
+            request = urllib.request.Request(f"{YOUTUBE_API}/{path}", headers={"Authorization": f"Bearer {access}"})
+            with urllib.request.urlopen(request, timeout=30) as response:
+                body = json.load(response)
+            if path.startswith("channels"):
+                names = [item["snippet"]["title"] for item in body.get("items", [])]
+                print(f"Channel: {', '.join(names) or 'none'}")
+            else:
+                print(f"Subscriptions: {body.get('pageInfo', {}).get('totalResults', 0)}")
+    except urllib.error.HTTPError as err:
+        print(f"YouTube not reachable ({err.code}). Enable the YouTube Data API v3 in the Google console.")
+        return 1
     return 0
 
 
@@ -296,10 +318,15 @@ def main() -> int:
         action="store_true",
         help="test the saved credentials instead of asking for new ones",
     )
+    parser.add_argument(
+        "--youtube",
+        action="store_true",
+        help="the feeds module's YouTube sign-in instead, into its own file",
+    )
     args = parser.parse_args()
 
     if args.check:
-        return check()
+        return check_youtube() if args.youtube else check()
 
     # A re-consent (a scope added since) reuses the client already saved, so
     # it is this script and nothing else.
@@ -312,9 +339,14 @@ def main() -> int:
     if not client_id or not client_secret:
         raise SystemExit("Both a client ID and a client secret are needed.")
 
-    tokens = consent(client_id, client_secret)
-    save(client_id, client_secret, tokens["refresh_token"])
-    print(f"\nSaved to {DEST} (owner-readable only).")
+    if args.youtube:
+        print("Pick the account or channel whose subscriptions you want on the bar.\n")
+    else:
+        print("Pick your main Google account, the one with the mail (not a YouTube channel).\n")
+    dest = YOUTUBE_DEST if args.youtube else DEST
+    tokens = consent(client_id, client_secret, YOUTUBE_SCOPE if args.youtube else SCOPE)
+    save(client_id, client_secret, tokens["refresh_token"], dest)
+    print(f"\nSaved to {dest} (owner-readable only).")
     return 0
 
 

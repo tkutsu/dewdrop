@@ -118,7 +118,7 @@ def main():
         (target / 'services/FakeRequest.qml').write_text(fake)
         path = target / 'services/Http.qml'
         path.write_text(path.read_text().replace('new XMLHttpRequest()', 'FakeRequest.make()'))
-        path = target / 'services/Google.qml'
+        path = target / 'services/GoogleAccount.qml'
         path.write_text(path.read_text().replace('refreshTimeoutMs: 15000', 'refreshTimeoutMs: 30'))
         (target / 'services/WallClock.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { signal wokeUp }')
         (target / 'Paths.qml').write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function data(name) { return Quickshell.shellPath(name); } function script(name) { return name; } }')
