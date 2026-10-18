@@ -192,7 +192,7 @@ ShellRoot {
 STUBS = {
     'Settings.qml': "pragma Singleton\nimport QtQuick\nQtObject {}",
     'DrawerPins.qml': "pragma Singleton\nimport QtQuick\nQtObject { property var pins: ({}); function pinned(k) { return pins[k] === true; } function kept(k) { return pins[k] === false; } function toggle(k) { const next = Object.assign({}, pins); next[k] = !pinned(k); pins = next; } }",
-    'OpenPopup.qml': "pragma Singleton\nimport QtQuick\nQtObject { property Item selected: null; property Item owner: null; function dismiss() { owner = null; } function toggle(item) { owner = owner === item ? null : item; } function browse(item, hovered) {} }",
+    'OpenPopup.qml': "pragma Singleton\nimport QtQuick\nQtObject { property Item selected: null; property Item owner: null; function dismiss() { owner = null; } function close(item) { if (owner === item) owner = null; } function toggle(item) { owner = owner === item ? null : item; } function browse(item, hovered) {} }",
     'Theme.qml': """pragma Singleton
 import QtQuick
 QtObject {
@@ -201,6 +201,8 @@ QtObject {
     property real pillTrack: 1; property real pillTrackFoot: 1; property real pillTrackRest: 0.2
     property color fg: 'white'; property color backdrop: 'black'; property color tint: 'black'; property color barBg: 'black'
     property real drawerSpring: 3; property real drawerDamping: 0.4
+    property int moduleEnterMs: 200; property int moduleExitMs: 220
+    property int moduleOpenMs: 240; property int moduleCloseMs: 200
     property int startMs: 10000; property int foldMs: 100; property int fadeMs: 120
     property int pressDip: 1; property int pinMarkSize: 6; property int pinGlyphSize: 6
     property color markRimTop: 'white'; property int iconSize: 12
@@ -210,6 +212,8 @@ QtObject {
     property color selectionStrong: 'grey'; property color markLifted: 'white'
     property int glyphSize: 16
     property var glyph: ({pin: 'p', nightOn: 'on', nightOff: 'off'})
+    function moduleOpacity(progress) { return reduceMotion ? progress : Math.min(1, progress / 0.55); }
+    function moduleScale(progress) { return reduceMotion ? 1 : 0.8 + 0.2 * progress; }
     function pillTop(height) { return (height - barHeight) / 2; }
     function mix(a, b, c) { return a; }
     function badgeBg(item) { return 'black'; }

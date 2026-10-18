@@ -32,35 +32,31 @@ BarItem {
     onHoldingChanged: if (!holding)
         open = false
 
-    // One chevron that turns over rather than two glyphs swapped, and turns
-    // as the fold comes to rest rather than alongside it: the modules move,
-    // then the handle answers, pointing the way they will go back.
-    //
-    // Eased in and out: a thing turned by hand gathers speed and brakes into
-    // place, where an ease-out set off at full speed and read as a flick. It
-    // starts once the modules have landed (Theme.foldLandMs),
-    // and turns while the glass settles, one gesture handed on without a
-    // pause. Starting earlier (70% of the way through the old eased fold was
-    // tried) put most of the turn where the eye was still on the modules,
-    // and it went by unseen.
+    // Turn the handle when the slots land, while the glass finishes settling.
     property real turned: 0
 
-    onOutChanged: turn.restart()
+    onOutChanged: {
+        turn.stop();
+        turnPause.duration = Theme.reduceMotion ? 0 : Theme.foldLandMs;
+        turnTween.to = out ? 1 : 0;
+        turn.start();
+    }
 
-    // Whether the modules are out: `open`, a moment late. The glass winds up
-    // first, a few pixels the other way (`windup`), and the modules go only
-    // as it lets go, so the fold reads as loaded and snapping to its place
-    // rather than as setting off from a standstill. Bar.qml folds the
-    // modules on this and adds `windup` to the pill's stretch.
+    // Load the glass in the opposite direction before releasing the modules.
     property bool out: false
     property real windup: 0
-
-    onOpenChanged: anticipate.restart()
+    onOpenChanged: {
+        if (Theme.reduceMotion) {
+            anticipate.stop();
+            windup = 0;
+            out = open;
+        } else {
+            anticipate.restart();
+        }
+    }
 
     SequentialAnimation {
         id: anticipate
-
-        // Opening, the glass draws in past shut; shutting, it gives out.
         NumberAnimation {
             target: root
             property: "windup"
@@ -68,11 +64,7 @@ BarItem {
             duration: Theme.windupMs
             easing.type: Easing.OutQuad
         }
-        ScriptAction {
-            script: root.out = root.open
-        }
-        // And lets go into the spring, which takes the modules off from
-        // where the glass was held.
+        ScriptAction { script: root.out = root.open }
         NumberAnimation {
             target: root
             property: "windup"
@@ -85,13 +77,11 @@ BarItem {
     SequentialAnimation {
         id: turn
 
-        PauseAnimation {
-            duration: Theme.foldLandMs
-        }
+        PauseAnimation { id: turnPause }
         NumberAnimation {
+            id: turnTween
             target: root
             property: "turned"
-            to: root.open ? 1 : 0
             duration: Theme.turnMs
             easing.type: Easing.InOutCubic
         }

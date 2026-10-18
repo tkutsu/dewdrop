@@ -210,7 +210,9 @@ PanelWindow {
             item.visibilityKey = key;
             item.parent = Qt.binding(() => bar.centreKeys.includes(key) ? clockPill.moduleHost : rightPill.moduleHost);
             item.pinKey = Qt.binding(() => item.pill === rightPill ? key : "");
-            item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
+            // The bell's visibility also follows the arriving notification's handoff.
+            if (item !== bell)
+                item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
             item.marksPin = Qt.binding(() => item.pill === rightPill && drawer.out);
         }
     }
@@ -299,21 +301,51 @@ PanelWindow {
             return width / 2;
         }
         animatePosition: true
+        // Mirror a leading media slot's displacement through Pill's existing centring motion.
+        centreShift: !Theme.reduceMotion && bell.pill === clockPill
+            && notice.mergedIcon === bell.keyBox.children[0]
+            ? -(bell.width + (bell.visible ? Math.floor(moduleGap / 2) - Theme.pillPad : 0)) : 0
+
+        // Quiet capture controls rest here after their pill has merged.
+        BarItem {
+            id: recordingNote
+            name: "Recording"
+            leadingControl: true
+            tooltip: Services.Privacy.summary || "No active captures"
+            stowed: !Services.Privacy.active || !recording.iconInCentre
+            onStowedChanged: {
+                if (stowed)
+                    OpenPopup.close(recordingNote);
+                else if (recording.stowed && pill)
+                    pill.leadingOrder = [recordingNote];
+            }
+            folds: false
+            foldDuration: 0
+            popup: PrivacyPopup {}
+
+            Glyph {
+                Layout.fillHeight: true
+                text: Theme.glyph.micMuted
+            }
+        }
 
         // Paused MPRIS players leave their app icon beside the music note.
         BarItem {
             id: nowPlayingNote
             leadingControl: true
             tooltip: nowPlaying.label
-            // Keep this icon through the start of expansion, until the bead emerges.
+            // Keep the central icon through the shared handoff path.
             stowed: !Settings.showMpris || nowPlaying.player === null || !nowPlaying.iconInCentre
             // The last absorbed icon occupies the outside edge of the pair.
             onStowedChanged: if (!stowed && nowPlaying.stowed && pill)
                 pill.leadingOrder = [nowPlayingNote]
             folds: false
             foldDuration: 0
+            implicitWidth: Math.round(_fullWidth * nowPlaying.iconHandoff.progress)
 
             AppIcon {
+                opacity: nowPlaying.iconHandoff.progress
+                transform: Translate { x: nowPlaying.iconHandoff.targetX }
                 Layout.fillHeight: true
                 tightWidth: true
                 windowClass: nowPlaying.shownApp
@@ -334,8 +366,11 @@ PanelWindow {
                 pill.leadingOrder = [musicNote]
             folds: false
             foldDuration: 0
+            implicitWidth: Math.round(_fullWidth * music.iconHandoff.progress)
 
             Glyph {
+                opacity: music.iconHandoff.progress
+                transform: Translate { x: music.iconHandoff.targetX }
                 Layout.fillHeight: true
                 text: Theme.glyph.track
             }
@@ -469,6 +504,7 @@ PanelWindow {
 
         Music {
             id: music
+            mergedIcon: musicNote.keyBox.children[0]
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
         }
@@ -497,6 +533,7 @@ PanelWindow {
 
         NowPlaying {
             id: nowPlaying
+            mergedIcon: nowPlayingNote.keyBox.children[0]
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
         }
@@ -567,13 +604,14 @@ PanelWindow {
         id: noticePill
         control: notice
         slidesContent: true
-        bounceBeforeCollapse: true
 
         side: Pill.Side.Left
         edgeOffset: bar.noticeEdge + Theme.pillSpread
 
         Notice {
             id: notice
+            mergeCandidate: bell.pill === clockPill && clockPill.shown.every(item =>
+                item === bell || item.Layout.column < bell.Layout.column) ? bell.keyBox.children[0] : null
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
             room: rightPill.x - Theme.pillSpread - (bar.noticeEdge + Theme.pillSpread)
@@ -602,9 +640,7 @@ PanelWindow {
         // are showing anyway.
         readonly property var drawable: rightPill.modules
 
-        // The glass running on past the drawer as its spring carries it out,
-        // or squeezing in past shut as it carries it in, and first winding up
-        // the other way before either (Drawer.windup).
+        // The glass winds up, then runs past the drawer's resting width as its spring settles.
         stretch: drawable.reduce((sum, m) => sum + (m.here ? m.overrun : 0), drawer.windup)
 
         Drawer {
@@ -654,7 +690,14 @@ PanelWindow {
         NotificationBell {
             id: bell
             pinKey: "bell"
-            stowed: !showsClosed && !drawer.out
+            handingOff: notice.mergedIcon === keyBox.children[0] && (!notice.stowed || notice.reveal > 0)
+            handoffProgress: handingOff ? notice.iconHandoff.progress : 1
+            handoffX: handingOff ? notice.iconHandoff.targetX : 0
+            noticeMerging: notice.stowed && notice.reveal > 0
+                && noticePill.foldBox.x + noticePill.foldBox.z > -Theme.pillSpread
+            stowed: handingOff ? handoffProgress === 0
+                || (!showsClosed && !drawer.out && !(noticeMerging && Services.Notifications.count > 0))
+                : !showsClosed && !drawer.out
             marksPin: drawer.out
         }
         Satty {
@@ -766,7 +809,7 @@ PanelWindow {
             const item = bar.movableModules.find(item => item.settingsKey === moduleKey);
             if (!item?.here)
                 return;
-            controlOpen.interval = item.stowed ? Theme.windupMs + Theme.foldLandMs : 1;
+            controlOpen.interval = item.stowed && !Theme.reduceMotion ? Theme.windupMs + Theme.foldLandMs : 1;
             controlOpen.item = item;
             if (item.stowed)
                 drawer.open = true;
@@ -798,8 +841,8 @@ PanelWindow {
         }
     }
 
-    // A click anywhere on the bar but the right pill puts the drawer away,
-    // the way a menu bar's extras fold back once you click on something else.
+    // Keep the drawer open for clicks and drags in either ordered pill;
+    // a click elsewhere on the bar puts it away.
     // A click in another window is Drawer.qml's, off Hyprland's click event.
     //
     // On the bar, this is laid over everything: it looks at each press and
@@ -821,7 +864,8 @@ PanelWindow {
         onPressed: function (mouse) {
             mouse.accepted = false;
             OpenPopup.deselect();
-            if (drawer.open && !rightPill.contains(mapToItem(rightPill, mouse.x, mouse.y)))
+            if (drawer.open && !rightPill.contains(mapToItem(rightPill, mouse.x, mouse.y))
+                && !clockPill.contains(mapToItem(clockPill, mouse.x, mouse.y)))
                 drawer.open = false;
             const owner = OpenPopup.owner;
             if (owner && !owner.contains(mapToItem(owner, mouse.x, mouse.y)))

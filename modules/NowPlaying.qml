@@ -37,10 +37,15 @@ BarItem {
     readonly property real glassLeft: sliding ? pill.foldBox.x : 0
     readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - appIcon.width) / 2))
     readonly property real titleLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
-    // Hand off only once the entire icon has crossed the neighbour's edge.
-    readonly property bool iconInCentre: reveal <= 0 || (sliding
-        ? glassLeft + iconInset >= pill.width + Theme.pillSpread
-        : reveal <= 0.3)
+    // Move and crossfade into the central icon as the glass joins its neighbour.
+    property Item mergedIcon: null
+    readonly property MediaIconHandoff iconHandoff: MediaIconHandoff {
+        source: appIcon
+        target: root.mergedIcon
+        reveal: root.reveal
+        restingX: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0
+    }
+    readonly property bool iconInCentre: iconHandoff.progress > 0
     readonly property bool settled: reveal >= 1
     readonly property bool playing: player?.isPlaying ?? false
     readonly property bool paused: Settings.showMpris && player?.playbackState === MprisPlaybackState.Paused
@@ -157,7 +162,7 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: appIcon.implicitWidth + Theme.mediaGap + title.implicitWidth
         scale: titlePress.scale
-        transform: Translate { x: root.glassLeft + root.iconInset - root.padLeft }
+        transform: Translate { x: root.iconHandoff.sourceX }
 
         PressGlass {
             id: titlePress
@@ -189,9 +194,11 @@ BarItem {
 
         AppIcon {
             id: appIcon
-            scale: root.sliding ? root.pill.iconScale : 1
+            scale: 1
+            tightWidth: true
+            opacity: 1 - root.iconHandoff.progress
             windowClass: root.shownApp
-            visible: !root.sliding || !root.iconInCentre
+            visible: !root.sliding || root.iconHandoff.progress < 1
             height: parent.height
         }
 

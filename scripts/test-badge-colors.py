@@ -104,6 +104,12 @@ ShellRoot {
                 check(same(badge().fill, expected()), 'badge uses the wallpaper under its own icon');
                 const iconWidth = glyph.implicitWidth;
                 glyph.dot = true; wait(20);
+                check(glyph.children[0].layer.enabled, 'corner dot cuts a clear gap out of the icon');
+                const hole = glyph.children.find(item => item.visible === false && item.layer.enabled);
+                check(hole.children[0].width === badge().width + Theme.focusDotClearance * 2
+                    && hole.children[0].x + hole.children[0].width / 2 === badge().x + badge().width / 2
+                    && hole.children[0].y + hole.children[0].height / 2 === badge().y + badge().height / 2,
+                    'corner cutout follows the dot with the same clearance as the underdot');
                 const disc = badge().children[0];
                 check(same(disc.color, Qt.rgba(1, 1, 1, 1)) && Math.abs(disc.color.a - 0.7) < 0.002,
                     'dots use white at 70 percent opacity');
@@ -144,6 +150,7 @@ ShellRoot {
                 check(!badge().visible && !glyph.children[0].layer.enabled, 'empty count removes the underdot and its cutout');
                 glyph.badge = label; glyph.underdot = false; wait(20);
                 check(badge().visible && !badge().dot && badge().height === Theme.badgeSize, 'switching back restores the count badge');
+                check(!glyph.children[0].layer.enabled, 'count mode removes the dot cutout');
                 strip.stripFor(picture).children[0].grid = {nx: 0, cells: []}; wait(30);
                 const fallback = Theme.mix(second.surface, Qt.rgba(1, 1, 1, 1), Theme.selectionStrong.a);
                 check(same(badge().fill, fallback), 'badge falls back to its pill before wallpaper samples are ready');
