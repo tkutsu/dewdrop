@@ -26,17 +26,61 @@ Popup {
     readonly property int listMax: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
     // Ages move on the minute.
     readonly property real now: Google.now.getTime()
+    readonly property string requestedSection: root.sections.find(s => Feeds.unfolded(s.section))?.section ?? ""
+    property string shownSection: ""
+    property real sectionOpacity: 1
+    property bool sectionReady: false
 
-    // Closed headers stay above the open section.
-    readonly property var sections: {
-        const all = [{ section: "videos", title: "YouTube", videos: Feeds.unseenVideos, stories: [] }]
-            .concat(Feeds.unseenSources.map(s => ({ section: s.url, title: s.title, videos: [], stories: s.items })))
-            .filter(s => s.videos.length + s.stories.length > 0);
-        return all.filter(s => !Feeds.unfolded(s.section)).concat(all.filter(s => Feeds.unfolded(s.section)));
+    onRequestedSectionChanged: root.updateSection()
+    Component.onCompleted: {
+        root.sectionReady = true;
+        root.updateSection();
     }
+
+    // Keep the outgoing drawer still until it is invisible, then lay out the next.
+    function updateSection(): void {
+        if (!root.sectionReady)
+            return;
+        sectionTransition.stop();
+        if (Settings.reduceMotion || !root.visible) {
+            root.shownSection = root.requestedSection;
+            root.sectionOpacity = 1;
+        } else if (root.shownSection !== root.requestedSection || root.sectionOpacity < 1) {
+            fadeOut.duration = root.shownSection === "" ? 0 : Theme.fadeMs;
+            sectionTransition.start();
+        }
+    }
+
+    SequentialAnimation {
+        id: sectionTransition
+
+        NumberAnimation {
+            id: fadeOut
+            target: root
+            property: "sectionOpacity"
+            to: 0
+            easing.type: Easing.InOutCubic
+        }
+        ScriptAction { script: root.shownSection = root.requestedSection }
+        NumberAnimation {
+            target: root
+            property: "sectionOpacity"
+            to: 1
+            duration: root.requestedSection === "" ? 0 : Theme.fadeMs
+            easing.type: Easing.InOutCubic
+        }
+    }
+
+    readonly property var sections: [{ section: "videos", title: "YouTube", videos: Feeds.unseenVideos, stories: [] }]
+            .concat(Feeds.unseenSources.map(s => ({ section: s.url, title: s.title, videos: [], stories: s.items })))
+            .filter(s => s.videos.length + s.stories.length > 0)
+    // Reorder only after the outgoing drawer has faded away.
+    readonly property var sectionOrder: root.sections.filter(s => s.section !== root.shownSection)
+        .concat(root.sections.filter(s => s.section === root.shownSection))
 
     onVisibleChanged: {
         Feeds.undos = [];
+        root.updateSection();
         if (root.visible)
             Feeds.checkHistory();
     }
@@ -134,18 +178,10 @@ Popup {
             width: parent.width
             spacing: root.rowGap
 
-            move: Transition {
-                NumberAnimation {
-                    properties: "x,y"
-                    duration: Settings.reduceMotion ? 0 : Theme.foldMs
-                    easing.type: Easing.InOutCubic
-                }
-            }
-
             Repeater {
                 // Stable keys preserve delegates when closed headers move up.
                 model: ScriptModel {
-                    values: root.sections.map(s => s.section)
+                    values: root.sectionOrder.map(s => s.section)
                 }
 
                 delegate: Column {
@@ -154,9 +190,11 @@ Popup {
                     required property string modelData
                     readonly property var source: root.sections.find(s => s.section === part.modelData)
                         ?? { title: "", videos: [], stories: [] }
+                    readonly property bool shown: root.shownSection === part.modelData
 
                     width: root.bodyWidth
                     spacing: 0
+                    z: part.shown ? 1 : 0
 
                     Fold {
                         id: fold
@@ -169,16 +207,11 @@ Popup {
                         id: reveal
 
                         width: parent.width
-                        height: fold.open ? rows.implicitHeight + root.rowGap : 0
+                        height: part.shown ? rows.implicitHeight + root.rowGap : 0
                         clip: true
-                        enabled: fold.open
-
-                        Behavior on height {
-                            NumberAnimation {
-                                duration: Settings.reduceMotion ? 0 : Theme.foldMs
-                                easing.type: Easing.InOutCubic
-                            }
-                        }
+                        enabled: fold.open && !sectionTransition.running
+                        opacity: root.sectionOpacity
+                        layer.enabled: opacity > 0 && opacity < 1
 
                         Column {
                             id: rows
@@ -187,14 +220,13 @@ Popup {
                             width: parent.width
                             spacing: root.rowGap
 
-                            // Keep closing rows alive until they are clipped away.
                             Repeater {
-                                model: fold.open || reveal.height > 0 ? part.source.videos : []
+                                model: part.shown ? part.source.videos : []
                                 delegate: videoRow
                             }
 
                             Repeater {
-                                model: fold.open || reveal.height > 0 ? part.source.stories : []
+                                model: part.shown ? part.source.stories : []
                                 delegate: storyRow
                             }
                         }
