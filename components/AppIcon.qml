@@ -12,6 +12,7 @@ import qs.services
 // under it while it holds the focused window.
 Item {
     id: root
+    transform: ModuleIconScale { icon: root }
 
     property string windowClass
     // Hyprland says this window wants you, or this is an urgent notice's
@@ -34,6 +35,8 @@ Item {
     property real inkOpacity: 1
     // Standalone bar modules space from the artwork's visible edges.
     property bool tightWidth: false
+    // A corner dot's bounds in this icon, supplied by the workspace badge.
+    property rect cornerDot: Qt.rect(0, 0, 0, 0)
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -76,8 +79,8 @@ Item {
     implicitHeight: Theme.barHeight
 
     // The artwork and its stand-in, cut through by a round hole where the
-    // focus dot sits. The pill has no room under the icons' ink for a dot of
-    // its own, so without the hole the two touched and the dot read as a drip
+    // focus or corner dot sits. The pill has no room under the icons' ink for
+    // a dot of its own, so without the hole the two touched and the dot read as a drip
     // off the icon; with it the dot stands clear, the way an SF Symbol's badge is
     // knocked out of the glyph beneath it. The hole stays where the dot is
     // while the artwork bounces, so a shouting icon passes behind it.
@@ -87,7 +90,7 @@ Item {
         anchors.fill: parent
         // Under Reduce motion the bounce dims the artwork instead (Bounce.fade).
         opacity: bounce.fade
-        layer.enabled: root.dotShown > 0
+        layer.enabled: root.dotShown > 0 || root.cornerDot.width > 0
         layer.effect: MultiEffect {
             autoPaddingEnabled: false
             maskEnabled: true
@@ -150,7 +153,7 @@ Item {
         width: artwork.width
         height: artwork.height
         visible: false
-        layer.enabled: root.dotShown > 0
+        layer.enabled: root.dotShown > 0 || root.cornerDot.width > 0
 
         Rectangle {
             readonly property real centreX: dot.x + dot.width / 2
@@ -161,6 +164,15 @@ Item {
             radius: width / 2
             x: centreX - width / 2
             y: centreY - height / 2
+        }
+
+        Rectangle {
+            visible: root.cornerDot.width > 0
+            width: root.cornerDot.width + Theme.focusDotClearance * 2
+            height: width
+            radius: width / 2
+            x: root.cornerDot.x - Theme.focusDotClearance
+            y: root.cornerDot.y - Theme.focusDotClearance
         }
     }
 

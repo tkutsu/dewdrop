@@ -153,55 +153,19 @@ ClickArea {
     // A side pill can wait for its empty popover to return before leaving.
     property bool exitHeld: false
 
-    // Modules add their own finite motion; folds include the spring's full settling.
+    // The slot springs and slides its contents under the edge; ink fades separately.
     property bool contentAnimating: false
-    readonly property bool animating: contentAnimating || foldSpring.running || foldEase.running
-
-    // How far out of the drawer the module is, 0..1. It folds to nothing
-    // rather than blinking out: its width and gap padding go together.
-    // The contents keep their size and slide under the module's left
-    // edge as it closes, so it reads as being drawn in behind its neighbour
-    // rather than as squashed.
-    //
-    // Once the spring first reaches its destination, keep the module there
-    // for the rest of the settling. Otherwise each undershoot starts folding
-    // and clipping an open icon again, or briefly reveals a closed one.
-    // All the remaining spring motion goes to the pill's glass (overrun).
+    readonly property bool animating: contentAnimating || foldEase.running || springFold.running || inkMotion.running
+    // Once a slot lands, send the remaining spring travel to the glass alone.
     property bool _landed: false
     property bool _initialized: false
     Component.onCompleted: {
         _initialized = true;
         _landed = stowed ? _sprung <= 0 : _sprung >= 1;
     }
-    onStowedChanged: _landed = false
-    on_SprungChanged: if (_initialized && (stowed ? _sprung <= 0 : _sprung >= 1))
-        _landed = true
-
-    readonly property real reveal: folds ? (_landed ? (stowed ? 0 : 1) : Math.min(1, Math.max(0, _sprung))) : _eased
-    // How far past its full width the spring has carried the module, in
-    // pixels, or past nothing as a negative: for the pill's glass to run on
-    // or squeeze in by (Pill.stretch).
-    readonly property real overrun: folds ? (_sprung - reveal) * _fullWidth : 0
-
-    property real _sprung: stowed ? 0 : 1
-    Behavior on _sprung {
-        enabled: root.folds && root._started
-        SpringAnimation {
-            id: foldSpring
-            spring: Theme.drawerSpring
-            damping: Theme.drawerDamping
-            // Of the whole fold rather than a pixel: the drawer is a few
-            // hundred pixels, and at the default 1% the last few of them
-            // would snap into place.
-            epsilon: 0.001
-        }
-    }
-
-    // No spring while the bar starts (Theme.startMs). The drawer's modules
-    // hear from their services a moment after they are made, and each sprang
-    // out of the drawer as it did: clipped to its own box as it unfolded,
-    // which cut its badge in half and drew an edge across its icon. They
-    // take their places at once instead.
+    readonly property real reveal: folds
+        ? (_landed ? (stowed ? 0 : 1) : Math.min(1, Math.max(0, _sprung))) : _eased
+    readonly property real overrun: folds && !Theme.reduceMotion ? (_sprung - reveal) * _fullWidth : 0
     property bool _started: false
     Timer {
         interval: Theme.startMs
@@ -209,30 +173,70 @@ ClickArea {
         onTriggered: root._started = true
     }
 
-    // How it runs for the pills beside the clock, which keep their width:
-    // longer and evenly, because the bar lays its own easing over each stage
-    // of the drop it draws off `reveal` (Bar.drop).
+    // Side pills keep their own glass choreography and duration.
     property int foldDuration: Theme.foldMs
     property int foldEasing: Easing.InOutCubic
-
+    property bool folds: true
+    property real _sprung: stowed ? 0 : 1
+    on_SprungChanged: if (_initialized && (stowed ? _sprung <= 0 : _sprung >= 1))
+        _landed = true
+    Behavior on _sprung {
+        enabled: root.folds && root._started && !Theme.reduceMotion
+        SpringAnimation {
+            id: springFold
+            spring: Theme.drawerSpring
+            damping: Theme.drawerDamping
+            epsilon: 0.001
+        }
+    }
     property real _eased: stowed ? 0 : 1
     Behavior on _eased {
+        id: slotMotion
         enabled: !root.folds
-        NumberAnimation {
+        // Capture timing before starting; dependent bindings can update after a Behavior fires.
+        onTargetValueChanged: {
+            const closing = targetValue === 0;
+            slotPause.duration = root.folds && closing && !Theme.reduceMotion ? Theme.moduleExitMs : 0;
+            slotTween.duration = Theme.reduceMotion ? 0 : root.folds
+                ? (closing ? Theme.moduleCloseMs : Theme.moduleOpenMs) : root.foldDuration;
+            slotTween.easing.type = root.folds ? Easing.InOutCubic : root.foldEasing;
+        }
+        SequentialAnimation {
             id: foldEase
-            duration: root.foldDuration
-            easing.type: root.foldEasing
+            PauseAnimation { id: slotPause }
+            NumberAnimation { id: slotTween }
         }
     }
 
-    // Whether `reveal` takes the width with it. A module in the right pill's
-    // drawer folds; a pill beside the clock keeps its width and lets the bar
-    // draw it off `reveal` instead (see Bar.drop).
-    property bool folds: true
+    property real _ink: stowed ? 0 : 1
+    onStowedChanged: {
+        _landed = false;
+        inkMotion.stop();
+        if (!folds || !_started) {
+            _ink = stowed ? 0 : 1;
+        } else {
+            inkPause.duration = stowed || Theme.reduceMotion ? 0 : Theme.moduleOpenMs - Theme.moduleEnterMs;
+            inkTween.to = stowed ? 0 : 1;
+            inkTween.duration = stowed ? Theme.moduleExitMs : Theme.moduleEnterMs;
+            inkTween.easing.type = stowed ? Easing.InOutCubic : Easing.OutCubic;
+            inkMotion.start();
+        }
+    }
+    SequentialAnimation {
+        id: inkMotion
+        PauseAnimation { id: inkPause }
+        NumberAnimation {
+            id: inkTween
+            target: root
+            property: "_ink"
+            easing.type: Easing.OutCubic
+        }
+    }
+    readonly property real appearanceScale: folds ? Theme.moduleScale(_ink) : 1
     readonly property real _fold: folds ? reveal : 1
 
-    visible: here && reveal > 0
-    clip: _fold < 1
+    visible: here && (reveal > 0 || (folds && _ink > 0))
+    clip: _fold < 1 && !Theme.reduceMotion
     // Half the gap on each side with a neighbour. Pill turns these off at
     // the row's ends, where padLeft/padRight carry the pill's padding instead.
     property bool lead: true
@@ -295,9 +299,7 @@ ClickArea {
         height: root.height
     }
 
-    // Pinned to the right and at its own width rather than filling the
-    // module, so that folding into the drawer takes the module's left edge
-    // across its contents instead of squeezing them.
+    // Keep natural-size contents against the right edge as the left edge folds over them.
     RowLayout {
         id: layout
         anchors.top: parent.top
@@ -305,11 +307,7 @@ ClickArea {
         anchors.right: parent.right
         anchors.rightMargin: root.padRight + root._rightGap
         width: implicitWidth
-        // On the contents rather than the module, which several modules set
-        // an opacity of their own on to say they are still loading. In step
-        // with the slot, so the icon and the room it stands in come and go
-        // together rather than one after the other.
-        opacity: root._fold * (root.reordering ? 0.35 : 1)
+        opacity: (root.folds ? Theme.moduleOpacity(root._ink) : 1) * (root.reordering ? 0.35 : 1)
         spacing: Theme.gap
         scale: press.scale
     }

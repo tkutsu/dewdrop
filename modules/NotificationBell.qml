@@ -14,12 +14,26 @@ BarItem {
 
     tooltip: Notifications.tooltip
     popup: NotificationsPopup {}
+    property bool noticeMerging: false
+    property bool handingOff: false
+    property real handoffProgress: 1
+    property real handoffX: 0
+    folds: !handingOff
+    foldDuration: handingOff ? 0 : Theme.foldMs
+    implicitWidth: Math.round(_fullWidth * _fold * handoffProgress + _dither)
     // An empty bell goes in the drawer unless its popup is open. A notice
-    // still on show beside the clock has not reached the bell yet.
-    quiet: Notifications.waiting === 0 && !root.popupOpen
+    // belongs to the bell only after its bead has crossed into its neighbour.
+    readonly property int mergingCount: noticeMerging && Notifications.list.includes(Notifications.latest) ? 1 : 0
+    quiet: Notifications.waiting <= mergingCount && !root.popupOpen
 
     BadgedGlyph {
+        id: bellGlyph
         Layout.fillHeight: true
+        opacity: root.handoffProgress
+        transform: [
+            ModuleIconScale { icon: bellGlyph },
+            Translate { x: root.handoffX }
+        ]
         glyph: Notifications.icon
         badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
         dot: Settings.badgeStyle("bell") === "dot"

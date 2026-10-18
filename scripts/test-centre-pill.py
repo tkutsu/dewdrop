@@ -42,11 +42,16 @@ import Quickshell
 import qs
 import qs.components
 import qs.modules
+import qs.services as Services
 ShellRoot {
     id: bar
     function check(ok, why) { if (!ok) throw Error(why); }
-    QtObject { id: nowPlaying; property bool paused: true; property bool expanded: false; property real reveal: 0; property string appName: ''; property string shownApp: '' }
-    QtObject { id: music; property bool paused: true; property bool expanded: false; property real reveal: 0 }
+    QtObject { id: recording; property bool iconInCentre: true; property bool stowed: true }
+    QtObject { id: nowPlaying; property bool paused: true; property bool expanded: false; property bool iconInCentre: true; property var iconHandoff: ({progress: 1, targetX: 0}); property var player: null; property real reveal: 0; property string label: ''; property string appName: ''; property string shownApp: '' }
+    QtObject { id: music; property bool paused: true; property bool expanded: false; property bool iconInCentre: true; property var iconHandoff: ({progress: 1, targetX: 0}); property real reveal: 0 }
+    QtObject { id: notice; property bool stowed: true; property real reveal: 0; property Item mergedIcon: null; property var iconHandoff: ({progress: 1, targetX: 0}) }
+    QtObject { id: noticePill; property real dropReveal: 0; property vector4d foldBox: Qt.vector4d(0, 0, 0, 0) }
+    readonly property var drops: ({lip: function() { return 0; }})
     QtObject { id: barHover; property bool hovered: true }
     Item { id: wallpaperImage }
     REGISTRY
@@ -59,6 +64,7 @@ ShellRoot {
             width: 1800; height: 80
             CENTRAL
             RIGHT
+            DISMISSAL
         }
         TestCase {
             id: test
@@ -135,6 +141,20 @@ ShellRoot {
                 DrawerPins.setMode('weather', 'drawer');
                 drawer.open = true; settle(); waitVisibility(weather, true);
                 checkCentre('drawer reveal does not change the pinned anchor');
+                mousePress(weather, weather.width / 2, 20);
+                mouseMove(clockPill, 1, 20, 20); mouseMove(clockPill, 1, 20, 20);
+                settle();
+                bar.check(drawer.open && weather.visible && clockPill.dragging && clockPill.dragSource === weather,
+                    'revealed central module stays visible and draggable after press');
+                mouseRelease(clockPill, 1, 20); settle();
+                bar.check(clockPill.clockItems[0] === weather && !clockPill.dragging,
+                    'revealed central module can be reordered');
+                transfer(weather, rightPill, null);
+                transfer(weather, clockPill, null);
+                DrawerPins.setMode('weather', 'drawer');
+                mouseClick(host, 1, 20); settle();
+                bar.check(!drawer.open && !weather.visible, 'click outside the ordered pills still closes the drawer');
+                CentrePillOrder.move('weather', null, ['date', 'weather', 'time']);
                 drawer.open = false; settle(); waitVisibility(weather, false);
                 DrawerPins.setMode('weather', 'auto');
                 DrawerPins.setMode('date', 'auto');
@@ -261,6 +281,7 @@ def main():
     qml = QML.replace('REGISTRY', registry)
     qml = qml.replace('CENTRAL', block(source, 'id: clockPill', 'Pill {'))
     qml = qml.replace('RIGHT', block(source, 'id: rightPill', 'Pill {'))
+    qml = qml.replace('DISMISSAL', block(source, 'enabled: drawer.open || OpenPopup.owner', 'MouseArea {'))
     qml = qml.replace('PLACEMENT_CONNECTION', block(source, 'function onCentreKeysChanged', 'Connections {'))
     menu = (ROOT / 'modules/SettingsMenu.qml').read_text()
     metadata = menu[menu.index('    readonly property var modules:'):menu.index('    // Running now,')]
@@ -271,8 +292,12 @@ def main():
     with tempfile.TemporaryDirectory(prefix='qs-centre-') as folder:
         target = Path(folder)
         copy_shell(target)
+        (target / 'services/Privacy.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string summary: ""; property bool active: false }\n')
+        (target / 'services/Mpd.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool loaded: false; property string label: "" }\n')
         for name, contents in RIGHT_TESTS['STUBS'].items():
             if name not in ('Settings.qml', 'DrawerPins.qml'):
+                if name == 'OpenPopup.qml':
+                    contents = contents.replace('function dismiss()', 'function deselect() { selected = null; } function dismiss()')
                 (target / name).write_text(contents)
         (target / 'state').mkdir(exist_ok=True)
         (target / 'Settings.qml').write_text((ROOT / 'Settings.qml').read_text())
@@ -288,13 +313,14 @@ def main():
         for name in names:
             tucked = re.search(r'            readonly property bool tucked: [^\n]+', (ROOT / 'modules/Tray.qml').read_text()).group(0)
             extra = 'id: root; property bool drawerOut: false; readonly property bool tucks: DrawerPins.kept("tray:fixture"); readonly property bool entryTucked: entry.tucked; Item { id: entry; property var modelData: ({id: "fixture"}); ' + tucked + ' }' if name == 'Tray' else ''
+            if name == 'NotificationBell': extra = 'property bool noticeMerging: false; property bool handingOff: false; property real handoffProgress: 1; property real handoffX: 0;'
             quiet = 'true' if name in ('Email', 'Updater', 'Feeds', 'SettingsButton') else 'false'
             if name == 'Tray': quiet = 'DrawerPins.kept("tray:fixture")'
             (target / f'modules/{name}.qml').write_text(f'import QtQuick\nimport qs\nimport qs.components\nBarItem {{ {extra} quiet: {quiet}; popup: Component {{ Item {{}} }} Rectangle {{ implicitWidth: 22; implicitHeight: 20 }} }}\n')
         (target / 'services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property bool outlook: true; property bool stale: false; function refresh(force) {} }\n")
         theme = (target / 'Theme.qml').read_text().replace('property int glyphSize:', 'property int trayGlyphSize: 16; property real dimOpacity: 0.5; property int glyphSize:')
         glyphs = {key: 'icon' for key in re.findall(r'Theme.glyph\.(\w+)', metadata)}
-        glyphs.update(pin='pin', track='music', vol=['volume'], wifiStrength=['wifi'])
+        glyphs.update(pin='pin', track='music', micMuted='mic', vol=['volume'], wifiStrength=['wifi'])
         theme = re.sub(r'property var glyph: [^\n]+', 'property var glyph: (' + json.dumps(glyphs) + ')', theme)
         (target / 'Theme.qml').write_text(theme)
         run_shell(target, qml)

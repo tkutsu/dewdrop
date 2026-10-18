@@ -10,12 +10,13 @@ import qs.services
 // dot. Click it for who, and to mute or stop them (PrivacyPopup).
 //
 // Comes out of the centre pill and is drawn back into it; the bar draws the
-// pill off `reveal` (Bar.drop), and nothing folds.
+// pill off `reveal` (Bar.drop), and nothing folds. Silent captures return to
+// the central icon once their controls are closed.
 BarItem {
     id: root
     name: "Recording"
 
-    stowed: !Privacy.active
+    stowed: !Privacy.recording && !popupOpen
     folds: false
     tooltip: Privacy.summary
     popup: PrivacyPopup { morphs: true }
@@ -33,15 +34,16 @@ BarItem {
     readonly property real glassLeft: sliding ? pill.foldBox.x : 0
     readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - microphone.width) / 2))
     readonly property real contentLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
-    readonly property bool iconAbsorbed: sliding && (reveal <= 0
-        || glassLeft + iconInset >= pill.width + Theme.pillSpread)
+    readonly property bool iconInCentre: reveal <= 0 || (sliding
+        ? glassLeft + iconInset >= pill.width + Theme.pillSpread
+        : reveal <= 0.3)
 
     Glyph {
         id: microphone
         scale: root.sliding ? root.pill.iconScale : 1
         Layout.fillHeight: true
         visible: root.kept.listening || root.kept.sharing
-        opacity: root.iconAbsorbed ? 0 : 1
+        opacity: root.iconInCentre ? 0 : 1
         text: root.kept.listening ? (root.kept.muted ? Theme.glyph.micMuted : Theme.glyph.mic) : Theme.glyph.screenShare
         transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
     }
