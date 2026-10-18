@@ -57,6 +57,15 @@ Singleton {
     property bool tokenDead: false
     readonly property bool consenting: consent.running
 
+    // The scopes the last token came with, or null before one has said. A
+    // service the token may predate (Feeds) checks here before asking, rather
+    // than taking a 403 that would flag every popup for reconnecting.
+    property var granted: null
+
+    function grants(scope: string): bool {
+        return root.granted === null || root.granted.includes("https://www.googleapis.com/auth/" + scope);
+    }
+
     function reconsent(): void {
         consent.running = true;
     }
@@ -220,6 +229,7 @@ Singleton {
             // calendar.app.created cannot write the primary calendar and returns 404, not a scope error.
             if (typeof parsed.scope === "string") {
                 const granted = parsed.scope.split(/\s+/);
+                root.granted = granted;
                 const writable = ["calendar", "calendar.events", "calendar.events.owned"];
                 if (!writable.some(scope => granted.includes("https://www.googleapis.com/auth/" + scope))) {
                     root.scopeMissing = true;

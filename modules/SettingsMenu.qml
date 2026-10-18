@@ -57,6 +57,7 @@ OverlayWindow {
             email: { title: "Mail", glyph: Theme.glyph.mailUnread },
             tasks: { title: "Tasks", glyph: Theme.glyph.tasks },
             updater: { title: "Updates", glyph: Theme.glyph.update },
+            feeds: { title: "Feeds", glyph: Theme.glyph.feeds },
             bell: { title: "Notifications", glyph: Theme.glyph.notif },
             satty: { title: "Screenshot", glyph: Theme.glyph.satty },
             idle: { title: "Caffeine", glyph: Theme.glyph.idleOff },
@@ -139,6 +140,11 @@ OverlayWindow {
     ]
 
     readonly property var powerRows: Launcher.powerCommands.map(p => root.shownInLauncher("power:" + p.key, p.name ?? (p.label[0].toUpperCase() + p.label.slice(1)), { glyph: p.glyph }))
+
+    // A comma- or space-separated field as the list settings.json keeps.
+    function listOf(text: string): var {
+        return text.split(/[\s,]+/).filter(s => s !== "");
+    }
 
     // Gmail's inbox tabs, by the names its search takes (category:updates).
     readonly property var mailRows: [["primary", "Primary"], ["updates", "Updates"], ["promotions", "Promotions"], ["social", "Social"], ["forums", "Forums"]].map(([key, title]) => ({
@@ -224,7 +230,7 @@ OverlayWindow {
                 },
                 {
                     title: "Count Indicators",
-                    rows: ["email", "tasks", "countdown", "bell", "updater"].map(key => root.badgeStyle(key))
+                    rows: ["email", "tasks", "countdown", "bell", "updater", "feeds"].map(key => root.badgeStyle(key))
                 },
                 {
                     title: "Keyboard Labels",
@@ -352,6 +358,14 @@ OverlayWindow {
                 {
                     title: "Calendar",
                     rows: [root.webApp("calendar")]
+                },
+                {
+                    title: "Feeds",
+                    text: "Your YouTube subscriptions are followed already. Separate entries with commas.",
+                    rows: [
+                        { type: "text", id: "feedChannels", title: "More Channels", tooltip: "@handles, channel IDs (UC…) or links to either.", placeholder: "@handle, UC…", get: () => Settings.feedChannels.join(", "), set: v => Settings.set("feedChannels", root.listOf(v)) },
+                        { type: "text", id: "feedUrls", title: "RSS Feeds", tooltip: "RSS or Atom feed addresses, shown under the videos.", placeholder: "No feeds", get: () => Settings.feedUrls.join(", "), set: v => Settings.set("feedUrls", root.listOf(v)) }
+                    ]
                 },
                 {
                     title: "Mail",
