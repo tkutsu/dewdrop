@@ -111,8 +111,22 @@ ShellRoot {
             root.check(Feeds.count === 2, "video and story both new (" + Feeds.count + ")");
             Feeds.markSeen([Feeds.videos[0]]);
             root.check(Feeds.count === 1 && Feeds.label === "1", "seen video leaves the count");
+            root.check(Feeds.unseenVideos.length === 0 && Feeds.unseenSources.length === 1, "seen video leaves the list");
+
+            // A swipe hides with an undo, and so does Mark All Seen.
+            Feeds.hide(Feeds.unseenSources[0].items[0]);
+            root.check(Feeds.count === 0 && Feeds.unseenSources.length === 0, "swiped story leaves list and badge");
+            Feeds.undo();
+            root.check(Feeds.count === 1 && Feeds.undos.length === 0, "undo brings it back");
             Feeds.markAllSeen();
             root.check(Feeds.count === 0 && Feeds.label === "", "mark all seen clears the badge");
+            Feeds.undo();
+            root.check(Feeds.count === 1, "mark all seen undone");
+
+            // Sections start folded and remember being opened.
+            root.check(!Feeds.unfolded("videos"), "folded at first");
+            Feeds.toggle("videos");
+            root.check(Feeds.unfolded("videos") && !Feeds.unfolded("x"), "one section opened");
 
             // No youtube.json: the feeds still work, YouTube waits to be connected.
             root.check(!Feeds.connected && !YouTubeAccount.configured, "YouTube unconnected without its file");
