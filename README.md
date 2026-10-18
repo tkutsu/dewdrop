@@ -67,6 +67,7 @@ Settings > Launcher > Desktop Actions shows or hides all app shortcuts together.
 - Notification server, with a notification centre
 - Timers and repeating alarms, with optional local Android phone alerts
 - Google Tasks, Calendar agenda
+- Feeds: new videos from your YouTube subscriptions and any other channels you add, without Shorts, livestreams or premieres, plus RSS or Atom feeds (Hacker News by default), each bright until you open it
 - Gmail's unread (the whole inbox, or the tabs picked in settings), cleared from the popup: archive, mark read and star on every row or by swiping it, each undoable for a few seconds; login codes to copy, attachments to save, unsubscribe, mail to task; a notification for each new mail
 - Weather (Open-Meteo, no account), with an hourly forecast and a seven-day outlook showing the predominant daylight condition and a second icon when the worst condition differs
 - MPD player with cover, seek and an editable queue
@@ -131,8 +132,30 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Package updates | Arch only: `checkupdates` (pacman-contrib) and `yay` |
 | GPU stats | NVIDIA only: `nvidia-smi` |
 | Weather | Python 3, no account needed |
-| Google Tasks, Calendar, Gmail | Your own Google Cloud OAuth client. Run `scripts/gtasks-auth` once, or press reconnect in any of their popups. |
+| Google Tasks, Calendar, Gmail | Your own Google Cloud OAuth client and one sign-in. See [Google setup](#google-setup). |
+| YouTube in Feeds | The same OAuth client and a second sign-in for the account that holds your subscriptions. See [Google setup](#google-setup). The RSS feeds need nothing. |
 | Phone alarms | Android Automate and Python 3. Direct home Wi-Fi delivery; follow the [Automate setup tutorial](automate-setup.md). See [phone-alarms.md](phone-alarms.md) for configuration and protocol details. |
+
+## Google setup
+
+Tasks, Calendar, Gmail and the YouTube half of Feeds talk to Google with your own OAuth client, so there is no shared app to trust. Set it up once in the [Google Cloud console](https://console.cloud.google.com/) before running `scripts/gtasks-auth`.
+
+1. Create a project, or pick one you already have.
+2. Under APIs & Services, enable the APIs for what you use: Google Tasks API, Google Calendar API and Gmail API for the main sign-in, and YouTube Data API v3 for Feeds. Signing in does not enable them. A popup that says an API is not enabled means this step was missed; the error names the project.
+3. Under Google Auth Platform, fill in the Branding page: app name, user support email and developer contact email. The app domain links can stay empty.
+4. Under Audience, choose External and publish the app to In production. While it is in Testing, Google expires its refresh tokens after 7 days and the bar asks you to reconnect every week. Do not submit it for verification; you are its only user.
+5. Under Clients, create an OAuth client of type Desktop app. Keep the client ID and client secret; the script asks for them the first time.
+
+Then sign in:
+
+```sh
+scripts/gtasks-auth            # Tasks, Calendar and Gmail
+scripts/gtasks-auth --youtube  # Feeds, only if you want your YouTube subscriptions
+```
+
+Each run opens your browser on Google's account chooser. For the first, pick the account with your mail. For the second, pick the account or YouTube channel that holds your subscriptions. A brand account works here, but not for the first sign-in, because it has no Gmail. Google then warns that it has not verified the app: choose Advanced, then Go to your app. The script waits up to 15 minutes for the browser and saves the tokens to `~/.local/share/quickshell/gtasks.json` and `youtube.json`, readable only by you. The second run reuses the client from the first.
+
+`scripts/gtasks-auth --check` and `scripts/gtasks-auth --youtube --check` test the saved sign-ins and list what they can reach. After the first sign-in, the Reconnect and Connect YouTube buttons in the popups run the script for you.
 
 ## Scripts outside this repo
 
