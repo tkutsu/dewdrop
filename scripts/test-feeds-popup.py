@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Feed sections fade out before the next section opens and fades in."""
+"""Feed sections fade out before the next section expands into view."""
 
 from pathlib import Path
 import runpy
@@ -32,7 +32,7 @@ ShellRoot {
             }
             function header(section) { return find(popup, i => i.section === section && i.open !== undefined); }
             function body(fold) { return fold.parent.children.find(i => i.clip); }
-            function settle() { wait(Theme.fadeMs * 2 + 100); }
+            function settle() { wait(Theme.fadeMs + Theme.foldMs + 100); }
             function run() {
                 const now = Date.now();
                 Feeds.videos = [0, 1].map(i => ({id: "v" + i, title: "Video " + i,
@@ -55,6 +55,8 @@ ShellRoot {
                 videos.tapped();
                 wait(80);
                 check(videoBody.height > 0, "selected drawer opens");
+                check(videoBody.height < videoBody.children[0].implicitHeight + 3 && videoBody.opacity === 1,
+                    "opening drawer expands at full opacity");
                 check(popup.height > closedHeight, "popup grows with its rows");
                 check(header("videos") === videos && header("rss") === stories,
                     "opening preserves header delegates");
@@ -70,16 +72,18 @@ ShellRoot {
                 check(videoBody.height === fullHeight && videoBody.opacity > 0 && videoBody.opacity < 1,
                     "closing rows fade in place before the layout changes");
                 check(videos.parent.y === videoTop, "outgoing drawer stays still throughout its fade");
-                let incomingFade = false;
+                let incomingExpansion = false;
                 for (let i = 0; i < 30; i++) {
                     wait(16);
                     check(!(videoBody.height > 0 && storyBody.height > 0), "drawers never overlap during a switch");
                     if (storyBody.height > 0) {
                         check(videoBody.height === 0, "old drawer is gone before the next opens");
-                        incomingFade = incomingFade || (storyBody.opacity > 0 && storyBody.opacity < 1);
+                        check(storyBody.opacity === 1, "incoming rows stay opaque while expanding");
+                        incomingExpansion = incomingExpansion || storyBody.height < storyBody.children[0].implicitHeight + 3;
                     }
                 }
-                check(incomingFade && storyBody.opacity === 1, "incoming drawer fades in after opening");
+                check(incomingExpansion && storyBody.height === storyBody.children[0].implicitHeight + 3,
+                    "incoming drawer expands to its full height after the fade");
                 check(videos.parent.y < stories.parent.y, "closed videos move above open stories");
                 check(!find(videoBody, i => i.name === "Video 0"), "closed rows are released");
 
@@ -96,14 +100,14 @@ ShellRoot {
 
                 stories.tapped();
                 wait(Theme.fadeMs + 60);
-                check(storyBody.height > 0 && storyBody.opacity > 0 && storyBody.opacity < 1,
-                    "incoming drawer is partway through its fade");
+                check(storyBody.height > 0 && storyBody.height < storyBody.children[0].implicitHeight + 3
+                    && storyBody.opacity === 1, "incoming drawer is partway through expanding");
                 videos.tapped();
                 wait(60);
-                check(videoBody.height === 0, "interrupting an incoming fade keeps the next drawer hidden");
+                check(videoBody.height === 0, "interrupting an expansion keeps the next drawer hidden");
                 settle();
                 check(videoBody.height === fullHeight && storyBody.height === 0 && videoBody.opacity === 1,
-                    "interrupting an incoming fade settles on the last drawer");
+                    "interrupting an expansion settles on the last drawer");
 
                 videos.tapped();
                 wait(80);
@@ -129,7 +133,7 @@ ShellRoot {
                 header("rss").tapped();
                 wait(30);
                 check(body(header("rss")).height > 0, "restored sections can open");
-                console.log("PASS: sequential feed drawer fades");
+                console.log("PASS: feed drawers fade closed and expand open");
             }
         }
         Timer { interval: 300; running: true; onTriggered: {
@@ -157,7 +161,7 @@ def main():
         output = result.stdout + result.stderr
         errors = ("FAIL:", "TypeError:", "ReferenceError:", "Binding loop", "Unable to assign",
                   "Cannot assign", "Failed to load configuration")
-        ok = result.returncode == 0 and "PASS: sequential feed drawer fades" in output and not any(e in output for e in errors)
+        ok = result.returncode == 0 and "PASS: feed drawers fade closed and expand open" in output and not any(e in output for e in errors)
         print(output)
         return 0 if ok else 1
 
