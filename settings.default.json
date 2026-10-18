@@ -25,9 +25,9 @@
     // per window by a click. false gives every window its own icon.
     "groupWindows": true,
 
-    // Count windows on collapsed app groups in the left pill. Single windows
-    // and expanded groups have no count badge.
-    "groupWindowBadges": false,
+    // Mark collapsed app groups in the left pill: "hide", "dot", or "badge"
+    // (window count). Single windows and expanded groups have no indicator.
+    "groupWindowBadgeStyle": "hide",
 
     // Drag modules between the central and right pills, or within a pill to
     // reorder them. Moving to the right pins the module; Drawer settings can

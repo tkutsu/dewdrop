@@ -55,12 +55,14 @@ ShellRoot {
             function checkBounce() {
                 for (const pill of [musicPill, noticePill, timerPill, recordingPill]) {
                     const icon = anchor(pill);
-                    if (icon.scale !== pill.iconScale) {
-                        console.log("FAIL: pill icon does not follow its scale bounce");
+                    const expected = pill === musicPill ? 1 : pill === noticePill
+                        ? 0.9 + 0.1 * control1.senderInk : pill.iconScale;
+                    if (icon.scale !== expected) {
+                        console.log("FAIL: pill icon does not follow its motion policy");
                         Qt.quit();
                         return false;
                     }
-                    if (Math.abs(icon.scale - 1) > 0.000001 && (capture.leaving || pill.control.reveal >= 0.04)) {
+                    if (pill !== noticePill && Math.abs(icon.scale - 1) > 0.000001 && (capture.leaving || pill.control.reveal >= 0.04)) {
                         for (let item = icon; item && item !== pill; item = item.parent) {
                             if (item.opacity < 0.999999) {
                                 console.log("FAIL: icon bounce overlaps its fade at frame " + capture.index);
@@ -70,7 +72,7 @@ ShellRoot {
                         }
                     }
                 }
-                for (const pill of [noticePill, timerPill]) {
+                for (const pill of [timerPill]) {
                     const phase = Math.max(0, 2 * pill.control.reveal - 1);
                     const icon = anchor(pill);
                     const text = anchorText(pill);
@@ -125,7 +127,7 @@ ShellRoot {
             }
             function checkTiming() {
                 const elapsed = Date.now() - motionStarted;
-                for (const [i, pill] of [noticePill, timerPill].entries()) {
+                for (const [i, pill] of [timerPill].entries()) {
                     const icon = anchor(pill);
                     smallest[i] = Math.min(smallest[i], icon.scale);
                     largest[i] = Math.max(largest[i], icon.scale);
@@ -177,10 +179,11 @@ ShellRoot {
                 if (control1.reveal <= 0) return true;
                 const icons = control1.keyBox.children.filter(item => item.windowClass !== undefined);
                 const icon = icons[0];
-                const body = control1.keyBox.children.find(item => item.visible && item !== icon);
+                const bell = control1.keyBox.children.find(item => item instanceof BadgedGlyph);
+                const body = control1.keyBox.children.find(item => item.visible && item !== icon && item !== bell);
                 const text = body.children[0];
                 const iconX = icon.mapToItem(noticePill, icon.width / 2, 0).x;
-                const expectedX = control1.glassLeft + control1.iconInset + icon.width / 2;
+                const expectedX = control1.glassLeft + control1.iconInset + bell.width + control1.spacing + icon.width / 2;
                 const gathering = text.width < text.implicitWidth && text.width > 0;
                 if (icons.length !== 1 || !icon.hasIcon || icon.source === "" || icon.x + icon.width > body.x
                     || Math.abs(iconX - expectedX) > 1 || (text.width > 0 && text.leftFade !== 0)
@@ -191,7 +194,7 @@ ShellRoot {
                     return false;
                 }
                 if (capture.index === 20)
-                    console.log("PASS: notification and timer hide text during their exit bounce, then fade icons and collapse; entry springs when uncovered");
+                    console.log("PASS: notification places its fading sender beside the bell; timer keeps its covered spring");
                 return true;
             }
             Timer { interval: 300; running: true; onTriggered: delay.start() }
@@ -226,9 +229,12 @@ ShellRoot {
 NOTIFICATIONS = '''pragma Singleton
 import QtQuick
 import Quickshell
+import qs
 QtObject {
     property bool showing: true; property bool held: false; property bool urgent: false
     property int burst: 2
+    property string icon: Theme.glyph.notif
+    property string label: ""
     property var latest: ({summary: "A notification with a longer message", body: "", appName: "Test", image: ""})
     function plain(value) { return value; }
     function url(value) { return value || ""; }
@@ -267,7 +273,7 @@ def main():
             }}
             SidePill {{
                 id: {name}Pill; control: control{i}; slidesContent: true
-                bounceBeforeCollapse: {str(module in ('Notice', 'Countdown')).lower()}
+                bounceBeforeCollapse: {str(module == 'Countdown').lower()}
                 side: Pill.Side.{'Right' if right else 'Left'}; edgeOffset: {356 if right else 416}
                 {module} {{
                     id: control{i}; foldDuration: capture.liveTiming ? Theme.dropMs : 0; foldEasing: Easing.Linear; {extra}
@@ -316,7 +322,8 @@ def main():
         def ink(index, y):
             return any(max(g,b) > 8 for _,g,b in scenes[index].crop((0,y,640,y+40)).get_flattened_data())
         icon_survives = all(ink(i,y) for i in (7,13) for y in (0,210))
-        empty_circles = all(not ink(9,y) and not ink(11,y) and ink(12,y) for y in (70,140))
+        empty_circles = (not ink(9,70) and not ink(11,70) and ink(17,70)
+                         and not ink(9,140) and not ink(11,140) and ink(12,140))
         full_icons = all(ink(i,y) for i in (0,20) for y in (70,140))
         print(("PASS: " if icon_survives else "FAIL: ") + "music and recording retain their travelling icons")
         print(("PASS: " if empty_circles and full_icons else "FAIL: ") + "notification and timer icons fade after text on exit and appear promptly on entry")

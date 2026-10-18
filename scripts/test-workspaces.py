@@ -14,7 +14,7 @@ target=Path(folder.name)
 (target/'components').mkdir()
 (target/'runtime').mkdir(mode=0o700)
 (target/'Theme.qml').write_text((root/'Theme.qml').read_text())
-(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property bool groupWindowBadges: false; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
+(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property string groupWindowBadgeStyle: "hide"; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
 (target/'services/Hyprland.qml').write_text('''pragma Singleton
 import QtQuick
 import Quickshell
@@ -34,7 +34,7 @@ Singleton {
 (target/'components/BarItem.qml').write_text('''import QtQuick
 import QtQuick.Layouts
 Item { id: root; default property alias content: layout.data
-property bool contentAnimating: false; property bool _started: true
+property bool contentAnimating: false; property bool _started: true; property real appearanceScale: 1
 property int padLeft: 0; property int padRight: 0; property string name; property bool scrolls
 signal clicked; signal scrollUp; signal scrollDown
 implicitWidth: layout.implicitWidth; width: implicitWidth
@@ -42,11 +42,11 @@ RowLayout { id: layout; height: root.height }
 }''')
 (target/'components/AppIcon.qml').write_text('''import QtQuick
 Item { property string windowClass; property bool focused; property bool urgent; property bool pressed
-property real inkOpacity; readonly property real shift: 0
+property real inkOpacity; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
 property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
 ''')
-(target/'components/Badge.qml').write_text('import QtQuick\nItem { property string text; property color fill; implicitWidth: 13; implicitHeight: 13 }')
+(target/'components/Badge.qml').write_text('import QtQuick\nItem { property string text; property bool dot; property color fill; implicitWidth: 13; implicitHeight: 13 }')
 (target/'components/HoverPopup.qml').write_text('import QtQuick\nItem { property Item anchorItem; property bool hovered; property bool pressed; property bool open; property Component popup; property var item: null; property string text }')
 (target/'OpenPopup.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var selected: null; property var owner: null; function toggle(owner) {} function browse(owner, hovered) {} }')
 (target/'components/FlowMark.qml').write_text('''import QtQuick
@@ -67,11 +67,12 @@ Item {
 (target/'components/Bounce.qml').write_text((root/'components/Bounce.qml').read_text())
 (target/'components/DropLine.qml').write_text((root/'components/DropLine.qml').read_text())
 if '--real-icons' in sys.argv:
-    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText', 'Badge', 'RollingText', 'Rim'):
+    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText', 'Badge', 'RollingText', 'Rim', 'ModuleIconScale'):
         source=(root/f'components/{name}.qml').read_text()
         if name == 'AppIcon':
             source=source.replace('id: root', 'id: root\n    property real token: Math.random()', 1)
         (target/f'components/{name}.qml').write_text(source)
+    (target/'components/BadgedGlyph.qml').write_text('import QtQuick\nItem {}')
     for name in ('AppIcons', 'Ink'):
         (target/f'services/{name}.qml').write_text((root/f'services/{name}.qml').read_text())
     (target/'components/RollingSpring.js').write_text((root/'components/RollingSpring.js').read_text())
@@ -79,7 +80,8 @@ if '--real-icons' in sys.argv:
     offscreen_ink(target)
     (target/'assets').symlink_to(root/'assets', target_is_directory=True)
 if '--real-bar' in sys.argv:
-    for name in ('BarItem', 'ClickArea', 'Rim', 'Badge'):
+    (target/'GlassPress.qml').write_text((root/'GlassPress.qml').read_text())
+    for name in ('BarItem', 'ClickArea', 'Rim', 'Badge', 'PressGlass'):
         (target/f'components/{name}.qml').write_text((root/f'components/{name}.qml').read_text())
     (target/'components/Pill.qml').write_text('import QtQuick\nItem { property bool dragging: false; property Item dragSource: null }')
     (target/'DrawerPins.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { function pinned(key) { return false; } function kept(key) { return false; } function toggle(key) {} }')
@@ -94,6 +96,8 @@ src=src.replace('id: root','''id: root
 if '--marks' in sys.argv or '--mark-input' in sys.argv:
     src=src.replace('id: root', 'id: root\n    property alias auditMark: mark', 1)
 src=src.replace('id: button\n','id: button\n                    property alias auditRow: row\n',1)
+if '--badge-alignment' in sys.argv:
+    src=src.replace('id: app\n', 'id: app\n                                property alias auditBadge: groupCount\n', 1)
 (target/'Workspaces.qml').write_text(src)
 
 shell_source=r"""import QtQuick
@@ -156,7 +160,17 @@ ShellRoot {
  instant(icon(group,'b'),'grouped arrival leaves its representative visible and still');
  const groupBadge=app=>app.children.find(c=>c.text!==undefined && c.fill!==undefined);
  check(!groupBadge(icon(group,'b')).visible,'group counts are opt-in');
- Settings.groupWindowBadges=true;test.wait(30);
+ Settings.groupWindowBadgeStyle='dot';test.wait(30);
+ check(groupBadge(icon(group,'b')).visible && groupBadge(icon(group,'b')).dot,'collapsed groups can use a dot');
+ check(icon(group,'b').cornerDot.width===groupBadge(icon(group,'b')).width,'group dot supplies its bounds to the artwork mask');
+ check(!groupBadge(icon(button(1),'c')).visible,'single windows have no group dot');
+ pill.expand(w3,'same');test.wait(300);
+ check(!groupBadge(icon(group,'a')).visible && !groupBadge(icon(group,'b')).visible,'expanded groups have no dot');
+ check(icon(group,'a').cornerDot.width===0 && icon(group,'b').cornerDot.width===0,'expanded groups remove the corner cutout');
+ pill.collapse();test.wait(300);
+ Settings.groupWindowBadgeStyle='badge';test.wait(30);
+ check(!groupBadge(icon(group,'b')).dot,'count mode replaces the dot');
+ check(icon(group,'b').cornerDot.width===0,'count mode removes the corner cutout');
  check(groupBadge(icon(group,'b')).visible && groupBadge(icon(group,'b')).text==='2','collapsed group counts its two windows');
  check(!groupBadge(icon(button(1),'c')).visible,'single windows have no count badge');
  const extra=win('extra',w3,'same');Hyprland.toplevels.values=[b,c,a,extra];test.wait(50);
@@ -172,7 +186,7 @@ ShellRoot {
  Settings.groupWindows=false;test.wait(300);
  check(!groupBadge(icon(group,'a')).visible && !groupBadge(icon(group,'b')).visible,'ungrouped windows have no group count');
  Settings.groupWindows=true;test.wait(300);
- Settings.groupWindowBadges=false;test.wait(30);
+ Settings.groupWindowBadgeStyle='hide';test.wait(30);
  check(!groupBadge(icon(group,'a')).visible,'group counts can be disabled');
  pill.expand(w3,'same');test.wait(300);
  WorkspaceSync.settled=false;
@@ -242,12 +256,45 @@ ShellRoot {
  check(pill.frozen.placement.a===2 && icon(button(2),'a')!==undefined,'late freeze restores the last drawn placement instead of capturing a placeholder');
  a.workspace=inserted;WorkspaceSync.settled=true;test.wait(300);
 
- console.log(failures.length ? 'FAIL: '+failures.length+' workspace checks' : 'PASS: workspace collapse, transfers, targeting, grouping and freeze');
+ console.log(failures.length ? 'FAIL: '+failures.length+' workspace checks' : 'PASS: workspace checks');
  }catch(e){console.log('FAIL: '+e);}
  Qt.quit();
  } }
 }
 """
+if '--lifecycle' in sys.argv:
+    start = shell_source.index(' const w1=ws(1)')
+    end = shell_source.index(" console.log(failures.length", start)
+    shell_source = shell_source[:start] + r"""
+ const w1=ws(1),w2=ws(2);
+ const a=win('a',w1,'first');
+ reset([a],[w1,w2]);
+ const b=win('b',w1,'second');
+ Hyprland.toplevels.values=[a,b];test.wait(30);
+ const entering=icon(button(1),'b');
+ check(entering && entering.opacity>0 && entering.opacity<1 && entering.scale<1,'new app fades and scales into the left pill');
+ test.wait(350);
+ const exiting=icon(button(1),'b');
+ Hyprland.toplevels.values=[a];test.wait(120);
+ check(icon(button(1),'b')===exiting && exiting.opacity>=0.35 && exiting.scale<0.96,'closing app stays rendered with a visible shrink at 120 ms');
+ test.wait(400);
+ check(!icon(button(1),'b'),'closing app delegate retires after its exit');
+ const c=win('c',w2,'third');Hyprland.toplevels.values=[a,c];test.wait(400);
+ Hyprland.toplevels.values=[a];test.wait(120);
+ check(button(2)!==null && icon(button(2),'c') && icon(button(2),'c').opacity>=0.35,'last app exits before its workspace disappears');
+ test.wait(400);check(button(2)===null,'empty workspace retires after the last app exits');
+ Hyprland.toplevels.values=[a,b];test.wait(400);
+ move(b,w2);test.wait(35);
+ instant(icon(button(2),'b'),'workspace transfer remains immediate');
+ check(!icon(button(1),'b'),'workspace transfer leaves no departing copy');
+ Settings.reduceMotion=true;
+ const d=win('d',w1,'fourth');Hyprland.toplevels.values=[a,b,d];test.wait(100);
+ check(icon(button(1),'d').scale===1,'reduced motion has no entrance scaling');
+ Hyprland.toplevels.values=[a,b];test.wait(120);
+ check(icon(button(1),'d') && icon(button(1),'d').scale===1 && icon(button(1),'d').opacity>0,'reduced motion keeps the exit fade');
+ test.wait(400);check(!icon(button(1),'d'),'reduced motion cleans up the closing delegate');
+""" + shell_source[end:]
+
 if '--snapshots' in sys.argv:
     start = shell_source.index(' const w1=ws(1)')
     end = shell_source.index(" console.log(failures.length", start)
@@ -445,6 +492,28 @@ if '--regressions' in sys.argv:
 ''' + shell_source[end:]
     if '--real-icons' in sys.argv:
         shell_source=shell_source.replace("win('a',w2,'incoming'),b=win('b',w3,'existing'),c=win('c',w1,'other')", "win('a',w2,'kitty'),b=win('b',w3,'firefox'),c=win('c',w1,'thunar')")
+if '--badge-alignment' in sys.argv:
+    shell_source=shell_source.replace('height: 38 } }', 'height: 38; badgeLayer: badgeOverlay } Item { id: badgeOverlay; anchors.fill: parent } }', 1)
+    start=shell_source.index(" const w1=ws(1)")
+    end=shell_source.index(" console.log(failures.length", start)
+    shell_source=shell_source[:start]+r'''
+ Settings.groupWindowBadgeStyle='dot';
+ const w1=ws(1),w2=ws(2);
+ const a=win('a',w2,'kitty'),b=win('b',w2,'kitty');
+ reset([a,b],[w1,w2]);
+ const app=icon(button(2),'a'),badge=app.auditBadge;
+ function aligned(why) {
+   const expected=app.mapToItem(badge.parent,badge.localAt.x,badge.localAt.y);
+   check(Math.abs(badge.y-expected.y)<0.01,
+     why+': badge y='+badge.y+', expected='+expected.y);
+ }
+ aligned('startup group');
+ // A bar-height change recentres icons without changing their horizontal slots.
+ pill.height+=8;test.wait(100);
+ aligned('group after vertical relayout');
+ Settings.groupWindowBadgeStyle='badge';test.wait(100);
+ aligned('count after vertical relayout');
+''' + shell_source[end:]
 (target/'shell.qml').write_text(shell_source)
 env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',XDG_RUNTIME_DIR=str(target/'runtime'),XDG_CACHE_HOME=str(target/'cache'))
 for key in ('WAYLAND_DISPLAY','HYPRLAND_INSTANCE_SIGNATURE'):env.pop(key,None)

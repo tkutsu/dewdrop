@@ -18,8 +18,8 @@ from zoneinfo import ZoneInfo
 
 # km/h, where the six-hour summary starts saying "Strong winds".
 WINDY = 39
-# Refetch forecasts cached before the thick-fog display threshold.
-CACHE_VERSION = 3
+# Refetch forecasts cached before the restored day/night cloud icons.
+CACHE_VERSION = 5
 
 
 def condition(code, daylight=True):

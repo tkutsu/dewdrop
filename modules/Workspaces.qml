@@ -125,6 +125,28 @@ BarItem {
     }
 
     readonly property var shownWorkspaces: frozen ? frozen.workspaces : liveWorkspaces
+    // A closing app keeps its workspace until its artwork has finished fading.
+    property var renderedWorkspaces: []
+    property var knownAddresses: ({})
+    onShownWorkspacesChanged: Qt.callLater(root.syncWorkspaces)
+
+    function syncWorkspaces(): void {
+        const next = [...shownWorkspaces];
+        for (const previous of renderedWorkspaces) {
+            if (next.some(w => w.id === previous.id))
+                continue;
+            for (let i = 0; i < workspaces.count; i++) {
+                const button = workspaces.itemAt(i);
+                if (button.modelData === previous.id && button.renderedIcons.some(icon =>
+                        !Hyprland.toplevels.values.some(t => t.address === icon.key))) {
+                    next.push(previous);
+                    break;
+                }
+            }
+        }
+        renderedWorkspaces = next.sort((a, b) => a.id - b.id);
+    }
+
     readonly property int focusedId: frozen ? frozen.focused : (Hyprland.focusedWorkspace?.id ?? -1)
     onFocusedIdChanged: Qt.callLater(root.snapshot)
 
@@ -261,9 +283,12 @@ BarItem {
     function snapshot(): void {
         if (!WorkspaceSync.settled)
             return;
+        for (const address of Object.keys(knownAddresses))
+            if (livePlacement[address] === undefined)
+                delete knownAddresses[address];
         root.lastWhole = { workspaces: root.liveWorkspaces, focused: root.focusedId, placement: root.livePlacement };
     }
-    Component.onCompleted: Qt.callLater(root.snapshot)
+    Component.onCompleted: { Qt.callLater(root.snapshot); Qt.callLater(root.syncWorkspaces); }
 
     HoverHandler {
         id: stripHover
@@ -328,7 +353,7 @@ BarItem {
             SequentialAnimation {
                 id: stripResize
                 PauseAnimation {
-                    duration: widthChange.growing ? 0 : 180
+                    duration: widthChange.growing ? 0 : Theme.moduleExitMs
                 }
                 SpringAnimation {
                     spring: widthChange.growing ? Theme.springStiffness : Theme.foldSpring
@@ -509,7 +534,7 @@ BarItem {
                 id: workspaces
 
                 model: ScriptModel {
-                    values: root.shownWorkspaces.map(w => w.id)
+                    values: root.renderedWorkspaces.map(w => w.id)
                 }
 
                 onItemRemoved: (index, item) => {
@@ -524,10 +549,11 @@ BarItem {
 
                     required property int modelData
                     required property int index
-                    readonly property var workspaceInfo: root.shownWorkspaces.find(w => w.id === modelData)
+                    readonly property var workspaceInfo: root.renderedWorkspaces.find(w => w.id === modelData)
                         ?? ({ id: modelData, urgent: false, workspace: null })
                     readonly property var iconItems: row.children.filter(c => c.icon !== undefined)
                     readonly property bool active: root.focusedId === button.workspaceInfo.id
+                    enabled: root.shownWorkspaces.some(w => w.id === modelData)
 
                     // A stop in the bar's selection mode (OpenPopup): Return
                     // goes to the workspace. The workspace mark comes over to
@@ -597,6 +623,30 @@ BarItem {
                             });
                         }
                         return result;
+                    }
+
+                    property var renderedIcons: []
+                    onIconsChanged: Qt.callLater(button.syncIcons)
+                    Component.onCompleted: syncIcons()
+
+                    // Retain only closed windows; transfers leave immediately with no copy behind.
+                    function syncIcons(): void {
+                        const next = button.icons.map(icon => Object.assign({}, icon, { closing: false }));
+                        for (let i = 0; i < renderedIcons.length; i++) {
+                            const old = renderedIcons[i];
+                            if (!next.some(icon => icon.key === old.key)
+                                    && !Hyprland.toplevels.values.some(t => t.address === old.key)
+                                    && !old.folded
+                                    && !next.some(icon => icon.windowClass === old.windowClass && !icon.folded && !old.expanded)) {
+                                next.splice(Math.min(i, next.length), 0, Object.assign({}, old, { closing: true }));
+                            }
+                        }
+                        renderedIcons = next;
+                    }
+
+                    function retireIcon(key: string): void {
+                        renderedIcons = renderedIcons.filter(icon => icon.key !== key || !icon.closing);
+                        root.syncWorkspaces();
                     }
 
                     // Bring the focused workspace's icons forward with the mark.
@@ -737,7 +787,7 @@ BarItem {
                             // in ahead of a group would leave the old first icon open,
                             // still holding the whole group's addresses.
                             model: ScriptModel {
-                                values: button.icons.map(icon => icon.key)
+                                values: button.renderedIcons.map(icon => icon.key)
                             }
 
                             delegate: AppIcon {
@@ -747,7 +797,7 @@ BarItem {
                                 required property int index
 
                                 // Folded while its row waits to be removed.
-                                readonly property var icon: button.icons.find(icon => icon.key === app.modelData)
+                                readonly property var icon: button.renderedIcons.find(icon => icon.key === app.modelData)
                                     ?? ({ key: app.modelData, windowClass: "", addresses: [], expanded: false, folded: true })
 
                                 Layout.alignment: Qt.AlignVCenter
@@ -773,10 +823,39 @@ BarItem {
                                 // shrinks under it: shrinking the icon itself would
                                 // spill its artwork over the next one, or crop it
                                 // and resize its layer every frame while it has a dot.
-                                visible: reveal > 0
-                                opacity: reveal
-                                scale: reveal
+                                visible: reveal > 0 && appearance > 0
+                                opacity: reveal * Theme.moduleOpacity(appearance)
+                                scale: reveal * Theme.moduleScale(appearance)
                                 transformOrigin: Item.Left
+                                property real appearance: 1
+                                readonly property bool closing: icon.closing ?? false
+                                enabled: !closing
+                                onClosingChanged: {
+                                    if (closing && root.dragSource === app)
+                                        root.cancelDrag();
+                                    lifeMotion.stop();
+                                    lifeMotion.to = closing ? 0 : 1;
+                                    lifeMotion.duration = closing ? Theme.moduleExitMs : Theme.moduleEnterMs;
+                                    lifeMotion.easing.type = closing ? Easing.InOutCubic : Easing.OutCubic;
+                                    lifeMotion.start();
+                                }
+                                Component.onCompleted: {
+                                    const entering = root._started && !root.knownAddresses[modelData] && !icon.folded;
+                                    root.knownAddresses[modelData] = true;
+                                    if (entering) {
+                                        appearance = 0;
+                                        lifeMotion.to = 1;
+                                        lifeMotion.duration = Theme.moduleEnterMs;
+                                        lifeMotion.easing.type = Easing.OutCubic;
+                                        lifeMotion.start();
+                                    }
+                                }
+                                NumberAnimation {
+                                    id: lifeMotion
+                                    target: app
+                                    property: "appearance"
+                                    onFinished: if (app.closing) button.retireIcon(app.modelData)
+                                }
                                 // Fold the gap into the slot so hiding the icon leaves no final layout jump.
                                 Layout.leftMargin: Math.round(gapWidth * reveal)
                                 Layout.rightMargin: slotWidth - implicitWidth - Layout.leftMargin
@@ -791,19 +870,26 @@ BarItem {
                                 pressed: tap.pressed && !root.dragging
                                 // An app that wants you is not one to stand back.
                                 inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
+                                cornerDot: groupCount.visible && groupCount.dot
+                                    ? Qt.rect(groupCount.localAt.x, groupCount.localAt.y, groupCount.width, groupCount.height)
+                                    : Qt.rect(0, 0, 0, 0)
 
                                 Badge {
                                     id: groupCount
                                     parent: root.badgeLayer ?? app
-                                    visible: app.visible && Settings.groupWindowBadges && app.icon.addresses.length > 1
+                                    visible: app.visible && Settings.groupWindowBadgeStyle !== "hide" && app.icon.addresses.length > 1
+                                    dot: Settings.groupWindowBadgeStyle === "dot"
                                     text: String(app.icon.addresses.length)
                                     fill: Theme.badgeBg(app, Qt.rect(0, Math.floor((app.height - Theme.iconSize) / 2), app.width, Theme.iconSize))
+                                    readonly property point localAt: Qt.point(
+                                        Math.round(app.width - Theme.badgeSize / 2)
+                                            + (dot ? (Theme.badgeSize - width) / 2 : text.length > 1 ? -2 : 0),
+                                        Math.round(Theme.pillTop(app.height) + Theme.badgeLine - Theme.badgeRise - Theme.badgeSize / 2)
+                                            + (dot ? Theme.badgeSize - height - 1 : 0))
                                     // Follow layout and folding while drawing above the selection's lens.
                                     readonly property point at: {
-                                        app.x; app.scale; workspaceShift.x; strip.x; root.x; root.y; root.shift;
-                                        return app.mapToItem(parent,
-                                            Math.round(app.width - Theme.badgeSize / 2) - (text.length > 1 ? 2 : 0),
-                                            Math.round(Theme.pillTop(app.height) + Theme.badgeLine - Theme.badgeRise - height / 2));
+                                        app.x; app.y; app.scale; workspaceShift.x; strip.x; root.x; root.y; root.shift;
+                                        return app.mapToItem(parent, localAt.x, localAt.y);
                                     }
                                     x: at.x
                                     y: at.y

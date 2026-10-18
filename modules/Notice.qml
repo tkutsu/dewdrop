@@ -65,7 +65,37 @@ BarItem {
     readonly property bool sliding: pill?.slidesContent ?? false
     readonly property real glassWidth: sliding ? pill.foldBox.z : width
     readonly property real glassLeft: sliding ? pill.foldBox.x : 0
-    readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - icon.width) / 2))
+    readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - bell.width) / 2))
+    property Item mergeCandidate: null
+    property Item mergedIcon: null
+    readonly property MediaIconHandoff iconHandoff: MediaIconHandoff {
+        source: bell
+        target: root.mergedIcon
+        reveal: root.reveal
+        restingX: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0
+    }
+    // Keep the destination through the round trip, even while its slot is empty.
+    onStowedChanged: if (!stowed)
+        mergedIcon = mergeCandidate
+    Component.onCompleted: if (!stowed)
+        mergedIcon = mergeCandidate
+
+    // The sender uses the same fade and scale as an ordinary bar module.
+    readonly property bool senderShown: !stowed && (!sliding || reveal > 0.38
+        && glassWidth >= iconInset + bell.width + spacing + icon.width + padRight)
+    property real senderInk: senderShown ? 1 : 0
+    Behavior on senderInk {
+        onTargetValueChanged: {
+            const entering = targetValue === 1;
+            senderPause.duration = entering && !Theme.reduceMotion ? Theme.moduleOpenMs - Theme.moduleEnterMs : 0;
+            senderTween.duration = entering ? Theme.moduleEnterMs : Theme.moduleExitMs;
+            senderTween.easing.type = entering ? Easing.OutCubic : Easing.InOutCubic;
+        }
+        SequentialAnimation {
+            PauseAnimation { id: senderPause }
+            NumberAnimation { id: senderTween }
+        }
+    }
 
     // The pointer resting on it keeps it up — see Notifications.held.
     onContainsMouseChanged: Notifications.held = containsMouse
@@ -77,17 +107,27 @@ BarItem {
         notification: root.entry
     }
 
-    // Keep the sender opaque through its bounce, then fade before joining.
+    BadgedGlyph {
+        id: bell
+        Layout.fillHeight: true
+        glyph: Notifications.icon
+        badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
+        dot: Settings.badgeStyle("bell") === "dot"
+        underdot: Settings.badgeStyle("bell") === "underdot"
+        opacity: root.mergedIcon ? 1 - root.iconHandoff.progress
+            : root.sliding ? root.pill.geometry.contents(root.reveal) : 1
+        transform: Translate { x: root.iconHandoff.sourceX }
+    }
+
     AppIcon {
         id: icon
-        scale: root.sliding ? root.pill.iconScale : 1
+        scale: Theme.moduleScale(root.senderInk)
         Layout.fillHeight: true
         windowClass: root.kept.key
         source: root.kept.picture
         urgent: Notifications.urgent
         fallbackGlyph: Theme.glyph.notif
-        opacity: root.sliding ? (root.pill.bounceBeforeCollapse ? root.pill.iconOpacity
-            : Math.min(1, body.width / Math.max(1, body.implicitWidth))) : 1
+        opacity: Theme.moduleOpacity(root.senderInk)
         transform: Translate { x: root.glassLeft + root.iconInset - root.padLeft }
     }
 
@@ -100,7 +140,7 @@ BarItem {
         Marquee {
             id: body
             width: Math.max(0, Math.min(implicitWidth * (root.sliding ? root.pill.textReveal : 1),
-                root.glassWidth - root.iconInset - root.padRight - icon.width - root.spacing))
+                root.glassWidth - root.iconInset - root.padRight - bell.width - icon.width - 2 * root.spacing))
             height: parent.height
             contentWidth: parts.implicitWidth
             active: true
@@ -116,7 +156,7 @@ BarItem {
                     Layout.fillHeight: true
                     text: root.kept.line
                     maxWidth: Math.max(1, root.room - root.padLeft - root.padRight
-                        - icon.implicitWidth - root.spacing
+                        - bell.implicitWidth - icon.implicitWidth - 2 * root.spacing
                         - (burst.shown ? burst.implicitWidth + root.spacing : 0))
                 }
 

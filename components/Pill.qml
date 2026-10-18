@@ -178,10 +178,13 @@ Item {
 
     // A point in this pill, including a gap with no item of its own.
     property real centreAt: centreOn ? centreOnX : width / 2
+    // A merge displaces the contents immediately; the same centring motion
+    // that compensates for a leading media slot brings the whole pill back.
+    property real centreShift: 0
     property bool animatePosition: false
     property bool _positionReady: false
-    // Animate the left edge so width changes cannot jump the centre anchor.
-    property real _centreLeft: parent ? parent.width / 2 - centreAt : 0
+    // Animate between whole-pixel left edges; fractional frames keep the motion smooth.
+    property real _centreLeft: parent ? Math.round(parent.width / 2 - centreAt - centreShift) : 0
     Behavior on _centreLeft {
         enabled: root.animatePosition && root._positionReady && !Theme.reduceMotion
         NumberAnimation {
@@ -192,6 +195,9 @@ Item {
     }
 
     anchors {
+        // Our left edge already chooses the grid. Qt's centre rounding would
+        // shift it by half a pixel whenever the pill's width changes parity.
+        alignWhenCentered: false
         top: parent.top
         left: root.side === Pill.Side.Left ? parent.left : undefined
         leftMargin: root.side === Pill.Side.Left ? root.edgeOffset : 0
@@ -199,7 +205,7 @@ Item {
         rightMargin: root.side === Pill.Side.Right ? root.edgeOffset : 0
         horizontalCenter: root.side === Pill.Side.Centre ? parent.horizontalCenter : undefined
         // Compensate for width changes immediately while the left edge travels.
-        horizontalCenterOffset: root._centreLeft + root.width / 2 - (root.parent?.width ?? 0) / 2
+        horizontalCenterOffset: root._centreLeft + root.centreShift + root.width / 2 - (root.parent?.width ?? 0) / 2
     }
 
     implicitWidth: row.implicitWidth
