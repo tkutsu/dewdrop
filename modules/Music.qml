@@ -49,9 +49,14 @@ BarItem {
     readonly property real glassLeft: sliding ? pill.foldBox.x : 0
     readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - note.width) / 2))
     readonly property real titleLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
-    readonly property bool iconInCentre: reveal <= 0 || (sliding
-        ? glassLeft + iconInset >= pill.width + Theme.pillSpread
-        : reveal <= 0.3)
+    property Item mergedIcon: null
+    readonly property MediaIconHandoff iconHandoff: MediaIconHandoff {
+        source: note
+        target: root.mergedIcon
+        reveal: root.reveal
+        restingX: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0
+    }
+    readonly property bool iconInCentre: iconHandoff.progress > 0
 
     // And for the outline it draws: how far through the track we are. Held
     // like the title below, so the line fades with the pill rather than
@@ -218,7 +223,7 @@ BarItem {
         id: leading
         Layout.fillHeight: true
         implicitWidth: Math.max(note.implicitWidth + Theme.mediaGap, previousStep.implicitWidth)
-        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
+        transform: Translate { x: root.iconHandoff.sourceX }
 
         MediaStep {
             id: previousStep
@@ -232,11 +237,11 @@ BarItem {
 
         Glyph {
             id: note
-            scale: root.sliding ? root.pill.iconScale : 1
+            scale: 1
             height: parent.height
             text: Theme.glyph.track
-            visible: !root.sliding || !root.iconInCentre
-            opacity: root.settled ? 1 - previousStep.opacity : 1
+            visible: !root.sliding || root.iconHandoff.progress < 1
+            opacity: root.settled ? 1 - previousStep.opacity : 1 - root.iconHandoff.progress
         }
     }
 

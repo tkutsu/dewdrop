@@ -587,6 +587,17 @@ Singleton {
 
     // --- opacity -------------------------------------------------------------
     readonly property real dimOpacity: 0.55   // .stale / .loading
+    readonly property int moduleEnterMs: 200
+    readonly property int moduleExitMs: 220
+    readonly property int moduleOpenMs: 240
+    readonly property int moduleCloseMs: 200
+    // Keep the icon legible through the shrink; fade only in the last part.
+    function moduleOpacity(progress: real): real {
+        return reduceMotion ? progress : Math.min(1, progress / 0.55);
+    }
+    function moduleScale(progress: real): real {
+        return reduceMotion ? 1 : 0.8 + 0.2 * progress;
+    }
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
     // Workspace icon fades and group folding keep pace with the selection spring.

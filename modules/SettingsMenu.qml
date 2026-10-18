@@ -218,7 +218,9 @@ OverlayWindow {
                     title: "Workspaces",
                     rows: [
                         { type: "toggle", id: "groupWindows", title: "Group Windows by App", tooltip: "Click a group to expand its windows.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) },
-                        { type: "toggle", id: "groupWindowBadges", title: "Show Group Window Counts", get: () => Settings.groupWindowBadges, set: v => Settings.set("groupWindowBadges", v) }
+                        { type: "choice", id: "groupWindowBadgeStyle", title: "Group Indicator",
+                            options: [{ value: "hide", label: "Hide" }, { value: "dot", label: "Dot" }, { value: "badge", label: "Count" }],
+                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) }
                     ]
                 },
                 {

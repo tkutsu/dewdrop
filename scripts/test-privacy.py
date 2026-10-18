@@ -25,12 +25,14 @@ MOCKS = {
 }
 
 SHELL = '''import QtQuick
+import QtQuick.Layouts
 import QtTest
 import Quickshell
 import qs
 import qs.components
 import qs.modules
 import qs.services
+import qs.services as Services
 import qs.testing
 
 ShellRoot {
@@ -82,9 +84,25 @@ ShellRoot {
     readonly property var camera: link(webcam, chromium)
 
     FloatingWindow {
-        implicitWidth: 300; implicitHeight: 60
+        id: window
+        implicitWidth: 800; implicitHeight: 60
         Item { id: spot; width: 40; height: 20 }
-        Recording { id: pill }
+        SidePill {
+            id: recordingPill
+            control: recording
+            slidesContent: true
+            side: Pill.Side.Right
+            edgeOffset: window.width - centrePill.x + Theme.pillSpread
+            Recording { id: recording; foldDuration: Theme.dropMs; foldEasing: Easing.Linear }
+        }
+        Pill {
+            id: centrePill
+            side: Pill.Side.Centre
+            order: ["clock"]
+            centreOn: clock.keyBox
+            RECORDING_NOTE
+            BarItem { id: clock; settingsKey: "clock"; BarText { text: "Clock" } }
+        }
     }
 
     Loader { id: popupLoader; active: false; sourceComponent: PrivacyPopup { anchorItem: spot; visible: true } }
@@ -98,7 +116,8 @@ ShellRoot {
 
     function run() {
         links([]);
-        check(!Privacy.active && pill.stowed, "nothing linked, nothing recording, pill stowed");
+        check(!Privacy.active && recording.stowed, "nothing linked, nothing recording, pill stowed");
+        check(recordingNote.stowed && !recordingNote.visible, "no captures at startup leave no central icon");
 
         links([held, internal, metering, desktopAudio, camera]);
         check(!Privacy.active, "paused, internal, metering, desktop audio and camera links do not count");
@@ -107,49 +126,49 @@ ShellRoot {
         check(Privacy.listening && !Privacy.sharing && Privacy.mics.length === 1, "an active capture of a microphone counts once");
         check(Privacy.mics[0].app === "Firefox" && Privacy.mics[0].source.id === mic.id, "the app and the microphone are named");
         check(Privacy.summary === "Firefox using the microphone", "summary names the app: " + Privacy.summary);
-        check(!pill.stowed, "the pill comes out");
+        check(!recording.stowed, "the pill comes out");
         listening.liveState = PwLinkState.Paused;
-        check(!Privacy.listening && pill.stowed, "pausing a tracked capture stows the pill");
+        check(!Privacy.listening && recording.stowed, "pausing a tracked capture stows the pill");
         listening.liveState = PwLinkState.Active;
-        check(Privacy.listening && !pill.stowed, "resuming the same capture reveals the pill");
-        check(pill.testPulse.running, "an active recording pulses with normal motion");
+        check(Privacy.listening && !recording.stowed, "resuming the same capture reveals the pill");
+        check(recording.testPulse.running, "an active recording pulses with normal motion");
         Settings.user = {reduceMotion: true};
-        check(!pill.testPulse.running && pill.testDot.opacity === 1, "Reduce motion stops the recording pulse at full opacity");
+        check(!recording.testPulse.running && recording.testDot.opacity === 1, "Reduce motion stops the recording pulse at full opacity");
         Settings.user = {};
-        check(pill.testPulse.running, "restoring motion resumes the active recording pulse");
+        check(recording.testPulse.running, "restoring motion resumes the active recording pulse");
         links([]);
-        check(!Privacy.active && pill.stowed, "ending a capture stows the pill");
-        check(!pill.testPulse.running && pill.testDot.opacity === 1, "ending a recording stops its pulse");
+        check(!Privacy.active && recording.stowed, "ending a capture stows the pill");
+        check(!recording.testPulse.running && recording.testDot.opacity === 1, "ending a recording stops its pulse");
         links([listening, held]);
 
         Privacy.toggleApp(firefox);
         check(firefox.audio.muted, "muting an app mutes its own stream");
-        check(!Privacy.recording && !pill.testDot.visible && !pill.testPulse.running, "muted captures do not pulse the recording dot");
-        check(Privacy.microphonesMuted && pill.testMicIcon.text === Theme.glyph.micMuted, "muting the only app changes the pill icon");
+        check(!Privacy.recording && !recording.testDot.visible && !recording.testPulse.running, "muted captures do not pulse the recording dot");
+        check(Privacy.microphonesMuted && recording.testMicIcon.text === Theme.glyph.micMuted, "muting the only app changes the pill icon");
         check(Privacy.summary === "Firefox using the microphone (muted)", "the tooltip reports mute state");
-        check(!pill.stowed, "a muted capture keeps its indicator visible");
+        check(recording.stowed, "a muted capture merges into the central pill");
         links([listening, link(mic, discord)]);
-        check(!Privacy.microphonesMuted && pill.testMicIcon.text === Theme.glyph.mic, "one unmuted app keeps the live icon");
-        check(Privacy.recording && pill.testPulse.running, "one audible capture keeps the recording dot pulsing");
+        check(!Privacy.microphonesMuted && recording.testMicIcon.text === Theme.glyph.mic, "one unmuted app keeps the live icon");
+        check(Privacy.recording && recording.testPulse.running, "one audible capture keeps the recording dot pulsing");
         check(Privacy.inputs.length === 1, "apps sharing an input get one device control");
         Privacy.toggleInput(mic);
-        check(Privacy.microphonesMuted && pill.testMicIcon.text === Theme.glyph.micMuted, "input mute changes the pill for every capturing app");
+        check(Privacy.microphonesMuted && recording.testMicIcon.text === Theme.glyph.micMuted, "input mute changes the pill for every capturing app");
         check(!Privacy.recording, "muting the input clears recording activity for all apps");
         Privacy.toggleInput(mic);
         Privacy.toggleApp(firefox);
 
         links([share]);
-        check(Privacy.sharing && !Privacy.listening && !pill.stowed, "a screen share alone reveals the pill");
+        check(Privacy.sharing && !Privacy.listening && !recording.stowed, "a screen share alone reveals the pill");
         share.liveState = PwLinkState.Paused;
-        check(!Privacy.active && pill.stowed, "pausing a screen share stows the pill");
+        check(!Privacy.active && recording.stowed, "pausing a screen share stows the pill");
         share.liveState = PwLinkState.Active;
-        check(Privacy.sharing && !pill.stowed, "resuming a screen share reveals the pill");
+        check(Privacy.sharing && !recording.stowed, "resuming a screen share reveals the pill");
         share.target = null;
-        check(!Privacy.sharing && pill.stowed, "a disconnected capture target safely removes its indicator");
+        check(!Privacy.sharing && recording.stowed, "a disconnected capture target safely removes its indicator");
         share.target = chromium;
         check(Privacy.sharing, "reconnecting the capture target restores its indicator");
         links([]);
-        check(!Privacy.active && pill.stowed, "ending a screen share stows the pill");
+        check(!Privacy.active && recording.stowed, "ending a screen share stows the pill");
 
         links([listening, share, shareToo, camera]);
         check(Privacy.sharing && Privacy.shares.length === 1, "one share, however many apps take it");
@@ -221,9 +240,64 @@ ShellRoot {
         check(micRow.name === "" && currentShare.name === "", "capture rows expose actions only on their buttons");
         stopButton.tapped();
         check(Pipewire.commands.length === 2 && Pipewire.commands[1].join(" ") === "pw-cli destroy 8", "the screen row's stop button ends the selected share");
-        const recordingPopup = pill.popup.createObject(test, {anchorItem: spot, visible: false});
+        const recordingPopup = recording.popup.createObject(test, {anchorItem: spot, visible: false});
         check(recordingPopup.morphs, "the recording popup enables the shared pill morph");
         recordingPopup.destroy();
+        popupLoader.active = false;
+
+        links([listening]);
+        readiness.wait(Theme.dropMs + 100);
+        check(recording.reveal === 1 && recordingNote.stowed, "live capture has only a side pill");
+        const centreX = clock.keyBox.mapToItem(window.contentItem, clock.keyBox.width / 2, 0).x;
+        Privacy.toggleApp(firefox);
+        let frames = 0;
+        while (!recording.iconInCentre && frames++ < 200) {
+            check(recordingNote.stowed && !recordingNote.visible, "central icon waits for absorption");
+            check(recording.testMicIcon.opacity === 1, "travelling microphone stays opaque");
+            readiness.wait(10);
+        }
+        check(frames > 5 && recording.iconInCentre, "muted microphone completes its animated handoff");
+        readiness.wait(Theme.dropMs + 100);
+        check(recordingNote.visible && !recordingPill.visible && recording.testMicIcon.opacity === 0,
+              "muted capture leaves exactly the central icon");
+        check(Math.abs(clock.keyBox.mapToItem(window.contentItem, clock.keyBox.width / 2, 0).x - centreX) <= 1,
+              "privacy merge keeps the central anchor fixed");
+        readiness.mouseClick(recordingNote, recordingNote.width / 2, 0);
+        readiness.wait(400);
+        check(recordingNote.popupOpen && recordingNote.popupItem.testMicRows.count === 1,
+              "central icon opens controls for the muted capture");
+        Privacy.toggleApp(firefox);
+        readiness.wait(Theme.dropMs + 100);
+        check(recording.reveal === 1 && !recordingNote.visible && !recordingNote.popupOpen,
+              "unmuting returns the side pill and closes the central popup");
+
+        OpenPopup.set(recording);
+        readiness.wait(400);
+        Privacy.toggleApp(firefox);
+        check(recording.popupOpen && !recording.stowed, "muting keeps open controls accessible");
+        OpenPopup.dismiss();
+        readiness.wait(Theme.dropMs + 100);
+        check(recordingNote.visible && !recordingPill.visible, "closing muted controls merges the pill");
+
+        links([listening, share]);
+        readiness.wait(Theme.dropMs + 100);
+        check(recording.reveal === 1 && !recordingNote.visible, "screen sharing keeps the side pill with a muted microphone");
+        links([]);
+        readiness.wait(Theme.dropMs + 100);
+        check(!recordingNote.visible && !recordingPill.visible, "ending all captures leaves no privacy icon");
+        links([listening]);
+        readiness.wait(Theme.dropMs + 100);
+        readiness.mouseClick(recordingNote, recordingNote.width / 2, 0);
+        readiness.wait(400);
+        check(recordingNote.popupOpen, "muted capture controls can be reopened");
+        links([]);
+        readiness.wait(400);
+        check(!recordingNote.visible && !recordingNote.popupOpen, "ending a muted capture hides its icon and closes its popup");
+        Settings.user = {reduceMotion: true};
+        links([share]); readiness.wait(Theme.dropMs + 100);
+        check(recording.reveal === 1 && !recordingNote.visible, "active privacy restores with reduced motion");
+        links([]); readiness.wait(Theme.dropMs + 100);
+        check(!recordingNote.visible && !recordingPill.visible, "idle privacy stays hidden with reduced motion");
         console.log("PASS: privacy indicator counts live mics and screen shares only");
     }
 
@@ -264,7 +338,11 @@ QtObject {
 }
 ''')
         (target / "settings.json").write_text("{}\n")
-        (target / "shell.qml").write_text(SHELL)
+        bar = (ROOT / "Bar.qml").read_text()
+        start = bar.rfind("        BarItem {", 0, bar.index("id: recordingNote"))
+        end = bar.rfind("        BarItem {", 0, bar.index("id: nowPlayingNote"))
+        note = bar[start:end]
+        (target / "shell.qml").write_text(SHELL.replace("RECORDING_NOTE", note))
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",

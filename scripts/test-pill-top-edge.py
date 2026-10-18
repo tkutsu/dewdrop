@@ -54,7 +54,7 @@ ShellRoot {
         id: window; implicitWidth: 1500; implicitHeight: 100
         SidePill {
             id: musicPill; control: music; side: Pill.Side.Right; edgeOffset: 30; slidesContent: true
-            Music { id: music; objectName: "music"; foldDuration: Theme.dropMs; foldEasing: Easing.Linear }
+            Music { id: music; mergedIcon: musicNote.keyBox.children[0]; objectName: "music"; foldDuration: Theme.dropMs; foldEasing: Easing.Linear }
         }
         Pill { id: timerPill; side: Pill.Side.Left; edgeOffset: 400; drawsSlab: false; Countdown { id: countdown; objectName: "timer" } }
         Pill {
@@ -126,9 +126,21 @@ ShellRoot {
                     stayedHidden = stayedHidden && musicNote.stowed && !musicNote.visible;
                     wait(10);
                 }
-                check(stayedHidden, "music note waits until its travelling icon is absorbed");
-                check(music.iconInCentre && !musicNote.stowed, "central music note appears after absorption");
-                wait(80);
+                check(stayedHidden, "music note waits until the handoff begins");
+                check(music.iconInCentre && !musicNote.stowed, "central music note joins the continuous handoff");
+                let handoffFrames = 0;
+                const centralNote = musicNote.keyBox.children[0];
+                while (music.iconHandoff.progress > 0 && music.iconHandoff.progress < 1 && handoffFrames++ < 100) {
+                    const from = travellingNote.mapToItem(window.contentItem, 0, 0);
+                    const to = centralNote.mapToItem(window.contentItem, 0, 0);
+                    check(Math.abs(from.x - to.x) < 0.1 && Math.abs(from.y - to.y) < 0.1,
+                          "icon copies coincide throughout the handoff");
+                    check(Math.abs(travellingNote.opacity + centralNote.opacity - 1) < 0.001,
+                          "crossfade preserves the icon through the merge");
+                    check(travellingNote.scale === 1, "travelling icon keeps its size");
+                    wait(10);
+                }
+                check(handoffFrames > 2, "sampled the continuous icon handoff");
                 check(musicNote.reveal === 1, "central music note takes over without a second fade");
                 wait(1000);
                 check(!musicPill.visible && musicNote.visible && musicNote.reveal === 1, "paused music leaves only the central note");

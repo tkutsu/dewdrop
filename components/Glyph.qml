@@ -11,6 +11,7 @@ import qs.services
 // two a slot shows is decided there once rather than at each of them.
 Item {
     id: root
+    transform: ModuleIconScale { icon: root }
 
     property string text
     // Optional shared geometry for drawings whose parts differ only in opacity.

@@ -70,6 +70,14 @@ ShellRoot {
             row("screens").set(true);
             check(Settings.screens.length === 0 && menu.displayRows.length === 1, "All Displays restores the empty-array default");
 
+            check(row("groupWindowBadgeStyle").get() === "hide", "group indicators are opt-in");
+            Settings.set("groupWindowBadges", true);
+            check(row("groupWindowBadgeStyle").get() === "badge", "legacy group counts remain enabled");
+            for (const style of ["badge", "hide", "dot"]) {
+                row("groupWindowBadgeStyle").set(style);
+                check(Settings.groupWindowBadgeStyle === style, "group indicator choice overrides the legacy preference: " + style);
+            }
+
             Settings.set("font", "Unavailable Test Family");
             check(row("font").options.some(o => o.value === "Unavailable Test Family" && o.label.endsWith("(Unavailable)")), "missing saved font remains selectable");
             row("font").set(Settings.defaults.font);
@@ -173,7 +181,8 @@ import Quickshell
 import qs
 ShellRoot { Timer { interval: 100; running: true; onTriggered: {
     const ok = Settings.values.terminal === "test-terminal" && Settings.values.editor === "test-editor"
-        && Settings.layoutNames.Offline === "ZZ" && Settings.layoutChangeBounce && Settings.wallpaperParallaxZoom === 1.22;
+        && Settings.layoutNames.Offline === "ZZ" && Settings.layoutChangeBounce && Settings.wallpaperParallaxZoom === 1.22
+        && Settings.groupWindowBadgeStyle === "dot";
     console.log(ok ? "PASS: settings reopen" : "FAIL: settings reopen"); Qt.quit();
 } } }''')
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target), capture_output=True, text=True, timeout=5)
