@@ -123,6 +123,12 @@ ShellRoot {
             Feeds.undo();
             root.check(Feeds.count === 1, "mark all seen undone");
 
+            // What the browser's history is asked about, and what it says back.
+            const links = Feeds.links(Feeds.unseenItems());
+            root.check(links.length === 2 && links.includes(story.url) && links.includes(story.comments), "links to look for: " + links);
+            Feeds.seenInBrowser(story.comments + "\nhttps://elsewhere.example/\n");
+            root.check(Feeds.count === 0 && Feeds.undos.length === 0, "opened in the browser counts as seen, with nothing to undo");
+
             // Sections start folded and remember being opened.
             root.check(!Feeds.unfolded("videos"), "folded at first");
             Feeds.toggle("videos");
