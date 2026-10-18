@@ -1,19 +1,28 @@
 import QtQuick
 import qs
 
-// A PopupRow that a sideways swipe takes away, either way, as mail's rows
-// go: on the touchpad or with a mouse drag the row moves the way content
-// scrolls on this machine, `glyph` (what letting go will do) opens behind
-// it, and past `reach` it pops. Letting go there slides the row off, folds
-// it away and says `swiped`; short of it, the row springs back.
+// A PopupRow that a sideways swipe takes away, as mail's and the feeds'
+// rows go: on the touchpad or with a mouse drag the row moves the way content
+// scrolls on this machine, the glyph of what letting go will do opens
+// behind it, and past `reach` it pops. Letting go there slides the row off,
+// folds it away and says `swiped`, with the way it went; short of it, the
+// row springs back.
 //
 // The contents ride along by adding `swipe` to their x. The row's height is
-// `fullHeight`, folded down as it leaves.
+// `fullHeight`, folded down as it leaves. The gestures are taken on the top
+// `gestureHeight` of the row, and mouse drags only while `draggable`; a row
+// that routes its own presses (an open mail) calls `track` and `release`.
 PopupRow {
     id: row
 
+    // One verb both ways unless the sides say otherwise. Left is the way
+    // the row moves.
     property string glyph: Theme.glyph.check
+    property string leftGlyph: row.glyph
+    property string rightGlyph: row.glyph
     property real fullHeight: 0
+    property real gestureHeight: row.height
+    property bool draggable: true
 
     property real swipe: 0
     readonly property real reach: row.width * 0.4
@@ -27,7 +36,7 @@ PopupRow {
     // drifts sideways never becomes a swipe.
     property string axis: ""
 
-    signal swiped
+    signal swiped(bool left)
 
     height: row.fullHeight * (1 - row.gone)
     clip: row.leaving
@@ -54,7 +63,8 @@ PopupRow {
         row.tracking = false;
         if (row.armed && !row.leaving) {
             row.leaving = true;
-            slideOff.to = row.swipe < 0 ? -row.width : row.width;
+            leave.left = row.swipe < 0;
+            slideOff.to = leave.left ? -row.width : row.width;
             leave.start();
         } else {
             row.swipe = 0;
@@ -63,6 +73,8 @@ PopupRow {
 
     SequentialAnimation {
         id: leave
+
+        property bool left: false
 
         NumberAnimation {
             id: slideOff
@@ -79,7 +91,7 @@ PopupRow {
             easing.type: Easing.InOutCubic
         }
         ScriptAction {
-            script: row.swiped()
+            script: row.swiped(leave.left)
         }
     }
 
@@ -108,7 +120,7 @@ PopupRow {
             // with the edge and then holds still.
             x: (row.swipe < 0 ? parent.width - Math.min(parent.width, row.reach) / 2 : Math.min(parent.width, row.reach) / 2) - width / 2
             anchors.verticalCenter: parent.verticalCenter
-            text: row.glyph
+            text: row.swipe < 0 ? row.leftGlyph : row.rightGlyph
             fontSize: Theme.popupTextSize
             color: Theme.label
             scale: row.armed ? 1.3 : 1
@@ -123,10 +135,11 @@ PopupRow {
     }
 
     // On top, so it sees the wheel first and hands back whatever is not
-    // sideways; a mouse drag anywhere on the row swipes it too.
+    // sideways.
     Item {
         z: 1
-        anchors.fill: parent
+        width: row.width
+        height: row.gestureHeight
 
         MouseArea {
             anchors.fill: parent
@@ -167,7 +180,7 @@ PopupRow {
         DragHandler {
             target: null
             yAxis.enabled: false
-            enabled: !row.leaving
+            enabled: !row.leaving && row.draggable
             onActiveChanged: if (!active)
                 row.release()
             onActiveTranslationChanged: if (active)
