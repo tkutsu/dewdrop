@@ -21,7 +21,10 @@ import qs
 // not, so this is its own service rather than a GoogleService.
 //
 // Seen is per item, and anything published before `since` counts as seen:
-// "Mark All Seen" only moves that instant.
+// "Mark All Seen" only moves that instant. Only the unseen are listed and
+// counted; opening one or swiping it away sees it. The account cannot say
+// what was watched elsewhere (YouTube's API dropped watch history), so seen
+// means seen here.
 Singleton {
     id: root
 
@@ -67,8 +70,12 @@ Singleton {
     readonly property bool retryable: root.trouble !== "" && !YouTubeAccount.needsConsent
     readonly property bool connected: !YouTubeAccount.needsConsent
 
-    readonly property int count: root.videos.filter(v => root.unread(v)).length
-        + root.sources.reduce((n, s) => n + s.items.filter(i => root.unread(i)).length, 0)
+    // What the popup lists and the badge counts.
+    readonly property var unseenVideos: root.videos.filter(v => root.unread(v))
+    readonly property var unseenSources: root.sources
+        .map(s => Object.assign({}, s, { items: s.items.filter(i => root.unread(i)) }))
+        .filter(s => s.items.length > 0)
+    readonly property int count: root.unseenVideos.length + root.unseenSources.reduce((n, s) => n + s.items.length, 0)
     readonly property string icon: Theme.glyph.feeds
     readonly property string label: root.count === 0 ? "" : String(Math.min(root.count, 99))
 
@@ -104,8 +111,45 @@ Singleton {
     }
 
     function markAllSeen(): void {
+        root.remember();
         store.since = Date.now();
         store.seen = {};
+        root.save();
+    }
+
+    // A swipe in the popup: seen, with an undo.
+    function hide(item: var): void {
+        root.remember();
+        root.markSeen([item]);
+    }
+
+    // What seen was before each hide, latest last, for the popup's Undo.
+    // Nothing is sent anywhere, so nothing has to wait: the popup clears
+    // them as it closes.
+    property var undos: []
+
+    function remember(): void {
+        root.undos = root.undos.concat([{ since: store.since, seen: store.seen }]);
+    }
+
+    function undo(): void {
+        const last = root.undos[root.undos.length - 1];
+        if (!last)
+            return;
+        root.undos = root.undos.slice(0, -1);
+        store.since = last.since;
+        store.seen = last.seen;
+        root.save();
+    }
+
+    // Sections open in the popup, by "videos" or a feed's URL. Folded until
+    // opened, and remembered.
+    function unfolded(section: string): bool {
+        return !!store.unfolded[section];
+    }
+
+    function toggle(section: string): void {
+        store.unfolded = Object.assign({}, store.unfolded, { [section]: !root.unfolded(section) });
         root.save();
     }
 
@@ -483,6 +527,7 @@ Singleton {
             property real since: 0
             property var seen: ({})
             property var verdicts: ({})
+            property var unfolded: ({})
         }
     }
 
