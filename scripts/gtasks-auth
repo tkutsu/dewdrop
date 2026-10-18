@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-time Google consent (Tasks, Calendar and Gmail) for the Quickshell bar.
+"""One-time Google consent (Tasks, Calendar, Gmail and YouTube) for the Quickshell bar.
 
 Google has no device-code flow for the Tasks scope, so the only way to get a
 refresh token on a desktop is the loopback redirect: open a browser at the
@@ -39,16 +39,18 @@ import webbrowser
 # It can also send and move mail to the bin, but it cannot delete mail for good.
 # The agenda reads every calendar and writes events made from the launcher:
 # calendar.events covers the writing, and listing the calendars still needs
-# calendar.readonly.
+# calendar.readonly. youtube.readonly lists the subscriptions the feeds module
+# follows and tells their livestreams and premieres from uploads.
 SCOPE = " ".join(
     "https://www.googleapis.com/auth/" + s
-    for s in ("tasks", "calendar.readonly", "calendar.events", "gmail.modify")
+    for s in ("tasks", "calendar.readonly", "calendar.events", "gmail.modify", "youtube.readonly")
 )
 AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 TASKS_API = "https://tasks.googleapis.com/tasks/v1"
 CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me"
+YOUTUBE_API = "https://www.googleapis.com/youtube/v3"
 # Paths.data("gtasks.json") on the shell side: the same XDG rule.
 DEST = os.path.join(
     os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "quickshell", "gtasks.json"
@@ -269,6 +271,19 @@ def check() -> int:
         print(f"Gmail not reachable ({err.code}). Enable the Gmail API and run this without --check.")
         return 1
     print(f"Inbox: {inbox.get('threadsUnread', 0)} unread thread(s).")
+
+    # YouTube, for the feeds module.
+    request = urllib.request.Request(
+        f"{YOUTUBE_API}/subscriptions?part=id&mine=true&maxResults=1",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            subscriptions = json.load(response)
+    except urllib.error.HTTPError as err:
+        print(f"YouTube not reachable ({err.code}). Enable the YouTube Data API v3 and run this without --check.")
+        return 1
+    print(f"YouTube: {subscriptions.get('pageInfo', {}).get('totalResults', 0)} subscription(s).")
     return 0
 
 

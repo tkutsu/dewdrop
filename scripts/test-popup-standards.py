@@ -15,7 +15,7 @@ from test_support import copy_shell, shell_env
 STANDARD = ["LanguagePopup", "NetworkPopup", "BluetoothPopup", "AudioPopup", "DisplayPopup",
             "DrivesPopup", "PrivacyPopup", "TimerPopup"]
 AT_LEAST = []
-WIDE = ["NotificationsPopup", "TasksPopup", "EmailPopup", "UpdatesPopup"]
+WIDE = ["NotificationsPopup", "TasksPopup", "EmailPopup", "UpdatesPopup", "FeedsPopup"]
 OWN = ["WeatherPopup", "WallpaperPopup", "MusicPopup", "SysPopup", "Calendar"]
 ALL = STANDARD + AT_LEAST + WIDE + OWN
 

@@ -53,6 +53,7 @@
     "countdownBadgeStyle": "badge",
     "bellBadgeStyle": "badge",
     "updaterBadgeStyle": "badge",
+    "feedsBadgeStyle": "badge",
 
     // The date, as a Qt date format: "ddd d MMM" reads Tue 13 Oct,
     // "dd/MM/yyyy" reads 13/10/2026. Weekday and month names use your locale.
@@ -202,4 +203,16 @@
     // lists: any of "primary", "updates", "promotions", "social", "forums".
     // The rest folds into one Other row. Empty: the whole inbox's unread.
     "mailCategories": [],
+
+    // The feeds module (newspaper) counts new videos from your YouTube
+    // subscriptions, which needs the youtube.readonly scope: click reconnect
+    // in its popup once, and enable the YouTube Data API v3 in the Google
+    // console. Shorts, livestreams and premieres are left out.
+    // Channels to follow without subscribing, as @handles, channel ids
+    // (UC…) or links to either.
+    "feedChannels": [],
+
+    // RSS or Atom feeds shown under the videos. hnrss.org's points= keeps
+    // Hacker News to what made the front page properly.
+    "feedUrls": ["https://hnrss.org/frontpage?points=300"],
 }
