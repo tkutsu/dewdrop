@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise exclusive feed headers and reversible folding in the real popup body."""
+"""Feed sections fade out before the next section opens and fades in."""
 
 from pathlib import Path
 import runpy
@@ -32,6 +32,7 @@ ShellRoot {
             }
             function header(section) { return find(popup, i => i.section === section && i.open !== undefined); }
             function body(fold) { return fold.parent.children.find(i => i.clip); }
+            function settle() { wait(Theme.fadeMs * 2 + 100); }
             function run() {
                 const now = Date.now();
                 Feeds.videos = [0, 1].map(i => ({id: "v" + i, title: "Video " + i,
@@ -44,21 +45,20 @@ ShellRoot {
                 check(videos && stories, "both headers are present");
                 // Older versions could remember several open headers.
                 check(videos.open !== stories.open, "legacy state restores only one open header: " + videos.open + ", " + stories.open);
-                wait(Theme.foldMs + 80);
+                settle();
                 (videos.open ? videos : stories).tapped();
-                wait(Theme.foldMs + 80);
+                settle();
                 const videoBody = body(videos), storyBody = body(stories);
                 const closedHeight = popup.height;
                 check(videoBody.height === 0 && storyBody.height === 0, "all headers can close");
 
                 videos.tapped();
                 wait(80);
-                check(videoBody.height > 0 && videoBody.height < videoBody.children[0].implicitHeight,
-                    "opening shows an intermediate clipped height");
+                check(videoBody.height > 0, "selected drawer opens");
                 check(popup.height > closedHeight, "popup grows with its rows");
                 check(header("videos") === videos && header("rss") === stories,
                     "opening preserves header delegates");
-                wait(Theme.foldMs + 80);
+                settle();
                 const fullHeight = videoBody.height;
                 check(fullHeight > 0 && find(videoBody, i => i.name === "Video 0"), "video rows finish opening");
 
@@ -66,17 +66,51 @@ ShellRoot {
                 stories.tapped();
                 check(!videos.open && stories.open && !videoBody.enabled, "another header closes and disables old rows");
                 wait(80);
-                check(videoBody.height > 0 && videoBody.height < fullHeight && storyBody.height > 0,
-                    "old rows close while new rows open");
-                check(videos.parent.y > 0 && videos.parent.y < videoTop, "closed header moves upward through intermediate positions");
-                check(find(videoBody, i => i.name === "Video 0"), "closing rows survive for the transition");
-                const shrinking = videoBody.height;
+                check(storyBody.height === 0, "next drawer stays closed while outgoing rows fade");
+                check(videoBody.height === fullHeight && videoBody.opacity > 0 && videoBody.opacity < 1,
+                    "closing rows fade in place before the layout changes");
+                check(videos.parent.y === videoTop, "outgoing drawer stays still throughout its fade");
+                let incomingFade = false;
+                for (let i = 0; i < 30; i++) {
+                    wait(16);
+                    check(!(videoBody.height > 0 && storyBody.height > 0), "drawers never overlap during a switch");
+                    if (storyBody.height > 0) {
+                        check(videoBody.height === 0, "old drawer is gone before the next opens");
+                        incomingFade = incomingFade || (storyBody.opacity > 0 && storyBody.opacity < 1);
+                    }
+                }
+                check(incomingFade && storyBody.opacity === 1, "incoming drawer fades in after opening");
+                check(videos.parent.y < stories.parent.y, "closed videos move above open stories");
+                check(!find(videoBody, i => i.name === "Video 0"), "closed rows are released");
+
                 videos.tapped();
-                check(videoBody.height === shrinking, "reversal continues from the current height");
-                wait(Theme.foldMs + 80);
-                check(videoBody.height === fullHeight && storyBody.height === 0, "rapid reversal finishes correctly");
+                wait(60);
+                stories.tapped();
+                wait(30);
+                videos.tapped();
+                settle();
+                check(videoBody.height === fullHeight && storyBody.height === 0 && videoBody.opacity === 1,
+                    "rapid changes finish on the last selected drawer");
                 check(stories.parent.y < videos.parent.y, "closed stories move above open videos");
                 check(!find(storyBody, i => i.name === "Story 0"), "closed rows are released");
+
+                stories.tapped();
+                wait(Theme.fadeMs + 60);
+                check(storyBody.height > 0 && storyBody.opacity > 0 && storyBody.opacity < 1,
+                    "incoming drawer is partway through its fade");
+                videos.tapped();
+                wait(60);
+                check(videoBody.height === 0, "interrupting an incoming fade keeps the next drawer hidden");
+                settle();
+                check(videoBody.height === fullHeight && storyBody.height === 0 && videoBody.opacity === 1,
+                    "interrupting an incoming fade settles on the last drawer");
+
+                videos.tapped();
+                wait(80);
+                check(videoBody.height === fullHeight && videoBody.opacity > 0 && videoBody.opacity < 1,
+                    "closing the last drawer fades it out in place");
+                settle();
+                check(videoBody.height === 0 && popup.height === closedHeight, "closing removes the drawer after its fade");
 
                 Settings.user = Object.assign({}, Settings.user, {reduceMotion: true});
                 stories.tapped();
@@ -95,7 +129,7 @@ ShellRoot {
                 header("rss").tapped();
                 wait(30);
                 check(body(header("rss")).height > 0, "restored sections can open");
-                console.log("PASS: feed header folding");
+                console.log("PASS: sequential feed drawer fades");
             }
         }
         Timer { interval: 300; running: true; onTriggered: {
@@ -119,11 +153,11 @@ def main():
         (state / "feeds.json").write_text('{"unfolded": {"videos": true, "rss": true}}\n')
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"],
-                                env=shell_env(target), capture_output=True, text=True, timeout=10)
+                                env=shell_env(target), capture_output=True, text=True, timeout=12)
         output = result.stdout + result.stderr
         errors = ("FAIL:", "TypeError:", "ReferenceError:", "Binding loop", "Unable to assign",
                   "Cannot assign", "Failed to load configuration")
-        ok = result.returncode == 0 and "PASS: feed header folding" in output and not any(e in output for e in errors)
+        ok = result.returncode == 0 and "PASS: sequential feed drawer fades" in output and not any(e in output for e in errors)
         print(output)
         return 0 if ok else 1
 
