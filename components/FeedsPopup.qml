@@ -26,6 +26,15 @@ Popup {
     // Ages move on the minute.
     readonly property real now: Google.now.getTime()
 
+    // Every part with something unseen, the folded ones first so they stay
+    // in reach above whatever is open.
+    readonly property var sections: {
+        const all = [{ section: "videos", title: "YouTube", videos: Feeds.unseenVideos, stories: [] }]
+            .concat(Feeds.unseenSources.map(s => ({ section: s.url, title: s.title, videos: [], stories: s.items })))
+            .filter(s => s.videos.length + s.stories.length > 0);
+        return all.filter(s => !Feeds.unfolded(s.section)).concat(all.filter(s => Feeds.unfolded(s.section)));
+    }
+
     onVisibleChanged: Feeds.undos = []
     Component.onDestruction: Feeds.undos = []
 
@@ -121,87 +130,11 @@ Popup {
             width: parent.width
             spacing: root.rowGap
 
-            Fold {
-                id: videos
-                visible: Feeds.unseenVideos.length > 0
-                section: "videos"
-                title: "YouTube"
-                unseen: Feeds.unseenVideos.length
-            }
-
             Repeater {
-                model: videos.open ? Feeds.unseenVideos : []
-
-                delegate: SwipeRow {
-                    id: video
-
-                    required property var modelData
-
-                    name: video.modelData.title
-                    width: root.bodyWidth
-                    fullHeight: root.thumbHeight + root.rowPad * 2
-                    gesturePolicy: TapHandler.ReleaseWithinBounds
-                    onTapped: Feeds.open(video.modelData, "")
-                    onSwiped: Feeds.hide(video.modelData)
-
-                    ClippingRectangle {
-                        x: root.inset + video.swipe
-                        y: root.rowPad
-                        width: root.thumbWidth
-                        height: root.thumbHeight
-                        radius: Theme.selectionRadius
-                        color: Theme.well
-
-                        Image {
-                            anchors.fill: parent
-                            source: video.modelData.thumb
-                            sourceSize.width: root.thumbWidth * 2
-                            sourceSize.height: root.thumbHeight * 2
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            smooth: true
-                            opacity: status === Image.Ready ? 1 : 0
-
-                            Behavior on opacity {
-                                NumberAnimation {
-                                    duration: Theme.fadeMs
-                                }
-                            }
-                        }
-                    }
-
-                    Column {
-                        x: root.textX + video.swipe
-                        y: root.rowPad + Math.round((root.thumbHeight - height) / 2)
-                        width: parent.width - root.textX - root.inset
-                        spacing: 1
-
-                        PopupText {
-                            width: parent.width
-                            text: video.modelData.title
-                            textFormat: Text.PlainText
-                            elide: Text.ElideRight
-                            font.pixelSize: Theme.captionSize
-                            font.weight: Font.DemiBold
-                        }
-
-                        PopupText {
-                            width: parent.width
-                            text: [video.modelData.channel, Feeds.clock(video.modelData.duration), Feeds.age(video.modelData.published, root.now)].join(" · ")
-                            textFormat: Text.PlainText
-                            elide: Text.ElideRight
-                            color: Theme.label2
-                            font.pixelSize: Theme.footnoteSize
-                        }
-                    }
-                }
-            }
-
-            Repeater {
-                model: Feeds.unseenSources
+                model: root.sections
 
                 delegate: Column {
-                    id: source
+                    id: part
 
                     required property var modelData
 
@@ -210,72 +143,150 @@ Popup {
 
                     Fold {
                         id: fold
-                        section: source.modelData.url
-                        title: source.modelData.title
-                        unseen: source.modelData.items.length
+                        section: part.modelData.section
+                        title: part.modelData.title
+                        unseen: part.modelData.videos.length + part.modelData.stories.length
                     }
 
                     Repeater {
-                        model: fold.open ? source.modelData.items : []
+                        model: fold.open ? part.modelData.videos : []
+                        delegate: videoRow
+                    }
 
-                        delegate: SwipeRow {
-                            id: story
+                    Repeater {
+                        model: fold.open ? part.modelData.stories : []
+                        delegate: storyRow
+                    }
+                }
+            }
+        }
+    }
 
-                            required property var modelData
-                            readonly property var facts: [
-                                story.modelData.points >= 0 ? `${story.modelData.points} points` : "",
-                                story.modelData.replies >= 0 ? `${story.modelData.replies} comments` : "",
-                                Feeds.age(story.modelData.published, root.now)
-                            ].filter(s => s !== "")
+    Component {
+        id: videoRow
 
-                            name: story.modelData.title
-                            width: root.bodyWidth
-                            fullHeight: lines.implicitHeight + root.rowPad * 2
-                            gesturePolicy: TapHandler.ReleaseWithinBounds
-                            onTapped: Feeds.open(story.modelData, "")
-                            onSwiped: Feeds.hide(story.modelData)
+        SwipeRow {
+            id: video
 
-                            Column {
-                                id: lines
+            required property var modelData
 
-                                x: root.inset + story.swipe
-                                y: root.rowPad
-                                width: parent.width - root.inset * 2 - (talk.visible ? talk.width + 4 : 0)
-                                spacing: 1
+            name: video.modelData.title
+            width: root.bodyWidth
+            fullHeight: root.thumbHeight + root.rowPad * 2
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: Feeds.open(video.modelData, "")
+            onSwiped: Feeds.hide(video.modelData)
 
-                                PopupText {
-                                    width: parent.width
-                                    text: story.modelData.title
-                                    textFormat: Text.PlainText
-                                    elide: Text.ElideRight
-                                    font.pixelSize: Theme.captionSize
-                                    font.weight: Font.DemiBold
-                                }
+            ClippingRectangle {
+                x: root.inset + video.swipe
+                y: root.rowPad
+                width: root.thumbWidth
+                height: root.thumbHeight
+                radius: Theme.selectionRadius
+                color: Theme.well
 
-                                PopupText {
-                                    width: parent.width
-                                    text: story.facts.join(" · ")
-                                    textFormat: Text.PlainText
-                                    elide: Text.ElideRight
-                                    color: Theme.label2
-                                    font.pixelSize: Theme.footnoteSize
-                                }
-                            }
+                Image {
+                    anchors.fill: parent
+                    source: video.modelData.thumb
+                    sourceSize.width: root.thumbWidth * 2
+                    sourceSize.height: root.thumbHeight * 2
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    smooth: true
+                    opacity: status === Image.Ready ? 1 : 0
 
-                            PopupButton {
-                                id: talk
-
-                                anchors.right: parent.right
-                                anchors.rightMargin: root.inset - story.swipe
-                                anchors.verticalCenter: parent.verticalCenter
-                                visible: story.hovered && !story.swiping && story.modelData.comments !== ""
-                                glyph: Theme.glyph.comments
-                                name: "Comments"
-                                onTapped: Feeds.open(story.modelData, story.modelData.comments)
-                            }
+                    Behavior on opacity {
+                        NumberAnimation {
+                            duration: Theme.fadeMs
                         }
                     }
                 }
+            }
+
+            Column {
+                x: root.textX + video.swipe
+                y: root.rowPad + Math.round((root.thumbHeight - height) / 2)
+                width: parent.width - root.textX - root.inset
+                spacing: 1
+
+                PopupText {
+                    width: parent.width
+                    text: video.modelData.title
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.captionSize
+                    font.weight: Font.DemiBold
+                }
+
+                PopupText {
+                    width: parent.width
+                    text: [video.modelData.channel, Feeds.clock(video.modelData.duration), Feeds.age(video.modelData.published, root.now)].join(" · ")
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    color: Theme.label2
+                    font.pixelSize: Theme.footnoteSize
+                }
+            }
+        }
+    }
+
+    Component {
+        id: storyRow
+
+        SwipeRow {
+            id: story
+
+            required property var modelData
+            readonly property var facts: [
+                story.modelData.points >= 0 ? `${story.modelData.points} points` : "",
+                story.modelData.replies >= 0 ? `${story.modelData.replies} comments` : "",
+                Feeds.age(story.modelData.published, root.now)
+            ].filter(s => s !== "")
+
+            name: story.modelData.title
+            width: root.bodyWidth
+            fullHeight: lines.implicitHeight + root.rowPad * 2
+            gesturePolicy: TapHandler.ReleaseWithinBounds
+            onTapped: Feeds.open(story.modelData, "")
+            onSwiped: Feeds.hide(story.modelData)
+
+            Column {
+                id: lines
+
+                x: root.inset + story.swipe
+                y: root.rowPad
+                width: parent.width - root.inset * 2 - (talk.visible ? talk.width + 4 : 0)
+                spacing: 1
+
+                PopupText {
+                    width: parent.width
+                    text: story.modelData.title
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    font.pixelSize: Theme.captionSize
+                    font.weight: Font.DemiBold
+                }
+
+                PopupText {
+                    width: parent.width
+                    text: story.facts.join(" · ")
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    color: Theme.label2
+                    font.pixelSize: Theme.footnoteSize
+                }
+            }
+
+            PopupButton {
+                id: talk
+
+                anchors.right: parent.right
+                anchors.rightMargin: root.inset - story.swipe
+                anchors.verticalCenter: parent.verticalCenter
+                visible: story.hovered && !story.swiping && story.modelData.comments !== ""
+                glyph: Theme.glyph.comments
+                name: "Comments"
+                onTapped: Feeds.open(story.modelData, story.modelData.comments)
             }
         }
     }
