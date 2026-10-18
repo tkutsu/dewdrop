@@ -4,10 +4,13 @@ import qs
 import qs.components
 import qs.services
 
-// The week's videos from the channels followed, then each feed's stories,
-// newest first. New ones are bright until opened; a click opens one in the
-// browser and counts it seen, and "Mark All Seen" clears the badge without
-// opening anything. A story's discussion is the button on its row.
+// What has not been seen yet, as a list to clear the way mail is: the
+// week's videos from the channels followed, then each feed's stories, each
+// part folded under a header with its count until a click opens it. A click
+// on a row opens it in the browser, a swipe either way puts it away, and
+// both count it seen, so it leaves the list and the badge. The header takes
+// back the swipes (and "Mark All Seen") until the popup closes. A story's
+// discussion is the button on its row.
 Popup {
     id: root
 
@@ -22,6 +25,9 @@ Popup {
     readonly property int listMax: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
     // Ages move on the minute.
     readonly property real now: Google.now.getTime()
+
+    onVisibleChanged: Feeds.undos = []
+    Component.onDestruction: Feeds.undos = []
 
     PopupHeader {
         width: root.bodyWidth
@@ -45,6 +51,15 @@ Popup {
         }
 
         RetryButton { service: Feeds }
+
+        // Takes back the latest swipe, or the Mark All Seen.
+        PopupButton {
+            visible: Feeds.undos.length > 0
+            framed: true
+            glyph: Theme.glyph.undo
+            label: "Undo"
+            onTapped: Feeds.undo()
+        }
 
         PopupButton {
             visible: Feeds.count > 0
@@ -71,9 +86,9 @@ Popup {
 
     PopupNote {
         width: root.bodyWidth
-        visible: !Feeds.connected || !Feeds.loaded || (Feeds.videos.length === 0 && Feeds.sources.length === 0)
+        visible: !Feeds.connected || !Feeds.loaded || Feeds.count === 0
         text: !Feeds.connected ? (YouTubeAccount.configured ? "YouTube needs reconnecting." : "Connect the account or channel that holds your subscriptions.")
-            : !Feeds.loaded ? Feeds.tooltip : "Nothing this week"
+            : !Feeds.loaded ? Feeds.tooltip : "Nothing new"
     }
 
     Flickable {
@@ -86,7 +101,7 @@ Popup {
 
         width: root.bodyWidth
         height: Math.min(list.implicitHeight, root.listMax)
-        visible: Feeds.videos.length > 0 || Feeds.sources.length > 0
+        visible: Feeds.count > 0
         contentHeight: list.implicitHeight
         clip: true
 
@@ -106,30 +121,31 @@ Popup {
             width: parent.width
             spacing: root.rowGap
 
-            PopupSection {
-                width: root.bodyWidth
-                visible: Feeds.videos.length > 0
-                ruled: false
-                title: "Videos"
+            Fold {
+                id: videos
+                visible: Feeds.unseenVideos.length > 0
+                section: "videos"
+                title: "YouTube"
+                unseen: Feeds.unseenVideos.length
             }
 
             Repeater {
-                model: Feeds.videos
+                model: videos.open ? Feeds.unseenVideos : []
 
-                delegate: PopupRow {
+                delegate: SwipeRow {
                     id: video
 
                     required property var modelData
-                    readonly property bool fresh: Feeds.unread(video.modelData)
 
                     name: video.modelData.title
                     width: root.bodyWidth
-                    height: root.thumbHeight + root.rowPad * 2
+                    fullHeight: root.thumbHeight + root.rowPad * 2
                     gesturePolicy: TapHandler.ReleaseWithinBounds
                     onTapped: Feeds.open(video.modelData, "")
+                    onSwiped: Feeds.hide(video.modelData)
 
                     ClippingRectangle {
-                        x: root.inset
+                        x: root.inset + video.swipe
                         y: root.rowPad
                         width: root.thumbWidth
                         height: root.thumbHeight
@@ -144,7 +160,7 @@ Popup {
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             smooth: true
-                            opacity: status === Image.Ready ? (video.fresh ? 1 : 0.6) : 0
+                            opacity: status === Image.Ready ? 1 : 0
 
                             Behavior on opacity {
                                 NumberAnimation {
@@ -155,8 +171,8 @@ Popup {
                     }
 
                     Column {
-                        x: root.textX
-                        anchors.verticalCenter: parent.verticalCenter
+                        x: root.textX + video.swipe
+                        y: root.rowPad + Math.round((root.thumbHeight - height) / 2)
                         width: parent.width - root.textX - root.inset
                         spacing: 1
 
@@ -165,9 +181,8 @@ Popup {
                             text: video.modelData.title
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
-                            color: video.fresh ? Theme.fg : Theme.label2
                             font.pixelSize: Theme.captionSize
-                            font.weight: video.fresh ? Font.DemiBold : Font.Normal
+                            font.weight: Font.DemiBold
                         }
 
                         PopupText {
@@ -183,31 +198,30 @@ Popup {
             }
 
             Repeater {
-                model: Feeds.sources
+                model: Feeds.unseenSources
 
                 delegate: Column {
                     id: source
 
                     required property var modelData
-                    required property int index
 
                     width: root.bodyWidth
                     spacing: root.rowGap
 
-                    PopupSection {
-                        width: root.bodyWidth
-                        ruled: Feeds.videos.length > 0 || source.index > 0
+                    Fold {
+                        id: fold
+                        section: source.modelData.url
                         title: source.modelData.title
+                        unseen: source.modelData.items.length
                     }
 
                     Repeater {
-                        model: source.modelData.items
+                        model: fold.open ? source.modelData.items : []
 
-                        delegate: PopupRow {
+                        delegate: SwipeRow {
                             id: story
 
                             required property var modelData
-                            readonly property bool fresh: Feeds.unread(story.modelData)
                             readonly property var facts: [
                                 story.modelData.points >= 0 ? `${story.modelData.points} points` : "",
                                 story.modelData.replies >= 0 ? `${story.modelData.replies} comments` : "",
@@ -216,14 +230,15 @@ Popup {
 
                             name: story.modelData.title
                             width: root.bodyWidth
-                            height: lines.implicitHeight + root.rowPad * 2
+                            fullHeight: lines.implicitHeight + root.rowPad * 2
                             gesturePolicy: TapHandler.ReleaseWithinBounds
                             onTapped: Feeds.open(story.modelData, "")
+                            onSwiped: Feeds.hide(story.modelData)
 
                             Column {
                                 id: lines
 
-                                x: root.inset
+                                x: root.inset + story.swipe
                                 y: root.rowPad
                                 width: parent.width - root.inset * 2 - (talk.visible ? talk.width + 4 : 0)
                                 spacing: 1
@@ -233,9 +248,8 @@ Popup {
                                     text: story.modelData.title
                                     textFormat: Text.PlainText
                                     elide: Text.ElideRight
-                                    color: story.fresh ? Theme.fg : Theme.label2
                                     font.pixelSize: Theme.captionSize
-                                    font.weight: story.fresh ? Font.DemiBold : Font.Normal
+                                    font.weight: Font.DemiBold
                                 }
 
                                 PopupText {
@@ -252,9 +266,9 @@ Popup {
                                 id: talk
 
                                 anchors.right: parent.right
-                                anchors.rightMargin: root.inset
+                                anchors.rightMargin: root.inset - story.swipe
                                 anchors.verticalCenter: parent.verticalCenter
-                                visible: story.hovered && story.modelData.comments !== ""
+                                visible: story.hovered && !story.swiping && story.modelData.comments !== ""
                                 glyph: Theme.glyph.comments
                                 name: "Comments"
                                 onTapped: Feeds.open(story.modelData, story.modelData.comments)
@@ -263,6 +277,54 @@ Popup {
                     }
                 }
             }
+        }
+    }
+
+    // A part's header: its name and how many in it are new. A click opens
+    // or folds it; folded is how each starts, so the popup opens as a short
+    // stack of these, and Feeds remembers the ones left open.
+    component Fold: PopupRow {
+        id: fold
+
+        property string section: ""
+        property string title: ""
+        property int unseen: 0
+        readonly property bool open: Feeds.unfolded(fold.section)
+
+        name: (fold.open ? "Fold " : "Show ") + fold.title
+        width: root.bodyWidth
+        height: heading.implicitHeight + root.rowPad * 2
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onTapped: Feeds.toggle(fold.section)
+
+        Glyph {
+            x: root.inset
+            anchors.verticalCenter: parent.verticalCenter
+            text: fold.open ? Theme.glyph.sectionOpen : Theme.glyph.sectionShut
+            fontSize: Theme.footnoteSize
+            color: Theme.label2
+        }
+
+        PopupText {
+            id: heading
+            x: root.inset + 16
+            y: root.rowPad
+            width: tally.x - x - 8
+            text: fold.title
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            font.pixelSize: Theme.captionSize
+            font.weight: Font.DemiBold
+        }
+
+        PopupText {
+            id: tally
+            anchors.right: parent.right
+            anchors.rightMargin: root.inset
+            anchors.baseline: heading.baseline
+            text: fold.unseen
+            font.pixelSize: Theme.footnoteSize
+            color: Theme.label2
         }
     }
 }
