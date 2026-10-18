@@ -142,14 +142,13 @@ Singleton {
         root.save();
     }
 
-    // Sections open in the popup, by "videos" or a feed's URL. Folded until
-    // opened, and remembered.
+    // One section open in the popup, by "videos" or a feed's URL, remembered.
     function unfolded(section: string): bool {
-        return !!store.unfolded[section];
+        return Object.keys(store.unfolded).find(key => store.unfolded[key]) === section;
     }
 
     function toggle(section: string): void {
-        store.unfolded = Object.assign({}, store.unfolded, { [section]: !root.unfolded(section) });
+        store.unfolded = root.unfolded(section) ? {} : { [section]: true };
         root.save();
     }
 

@@ -133,6 +133,10 @@ ShellRoot {
             root.check(!Feeds.unfolded("videos"), "folded at first");
             Feeds.toggle("videos");
             root.check(Feeds.unfolded("videos") && !Feeds.unfolded("x"), "one section opened");
+            Feeds.toggle("x");
+            root.check(!Feeds.unfolded("videos") && Feeds.unfolded("x"), "opening another section closes the first");
+            Feeds.toggle("x");
+            root.check(!Feeds.unfolded("videos") && !Feeds.unfolded("x"), "open section can close");
 
             // No youtube.json: the feeds still work, YouTube waits to be connected.
             root.check(!Feeds.connected && !YouTubeAccount.configured, "YouTube unconnected without its file");
