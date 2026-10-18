@@ -89,8 +89,8 @@ ShellRoot {
 
             // The API calls B a live and says nothing of C (outside the window).
             const asked = [];
-            Feeds.stub = function (method, url, body, then, fail) {
-                asked.push(url);
+            Feeds.stub = function (path, then, fail) {
+                asked.push(path);
                 then({ items: [
                     { id: "AAAAAAAAAAA", contentDetails: { duration: "PT12M5S" } },
                     { id: "BBBBBBBBBBB", contentDetails: { duration: "PT8H" }, liveStreamingDetails: { actualStartTime: "x" } }
@@ -114,11 +114,9 @@ ShellRoot {
             Feeds.markAllSeen();
             root.check(Feeds.count === 0 && Feeds.label === "", "mark all seen clears the badge");
 
-            // A token without the YouTube scope leaves the subscriptions alone.
-            Google.granted = ["https://www.googleapis.com/auth/tasks"];
-            root.check(!Google.grants("youtube.readonly") && Google.grants("tasks"), "granted scopes read");
-            Google.granted = null;
-            root.check(Google.grants("youtube.readonly"), "unknown grant is not a refusal");
+            // No youtube.json: the feeds still work, YouTube waits to be connected.
+            root.check(!Feeds.connected && !YouTubeAccount.configured, "YouTube unconnected without its file");
+            root.check(YouTubeAccount.file === "youtube.json" && Google.file === "gtasks.json", "two sign-ins, two files");
 
             console.log(root.failures === 0 ? "PASS: feeds" : "RESULT: " + root.failures + " failures");
             Qt.quit();
@@ -142,10 +140,12 @@ def main():
         # videos.list goes to the fixture's stub instead of Google.
         service = target / "services/Feeds.qml"
         text = service.read_text()
-        call = 'root.send("GET", `${root.api}/videos'
+        call = 'root.get(`videos'
         assert call in text
-        service.write_text(text.replace(call, 'root.stub("GET", `${root.api}/videos')
-                           .replace("    onFetch: root.collect()", "    property var stub: null\n    onFetch: root.collect()"))
+        service.write_text(text.replace(call, 'root.stub(`videos')
+                           .replace("    property var videos: []", "    property var stub: null\n    property var videos: []"))
+        # No feeds to fetch: the fixture never touches the network.
+        (target / "settings.json").write_text('{"feedUrls": []}\n')
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
                                 capture_output=True, text=True, timeout=60)
         output = result.stdout + result.stderr

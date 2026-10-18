@@ -205,9 +205,10 @@
     "mailCategories": [],
 
     // The feeds module (newspaper) counts new videos from your YouTube
-    // subscriptions, which needs the youtube.readonly scope: click reconnect
-    // in its popup once, and enable the YouTube Data API v3 in the Google
-    // console. Shorts, livestreams and premieres are left out.
+    // subscriptions. It has its own sign-in: click Connect YouTube in its
+    // popup and pick the account or brand channel with the subscriptions,
+    // and enable the YouTube Data API v3 in the Google console. Shorts,
+    // livestreams and premieres are left out.
     // Channels to follow without subscribing, as @handles, channel ids
     // (UC…) or links to either.
     "feedChannels": [],

@@ -29,19 +29,18 @@ Popup {
         z: 1
         title: "Feeds"
 
-        ReconnectButton {}
-
-        // The token works for mail but predates the YouTube scope.
+        // YouTube's own sign-in (YouTubeAccount), not the mail one: the
+        // subscriptions can be a brand account's.
         PopupButton {
-            visible: Feeds.needsYouTube && !Google.needsConsent
-            live: !Google.consenting
+            visible: !Feeds.connected
+            live: !YouTubeAccount.consenting
             framed: true
             glyph: Theme.glyph.reconnect
-            label: "Reconnect"
-            warn: true
+            label: YouTubeAccount.configured ? "Reconnect" : "Connect YouTube"
+            warn: YouTubeAccount.configured
             onTapped: {
                 OpenPopup.dismiss();
-                Google.reconsent();
+                YouTubeAccount.reconsent();
             }
         }
 
@@ -65,15 +64,15 @@ Popup {
 
     PopupNote {
         width: root.bodyWidth
-        visible: Feeds.trouble !== "" && Feeds.trouble !== Google.reconnect
+        visible: Feeds.trouble !== "" && Feeds.trouble !== YouTubeAccount.reconnect
         text: Feeds.trouble
         warn: true
     }
 
     PopupNote {
         width: root.bodyWidth
-        visible: Feeds.needsYouTube || !Feeds.loaded || (Feeds.videos.length === 0 && Feeds.sources.length === 0)
-        text: Feeds.needsYouTube ? "Reconnect Google to see your YouTube subscriptions."
+        visible: !Feeds.connected || !Feeds.loaded || (Feeds.videos.length === 0 && Feeds.sources.length === 0)
+        text: !Feeds.connected ? (YouTubeAccount.configured ? "YouTube needs reconnecting." : "Connect the account or channel that holds your subscriptions.")
             : !Feeds.loaded ? Feeds.tooltip : "Nothing this week"
     }
 
