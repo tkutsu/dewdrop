@@ -67,7 +67,7 @@ Settings > Launcher > Desktop Actions shows or hides all app shortcuts together.
 - Notification server, with a notification centre
 - Timers and repeating alarms, with optional local Android phone alerts
 - Google Tasks, Calendar agenda
-- Feeds: new videos from your YouTube subscriptions and any other channels you add, without Shorts, livestreams or premieres, plus RSS or Atom feeds (Hacker News by default), each bright until you open it
+- Feeds: new videos from your YouTube subscriptions and any other channels you add, without Shorts, livestreams or premieres, plus RSS or Atom feeds (Hacker News by default). Each source folds under a header with its count. An item stays listed until you open it, swipe it away (undoable) or open it in Firefox or a Chromium-based browser, whose local history is checked for the listed links only
 - Gmail's unread (the whole inbox, or the tabs picked in settings), cleared from the popup: archive, mark read and star on every row or by swiping it, each undoable for a few seconds; login codes to copy, attachments to save, unsubscribe, mail to task; a notification for each new mail
 - Weather (Open-Meteo, no account), with an hourly forecast and a seven-day outlook showing the predominant daylight condition and a second icon when the worst condition differs
 - MPD player with cover, seek and an editable queue

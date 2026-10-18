@@ -35,7 +35,11 @@ Popup {
         return all.filter(s => !Feeds.unfolded(s.section)).concat(all.filter(s => Feeds.unfolded(s.section)));
     }
 
-    onVisibleChanged: Feeds.undos = []
+    onVisibleChanged: {
+        Feeds.undos = [];
+        if (root.visible)
+            Feeds.checkHistory();
+    }
     Component.onDestruction: Feeds.undos = []
 
     PopupHeader {

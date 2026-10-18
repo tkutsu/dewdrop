@@ -22,9 +22,9 @@ import qs
 //
 // Seen is per item, and anything published before `since` counts as seen:
 // "Mark All Seen" only moves that instant. Only the unseen are listed and
-// counted; opening one or swiping it away sees it. The account cannot say
-// what was watched elsewhere (YouTube's API dropped watch history), so seen
-// means seen here.
+// counted; opening one or swiping it away sees it, and so does opening it in
+// a browser on this machine (its history, read by scripts/feeds-seen.py).
+// YouTube's API dropped watch history, so a phone or a TV cannot tell.
 Singleton {
     id: root
 
@@ -241,6 +241,47 @@ Singleton {
             root.refresh();
         }
     }
+
+    // --- the browser's history -----------------------------------------------
+    // Whatever is listed that a browser has opened since the window began
+    // counts as seen, asked every few minutes, after each poll and as the
+    // popup opens. Only the listed links are looked for.
+    readonly property int historyMs: 5 * 60000
+
+    function checkHistory(): void {
+        const items = root.unseenVideos.concat(...root.unseenSources.map(s => s.items));
+        if (history.running || items.length === 0)
+            return;
+        const links = [...new Set(items.flatMap(i => [i.url, i.comments ?? ""]).filter(u => u !== ""))];
+        history.command = ["python3", "-I", Quickshell.shellPath("scripts/feeds-seen.py"),
+            String(Math.floor(Date.now() / 1000) - root.days * 86400), ...links];
+        history.running = true;
+    }
+
+    function seenInBrowser(text: string): void {
+        const opened = new Set(text.split("\n").filter(line => line !== ""));
+        const items = root.unseenVideos.concat(...root.unseenSources.map(s => s.items))
+            .filter(i => opened.has(i.url) || opened.has(i.comments));
+        if (items.length > 0)
+            root.markSeen(items);
+    }
+
+    Process {
+        id: history
+        stdout: StdioCollector {
+            onStreamFinished: root.seenInBrowser(text)
+        }
+    }
+
+    Timer {
+        interval: root.historyMs
+        running: root.count > 0
+        repeat: true
+        onTriggered: root.checkHistory()
+    }
+
+    onLoadingChanged: if (!root.loading)
+        root.checkHistory()
 
     // --- fetching ------------------------------------------------------------
     // Every page of the subscriptions, or null if one failed.
