@@ -792,6 +792,10 @@ Singleton {
         disk: "\u{f02ca}",
 
         update: "\u{f03d7}",
+        feeds: "\u{f1004}",          // nf-md-newspaper_variant_outline
+        // A story's discussion, and the feeds popup's "Mark All Seen".
+        comments: "\u{f0182}",       // nf-md-comment_outline
+        checkAll: "\u{f012d}",       // nf-md-check_all
         refresh: "\u{f0450}",        // nf-md-refresh
         // The popups' header controls, each with its mark beside its word.
         download: "\u{f01da}",       // nf-md-download, the upgrade

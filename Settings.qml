@@ -59,6 +59,8 @@ Singleton {
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
     readonly property var mailCategories: root.values.mailCategories ?? []
+    readonly property var feedChannels: root.values.feedChannels ?? []
+    readonly property var feedUrls: root.values.feedUrls ?? []
     readonly property var webApps: root.values.webApps ?? ({})
     readonly property string downloadsDir: root.expand(root.values.downloadsDir || "~/Downloads")
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
