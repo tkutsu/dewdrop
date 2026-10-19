@@ -114,6 +114,15 @@ def main():
                              env=env, capture_output=True, text=True, timeout=30)
         check(run.returncode == 0 and run.stdout == "", "history untouched since SINCE is skipped: " + run.stdout.strip())
 
+        # A history that cannot be read fails the run, after the rest are told.
+        broken = home / ".config/chromium/Profile 2"
+        broken.mkdir()
+        (broken / "History").write_bytes(b"not a database" * 100)
+        run = subprocess.run([sys.executable, "-I", str(SCRIPT), "0", *wanted],
+                             env=env, capture_output=True, text=True, timeout=30)
+        check(run.returncode == 1 and "Profile 2" in run.stderr and wanted[0] in run.stdout.split(),
+              "an unreadable history fails the run, the others still count")
+
         # No browsers at all: nothing, quietly.
         empty = Path(scratch) / "empty"
         empty.mkdir()

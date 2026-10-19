@@ -204,6 +204,11 @@ ShellRoot {
             let refused = "";
             Feeds.get("channels?part=id", () => refused = "asked", (why, status, reason) => refused = reason);
             root.check(refused === "quotaExceeded", "a spent quota refuses without asking");
+            Feeds.store.subscribed = ["UCxxxxxxxxxxxxxxxxxxxxxx"];
+            Feeds.subscribedAt = 0;
+            let subscriptions = "";
+            Feeds.readSubscriptions(() => subscriptions = Feeds.store.subscribed.join());
+            root.check(subscriptions === "UCxxxxxxxxxxxxxxxxxxxxxx", "a failed subscriptions read keeps the saved list");
             root.check(Feeds.quotaReset(Date.UTC(2026, 9, 19, 7, 59)) === Date.UTC(2026, 9, 19, 8)
                 && Feeds.quotaReset(Date.UTC(2026, 9, 19, 8)) === Date.UTC(2026, 9, 20, 8), "quota resets at 08:00 UTC");
             Feeds.store.quotaUntil = 0;
@@ -271,8 +276,15 @@ ShellRoot {
             Feeds.store.channels = { UCrejected: Object.assign({}, Feeds.store.channels.UCrejected, { t: read }) };
             Feeds.stub = function (path, then, fail) { fallbackCalls.push(path); fail("No network", 0); };
             Feeds.readChannels(["UCrejected"]);
-            root.check(fallbackCalls.length === 2 && Feeds.store.channels.UCrejected.t === read && Feeds.unseenVideos.length === 9,
+            root.check(fallbackCalls.length === 2 && Feeds.store.channels.UCrejected.t > read && Feeds.unseenVideos.length === 9,
                 "past staleMs it asks, and a failed ask keeps the channel's videos");
+            Feeds.readChannels(["UCrejected"]);
+            root.check(fallbackCalls.length === 2, "a failed ask waits out staleMs too");
+            Feeds.stub = function (path, then, fail) { fallbackCalls.push(path); fail("Google said 404", 404); };
+            Feeds.readChannels(["UCrejected", "UCnolonguploads"]);
+            Feeds.readChannels(["UCrejected", "UCnolonguploads"]);
+            root.check(fallbackCalls.length === 3 && Feeds.store.channels.UCnolonguploads.videos.length === 0,
+                "a playlist the API has not got is asked about once per staleMs: " + fallbackCalls.length);
             Feeds.store.channels = { UCxxxxxxxxxxxxxxxxxxxxxx: { t: now, videos: videos } };
             Feeds.stub = apiStub;
             Feeds.classify();
@@ -335,11 +347,44 @@ ShellRoot {
             root.check(!Feeds.connected && !YouTubeAccount.configured, "YouTube unconnected without its file");
             root.check(YouTubeAccount.file === "youtube.json" && Google.file === "gtasks.json", "two sign-ins, two files");
 
-            console.log(root.failures === 0 ? "PASS: feeds" : "RESULT: " + root.failures + " failures");
+            historyFails.start();
+        }
+    }
+
+    // The fixture's feeds-seen.py fails when a link says so.
+    function story(link) {
+        return {url: "h", title: "h", items: [{id: link, title: "H", published: Date.now(), url: link}]};
+    }
+    Timer {
+        id: historyFails
+        interval: 300
+        onTriggered: {
+            Feeds.checkedLinks = new Set();
+            Feeds.checkedAt = 0;
+            Feeds.sources = [root.story("https://example.com/fail")];
+            Feeds.checkHistory();
+            historyWorks.start();
+        }
+    }
+    Timer {
+        id: historyWorks
+        interval: 1500
+        onTriggered: {
+            root.check(Feeds.checkedAt === 0 && Feeds.checkedLinks.size === 0, "a failed history scan moves no checkpoint");
+            Feeds.sources = [root.story("https://example.com/fine")];
+            Feeds.checkHistory();
             finish.start();
         }
     }
-    Timer { id: finish; interval: 100; onTriggered: Qt.quit() }
+    Timer {
+        id: finish
+        interval: 1500
+        onTriggered: {
+            root.check(Feeds.checkedAt > 0 && Feeds.checkedLinks.has("https://example.com/fine"), "a clean scan moves it");
+            console.log(root.failures === 0 ? "PASS: feeds" : "RESULT: " + root.failures + " failures");
+            Qt.quit();
+        }
+    }
 }
 '''
 
@@ -357,6 +402,8 @@ ShellRoot {
         console.log(ok ? "PASS: clicked RSS survives restart" : "FAIL: RSS restart read-state");
         console.log(Feeds.store.channels.UCxxxxxxxxxxxxxxxxxxxxxx?.videos.length === 3 && Feeds.store.verdicts.AAAAAAAAAAA
             ? "PASS: channels and verdicts survive restart" : "FAIL: channel cache lost on restart");
+        console.log(Feeds.store.subscribed.join() === "UCxxxxxxxxxxxxxxxxxxxxxx"
+            ? "PASS: subscriptions survive restart" : "FAIL: subscriptions lost on restart");
         Qt.quit();
     } }
 }
@@ -383,6 +430,8 @@ def main():
                            .replace('root.get(`channels', 'root.stub(`channels').replace('Http.send("GET", job.urls[i]', 'root.feedStub("GET", job.urls[i]')
                            .replace("    property var videos: []", "    property var stub: null\n    property var feedStub: null\n    property int refreshes: 0\n    property alias store: store\n    property var videos: []")
                            .replace("    function refresh(): void {", "    function refresh(): void {\n        root.refreshes++;"))
+        (target / "scripts/feeds-seen.py").write_text(
+            "import sys\nsys.exit(1 if any('fail' in a for a in sys.argv) else 0)\n")
         # No feeds to fetch: the fixture never touches the network.
         (target / "settings.json").write_text('{"feedUrls": []}\n')
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
