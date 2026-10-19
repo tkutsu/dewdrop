@@ -405,14 +405,18 @@ BarItem {
             return null;
         }
 
-        // Ease each icon's brightness through the moving mark's overlap.
-        function inkAt(left: real, width: real): real {
+        // How far the moving mark covers an icon's ink, eased, 0..1.
+        function coverAt(left: real, width: real): real {
             if (!mark.hasSelection || width <= 0)
-                return Theme.restOpacity;
+                return 0;
             const covered = Math.max(0, Math.min(left + width, mark.x + mark.frontRight)
                 - Math.max(left, mark.x + mark.frontLeft)) / width;
-            const lit = covered * covered * (3 - 2 * covered);
-            return Theme.restOpacity + (1 - Theme.restOpacity) * lit;
+            return covered * covered * (3 - 2 * covered);
+        }
+
+        // Ease each icon's brightness through the moving mark's overlap.
+        function inkAt(left: real, width: real): real {
+            return Theme.restOpacity + (1 - Theme.restOpacity) * coverAt(left, width);
         }
 
         // A press held on one of the strip's icons. Read off the buttons, the
@@ -866,6 +870,9 @@ BarItem {
                                 pressed: tap.pressed && !root.dragging
                                 inkOpacity: strip.inkAt(button.drawnX + row.x + app.x + app.inkLeft * app.scale,
                                     app.inkWidth * app.scale) * (root.dragging && root.dragSource === app ? 0.35 : 1)
+                                // And the glass magnifies it as far (Theme.markZoom).
+                                magnify: strip.coverAt(button.drawnX + row.x + app.x + app.inkLeft * app.scale,
+                                    app.inkWidth * app.scale)
                                 cornerDot: groupCount.visible && groupCount.dot
                                     ? Qt.rect(groupCount.localAt.x, groupCount.localAt.y, groupCount.width, groupCount.height)
                                     : Qt.rect(0, 0, 0, 0)

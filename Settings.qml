@@ -31,6 +31,7 @@ Singleton {
     readonly property bool groupWindows: root.values.groupWindows === true
     readonly property string groupWindowBadgeStyle: root.user.groupWindowBadgeStyle
         ?? (root.user.groupWindowBadges === true ? "badge" : root.values.groupWindowBadgeStyle ?? "hide")
+    readonly property bool magnifyMark: root.values.magnifyMark !== false
     readonly property var moduleKeys: ModuleOrder.normalise([])
     readonly property var centralComponents: {
         const keys = root.moduleKeys.filter(key => (root.values[key + "Position"]
