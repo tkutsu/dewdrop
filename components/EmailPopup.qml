@@ -7,7 +7,7 @@ import qs.services
 // one to read: a swipe archives or marks read, and every verb can be taken
 // back from the header for a few seconds (Email.act). A click on a row opens
 // it in place to be read, with its three verbs (archive, mark read, star) over
-// the time column and its foot holding the rest (open in Gmail, a task,
+// the time column and its foot holding the rest (open in Gmail,
 // unsubscribe, the login code, the attachments). Acting
 // on the open mail opens the next one. Unread in the inbox tabs that do not
 // count (Settings.mailCategories) is one folded row at the end. The plus at the header's right end writes a new one.
@@ -789,18 +789,6 @@ Popup {
                                 OpenPopup.dismiss();
                                 Email.open(row.modelData);
                             }
-                        }
-
-                        // Made a task and archived, as one undoable thing.
-                        PopupButton {
-                            framed: true
-                            glyph: Theme.glyph.tasks
-                            label: "Task"
-                            name: "Make a task"
-                            onTapped: root.act("archive", row.modelData, {
-                                said: "Task made",
-                                also: Email.makeTask
-                            })
                         }
 
                         // Only when the mail offers a way off its list on the
