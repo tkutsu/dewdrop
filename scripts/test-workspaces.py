@@ -42,7 +42,7 @@ RowLayout { id: layout; height: root.height }
 }''')
 (target/'components/AppIcon.qml').write_text('''import QtQuick
 Item { property string windowClass; property bool focused; property bool urgent; property bool pressed
-property real inkOpacity; property real magnify: 0; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
+property real inkOpacity; property real magnify: 0; property int spread: 0; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
 readonly property real inkLeft: 0; readonly property real inkWidth: width
 property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
@@ -417,6 +417,8 @@ if '--mark-ink' in sys.argv:
  check(artError<0.001,'loaded artwork follows coverage without an extra opacity fade');
  check(apps[0].inkOpacity===Theme.restOpacity && apps[2].inkOpacity===1 && apps[3].inkOpacity===1,
    'destination icons finish at full opacity and the source dims');
+ check(apps[2].spread < 0 && apps[3].spread === -apps[2].spread && apps[0].spread === 0,
+   'a magnified group spreads about its middle, by whole pixels');
  Hyprland.focusedWorkspace=w1;test.wait(60);sample();
  Hyprland.focusedWorkspace=w3;
  for(let ms=0;ms<500;ms+=10){test.wait(10);sample();}

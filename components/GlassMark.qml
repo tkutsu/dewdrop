@@ -2,14 +2,18 @@ import QtQuick
 import qs
 
 // Grey glass over the workspace pill, using FlowMark's spring geometry.
-// Drawn outside the pill so its texture contains the icons without the mark.
+// Drawn outside the pill so its textures hold the pill and icons without the
+// mark.
 ShaderEffect {
     id: root
 
-    // The mark (FlowMark), the pill it moves in, and the wallpaper as Liquid
-    // takes it.
+    // The mark (FlowMark), the pill's glass it moves over, what the pill
+    // holds (the icons), and the wallpaper as Liquid takes it. The caps bend
+    // the glass and leave the icons straight: bent, an icon near a cap was
+    // smeared into a bright disc while the mark moved.
     required property Item mark
-    required property Item pillItem
+    required property Item slabItem
+    required property Item inkItem
     required property Item wallpaperItem
 
     // Off under Reduce transparency, and until the wallpaper is in: the
@@ -34,16 +38,17 @@ ShaderEffect {
         }
     }
 
-    // Where this item is in its window, walked up the parent chain for the
+    // Where an item is in its window, walked up the parent chain for a
     // binding to re-run on (as Liquid.windowPos).
-    readonly property point windowPos: {
+    function windowPosOf(item: Item): point {
         let x = 0, y = 0;
-        for (let item = root; item; item = item.parent) {
+        for (; item; item = item.parent) {
             x += item.x;
             y += item.y;
         }
         return Qt.point(x, y);
     }
+    readonly property point windowPos: windowPosOf(root)
 
     // The mark's capsule in this item's coordinates.
     readonly property point at: root.mark ? Qt.point(root.mark.windowPos.x - root.windowPos.x, root.mark.windowPos.y - root.windowPos.y) : Qt.point(0, 0)
@@ -64,11 +69,18 @@ ShaderEffect {
     readonly property size wallSize: Qt.size(root.wallpaperItem?.width ?? 1, root.wallpaperItem?.height ?? 1)
 
     property var wallpaper: root.wallpaperItem
-    // The pill as drawn without the mark, laid out as this item is. A
-    // sibling of this item's.
-    property var pill: ShaderEffectSource {
-        sourceItem: root.pillItem
-        sourceRect: Qt.rect(root.x - root.pillItem.x, root.y - root.pillItem.y, root.width, root.height)
+    // The pill's glass and its icons, each laid out as this item is.
+    property var slab: ShaderEffectSource {
+        readonly property point at: root.windowPosOf(root.slabItem)
+        sourceItem: root.slabItem
+        sourceRect: Qt.rect(root.windowPos.x - at.x, root.windowPos.y - at.y, root.width, root.height)
+        live: root.visible
+        hideSource: false
+    }
+    property var ink: ShaderEffectSource {
+        readonly property point at: root.windowPosOf(root.inkItem)
+        sourceItem: root.inkItem
+        sourceRect: Qt.rect(root.windowPos.x - at.x, root.windowPos.y - at.y, root.width, root.height)
         live: root.visible
         hideSource: false
     }

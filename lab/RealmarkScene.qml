@@ -114,7 +114,8 @@ Item {
         GlassMark {
             anchors.fill: parent
             mark: mark
-            pillItem: pill.parent
+            slabItem: pill.slabItem
+            inkItem: pill.moduleHost
             wallpaperItem: scene.backdrop
         }
     }

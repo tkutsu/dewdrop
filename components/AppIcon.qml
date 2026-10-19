@@ -12,7 +12,10 @@ import qs.services
 // under it while it holds the focused window.
 Item {
     id: root
-    transform: ModuleIconScale { icon: root }
+    transform: [
+        ModuleIconScale { icon: root },
+        Translate { x: root.spread }
+    ]
 
     property string windowClass
     // Hyprland says this window wants you, or this is an urgent notice's
@@ -40,6 +43,9 @@ Item {
     // How far the glass passing over it has magnified the artwork, 0..1, to
     // Theme.markZoom. The dot and the hole keep their places.
     property real magnify: 0
+    // How far the glass moves it sideways, in whole pixels, so the gaps in a
+    // magnified group grow as much as the icons do.
+    property int spread: 0
     // Room either side for the magnified artwork in the layer that cuts the
     // dot's hole, which would otherwise crop it to the icon's width.
     readonly property int bleed: Math.ceil(Theme.iconSize * (Theme.markZoom - 1) / 2)
@@ -136,7 +142,7 @@ Item {
             ink: Theme.iconInk
             transform: Translate { y: root.shift }
             magnify: root.magnify
-            magnifiedSize: drawn + 2 * Math.round(drawn * (Theme.markZoom - 1) / 2)
+            magnifiedSize: Math.round(drawn * Theme.markZoom)
             // Unlike the tray, the box follows the artwork rather than staying
             // fixed. The tray keeps identical boxes so a row of unrelated icons
             // holds a steady rhythm; a workspace is the opposite job — its icons

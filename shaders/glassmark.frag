@@ -1,7 +1,8 @@
 #version 440
 
 // Grey workspace glass: the straight middle stays undistorted while the
-// rounded caps bend the pill and icons beneath them.
+// rounded caps bend the pill's glass beneath them. The icons are seen
+// straight through, untouched by the bend.
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -13,7 +14,6 @@ layout(std140, binding = 0) uniform buf {
     vec2 size;
     // The capsule: x, y, width, height, fully round at the ends.
     vec4 box;
-    float motion;
     // How far in the very rim looks, in pixels; how far in from the rim the
     // pull reaches, as a share of the half height; how steeply it falls off
     // towards the middle of each rounded end.
@@ -21,7 +21,7 @@ layout(std140, binding = 0) uniform buf {
     float depth;
     float steep;
     float dispersion;
-    // Grey tint, eased with movement and held presses.
+    // Grey tint, cleared a little by movement and held presses.
     float tint;
     vec3 tintColor;
     float lineWidth;
@@ -33,10 +33,11 @@ layout(std140, binding = 0) uniform buf {
     vec2 wallSize;
 };
 
-// The wallpaper, and the pill drawn without the mark over it, laid out as
+// The wallpaper, the pill's glass, and what the pill holds, laid out as
 // this item is.
 layout(binding = 1) uniform sampler2D wallpaper;
-layout(binding = 2) uniform sampler2D pill;
+layout(binding = 2) uniform sampler2D slab;
+layout(binding = 3) uniform sampler2D ink;
 
 float capsule(vec2 p) {
     vec2 h = box.zw * 0.5;
@@ -45,10 +46,16 @@ float capsule(vec2 p) {
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
+// The pill's glass over the wallpaper, and the icons over that.
 vec3 under(vec2 p) {
     vec3 wall = texture(wallpaper, (p - wallOrigin) / wallSize).rgb;
-    vec4 c = texture(pill, p / size);
+    vec4 c = texture(slab, p / size);
     return wall * (1.0 - c.a) + c.rgb;
+}
+
+vec3 inked(vec3 under, vec2 p) {
+    vec4 c = texture(ink, p / size);
+    return under * (1.0 - c.a) + c.rgb;
 }
 
 void main() {
@@ -75,16 +82,15 @@ void main() {
     lens *= cap;
     vec2 seen = p;
     vec2 shift = n * bend * lens;
-    vec3 glass = vec3(under(seen - shift * (1.0 - dispersion)).r,
-                      under(seen - shift).g,
-                      under(seen - shift * (1.0 + dispersion)).b);
-    float white = tint + 0.18 * lens * motion;
-    glass = mix(glass, tintColor, white);
+    vec3 bent = vec3(under(seen - shift * (1.0 - dispersion)).r,
+                     under(seen - shift).g,
+                     under(seen - shift * (1.0 + dispersion)).b);
+    vec3 glass = mix(inked(bent, p), tintColor, tint);
     float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
         : mix(rimTop, rimBottom, clamp((p.y - box.y) / max(box.w, 1.0), 0.0, 1.0));
     // Apply coverage once, after the body is laid over the underlying pill.
-    vec3 covered = mix(under(p), glass, shape);
+    vec3 covered = mix(inked(under(p), p), glass, shape);
     covered = mix(covered, rim.rgb, band * rim.a);
 
     // Opaque, the antialiased edge laid over what is under it: a part-covered
