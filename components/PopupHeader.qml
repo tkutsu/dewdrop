@@ -24,14 +24,16 @@ Item {
     property int inset: Theme.popupInset
     property bool addable: false
     property string addGlyph: Theme.glyph.plus
+    property string addLabel: "New"
     property string addName: "Add " + root.title.toLowerCase()
+    property var blink: null
 
     // Hidden controls take no space; visible ones keep a gap before them.
     readonly property real titleAreaWidth: Math.max(0, root.width - row.implicitWidth - (row.implicitWidth > 0 ? row.spacing : 0))
 
     signal add
 
-    implicitWidth: root.inset + name.implicitWidth + 12 + row.implicitWidth + (root.addable ? plus.width + row.spacing : 0)
+    implicitWidth: root.inset + name.implicitWidth + 12 + row.implicitWidth + (root.addable ? action.width + row.spacing : 0)
     implicitHeight: Math.max(20, name.implicitHeight, row.implicitHeight)
 
     Item {
@@ -45,7 +47,7 @@ Item {
         // The keys (Popup.qml), lit the way the pointer lights it.
         property bool keyed: false
         readonly property var keyPress: () => root.add()
-        readonly property bool lit: QsWindow.window?.keyItem ? target.keyed : hover.hovered
+        readonly property bool lit: root.blink?.item === root ? root.blink.lit : QsWindow.window?.keyItem ? target.keyed : hover.hovered
 
         visible: root.addable
         width: root.titleAreaWidth
@@ -57,20 +59,31 @@ Item {
             color: target.lit ? Theme.selection : "transparent"
         }
 
-        // On the pitch of a row's controls, so it heads their column.
-        Item {
-            id: plus
+        Row {
+            id: action
 
             anchors.right: parent.right
-            width: 20
             height: parent.height
+            spacing: 3
+            opacity: target.lit ? 1 : 0.6
 
-            Glyph {
-                anchors.centerIn: parent
-                implicitHeight: parent.height
-                text: root.addGlyph
-                fontSize: Theme.popupTextSize
-                opacity: target.lit ? 1 : 0.6
+            PopupText {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.addLabel
+                font.pixelSize: Theme.captionSize
+            }
+
+            // Keep the glyph on the same pitch as the row controls below.
+            Item {
+                width: 20
+                height: parent.height
+
+                Glyph {
+                    anchors.centerIn: parent
+                    implicitHeight: parent.height
+                    text: root.addGlyph
+                    fontSize: Theme.popupTextSize
+                }
             }
         }
 
@@ -89,7 +102,7 @@ Item {
 
         x: root.inset
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.max(0, root.titleAreaWidth - x - (root.addable ? plus.width : 0) - 8)
+        width: Math.max(0, root.titleAreaWidth - x - (root.addable ? action.width : 0) - 8)
         text: root.title
         font.weight: Font.DemiBold
         elide: Text.ElideRight
