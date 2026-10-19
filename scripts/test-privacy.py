@@ -127,6 +127,23 @@ ShellRoot {
         check(Privacy.mics[0].app === "Firefox" && Privacy.mics[0].source.id === mic.id, "the app and the microphone are named");
         check(Privacy.summary === "Firefox using the microphone", "summary names the app: " + Privacy.summary);
         check(!recording.stowed, "the pill comes out");
+        readiness.wait(Theme.dropMs + 100);
+        const dot = recording.testDot;
+        const dotPosition = dot.mapToItem(recording, 0, 0);
+        check(dot.visible && dot.width > 0 && dot.height > 0
+              && dotPosition.x >= 0 && dotPosition.x + dot.width <= recording.width
+              && dotPosition.y >= 0 && dotPosition.y + dot.height <= recording.height,
+              "a capture started after startup shows its recording dot inside the pill: "
+              + JSON.stringify({visible: dot.visible, x: dotPosition.x, y: dotPosition.y,
+                  width: dot.width, height: dot.height, pillWidth: recording.width, pillHeight: recording.height}));
+        for (let item = dot.parent; item && item !== recording; item = item.parent) {
+            if (!item.clip)
+                continue;
+            const position = dot.mapToItem(item, 0, 0);
+            check(position.x >= 0 && position.x + dot.width <= item.width
+                  && position.y >= 0 && position.y + dot.height <= item.height,
+                  "the arriving recording dot is inside its clipping containers");
+        }
         listening.liveState = PwLinkState.Paused;
         check(!Privacy.listening && recording.stowed, "pausing a tracked capture stows the pill");
         listening.liveState = PwLinkState.Active;
@@ -270,6 +287,7 @@ ShellRoot {
         readiness.wait(Theme.dropMs + 100);
         check(recording.reveal === 1 && !recordingNote.visible && !recordingNote.popupOpen,
               "unmuting returns the side pill and closes the central popup");
+        check(recording.testDot.visible, "unmuting restores the recording dot without restarting");
 
         OpenPopup.set(recording);
         readiness.wait(400);
@@ -296,6 +314,8 @@ ShellRoot {
         Settings.user = {reduceMotion: true};
         links([share]); readiness.wait(Theme.dropMs + 100);
         check(recording.reveal === 1 && !recordingNote.visible, "active privacy restores with reduced motion");
+        check(recording.testDot.visible && recording.testDot.opacity === 1,
+              "a new screen share shows its dot without restarting, including with reduced motion");
         links([]); readiness.wait(Theme.dropMs + 100);
         check(!recordingNote.visible && !recordingPill.visible, "idle privacy stays hidden with reduced motion");
         console.log("PASS: privacy indicator counts live mics and screen shares only");
