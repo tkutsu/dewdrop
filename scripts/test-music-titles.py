@@ -136,6 +136,7 @@ ShellRoot {
                     "lifted queue preview keeps its song and displays the drop position");
                 popup.auditReorder.dragging = false;Mpd.queue = [];
                 const pill = named(music, "title");
+                const pillText = named(music, "titleText");
                 const header = named(popup.contentItem, "songTitle");
                 const headerText = named(popup.contentItem, "songTitleText");
                 check(pill && header && headerText, "real pill and popup titles found");
@@ -159,14 +160,33 @@ ShellRoot {
 
                 mouseClick(setting, setting.width / 2, setting.height / 2); wait(50);
                 check(!Settings.scrollMusicTitles && !pill.scrolling && !header.scrolling, "settings toggle stops both titles");
-                check(pill.offset === 0 && header.offset === 0 && headerText.elide === Text.ElideRight, "disabled scrolling resets and restores truncation");
-                check(!pill.layer.enabled && !header.layer.enabled, "disabled scrolling removes edge fades");
+                check(pill.offset === 0 && header.offset === 0 && pillText.maxWidth === 0 && headerText.elide === Text.ElideNone,
+                    "disabled scrolling resets both titles and keeps their full text without ellipses");
+                check(pill.width <= Theme.mediaTitleWidth && pill.overflow > 0 && header.overflow > 0,
+                    "static titles keep their width limits with overflowing text");
+                check(pill.leftFade === 0 && header.leftFade === 0 && pill.rightFade > 0 && header.rightFade > 0
+                    && pill.layer.enabled && header.layer.enabled, "static titles fade only their cut-off right edges");
+                wait(500);
+                check(pill.offset === 0 && header.offset === 0, "static gradient titles stay still");
+                mouseMove(pill, pill.width / 2, pill.height / 2);
+                tryCompare(music, "contentAnimating", false, 1500); wait(200);
+                check(pill.scrolling && pill.offset > 0, "hover promptly scrolls the music title with automatic scrolling disabled");
+                mouseMove(win.contentItem, 850, 150); wait(50);
+                check(!pill.scrolling && pill.offset === 0 && pill.rightFade > 0,
+                    "leaving the music title restores its static gradient");
+                mouseMove(header, header.width / 2, header.height / 2); wait(200);
+                check(header.scrolling && header.offset > 0, "hover promptly scrolls the popup title with automatic scrolling disabled");
+                mouseMove(popup.contentItem, popup.contentItem.width - 1, popup.contentItem.height - 1); wait(50);
+                check(!header.scrolling && header.offset === 0 && header.rightFade > 0,
+                    "leaving the popup title restores its static gradient");
                 mouseClick(setting, setting.width / 2, setting.height / 2);
                 tryCompare(music, "contentAnimating", false, 6000); wait(2200);
                 check(Settings.scrollMusicTitles && pill.offset > 0 && header.offset > 0, "settings toggle restarts both titles");
 
                 Settings.set("reduceMotion", true); wait(50);
                 check(!pill.scrolling && !header.scrolling && pill.offset === 0 && header.offset === 0, "reduce motion stops and resets both titles");
+                check(pill.rightFade > 0 && header.rightFade > 0 && pillText.maxWidth === 0 && headerText.elide === Text.ElideNone,
+                    "reduce motion keeps gradients without ellipses");
                 Settings.set("reduceMotion", false);
                 tryCompare(music, "contentAnimating", false, 6000); wait(2200);
                 Mpd.title = Mpd.title.replace("A very", "A new "); wait(50);
@@ -207,13 +227,13 @@ ShellRoot {
 def main():
     source = (ROOT / "modules/SettingsMenu.qml").read_text()
     start = source.index('{ type: "toggle", id: "scrollMusicTitles"')
-    setting = source[start:source.index("\n", start)].strip()
+    setting = source[start:source.index("\n", start)].strip().rstrip(",")
     with tempfile.TemporaryDirectory(prefix="qs-music-titles-") as folder:
         target = Path(folder)
         copy_shell(target)
         (target / "services/Mpd.qml").write_text(MPD)
         (target / "services/Launcher.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string musicPrefix: "#"; function openWith(prefix) {} }\n')
-        for name, ids in (("modules/Music.qml", ("title", "titleRoom")), ("components/MusicPopup.qml", ("songTitle", "songTitleText"))):
+        for name, ids in (("modules/Music.qml", ("title", "titleText", "titleRoom")), ("components/MusicPopup.qml", ("songTitle", "songTitleText"))):
             path = target / name
             content = path.read_text()
             if name == "components/MusicPopup.qml":

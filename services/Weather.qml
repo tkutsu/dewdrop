@@ -57,7 +57,7 @@ Singleton {
     // The six-hour line the bar and popup share: the summary, marked when it
     // is a cached forecast, or why there is none yet.
     readonly property string nextSixHours: root.upcoming.length ? `${root.stale ? "Last forecast: " : ""}${root.summary}` : root.trouble || "Loading weather..."
-    readonly property string tooltip: root.location ? `Next 6 hours: ${root.nextSixHours}` : "Choose a weather location"
+    readonly property string tooltip: root.location ? `6h: ${root.nextSixHours}` : "Choose a weather location"
 
     // Merge matching hourly forecasts without bridging missing hours or DST epochs.
     function hourRanges(hours: var, key: string): var {

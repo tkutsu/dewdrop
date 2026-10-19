@@ -66,7 +66,7 @@ Item {
 (target/'components/BarText.qml').write_text('import QtQuick\nText { property bool tightWidth; property int fontSize }')
 (target/'components/Bounce.qml').write_text((root/'components/Bounce.qml').read_text())
 (target/'components/DropLine.qml').write_text((root/'components/DropLine.qml').read_text())
-if '--real-icons' in sys.argv:
+if '--real-icons' in sys.argv or '--app-names' in sys.argv:
     for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText', 'Badge', 'RollingText', 'Rim', 'ModuleIconScale'):
         source=(root/f'components/{name}.qml').read_text()
         if name == 'AppIcon':
@@ -262,6 +262,45 @@ ShellRoot {
  } }
 }
 """
+if '--window-input' in sys.argv:
+    start = shell_source.index(' const w1=ws(1)')
+    end = shell_source.index(" console.log(failures.length", start)
+    shell_source = shell_source[:start] + r"""
+ const w1=ws(1),w2=ws(2);
+ const a=win('a',w2,'same'),b=win('b',w2,'same'),c=win('c',w1,'single');
+ let closed=[];
+ for (const window of [a,b,c])
+   window.wayland={appId:window.wayland.appId,close:()=>closed.push(window.address)};
+ reset([a,b,c],[w1,w2]);Hyprland.commands=[];
+ function click(app,which) { test.mouseClick(app,app.width/2,app.height/2,which);test.wait(300); }
+ click(icon(button(1),'c'),Qt.MiddleButton);
+ check(closed.join(',')==='c' && Hyprland.commands.length===0,'middle-click requests only the individual window close without focusing');
+ check(icon(button(1),'c').enabled && !icon(button(1),'c').closing,'close request waits for the application to actually close');
+ click(icon(button(2),'a'),Qt.MiddleButton);
+ check(pill.expandedWorkspace===2 && !icon(button(2),'b').icon.folded,'middle-click expands a collapsed group');
+ check(closed.join(',')==='c' && Hyprland.commands.length===0,'opening a group neither closes nor focuses a window');
+ click(icon(button(2),'b'),Qt.MiddleButton);
+ check(closed.join(',')==='c,b','middle-click closes only the selected expanded window');
+ Settings.groupWindows=false;test.wait(300);
+ click(icon(button(2),'a'),Qt.MiddleButton);
+ check(closed.join(',')==='c,b,a','middle-click closes individual windows when grouping is disabled');
+
+ const single=icon(button(1),'c');
+ test.mousePress(single,single.width/2,single.height/2,Qt.MiddleButton);
+ test.mouseMove(pill,-40,80,30);test.wait(30);
+ check(!pill.dragging,'middle-button movement never starts a window drag');
+ test.mouseRelease(pill,-40,80,Qt.MiddleButton);test.wait(30);
+ check(closed.join(',')==='c,b,a','middle-button release outside the icon cancels close');
+ click(single,Qt.LeftButton);
+ check(Hyprland.commands.length===1 && Hyprland.commands[0]==='hl.dsp.focus({ window = "address:0xc" })','left-click still focuses an individual window');
+ Settings.groupWindows=true;test.wait(300);Hyprland.commands=[];
+ click(icon(button(2),'a'),Qt.LeftButton);
+ check(pill.expandedWorkspace===2 && Hyprland.commands[0]==='hl.dsp.focus({ window = "address:0xa" })','left-click still expands and focuses a group');
+ WorkspaceSync.settled=false;test.wait(30);
+ click(icon(button(1),'c'),Qt.MiddleButton);
+ check(closed.join(',')==='c,b,a','workspace renumbering blocks middle-click close');
+ WorkspaceSync.settled=true;
+""" + shell_source[end:]
 if '--lifecycle' in sys.argv:
     start = shell_source.index(' const w1=ws(1)')
     end = shell_source.index(" console.log(failures.length", start)
@@ -514,8 +553,33 @@ if '--badge-alignment' in sys.argv:
  Settings.groupWindowBadgeStyle='badge';test.wait(100);
  aligned('count after vertical relayout');
 ''' + shell_source[end:]
+if '--app-names' in sys.argv:
+    applications = target / 'data/applications'
+    applications.mkdir(parents=True)
+    (applications / 'obsidian.desktop').write_text('[Desktop Entry]\nType=Application\nName=Obsidian\nExec=obsidian\nIcon=obsidian\nStartupWMClass=obsidian\n')
+    (applications / 'org.example.Editor.desktop').write_text('[Desktop Entry]\nType=Application\nName=Full ID Editor\nExec=editor\n')
+    (applications / 'editor.desktop').write_text('[Desktop Entry]\nType=Application\nName=Short ID Editor\nExec=editor\n')
+    start = shell_source.index(' const w1=ws(1)')
+    end = shell_source.index(" console.log(failures.length", start)
+    shell_source = shell_source[:start] + r'''
+ const w1=ws(1);
+ const a=win('a',w1,'md.obsidian.Obsidian');
+ reset([a],[w1]);
+ function label(app) { return app.children.find(c=>c.anchorItem===app && c.text!==undefined).text; }
+ const app=icon(button(1),'a');
+ check(label(app)==='Obsidian','Obsidian tooltip uses its desktop name for a reverse-domain app ID');
+ check(app.iconName==='obsidian','reverse-domain lookup also resolves the desktop icon');
+ a.wayland={appId:'obsidian'};test.wait(100);
+ check(label(icon(button(1),'a'))==='Obsidian','short app IDs keep their desktop names');
+ a.wayland={appId:'org.example.Editor'};test.wait(100);
+ check(label(icon(button(1),'a'))==='Full ID Editor','full app ID match takes precedence over the short ID');
+ a.wayland={appId:'org.example.UnknownApp'};test.wait(100);
+ check(label(icon(button(1),'a'))==='org.example.UnknownApp','unmatched app IDs retain their original fallback');
+''' + shell_source[end:]
 (target/'shell.qml').write_text(shell_source)
 env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',XDG_RUNTIME_DIR=str(target/'runtime'),XDG_CACHE_HOME=str(target/'cache'))
+if '--app-names' in sys.argv:
+    env.update(XDG_DATA_HOME=str(target/'data'), XDG_DATA_DIRS=str(target/'system-data'))
 for key in ('WAYLAND_DISPLAY','HYPRLAND_INSTANCE_SIGNATURE'):env.pop(key,None)
 res=subprocess.run(['quickshell','-p',str(target),'--no-color'],env=env,capture_output=True,text=True,timeout=30)
 out=res.stdout+res.stderr

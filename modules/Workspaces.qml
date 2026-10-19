@@ -916,8 +916,10 @@ BarItem {
                                 MouseArea {
                                     id: tap
                                     anchors.fill: parent
+                                    enabled: WorkspaceSync.settled
                                     hoverEnabled: true
                                     preventStealing: true
+                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton
                                     property point pressPoint: Qt.point(0, 0)
                                     property string addressOnPress: ""
                                     property bool suppressClick: false
@@ -945,11 +947,19 @@ BarItem {
                                     Accessible.role: Accessible.Button
                                     Accessible.name: label.text
                                     // Resting on an icon shows its window's title (ClickArea).
-                                    Accessible.description: "Pointer: hover"
+                                    Accessible.description: "Pointer: middle click, hover"
                                     Accessible.onPressAction: if (enabled && visible && !tap.pressApp())
                                         tap.focusWindow(app.icon.addresses[0])
 
                                     onPressed: mouse => {
+                                        // Middle-click opens a group without focusing or dragging a window.
+                                        if (mouse.button === Qt.MiddleButton) {
+                                            addressOnPress = "";
+                                            suppressClick = app.icon.addresses.length > 1;
+                                            if (suppressClick)
+                                                root.expand(button.workspaceInfo.workspace, app.windowClass);
+                                            return;
+                                        }
                                         pressPoint = tap.mapToItem(strip, mouse.x, mouse.y);
                                         const addresses = app.icon.addresses;
                                         addressOnPress = addresses.length === 1 ? addresses[0] : "";
@@ -986,8 +996,14 @@ BarItem {
                                             root.cancelDrag();
                                     }
 
-                                    onClicked: if (!suppressClick)
-                                        tap.focusWindow(app.icon.addresses[0])
+                                    onClicked: mouse => {
+                                        if (suppressClick)
+                                            return;
+                                        if (mouse.button === Qt.MiddleButton)
+                                            Hyprland.toplevels.values.find(t => t.address === app.modelData)?.wayland?.close();
+                                        else
+                                            tap.focusWindow(app.icon.addresses[0]);
+                                    }
                                 }
                             }
                         }

@@ -291,13 +291,15 @@ Popup {
                     text: Mpd.title
                     contentWidth: songTitleText.implicitWidth
                     implicitHeight: songTitleText.implicitHeight
+                    hovered: titleHover.hovered
+
+                    HoverHandler { id: titleHover; parent: songTitle }
 
                     PopupText {
                         id: songTitleText
-                        width: songTitle.active ? implicitWidth : songTitle.width
                         text: Mpd.title
                         font.weight: Font.DemiBold
-                        elide: songTitle.active ? Text.ElideNone : Text.ElideRight
+                        elide: Text.ElideNone
                     }
                 }
 

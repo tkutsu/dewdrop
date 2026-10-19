@@ -279,8 +279,8 @@ Popup {
         }
     }
 
-    // One notification.
-    component Card: Item {
+    // One notification, or a collapsed group: either swipe clears it.
+    component Card: SwipeRow {
         id: card
 
         required property var modelData
@@ -310,10 +310,16 @@ Popup {
         }
 
         width: parent.width
-        height: content.implicitHeight + root.cardPad * 2
+        fullHeight: content.implicitHeight + root.cardPad * 2
+        glyph: Theme.glyph.close
+        name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
+        blink: choice
+        showHighlight: false
+        onTapped: card.open()
+        onSwiped: root.clear([card.n, ...card.others])
         clip: true
 
-        Behavior on height {
+        Behavior on fullHeight {
             NumberAnimation {
                 duration: Theme.fadeMs
                 easing.type: Easing.InOutCubic
@@ -332,11 +338,12 @@ Popup {
 
             readonly property bool focused: card.n && card.n === Notifications.centreFocus
 
+            x: card.swipe
             width: parent.width
             height: card.height
             radius: root.cardRadius
             color: fill.focused ? Theme.selectionStrong : Theme.selection
-            opacity: choice.item === card ? (choice.lit ? 1 : 0) : fill.focused || hover.hovered ? 1 : 0.5
+            opacity: choice.item === card ? (choice.lit ? 1 : 0) : fill.focused || hover.hovered || card.swiping ? 1 : 0.5
 
             Behavior on opacity {
                 enabled: choice.item !== card
@@ -346,20 +353,10 @@ Popup {
             }
         }
 
-        MouseArea {
-            anchors.fill: parent
-            Accessible.role: Accessible.Button
-            Accessible.name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
-            Accessible.onPressAction: if (enabled && visible)
-                card.open()
-            readonly property var keyPress: () => card.open()
-            onClicked: card.open()
-        }
-
         Item {
             id: content
 
-            x: root.cardPad
+            x: root.cardPad + card.swipe
             y: root.cardPad
             width: parent.width - root.cardPad * 2
             implicitHeight: Math.max(iconBox.height, labels.implicitHeight)

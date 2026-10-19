@@ -107,6 +107,22 @@ ShellRoot {
                 mouseMove(window.contentItem, 950, 90); wait(250);
                 check(pause.opacity === 0 && title.width === restingTitleWidth && playerPill.width === restingWidth,
                       "leaving hides pause and restores the title without resizing");
+                const originalTitle = first.trackTitle;
+                first.trackTitle = "A very long video title that overflows the Now Playing pill by a comfortable margin";
+                Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: false}); wait(1000);
+                const titleText = title.children[0].children.find(item => item.maxWidth !== undefined);
+                check(!title.scrolling && title.offset === 0 && title.overflow > 0 && title.rightFade > 0
+                      && title.leftFade === 0 && title.layer.enabled && titleText.maxWidth === 0,
+                      "static Now Playing title keeps its full text and fades the cut-off edge without an ellipsis");
+                mouseMove(title, title.width / 2, title.height / 2); wait(600);
+                check(title.scrolling && title.offset > 0, "hover promptly scrolls Now Playing with automatic scrolling disabled");
+                mouseMove(window.contentItem, 950, 90); wait(250);
+                check(!title.scrolling && title.offset === 0 && title.rightFade > 0,
+                      "leaving Now Playing restores the static title and gradient");
+                first.trackTitle = originalTitle; wait(1000);
+                check(!title.scrolling && title.overflow === 0 && !title.layer.enabled,
+                      "fitting static Now Playing title has no gradient");
+                Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: true});
                 for (const target of [appIcon(nowPlaying), pause, nowPlaying]) {
                     const before = first.toggles;
                     // The root target exercises the trailing pill padding.

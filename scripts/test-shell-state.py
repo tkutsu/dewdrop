@@ -85,7 +85,7 @@ ShellRoot {
             Weather.days = [{date: "2026-10-03", hours: hours.slice(0, 1)}, {date: "2026-10-04", hours: hours.slice(1)}];
             check(Weather.summary.startsWith("Rain likely from 02:00, clearing around 04:00."), "summary leads with rain onset and clearing across midnight");
             check(Weather.summary.includes("Strong winds around 03:00") && Weather.summary.includes("Cooling to 18°C"), "summary explains wind and temperature without repeating graph measurements");
-            check(Weather.tooltip === `Next 6 hours: ${Weather.summary}` && !Weather.tooltip.includes("\\n"), "tooltip has only a single-line heading and summary");
+            check(Weather.tooltip === `6h: ${Weather.summary}` && !Weather.tooltip.includes("\\n"), "tooltip has only a single-line heading and summary");
             weatherSelection.picked = "2026-10-03";
             Weather.now = 10800;
             check(weatherSelection.picked === "" && weatherSelection.day.date === "2026-10-04", "midnight switches a manually selected old day to the new today");
@@ -112,11 +112,11 @@ ShellRoot {
             check(Weather.tooltip.includes("Last forecast"), "cached tooltip identifies stale data");
             Weather.days = [];
             check(Weather.summary === "Forecast unavailable.", "empty summary is explicit");
-            check(Weather.tooltip === "Next 6 hours: Fixture offline", "empty tooltip keeps its heading and says why");
+            check(Weather.tooltip === "6h: Fixture offline", "empty tooltip keeps its heading and says why");
 
             Weather.trouble = "";
             Weather.updatedAt = 0;
-            check(Weather.tooltip === "Next 6 hours: Loading weather...", "empty tooltip without trouble says it is loading");
+            check(Weather.tooltip === "6h: Loading weather...", "empty tooltip without trouble says it is loading");
             check(Weather.thisHour === null && Weather.today === null, "no forecast has no current hour or day");
             // The helper sends a severity with every description (condition() in weather-fetch.py).
             const severities = {"Clear": 0, "Partly cloudy": 1, "Overcast": 2, "Fog": 3, "Rain": 5, "Freezing rain": 7, "Snow": 7, "Thunderstorm": 8, "Unavailable": -1};

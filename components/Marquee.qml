@@ -9,7 +9,8 @@ Item {
     property string text: ""
     property real contentWidth: 0
     property real maxWidth: 0
-    property bool active: Settings.scrollMusicTitles && !Theme.reduceMotion
+    property bool hovered: false
+    property bool active: (Settings.scrollMusicTitles || root.hovered) && !Theme.reduceMotion
     property bool paused: false
     readonly property real overflow: Math.max(0, contentWidth - width)
     readonly property bool overflowing: visible && width > 0 && overflow > 0
@@ -18,8 +19,8 @@ Item {
     // Extra travel lets a contracting media pill draw text behind its icon.
     property real travel: 0
     // Pausing motion still leaves overflowing text clipped at the edges.
-    readonly property real leftFade: (active || travel > 0) && overflowing ? Math.min(16, width / 2, offset + travel) : 0
-    readonly property real rightFade: (active || travel > 0) && overflowing ? Math.max(0, Math.min(16, width / 2, overflow - offset - travel)) : 0
+    readonly property real leftFade: overflowing ? Math.min(16, width / 2, offset + travel) : 0
+    readonly property real rightFade: overflowing ? Math.max(0, Math.min(16, width / 2, overflow - offset - travel)) : 0
 
     implicitWidth: maxWidth > 0 ? Math.min(contentWidth, maxWidth) : contentWidth
     clip: true
@@ -56,7 +57,8 @@ Item {
     SequentialAnimation {
         id: motion
         loops: Animation.Infinite
-        PauseAnimation { duration: 2000 }
+        // Hover reveals the hidden text immediately; automatic scrolling waits for reading.
+        PauseAnimation { duration: root.hovered ? 0 : 2000 }
         NumberAnimation {
             target: root
             property: "offset"
