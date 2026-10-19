@@ -614,7 +614,7 @@ ShellRoot {
         try {
             Launcher.db = ({});
             Launcher.show();
-            menu.requestActivate();
+            menu.requestActivate(); keys.wait(20);
             keys.wait(400);
             const box = keys.findChild(menu, "box");
             const input = keys.findChild(menu, "input");
@@ -938,21 +938,26 @@ ShellRoot {
 
             // The CRT: the box flattens and the command waits for the end.
             Launcher.show(); keys.wait(400);
-            check(menu.veil === 0, "searching leaves the screen alone");
+            const catcher = keys.findChild(menu, "veilCatch");
+            check(catcher && !menu.veiled && !catcher.Window.window.visible, "searching leaves the screen alone");
             input.adopt("!"); keys.wait(20);
-            check(menu.veil >= menu.blurFloor, "the veil starts at the blur line, so the blur arrives with the mode");
-            keys.wait(230);
-            check(menu.veil === menu.veilDepth, "the veil settles at its depth in ! mode");
-            input.adopt("sleep"); keys.wait(60);
-            check(menu.veil === 0 || menu.veil >= menu.blurFloor, "the veil never lingers under the blur line");
-            keys.wait(100);
-            check(menu.veil === 0, "leaving ! mode lifts the veil");
+            check(menu.veiled && catcher.Window.window.visible, "! mode puts the veil up");
+            keys.mouseClick(catcher, 5, 5); keys.wait(20);
+            check(!Launcher.shown && !catcher.Window.window.visible, "a click on the veil closes the launcher");
+            keys.wait(400);
+            Launcher.show(); keys.wait(400);
+            input.adopt("!"); keys.wait(20);
+            input.adopt("sleep"); keys.wait(20);
+            check(!menu.veiled && !catcher.Window.window.visible, "leaving ! mode lifts the veil");
             input.adopt("!"); keys.wait(250);
             const suspendRow = Launcher.results.findIndex(r => r.action?.key === "suspend");
             Launcher.index = suspendRow;
             menu.accept(false);
             keys.wait(150);
             check(Power.leaving?.key === "suspend" && menu.closing && menu.vertical < 1 && menu.live === 0 && !Power.ran.length, "the box flattens before the command runs");
+            // Offscreen Qt hands the keys to the newest window; Hyprland
+            // leaves them with the launcher, the veil taking none.
+            menu.requestActivate(); keys.wait(20);
             keys.keyClick(Qt.Key_Escape); keys.wait(150);
             check(Power.leaving === null && Launcher.shown && menu.vertical === 1 && menu.flash === 0 && menu.live === 1, "Escape mid-exit takes it back and restores the box");
             check(Launcher.query === "!", "Escape mid-exit leaves the query alone");
@@ -983,6 +988,15 @@ ShellRoot {
 '''
 
 
+def offscreen(source):
+    """Offscreen Qt has no layer shell: keep the window, drop its placement."""
+    source = re.sub(r'\n    anchors \{.*?\n    \}\n', '\n', source, flags=re.DOTALL)
+    keep = [line for line in source.splitlines()
+            if not re.match(r'\s*(WlrLayershell\.|exclusionMode:|mask:|screen:|import Quickshell\.(Wayland|Hyprland))', line)]
+    source = '\n'.join(keep).replace('PanelWindow {', 'Window {\n    width: 100; height: 100; visible: true', 1)
+    return 'import QtQuick.Window\n' + source
+
+
 def check_menu(target, env):
     """Exercise real launcher UI and theme with only desktop surfaces isolated."""
     modules = target / "modules"
@@ -991,6 +1005,8 @@ def check_menu(target, env):
     for name in ("box", "input", "hint", "list", "divider", "modeHints", "placeholder", "searchIcon", "listEdges", "rowEntrance", "actionBar", "actionButtons", "queueControl"):
         source = source.replace(f"id: {name}\n", f'id: {name}\n                objectName: "{name}"\n')
     (modules / "LauncherMenu.qml").write_text(source)
+    veil = (ROOT / "modules/PowerVeil.qml").read_text().replace("id: catcher\n", 'id: catcher\n        objectName: "veilCatch"\n')
+    (modules / "PowerVeil.qml").write_text(offscreen(veil))
     (target / "Theme.qml").write_text((ROOT / "Theme.qml").read_text())
     settings = target / "Settings.qml"
     settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property var disabled:'))
