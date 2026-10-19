@@ -588,6 +588,7 @@ Popup {
                     clip: true
 
                     Behavior on height {
+                        enabled: root.animateContents
                         NumberAnimation {
                             duration: Theme.foldMs
                             easing.type: Easing.InOutCubic
