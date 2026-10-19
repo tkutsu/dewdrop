@@ -183,6 +183,7 @@ Singleton {
     readonly property bool musicMode: root.classification.mode === root.musicPrefix
     readonly property bool mailMode: root.classification.mode === root.mailPrefix
     readonly property bool taskMode: root.classification.mode === root.taskPrefix
+    readonly property bool powerMode: root.classification.mode === root.powerPrefix
 
     // Follow query inference even while results are pending or selection changes.
     readonly property string queryIcon: {
