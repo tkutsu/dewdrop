@@ -226,7 +226,8 @@ OverlayWindow {
                         { type: "toggle", id: "groupWindows", title: "Group Windows by App", tooltip: "Click a group to expand its windows.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) },
                         { type: "choice", id: "groupWindowBadgeStyle", title: "Group Indicator",
                             options: [{ value: "hide", label: "Hide" }, { value: "dot", label: "Dot" }, { value: "badge", label: "Count" }],
-                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) }
+                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) },
+                        { type: "toggle", id: "magnifyMark", title: "Magnify Under the Mark", tooltip: "The current workspace's icons grow under the glass, like a lens.", get: () => Settings.magnifyMark, set: v => Settings.set("magnifyMark", v) }
                     ]
                 },
                 {
@@ -676,8 +677,11 @@ OverlayWindow {
                     Component {
                         id: heading
 
+                        // Sections stand apart the way System Settings' groups
+                        // do: four times the air above a heading as under it,
+                        // so each heading reads with its own rows.
                         Column {
-                            topPadding: entry.modelData.id === root.entries[0]?.id ? 0 : 14
+                            topPadding: entry.modelData.id === root.entries[0]?.id ? 0 : 24
                             bottomPadding: 6
                             spacing: 3
 

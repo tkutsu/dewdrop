@@ -46,8 +46,8 @@ Item {
     // until it has been measured, so a caller laying the icon out on its ink
     // starts from exactly where it would have been without.
     readonly property var span: root.measureKey ? Ink.spanOf(root.measureKey) : null
-    readonly property int inkX: span ? artwork.x + Math.round(root.drawn * span.left) : 0
-    readonly property int inkWidth: span ? artwork.x + Math.round(root.drawn * span.right) - inkX : box
+    readonly property int inkX: span ? artwork.restX + Math.round(root.drawn * span.left) : 0
+    readonly property int inkWidth: span ? artwork.restX + Math.round(root.drawn * span.right) - inkX : box
 
     // Shrink only. Ink cannot be taller than the box holding it, so the target
     // is a floor as well as a target: nothing comes out under it, and the cap
@@ -61,6 +61,14 @@ Item {
         return Math.min(root.size, Math.round(root.size * root.ink / root.extent));
     }
 
+    // How far towards a larger size the artwork is drawn, 0..1, about its
+    // centre, and that size in pixels: an even step up from `drawn`, so it
+    // lands on whole pixels. Rastered at the larger size the moment it sets
+    // off, because a raster scaled either way blurs: sharp at both ends, and
+    // only soft while it moves. Measurements and layout keep to `drawn`.
+    property real magnify: 0
+    property int magnifiedSize: drawn
+
     implicitWidth: box
     implicitHeight: box
 
@@ -68,12 +76,17 @@ Item {
     Item {
         id: artwork
 
+        readonly property int raster: root.magnify > 0 ? root.magnifiedSize : root.drawn
+
         // Placed by hand rather than by anchors: centring a 13px icon in a 17px
-        // box gives a half pixel, and half a pixel is a blurred icon.
-        x: Math.floor((root.implicitWidth - root.drawn) / 2)
-        y: Math.floor((root.implicitHeight - root.drawn) / 2)
-        width: root.drawn
-        height: root.drawn
+        // box gives a half pixel, and half a pixel is a blurred icon. Where
+        // the artwork sits at its own size, which the ink is measured from.
+        readonly property int restX: Math.floor((root.implicitWidth - root.drawn) / 2)
+        x: restX - (raster - root.drawn) / 2
+        y: Math.floor((root.implicitHeight - root.drawn) / 2) - (raster - root.drawn) / 2
+        width: raster
+        height: raster
+        scale: (root.drawn + (root.magnifiedSize - root.drawn) * root.magnify) / raster
 
         IconImage {
             id: image
