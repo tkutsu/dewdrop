@@ -39,7 +39,7 @@ QtObject {
     signal centreRequested(bool toggle)
     function plain(value) { return value; }
     function keyOf(value) { return ""; }
-    function pictureOf(value) { return ""; }
+    function pictureOf(value) { return value.appIcon || ""; }
     function url(value) { return value || ""; }
     function dismissNotice(value) { showing = false; }
 }
@@ -162,6 +162,17 @@ ShellRoot {
                 DrawerPins.setMode("bell", "auto");
                 Notifications.list = [Notifications.latest]; Notifications.showing = true;
                 wait(Theme.dropMs + 100);
+                const sender = notice.keyBox.children.find(item => item instanceof AppIcon);
+                const source = notice.keyBox.children.find(item => item instanceof BadgedGlyph);
+                const body = notice.keyBox.children.find(item => item.visible && item !== source && item !== sender);
+                check(!sender.hasIcon && !sender.visible, "a sender without an icon does not duplicate the notification bell");
+                check(Math.abs(body.x - source.x - source.width - notice.spacing) < 0.01,
+                      "a hidden sender leaves only one gap before the text");
+                Notifications.latest = Object.assign({}, Notifications.latest, {appIcon: Qt.resolvedUrl("sender.svg").toString()});
+                Notifications.list = [Notifications.latest];
+                until(() => sender.hasIcon, "sender artwork loads");
+                wait(100);
+                check(sender.visible, "real sender artwork remains visible beside the bell");
                 Notifications.showing = false;
                 let placedFrames = 0, peakLip = 0, reboundLip = 0;
                 for (let i = 0; i < 55; i++) {
@@ -302,6 +313,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="qs-notification-merge-") as folder:
         target = Path(folder)
         copy_shell(target)
+        (target / "sender.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="red"/></svg>')
         (target / "services/Notifications.qml").write_text(NOTIFICATIONS)
         (target / "components/NotificationsPopup.qml").write_text("import QtQuick\nItem {}\n")
         (target / "shell.qml").write_text(qml)

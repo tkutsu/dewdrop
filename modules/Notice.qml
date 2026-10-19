@@ -82,7 +82,7 @@ BarItem {
 
     // The sender uses the same fade and scale as an ordinary bar module.
     readonly property bool senderShown: !stowed && (!sliding || reveal > 0.38
-        && glassWidth >= iconInset + bell.width + spacing + icon.width + padRight)
+        && glassWidth >= iconInset + bell.width + spacing + (icon.visible ? icon.width : 0) + padRight)
     property real senderInk: senderShown ? 1 : 0
     Behavior on senderInk {
         onTargetValueChanged: {
@@ -121,6 +121,7 @@ BarItem {
 
     AppIcon {
         id: icon
+        visible: hasIcon
         scale: Theme.moduleScale(root.senderInk)
         Layout.fillHeight: true
         windowClass: root.kept.key
@@ -140,7 +141,8 @@ BarItem {
         Marquee {
             id: body
             width: Math.max(0, Math.min(implicitWidth * (root.sliding ? root.pill.textReveal : 1),
-                root.glassWidth - root.iconInset - root.padRight - bell.width - icon.width - 2 * root.spacing))
+                root.glassWidth - root.iconInset - root.padRight - bell.width - root.spacing
+                - (icon.visible ? icon.width + root.spacing : 0)))
             height: parent.height
             contentWidth: parts.implicitWidth
             active: true
@@ -156,7 +158,8 @@ BarItem {
                     Layout.fillHeight: true
                     text: root.kept.line
                     maxWidth: Math.max(1, root.room - root.padLeft - root.padRight
-                        - bell.implicitWidth - icon.implicitWidth - 2 * root.spacing
+                        - bell.implicitWidth - root.spacing
+                        - (icon.visible ? icon.implicitWidth + root.spacing : 0)
                         - (burst.shown ? burst.implicitWidth + root.spacing : 0))
                 }
 
