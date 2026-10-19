@@ -240,7 +240,9 @@ BarItem {
             enabled: !root.ringing
             // Keep the top screen pixel inside the target as it shrinks.
             margin: Theme.barInset
-            onTapped: root.togglePopup()
+            // On the press, as a bar item's popup opens (ClickArea.eagerButtons).
+            onPressedChanged: if (pressed)
+                root.togglePopup()
         }
 
         // With another module's popup up, resting on the label opens this

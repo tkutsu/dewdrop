@@ -15,7 +15,9 @@ Singleton {
 
     property Item owner: null
     property bool switched: false
-    property int browseDelayMs: 300
+    // Long enough to pass over a module on the way somewhere else, short
+    // enough that resting on one reads as instant.
+    property int browseDelayMs: 80
     property Item _pending: null
     onOwnerChanged: root.cancelBrowse()
 

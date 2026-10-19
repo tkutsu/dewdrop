@@ -217,6 +217,7 @@ BarItem {
                         [Qt.RightButton]: entry.toggleMenu,
                         [Qt.MiddleButton]: () => entry.modelData.secondaryActivate()
                     })
+                eagerButtons: entry.modelData.onlyMenu ? acceptedButtons : Qt.RightButton
 
                 onWheel: function (wheel) {
                     if (wheel.angleDelta.y !== 0)
