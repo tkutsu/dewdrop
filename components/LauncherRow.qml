@@ -95,12 +95,15 @@ Rectangle {
         }
         visible: text !== ""
         text: row.modelData.subtitle ?? ""
-        color: Theme.menuText
+        // An armed power row's question is the one subtitle meant
+        // to be read before Enter, so it is the warning colour at
+        // full strength.
+        color: row.modelData.armed ? Theme.warn : Theme.menuText
         // Under the title even on the row you are on: it is
         // context, not the thing you picked. Further under it
         // on a row the history has never seen — see `dim` in
         // services/Launcher.qml.
-        opacity: row.modelData.dim ? 0.4 : 0.6
+        opacity: row.modelData.armed ? 1 : row.modelData.dim ? 0.4 : 0.6
         font.family: Theme.bodyFont
         font.pixelSize: Theme.captionSize
         horizontalAlignment: Text.AlignRight
@@ -154,6 +157,7 @@ Rectangle {
             anchors.centerIn: parent
             visible: !!row.modelData.glyph || (!!row.modelData.icon && !icon.visible)
             text: row.modelData.glyph ?? Theme.glyph.window
+            color: row.modelData.armed ? Theme.warn : Theme.fg
             fontSize: Theme.iconSize
             implicitHeight: Theme.iconSize
         }

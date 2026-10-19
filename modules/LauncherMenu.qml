@@ -11,7 +11,7 @@ import qs.services
 // fill.
 //
 // The screen-sized surface under it, the keyboard grab and the click-to-exit
-// are OverlayWindow's, which the power menu is drawn on too.
+// are OverlayWindow's, which the settings window is drawn on too.
 OverlayWindow {
     id: root
 
@@ -186,10 +186,77 @@ OverlayWindow {
         dismissMs: Launcher.dismissMs
     }
 
+    // --- CRT exit ------------------------------------------------------------
+    // Sleep, restart, shut down and log out leave the way an old set switched
+    // off: the box flattens into a white line, the line into a dot, and the
+    // screen behind goes black (modules/Blackout.qml) and stays black while
+    // the command runs. Under Reduce motion the box only fades.
+    readonly property bool closing: Power.leaving !== null
+    property real vertical: 1
+    property real horizontal: 1
+    property real flash: 0
+    property real afterglow: 0
+    // The box's contents and shadow, cleared quickly as the exit starts and
+    // brought back as quickly if it is taken back.
+    property real live: root.closing ? 0 : 1
+
+    Behavior on live {
+        NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+    }
+
+    Connections {
+        target: Power
+        function onLeavingChanged() {
+            if (Power.leaving) {
+                if (Theme.reduceMotion)
+                    calm.start();
+                else
+                    crt.start();
+            } else if (!Power.blackout) {
+                // Taken back before it finished: the box returns as it was.
+                // After a finish the box stays flat under the black.
+                root.restore();
+            }
+        }
+    }
+
+    function restore(): void {
+        crt.stop();
+        calm.stop();
+        root.vertical = 1;
+        root.horizontal = 1;
+        root.flash = 0;
+        root.afterglow = 0;
+    }
+
+    Timer {
+        id: calm
+        interval: Theme.fadeMs
+        onTriggered: Launcher.leave()
+    }
+
+    // Compress the box vertically, then the phosphor line to a dot.
+    SequentialAnimation {
+        id: crt
+
+        ParallelAnimation {
+            NumberAnimation { target: root; property: "vertical"; to: 0.002; duration: 260; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "flash"; to: 0.8; duration: 260; easing.type: Easing.InQuad }
+        }
+        PropertyAction { target: root; property: "afterglow"; value: 1 }
+        PropertyAction { target: root; property: "vertical"; value: 0 }
+        PauseAnimation { duration: 55 }
+        NumberAnimation { target: root; property: "horizontal"; to: 0; duration: 170; easing.type: Easing.InCubic }
+        NumberAnimation { target: root; property: "afterglow"; to: 0; duration: 110 }
+        PauseAnimation { duration: 40 }
+        ScriptAction { script: Launcher.leave() }
+    }
+
     Connections {
         target: Launcher
         function onShownChanged() {
             if (Launcher.shown) {
+                root.restore();
                 root.frecencyOpen = false;
                 root.selectedAction = "activate";
                 box.bodyHeight = Qt.binding(() => box.restHeight);
@@ -385,7 +452,7 @@ OverlayWindow {
         width: box.width
         height: box.height
         visible: root.presenting && box.height > 0
-        opacity: root.contentAlpha
+        opacity: root.contentAlpha * root.live
         offset.y: 5 + 11 * root.elevation
         radius: box.radius
         blur: 20 + 28 * root.elevation
@@ -398,7 +465,7 @@ OverlayWindow {
         width: box.width
         height: box.height
         visible: root.presenting && box.height > 0
-        opacity: root.contentAlpha
+        opacity: root.contentAlpha * root.live
         offset.y: 3
         radius: box.radius
         blur: 9
@@ -449,6 +516,14 @@ OverlayWindow {
         height: Math.round(box.bodyHeight)
         visible: root.presenting
         clip: true
+        // Reduce motion has no collapse, so there the box itself fades.
+        opacity: Theme.reduceMotion ? root.live : 1
+        transform: Scale {
+            origin.x: box.width / 2
+            origin.y: box.height / 2
+            xScale: root.horizontal
+            yScale: root.vertical
+        }
         // The popups' frost, at an alpha held over the 0.3 that keeps the
         // compositor blurring behind it, and thickened over a bright screen.
         // Ease in a new backdrop reading without fading below the blur floor.
@@ -467,6 +542,23 @@ OverlayWindow {
             anchors.fill: parent
             radius: box.radius
             z: 10
+        }
+
+        // The white the CRT flattens the box into.
+        Rectangle {
+            anchors.fill: parent
+            radius: box.radius
+            z: 11
+            color: "white"
+            opacity: root.flash
+            visible: opacity > 0
+        }
+
+        // Nothing in a box on its way out is clickable.
+        MouseArea {
+            anchors.fill: parent
+            z: 12
+            enabled: root.closing
         }
 
         // Defocus the departing glass, then fade only in the final frames so
@@ -496,7 +588,7 @@ OverlayWindow {
             // same thing: what the box grew for the panel is not the list's
             // to lay out in.
             width: Math.round(root.boxWidth + root.extraWidth) - root.boxPad * 2
-            opacity: root.contentAlpha
+            opacity: root.contentAlpha * root.live
             spacing: root.contentGap
 
             // Keep scrolling text clipped to the area beside the fixed icon.
@@ -655,6 +747,14 @@ OverlayWindow {
                     // Keys handlers run before TextInput's own, so the navigation
                     // keys are ours and everything else still types.
                     Keys.onPressed: function (event) {
+                        // Mid-exit only Escape counts, and it takes the
+                        // command back before it runs.
+                        if (root.closing) {
+                            if (event.key === Qt.Key_Escape)
+                                Power.leaving = null;
+                            event.accepted = true;
+                            return;
+                        }
                         // Use the platform's editing shortcuts before launcher navigation.
                         // With nothing selected in the line, copy the file's path.
                         if (event.matches(StandardKey.Copy)) {
@@ -1023,7 +1123,7 @@ OverlayWindow {
         // It shares the query's fixed baseline and content fade.
         Item {
             x: Math.round(root.boxWidth + root.extraWidth) - root.boxPad + root.panelGap
-            opacity: root.contentAlpha
+            opacity: root.contentAlpha * root.live
             y: content.y
             width: root.panelWidth
             height: Math.round(box.bodyHeight) - root.boxPad * 2
@@ -1067,6 +1167,26 @@ OverlayWindow {
                     glyph: Launcher.selected ? (Launcher.selected.glyph ?? "") : ""
                 }
             }
+        }
+    }
+
+    // The phosphor line the box ends as, centred where the box was.
+    Rectangle {
+        x: Math.round(box.x + (box.width - width) / 2)
+        y: Math.round(box.y + (box.height - height) / 2)
+        width: Math.max(3, box.width * root.horizontal)
+        height: 3
+        radius: height / 2
+        color: "white"
+        opacity: root.afterglow
+        visible: opacity > 0
+
+        layer.enabled: root.afterglow > 0
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: "white"
+            shadowBlur: 0.6
+            shadowOpacity: 0.8
         }
     }
 }

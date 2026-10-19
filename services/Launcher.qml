@@ -115,6 +115,9 @@ Singleton {
     // Tasks and timers share a comma: plain text writes down a task, while a
     // leading duration or time of day sets a timer or alarm.
     readonly property string taskPrefix: ","
+    // Sleep, restart, shut down and the rest. The bang, which is how loud
+    // turning the machine off should be; the bar's right-click opens it too.
+    readonly property string powerPrefix: "!"
 
     readonly property var modes: [
         { prefix: root.calcPrefix, hint: "calc" },
@@ -124,7 +127,8 @@ Singleton {
         { prefix: root.taskPrefix, hint: "tasks, timers, events" },
         { prefix: root.musicPrefix, hint: "music" },
         { prefix: root.enginePrefix, hint: "web" },
-        { prefix: root.mailPrefix, hint: "email" }
+        { prefix: root.mailPrefix, hint: "email" },
+        { prefix: root.powerPrefix, hint: "power" }
     ]
 
     // What the hint in the query line says. Normally the modes, assembled
@@ -163,6 +167,10 @@ Singleton {
     }
     property string query: ""
     property int index: 0
+    // The power row asking for its second press. Anything else the
+    // selection or the query does takes the question back.
+    property string armed: ""
+    onIndexChanged: root.armed = ""
     onResultsChanged: if (root.index >= root.results.length)
         root.index = Math.max(0, root.results.length - 1)
 
@@ -187,6 +195,7 @@ Singleton {
         case root.musicPrefix: return Theme.glyph.launcherMusic;
         case root.enginePrefix: return Theme.glyph.launcherWeb;
         case root.mailPrefix: return Theme.glyph.mailUnread;
+        case root.powerPrefix: return Theme.glyph.powerShutdown;
         case root.taskPrefix: {
             switch (Tasks.plan(c.text).kind) {
             case "alarm": return Theme.glyph.alarm;
@@ -249,6 +258,7 @@ Singleton {
     // A changed query starts at its first match.
     onQueryChanged: {
         root.index = 0;
+        root.armed = "";
 
         root.route();
     }
@@ -296,6 +306,7 @@ Singleton {
         root.rankingNow = Date.now();
         root.query = "";
         root.index = 0;
+        root.armed = "";
         // File and clipboard results are refreshed for each opening.
         for (const provider of Object.values(root.providers))
             provider.cancel();
@@ -305,6 +316,9 @@ Singleton {
     function hide(): void {
         Tasks.commit();
         root.shown = false;
+        root.armed = "";
+        // Closing mid-CRT takes the command back with it.
+        Power.leaving = null;
         // Closing is not a keystroke, so route() never runs to stop the clocks
         // the modes keep; a run they started against a box that is gone would
         // be work nobody sees.
@@ -377,7 +391,8 @@ Singleton {
             [root.windowPrefix]: rest => root.windowResults(rest),
             [root.musicPrefix]: rest => LauncherMusic.results(rest),
             [root.mailPrefix]: rest => LauncherMail.results(rest),
-            [root.taskPrefix]: rest => root.taskResults(rest)
+            [root.taskPrefix]: rest => root.taskResults(rest),
+            [root.powerPrefix]: rest => root.powerResults(rest)
         })
 
     readonly property var results: {
@@ -579,20 +594,6 @@ Singleton {
 
     // --- power ---------------------------------------------------------------
 
-    // The power menu's five, plus lock. Lock is not in Power.actions and is not
-    // meant to be — the menu left it out on purpose (see services/Power.qml) —
-    // but it is the one of the six anybody types, and a launcher is where you
-    // type it.
-    readonly property var powerCommands: [
-        {
-            key: "lock",
-            label: "lock",
-            glyph: Theme.glyph.lock,
-            arg: "--lock",
-            confirm: false
-        }
-    ].concat(Power.actions)
-
     // The other words each command answers to. The labels alone would not
     // find "restart", "sleep" or "power off", which are what these are called
     // half the time.
@@ -605,6 +606,20 @@ Singleton {
             killprocess: "kill process window xkill"
         })
 
+    // An armed row trades its glyph for a tick and its subtitle for the
+    // question the Mac would ask.
+    function powerRow(a) {
+        const armed = root.armed === a.key;
+        return {
+            kind: "power",
+            action: a,
+            armed: armed,
+            glyph: armed ? Theme.glyph.powerConfirm : a.glyph,
+            title: a.label,
+            subtitle: armed ? a.question : "power"
+        };
+    }
+
     function powerMatches(terms) {
         // With nothing typed the list is pure app history. The machine's off
         // switch has no business at the top of that.
@@ -612,7 +627,7 @@ Singleton {
             return [];
 
         const scored = [];
-        for (const a of root.powerCommands) {
+        for (const a of Power.actions) {
             if (Settings.hiddenApps.includes("power:" + a.key))
                 continue;
             // Aliases score just under the label, so a command found by its
@@ -622,16 +637,31 @@ Singleton {
                 continue;
             scored.push({
                 s: m + root.frecencyWeight * Math.log2(1 + root.frecency("power:" + a.key)),
-                row: {
-                    kind: "power",
-                    action: a,
-                    glyph: a.glyph,
-                    title: a.label,
-                    subtitle: "power"
-                }
+                row: root.powerRow(a)
             });
         }
         return scored;
+    }
+
+    // The ! mode: the whole menu in its own order, narrowed and ranked once
+    // something is typed.
+    function powerResults(query) {
+        const terms = root.prepTerms(query);
+        if (!terms.length)
+            return Power.actions.filter(a => !Settings.hiddenApps.includes("power:" + a.key)).map(a => root.powerRow(a));
+        return root.powerMatches(terms).sort((a, b) => b.s - a.s).map(x => x.row);
+    }
+
+    // The end of the CRT the box plays for Power.leaving: run the command
+    // under the black it left, then close. Run first, so the black never
+    // lapses between the exit and the hold.
+    function leave(): void {
+        const a = Power.leaving;
+        if (!a)
+            return;
+        root.bump("power:" + a.key);
+        Power.run(a.arg, true);
+        root.hide();
     }
 
     // --- tasks and timers ----------------------------------------------------
@@ -1112,13 +1142,21 @@ Singleton {
                 root.copy(r.answer);
             },
             power: (r, i) => {
+                // The irreversible ones ask on the first press and act on
+                // the second, like every destructive button on the bar.
+                if (r.action.confirm && !r.armed) {
+                    root.armed = r.action.key;
+                    return;
+                }
+                // Leaving the session or the screen goes out through the
+                // box's CRT (LauncherMenu.qml), which calls leave().
+                if (Power.fades(r.action.arg)) {
+                    Power.leaving = r.action;
+                    return;
+                }
                 root.hide();
                 root.bump("power:" + r.action.key);
-                // The irreversible ones keep their second look. See Power.arm.
-                if (r.action.confirm)
-                    Power.arm(r.action);
-                else
-                    Power.run(r.action.arg);
+                Power.run(r.action.arg);
             },
             url: (r, i) => {
                 root.hide();

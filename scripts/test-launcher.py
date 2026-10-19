@@ -37,10 +37,16 @@ MOCKS = {
             if (device.connected) device.disconnect();
             else device.connect();
         }''',
-    "Power": '''property var armed: null
-        property var actions: [{key: "shutdown", label: "shut down", glyph: "power", arg: "--poweroff", confirm: true}]
-        function arm(action) { armed = action; }
-        function run(arg) { throw new Error("Unexpected power action: " + arg); }''',
+    "Power": '''property var leaving: null
+        property bool blackout: false
+        property var ran: []
+        property var actions: [
+            {key: "suspend", label: "suspend", name: "Sleep", glyph: "sleep", arg: "--suspend", confirm: false},
+            {key: "shutdown", label: "shut down", name: "Shut Down", question: "Are you sure you want to shut down your computer now?", glyph: "power", arg: "--poweroff", confirm: true},
+            {key: "lock", label: "lock", name: "Lock Screen", glyph: "lock", arg: "--lock", confirm: false}
+        ]
+        function fades(arg) { return ["--poweroff", "--reboot", "--logout", "--suspend"].includes(arg); }
+        function run(arg, keepBlack) { ran = ran.concat([arg]); blackout = !!keepBlack && fades(arg); }''',
     "LauncherMusic": '''property var rows: []
         property var open: ({})
         property int folds: 0
@@ -464,7 +470,41 @@ ShellRoot {
             check(off >= 0, "existing power search preserved");
             Launcher.index = off;
             Launcher.activate(off);
-            check(Power.armed?.key === "shutdown", "power confirmation preserved");
+            check(Launcher.armed === "shutdown" && Launcher.shown && !Power.leaving && !Power.ran.length, "first press arms shut down without running it");
+            check(Launcher.results[off].armed && Launcher.results[off].glyph === Theme.glyph.powerConfirm && Launcher.results[off].subtitle.startsWith("Are you sure"), "armed row shows the tick and the question");
+            Launcher.activate(off);
+            check(Power.leaving?.key === "shutdown" && Launcher.shown && !Power.ran.length, "second press starts the exit and holds the command for it");
+            Launcher.leave();
+            check(Power.ran.join() === "--poweroff" && Power.blackout && !Launcher.shown && Power.leaving === null, "the exit's end runs the command under black and closes");
+            Power.blackout = false;
+            Power.ran = [];
+
+            Launcher.show();
+            Launcher.query = "!";
+            check(Launcher.classification.mode === "!" && Launcher.queryIcon === Theme.glyph.powerShutdown, "! is the power mode");
+            check(Launcher.results.map(r => r.action.key).join() === "suspend,shutdown,lock", "! lists every power action in menu order");
+            Launcher.index = 1;
+            Launcher.activate(1);
+            check(Launcher.armed === "shutdown", "! rows arm too");
+            Launcher.index = 2;
+            check(Launcher.armed === "" && !Launcher.results[1].armed, "moving off a row disarms it");
+            Launcher.index = 1;
+            Launcher.activate(1);
+            Launcher.query = "!s";
+            check(Launcher.armed === "", "typing disarms");
+            Launcher.activate(0);
+            Launcher.hide();
+            check(Power.leaving === null && !Power.ran.length, "closing mid-exit takes the command back");
+            Launcher.openWith("!");
+            Launcher.query = "!lo";
+            check(Launcher.results[0]?.action.key === "lock", "! narrows by what is typed");
+            Launcher.activate(0);
+            check(Power.ran.join() === "--lock" && !Power.blackout && !Launcher.shown && Power.leaving === null, "lock runs at once, without the exit");
+            Power.ran = [];
+            Launcher.openWith("!");
+            check(Launcher.shown && Launcher.query === "!", "right-click opens on the power rows");
+            Launcher.openWith("!");
+            check(!Launcher.shown, "a second right-click closes it");
 
             Launcher.db = ({});
             Launcher.show();
@@ -590,7 +630,7 @@ ShellRoot {
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
-            check(Launcher.modes.map(mode => mode.prefix).join("") === '=\"_/,#%@', "requested mode hint order");
+            check(Launcher.modes.map(mode => mode.prefix).join("") === '=\"_/,#%@!', "requested mode hint order");
             check(!keys.findChild(menu, "disclosure"), "chevron removed");
             const files = modes.children.find(child => child.modelData?.prefix === "/");
             check(files.children[0].font.bold && files.children[1].font.pixelSize < files.children[0].font.pixelSize, "mode symbols are bold and labels smaller");
@@ -895,6 +935,37 @@ ShellRoot {
             check(Launcher.active && menu.presenting && box.height > 0, "window survives past the old 160ms cutoff");
             keys.wait(100);
             check(!Launcher.active && !menu.presenting && menu.contentAlpha === 0 && menu.exitBlur === 1 && Math.abs(menu.widthRatio - 1.03) < .0001, "exit finishes before the window is released");
+
+            // The CRT: the box flattens and the command waits for the end.
+            Launcher.show(); keys.wait(400);
+            input.adopt("!"); keys.wait(250);
+            const suspendRow = Launcher.results.findIndex(r => r.action?.key === "suspend");
+            Launcher.index = suspendRow;
+            menu.accept(false);
+            keys.wait(150);
+            check(Power.leaving?.key === "suspend" && menu.closing && menu.vertical < 1 && menu.live === 0 && !Power.ran.length, "the box flattens before the command runs");
+            keys.keyClick(Qt.Key_Escape); keys.wait(150);
+            check(Power.leaving === null && Launcher.shown && menu.vertical === 1 && menu.flash === 0 && menu.live === 1, "Escape mid-exit takes it back and restores the box");
+            check(Launcher.query === "!", "Escape mid-exit leaves the query alone");
+            menu.accept(false);
+            keys.wait(800);
+            check(Power.ran.join() === "--suspend" && Power.blackout && !Launcher.shown && Power.leaving === null, "the command runs once the CRT ends");
+            check(menu.vertical === 0 && menu.horizontal === 0 && menu.afterglow === 0, "the box stays flat under the black");
+            Power.blackout = false;
+            Power.ran = [];
+            keys.wait(250);
+            Settings.reduceMotion = true;
+            Launcher.show(); keys.wait(50);
+            input.adopt("!"); keys.wait(50);
+            Launcher.index = suspendRow;
+            menu.accept(false);
+            keys.wait(60);
+            check(menu.vertical === 1 && box.opacity < 1, "reduced motion fades the box rather than collapsing it");
+            keys.wait(250);
+            check(Power.ran.join() === "--suspend" && !Launcher.shown, "reduced motion still runs after its fade");
+            Settings.reduceMotion = false;
+            Power.blackout = false;
+            Power.ran = [];
             console.log("PASS: launcher menu disclosure, modes, selection reset and interrupted motion");
         } catch (error) { console.log("FAIL: " + error); }
         Qt.quit();
@@ -987,7 +1058,7 @@ def main():
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property string home: "/tmp"; property string editor: "/usr/bin/true"; property string fileSearchIgnore: ""; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
-        (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", mailUnread: "mail", vol: ["sound"], wifiStrength: ["network"]}) }\n')
+        (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
         (components / "FileQuery.qml").write_text((ROOT / "components/QueuedProcess.qml").read_text())
         (target / "shell.qml").write_text(TEST)
