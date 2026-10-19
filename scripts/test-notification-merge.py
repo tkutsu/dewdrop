@@ -130,6 +130,12 @@ ShellRoot {
                           "sender shares the module fade and scale");
                     fading = fading || (sender.opacity > 0 && sender.opacity < 1);
                     scaling = scaling || (sender.scale > 0.8 && sender.scale < 1);
+                    if (progress === 0) {
+                        const position = source.mapToItem(notice, 0, 0);
+                        check(Math.abs(position.x + source.width
+                              - notice.glassLeft - notice.glassWidth + notice.iconInset) < 0.1,
+                              "bell follows the moving right edge before the handoff");
+                    }
                     if (progress > 0 && progress < 1) {
                         frames++;
                         const a = source.mapToItem(window.contentItem, 0, 0);
@@ -150,8 +156,8 @@ ShellRoot {
                       "handoff ends with one visible bell");
                 if (!closing) {
                     const body = notice.keyBox.children.find(item => item.visible && item !== source && item !== sender);
-                    check(source.x + source.width < sender.x && sender.x + sender.width < body.x,
-                          "notification shows bell, then app icon, then text");
+                    check(sender.x + sender.width < body.x && body.x + body.width < source.x,
+                          "notification shows app icon, then text, then bell");
                     check(notice.width <= notice.room, "the extra bell stays within the available room");
                 }
             }
@@ -166,8 +172,9 @@ ShellRoot {
                 const source = notice.keyBox.children.find(item => item instanceof BadgedGlyph);
                 const body = notice.keyBox.children.find(item => item.visible && item !== source && item !== sender);
                 check(!sender.hasIcon && !sender.visible, "a sender without an icon does not duplicate the notification bell");
-                check(Math.abs(body.x - source.x - source.width - notice.spacing) < 0.01,
-                      "a hidden sender leaves only one gap before the text");
+                check(Math.abs(source.x - body.x - body.width - notice.spacing) < 0.01
+                      && Math.abs(body.x) < 0.01,
+                      "a hidden sender leaves the text first and only one gap before the bell");
                 Notifications.latest = Object.assign({}, Notifications.latest, {appIcon: Qt.resolvedUrl("sender.svg").toString()});
                 Notifications.list = [Notifications.latest];
                 until(() => sender.hasIcon, "sender artwork loads");
