@@ -938,6 +938,15 @@ ShellRoot {
 
             // The CRT: the box flattens and the command waits for the end.
             Launcher.show(); keys.wait(400);
+            check(menu.veil === 0, "searching leaves the screen alone");
+            input.adopt("!"); keys.wait(20);
+            check(menu.veil >= menu.blurFloor, "the veil starts at the blur line, so the blur arrives with the mode");
+            keys.wait(230);
+            check(menu.veil === menu.veilDepth, "the veil settles at its depth in ! mode");
+            input.adopt("sleep"); keys.wait(60);
+            check(menu.veil === 0 || menu.veil >= menu.blurFloor, "the veil never lingers under the blur line");
+            keys.wait(100);
+            check(menu.veil === 0, "leaving ! mode lifts the veil");
             input.adopt("!"); keys.wait(250);
             const suspendRow = Launcher.results.findIndex(r => r.action?.key === "suspend");
             Launcher.index = suspendRow;
