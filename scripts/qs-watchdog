@@ -14,10 +14,12 @@
 #
 # Those hangs followed wakes whose kernel log has nvidia-drm's semsurf error
 # ("Failed to register auto-value-update ... sync FD semaphore surface"), and
-# lived in EGL, so a bar waking to that is restarted outright. Vulkan rode
-# those wakes out but froze the bar whenever a window closed (see shell.qml).
-# The first tick after a wake skips the probes: they'd catch the bar still
-# resuming and call it frozen.
+# lived in EGL. Vulkan rode those wakes out but froze the bar whenever a
+# window closed (see shell.qml). Such wakes used to restart the bar outright;
+# since 2026-10-19 they are only logged, to see whether the hang still comes,
+# and a bar that does freeze is left to the probes below. The first tick after
+# a wake skips the probes: they'd catch the bar still resuming and call it
+# frozen.
 #
 # A freeze can also leave the bar deaf. Hyprland drops an event-socket client
 # that falls 64 events behind, and Quickshell never reconnects (upstream issue
@@ -149,10 +151,7 @@ while sleep "$INTERVAL"; do
     [ "$lost" ] && log "watching quickshell $pid"
     lost=""
     if [ $((tick - last)) -gt $((INTERVAL * 4)) ]; then
-        if semsurf_since "$last"; then
-            log "wake logged the semsurf error, restarting quickshell $pid"
-            restart
-        fi
+        semsurf_since "$last" && log "wake logged the semsurf error, leaving quickshell $pid to the probes"
         continue
     fi
     [ "$(ps -o etimes= -p "$pid")" -ge 15 ] || continue   # still loading its config
