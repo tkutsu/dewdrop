@@ -29,6 +29,10 @@ MouseArea {
     property list<int> moreButtons: []
     // What the description says before the pointer line (BarItem's tooltip).
     property string hint: ""
+    // Buttons whose entry runs on the press rather than the click: the ones
+    // that open a popup, which like a Mac's menus is down the moment the
+    // button is, not a release later.
+    property int eagerButtons: Qt.NoButton
     readonly property bool presses: !!(root.acceptedButtons & Qt.LeftButton) && !!root.pressAction
 
     // Qt's accessibility has nothing for a right or middle click or a hover,
@@ -52,9 +56,19 @@ MouseArea {
 
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
-    onClicked: function (mouse) {
-        const action = root.actions[mouse.button];
+    function run(button: int): void {
+        const action = root.actions[button];
         if (action)
             action();
+    }
+
+    onPressed: function (mouse) {
+        if (root.eagerButtons & mouse.button)
+            root.run(mouse.button);
+    }
+
+    onClicked: function (mouse) {
+        if (!(root.eagerButtons & mouse.button))
+            root.run(mouse.button);
     }
 }
