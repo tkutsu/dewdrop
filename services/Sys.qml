@@ -762,8 +762,7 @@ Singleton {
     }
 
     // Started by the first watcher, which is when the first detail sample
-    // runs — the popup counts itself in only once its reveal has finished, so
-    // that this does not land in the middle of the slide.
+    // runs.
     Timer {
         interval: 1500
         running: root.watchers > 0
@@ -785,16 +784,29 @@ Singleton {
     // hours ago to subtract, and a rate over that gap is an average of the
     // afternoon, not the load now. Dropped, so the first sample reads idle
     // and the second is honest — the same as a first popup of the session.
-    // The cheap half is asked for at once rather than at its next tick.
+    // The cheap half is asked for at once rather than at its next tick, and
+    // both halves again a moment later rather than at theirs, so the rates
+    // are real a third of a second in instead of two seconds.
     property bool watched: false
+
+    Timer {
+        id: honest
+        interval: 300
+        onTriggered: {
+            root.sample();
+            root.sampleDetail();
+        }
+    }
 
     onWatchersChanged: {
         const watching = watchers > 0;
         if (watching === root.watched)
             return;
         root.watched = watching;
-        if (!watching)
+        if (!watching) {
+            honest.stop();
             return;
+        }
         root.gpuPresent = true;
         root._cpuPrev = null;
         root._corePrev = [];
@@ -805,5 +817,6 @@ Singleton {
         root._procPrev = {};
         root._drivePrev = {};
         root.sample();
+        honest.restart();
     }
 }
