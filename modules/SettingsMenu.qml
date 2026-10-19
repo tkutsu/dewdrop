@@ -139,7 +139,7 @@ OverlayWindow {
         root.shownInLauncher("desktop:bluetooth-power", "Bluetooth", { glyph: Theme.glyph.bluetooth })
     ]
 
-    readonly property var powerRows: Launcher.powerCommands.map(p => root.shownInLauncher("power:" + p.key, p.name ?? (p.label[0].toUpperCase() + p.label.slice(1)), { glyph: p.glyph }))
+    readonly property var powerRows: Power.actions.map(p => root.shownInLauncher("power:" + p.key, p.name, { glyph: p.glyph }))
 
     function feedAddressProblem(value: string): string {
         return /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/.test(value)

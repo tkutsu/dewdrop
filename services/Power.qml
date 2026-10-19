@@ -5,45 +5,34 @@ import Quickshell
 import Quickshell.Io
 import qs
 
-// What the power menu offers and what it does about it.
+// What the launcher's power rows offer and what they do about it.
 //
 // The actions themselves stay in ~/_scripts/power.sh, the way rofi-power.sh
-// delegated to it: SUPER+SHIFT+L, the bar's launcher button and anything else
-// that wants to shut the machine down all end up in the same place, and this
-// only decides what to show and when to ask first.
+// delegated to it: the launcher's "!" mode, the bar's launcher button and
+// anything else that wants to shut the machine down all end up in the same
+// place, and this only decides what to offer and how to leave the screen.
 Singleton {
     id: root
 
     readonly property string script: Paths.script("power.sh")
 
-    // Whether the menu is wanted on screen. Everything that opens or closes the
-    // menu goes through here rather than reaching for the window.
-    property bool shown: false
+    // The action whose CRT exit the launcher box is playing. The command
+    // runs when that finishes (Launcher.leave); clearing this cancels it.
+    property var leaving: null
 
-    // Whether the window exists, which is not the same thing: PowerMenu.qml
-    // folds itself shut when `shown` goes false, so the window has to outlive
-    // the intent by the length of that. See qs.Linger.
-    readonly property bool active: linger.active || root.blackout
-
-    // Outlive the menu until session teardown or the wake signal after Sleep.
+    // Outlive the launcher until session teardown or the wake signal after Sleep.
     property bool blackout: false
 
-    Linger {
-        id: linger
+    // Whether the screen is going or gone black: the Blackout window's life.
+    readonly property bool dark: root.leaving !== null || root.blackout
 
-        shown: root.shown
-        hold: Theme.fadeMs
-    }
-
-    // The same five rofi-power.sh listed, in the Apple menu's order: sleep,
-    // restart, shut down, then log out. `confirm` marks the ones it would not
-    // do without asking twice — the irreversible ones — and `question` is
-    // what the Mac asks before each of them. `label` is the launcher's word
-    // for it; `name` is the menu's plain action label.
+    // In the Apple menu's order: sleep, restart, shut down, lock, then log
+    // out. `confirm` marks the ones that ask twice — the irreversible ones —
+    // and `question` is what the Mac asks before each of them. `label` is the
+    // launcher's word for it; `name` is the settings page's.
     //
-    // lockscreen and hibernate stay out for the reasons the old script gave:
-    // lock was unwanted, and hibernate cannot work on this machine (zram-only
-    // swap, no resume= parameter).
+    // Hibernate stays out: it cannot work on this machine (zram-only swap,
+    // no resume= parameter).
     readonly property var actions: [
         {
             key: "suspend",
@@ -72,6 +61,14 @@ Singleton {
             confirm: true
         },
         {
+            key: "lock",
+            label: "lock",
+            name: "Lock Screen",
+            glyph: Theme.glyph.lock,
+            arg: "--lock",
+            confirm: false
+        },
+        {
             key: "logout",
             label: "log out",
             name: "Log Out",
@@ -91,29 +88,14 @@ Singleton {
         }
     ]
 
-    // An action the menu should come up already asking about, rather than
-    // showing its five. The launcher sets this on its way out: picking
-    // "reboot" there is picking it here, and here is still where the second
-    // look happens — the launcher has one row per action and nowhere to put a
-    // yes/no strip, and an irreversible thing should not lose its confirm just
-    // because it was reached by typing.
-    property var armed: null
-
-    function toggle(): void {
-        root.blackout = false;
-        root.shown = !root.shown;
+    // The ones that end the session or the screen, and so leave through the CRT.
+    function fades(arg: string): bool {
+        return ["--poweroff", "--reboot", "--logout", "--suspend"].includes(arg);
     }
 
-    function arm(action): void {
-        root.blackout = false;
-        root.armed = action;
-        root.shown = true;
-    }
-
-    // Ordinary actions close first; CRT exits keep black through teardown/sleep.
+    // Ordinary actions just run; CRT exits keep black through teardown/sleep.
     function run(arg: string, keepBlack: bool): void {
-        root.blackout = keepBlack && ["--poweroff", "--reboot", "--logout", "--suspend"].includes(arg);
-        root.shown = false;
+        root.blackout = keepBlack && root.fades(arg);
         if (root.blackout) {
             action.command = [root.script, arg];
             action.running = true;
@@ -152,26 +134,6 @@ Singleton {
                 console.warn("Power action failed: " + code);
                 root.blackout = false;
             }
-        }
-    }
-
-    // SUPER+SHIFT+L reaches the menu through this:
-    //   qs ipc call power toggle
-    IpcHandler {
-        target: "power"
-
-        function toggle(): void {
-            root.toggle();
-        }
-
-        function open(): void {
-            root.blackout = false;
-            root.shown = true;
-        }
-
-        function close(): void {
-            root.blackout = false;
-            root.shown = false;
         }
     }
 }

@@ -20,12 +20,11 @@ BarItem {
         text: Theme.glyph.launcher
     }
 
-    // Left opens the launcher, right the power menu — as it always was,
-    // except both are ours now rather than rofi modes. Both toggle, so a
-    // second click closes what the first opened.
+    // Left opens the launcher, right opens it on its power rows (the "!"
+    // mode). Both toggle, so a second click closes what the first opened.
     actions: ({
             [Qt.LeftButton]: () => Launcher.toggle(),
-            [Qt.RightButton]: () => Power.toggle(),
+            [Qt.RightButton]: () => Launcher.openWith(Launcher.powerPrefix),
             [Qt.MiddleButton]: () => Launcher.toggle()
         })
 }

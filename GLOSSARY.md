@@ -1,6 +1,6 @@
 # Quickshell Desktop Shell
 
-This shell provides the desktop bar, launcher, and power menu, with controls and information for the current desktop session.
+This shell provides the desktop bar and launcher, with controls and information for the current desktop session.
 
 ## Language
 
@@ -71,7 +71,7 @@ A short description of a bar item's name or state, shown after the pointer rests
 _Avoid_: Popup, help menu
 
 **Overlay**:
-A screen-sized presentation for the launcher or power menu on the focused screen. The open menu takes keyboard input, and a click outside its box dismisses it.
+A screen-sized presentation for the launcher or settings window on the focused screen. The open menu takes keyboard input, and a click outside its box dismisses it.
 _Avoid_: Popup, fullscreen application
 
 ### Launcher

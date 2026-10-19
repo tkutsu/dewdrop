@@ -117,7 +117,7 @@ def main():
         menu.write_text(menu.read_text().replace("layer.enabled: contentHeight + topMargin + bottomMargin > height", "layer.enabled: false"))
         (target / "components/BackdropProbe.qml").write_text("import QtQuick\nItem { property var screen; property rect area; property bool active; property bool ringOnly: false; property real luma: 0.5 }")
         (target / "services/Keyboard.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { property var layouts: [] }")
-        (target / "services/Launcher.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { property var powerCommands: [] }")
+        (target / "services/Power.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { property var actions: [] }")
         (target / "services/Tasks.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var lists: []; property var defaultList: ({id: ""}) }')
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),

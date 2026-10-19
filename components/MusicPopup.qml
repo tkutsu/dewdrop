@@ -568,8 +568,8 @@ Popup {
                                 // changes with the question: a list with a
                                 // cross on it is "delete this", and the tick
                                 // that replaces it is "yes, that" — the same
-                                // pair the power menu puts up before it turns
-                                // the machine off.
+                                // tick the launcher's power rows put up before
+                                // they turn the machine off.
                                 name: (entry.armed ? "Confirm delete " : "Delete ") + entry.modelData,
                                 glyph: entry.armed ? Theme.glyph.powerConfirm : Theme.glyph.playlistRemove,
                                 live: true,
