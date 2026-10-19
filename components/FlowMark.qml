@@ -17,11 +17,31 @@ Liquid {
     property real damping: Theme.markDamping
 
     // How far the glass has come up off the pill, 0..1: a press held
-    // on an icon lifts it a pixel towards the pill's edges and
+    // on an icon lifts it `rise` pixels towards the pill's edges and
     // lights it a step, and letting go drops it back on the spring.
-    // A pixel, because the bar's surface ends at the pill's foot and
-    // the mark cannot swell past it the way a lens on a phone does.
-    property real lift: root.held ? 1 : 0
+    // A pixel by default, because the bar's surface ends at the pill's
+    // foot and the mark cannot swell past it the way a lens on a phone
+    // does.
+    property real rise: 1
+    // With `liftsToTravel`, the glass also lifts while it runs to a new
+    // place, and settles back a moment after it lands.
+    property bool liftsToTravel: false
+    readonly property bool travelling: Math.abs(headLeft - wantLeft) > 1 || Math.abs(headRight - wantRight) > 1
+    property bool afloat: false
+    onTravellingChanged: {
+        if (travelling && liftsToTravel && !Theme.reduceMotion) {
+            landing.stop();
+            afloat = true;
+        } else {
+            landing.restart();
+        }
+    }
+    Timer {
+        id: landing
+        interval: 200
+        onTriggered: root.afloat = false
+    }
+    property real lift: root.held || root.afloat ? 1 : 0
 
     Behavior on lift {
         SpringAnimation {
@@ -31,7 +51,7 @@ Liquid {
         }
     }
 
-    readonly property real edge: inset - lift
+    readonly property real edge: inset - rise * lift
     readonly property real slabTop: root.slabY + edge
     readonly property real thickness: root.slabHeight - edge * 2
     readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
@@ -89,8 +109,8 @@ Liquid {
     required property real wallRight
 
     // A long jump can overshoot by more than a narrow workspace's width.
-    readonly property real frontLeft: Math.min(atFirst ? Math.max(headLeft - lift, wallLeft) : headLeft - lift, atLast ? wallRight : Infinity)
-    readonly property real frontRight: Math.max(frontLeft, atLast ? Math.min(headRight + lift, wallRight) : headRight + lift)
+    readonly property real frontLeft: Math.min(atFirst ? Math.max(headLeft - rise * lift, wallLeft) : headLeft - rise * lift, atLast ? wallRight : Infinity)
+    readonly property real frontRight: Math.max(frontLeft, atLast ? Math.min(headRight + rise * lift, wallRight) : headRight + rise * lift)
 
     box0: Qt.vector4d(frontLeft, slabTop, frontRight - frontLeft, thickness)
     reach: 0
