@@ -196,7 +196,7 @@ Singleton {
         case root.musicPrefix: return Theme.glyph.launcherMusic;
         case root.enginePrefix: return Theme.glyph.launcherWeb;
         case root.mailPrefix: return Theme.glyph.mailUnread;
-        case root.powerPrefix: return Theme.glyph.powerShutdown;
+        case root.powerPrefix: return Theme.glyph.launcherPower;
         case root.taskPrefix: {
             switch (Tasks.plan(c.text).kind) {
             case "alarm": return Theme.glyph.alarm;

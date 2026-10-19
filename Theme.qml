@@ -759,6 +759,7 @@ Singleton {
         launcherWindow: "\u{f10ac}",  // nf-md-dock_window
         launcherMusic: "\u{f075a}",   // nf-md-music
         launcherWeb: "\u{f01e7}",     // nf-md-earth
+        launcherPower: "\uf1e6",      // nf-fa-plug
 
         // Every glyph here is Material Design, outlined wherever the set has
         // an outline — the bar and the launcher used to mix in Font Awesome

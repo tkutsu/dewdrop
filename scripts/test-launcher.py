@@ -481,7 +481,7 @@ ShellRoot {
 
             Launcher.show();
             Launcher.query = "!";
-            check(Launcher.classification.mode === "!" && Launcher.queryIcon === Theme.glyph.powerShutdown, "! is the power mode");
+            check(Launcher.classification.mode === "!" && Launcher.queryIcon === Theme.glyph.launcherPower, "! is the power mode");
             check(Launcher.results.map(r => r.action.key).join() === "suspend,shutdown,lock", "! lists every power action in menu order");
             Launcher.index = 1;
             Launcher.activate(1);
@@ -645,10 +645,11 @@ ShellRoot {
                 ["example.com/docs", Theme.glyph.launcherWeb], ["no-fixture-can-match-this", Theme.glyph.launcherWeb],
                 ["_zzmissingwindow", Theme.glyph.launcherWeb],
                 ["@", Theme.glyph.mailUnread], ["person@example.com", Theme.glyph.mailUnread],
+                ["!", Theme.glyph.launcherPower],
                 ["", Theme.glyph.launcher]
             ]) {
                 input.adopt(query); keys.wait(30);
-                check(searchIcon.text === icon && searchIcon.y === 1, "query icon and vertical offset for " + query);
+                check(searchIcon.text === icon && searchIcon.y === 0, "query icon and vertical offset for " + query);
             }
             keys.wait(Theme.rollMs * 1.45 + 180);
             const arrivingIcon = keys.findChild(searchIcon, "arrivingIcon");
@@ -695,43 +696,74 @@ ShellRoot {
             const iconTop = Math.round(iconPosition.y);
             const textLeft = Math.round(input.mapToItem(queryLine, 0, 0).x + input.leftPadding);
             const iconArea = keys.grabImage(queryLine);
-            input.adopt("W".repeat(160)); keys.wait(250);
-            check(input.contentWidth > input.width, "long query scrolls horizontally");
-            check(input.leftFade > 0 && input.rightFade === 0, "long query softens the clipped beginning while keeping the caret clear: " + input.leftFade + "," + input.rightFade + " start=" + input.positionToRectangle(0).x + " end=" + input.positionToRectangle(input.length).x + " cursor=" + input.cursorRectangle.x);
-            input.cursorPosition = 0; keys.wait(100);
-            check(input.leftFade === 0 && input.rightFade > 0, "Home restores the beginning and softens the hidden ending");
-            input.cursorPosition = Math.floor(input.text.length / 2); keys.wait(100);
-            check((input.leftFade === 0 || input.cursorRectangle.x >= input.leftFade) && (input.rightFade === 0 || input.cursorRectangle.x + input.cursorRectangle.width <= input.width - input.rightFade), "editing in the middle leaves the caret outside the fades");
-            input.cursorPosition = input.text.length; keys.wait(100);
-            input.selectAll();
-            check(input.selectedText === input.text, "overflow keeps the complete query selectable");
-            input.deselect();
+            const queryRow = input.parent;
+            const queryTop = box.y;
+            const shortHeight = queryRow.height;
+            const longText = "W".repeat(160);
+            input.adopt(longText); keys.wait(55);
+            check(queryRow.height > shortHeight && queryRow.height < queryRow.targetHeight, "wrapped query grows through intermediate heights");
+            keys.wait(250);
+            check(input.contentWidth <= input.width && input.height > menu.inputHeight * 2, "unbroken long query wraps onto multiple lines");
+            check(queryRow.height === queryRow.targetHeight && box.height === box.restHeight, "field and glass settle around every wrapped line: " + queryRow.height + "/" + queryRow.targetHeight + " box=" + box.height + "/" + box.restHeight);
+            check(box.y === queryTop && searchIcon.height === menu.inputHeight && searchIcon.mapToItem(queryLine, 0, 0).y === iconPosition.y, "growth keeps the top edge and icon fixed");
+            check(divider.y >= queryRow.y + queryRow.height && input.cursorRectangle.y + input.cursorRectangle.height <= input.height, "results sit below the field and the last-line caret remains visible");
             const longQuery = keys.grabImage(queryLine);
-            if (Quickshell.env("LAUNCHER_TEST_GPU")) {
-                input.layer.enabled = false; keys.wait(30);
-                const hardClip = keys.grabImage(queryLine);
-                input.layer.enabled = Qt.binding(() => input.leftFade > 0 || input.rightFade > 0);
-                const position = input.mapToItem(queryLine, 0, 0);
-                let softened = 0;
-                for (let y = Math.ceil(position.y); y < position.y + input.height; y++) {
-                    for (let x = Math.ceil(position.x); x < position.x + input.leftFade; x++)
-                        if (hardClip.pixel(x, y).r - longQuery.pixel(x, y).r > 0.03) softened++;
-                }
-                check(softened > 8, "rendered overflow fades instead of ending at a hard clip");
-                const capture = Quickshell.env("LAUNCHER_QUERY_CAPTURE");
-                if (capture) {
-                    longQuery.save(capture + "/faded.png");
-                    hardClip.save(capture + "/hard-clip.png");
-                }
-            }
             for (let y = iconTop; y < iconTop + menu.inputHeight; y++) {
                 for (let x = iconLeft; x < textLeft; x++)
-                    check(longQuery.pixel(x, y) === iconArea.pixel(x, y), "long query stays out of the left icon area");
+                    check(longQuery.pixel(x, y) === iconArea.pixel(x, y), "wrapped query stays out of the left icon area");
             }
-            input.adopt("short"); keys.wait(100);
-            check(input.leftFade === 0 && input.rightFade === 0 && !input.layer.enabled, "shortening the query restores the unfaded field");
+            const queryCapture = Quickshell.env("LAUNCHER_QUERY_CAPTURE");
+            if (queryCapture) longQuery.save(queryCapture + "/wrapped.png");
+            menu.requestActivate(); input.forceActiveFocus(); keys.wait(20);
+            keys.keyClick(Qt.Key_A, Qt.ControlModifier);
+            check(input.selectedText === longText, "Ctrl+A selects across wrapped lines");
+            keys.keyClick(Qt.Key_C, Qt.ControlModifier);
+            input.adopt("");
+            keys.keyClick(Qt.Key_V, Qt.ControlModifier);
+            check(input.text === longText, "Ctrl+C copies the full wrapped query");
+            keys.keyClick(Qt.Key_A, Qt.ControlModifier);
+            keys.keyClick(Qt.Key_X, Qt.ControlModifier);
+            check(input.text === "" && Launcher.query === "", "Ctrl+X cuts the full wrapped query");
+            keys.keyClick(Qt.Key_V, Qt.ControlModifier);
+            check(input.text === longText && Launcher.query === longText, "Ctrl+V restores the full wrapped query");
+            keys.keyClick(Qt.Key_Z, Qt.ControlModifier);
+            check(input.text === "", "undo reverts the paste");
+            keys.keyClick(Qt.Key_Z, Qt.ControlModifier | Qt.ShiftModifier);
+            check(input.text === longText, "redo restores the paste");
+            keys.wait(250);
+            input.cursorPosition = input.text.length;
+            keys.keyClick(Qt.Key_Up, Qt.ShiftModifier);
+            check(input.selectedText.length > 1, "Shift+Up selects into the preceding wrapped line");
+            input.deselect();
+            input.cursorPosition = 0;
+            keys.keyClick(Qt.Key_End, Qt.ShiftModifier);
+            check(input.selectedText.length > 1 && input.selectedText.length < input.text.length, "Shift+End selects to the visual line end");
+            input.deselect();
+            const start = input.positionToRectangle(2);
+            const end = input.positionToRectangle(input.text.length - 2);
+            keys.mousePress(input, start.x + 1, start.y + start.height / 2);
+            keys.mouseMove(input, end.x, end.y + end.height / 2, 40);
+            keys.mouseRelease(input, end.x, end.y + end.height / 2);
+            check(input.selectedText.length > 80, "mouse drag selects across wrapped lines");
+            input.deselect();
+            input.cursorPosition = input.text.length;
+            keys.keyClick(Qt.Key_A);
+            check(input.text === longText + "a" && Launcher.query === input.text, "typing continues the wrapped query and updates search");
+            const wrappedHeight = queryRow.height;
+            input.adopt("short"); keys.wait(55);
+            check(queryRow.height < wrappedHeight && queryRow.height > menu.inputHeight, "shortening animates the field closed");
+            keys.wait(250);
+            check(input.height === menu.inputHeight && queryRow.height === menu.inputHeight, "short query returns to one line");
+            input.adopt("words with spaces ".repeat(12)); keys.wait(250);
+            check(input.contentHeight > menu.inputHeight && input.contentWidth <= input.width, "ordinary words wrap within the field");
+            input.adopt("short"); keys.wait(35);
+            input.adopt(longText); keys.wait(250);
+            check(queryRow.height === queryRow.targetHeight && box.height === box.restHeight, "interrupted resize settles at the latest query height");
+            Settings.reduceMotion = true;
+            input.adopt("short"); keys.wait(20);
+            check(queryRow.height === menu.inputHeight && box.height === box.restHeight, "reduced motion resizes the query immediately");
+            Settings.reduceMotion = false;
             input.adopt(""); keys.wait(250);
-            check(input.leftFade === 0 && input.rightFade === 0 && !input.layer.enabled, "short query and empty hints have no fade");
             Launcher.hide();
             list.model = [{kind: "info", title: "Hidden result below the compact box"}];
             keys.wait(60);
@@ -747,7 +779,7 @@ ShellRoot {
             Launcher.show(); keys.wait(400);
             menu.requestActivate(); input.forceActiveFocus();
             if (Quickshell.env("LAUNCHER_TEST_GPU")) {
-                console.log("PASS: launcher menu overflow shader, scrolling and fixed icon");
+                console.log("PASS: launcher menu wrapping, selection, clipboard and fixed icon");
                 Qt.quit();
                 return;
             }
@@ -1029,20 +1061,19 @@ def check_menu(target, env):
         "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5 }',
         "FilePreview": 'import QtQuick\nItem { property string path; function scroll(dir) {} }',
         "CoverArt": 'import QtQuick\nItem { property string dir; property string title; property string subtitle; property string glyph }',
-        "Glyph": 'import QtQuick\nItem { property string text; property real fontSize: 16; property color color }',
+        "Glyph": 'import QtQuick\nItem { property string text; property real fontSize: 16; property int inkSize: 0; property color color }',
     }
     for name, source in stubs.items():
         (components / f"{name}.qml").write_text(source)
     (components / "ScrollEdges.qml").write_text((ROOT / "components/ScrollEdges.qml").read_text())
     (target / "shaders").mkdir()
     (target / "shaders/edge.frag.qsb").write_bytes((ROOT / "shaders/edge.frag.qsb").read_bytes())
-    (target / "shaders/query-edge.frag.qsb").write_bytes((ROOT / "shaders/query-edge.frag.qsb").read_bytes())
     music = target / "services/LauncherMusic.qml"
     music.write_text(music.read_text().replace('property var rows:', 'property string coverDir: ""; property var rows:'))
     (target / "shell.qml").write_text(MENU_TEST)
     if os.environ.get("LAUNCHER_TEST_GPU"):
         env = dict(env, QT_QUICK_BACKEND="rhi", QSG_RHI_BACKEND="opengl", QT_OPENGL="software", LIBGL_ALWAYS_SOFTWARE="1")
-    result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=20)
+    result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=30)
     output = result.stdout + result.stderr
     print(output, end="")
     return result.returncode == 0 and "PASS: launcher menu" in output and all(message not in output for message in ("FAIL:", "Binding loop", "Unable to assign", "Failed to load"))
@@ -1083,7 +1114,7 @@ def main():
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property string home: "/tmp"; property string editor: "/usr/bin/true"; property string fileSearchIgnore: ""; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
-        (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
+        (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
         (components / "FileQuery.qml").write_text((ROOT / "components/QueuedProcess.qml").read_text())
         (target / "shell.qml").write_text(TEST)

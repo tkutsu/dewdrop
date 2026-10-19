@@ -9,6 +9,7 @@ Item {
 
     property string text: ""
     property int fontSize: Theme.glyphSize
+    property int inkSize: 0
     property color color: Theme.fg
     property bool animate: true
     readonly property bool rolling: roll.running
@@ -92,6 +93,7 @@ Item {
         height: root.height
         text: root.shown
         fontSize: root.fontSize
+        inkSize: root.inkSize
         color: root.color
         y: -root.travel * (1 - root.b)
         scale: 0.4 + 0.6 * root.g
@@ -112,6 +114,7 @@ Item {
         height: root.height
         text: root.was
         fontSize: root.fontSize
+        inkSize: root.inkSize
         color: root.color
         visible: root.rolling
         y: root.travel * root.b

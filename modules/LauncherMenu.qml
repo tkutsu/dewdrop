@@ -6,7 +6,7 @@ import qs
 import qs.components
 import qs.services
 
-// The launcher box: a query line over a list of matches, one lowercase name
+// The launcher box: a wrapping query over a list of matches, one lowercase name
 // per row with its icon out at the right edge, and the selected row a rounded
 // fill.
 //
@@ -493,7 +493,7 @@ OverlayWindow {
         // otherwise leave the preview a 220x30 slot to put a photograph in,
         // and a square is the least a picture can be shown in and still be
         // one.
-        readonly property int restHeight: root.expanded ? Math.max(content.implicitHeight, root.previewing ? root.panelWidth : 0) + root.boxPad * 2 : root.compactHeight
+        readonly property int restHeight: root.expanded ? Math.max(content.targetHeight, root.previewing ? root.panelWidth : 0) + root.boxPad * 2 : root.compactHeight
 
         // And what it is actually drawn at, trailing that measurement: the list
         // gaining a row pushes the bottom edge down to it rather than landing
@@ -509,7 +509,7 @@ OverlayWindow {
             }
         }
 
-        // Query height and baseline stay fixed while both sides move about center.
+        // Query top and baseline stay fixed while both sides move about center.
         y: Math.round((root.height - root.fullHeight) / 2)
         // Preview modes still extend rightward from the settled query position.
         property real bodyWidth: root.boxWidth + (root.previewing ? root.panelGap + root.panelWidth : 0)
@@ -593,6 +593,13 @@ OverlayWindow {
         Column {
             id: content
 
+            // Measure the destination so the glass and field resize together.
+            readonly property real targetHeight: queryRow.targetHeight
+                + (actionBar.visible ? actionBar.height + spacing : 0)
+                + (divider.visible ? divider.height + spacing : 0)
+                + (list.height > 0 ? list.height + spacing : 0)
+                + (reader.visible ? reader.height + spacing : 0)
+
             x: root.boxPad
             y: root.boxPad
             // The list's width rather than the box's, which are no longer the
@@ -602,30 +609,43 @@ OverlayWindow {
             opacity: root.contentAlpha * root.live
             spacing: root.contentGap
 
-            // Keep scrolling text clipped to the area beside the fixed icon.
+            // Reveal wrapped lines beside the fixed icon, growing only downward.
             Item {
+                id: queryRow
+
+                readonly property int targetHeight: Math.max(root.inputHeight, Math.ceil(input.contentHeight + input.topPadding + input.bottomPadding))
                 width: parent.width
-                height: root.inputHeight
+                height: queryRow.targetHeight
+                clip: true
+
+                Behavior on height {
+                    enabled: !Theme.reduceMotion
+                    NumberAnimation {
+                        duration: root.expanded ? 200 : 150
+                        easing.type: Easing.OutCubic
+                    }
+                }
 
                 RollingGlyph {
                     id: searchIcon
                     x: 2
-                    y: 1
+                    y: 0
                     height: root.inputHeight
                     width: 20
                     text: Launcher.queryIcon
                     animate: Launcher.shown
                     fontSize: 20
+                    inkSize: 18
                     color: Theme.label2
                 }
 
-                TextInput {
+                TextEdit {
                     id: input
                     Accessible.name: "Launcher query"
 
                     x: 30
                     width: parent.width - x
-                    height: root.inputHeight
+                    height: queryRow.targetHeight
                     color: Theme.fg
                     selectionColor: Theme.textSelection
                     selectedTextColor: Theme.fg
@@ -634,25 +654,16 @@ OverlayWindow {
                     font.family: Theme.bodyFont
                     font.pixelSize: Theme.queryTextSize
                     font.weight: Theme.bodyWeight
-                    verticalAlignment: TextInput.AlignVCenter
+                    textFormat: TextEdit.PlainText
+                    wrapMode: TextEdit.Wrap
+                    verticalAlignment: TextEdit.AlignTop
+                    topPadding: Math.max(0, (root.inputHeight - Math.ceil(queryMetrics.height)) / 2)
+                    bottomPadding: topPadding
                     clip: true
-                    // Fade off-screen text, stopping before the active caret.
-                    readonly property real leftFade: input.edgeFade(true)
-                    readonly property real rightFade: input.edgeFade(false)
-                    function edgeFade(left) {
-                        if (input.cursorPosition < 0 || input.contentWidth <= input.width - input.leftPadding - input.rightPadding)
-                            return 0;
-                        const caret = input.cursorRectangle;
-                        const boundary = input.positionToRectangle(left ? 0 : input.length).x;
-                        const hidden = left ? boundary < input.leftPadding - 0.5 : boundary > input.width - input.rightPadding + 0.5;
-                        return hidden ? Math.min(16, Math.max(0, left ? caret.x - 2 : input.width - caret.x - caret.width - 2)) : 0;
-                    }
-                    layer.enabled: input.leftFade > 0 || input.rightFade > 0
-                    layer.effect: ShaderEffect {
-                        readonly property real span: width
-                        readonly property real fadeLeft: input.leftFade
-                        readonly property real fadeRight: input.rightFade
-                        fragmentShader: Qt.resolvedUrl("../shaders/query-edge.frag.qsb")
+
+                    FontMetrics {
+                        id: queryMetrics
+                        font: input.font
                     }
 
                     Text {
@@ -755,7 +766,7 @@ OverlayWindow {
                         root.settling = false;
                     }
 
-                    // Keys handlers run before TextInput's own, so the navigation
+                    // Keys handlers run before TextEdit's own, so the navigation
                     // keys are ours and everything else still types.
                     Keys.onPressed: function (event) {
                         // Mid-exit only Escape counts, and it takes the
@@ -792,6 +803,11 @@ OverlayWindow {
                             return;
                         }
                         const ctrl = event.modifiers & Qt.ControlModifier;
+                        const shift = event.modifiers & Qt.ShiftModifier;
+                        // Selection belongs to the field even when bare keys navigate results.
+                        if (shift && [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down,
+                                      Qt.Key_Home, Qt.Key_End, Qt.Key_PageUp, Qt.Key_PageDown].includes(event.key))
+                            return;
 
                         switch (event.key) {
                         case Qt.Key_Escape:
@@ -843,7 +859,7 @@ OverlayWindow {
                             // other, and each key's mirror does the same in the
                             // other direction — so the direction is read once and
                             // the pair is handled as one. Anything that is not a
-                            // step is the TextInput's.
+                            // step is the TextEdit's.
                             const dir = root.stepOf(event.key, ctrl);
                             if (!dir)
                                 return;

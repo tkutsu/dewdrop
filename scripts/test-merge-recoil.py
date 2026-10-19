@@ -22,10 +22,10 @@ def main():
     bar = (ROOT / "Bar.qml").read_text()
     qml = fixture["QML"]
     placement = re.search(r"^    function placeModules\(\): void \{.*?^    \}", bar, re.M | re.S)[0]
-    qml = qml.replace("PLACE_MODULES", placement).replace("PLACEMENT_ONLY", "false")
+    qml = qml.replace("PLACE_MODULES", placement).replace("PLACEMENT_ONLY", "false").replace("CLEAR_ONLY", "false")
     qml = qml.replace("BELL", fixture["block"](bar, "id: bell", "NotificationBell {"))
     qml = qml.replace("NOTICE", fixture["block"](bar, "id: noticePill", "SidePill {"))
-    motion_start = bar.index("        // Mirror a leading media slot")
+    motion_start = bar.index("        animatePosition:")
     motion_end = bar.index("        // Quiet capture controls", motion_start)
     qml = qml.replace("CENTRE_MOTION", bar[motion_start:motion_end])
     for placeholder, name in (("RIGHT_LIP", "rightLip"), ("CLOCK_GLASS", "clockGlass")):
