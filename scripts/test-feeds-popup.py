@@ -303,6 +303,7 @@ ShellRoot {
 WINDOW_QML = '''import QtQuick
 import QtTest
 import Quickshell
+import qs
 import qs.components
 import qs.services
 ShellRoot {
@@ -310,7 +311,11 @@ ShellRoot {
         visible: true
         implicitWidth: 800; implicitHeight: 800
         Item { id: anchor; width: 20; height: 20 }
-        FeedsPopup { id: popup; anchorItem: anchor; visible: true; probes: false; grows: false }
+        FeedsPopup {
+            id: popup; anchorItem: anchor; visible: true; probes: false; grows: false
+            requestedVisible: OpenPopup.owner === anchor
+        }
+        Component.onCompleted: OpenPopup.set(anchor)
         // Layout can resize the window and undo it before the next frame.
         Connections {
             target: popup
@@ -337,8 +342,8 @@ ShellRoot {
                 const surfaceHeight = popup.height, closedChrome = popup.chromeHeight;
                 surfaceChanges = 0;
                 Feeds.toggle("videos");
-                let rowY = null, growing = false;
-                for (let i = 0; i < 40; i++) {
+                let rowY = null, growing = false, expansionSag = 0, expansionRecoil = 0;
+                for (let i = 0; i < 70; i++) {
                     wait(16);
                     check(popup.height === surfaceHeight,
                         "feed animation resizes the surface: " + surfaceHeight + " -> " + popup.height);
@@ -352,11 +357,39 @@ ShellRoot {
                     }
                     growing = growing || (popup.sectionOpacity === 1 && popup.heldListHeight >= 0
                         && popup.chromeHeight > closedChrome);
+                    if (popup.chromeItem.height !== popup.chromeHeight)
+                        check(popup.chromeItem.sag === 0, "the feed border stays straight until expansion lands");
+                    const sag = popup.chromeItem.sag;
+                    check(expansionSag > 0 || sag >= 0, "an opening feed bows down first");
+                    expansionSag = Math.max(expansionSag, sag);
+                    expansionRecoil = Math.min(expansionRecoil, sag);
                 }
                 const openChrome = popup.chromeHeight;
                 check(surfaceChanges === 0, "surface changes between rendered frames: " + surfaceChanges);
                 check(rowY !== null && growing && openChrome > closedChrome && popup.heldListHeight === -1,
                     "the visible box still grows after the feed fades in");
+                check(expansionSag > 0.2 && expansionSag <= 5 && expansionRecoil < -0.005
+                    && Math.abs(expansionRecoil) < expansionSag / 4,
+                    "opening a feed gently bows down and recoils: " + [expansionSag, expansionRecoil]);
+                Feeds.markSeen([Feeds.unseenVideos[0]]);
+                let maximumSag = 0, minimumSag = 0, eased = false;
+                for (let i = 0; i < 65; i++) {
+                    wait(16);
+                    const drawn = popup.chromeItem.height, target = popup.chromeHeight;
+                    if (Math.abs(drawn - target) > 0.05)
+                        check(popup.chromeItem.sag === 0,
+                            "a removed feed entry flexes the border only after it reaches its destination");
+                    eased = eased || drawn > target + 1;
+                    maximumSag = Math.max(maximumSag, popup.chromeItem.sag);
+                    minimumSag = Math.min(minimumSag, popup.chromeItem.sag);
+                    check(popup.height === surfaceHeight && surfaceChanges === 0,
+                        "removing a feed entry keeps the surface fixed");
+                }
+                check(eased && maximumSag > 0.2 && maximumSag <= 5 && minimumSag < -0.005,
+                    "removing a feed entry gently bends and rebounds the bottom border: "
+                        + JSON.stringify({eased, maximumSag, minimumSag}));
+                check(Math.abs(popup.chromeItem.height - popup.chromeHeight) < 0.05,
+                    "the box settles after removing a feed entry");
                 surfaceChanges = 0;
                 Feeds.toggle("videos");
                 let shrinking = false;
@@ -398,6 +431,17 @@ ShellRoot {
                 }
                 check(tinyY !== null, "scrolled switch reached the final resize");
                 check(surfaceChanges === 0, "switching changes the surface between rendered frames: " + surfaceChanges);
+                const finalHeight = popup.chromeItem.height, finalSurface = popup.height;
+                Feeds.markAllSeen();
+                check(OpenPopup.owner === null && !popup.requestedVisible,
+                    "clearing the final feed items uses normal popup dismissal");
+                wait(40);
+                check(popup.revealProgress > 0 && popup.revealProgress < 1,
+                    "the empty feed popup uses its existing fade");
+                check(popup.chromeItem.height === finalHeight && popup.height === finalSurface && popup.chromeItem.sag === 0,
+                    "the empty feed popup keeps its size without flexing during the fade");
+                wait(160);
+                check(popup.revealProgress === 0, "the empty feed popup finishes fading out");
                 console.log("PASS: feed resize keeps surface and content positions fixed");
             }
         }

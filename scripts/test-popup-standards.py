@@ -32,6 +32,7 @@ Item {
     property real bottomPadding: Theme.popupBottomPadding
     property int radius: Theme.popupRadius
     property real reserveHeight: 0
+    property bool dismissWhenEmpty: false
     property bool requestedVisible: true
     property bool acceptsKeyboard: false
     property bool probes: true
@@ -51,6 +52,7 @@ Item {
     readonly property int shadowSide: 0
     readonly property int shadowTop: 0
     readonly property bool opened: true
+    readonly property bool animateContents: !Theme.reduceMotion
     readonly property bool hovered: false
     readonly property int exitMs: 0
     readonly property point windowOnScreen: Qt.point(0, 0)

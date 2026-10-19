@@ -53,7 +53,8 @@ PopupWindow {
     // clamp stays, because this has to hold for every popup, including the
     // ones not written yet.
     implicitWidth: Math.max(1, body.implicitWidth + hPadding * 2) + shadowSide * 2
-    implicitHeight: Math.max(chromeHeight, reserveHeight) + shadowTop + shadowBottom
+    implicitHeight: root.closingHeight >= 0 ? root.closingSurfaceHeight
+        : Math.max(chromeHeight, reserveHeight, resizeHeight) + shadowTop + shadowBottom
     color: "transparent"
 
     // The room the window keeps round the box for its shadow to fall into.
@@ -77,8 +78,23 @@ PopupWindow {
     readonly property int shadowTop: Theme.popupGap
     readonly property int shadowBottom: shadowBlur + shadowY
 
-    // How tall the box is drawn, which is not always how tall the window is.
+    // The box's settled height; its bottom edge can briefly bow past it.
     readonly property real chromeHeight: Math.max(1, body.implicitHeight + vPadding + bottomPadding)
+    // Keep the largest animated size until the next showing, so shrinking cannot clip.
+    property real resizeHeight: 0
+    // An exhausted list closes through the normal fade, keeping its last size.
+    property bool dismissWhenEmpty: false
+    property real closingHeight: -1
+    property real closingSurfaceHeight: 0
+    onDismissWhenEmptyChanged: {
+        if (!root.dismissWhenEmpty)
+            root.closingHeight = -1;
+        else if (root.opened) {
+            root.closingSurfaceHeight = root.height;
+            root.closingHeight = chrome.height;
+            OpenPopup.close(root.anchorItem);
+        }
+    }
     // The box itself, for a list that runs on under its header to draw out
     // to the box's edges (ScrollUnder).
     readonly property Item chromeItem: chrome
@@ -125,7 +141,7 @@ PopupWindow {
         id: under
 
         screen: root.screen
-        area: Qt.rect(root.windowOnScreen.x + root.shadowSide, root.windowOnScreen.y + root.shadowTop, root.width - root.shadowSide * 2, root.chromeHeight)
+        area: Qt.rect(root.windowOnScreen.x + root.shadowSide, root.windowOnScreen.y + root.shadowTop, root.width - root.shadowSide * 2, chrome.height)
         active: root.visible && root.probes
         ringOnly: true
     }
@@ -144,6 +160,9 @@ PopupWindow {
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.morphRun ? root.morphShown : root.revealProgress
     property real revealProgress: root.opened ? 1 : 0
+    // Content settles at its final size during entry; only the shared chrome moves.
+    readonly property bool animateContents: root.opened && root.revealProgress === 1
+        && (!root.morphRun || root.landed) && !Theme.reduceMotion && !root.dismissWhenEmpty
     // A popover grows out of its item from 86% of its size on two springs,
     // like gel: the width settles straight in, the height is looser and runs
     // a touch past before it settles. Closing, it shrinks to nine tenths as
@@ -162,6 +181,15 @@ PopupWindow {
         SpringAnimation { spring: 5; damping: 0.34; epsilon: 0.001 }
     }
     onOpenedChanged: {
+        if (root.opened) {
+            root.closingHeight = -1;
+            root.resizeHeight = 0;
+        } else {
+            root.closingSurfaceHeight = root.height;
+            root.closingHeight = chrome.height;
+            flexRecoil.stop();
+            chrome.flex = 0;
+        }
         shrink.stop();
         morphOpen.stop();
         morphClose.stop();
@@ -510,7 +538,7 @@ PopupWindow {
 
         x: root.shadowSide
         width: parent.width - root.shadowSide * 2
-        height: root.shadowTop + root.chromeHeight
+        height: root.shadowTop + chrome.height + Math.max(0, chrome.sag)
 
         HoverHandler {
             id: pointer
@@ -556,13 +584,48 @@ PopupWindow {
 
                 y: root.shadowTop
                 width: parent.width
-                height: root.chromeHeight
+                height: root.closingHeight >= 0 ? root.closingHeight : root.chromeHeight
+                Behavior on height {
+                    enabled: root.animateContents
+                    SequentialAnimation {
+                        ScriptAction {
+                            script: {
+                                root.resizeHeight = Math.max(root.resizeHeight, chrome.height, root.chromeHeight);
+                                chrome.flexSize = Math.min(5, Math.abs(chrome.height - root.chromeHeight) * 0.08);
+                            }
+                        }
+                        NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+                        ScriptAction {
+                            script: {
+                                if (root.animateContents && chrome.height === root.chromeHeight)
+                                    flexRecoil.restart();
+                            }
+                        }
+                    }
+                }
+                onHeightChanged: {
+                    flexRecoil.stop();
+                    chrome.flex = 0;
+                }
+                // The border flexes only after landing, with one smaller recoil.
+                property real flex: 0
+                property real flexSize: 0
+                readonly property real sag: root.animateContents
+                    && chrome.height === root.chromeHeight ? chrome.flex : 0
+                SequentialAnimation {
+                    id: flexRecoil
+                    NumberAnimation { target: chrome; property: "flex"; from: 0; to: chrome.flexSize; duration: 90; easing.type: Easing.OutSine }
+                    NumberAnimation { target: chrome; property: "flex"; to: -chrome.flexSize * 0.15; duration: 130; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: chrome; property: "flex"; to: 0; duration: 160; easing.type: Easing.InOutSine }
+                }
+                readonly property bool shaped: (root.morphs && !root.landed)
+                    || (root.animateContents && Math.abs(chrome.sag) > 0.01)
                 radius: root.radius
                 // Thickened over a bright screen (BackdropProbe), and eased
                 // there: the reading lands a few frames after the box. Only
                 // ever up from popupBg, so the blur stays.
                 property color frost: Theme.frostOver(under.luma)
-                color: root.morphs && !root.landed ? "transparent" : frost
+                color: chrome.shaped ? "transparent" : frost
 
                 Behavior on frost {
                     ColorAnimation {
@@ -571,7 +634,7 @@ PopupWindow {
                 }
 
                 Rim {
-                    visible: !root.morphs || root.landed
+                    visible: !chrome.shaped
                     anchors.fill: parent
                     radius: chrome.radius
                     // Above the rows, which run edge to edge in a menu and
@@ -579,11 +642,10 @@ PopupWindow {
                     z: 1
                 }
 
-                // A morphing popover's box, the fill under the rows and the
-                // rim over them, reaching below the box for the drop's
-                // swell to run past it.
+                // The deforming box: fill under the rows, rim over them, with
+                // room below for the opening drop or a resizing popover's bow.
                 Item {
-                    visible: root.morphs && !root.landed
+                    visible: chrome.shaped
                     width: parent.width
                     height: parent.height + 16
                     z: 1
@@ -592,12 +654,13 @@ PopupWindow {
                         box: root.landed ? Qt.vector4d(0, 0, chrome.width, chrome.height) : Qt.vector4d(root.boxX, 0, root.boxW, root.boxH)
                         radius: root.landed ? chrome.radius : root.boxR
                         bell: root.landed ? 0 : root.bell
+                        sag: root.animateContents ? chrome.sag : 0
                         color: chrome.frost
                         showRim: 1
                     }
                 }
                 Item {
-                    visible: root.morphs && !root.landed
+                    visible: chrome.shaped
                     width: parent.width
                     height: parent.height + 16
                     z: -1
@@ -606,6 +669,7 @@ PopupWindow {
                         box: root.landed ? Qt.vector4d(0, 0, chrome.width, chrome.height) : Qt.vector4d(root.boxX, 0, root.boxW, root.boxH)
                         radius: root.landed ? chrome.radius : root.boxR
                         bell: root.landed ? 0 : root.bell
+                        sag: root.animateContents ? chrome.sag : 0
                         color: chrome.frost
                         showFill: 1
                     }

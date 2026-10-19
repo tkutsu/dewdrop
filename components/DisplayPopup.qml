@@ -81,6 +81,7 @@ Popup {
             clip: true
 
             Behavior on height {
+                enabled: root.animateContents
                 NumberAnimation {
                     duration: Theme.fadeMs
                     easing.type: Easing.InOutQuad
@@ -88,6 +89,7 @@ Popup {
             }
 
             Behavior on opacity {
+                enabled: root.animateContents
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
