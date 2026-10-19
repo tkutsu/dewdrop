@@ -349,8 +349,8 @@ Singleton {
     // what keeps the gaps between the pills unblurred, so this is the one
     // number both ends depend on.
     readonly property color barBg: reduceTransparency ? solid : Qt.rgba(tint.r, tint.g, tint.b, 0.35)
-    // What hangs off the bar — tooltips, popups, menus, the launcher and the
-    // power menu — is frosted glass rather than the bar's clear glass: a thin
+    // What hangs off the bar — tooltips, popups, menus and the launcher — is
+    // frosted glass rather than the bar's clear glass: a thin
     // fill at little more than the 0.3 the blur rule ignores, so most of what
     // it shows is Hyprland's heavy blur, and a bright patch behind it comes
     // through as a glow. The blur is what keeps a window's text from showing
@@ -444,8 +444,8 @@ Singleton {
     readonly property real glassHover: 0.25
     readonly property real glassHoverSpread: 44
 
-    // The soft shadow under everything that floats over a window: popups, the
-    // launcher, the power menu. Not the pills, which sit on the wallpaper
+    // The soft shadow under everything that floats over a window: popups and
+    // the launcher. Not the pills, which sit on the wallpaper
     // rather than over anything. Kept under the 0.2 alpha the compositor's
     // popup blur ignores, so the blur stops at the box and not at the edge of
     // its shadow.
@@ -666,8 +666,8 @@ Singleton {
     // reach theirs (257 ms against 241, measured 2026-10-10; Qt's damping
     // 0.5 at the old stiffness also stops short of overshoot, but crawls in
     // over 800 ms). The attention hop, the drawer's wind-up and the
-    // wallpaper's parallax stop, and popups, the launcher and the power menu
-    // open where they stand rather than sliding or wiping in. Fades stay.
+    // wallpaper's parallax stop, and popups and the launcher open where they
+    // stand rather than sliding or wiping in. Fades stay.
     readonly property bool reduceMotion: Settings.reduceMotion
     readonly property real calmSpring: 8
     readonly property real calmDamping: 0.6
@@ -677,10 +677,9 @@ Singleton {
     // — 725 ms, inside the second before the timer's next figure.
     readonly property int rollMs: 500
 
-    // How long the launcher and the power menu take to open out from their
-    // centre line, and to fold back into it. Shorter than fadeMs on purpose:
-    // this animation is in the way of the thing that was asked for, and a fifth
-    // of a second of shutter before the first keystroke can land reads as the
+    // How long the launcher takes to open out from its centre line, and to
+    // fold back into it. Shorter than fadeMs on purpose: this animation is in
+    // the way of the thing that was asked for, and a fifth of a second of shutter before the first keystroke can land reads as the
     // launcher being slow to come up rather than as it arriving.
     readonly property int revealMs: 160
     // A pill turning into its popover (Popup.morphs, Morph.qml): how long the
@@ -761,11 +760,11 @@ Singleton {
         launcherWeb: "\u{f01e7}",     // nf-md-earth
 
         // Every glyph here is Material Design, outlined wherever the set has
-        // an outline — the bar and the power menu used to mix in Font Awesome
+        // an outline — the bar and the launcher used to mix in Font Awesome
         // and filled shapes, and read as drawn by several hands.
         //
-        // Power menu: WhiteSur's drawings, big enough on the discs for their
-        // hairlines to hold.
+        // The launcher's power rows: WhiteSur's drawings, which hold their
+        // hairlines at row size.
         powerShutdown: panel("system-shutdown"),
         powerReboot: panel("system-reboot"),
         powerSuspend: panel("system-suspend"),
@@ -777,7 +776,7 @@ Singleton {
         powerKill: "\u{f01a4}",
         powerConfirm: "\u{f012c}",
         // Launcher rows that are not apps: a detected domain, a clipboard
-        // entry, and the lock command the power menu deliberately omits.
+        // entry, and the lock command.
         web: "\u{f059f}",
         clipboard: "\u{f014c}",
         lock: "\u{f0341}",

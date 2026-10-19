@@ -163,7 +163,7 @@ def main():
         (target / "components/OverlayWindow.qml").write_text('import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true }')
         (target / "components/BackdropProbe.qml").write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property bool ringOnly: false; property real luma: 0.5 }')
         (target / "services/Keyboard.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var layouts: [{name: "Greek"}, {name: "English (US)"}] }')
-        (target / "services/Launcher.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var powerCommands: [{key: "lock", name: "Lock", glyph: ""}] }')
+        (target / "services/Power.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var actions: [{key: "lock", name: "Lock", glyph: ""}] }')
         (target / "services/Tasks.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var lists: [{id: "list", title: "My Tasks"}]; property var defaultList: ({id: "list"}) }')
         (target / "shell.qml").write_text(QML)
         preview = os.environ.get("SETTINGS_PREVIEW_DIR", "")
