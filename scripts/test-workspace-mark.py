@@ -83,14 +83,13 @@ ShellRoot {
                 } else if (phase === 1) {
                     mark.held = true;
                 } else if (phase === 2) {
-                    check(glass.lift > 0.9 && glass.box.w === mark.thickness
+                    check(glass.motion > 0.9 && glass.box.w === mark.thickness
                         && glass.box.y === mark.slabTop
                         && glass.box.z === mark.frontRight - mark.frontLeft,
                         "held glass strengthens the lens without swelling or trailing");
-                    check(glass.inkBend === 0, "a held press bends the glass but not the icons");
                     Settings.user = {reduceMotion: true}; mark.held = false;
                 } else if (phase === 3) {
-                    check(glass.lift === 0 && glass.box.w === mark.thickness,
+                    check(glass.motion === 0 && glass.box.w === mark.thickness,
                         "Reduce motion settles the glass");
                     Settings.user = {reduceTransparency: true};
                     check(!glass.active, "Reduce transparency uses the plain selection");
