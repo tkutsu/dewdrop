@@ -87,7 +87,7 @@ ShellRoot {
                         && glass.box.y === mark.slabTop
                         && glass.box.z === mark.frontRight - mark.frontLeft,
                         "held glass strengthens the lens without swelling or trailing");
-                    check(glass.refract === 0, "a held press bends the glass but not the icons");
+                    check(glass.inkBend === 0, "a held press bends the glass but not the icons");
                     Settings.user = {reduceMotion: true}; mark.held = false;
                 } else if (phase === 3) {
                     check(glass.lift === 0 && glass.box.w === mark.thickness,

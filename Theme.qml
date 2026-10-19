@@ -614,6 +614,10 @@ Singleton {
     // terms, 90% of the way at 256 ms with 0.6% overshoot.
     readonly property real switchSpring: reduceMotion ? calmSpring : 2.15
     readonly property real switchDamping: reduceMotion ? calmDamping : 0.29
+    // The workspace mark lifting off to travel and settling back down once
+    // it lands, eased in and out: on the spring it jolted up and dropped.
+    readonly property int markLiftMs: 300
+    readonly property int markSettleMs: 450
 
     // Workspace artwork outside the mark rests at 66% opacity: its
     // letters and icons, not their counts, so a number stays as legible as
