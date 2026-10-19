@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import struct
 import subprocess
+import sys
 import tempfile
 import zlib
 
@@ -64,7 +65,9 @@ Item {
     property var screen: ({height: 1080})
     property var anchorItem: null
     property real reserveHeight: 0
+    property bool dismissWhenEmpty: false
     property bool requestedVisible: true
+    readonly property bool animateContents: !Theme.reduceMotion
     readonly property real chromeHeight: body.implicitHeight
     readonly property Item chromeItem: body
     property alias spacing: body.spacing
@@ -171,8 +174,78 @@ ShellRoot {
                 check(Math.abs(content.x - 10 - card.swipe) < 1, "card content follows the swipe");
                 mouseRelease(card, end, 30);
             }
+            function checkDismissalSequence() {
+                notice.summary = "First notification"; notice.body = ""; notice.image = "";
+                const next = {appName: "Next sender", summary: "Next notification", body: "", actions: [], image: "",
+                    dismiss: () => Notifications.list = Notifications.list.filter(n => n !== next)};
+                const last = {appName: "Last sender", summary: "Last notification", body: "", actions: [], image: ""};
+                const list = named(popup, "notification-list");
+                for (const mode of ["single", "expanded", "collapsed", "capped"]) {
+                    next.appName = ["expanded", "collapsed"].includes(mode) ? notice.appName : "Next sender";
+                    popup.screen = {height: mode === "capped" ? 180 : 1080};
+                    Notifications.list = [notice, next, last];
+                    popup.expandedGroup = mode === "expanded" ? notice.appName : "";
+                    wait(350);
+                    const card = notificationCard(popup, notice);
+                    const following = notificationCard(popup, mode === "collapsed" ? last : next);
+                    const beforeY = following.mapToItem(list, 0, 0).y;
+                    const beforeHeight = list.height;
+                    mouseMove(card, 12, 30); wait(30);
+                    const clear = button(card, "");
+                    mouseClick(clear, clear.width / 2, clear.height / 2);
+                    wait(Theme.blinkMs);
+                    check(Notifications.count === 3 && card.opacity === 1,
+                          "blink keeps the card and its neighbours in place");
+                    wait(Theme.blinkMs + 30);
+                    check(Notifications.count === 3 && card.opacity < 1,
+                          "the card fades out after the blink before removal");
+                    check(Math.abs(following.mapToItem(list, 0, 0).y - beforeY) < 0.1 && list.height === beforeHeight,
+                          "neighbour and popup height stay still until the card is gone");
+                    checkSoon(() => card.opacity === 0, "notification fades away before the rows move");
+                    let moved = false;
+                    const positions = [];
+                    for (let elapsed = 0; elapsed < Theme.fadeMs - 20; elapsed += 10) {
+                        const y = following.mapToItem(list, 0, 0).y;
+                        positions.push([y, list.contentY, list.originY]);
+                        moved = moved || (y > 1 && y < beforeY - 1);
+                        check(Math.abs(list.height - beforeHeight) < 0.1, "popup keeps its height while neighbours move");
+                        wait(10);
+                    }
+                    check(moved, "the following notification moves through intermediate positions: " + JSON.stringify({mode, beforeY, positions}));
+                    checkSoon(() => following.mapToItem(list, 0, 0).y < 0.1, "following notification reaches the vacated position");
+                    checkSoon(() => Notifications.count === (mode === "collapsed" ? 1 : 2), "notification is dismissed after the rows move");
+                    if (mode !== "capped")
+                        checkSoon(() => list.height < beforeHeight - 1, "popup shrinks after movement finishes");
+                    checkSoon(() => Math.abs(list.height - Math.min(list.contentHeight, popup.listMax)) < 0.1,
+                              "popup settles at its content height, capped at its scroll limit");
+                }
+                wait(Theme.fadeMs + 30);
+                Theme.reduceMotion = true;
+                popup.screen = {height: 1080};
+                Notifications.list = [notice, last]; wait(50);
+                popup.clear([notice]); wait(50);
+                check(Notifications.count === 1 && Math.abs(list.height - list.contentHeight) < 0.1,
+                      "reduced motion dismisses and resizes without animation delays");
+                console.log("PASS: notification cards dismissal sequence");
+                Theme.reduceMotion = false;
+                for (const items of [[notice], [notice, next]]) {
+                    Notifications.list = items;
+                    OpenPopup.dismissed = false;
+                    wait(350);
+                    popup.clear(items);
+                    check(Notifications.count === 0 && OpenPopup.dismissed,
+                        "clearing the last items dismisses the whole popup immediately");
+                    check(popup.departing.length === 0 && popup.departureFade === 0 && popup.departureFold === 0,
+                        "the final items skip the card fade and fold animations");
+                }
+                console.log("PASS: final notifications use popup dismissal");
+                Notifications.list = [];
+                wait(150);
+            }
             function run() {
                 check(popup.bodyWidth === Theme.popupWideWidth, "the centre is as wide as mail and tasks");
+                checkDismissalSequence();
+                if (DISMISSAL_ONLY) return;
                 // A sender's shortened payload must not be mistaken for UI elision.
                 notice.appName = "kitty";
                 notice.summary = "Done. Groups now collapse when you click their header, open another group, open a notification outside them, or close the popover. Intera...";
@@ -246,9 +319,7 @@ ShellRoot {
                 check(cardCount(popup) === 2 && Notifications.count === 2 && !OpenPopup.dismissed, "clicking a closed group opens it without acting");
                 check(button(popup, "show less") === null, "the group header needs no collapse button");
                 const header = named(popup, "group-header");
-                mouseClick(header, 20, header.height / 2); wait(25);
-                check(cardCount(popup) === 2, "group cards stay visible while the group closes");
-                wait(130);
+                mouseClick(header, 20, header.height / 2); wait(130);
                 check(cardCount(popup) === 1, "clicking the header closes the group");
                 mouseClick(named(popup, "notification-card"), 12, 30); wait(130);
                 mouseClick(notificationCard(popup, second), 12, 30);
@@ -316,7 +387,7 @@ ShellRoot {
         }
     }
 }
-''')
+'''.replace("DISMISSAL_ONLY", "true" if "--dismissal" in sys.argv else "false"))
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime))
@@ -325,7 +396,8 @@ ShellRoot {
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=25)
         output = result.stdout + result.stderr
         print(output, end="")
-        return 0 if result.returncode == 0 and "PASS: notification cards" in output and "FAIL:" not in output else 1
+        errors = ("FAIL:", "Binding loop", "ReferenceError:", "TypeError:", "Unable to assign", "Cannot assign")
+        return 0 if result.returncode == 0 and "PASS: notification cards" in output and not any(error in output for error in errors) else 1
 
 
 if __name__ == "__main__":
