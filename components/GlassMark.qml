@@ -9,9 +9,8 @@ ShaderEffect {
 
     // The mark (FlowMark), the pill's glass it moves over, what the pill
     // holds (the icons), and the wallpaper as Liquid takes it. The caps bend
-    // the glass and leave the icons straight: bent, an icon near a cap was
-    // smeared into a bright disc while the mark moved. The icons are only
-    // magnified.
+    // the glass always, and the icons only on the way: bent while the mark
+    // settled, an icon near a cap smeared into a bright disc.
     required property Item mark
     required property Item slabItem
     required property Item inkItem
@@ -24,10 +23,11 @@ ShaderEffect {
     visible: active && mark.visible
 
     // The lens strengthens as the mark lifts (to travel, or under a held
-    // press) and magnifies the icons under it by up to Theme.markZoom.
-    // Settled, it lies flat and the icons are seen as they are.
+    // press). Settled, it lies flat.
     readonly property real lift: Math.max(0, Math.min(1, root.mark?.lift ?? 0))
-    readonly property real zoom: 1 + (Theme.markZoom - 1) * lift
+    // How far the caps bend the icons: fully in flight, fading over the
+    // last eight pixels before the mark lands.
+    readonly property real refract: root.mark ? Math.min(1, Math.max(Math.abs(root.mark.headLeft - root.mark.wantLeft), Math.abs(root.mark.headRight - root.mark.wantRight)) / 8) : 0
 
     // Where an item is in its window, walked up the parent chain for a
     // binding to re-run on (as Liquid.windowPos).

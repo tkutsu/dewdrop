@@ -87,11 +87,10 @@ ShellRoot {
                         && glass.box.y === mark.slabTop
                         && glass.box.z === mark.frontRight - mark.frontLeft,
                         "held glass strengthens the lens without swelling or trailing");
-                    check(Theme.markZoom > 1 && glass.zoom > 1 && glass.zoom <= Theme.markZoom,
-                        "lifted glass magnifies what it holds");
+                    check(glass.refract === 0, "a held press bends the glass but not the icons");
                     Settings.user = {reduceMotion: true}; mark.held = false;
                 } else if (phase === 3) {
-                    check(glass.lift === 0 && glass.zoom === 1 && glass.box.w === mark.thickness,
+                    check(glass.lift === 0 && glass.box.w === mark.thickness,
                         "Reduce motion settles the glass");
                     Settings.user = {reduceTransparency: true};
                     check(!glass.active, "Reduce transparency uses the plain selection");
