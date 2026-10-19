@@ -186,6 +186,48 @@ OverlayWindow {
         dismissMs: Launcher.dismissMs
     }
 
+    // --- power veil ----------------------------------------------------------
+    // In the ! mode the screen behind the box dims and goes out of focus, so
+    // the rows read as the machine's off switch rather than one more search.
+    //
+    // The blur is Hyprland's: it blurs whatever this layer draws over 0.3
+    // alpha (wrules.lua), so a screen-sized fill above that is all it takes.
+    // The compositor cannot fade its blur, so the fill starts on the line and
+    // only the dim eases; the blur arrives with the mode, not partway through.
+    readonly property real blurFloor: 0.3
+    readonly property real veilDepth: 0.45
+    readonly property bool veiled: root.opened && Launcher.powerMode
+    property real veil: 0
+
+    onVeiledChanged: {
+        veilIn.stop();
+        veilOut.stop();
+        if (root.veiled)
+            veilIn.start();
+        else
+            veilOut.start();
+    }
+
+    SequentialAnimation {
+        id: veilIn
+        ScriptAction { script: root.veil = Math.max(root.veil, root.blurFloor) }
+        NumberAnimation { target: root; property: "veil"; to: root.veilDepth; duration: Theme.fadeMs; easing.type: Easing.OutCubic }
+    }
+
+    // Back to the line, then off, inside the launcher's own fold-away.
+    SequentialAnimation {
+        id: veilOut
+        NumberAnimation { target: root; property: "veil"; to: root.blurFloor; duration: 120; easing.type: Easing.InCubic }
+        PropertyAction { target: root; property: "veil"; value: 0 }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+        opacity: root.veil
+        visible: opacity > 0
+    }
+
     // --- CRT exit ------------------------------------------------------------
     // Sleep, restart, shut down and log out leave the way an old set switched
     // off: the box flattens into a white line, the line into a dot, and the
