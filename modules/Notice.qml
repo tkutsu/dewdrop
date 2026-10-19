@@ -72,7 +72,8 @@ BarItem {
         source: bell
         target: root.mergedIcon
         reveal: root.reveal
-        restingX: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0
+        restingX: root.sliding
+            ? root.glassLeft + root.glassWidth - root.iconInset - bell.width - root.padLeft - bell.x : 0
     }
     // Keep the destination through the round trip, even while its slot is empty.
     onStowedChanged: if (!stowed)
@@ -105,18 +106,6 @@ BarItem {
     NotificationPicture {
         id: picture
         notification: root.entry
-    }
-
-    BadgedGlyph {
-        id: bell
-        Layout.fillHeight: true
-        glyph: Notifications.icon
-        badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
-        dot: Settings.badgeStyle("bell") === "dot"
-        underdot: Settings.badgeStyle("bell") === "underdot"
-        opacity: root.mergedIcon ? 1 - root.iconHandoff.progress
-            : root.sliding ? root.pill.geometry.contents(root.reveal) : 1
-        transform: Translate { x: root.iconHandoff.sourceX }
     }
 
     AppIcon {
@@ -173,6 +162,19 @@ BarItem {
                 }
             }
         }
+    }
+
+    // The bell rides the right edge until the shared media handoff takes it into the centre.
+    BadgedGlyph {
+        id: bell
+        Layout.fillHeight: true
+        glyph: Notifications.icon
+        badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
+        dot: Settings.badgeStyle("bell") === "dot"
+        underdot: Settings.badgeStyle("bell") === "underdot"
+        opacity: root.mergedIcon ? 1 - root.iconHandoff.progress
+            : root.sliding ? root.pill.geometry.contents(root.reveal) : 1
+        transform: Translate { x: root.iconHandoff.sourceX }
     }
 
     // Left runs its default action, as clicking its card in the centre does
