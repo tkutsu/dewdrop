@@ -25,6 +25,8 @@ Item {
 
     default property alias content: row.data
     readonly property alias moduleHost: row
+    // The glass alone, for the workspace mark to bend (GlassMark).
+    readonly property Item slabItem: slab
 
     // Ordered pills keep unkeyed controls at their ends.
     property var order: []
