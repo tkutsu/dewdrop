@@ -226,8 +226,7 @@ OverlayWindow {
                         { type: "toggle", id: "groupWindows", title: "Group Windows by App", tooltip: "Click a group to expand its windows.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) },
                         { type: "choice", id: "groupWindowBadgeStyle", title: "Group Indicator",
                             options: [{ value: "hide", label: "Hide" }, { value: "dot", label: "Dot" }, { value: "badge", label: "Count" }],
-                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) },
-                        { type: "toggle", id: "magnifyMark", title: "Magnify Under the Mark", tooltip: "The glass magnifies the icons it passes over as it moves between workspaces.", get: () => Settings.magnifyMark, set: v => Settings.set("magnifyMark", v) }
+                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) }
                     ]
                 },
                 {
