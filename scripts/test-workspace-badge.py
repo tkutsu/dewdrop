@@ -31,7 +31,7 @@ ShellRoot {
             Item {
                 id: leftPill; anchors.fill: parent
                 property color surface: "#146285"
-                Rectangle { x: 8; y: 5; width: 54; height: 28; radius: 14; color: leftPill.surface }
+                Rectangle { id: slab; x: 8; y: 5; width: 54; height: 28; radius: 14; color: leftPill.surface }
                 Item {
                     id: root; anchors.fill: parent
                     property Item badgeLayer: BADGE_LAYER
@@ -63,7 +63,7 @@ ShellRoot {
             GlassMark {
                 id: glassMark; anchors.fill: parent
                 visible: suite.phase === 0
-                mark: mark; pillItem: leftPill; wallpaperItem: wallpaper
+                mark: mark; slabItem: slab; inkItem: root; wallpaperItem: wallpaper
             }
             BADGE_OVERLAY
         }
