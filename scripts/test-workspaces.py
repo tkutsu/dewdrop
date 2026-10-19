@@ -14,7 +14,7 @@ target=Path(folder.name)
 (target/'components').mkdir()
 (target/'runtime').mkdir(mode=0o700)
 (target/'Theme.qml').write_text((root/'Theme.qml').read_text())
-(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property string groupWindowBadgeStyle: "hide"; property bool magnifyMark: true; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
+(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property string groupWindowBadgeStyle: "hide"; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
 (target/'services/Hyprland.qml').write_text('''pragma Singleton
 import QtQuick
 import Quickshell
@@ -42,7 +42,7 @@ RowLayout { id: layout; height: root.height }
 }''')
 (target/'components/AppIcon.qml').write_text('''import QtQuick
 Item { property string windowClass; property bool focused; property bool urgent; property bool pressed
-property real inkOpacity; property real magnify: 0; property int spread: 0; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
+property real inkOpacity; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
 readonly property real inkLeft: 0; readonly property real inkWidth: width
 property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
@@ -390,13 +390,12 @@ if '--mark-ink' in sys.argv:
    const right=app.mapToItem(pill.auditStrip,app.inkLeft+app.inkWidth,0).x;
    return Math.max(0,Math.min(right,mark.x+mark.frontRight)-Math.max(x,mark.x+mark.frontLeft))/(right-x);
  }
- let partial=0,passing=0,separate=0,maxError=0,artError=0,zoomError=0;
+ let partial=0,passing=0,separate=0,maxError=0,artError=0;
  function sample() {
    for (const app of apps) {
      const covered=coverage(app);
      const expected=Theme.restOpacity+(1-Theme.restOpacity)*covered*covered*(3-2*covered);
      maxError=Math.max(maxError,Math.abs(app.inkOpacity-expected));
-     zoomError=Math.max(zoomError,Math.abs(app.magnify-covered*covered*(3-2*covered)));
      if(app.inkOpacity>Theme.restOpacity+0.001 && app.inkOpacity<0.999)partial++;
    }
    if(apps[1].inkOpacity>Theme.restOpacity+0.001)passing++;
@@ -411,14 +410,11 @@ if '--mark-ink' in sys.argv:
    'focus alone does not light the destination before the mark arrives');
  for(let ms=0;ms<600;ms+=10){test.wait(10);sample();}
  check(maxError<0.001,'brightness follows the drawn mark on every sampled frame');
- check(Theme.markZoom>1 && zoomError<0.001,'the glass magnifies icons by the same coverage that lights them');
  check(partial>0 && separate>0,'icons brighten smoothly and individually as the edge crosses them');
  check(passing>0,'icons on an intermediate workspace light as the mark passes');
  check(artError<0.001,'loaded artwork follows coverage without an extra opacity fade');
  check(apps[0].inkOpacity===Theme.restOpacity && apps[2].inkOpacity===1 && apps[3].inkOpacity===1,
    'destination icons finish at full opacity and the source dims');
- check(apps[2].spread < 0 && apps[3].spread === -apps[2].spread && apps[0].spread === 0,
-   'a magnified group spreads about its middle, by whole pixels');
  Hyprland.focusedWorkspace=w1;test.wait(60);sample();
  Hyprland.focusedWorkspace=w3;
  for(let ms=0;ms<500;ms+=10){test.wait(10);sample();}
