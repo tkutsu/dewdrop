@@ -64,7 +64,11 @@ Item {
     // the model's length gives the binding something to depend on.
     readonly property var entry: {
         DesktopEntries.applications.values.length;
-        return windowClass ? DesktopEntries.heuristicLookup(windowClass) : null;
+        if (!windowClass)
+            return null;
+        // Native app IDs can be namespaced while the installed desktop ID is short.
+        return DesktopEntries.heuristicLookup(windowClass)
+            || DesktopEntries.byId(windowClass.split(".").pop().toLowerCase());
     }
 
     readonly property string iconName: AppIcons.resolve(root.windowClass, root.entry)

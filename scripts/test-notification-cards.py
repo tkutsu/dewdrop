@@ -39,7 +39,7 @@ def main():
         target = Path(folder)
         (target / "services").mkdir()
         (target / "NotificationsPopup.qml").write_text(popup)
-        for name in ("PopupButton", "PopupText", "PopupHeader", "PopupNote", "NotificationPicture", "ChoiceBlink", "SmoothScroll"):
+        for name in ("PopupButton", "PopupText", "PopupHeader", "PopupNote", "PopupRow", "SwipeRow", "NotificationPicture", "ChoiceBlink", "SmoothScroll"):
             (target / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
         (target / "PressGlass.qml").write_text('import QtQuick\nQtObject { required property Item icon; required property var area; property bool down: false; property bool textPress: false; property real scale: 1 }\n')
         (target / "ScrollUnder.qml").write_text('import QtQuick\nItem { required property Flickable view; required property Item box }\n')
@@ -52,10 +52,11 @@ QtObject {
     property int popupInset: 6; property int popupPadding: 6; property int popupRadius: 10; property int popupWideWidth: 400;
     property int selectionRadius: 4; property int fadeMs: 100; property int captionSize: 14
     property int blinkMs: 60
+    property int foldMs: 180; property real drawerSpring: 3; property real drawerDamping: 0.3
     property bool reduceMotion: false
     property int popupTextSize: 16; property int glyphSizeLarge: 16; property int pillBorder: 1
     property string bodyFont: "sans-serif"; property var figures: ({})
-    property var glyph: ({notif: "N", close: "X", plus: "+", clearAll: "C"})
+    property var glyph: ({notif: "N", close: "X", plus: "+", clearAll: "C", check: "Y"})
 }
 ''')
         (target / "Popup.qml").write_text('''import QtQuick
@@ -159,6 +160,17 @@ ShellRoot {
                 }
                 return null;
             }
+            function dragCard(card, left, distance) {
+                const start = left ? card.width - 15 : 15;
+                const end = start + (left ? -distance : distance);
+                mousePress(card, start, 30);
+                mouseMove(card, start + (left ? -25 : 25), 30, 30);
+                mouseMove(card, end, 30, 30);
+                check(card.tracking && (left ? card.swipe < 0 : card.swipe > 0), "mouse drag tracks the card");
+                const content = named(card, "card-content");
+                check(Math.abs(content.x - 10 - card.swipe) < 1, "card content follows the swipe");
+                mouseRelease(card, end, 30);
+            }
             function run() {
                 check(popup.bodyWidth === Theme.popupWideWidth, "the centre is as wide as mail and tasks");
                 // A sender's shortened payload must not be mistaken for UI elision.
@@ -261,6 +273,37 @@ ShellRoot {
                 const headerClear = button(named(popup, "group-header"), "Clear");
                 mouseClick(headerClear, headerClear.width / 2, headerClear.height / 2);
                 checkSoon(() => Notifications.count === 3 && Notifications.list.includes(single), "the header's clear clears only its group");
+                // Short drags spring back; either full swipe clears without activation.
+                notice.actions = [{identifier: "default", text: "Open", invoke: () => Notifications.invoked++}];
+                Notifications.centreFocus = null;
+                Notifications.list = [notice]; OpenPopup.dismissed = false; wait(150);
+                card = notificationCard(popup, notice);
+                const invoked = Notifications.invoked;
+                dragCard(card, true, 70);
+                tryCompare(card, "swipe", 0, 4000);
+                check(Notifications.count === 1 && Notifications.invoked === invoked && !OpenPopup.dismissed,
+                    "short swipe keeps the notification without activating it");
+                for (const left of [true, false]) {
+                    if (Notifications.count === 0) {
+                        Notifications.list = [notice]; OpenPopup.dismissed = false; wait(150);
+                        card = notificationCard(popup, notice);
+                    }
+                    dragCard(card, left, card.width * 0.75);
+                    checkSoon(() => Notifications.count === 0, "full swipe clears in either direction");
+                    check(Notifications.invoked === invoked && OpenPopup.dismissed, "swiping the last card closes without activating");
+                }
+                // Collapsed groups clear together; expanded cards clear individually.
+                Notifications.list = [notice, second]; OpenPopup.dismissed = false; wait(150);
+                card = notificationCard(popup, notice);
+                dragCard(card, true, card.width * 0.75);
+                checkSoon(() => Notifications.count === 0, "swiping a collapsed group clears every notification in it");
+                Notifications.list = [notice, second]; OpenPopup.dismissed = false; wait(150);
+                mouseClick(notificationCard(popup, notice), 12, 30); wait(130);
+                card = notificationCard(popup, second);
+                dragCard(card, false, card.width * 0.75);
+                checkSoon(() => Notifications.count === 1, "swiping an expanded group's card clears only that notification");
+                check(Notifications.list[0] === notice && !OpenPopup.dismissed && Notifications.invoked === invoked,
+                    "the remaining notification stays available without activation");
                 console.log("PASS: notification cards, actions, dismissal and grouping");
             }
         }
@@ -279,7 +322,7 @@ ShellRoot {
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime))
         for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
             env.pop(key, None)
-        result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=15)
+        result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=25)
         output = result.stdout + result.stderr
         print(output, end="")
         return 0 if result.returncode == 0 and "PASS: notification cards" in output and "FAIL:" not in output else 1
