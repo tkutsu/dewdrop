@@ -6,7 +6,7 @@ Liquid {
     id: root
     property bool held: false
     property bool resetWhenHidden: false
-    readonly property bool animating: liftSpring.running || leftSpring.running || rightSpring.running
+    readonly property bool animating: liftEase.running || leftSpring.running || rightSpring.running
     property real slabY: 0
     required property real slabHeight
 
@@ -18,7 +18,7 @@ Liquid {
 
     // How far the glass has come up off the pill, 0..1: a press held
     // on an icon lifts it `rise` pixels towards the pill's edges and
-    // lights it a step, and letting go drops it back on the spring.
+    // lights it a step, and letting go sets it back down.
     // A pixel by default, because the bar's surface ends at the pill's
     // foot and the mark cannot swell past it the way a lens on a phone
     // does.
@@ -44,10 +44,11 @@ Liquid {
     property real lift: root.held || root.afloat ? 1 : 0
 
     Behavior on lift {
-        SpringAnimation {
-            id: liftSpring
-            spring: Theme.markSpring
-            damping: Theme.markDamping
+        id: liftBehaviour
+        NumberAnimation {
+            id: liftEase
+            duration: liftBehaviour.targetValue > 0 ? Theme.markLiftMs : Theme.markSettleMs
+            easing.type: Easing.InOutSine
         }
     }
 
