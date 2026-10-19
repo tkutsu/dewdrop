@@ -391,9 +391,7 @@ BarItem {
         // The workspace selection mode is on, if it is on one of these.
         readonly property Item keyed: OpenPopup.selected?.parent === buttons ? OpenPopup.selected : null
 
-        // Where the mark is: the focused workspace, or the one selection
-        // mode is on, the way a tab bar's lens follows the keys while the
-        // focused workspace keeps its icons lit (button.ink).
+        // The mark follows focus or keyboard selection and lights the icons it covers.
         //
         // Read focus directly: delegate active bindings update separately and
         // briefly leave no selection when moving towards an earlier workspace.
@@ -405,6 +403,16 @@ BarItem {
                 if (focused !== -1 && child.workspaceInfo?.id === focused)
                     return child;
             return null;
+        }
+
+        // Ease each icon's brightness through the moving mark's overlap.
+        function inkAt(left: real, width: real): real {
+            if (!mark.hasSelection || width <= 0)
+                return Theme.restOpacity;
+            const covered = Math.max(0, Math.min(left + width, mark.x + mark.frontRight)
+                - Math.max(left, mark.x + mark.frontLeft)) / width;
+            const lit = covered * covered * (3 - 2 * covered);
+            return Theme.restOpacity + (1 - Theme.restOpacity) * lit;
         }
 
         // A press held on one of the strip's icons. Read off the buttons, the
@@ -649,19 +657,7 @@ BarItem {
                         root.syncWorkspaces();
                     }
 
-                    // Bring the focused workspace's icons forward with the mark.
-                    property real lit: button.active ? 1 : 0
-
-                    Behavior on lit {
-                        NumberAnimation {
-                            duration: button.active ? Theme.markMs * 0.6 : Theme.markMs
-                            easing.type: button.active ? Easing.OutCubic : Easing.InOutCubic
-                        }
-                    }
-
-                    // The icons of a workspace you are not on stand
-                    // a little back, and come forward with the mark.
-                    readonly property real ink: Theme.restOpacity + (1 - Theme.restOpacity) * button.lit
+                    readonly property real ink: strip.inkAt(button.drawnX, button.width)
 
                     // Held down on one of the icons. A press on the workspace
                     // gives no answer of its own: the mark moving over is it.
@@ -868,8 +864,8 @@ BarItem {
                                 // would point at a window you are not in.
                                 focused: button.active && icon.addresses.includes(Hyprland.activeToplevel?.address)
                                 pressed: tap.pressed && !root.dragging
-                                // An app that wants you is not one to stand back.
-                                inkOpacity: (app.urgent ? 1 : button.ink) * (root.dragging && root.dragSource === app ? 0.35 : 1)
+                                inkOpacity: strip.inkAt(button.drawnX + row.x + app.x + app.inkLeft * app.scale,
+                                    app.inkWidth * app.scale) * (root.dragging && root.dragSource === app ? 0.35 : 1)
                                 cornerDot: groupCount.visible && groupCount.dot
                                     ? Qt.rect(groupCount.localAt.x, groupCount.localAt.y, groupCount.width, groupCount.height)
                                     : Qt.rect(0, 0, 0, 0)

@@ -43,6 +43,7 @@ RowLayout { id: layout; height: root.height }
 (target/'components/AppIcon.qml').write_text('''import QtQuick
 Item { property string windowClass; property bool focused; property bool urgent; property bool pressed
 property real inkOpacity; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
+readonly property real inkLeft: 0; readonly property real inkWidth: width
 property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
 ''')
@@ -53,8 +54,9 @@ implicitWidth: 16; implicitHeight: 30 }
 import qs
 Item { property bool held; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
 property real wallLeft; property real wallRight; property real wantLeft; property real wantRight; property bool resizing
+readonly property real frontLeft: wantLeft; readonly property real frontRight: wantRight
 property real spring; property real damping; property int inset: Theme.markInset; property bool animating: false }''')
-if '--marks' in sys.argv or '--mark-input' in sys.argv:
+if '--marks' in sys.argv or '--mark-input' in sys.argv or '--mark-ink' in sys.argv:
     (target/'components/FlowMark.qml').write_text((root/'components/FlowMark.qml').read_text())
     # Inspect the real animation's shader geometry without requiring a GPU.
     (target/'components/Liquid.qml').write_text('''import QtQuick
@@ -93,7 +95,7 @@ src=src.replace('id: root','''id: root
     property alias auditWorkspaces: workspaces
     property alias auditGhost: ghost
     property alias auditNewWorkspace: newWorkspace''',1)
-if '--marks' in sys.argv or '--mark-input' in sys.argv:
+if '--marks' in sys.argv or '--mark-input' in sys.argv or '--mark-ink' in sys.argv:
     src=src.replace('id: root', 'id: root\n    property alias auditMark: mark', 1)
 src=src.replace('id: button\n','id: button\n                    property alias auditRow: row\n',1)
 if '--badge-alignment' in sys.argv:
@@ -360,6 +362,73 @@ if '--snapshots' in sys.argv:
  const atRest=pill.lastWhole;test.wait(100);
  check(pill.lastWhole===atRest,'unchanged models retain the same snapshot');
 """ + shell_source[end:]
+
+if '--mark-ink' in sys.argv:
+    (target / 'icons').mkdir(exist_ok=True)
+    (target / 'icons/launcher.svg').symlink_to(root / 'icons/launcher.svg')
+    start = shell_source.index(' const w1=ws(1)')
+    end = shell_source.index(' console.log(failures.length', start)
+    shell_source = shell_source[:start] + r'''
+ const w1=ws(1),w2=ws(2),w3=ws(3);
+ const a=win('a',w1,'first'),b=win('b',w2,'second');
+ const c=win('c',w3,'third'),d=win('d',w3,'fourth');
+ reset([a,b,c,d],[w1,w2,w3]);
+ const mark=pill.auditMark;
+ const apps=[icon(button(1),'a'),icon(button(2),'b'),icon(button(3),'c'),icon(button(3),'d')];
+ const artworkApp=apps[3];
+ if (artworkApp.source!==undefined) {
+   artworkApp.source=Qt.resolvedUrl('icons/launcher.svg');test.wait(600);
+   check(artworkApp.hasIcon,'real artwork loads alongside fallback glyphs');
+ }
+ function artwork(item) {
+   if (item.fitsInk!==undefined) return item;
+   for (const child of item.children) { const found=artwork(child);if(found)return found; }
+   return null;
+ }
+ function coverage(app) {
+   const x=app.mapToItem(pill.auditStrip,app.inkLeft,0).x;
+   const right=app.mapToItem(pill.auditStrip,app.inkLeft+app.inkWidth,0).x;
+   return Math.max(0,Math.min(right,mark.x+mark.frontRight)-Math.max(x,mark.x+mark.frontLeft))/(right-x);
+ }
+ let partial=0,passing=0,separate=0,maxError=0,artError=0;
+ function sample() {
+   for (const app of apps) {
+     const covered=coverage(app);
+     const expected=Theme.restOpacity+(1-Theme.restOpacity)*covered*covered*(3-2*covered);
+     maxError=Math.max(maxError,Math.abs(app.inkOpacity-expected));
+     if(app.inkOpacity>Theme.restOpacity+0.001 && app.inkOpacity<0.999)partial++;
+   }
+   if(apps[1].inkOpacity>Theme.restOpacity+0.001)passing++;
+   if(Math.abs(apps[2].inkOpacity-apps[3].inkOpacity)>0.01)separate++;
+   const art=artwork(artworkApp);
+   if(art)artError=Math.max(artError,Math.abs(art.opacity-artworkApp.inkOpacity));
+ }
+ check(apps[0].inkOpacity===1 && apps.slice(1).every(app=>app.inkOpacity===Theme.restOpacity),
+   'icons start fully lit only inside the mark');
+ Hyprland.focusedWorkspace=w3;
+ check(apps[0].inkOpacity===1 && apps[2].inkOpacity===Theme.restOpacity,
+   'focus alone does not light the destination before the mark arrives');
+ for(let ms=0;ms<600;ms+=10){test.wait(10);sample();}
+ check(maxError<0.001,'brightness follows the drawn mark on every sampled frame');
+ check(partial>0 && separate>0,'icons brighten smoothly and individually as the edge crosses them');
+ check(passing>0,'icons on an intermediate workspace light as the mark passes');
+ check(artError<0.001,'loaded artwork follows coverage without an extra opacity fade');
+ check(apps[0].inkOpacity===Theme.restOpacity && apps[2].inkOpacity===1 && apps[3].inkOpacity===1,
+   'destination icons finish at full opacity and the source dims');
+ Hyprland.focusedWorkspace=w1;test.wait(60);sample();
+ Hyprland.focusedWorkspace=w3;
+ for(let ms=0;ms<500;ms+=10){test.wait(10);sample();}
+ check(maxError<0.001 && artError<0.001,'interrupted switches retain coverage without a trailing fade');
+ OpenPopup.selected=button(2);test.wait(500);
+ check(apps[1].inkOpacity===1 && apps[2].inkOpacity===Theme.restOpacity,
+   'keyboard selection lights the icons under its mark');
+ OpenPopup.selected=null;test.wait(500);
+ Settings.reduceMotion=true;Hyprland.focusedWorkspace=w1;test.wait(400);
+ check(apps[0].inkOpacity===1 && apps.slice(1).every(app=>app.inkOpacity===Theme.restOpacity),
+   'reduced motion retains full and resting opacity at the mark destination');
+ console.log(failures.length?'FAIL: '+failures.length+' mark lighting checks':'PASS: workspace mark lighting');
+ Qt.quit();return;
+''' + shell_source[end:]
 
 if '--marks' in sys.argv:
     shell_source=shell_source.replace('import qs.services', 'import qs.services\nimport qs.components', 1)

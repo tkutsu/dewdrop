@@ -18,7 +18,7 @@ Item {
     property string layoutSource: ""
     property int fontSize: Theme.glyphSize
     property color color: Theme.fg
-    property color inkColor: Theme.barInk(root, root.color)
+    property color inkColor: Theme.barInk(root, root.color, true)
 
     Behavior on inkColor {
         ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
@@ -80,6 +80,7 @@ Item {
         tightWidth: root.tightWidth
         fontSize: root.fontSize
         color: root.color
+        inkColor: root.inkColor
         nudge: root.nudge
     }
 
