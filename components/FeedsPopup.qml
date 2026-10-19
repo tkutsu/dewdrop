@@ -425,7 +425,8 @@ Popup {
 
                 PopupText {
                     width: parent.width
-                    text: [video.modelData.channel, Feeds.clock(video.modelData.duration), Feeds.age(video.modelData.published, root.now)].join(" · ")
+                    text: [video.modelData.channel, video.modelData.duration >= 0 ? Feeds.clock(video.modelData.duration) : "",
+                        Feeds.age(video.modelData.published, root.now)].filter(s => s !== "").join(" · ")
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: Theme.label2

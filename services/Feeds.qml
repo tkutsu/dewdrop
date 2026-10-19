@@ -13,19 +13,23 @@ import qs
 // plus Settings.feedChannels, which can name ones you do not subscribe to.
 // Their videos come from YouTube's public feeds rather than the API: those
 // cost no quota, and the UULF playlist they are read from is a channel's
-// uploads without its Shorts. Failed public feeds fall back to that playlist
-// through the API. Lives and premieres are in it too, and only the
-// API can tell them apart, so every new video is asked about once
-// (videos.list, fifty to a request) and the answer is kept.
+// uploads without its Shorts. Those feeds fail a random share of requests
+// (two in three, 2026-10-19), whatever the channel, so a failed one tries the
+// channel's own feed, Shorts dropped by their links, then keeps what it had.
+// Only a channel not heard from in `staleMs` reads the playlist through the
+// API. Lives and premieres are in it too, and only the API can tell them
+// apart, so every new video is asked about once (videos.list, fifty to a
+// request) and the answer is kept. Each list call costs one unit of the
+// project's 10,000 a day; a refresh is otherwise free, so anything may ask
+// for one.
 //
 // The RSS feeds need no sign-in and are read whether YouTube is connected or
 // not, so this is its own service rather than a GoogleService.
 //
-// Seen is per item; "Mark All Seen" also remembers a cutoff for each kind.
-// Videos start with a recent cutoff, RSS starts with all available items.
-// Only the unseen are listed and counted; opening one or swiping it away
-// sees it, and so does opening it in a browser on this machine (its history,
-// read by scripts/feeds-seen.py).
+// Seen is per item, and "Mark All Seen" sees each one listed. Only the unseen
+// are listed and counted; opening one or swiping it away sees it, and so
+// does opening it in a browser on this machine (its history, read by
+// scripts/feeds-seen.py).
 // YouTube's API dropped watch history, so a phone or a TV cannot tell.
 Singleton {
     id: root
@@ -44,20 +48,25 @@ Singleton {
     // few enough not to look like a crawler.
     readonly property int parallel: 6
     readonly property int timeoutMs: 15000
+    // How long a channel's public feeds may keep failing before the API is
+    // asked instead, and how long the subscriptions and a handle that names
+    // no channel are believed. A video the API did not return (private,
+    // removed, still processing) is asked about again after `staleMs` too.
+    readonly property int staleMs: 2 * 3600000
+    readonly property int subscriptionsMs: 6 * 3600000
+    readonly property int unknownHandleMs: 24 * 3600000
 
     // --- state ---------------------------------------------------------------
-    // Newest first: {id, title, channel, published, duration, url, thumb}.
+    // Newest first: {id, video, title, channel, published, duration, url,
+    // thumb}; duration is -1 when the API could not be asked.
     property var videos: []
     // One per feed URL, in settings order: {title, url, items}, each item
     // {id, title, url, summary, thumb, comments, points, replies, published}.
     property var sources: []
 
-    // What each channel's feed said last, by channel id, so one feed failing
-    // keeps its videos rather than dropping them for a poll.
-    property var byChannel: ({})
-    // @handles from the settings resolved to channel ids, for this session.
-    property var handles: ({})
+    // The subscriptions as last read, and when; zero reads them next refresh.
     property var subscribed: []
+    property real subscribedAt: 0
 
     // Whether anything has been heard back yet, and what went wrong since.
     // RetryButton reads `retryable`, `loading` and `retryNow`.
@@ -72,12 +81,13 @@ Singleton {
     readonly property bool retryable: root.trouble !== "" && !YouTubeAccount.needsConsent
     readonly property bool connected: !YouTubeAccount.needsConsent
 
-    // What the popup lists and the badge counts.
-    readonly property var unseenVideos: root.videos.filter(v => root.unread(v))
+    // What the popup lists and the badge counts. Videos from before the
+    // first run are not news; every story still in its feed is.
+    readonly property var unseenVideos: root.videos.filter(v => v.published > store.since && root.unseen(v))
     readonly property var unseenSources: root.sources
         .map(s => Object.assign({}, s, {
             title: (Settings.feedTitles[s.url] ?? "").trim() || s.title,
-            items: s.items.filter(i => root.unread(i, store.rssSince))
+            items: s.items.filter(i => root.unseen(i))
         }))
         .filter(s => s.items.length > 0)
     readonly property int count: root.unseenVideos.length + root.unseenSources.reduce((n, s) => n + s.items.length, 0)
@@ -92,8 +102,8 @@ Singleton {
         return root.count === 0 ? "Nothing new" : `${root.count} new`;
     }
 
-    function unread(item: var, since: var): bool {
-        return item.published > (since ?? store.since) && !(item.id in store.seen);
+    function unseen(item: var): bool {
+        return !(item.id in store.seen);
     }
 
     function open(item: var, link: string): void {
@@ -115,12 +125,12 @@ Singleton {
         root.save();
     }
 
+    // Each one listed, not a cutoff: a story can reach hnrss's points
+    // threshold hours after it was posted, and a video waiting on its
+    // verdict has not been shown yet.
     function markAllSeen(): void {
         root.remember();
-        store.since = Date.now();
-        store.rssSince = store.since;
-        store.seen = {};
-        root.save();
+        root.markSeen(root.unseenItems());
     }
 
     // A swipe in the popup: seen, with an undo.
@@ -135,27 +145,24 @@ Singleton {
     property var undos: []
 
     function remember(): void {
-        root.undos = root.undos.concat([{ since: store.since, rssSince: store.rssSince, seen: store.seen }]);
+        root.undos = root.undos.concat([store.seen]);
     }
 
     function undo(): void {
-        const last = root.undos[root.undos.length - 1];
-        if (!last)
+        if (root.undos.length === 0)
             return;
+        store.seen = root.undos[root.undos.length - 1];
         root.undos = root.undos.slice(0, -1);
-        store.since = last.since;
-        store.rssSince = last.rssSince;
-        store.seen = last.seen;
         root.save();
     }
 
     // One section open in the popup, by "videos" or a feed's URL, remembered.
     function unfolded(section: string): bool {
-        return Object.keys(store.unfolded).find(key => store.unfolded[key]) === section;
+        return store.open === section;
     }
 
     function toggle(section: string): void {
-        store.unfolded = root.unfolded(section) ? {} : { [section]: true };
+        store.open = root.unfolded(section) ? "" : section;
         root.save();
     }
 
@@ -169,12 +176,9 @@ Singleton {
         retry.stop();
         root.hold(() => {
             root.readSources();
-            if (root.connected)
-                root.readSubscriptions("", [], ids => {
-                    if (ids !== null)
-                        root.subscribed = ids;
-                    root.resolve(Settings.feedChannels, extra => root.readChannels(root.subscribed.concat(extra)));
-                });
+            if (root.connected && root.restored)
+                root.readSubscriptions(() => root.resolve(Settings.feedChannels,
+                    extra => root.readChannels(root.subscribed.concat(extra))));
         })();
     }
 
@@ -201,19 +205,40 @@ Singleton {
         };
     }
 
-    // One YouTube Data API GET. `fail` defaults to setting `trouble`.
+    // One YouTube Data API GET. `fail` defaults to setting `trouble`. Once
+    // the day's quota is gone it fails without asking, until the reset.
     function get(path: string, then: var, fail: var): void {
         // One hold, settled once whichever way it ends.
         const settle = root.hold((ok, args) => ok ? then(...args) : (fail ?? root.fail)(...args));
         const bad = (...args) => settle(false, args);
-        YouTubeAccount.authorised(() => YouTubeAccount.send("GET", `${root.api}/${path}`, null, (...args) => settle(true, args), bad), bad);
+        if (Date.now() < store.quotaUntil)
+            bad("Quota used up", 403, "quotaExceeded");
+        else
+            YouTubeAccount.authorised(() => YouTubeAccount.send("GET", `${root.api}/${path}`, null, (...args) => settle(true, args), bad), bad);
     }
 
-    function fail(why: string, status: int): void {
-        root.trouble = status === 403 && why !== YouTubeAccount.reconnect
-            ? "Enable the YouTube Data API v3 in the Google console" : why;
-        if (status === 0 || status === 408 || status === 429 || status >= 500)
+    function fail(why: string, status: int, reason: var): void {
+        if (reason === "quotaExceeded" || reason === "dailyLimitExceeded") {
+            if (Date.now() >= store.quotaUntil) {
+                store.quotaUntil = root.quotaReset(Date.now());
+                root.save();
+            }
+            root.trouble = `YouTube quota used up until ${Qt.formatTime(new Date(store.quotaUntil), "HH:mm")}`;
+        } else if (reason === "accessNotConfigured" || reason === "SERVICE_DISABLED") {
+            root.trouble = "Enable the YouTube Data API v3 in the Google console";
+        } else {
+            root.trouble = why;
+        }
+        if (status === 0 || status === 408 || status === 429 || status >= 500 || /rateLimitExceeded/i.test(reason ?? ""))
             retry.restart();
+    }
+
+    // Quota resets at midnight Pacific, 07:00 or 08:00 UTC by the season;
+    // the later, so a spent day never asks an hour early.
+    function quotaReset(now: real): real {
+        const reset = new Date(now);
+        reset.setUTCHours(8, 0, 0, 0);
+        return reset.getTime() > now ? reset.getTime() : reset.getTime() + 86400000;
     }
 
     Timer {
@@ -231,11 +256,13 @@ Singleton {
 
     Component.onCompleted: root.refresh()
 
-    // The sign-in landed, at startup or after Connect: read it.
+    // The sign-in landed, at startup or after Connect, maybe as another
+    // account: read its subscriptions afresh.
     Connections {
         target: YouTubeAccount
 
         function onReady(): void {
+            root.subscribedAt = 0;
             root.refresh();
         }
     }
@@ -275,12 +302,21 @@ Singleton {
         return [...all];
     }
 
+    // All of the history for links not looked for before, else only what was
+    // visited since the last look (a minute's overlap), which the script can
+    // skip without opening a database that has not changed since.
+    property var checkedLinks: new Set()
+    property real checkedAt: 0
+
     function checkHistory(): void {
         const links = root.links(root.unseenItems());
         if (history.running || links.length === 0)
             return;
+        const since = links.every(link => root.checkedLinks.has(link)) ? Math.floor(root.checkedAt / 1000) - 60 : 0;
+        root.checkedLinks = new Set(links);
+        root.checkedAt = Date.now();
         history.command = ["python3", "-I", Quickshell.shellPath("scripts/feeds-seen.py"),
-            "0", ...links];
+            String(Math.max(0, since)), ...links];
         history.running = true;
     }
 
@@ -309,108 +345,153 @@ Singleton {
         root.checkHistory()
 
     // --- fetching ------------------------------------------------------------
-    // Every page of the subscriptions, or null if one failed.
-    function readSubscriptions(token: string, ids: var, then: var): void {
+    // The subscriptions, every page, unless read within `subscriptionsMs`.
+    // A failed read keeps the last list.
+    function readSubscriptions(then: var): void {
+        if (Date.now() - root.subscribedAt < root.subscriptionsMs) {
+            then();
+            return;
+        }
+        root.readSubscriptionPage("", [], ids => {
+            if (ids !== null) {
+                root.subscribed = ids;
+                root.subscribedAt = Date.now();
+            }
+            then();
+        });
+    }
+
+    // Every page from `token` on, or null if one failed.
+    function readSubscriptionPage(token: string, ids: var, then: var): void {
         const page = token === "" ? "" : `&pageToken=${encodeURIComponent(token)}`;
         root.get(`subscriptions?part=snippet&mine=true&maxResults=50&fields=nextPageToken,items/snippet(resourceId/channelId)${page}`, function (body) {
             const all = ids.concat((body?.items ?? []).map(item => item.snippet.resourceId.channelId));
             if (body?.nextPageToken)
-                root.readSubscriptions(body.nextPageToken, all, then);
+                root.readSubscriptionPage(body.nextPageToken, all, then);
             else
                 then(all);
-        }, function (why, status) {
-            root.fail(why, status);
+        }, function (why, status, reason) {
+            root.fail(why, status, reason);
             then(null);
         });
     }
 
     // Settings.feedChannels to channel ids: an id as it is, or inside a
-    // /channel/ link; an @handle, bare or in a link, looked up once.
+    // /channel/ link; an @handle, bare or in a link, looked up once and kept
+    // (store.handles). A handle that names no channel is believed for
+    // `unknownHandleMs`; one whose lookup failed is asked again next time.
     function resolve(entries: var, then: var): void {
         const ids = [];
         const lookups = [];
         for (const entry of entries) {
             const id = String(entry).match(/UC[\w-]{22}/);
-            const handle = String(entry).match(/@[\w.-]+/);
+            const handle = String(entry).match(/@[\w.-]+/)?.[0];
+            const known = handle ? store.handles[handle] : undefined;
             if (id)
                 ids.push(id[0]);
-            else if (handle && root.handles[handle[0]])
-                ids.push(root.handles[handle[0]]);
-            else if (handle)
-                lookups.push(handle[0]);
+            else if (known?.id)
+                ids.push(known.id);
+            else if (handle && !(known && Date.now() - known.t < root.unknownHandleMs))
+                lookups.push(handle);
         }
         let outstanding = lookups.length;
         if (outstanding === 0) {
             then(ids);
             return;
         }
+        const landed = function () {
+            if (--outstanding === 0) {
+                root.save();
+                then(ids);
+            }
+        };
         for (const handle of lookups)
             root.get(`channels?part=id&forHandle=${encodeURIComponent(handle)}&fields=items/id`, function (body) {
-                const id = body?.items?.[0]?.id;
-                if (id) {
-                    root.handles = Object.assign({}, root.handles, { [handle]: id });
+                const id = body?.items?.[0]?.id ?? "";
+                store.handles = Object.assign({}, store.handles, { [handle]: { id: id, t: Date.now() } });
+                if (id)
                     ids.push(id);
-                } else {
+                else
                     console.warn("Feeds: no channel called", handle);
-                }
-                if (--outstanding === 0)
-                    then(ids);
-            }, function (why) {
+                landed();
+            }, function (why, status, reason) {
                 console.warn("Feeds: could not look up", handle, why);
-                if (--outstanding === 0)
-                    then(ids);
+                if (reason === "quotaExceeded" || reason === "dailyLimitExceeded")
+                    root.fail(why, status, reason);
+                landed();
             });
     }
 
+    // Each channel's videos within the window, merged into what it said
+    // before (store.channels, {t, videos}), so a feed that fails, or a
+    // channel feed crowded with Shorts, drops nothing already known.
     function readChannels(ids: var): void {
         const channels = [...new Set(ids)];
-        const byChannel = {};
-        for (const id of channels)
-            if (root.byChannel[id])
-                byChannel[id] = root.byChannel[id];
+        const started = Date.now();
+        const read = {};
         root.pool(channels.map(id => ({
-                    url: `https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${id.slice(2)}`,
-                    got: text => byChannel[id] = root.parseVideos(text),
-                    // Public playlist feeds sometimes return 404 while the API still has them.
-                    failed: done => root.get(`playlistItems?part=snippet&playlistId=UULF${id.slice(2)}&maxResults=15&fields=items/snippet(publishedAt,title,videoOwnerChannelTitle,resourceId/videoId)`, body => {
-                        byChannel[id] = (body?.items ?? []).map(item => {
-                            const s = item.snippet;
-                            const video = s.resourceId.videoId;
-                            return {id: "yt:" + video, video: video, title: s.title,
-                                channel: s.videoOwnerChannelTitle ?? "", published: Date.parse(s.publishedAt),
-                                url: `https://www.youtube.com/watch?v=${video}`,
-                                thumb: `https://i.ytimg.com/vi/${video}/mqdefault.jpg`};
-                        }).filter(v => v.video && !isNaN(v.published));
-                        done();
-                    }, (why, status) => {
-                        if (status !== 404)
-                            root.fail(why, status);
-                        done();
-                    })
+                    urls: [`https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${id.slice(2)}`,
+                        `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`],
+                    got: text => read[id] = root.parseVideos(text),
+                    failed: done => {
+                        if (started - (store.channels[id]?.t ?? 0) < root.staleMs) {
+                            done();
+                            return;
+                        }
+                        root.get(`playlistItems?part=snippet&playlistId=UULF${id.slice(2)}&maxResults=15&fields=items/snippet(publishedAt,title,videoOwnerChannelTitle,resourceId/videoId)`, body => {
+                            read[id] = (body?.items ?? []).map(item => root.video(item.snippet.resourceId.videoId,
+                                item.snippet.title, item.snippet.videoOwnerChannelTitle ?? "", Date.parse(item.snippet.publishedAt)))
+                                .filter(v => v.video && !isNaN(v.published));
+                            done();
+                        }, (why, status, reason) => {
+                            // No long uploads at all: nothing to say.
+                            if (status !== 404)
+                                root.fail(why, status, reason);
+                            done();
+                        });
+                    }
                 })), () => {
-            root.byChannel = byChannel;
+            const cutoff = Date.now() - root.days * 86400000;
+            const kept = {};
+            for (const id of channels) {
+                const before = store.channels[id];
+                if (!read[id] && !before)
+                    continue;
+                const merged = {};
+                for (const v of (before?.videos ?? []).concat(read[id] ?? []))
+                    if (v.published > cutoff)
+                        merged[v.video] = { video: v.video, title: v.title, channel: v.channel, published: v.published };
+                kept[id] = { t: read[id] ? started : before.t, videos: Object.values(merged) };
+            }
+            store.channels = kept;
             root.classify();
         });
     }
 
     // Ask the API about every video not asked about before, then publish.
+    // One the API leaves out is asked about again after `staleMs`; if the
+    // API cannot be asked at all, the unasked are shown rather than held
+    // back, lives and all, until it can.
     function classify(): void {
-        const cutoff = Date.now() - root.days * 86400000;
-        const recent = [].concat(...Object.values(root.byChannel)).filter(v => v.published > cutoff);
-        const unknown = recent.filter(v => !(v.video in store.verdicts));
+        const now = Date.now();
+        const cutoff = now - root.days * 86400000;
+        const recent = [].concat(...Object.values(store.channels).map(c => c.videos)).filter(v => v.published > cutoff);
+        const verdicts = Object.assign({}, store.verdicts);
+        const unknown = recent.filter(v => !verdicts[v.video] || verdicts[v.video].retry < now);
         const batches = [];
         for (let i = 0; i < unknown.length; i += 50)
             batches.push(unknown.slice(i, i + 50));
         let outstanding = batches.length;
-        const verdicts = Object.assign({}, store.verdicts);
+        let failed = false;
         const done = function () {
             // Older than the window, they will never be shown again.
             for (const [video, verdict] of Object.entries(verdicts))
                 if (verdict.t < cutoff)
                     delete verdicts[video];
             store.verdicts = verdicts;
-            root.videos = recent.filter(v => verdicts[v.video] && !verdicts[v.video].live)
-                .map(v => Object.assign({}, v, { duration: verdicts[v.video].duration }))
+            root.videos = recent.filter(v => verdicts[v.video] ? verdicts[v.video].live === false : failed)
+                .map(v => Object.assign(root.video(v.video, v.title, v.channel, v.published),
+                    { duration: verdicts[v.video]?.duration ?? -1 }))
                 .sort((a, b) => b.published - a.published);
             root.prune(cutoff);
             root.save();
@@ -421,20 +502,19 @@ Singleton {
         }
         for (const batch of batches) {
             root.get(`videos?part=contentDetails,liveStreamingDetails&id=${batch.map(v => v.video).join(",")}&fields=items(id,contentDetails/duration,liveStreamingDetails)`, function (body) {
-                // A video the API does not return yet (still processing, or
-                // private) gets no verdict and is asked about next poll.
-                for (const item of body?.items ?? []) {
-                    const v = batch.find(b => b.video === item.id);
+                for (const v of batch)
+                    verdicts[v.video] = { t: v.published, retry: now + root.staleMs };
+                for (const item of body?.items ?? [])
                     verdicts[item.id] = {
                         live: item.liveStreamingDetails !== undefined,
                         duration: root.seconds(item.contentDetails?.duration ?? ""),
-                        t: v ? v.published : Date.now()
+                        t: verdicts[item.id]?.t ?? now
                     };
-                }
                 if (--outstanding === 0)
                     done();
-            }, function (why, status) {
-                root.fail(why, status);
+            }, function (why, status, reason) {
+                failed = true;
+                root.fail(why, status, reason);
                 if (--outstanding === 0)
                     done();
             });
@@ -445,20 +525,25 @@ Singleton {
         const urls = Settings.feedUrls;
         const read = {};
         root.pool(urls.map(url => ({
-                    url: url,
+                    urls: [url],
                     got: text => read[url] = root.parseStories(text, url)
                 })), () => {
             root.sources = urls.map(url => {
                 const source = read[url] ?? root.sources.find(s => s.url === url);
                 return source ? Object.assign({ url: url }, source) : null;
             }).filter(s => s !== null && s.items.length > 0);
+            // With every feed in hand, forget stories seen that have left
+            // their feed a month ago: they will not be listed again. An
+            // empty answer is not in hand; it may be a broken page.
+            if (urls.every(url => read[url]?.items.length > 0))
+                root.forgetStories(Date.now() - 30 * 86400000);
         });
     }
 
-    // Plain GETs, a few at a time, held like the API's so the module stays
-    // dim until they are in. A feed that fails keeps whatever it said last
-    // (the caller's fallback); one dead channel is not trouble worth a
-    // warning on the bar.
+    // Plain GETs, a few jobs at a time, held like the API's so the module
+    // stays dim until they are in. A job tries its URLs in turn and, if none
+    // answers, its `failed` (the caller's fallback); one dead channel is not
+    // trouble worth a warning on the bar.
     function pool(jobs: var, done: var): void {
         let next = 0;
         let outstanding = jobs.length;
@@ -477,19 +562,25 @@ Singleton {
                 else
                     start();
             };
-            const failed = () => job.failed ? job.failed(landed) : landed();
-            Http.send("GET", job.url, null, {}, root.timeoutMs, function (xhr) {
-                if (xhr.status < 200 || xhr.status >= 300) {
-                    failed();
+            const attempt = function (i) {
+                if (i >= job.urls.length) {
+                    job.failed ? job.failed(landed) : landed();
                     return;
                 }
-                try {
-                    job.got(String(xhr.responseText));
-                } catch (error) {
-                    console.warn("Feeds: unreadable feed", job.url, error);
-                }
-                landed();
-            }, failed);
+                Http.send("GET", job.urls[i], null, {}, root.timeoutMs, function (xhr) {
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        attempt(i + 1);
+                        return;
+                    }
+                    try {
+                        job.got(String(xhr.responseText));
+                    } catch (error) {
+                        console.warn("Feeds: unreadable feed", job.urls[i], error);
+                    }
+                    landed();
+                }, () => attempt(i + 1));
+            };
+            attempt(0);
         };
         for (let i = 0; i < Math.min(root.parallel, jobs.length); i++)
             start();
@@ -511,20 +602,26 @@ Singleton {
             .replace(/&amp;/g, "&").trim();
     }
 
+    function video(id: string, title: string, channel: string, published: real): var {
+        return {
+            id: "yt:" + id,
+            video: id,
+            title: title,
+            channel: channel,
+            published: published,
+            url: `https://www.youtube.com/watch?v=${id}`,
+            // 16:9, where the feed's own hqdefault is letterboxed 4:3.
+            thumb: `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
+        };
+    }
+
+    // A channel's own feed has its Shorts too, linked as /shorts/.
     function parseVideos(xml: string): var {
-        return (xml.match(/<entry>[\s\S]*?<\/entry>/g) ?? []).map(entry => {
-            const video = root.tag(entry, "yt:videoId");
-            return {
-                id: "yt:" + video,
-                video: video,
-                title: root.tag(entry, "title"),
-                channel: root.tag(root.tag(entry, "author"), "name"),
-                published: Date.parse(root.tag(entry, "published")),
-                url: `https://www.youtube.com/watch?v=${video}`,
-                // 16:9, where the feed's own hqdefault is letterboxed 4:3.
-                thumb: `https://i.ytimg.com/vi/${video}/mqdefault.jpg`
-            };
-        }).filter(v => v.video !== "" && !isNaN(v.published));
+        return (xml.match(/<entry>[\s\S]*?<\/entry>/g) ?? [])
+            .filter(entry => !/<link\b[^>]*\/shorts\//.test(entry))
+            .map(entry => root.video(root.tag(entry, "yt:videoId"), root.tag(entry, "title"),
+                root.tag(root.tag(entry, "author"), "name"), Date.parse(root.tag(entry, "published"))))
+            .filter(v => v.video !== "" && !isNaN(v.published));
     }
 
     // Attributes occur in both XML media tags and decoded HTML images.
@@ -654,13 +751,26 @@ Singleton {
     }
 
     // --- memory --------------------------------------------------------------
-    // Videos expire with their window; keep RSS reads even after a feed drops them.
+    // Videos expire with their window; stories wait for forgetStories.
     function prune(cutoff: real): void {
         const seen = {};
         for (const [id, t] of Object.entries(store.seen))
             if (!id.startsWith("yt:") || t >= cutoff)
                 seen[id] = t;
         store.seen = seen;
+    }
+
+    // A story seen stays seen while any feed still lists it, however old:
+    // a blog's feed can hold a year of posts. Gone from them all and older
+    // than `cutoff`, it is forgotten.
+    function forgetStories(cutoff: real): void {
+        const listed = new Set([].concat(...root.sources.map(s => s.items.map(i => i.id))));
+        const seen = {};
+        for (const [id, t] of Object.entries(store.seen))
+            if (id.startsWith("yt:") || t >= cutoff || listed.has(id))
+                seen[id] = t;
+        store.seen = seen;
+        root.save();
     }
 
     property bool restored: false
@@ -681,15 +791,27 @@ Singleton {
         JsonAdapter {
             id: store
 
-            // Videos start two days back; RSS has no initial date cutoff.
+            // Videos start two days back; RSS has no date cutoff.
             property real since: 0
-            property real rssSince: 0
+            // Item id to its published time.
             property var seen: ({})
+            // Video id to {live, duration, t}, or {t, retry} when the API
+            // left it out.
             property var verdicts: ({})
-            property var unfolded: ({})
+            // Channel id to {t: last read, videos: [{video, title, channel,
+            // published}]}, within the window.
+            property var channels: ({})
+            // @handle to {id, t}; id "" when it named no channel.
+            property var handles: ({})
+            // Until when the day's API quota is spent.
+            property real quotaUntil: 0
+            // The popup section left open.
+            property string open: ""
         }
     }
 
+    // What the channels said last is in, so a channel's age is known before
+    // its feeds are read: only now do videos refresh.
     function restore(): void {
         if (root.restored)
             return;
@@ -697,5 +819,6 @@ Singleton {
             store.since = Date.now() - 2 * 86400000;
         root.restored = true;
         root.save();
+        root.refresh();
     }
 }

@@ -144,7 +144,7 @@ ShellRoot {
             const now = Date.now();
             root.check(Feeds.age(now - 30000, now) === "now" && Feeds.age(now - 7200000, now) === "2h" && Feeds.age(now - 3 * 86400000, now) === "3d", "ages");
 
-            const oldStory = {id: "old-rss", title: "Older article", published: now - 30 * 86400000, url: "https://example.com/old"};
+            const oldStory = {id: "old-rss", title: "Older article", published: now - 20 * 86400000, url: "https://example.com/old"};
             Feeds.sources = [{url: "older", title: "Older feed", items: [oldStory]}];
             root.check(Feeds.count === 1, "RSS predating the legacy cutoff is unread");
             root.check(Feeds.links(Feeds.unseenItems()).includes(oldStory.url), "old RSS links are checked in browser history");
@@ -164,7 +164,7 @@ ShellRoot {
                     { id: "BBBBBBBBBBB", contentDetails: { duration: "PT8H" }, liveStreamingDetails: { actualStartTime: "x" } }
                 ] });
             };
-            Feeds.byChannel = { UCxxxxxxxxxxxxxxxxxxxxxx: videos };
+            Feeds.store.channels = { UCxxxxxxxxxxxxxxxxxxxxxx: { t: now, videos: videos } };
             Feeds.classify();
             root.check(asked.length === 1 && asked[0].includes("id=AAAAAAAAAAA,BBBBBBBBBBB&"), "one videos.list for the window: " + asked[0]);
             root.check(Feeds.videos.length === 1 && Feeds.videos[0].video === "AAAAAAAAAAA", "lives and premieres left out");
@@ -173,18 +173,79 @@ ShellRoot {
             // Asked once: a second pass sends nothing.
             Feeds.classify();
             root.check(asked.length === 1, "verdicts remembered");
-
-            // A rejected public feed must not silently drop a subscribed channel.
             const apiStub = Feeds.stub;
+
+            // Left out by the API (private, removed): not asked again until staleMs.
+            const omitted = Feeds.video("DDDDDDDDDDD", "Private now", "Some Channel", now - 3600000);
+            Feeds.stub = function (path, then, fail) { asked.push(path); then({ items: [] }); };
+            Feeds.store.channels = { UCxxxxxxxxxxxxxxxxxxxxxx: { t: now, videos: videos.concat([omitted]) } };
+            Feeds.classify();
+            Feeds.classify();
+            root.check(asked.length === 2 && asked[1].includes("id=DDDDDDDDDDD&"), "an omitted video is asked about once per staleMs: " + asked.slice(1));
+            root.check(!Feeds.videos.some(v => v.video === "DDDDDDDDDDD"), "an omitted video stays hidden");
+
+            // The API out of reach: the unasked show, without a duration.
+            const unasked = Feeds.video("EEEEEEEEEEE", "Unasked", "Some Channel", now - 3600000);
+            Feeds.stub = function (path, then, fail) { fail("No network", 0); };
+            Feeds.store.channels = { UCxxxxxxxxxxxxxxxxxxxxxx: { t: now, videos: videos.concat([unasked]) } };
+            Feeds.classify();
+            const shown = Feeds.videos.find(v => v.video === "EEEEEEEEEEE");
+            root.check(shown && shown.duration === -1 && Feeds.videos.find(v => v.video === "AAAAAAAAAAA").duration === 725,
+                "unasked videos show while the API is unreachable");
+            Feeds.trouble = "";
+
+            // A spent quota: told apart from other 403s, and nothing asked until the reset.
+            Feeds.fail("Google said 403", 403, "accessNotConfigured");
+            root.check(Feeds.trouble === "Enable the YouTube Data API v3 in the Google console", "API switched off");
+            Feeds.fail("Google said 403", 403, "forbidden");
+            root.check(Feeds.trouble === "Google said 403", "other 403s say so: " + Feeds.trouble);
+            Feeds.fail("Google said 403", 403, "quotaExceeded");
+            root.check(Feeds.store.quotaUntil > now && Feeds.trouble.startsWith("YouTube quota used up until"), "quota spent: " + Feeds.trouble);
+            let refused = "";
+            Feeds.get("channels?part=id", () => refused = "asked", (why, status, reason) => refused = reason);
+            root.check(refused === "quotaExceeded", "a spent quota refuses without asking");
+            root.check(Feeds.quotaReset(Date.UTC(2026, 9, 19, 7, 59)) === Date.UTC(2026, 9, 19, 8)
+                && Feeds.quotaReset(Date.UTC(2026, 9, 19, 8)) === Date.UTC(2026, 9, 20, 8), "quota resets at 08:00 UTC");
+            Feeds.store.quotaUntil = 0;
+            Feeds.trouble = "";
+
+            // Handles: looked up once and kept; one naming nobody is believed for a day.
+            const lookups = [];
+            Feeds.stub = function (path, then, fail) {
+                lookups.push(path);
+                then(path.includes("known") ? { items: [{ id: "UCknownknownknownknown12" }] } : {});
+            };
+            let resolved = [];
+            Feeds.resolve(["@known", "@nobody", "UCidididididididididid12"], ids => resolved = ids);
+            root.check(lookups.length === 2 && resolved.length === 2 && resolved.includes("UCknownknownknownknown12")
+                && resolved.includes("UCidididididididididid12"), "handles looked up: " + resolved);
+            Feeds.resolve(["@known", "@nobody"], ids => resolved = ids);
+            root.check(lookups.length === 2 && resolved.length === 1, "handles kept, misses too");
+            Feeds.stub = function (path, then, fail) { lookups.push(path); fail("No network", 0); };
+            Feeds.resolve(["@flaky"], ids => resolved = ids);
+            Feeds.resolve(["@flaky"], ids => resolved = ids);
+            root.check(lookups.length === 4 && resolved.length === 0, "a failed lookup is asked again");
+
+            // A failed public feed tries the channel's own, then waits out staleMs
+            // on what it had, and only then pays for the API.
             const recovered = Array.from({length: 9}, (_, i) => ({snippet: {
                 resourceId: {videoId: "RECOVER000" + i}, title: "Recovered " + i,
                 videoOwnerChannelTitle: "Recovered channel",
                 publishedAt: new Date(now - 3600000).toISOString()}}));
+            const own = youtube.replace(/<entry>[\\s\\S]*?<\\/entry>/g, entry => !entry.includes("AAAAAAAAAAA") ? ""
+                : entry.replace(/AAAAAAAAAAA/g, "OWNFEED0001") + entry.replace(/AAAAAAAAAAA/g, "SHORTSHORT1")
+                    .replace("<title>", '<link rel="alternate" href="https://www.youtube.com/shorts/SHORTSHORT1"/><title>'));
             const fallbackCalls = [];
+            const fetched = [];
             Feeds.feedStub = function (method, url, payload, headers, timeout, accepted, failed) {
-                accepted({status: url.includes("UULFworking") ? 200 : 404,
-                    responseText: youtube.replace(/<entry>[\\s\\S]*?<\\/entry>/g,
+                fetched.push(url);
+                if (url.includes("UULFworking"))
+                    accepted({status: 200, responseText: youtube.replace(/<entry>[\\s\\S]*?<\\/entry>/g,
                         entry => entry.includes("AAAAAAAAAAA") ? entry : "")});
+                else if (url.includes("channel_id=UCchannel"))
+                    accepted({status: 200, responseText: own});
+                else
+                    accepted({status: 404, responseText: ""});
             };
             Feeds.stub = function (path, then, fail) {
                 if (path.startsWith("playlistItems?")) {
@@ -195,20 +256,27 @@ ShellRoot {
                     then({items: ids.map(id => ({id: id, contentDetails: {duration: "PT5M"}}))});
                 }
             };
-            Feeds.byChannel = {};
-            Feeds.readChannels(["UCworking", "UCrejected"]);
+            Feeds.store.channels = {};
+            Feeds.readChannels(["UCworking", "UCchannel", "UCrejected"]);
+            root.check(fetched.filter(url => url.includes("working")).length === 1, "an answering playlist feed is enough");
+            root.check(Feeds.store.channels.UCchannel.videos.map(v => v.video).join() === "OWNFEED0001",
+                "the channel's own feed stands in, Shorts dropped");
             root.check(fallbackCalls.length === 1 && fallbackCalls[0].includes("playlistId=UULFrejected"),
-                "only a failed public feed uses the Shorts-free API playlist");
-            root.check(Feeds.unseenVideos.length === 10 && Object.keys(Feeds.byChannel).length === 2,
-                "all ten unseen videos survive a public feed returning 404 (" + Feeds.unseenVideos.length + ")");
-            const previous = Feeds.byChannel.UCrejected;
-            Feeds.stub = function (path, then, fail) { fail("No network", 0); };
+                "only a channel with nothing from either feed pays for the API");
+            root.check(Feeds.unseenVideos.length === 11, "every channel's videos listed (" + Feeds.unseenVideos.length + ")");
             Feeds.readChannels(["UCrejected"]);
-            root.check(Feeds.byChannel.UCrejected === previous && Feeds.unseenVideos.length === 9,
-                "a failed API fallback retains the channel's previous videos");
-            Feeds.byChannel = { UCxxxxxxxxxxxxxxxxxxxxxx: videos };
+            root.check(fallbackCalls.length === 1 && Feeds.store.channels.UCrejected.videos.length === 9,
+                "a channel heard from within staleMs keeps its videos and waits");
+            const read = now - Feeds.staleMs - 1;
+            Feeds.store.channels = { UCrejected: Object.assign({}, Feeds.store.channels.UCrejected, { t: read }) };
+            Feeds.stub = function (path, then, fail) { fallbackCalls.push(path); fail("No network", 0); };
+            Feeds.readChannels(["UCrejected"]);
+            root.check(fallbackCalls.length === 2 && Feeds.store.channels.UCrejected.t === read && Feeds.unseenVideos.length === 9,
+                "past staleMs it asks, and a failed ask keeps the channel's videos");
+            Feeds.store.channels = { UCxxxxxxxxxxxxxxxxxxxxxx: { t: now, videos: videos } };
             Feeds.stub = apiStub;
             Feeds.classify();
+            Feeds.trouble = "";
 
             // Unread until opened or marked; the badge counts both kinds.
             Feeds.sources = [Object.assign({ url: "x" }, stories)];
@@ -224,6 +292,10 @@ ShellRoot {
             root.check(Feeds.count === 1 && Feeds.undos.length === 0, "undo brings it back");
             Feeds.markAllSeen();
             root.check(Feeds.count === 0 && Feeds.label === "", "mark all seen clears the badge");
+            const late = Object.assign({}, story, { id: "late", published: now - 7200000 });
+            Feeds.sources = [{ url: "x", title: "x", items: stories.items.concat([late]) }];
+            root.check(Feeds.count === 1, "a story reaching the feed after Mark All Seen is new, however old");
+            Feeds.sources = [Object.assign({ url: "x" }, stories)];
             Feeds.undo();
             root.check(Feeds.count === 1, "mark all seen undone");
 
@@ -232,6 +304,17 @@ ShellRoot {
             root.check(links.length === 2 && links.includes(story.url) && links.includes(story.comments), "links to look for: " + links);
             Feeds.seenInBrowser(story.comments + "\nhttps://elsewhere.example/\n");
             root.check(Feeds.count === 0 && Feeds.undos.length === 0, "opened in the browser counts as seen, with nothing to undo");
+
+            // A story seen is forgotten once gone from every feed and a month old.
+            const day = 86400000;
+            const seenBefore = Feeds.store.seen;
+            Feeds.store.seen = { "gone-old": now - 40 * day, "listed-old": now - 40 * day, "gone-new": now - day, "yt:old": now - 40 * day };
+            Feeds.sources = [{ url: "y", title: "y", items: [{ id: "listed-old", title: "Listed", published: now - 40 * day, url: "" }] }];
+            Feeds.forgetStories(now - 30 * day);
+            root.check(Object.keys(Feeds.store.seen).sort().join() === "gone-new,listed-old,yt:old",
+                "forgotten: " + Object.keys(Feeds.store.seen));
+            Feeds.store.seen = seenBefore;
+            Feeds.sources = [];
 
             // Sections start folded and remember being opened.
             root.check(!Feeds.unfolded("videos"), "folded at first");
@@ -266,12 +349,14 @@ import qs.services
 ShellRoot {
     readonly property bool feedsRestored: Feeds.restored
     Timer { interval: 300; running: true; onTriggered: {
-        const published = Date.now() - 30 * 86400000;
+        const published = Date.now() - 20 * 86400000;
         const unread = {id: "other-old-rss", published: published, url: "https://example.com/other-old"};
         Feeds.sources = [{url: "older", title: "Older feed", items: [unread, {id: "old-rss",
             published: published, url: "https://example.com/old"}]}];
-        const ok = feedsRestored && Feeds.count === 1 && Feeds.unseenSources[0].items[0].id === unread.id && !Feeds.unread(unread);
-        console.log(ok ? "PASS: clicked RSS survives restart" : "FAIL: RSS restart read-state or cutoff");
+        const ok = feedsRestored && Feeds.count === 1 && Feeds.unseenSources[0].items[0].id === unread.id;
+        console.log(ok ? "PASS: clicked RSS survives restart" : "FAIL: RSS restart read-state");
+        console.log(Feeds.store.channels.UCxxxxxxxxxxxxxxxxxxxxxx?.videos.length === 3 && Feeds.store.verdicts.AAAAAAAAAAA
+            ? "PASS: channels and verdicts survive restart" : "FAIL: channel cache lost on restart");
         Qt.quit();
     } }
 }
@@ -294,8 +379,9 @@ def main():
         text = service.read_text()
         call = 'root.get(`videos'
         assert call in text
-        service.write_text(text.replace(call, 'root.stub(`videos').replace('root.get(`playlistItems', 'root.stub(`playlistItems').replace('Http.send("GET", job.url', 'root.feedStub("GET", job.url')
-                           .replace("    property var videos: []", "    property var stub: null\n    property var feedStub: null\n    property int refreshes: 0\n    property var videos: []")
+        service.write_text(text.replace(call, 'root.stub(`videos').replace('root.get(`playlistItems', 'root.stub(`playlistItems')
+                           .replace('root.get(`channels', 'root.stub(`channels').replace('Http.send("GET", job.urls[i]', 'root.feedStub("GET", job.urls[i]')
+                           .replace("    property var videos: []", "    property var stub: null\n    property var feedStub: null\n    property int refreshes: 0\n    property alias store: store\n    property var videos: []")
                            .replace("    function refresh(): void {", "    function refresh(): void {\n        root.refreshes++;"))
         # No feeds to fetch: the fixture never touches the network.
         (target / "settings.json").write_text('{"feedUrls": []}\n')
