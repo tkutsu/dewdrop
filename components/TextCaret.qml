@@ -4,7 +4,8 @@ import QtQuick
 Rectangle {
     id: root
 
-    required property TextInput textInput
+    // Shared by TextInput fields and TextEdit editors.
+    required property var textInput
 
     width: 2
     color: "#dddddd"
