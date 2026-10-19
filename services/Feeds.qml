@@ -13,17 +13,19 @@ import qs
 // plus Settings.feedChannels, which can name ones you do not subscribe to.
 // Their videos come from YouTube's public feeds rather than the API: those
 // cost no quota, and the UULF playlist they are read from is a channel's
-// uploads without its Shorts. Lives and premieres are in it too, and only the
+// uploads without its Shorts. Failed public feeds fall back to that playlist
+// through the API. Lives and premieres are in it too, and only the
 // API can tell them apart, so every new video is asked about once
 // (videos.list, fifty to a request) and the answer is kept.
 //
 // The RSS feeds need no sign-in and are read whether YouTube is connected or
 // not, so this is its own service rather than a GoogleService.
 //
-// Seen is per item, and anything published before `since` counts as seen:
-// "Mark All Seen" only moves that instant. Only the unseen are listed and
-// counted; opening one or swiping it away sees it, and so does opening it in
-// a browser on this machine (its history, read by scripts/feeds-seen.py).
+// Seen is per item; "Mark All Seen" also remembers a cutoff for each kind.
+// Videos start with a recent cutoff, RSS starts with all available items.
+// Only the unseen are listed and counted; opening one or swiping it away
+// sees it, and so does opening it in a browser on this machine (its history,
+// read by scripts/feeds-seen.py).
 // YouTube's API dropped watch history, so a phone or a TV cannot tell.
 Singleton {
     id: root
@@ -35,9 +37,9 @@ Singleton {
     // feeds are fetched without quota anyway.
     readonly property int pollMs: 30 * 60000
     readonly property int retryMs: 2 * 60000
-    // How far back the popup looks, and how many stories a feed shows.
+    // How far back videos look, and how many RSS stories appear at a time.
     readonly property int days: 7
-    readonly property int storiesShown: 12
+    readonly property int storiesShown: 20
     // Feeds fetched at once. Enough to finish a hundred channels in seconds,
     // few enough not to look like a crawler.
     readonly property int parallel: 6
@@ -47,7 +49,7 @@ Singleton {
     // Newest first: {id, title, channel, published, duration, url, thumb}.
     property var videos: []
     // One per feed URL, in settings order: {title, url, items}, each item
-    // {id, title, url, comments, points, replies, published}.
+    // {id, title, url, summary, thumb, comments, points, replies, published}.
     property var sources: []
 
     // What each channel's feed said last, by channel id, so one feed failing
@@ -73,7 +75,10 @@ Singleton {
     // What the popup lists and the badge counts.
     readonly property var unseenVideos: root.videos.filter(v => root.unread(v))
     readonly property var unseenSources: root.sources
-        .map(s => Object.assign({}, s, { items: s.items.filter(i => root.unread(i)) }))
+        .map(s => Object.assign({}, s, {
+            title: (Settings.feedTitles[s.url] ?? "").trim() || s.title,
+            items: s.items.filter(i => root.unread(i, store.rssSince))
+        }))
         .filter(s => s.items.length > 0)
     readonly property int count: root.unseenVideos.length + root.unseenSources.reduce((n, s) => n + s.items.length, 0)
     readonly property string icon: Theme.glyph.feeds
@@ -87,8 +92,8 @@ Singleton {
         return root.count === 0 ? "Nothing new" : `${root.count} new`;
     }
 
-    function unread(item: var): bool {
-        return item.published > store.since && !(item.id in store.seen);
+    function unread(item: var, since: var): bool {
+        return item.published > (since ?? store.since) && !(item.id in store.seen);
     }
 
     function open(item: var, link: string): void {
@@ -113,6 +118,7 @@ Singleton {
     function markAllSeen(): void {
         root.remember();
         store.since = Date.now();
+        store.rssSince = store.since;
         store.seen = {};
         root.save();
     }
@@ -129,7 +135,7 @@ Singleton {
     property var undos: []
 
     function remember(): void {
-        root.undos = root.undos.concat([{ since: store.since, seen: store.seen }]);
+        root.undos = root.undos.concat([{ since: store.since, rssSince: store.rssSince, seen: store.seen }]);
     }
 
     function undo(): void {
@@ -138,6 +144,7 @@ Singleton {
             return;
         root.undos = root.undos.slice(0, -1);
         store.since = last.since;
+        store.rssSince = last.rssSince;
         store.seen = last.seen;
         root.save();
     }
@@ -241,10 +248,17 @@ Singleton {
         }
     }
 
+    Connections {
+        target: Settings
+
+        function onFeedUrlsChanged(): void { root.refresh(); }
+        function onFeedChannelsChanged(): void { root.refresh(); }
+    }
+
     // --- the browser's history -----------------------------------------------
-    // Whatever is listed that a browser has opened since the window began
-    // counts as seen, asked every few minutes, after each poll and as the
-    // popup opens. Only the listed links are looked for.
+    // Check all retained browser history for available items, including the
+    // RSS stories beyond the first page. Run after each poll, on opening,
+    // and every few minutes. Only the feed links are looked for.
     readonly property int historyMs: 5 * 60000
 
     // Every item listed, and the links each can be opened by.
@@ -266,7 +280,7 @@ Singleton {
         if (history.running || links.length === 0)
             return;
         history.command = ["python3", "-I", Quickshell.shellPath("scripts/feeds-seen.py"),
-            String(Math.floor(Date.now() / 1000) - root.days * 86400), ...links];
+            "0", ...links];
         history.running = true;
     }
 
@@ -356,7 +370,23 @@ Singleton {
                 byChannel[id] = root.byChannel[id];
         root.pool(channels.map(id => ({
                     url: `https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${id.slice(2)}`,
-                    got: text => byChannel[id] = root.parseVideos(text)
+                    got: text => byChannel[id] = root.parseVideos(text),
+                    // Public playlist feeds sometimes return 404 while the API still has them.
+                    failed: done => root.get(`playlistItems?part=snippet&playlistId=UULF${id.slice(2)}&maxResults=15&fields=items/snippet(publishedAt,title,videoOwnerChannelTitle,resourceId/videoId)`, body => {
+                        byChannel[id] = (body?.items ?? []).map(item => {
+                            const s = item.snippet;
+                            const video = s.resourceId.videoId;
+                            return {id: "yt:" + video, video: video, title: s.title,
+                                channel: s.videoOwnerChannelTitle ?? "", published: Date.parse(s.publishedAt),
+                                url: `https://www.youtube.com/watch?v=${video}`,
+                                thumb: `https://i.ytimg.com/vi/${video}/mqdefault.jpg`};
+                        }).filter(v => v.video && !isNaN(v.published));
+                        done();
+                    }, (why, status) => {
+                        if (status !== 404)
+                            root.fail(why, status);
+                        done();
+                    })
                 })), () => {
             root.byChannel = byChannel;
             root.classify();
@@ -416,7 +446,7 @@ Singleton {
         const read = {};
         root.pool(urls.map(url => ({
                     url: url,
-                    got: text => read[url] = root.parseStories(text)
+                    got: text => read[url] = root.parseStories(text, url)
                 })), () => {
             root.sources = urls.map(url => {
                 const source = read[url] ?? root.sources.find(s => s.url === url);
@@ -447,15 +477,19 @@ Singleton {
                 else
                     start();
             };
+            const failed = () => job.failed ? job.failed(landed) : landed();
             Http.send("GET", job.url, null, {}, root.timeoutMs, function (xhr) {
-                if (xhr.status >= 200 && xhr.status < 300)
-                    try {
-                        job.got(String(xhr.responseText));
-                    } catch (error) {
-                        console.warn("Feeds: unreadable feed", job.url, error);
-                    }
+                if (xhr.status < 200 || xhr.status >= 300) {
+                    failed();
+                    return;
+                }
+                try {
+                    job.got(String(xhr.responseText));
+                } catch (error) {
+                    console.warn("Feeds: unreadable feed", job.url, error);
+                }
                 landed();
-            }, landed);
+            }, failed);
         };
         for (let i = 0; i < Math.min(root.parallel, jobs.length); i++)
             start();
@@ -493,31 +527,104 @@ Singleton {
         }).filter(v => v.video !== "" && !isNaN(v.published));
     }
 
+    // Attributes occur in both XML media tags and decoded HTML images.
+    function attribute(tag: string, name: string): string {
+        const match = tag.match(new RegExp(`\\s${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, "i"));
+        return match ? root.text(match[2]) : "";
+    }
+
+    // Resolve feed links without letting embedded content load local files.
+    function feedUrl(value: string, base: string): string {
+        if (!value)
+            return "";
+        if (/^https?:\/\//i.test(value))
+            return value;
+        const origin = (base || "").match(/^(https?:)\/\/([^/]+)(\/[^?#]*)?/i);
+        if (!origin || /^[a-z][a-z\d+.-]*:/i.test(value))
+            return "";
+        if (value.startsWith("//"))
+            return origin[1] + value;
+        const path = value.startsWith("/") ? value : (origin[3] || "/").replace(/[^/]*$/, "") + value;
+        const parts = [];
+        for (const part of path.split("/")) {
+            if (part === "..") {
+                if (parts.length > 1)
+                    parts.pop();
+            } else if (part !== ".")
+                parts.push(part);
+        }
+        return origin[1] + "//" + origin[2] + parts.join("/");
+    }
+
+    // Feed HTML stays plain text; only the first few lines reach the popup.
+    function summary(html: string, source: string): string {
+        if (/^https?:\/\/(?:www\.)?lobste\.rs(?:[/:?#]|$)/i.test(source || ""))
+            html = html.replace(/<p\b[^>]*>\s*<a\b[^>]*>\s*Comments\s*<\/a>\s*<\/p>/gi, "");
+        if (/^https?:\/\/(?:www\.)?smbc-comics\.com(?:[/:?#]|$)/i.test(source || ""))
+            html = html.replace(/Today['’]s News:\s*(?:<br\s*\/?>\s*)*$/i, "");
+        const entities = { nbsp: " ", copy: "©", ndash: "–", mdash: "—", hellip: "…",
+            lsquo: "‘", rsquo: "’", ldquo: "“", rdquo: "”" };
+        return root.text(html.replace(/<!--[\s\S]*?-->/g, " ")
+            .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+            .replace(/<p\b[^>]*>\s*(?:Article URL|Comments URL|Points|# Comments):[\s\S]*?<\/p>/gi, " ")
+            .replace(/<\/?(?:p|div|br|li|h[1-6])\b[^>]*>/gi, " ")
+            .replace(/<[^>]*>/g, ""))
+            .replace(/&([a-z]+);/gi, (match, name) => entities[name.toLowerCase()] ?? match)
+            .replace(/\s+/g, " ").trim().slice(0, 600);
+    }
+
+    // Prefer feed media, then the image embedded in its description or content.
+    function storyThumb(block: string, html: string, base: string): string {
+        const media = block.match(/<(?:media:thumbnail|media:content|enclosure)\b[^>]*>/gi) ?? [];
+        for (const tag of media) {
+            const type = root.attribute(tag, "type");
+            if (!/^<media:thumbnail\b/i.test(tag) && !type.startsWith("image/")
+                    && root.attribute(tag, "medium") !== "image")
+                continue;
+            const url = root.feedUrl(root.attribute(tag, "url"), base);
+            if (url)
+                return url;
+        }
+        for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
+            const url = root.feedUrl(root.attribute(tag, "src"), base);
+            if (url)
+                return url;
+        }
+        return "";
+    }
+
     // RSS items, or Atom entries for a feed that speaks Atom. Points and
     // comment counts are hnrss's, read from the description when they are
-    // there.
-    function parseStories(xml: string): var {
+    // there. Scored stories rank highest first; the rest stay newest first.
+    function parseStories(xml: string, feed: string): var {
         const atom = !/<item[\s>]/.test(xml);
         const blocks = xml.match(atom ? /<entry[\s>][\s\S]*?<\/entry>/g : /<item[\s>][\s\S]*?<\/item>/g) ?? [];
         const head = xml.slice(0, xml.search(atom ? /<entry[\s>]/ : /<item[\s>]/));
         const items = blocks.map(block => {
-            const link = atom ? (block.match(/<link[^>]*href="([^"]+)"/)?.[1] ?? "") : root.tag(block, "link");
-            const about = root.tag(block, "description");
+            const links = atom ? (block.match(/<link\b[^>]*>/g) ?? []) : [];
+            const alternate = links.find(tag => ["", "alternate"].includes(root.attribute(tag, "rel"))) ?? "";
+            const link = root.feedUrl(atom ? root.attribute(alternate, "href") : root.tag(block, "link"), feed);
+            const about = root.tag(block, "description") || root.tag(block, "summary");
+            const content = root.tag(block, "content:encoded") || root.tag(block, "content");
+            const summary = root.summary(about, feed || link) || root.summary(content, feed || link);
             const points = about.match(/Points:\s*(\d+)/);
             const replies = about.match(/# Comments:\s*(\d+)/);
             return {
                 id: root.tag(block, atom ? "id" : "guid") || link,
                 title: root.tag(block, "title"),
-                url: root.text(link),
+                url: link,
+                summary: summary,
+                thumb: root.storyThumb(block, about + content, link || feed),
                 comments: root.tag(block, "comments"),
                 points: points ? Number(points[1]) : -1,
                 replies: replies ? Number(replies[1]) : -1,
                 published: Date.parse(root.tag(block, atom ? "published" : "pubDate") || root.tag(block, "updated"))
             };
-        }).filter(i => i.id !== "" && !isNaN(i.published)).sort((a, b) => b.published - a.published);
+        }).filter(i => i.id !== "" && !isNaN(i.published))
+            .sort((a, b) => b.points - a.points || b.published - a.published);
         return {
             title: root.tag(head, "title"),
-            items: items.slice(0, root.storiesShown)
+            items: items
         };
     }
 
@@ -547,11 +654,11 @@ Singleton {
     }
 
     // --- memory --------------------------------------------------------------
-    // Only what is still in the window is worth remembering as seen.
+    // Videos expire with their window; keep RSS reads even after a feed drops them.
     function prune(cutoff: real): void {
         const seen = {};
         for (const [id, t] of Object.entries(store.seen))
-            if (t >= cutoff || root.sources.some(s => s.items.some(i => i.id === id)))
+            if (!id.startsWith("yt:") || t >= cutoff)
                 seen[id] = t;
         store.seen = seen;
     }
@@ -574,9 +681,9 @@ Singleton {
         JsonAdapter {
             id: store
 
-            // Before the first run, two days back, so there is something to
-            // see on day one without the whole week arriving as new.
+            // Videos start two days back; RSS has no initial date cutoff.
             property real since: 0
+            property real rssSince: 0
             property var seen: ({})
             property var verdicts: ({})
             property var unfolded: ({})
