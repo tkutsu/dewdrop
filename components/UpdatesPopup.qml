@@ -5,19 +5,24 @@ import qs.services
 
 // The updater tooltip was two counts. The counts are already the line totals of
 // a list of package names, so show the list: each name with its versions at
-// the right edge, AUR packages first, and the counts in the title. The title
+// the right edge, sorted by name, and the counts in the title. The title
 // is the upgrade itself, its arrow where a popup keeps its plus.
 Popup {
     id: root
 
-    // Twenty lines, then one saying how many more.
-    readonly property int shown: 20
-    readonly property var entries: Updates.aurList.concat(Updates.officialList)
-    readonly property var rows: root.entries.slice(0, root.shown).map(line => {
+    readonly property var entries: Updates.aurList.concat(Updates.officialList).sort((a, b) => a.localeCompare(b))
+    readonly property var rows: root.entries.map(line => {
         const parts = line.split(" ");
-        return { name: parts[0], versions: parts.slice(1).join(" ") };
+        return { name: parts[0], versions: parts.slice(1).join(" "), aur: Updates.aurList.includes(line) };
     })
-    readonly property int remaining: Math.max(0, root.entries.length - root.shown)
+    readonly property FontMetrics rowMetrics: FontMetrics {
+        font.family: Theme.monoFont
+        font.pixelSize: Theme.captionSize
+    }
+    // Twenty complete rows, with a small peek at the next one.
+    readonly property int listMax: Math.max(120, Math.min(
+        20 * Math.ceil(root.rowMetrics.height) + 19 * list.spacing + list.topPadding + list.bottomPadding + 8,
+        (root.screen?.height ?? 900) - 160))
 
     // A list to read, as wide as Mail and Tasks; a long name gives way to its
     // versions.
@@ -27,6 +32,7 @@ Popup {
         id: header
 
         width: root.bodyWidth
+        z: 1
         // How many, and how many of those the AUR's, on the title the
         // upgrade is pressed on.
         title: Updates.pending === 0 ? "Updates"
@@ -35,6 +41,7 @@ Popup {
         // to take.
         addable: Updates.pending > 0
         addGlyph: Theme.glyph.download
+        addLabel: "Upgrade"
         addName: "Upgrade"
         onAdd: {
             OpenPopup.dismiss();
@@ -70,60 +77,88 @@ Popup {
 
     PopupNote {
         width: root.bodyWidth
+        z: 1
         visible: Updates.trouble !== "" || !Updates.loaded || Updates.loading || Updates.pending === 0
         text: Updates.trouble !== "" ? Updates.trouble : Updates.loading || !Updates.loaded ? "Checking for updates…" : "System up to date"
         warn: Updates.trouble !== ""
     }
 
-    // A little air above and below, so the lines read as a list rather than
-    // as the header running on.
-    Column {
-        id: list
+    Flickable {
+        id: view
+
+        Accessible.role: Accessible.List
+        Accessible.name: "Updates"
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
         visible: root.rows.length > 0
         width: root.bodyWidth
-        topPadding: 4
-        bottomPadding: 4
-        spacing: 3
+        height: Math.min(list.implicitHeight, root.listMax)
+        contentWidth: width
+        contentHeight: list.implicitHeight
+        interactive: contentHeight > height
+        clip: true
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        acceptedButtons: Qt.NoButton
 
-        Repeater {
-            model: root.rows
+        ScrollUnder {
+            parent: view
+            view: view
+            box: root.chromeItem
+        }
+        SmoothScroll { view: view }
 
-            delegate: Item {
-                required property var modelData
+        // A little air keeps the list clear of the header.
+        Column {
+            id: list
 
-                x: Theme.popupInset
-                width: root.bodyWidth - Theme.popupInset * 2
-                height: name.implicitHeight
+            width: root.bodyWidth
+            topPadding: 4
+            bottomPadding: 4
+            spacing: 3
 
-                PopupText {
-                    id: name
+            Repeater {
+                model: root.rows
 
-                    width: Math.min(implicitWidth, parent.width - versions.implicitWidth - 16)
-                    text: modelData.name
-                    elide: Text.ElideRight
-                    font.family: Theme.monoFont
-                    font.pixelSize: Theme.captionSize
-                }
+                delegate: Item {
+                    required property var modelData
 
-                PopupText {
-                    id: versions
+                    x: Theme.popupInset
+                    width: root.bodyWidth - Theme.popupInset * 2
+                    height: name.implicitHeight
 
-                    anchors.right: parent.right
-                    text: modelData.versions
-                    color: Theme.label2
-                    font.family: Theme.monoFont
-                    font.pixelSize: Theme.captionSize
+                    PopupText {
+                        id: name
+
+                        width: Math.max(0, Math.min(implicitWidth, parent.width - versions.implicitWidth - aurLabel.implicitWidth - 16))
+                        text: modelData.name
+                        elide: Text.ElideRight
+                        font.family: Theme.monoFont
+                        font.pixelSize: Theme.captionSize
+                    }
+
+                    PopupText {
+                        id: aurLabel
+
+                        anchors.left: name.right
+                        text: modelData.aur ? " (AUR)" : ""
+                        color: Theme.label2
+                        font.family: Theme.monoFont
+                        font.pixelSize: Theme.captionSize
+                    }
+
+                    PopupText {
+                        id: versions
+
+                        anchors.right: parent.right
+                        text: modelData.versions
+                        color: Theme.label2
+                        font.family: Theme.monoFont
+                        font.pixelSize: Theme.captionSize
+                    }
                 }
             }
-        }
-
-        PopupText {
-            x: Theme.popupInset
-            visible: root.remaining > 0
-            text: `${root.remaining} more`
-            color: Theme.label2
-            font.pixelSize: Theme.captionSize
         }
     }
 }
