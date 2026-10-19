@@ -106,6 +106,14 @@ def main():
         check(wanted[8] in seen and wanted[9] in seen, "old RSS visits in Firefox and Chromium count")
         check(wanted[10] in seen and wanted[11] in seen and wanted[12] in seen, "Brave, Edge and Chrome histories count")
 
+        # A history file older than SINCE is not opened: backdated here, its
+        # minute-old visit goes unread, which only skipping explains.
+        history = home / ".config/chromium/Profile 1/History"
+        os.utime(history, (NOW - DAY, NOW - DAY))
+        run = subprocess.run([sys.executable, "-I", str(SCRIPT), str(NOW - 120), wanted[1], wanted[6]],
+                             env=env, capture_output=True, text=True, timeout=30)
+        check(run.returncode == 0 and run.stdout == "", "history untouched since SINCE is skipped: " + run.stdout.strip())
+
         # No browsers at all: nothing, quietly.
         empty = Path(scratch) / "empty"
         empty.mkdir()

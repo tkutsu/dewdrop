@@ -4,7 +4,8 @@
     feeds-seen.py SINCE URL...
 
 SINCE is in Unix seconds. Prints each URL that some Firefox or Chromium-family
-profile's history has a visit to since then, one a line. A YouTube video
+profile's history has a visit to since then, one a line; a history file not
+written since then is not opened. A YouTube video
 counts however its link was dressed (a timestamp, a playlist): videos are
 matched by id. Nothing leaves the machine and only the given links are looked
 for; the rest of the history is never read out.
@@ -95,6 +96,11 @@ def main():
     seen_links = set()
     for kind, path in histories():
         if not path.is_file() or path.stat().st_size == 0:
+            continue
+        # Untouched since then, it holds no visit since then: skip the open,
+        # and the copy a running browser's lock would cost.
+        if since > 0 and max(p.stat().st_mtime for p in (path, Path(f"{path}-wal"), Path(f"{path}-journal"))
+                             if p.exists()) < since:
             continue
         try:
             for url in visited(kind, path, since, wanted):

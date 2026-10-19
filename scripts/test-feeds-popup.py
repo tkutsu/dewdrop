@@ -61,8 +61,7 @@ ShellRoot {
                 wait(30);
                 check(stories.title === "Stories", "clearing a custom title restores the supplied feed title: "
                     + stories.title + " " + JSON.stringify(Settings.feedTitles));
-                // Older versions could remember several open headers.
-                check(videos.open !== stories.open, "legacy state restores only one open header: " + videos.open + ", " + stories.open);
+                check(videos.open && !stories.open, "the remembered header opens alone: " + videos.open + ", " + stories.open);
                 settle();
                 const restoredOrder = order();
                 (videos.open ? videos : stories).tapped();
@@ -430,7 +429,7 @@ def main():
         (target / "preview.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72"><rect width="128" height="72" fill="#777"/></svg>')
         state = target / "state/quickshell"
         state.mkdir(parents=True, exist_ok=True)
-        (state / "feeds.json").write_text('{"unfolded": {"videos": true, "rss": true}}\n')
+        (state / "feeds.json").write_text('{"open": "videos"}\n')
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"],
                                 env=shell_env(target), capture_output=True, text=True, timeout=25)

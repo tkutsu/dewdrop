@@ -124,7 +124,9 @@ Singleton {
                         fail(root.reconnect, 400);
                         return;
                     }
-                    fail(xhr.status === 0 ? "No network" : `Google said ${xhr.status}`, xhr.status);
+                    // Google's own name for it (quotaExceeded, accessNotConfigured)
+                    // goes along for a service that tells them apart.
+                    fail(xhr.status === 0 ? "No network" : `Google said ${xhr.status}`, xhr.status, root.reasonOf(xhr.responseText));
                     return;
                 }
                 let parsed = null;
@@ -139,6 +141,16 @@ Singleton {
             }, fail);
         };
         attempt(true);
+    }
+
+    // The reason in a Google error body: errors[0].reason, or the newer status.
+    function reasonOf(text: string): string {
+        try {
+            const error = JSON.parse(text).error;
+            return error?.errors?.[0]?.reason ?? error?.status ?? "";
+        } catch (e) {
+            return "";
+        }
     }
 
     // Get a usable access token, then do the thing. A minute of margin, because
