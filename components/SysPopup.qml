@@ -32,22 +32,11 @@ Popup {
     readonly property int rows: 7
 
     // The service only samples processes and the card while someone is
-    // looking. Counted in a beat after opening rather than at once: the first
-    // detail sample is the heaviest work the popup does; delaying it keeps
-    // the slide-in animation responsive.
-    property bool watching: false
-
-    Timer {
-        interval: Theme.fadeMs
-        running: true
-        onTriggered: {
-            root.watching = true;
-            Sys.watchers++;
-        }
-    }
-
-    Component.onDestruction: if (root.watching)
-        Sys.watchers--
+    // looking. Counted in as the popup opens: the first detail sample is
+    // ~30 ms of /proc in its own processes and ~4 ms of parsing here, so the
+    // slide-in has nothing to gain from waiting for it.
+    Component.onCompleted: Sys.watchers++
+    Component.onDestruction: Sys.watchers--
 
     function gib(kb) {
         return (kb / 1048576).toFixed(1);
@@ -187,6 +176,8 @@ Popup {
         // still holds the rows fading out, until they are gone.
         function sync() {
             const top = procs.model.slice(0, root.rows);
+            // Rows of the first fill have no slot to wait for.
+            const waits = shown.count > 0;
             const kept = {};
             for (let i = 0; i < shown.count; i++) {
                 const name = shown.get(i).name;
@@ -200,7 +191,7 @@ Popup {
             }
             top.forEach((p, rank) => {
                 if (!kept[p.name])
-                    shown.append(Object.assign({}, p, { rank: rank, gone: false }));
+                    shown.append(Object.assign({}, p, { rank: rank, gone: false, waits: waits }));
             });
         }
 
@@ -235,6 +226,7 @@ Popup {
                 required property real rss
                 required property int rank
                 required property bool gone
+                required property bool waits
 
                 property bool arrived: false
 
@@ -257,7 +249,7 @@ Popup {
                 // Held back for as long as whatever stood here takes to fade.
                 Timer {
                     running: true
-                    interval: Theme.fadeMs
+                    interval: row.waits ? Theme.fadeMs : 0
                     onTriggered: row.arrived = true
                 }
 
