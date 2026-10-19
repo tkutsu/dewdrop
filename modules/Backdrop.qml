@@ -65,29 +65,30 @@ PanelWindow {
         property real velocity: 0
 
         // Hyprland's glide in hypr/configs/animation.lua: mass 1, stiffness
-        // 246.7, damping 31.42. That damping is 2√stiffness, so the spring is
-        // critically damped and settles at the one rate √stiffness.
-        readonly property real rate: Math.sqrt(246.7)
+        // 246.7, damping 31.42. The rounded damping is slightly above critical;
+        // use the same two decay rates as hyprutils' advanceSpring.
+        readonly property real slowRate: -31.42 / 2 + Math.sqrt(Math.pow(31.42 / 2, 2) - 246.7)
+        readonly property real fastRate: -31.42 / 2 - Math.sqrt(Math.pow(31.42 / 2, 2) - 246.7)
 
         readonly property FrameAnimation motion: FrameAnimation {
             onTriggered: pan.advance(frameTime)
         }
 
-        // Retarget from the current crop and carry velocity through rapid
-        // switches. Jump instead where there is nothing to see move: before
+        // Retarget from the current crop, restarting the curve at rest like
+        // Hyprland's incoming workspace. Jump where there is nothing to see: before
         // the first wallpaper, under a flat colour, or behind a crossfade.
         function moveTo(target, jump) {
             if (jump || !root.ready || !root.front.path) {
                 pan.motion.stop();
                 pan.target = target;
                 pan.fraction = target;
+                pan.progress = 1;
+                pan.velocity = 0;
                 return;
             }
             if (target === pan.target)
                 return;
-            const distance = target - pan.fraction;
-            pan.velocity = pan.running && Math.abs(distance) > 0.000001
-                ? pan.velocity * (pan.target - pan.start) / distance : 0;
+            pan.velocity = 0;
             pan.start = pan.fraction;
             pan.target = target;
             pan.progress = 0;
@@ -96,11 +97,12 @@ PanelWindow {
 
         // Advance the spring analytically, independent of refresh rate.
         function advance(dt) {
-            const t = Math.max(0, dt), w = pan.rate;
+            const t = Math.max(0, dt), r1 = pan.slowRate, r2 = pan.fastRate;
             const d = pan.progress - 1, v = pan.velocity;
-            const decay = Math.exp(-w * t);
-            pan.progress = 1 + (d + (v + w * d) * t) * decay;
-            pan.velocity = (v - w * (v + w * d) * t) * decay;
+            const a = (v - r2 * d) / (r1 - r2), b = d - a;
+            const e1 = Math.exp(r1 * t), e2 = Math.exp(r2 * t);
+            pan.progress = 1 + a * e1 + b * e2;
+            pan.velocity = a * r1 * e1 + b * r2 * e2;
             if (Math.abs(1 - pan.progress) <= 0.001 && Math.abs(pan.velocity) <= 0.001) {
                 pan.progress = 1;
                 pan.velocity = 0;

@@ -92,7 +92,7 @@ Popup {
             }
             PopupText {
                 width: parent.width
-                text: `Next 6 hours: ${Weather.nextSixHours}`
+                text: `6h: ${Weather.nextSixHours}`
                 color: Theme.label2
                 wrapMode: Text.WordWrap
             }

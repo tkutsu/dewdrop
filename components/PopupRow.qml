@@ -35,6 +35,8 @@ Item {
     // mail being swiped), so the row stays the selected one when the pointer
     // runs out of the popup.
     property bool held: false
+    // Cards can draw their own surface while sharing the row's input.
+    property bool showHighlight: true
     // How far the fill is slid sideways with the contents (a swipe), leaving
     // the popup's own background where it was.
     property real slide: 0
@@ -73,6 +75,7 @@ Item {
         scale: press.scale
 
         Rectangle {
+            visible: root.showHighlight
             x: root.slide
             width: parent.width
             height: parent.height

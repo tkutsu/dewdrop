@@ -129,6 +129,14 @@ PanelWindow {
     }
     color: "transparent"
 
+    // The air between pills turns the same wheel as the workspace strip.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        enabled: workspaces.enabled
+        onWheel: wheel => workspaces.wheel(wheel)
+    }
+
     // Anywhere on the bar, pills or the air between them. The drawer stays
     // open while the pointer is here or down in one of the bar's popups, and
     // the glass catches its light (GlassLight).
