@@ -23,8 +23,9 @@ layout(std140, binding = 0) uniform buf {
     float dispersion;
     // Grey tint, cleared a little as the glass lifts.
     float tint;
-    // How far the caps bend the icons along with the glass, 0..1.
-    float refract;
+    // How far the caps bend the icons along with the glass, 0..1. Not
+    // `refract`: named after a GLSL built-in, it never arrived.
+    float inkBend;
     vec3 tintColor;
     float lineWidth;
     vec4 rimTop;
@@ -60,9 +61,9 @@ vec3 inked(vec3 under, vec2 p) {
     return under * (1.0 - c.a) + c.rgb;
 }
 
-// Both, the icons pulled `refract` as far as the glass.
+// Both, the icons pulled `inkBend` as far as the glass.
 vec3 seenAt(vec2 p, vec2 shift) {
-    return inked(under(p - shift), p - shift * refract);
+    return inked(under(p - shift), p - shift * inkBend);
 }
 
 void main() {

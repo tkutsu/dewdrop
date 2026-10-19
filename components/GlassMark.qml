@@ -27,7 +27,7 @@ ShaderEffect {
     readonly property real lift: Math.max(0, Math.min(1, root.mark?.lift ?? 0))
     // How far the caps bend the icons: fully in flight, fading over the
     // last eight pixels before the mark lands.
-    readonly property real refract: root.mark ? Math.min(1, Math.max(Math.abs(root.mark.headLeft - root.mark.wantLeft), Math.abs(root.mark.headRight - root.mark.wantRight)) / 8) : 0
+    readonly property real inkBend: root.mark ? Math.min(1, Math.max(Math.abs(root.mark.headLeft - root.mark.wantLeft), Math.abs(root.mark.headRight - root.mark.wantRight)) / 8) : 0
 
     // Where an item is in its window, walked up the parent chain for a
     // binding to re-run on (as Liquid.windowPos).
