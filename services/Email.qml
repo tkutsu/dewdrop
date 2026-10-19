@@ -376,14 +376,6 @@ GoogleService {
     }
 
     // --- the open mail's foot --------------------------------------------
-    // A task to deal with it later: the subject, and in the notes who sent
-    // it and the thread in Gmail, by a link that still works once it is
-    // archived. In the default list, with no day.
-    function makeTask(row: var): void {
-        const who = row.address && row.address !== row.from ? `${row.from} <${row.address}>` : row.from;
-        Tasks.add(row.subject, "", "", `${who}\n${root.web}#all/${row.id}`);
-    }
-
     // The unsubscribe address a mail gives in List-Unsubscribe, when one is
     // on the web: mailto alone gets no button. One-click (RFC 8058, which
     // Gmail asks of bulk senders) when List-Unsubscribe-Post says so, and

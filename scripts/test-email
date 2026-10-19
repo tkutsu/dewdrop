@@ -494,8 +494,8 @@ class EmailTests(unittest.TestCase):
 
     def test_compound_action_sends_its_extra_part_on_commit(self):
         self.seed(['a'])
-        self.js('sut.found = 0; sut.act("archive", sut.threads[0], {said: "Task made", also: () => sut.found = 1});')
-        self.check('sut.pending[0].said === "Task made" && sut.found === 0')
+        self.js('sut.found = 0; sut.act("archive", sut.threads[0], {said: "Unsubscribed", also: () => sut.found = 1});')
+        self.check('sut.pending[0].said === "Unsubscribed" && sut.found === 0')
         self.js('sut.undo(); sut.flush();')
         self.check('sut.found === 0 && sut.requests.length === 0')
         self.js('sut.act("archive", sut.threads[0], {also: () => sut.found = 1}); sut.flush();')
@@ -1115,18 +1115,6 @@ class EmailTests(unittest.TestCase):
             {name:"List-Unsubscribe",value:"<https://shop.example/u>"},{name:"List-Unsubscribe-Post",value:"List-Unsubscribe=One-Click"}]}}]});''')
         self.check('sut.found.unsubscribe.url === "https://shop.example/u" && sut.found.unsubscribe.oneClick')
 
-    def test_mail_to_task_waits_with_its_archive(self):
-        tasks = self.create('import QtQuick\nQtObject { property var added: []; function add(title, day, list, notes) { added = added.concat([[title, day, list, notes]]); } }')
-        self.engine.rootContext().setContextProperty('Tasks', tasks)
-        self.addCleanup(self.engine.rootContext().setContextProperty, 'Tasks', None)
-        self.seed(['a'])
-        self.js('sut.threads = [Object.assign({}, sut.threads[0], {from: "Ann", address: "ann@x.com", subject: "Lunch?"})];')
-        self.js('sut.act("archive", sut.threads[0], {said: "Task made", also: sut.makeTask}); sut.undo(); sut.flush();')
-        self.check('Tasks.added.length === 0 && sut.requests.length === 0')
-        self.js('sut.act("archive", sut.threads[0], {said: "Task made", also: sut.makeTask}); sut.flush();')
-        self.check('Tasks.added.length === 1 && sut.requests.length === 1')
-        self.check('JSON.stringify(Tasks.added[0]) === JSON.stringify(["Lunch?", "", "", "Ann <ann@x.com>\\n" + sut.web + "#all/a"])')
-
     def test_one_click_unsubscribe_posts_without_the_token(self):
         http = self.create('import QtQuick\nQtObject { property var sent: []; function request(method, url, body, headers, timeout, ok, failed) { sent = sent.concat([{method: method, url: url, body: body, headers: headers}]); ok({status: 200}); } }')
         self.engine.rootContext().setContextProperty('Http', http)
@@ -1153,8 +1141,9 @@ class EmailTests(unittest.TestCase):
         unsubscribe = self.button(row, 'Unsubscribe')
         self.assertTrue(unsubscribe.isVisible())
         self.button(row, 'Download report.pdf')
-        self.click(window, self.button(row, 'Make a task'))
-        self.check('sut.pending.length === 1 && sut.pending[0].said === "Task made" && sut.pending[0].also === sut.makeTask')
+        self.assertFalse(any(c.property('name') == 'Make a task' for c in self.items(row)))
+        self.click(window, unsubscribe)
+        self.check('sut.pending.length === 1 && sut.pending[0].said === "Unsubscribed" && sut.pending[0].also === sut.unsubscribe')
         self.check('popup.expanded === "b"')
         row = self.js('return popup.testList.itemAt(0);')
         self.assertFalse(self.button(row, 'Unsubscribe').isVisible())
