@@ -5,7 +5,8 @@
 
 SINCE is in Unix seconds. Prints each URL that some Firefox or Chromium-family
 profile's history has a visit to since then, one a line; a history file not
-written since then is not opened. A YouTube video
+written since then is not opened. Exits 1 if a history could not be read, after
+printing what the rest said. A YouTube video
 counts however its link was dressed (a timestamp, a playlist): videos are
 matched by id. Nothing leaves the machine and only the given links are looked
 for; the rest of the history is never read out.
@@ -94,25 +95,28 @@ def main():
     wanted = sys.argv[2:]
     seen_videos = set()
     seen_links = set()
+    failed = False
     for kind, path in histories():
-        if not path.is_file() or path.stat().st_size == 0:
-            continue
-        # Untouched since then, it holds no visit since then: skip the open,
-        # and the copy a running browser's lock would cost.
-        if since > 0 and max(p.stat().st_mtime for p in (path, Path(f"{path}-wal"), Path(f"{path}-journal"))
-                             if p.exists()) < since:
-            continue
         try:
+            if not path.is_file() or path.stat().st_size == 0:
+                continue
+            # Untouched since then, it holds no visit since then: skip the
+            # open, and the copy a running browser's lock would cost.
+            if since > 0 and max(p.stat().st_mtime for p in (path, Path(f"{path}-wal"), Path(f"{path}-journal"))
+                                 if p.exists()) < since:
+                continue
             for url in visited(kind, path, since, wanted):
                 if video(url):
                     seen_videos.add(video(url))
                 seen_links.add(plain(url))
         except (sqlite3.Error, OSError) as error:
             print(f"feeds-seen: {path}: {error}", file=sys.stderr)
+            failed = True
     for url in wanted:
         if (video(url) and video(url) in seen_videos) or plain(url) in seen_links:
             print(url)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
