@@ -21,6 +21,7 @@ import qs.services
 // the time was and clears it without following it.
 Popup {
     id: root
+    dismissWhenEmpty: Notifications.count === 0
     ChoiceBlink { id: choice }
 
     readonly property int bodyWidth: Theme.popupWideWidth
@@ -53,12 +54,51 @@ Popup {
         return n?.appName || "Notification";
     }
 
+    // Keep the vacated space through the fade, then move the rows before resizing.
+    property var departing: []
+    property real departureFade: 0
+    property real departureFold: 0
+    function clear(items, animate): void {
+        if (dismissal.running)
+            return;
+        if (!root.animateContents || animate === false || Notifications.list.every(n => items.includes(n))) {
+            root.dismiss(items);
+            return;
+        }
+        cards.heldHeight = cards.height;
+        root.departing = items;
+        dismissal.start();
+    }
+
     // Keep the centre available until the last notification is cleared.
-    function clear(items): void {
+    function dismiss(items): void {
         for (const n of items)
             if (Notifications.list.includes(n)) n.dismiss();
         if (Notifications.count === 0)
             OpenPopup.close(root.anchorItem);
+    }
+
+    SequentialAnimation {
+        id: dismissal
+        NumberAnimation { target: root; property: "departureFade"; from: 0; to: 1; duration: Theme.fadeMs }
+        NumberAnimation {
+            target: root
+            property: "departureFold"
+            from: 0
+            to: 1
+            duration: Theme.fadeMs
+            easing.type: Easing.OutCubic
+        }
+        ScriptAction {
+            script: {
+                root.dismiss(root.departing);
+                root.departing = [];
+                root.departureFade = 0;
+                root.departureFold = 0;
+                cards.heldHeight = -1;
+            }
+        }
+        PauseAnimation { duration: Theme.fadeMs }
     }
 
     // The senders, in the order of their newest notification. Names rather
@@ -110,7 +150,7 @@ Popup {
         addLabel: "Clear"
         addName: "Clear all notifications"
         blink: choice
-        enabled: !choice.running
+        enabled: !choice.running && !dismissal.running
         onAdd: {
             const items = Notifications.list.slice();
             choice.start(clearAll, () => root.clear(items));
@@ -135,8 +175,17 @@ Popup {
         Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
         visible: count > 0
+        enabled: !dismissal.running
         width: root.bodyWidth
-        height: Math.min(contentHeight, root.listMax)
+        property real heldHeight: -1
+        height: heldHeight >= 0 ? heldHeight : Math.min(contentHeight, root.listMax)
+        Behavior on height {
+            enabled: root.animateContents && dismissal.running
+            NumberAnimation {
+                duration: Theme.fadeMs
+                easing.type: Easing.OutCubic
+            }
+        }
         interactive: contentHeight > height
         clip: true
 
@@ -145,7 +194,7 @@ Popup {
             view: cards
             box: root.chromeItem
         }
-        spacing: root.cardGap
+        spacing: 0
         boundsBehavior: Flickable.StopAtBounds
         SmoothScroll { view: cards }
 
@@ -161,6 +210,7 @@ Popup {
         // A group arriving or leaving slides the ones below it rather than
         // jumping them.
         displaced: Transition {
+            enabled: root.animateContents && !dismissal.running
             NumberAnimation {
                 property: "y"
                 duration: Theme.fadeMs
@@ -181,7 +231,10 @@ Popup {
         id: group
 
         required property string modelData
+        required property int index
         readonly property var items: Notifications.list.filter(n => root.groupOf(n) === group.modelData)
+        readonly property int remaining: group.items.filter(n => !root.departing.includes(n)).length
+        readonly property bool emptying: group.remaining === 0
         readonly property bool open: root.expandedGroup === group.modelData && group.items.length > 1
         readonly property bool collapsed: group.items.length > 1 && !group.open
 
@@ -191,21 +244,18 @@ Popup {
             root.expandedGroup = ""
 
         width: ListView.view.width
+        height: (implicitHeight + (group.index < root.groups.length - 1 ? root.cardGap : 0))
+            * (group.emptying ? 1 - root.departureFold : 1)
+        clip: true
         spacing: 0
 
         // The sender header collapses the group; its clear button dismisses it.
         Item {
             width: parent.width
-            height: group.open ? groupHeader.height + root.cardGap : 0
+            height: group.open ? (groupHeader.height + root.cardGap)
+                * (!group.emptying && group.remaining < 2 ? 1 - root.departureFold : 1) : 0
             visible: height > 0
             clip: true
-
-            Behavior on height {
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                    easing.type: Easing.InOutCubic
-                }
-            }
 
             MouseArea {
                 anchors.fill: parent
@@ -242,27 +292,21 @@ Popup {
                 values: group.items
             }
 
-            // Retain hidden cards so closing can animate before they disappear.
+            // Keep hidden cards ready when their group is opened.
             delegate: Item {
                 id: slot
                 required property var modelData
                 required property int index
                 readonly property bool shown: slot.index === 0 || !group.collapsed
                 width: parent.width
-                height: slot.shown ? notification.height + notification.y : 0
+                height: slot.shown ? (notification.height + notification.y)
+                    * (!group.emptying && root.departing.includes(slot.modelData) ? 1 - root.departureFold : 1) : 0
                 visible: height > 0
                 opacity: slot.shown ? 1 : 0
                 clip: true
 
-                Behavior on height {
-                    enabled: slot.index > 0
-                    NumberAnimation {
-                        duration: Theme.fadeMs
-                        easing.type: Easing.InOutCubic
-                    }
-                }
-
                 Behavior on opacity {
+                    enabled: root.animateContents
                     NumberAnimation {
                         duration: Theme.fadeMs
                     }
@@ -270,7 +314,8 @@ Popup {
 
                 Card {
                     id: notification
-                    y: slot.index > 0 ? root.cardGap : 0
+                    y: slot.index > 0 ? root.cardGap
+                        * (group.items.slice(0, slot.index).every(n => root.departing.includes(n)) ? 1 - root.departureFold : 1) : 0
                     modelData: slot.modelData
                     others: slot.index === 0 && group.collapsed ? group.items.slice(1) : []
                     onOpenGroup: root.expandedGroup = group.modelData
@@ -314,17 +359,11 @@ Popup {
         glyph: Theme.glyph.close
         name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
         blink: choice
+        opacity: root.departing.includes(card.n) ? 1 - root.departureFade : 1
         showHighlight: false
         onTapped: card.open()
-        onSwiped: root.clear([card.n, ...card.others])
+        onSwiped: root.clear([card.n, ...card.others], false)
         clip: true
-
-        Behavior on fullHeight {
-            NumberAnimation {
-                duration: Theme.fadeMs
-                easing.type: Easing.InOutCubic
-            }
-        }
 
         HoverHandler {
             id: hover
@@ -346,7 +385,7 @@ Popup {
             opacity: choice.item === card ? (choice.lit ? 1 : 0) : fill.focused || hover.hovered || card.swiping ? 1 : 0.5
 
             Behavior on opacity {
-                enabled: choice.item !== card
+                enabled: root.animateContents && choice.item !== card
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
