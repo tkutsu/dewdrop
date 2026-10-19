@@ -55,7 +55,7 @@ import qs
 Item { property bool held; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
 property real wallLeft; property real wallRight; property real wantLeft; property real wantRight; property bool resizing
 readonly property real frontLeft: wantLeft; readonly property real frontRight: wantRight
-property real spring; property real damping; property int inset: Theme.markInset; property bool animating: false }''')
+property real spring; property real damping; property int inset: Theme.markInset; property real rise: 1; property bool liftsToTravel; property bool animating: false }''')
 if '--marks' in sys.argv or '--mark-input' in sys.argv or '--mark-ink' in sys.argv:
     (target/'components/FlowMark.qml').write_text((root/'components/FlowMark.qml').read_text())
     # Inspect the real animation's shader geometry without requiring a GPU.
@@ -390,8 +390,9 @@ if '--mark-ink' in sys.argv:
    const right=app.mapToItem(pill.auditStrip,app.inkLeft+app.inkWidth,0).x;
    return Math.max(0,Math.min(right,mark.x+mark.frontRight)-Math.max(x,mark.x+mark.frontLeft))/(right-x);
  }
- let partial=0,passing=0,separate=0,maxError=0,artError=0;
+ let partial=0,passing=0,separate=0,maxError=0,artError=0,maxLift=0;
  function sample() {
+   maxLift=Math.max(maxLift,mark.lift);
    for (const app of apps) {
      const covered=coverage(app);
      const expected=Theme.restOpacity+(1-Theme.restOpacity)*covered*covered*(3-2*covered);
@@ -411,6 +412,7 @@ if '--mark-ink' in sys.argv:
  for(let ms=0;ms<600;ms+=10){test.wait(10);sample();}
  check(maxError<0.001,'brightness follows the drawn mark on every sampled frame');
  check(partial>0 && separate>0,'icons brighten smoothly and individually as the edge crosses them');
+ check(maxLift>0.9,'the mark lifts to travel');
  check(passing>0,'icons on an intermediate workspace light as the mark passes');
  check(artError<0.001,'loaded artwork follows coverage without an extra opacity fade');
  check(apps[0].inkOpacity===Theme.restOpacity && apps[2].inkOpacity===1 && apps[3].inkOpacity===1,
@@ -422,7 +424,9 @@ if '--mark-ink' in sys.argv:
  OpenPopup.selected=button(2);test.wait(500);
  check(apps[1].inkOpacity===1 && apps[2].inkOpacity===Theme.restOpacity,
    'keyboard selection lights the icons under its mark');
- OpenPopup.selected=null;test.wait(500);
+ OpenPopup.selected=null;test.wait(2000);
+ check(mark.lift===0 && mark.thickness===Theme.barHeight-2*(Theme.markInset+3),
+   'the mark settles back to its smaller resting size');
  Settings.reduceMotion=true;Hyprland.focusedWorkspace=w1;test.wait(400);
  check(apps[0].inkOpacity===1 && apps.slice(1).every(app=>app.inkOpacity===Theme.restOpacity),
    'reduced motion retains full and resting opacity at the mark destination');

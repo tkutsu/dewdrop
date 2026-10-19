@@ -2,7 +2,8 @@
 
 // Grey workspace glass: the straight middle stays undistorted while the
 // rounded caps bend the pill's glass beneath them. The icons are seen
-// straight through, untouched by the bend.
+// straight through, untouched by the bend, and magnified about the glass's
+// centre while it is lifted.
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -21,8 +22,10 @@ layout(std140, binding = 0) uniform buf {
     float depth;
     float steep;
     float dispersion;
-    // Grey tint, cleared a little by movement and held presses.
+    // Grey tint, cleared a little as the glass lifts.
     float tint;
+    // How much the lifted glass magnifies the icons under it.
+    float zoom;
     vec3 tintColor;
     float lineWidth;
     vec4 rimTop;
@@ -85,7 +88,7 @@ void main() {
     vec3 bent = vec3(under(seen - shift * (1.0 - dispersion)).r,
                      under(seen - shift).g,
                      under(seen - shift * (1.0 + dispersion)).b);
-    vec3 glass = mix(inked(bent, p), tintColor, tint);
+    vec3 glass = mix(inked(bent, centre + (p - centre) / zoom), tintColor, tint);
     float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
         : mix(rimTop, rimBottom, clamp((p.y - box.y) / max(box.w, 1.0), 0.0, 1.0));
