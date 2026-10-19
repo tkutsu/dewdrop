@@ -298,7 +298,9 @@ BarItem {
                 id: popupTap
                 // Keep the top screen pixel inside the target as it shrinks.
                 margin: Theme.barInset
-                onTapped: root.togglePopup()
+                // On the press, as a bar item's popup opens (ClickArea.eagerButtons).
+                onPressedChanged: if (pressed)
+                    root.togglePopup()
             }
 
             Behavior on implicitWidth {

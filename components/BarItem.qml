@@ -372,6 +372,7 @@ ClickArea {
         containmentMask: reach
         enabled: root.popup !== null && root.popupButton !== Qt.NoButton
         acceptedButtons: root.popupButton
+        eagerButtons: root.popupButton
         cursorShape: Qt.ArrowCursor
         actions: ({
                 [root.popupButton]: root.togglePopup

@@ -117,7 +117,11 @@ ShellRoot {
                 bar.check(!clockPill.dragging, 'locked module cannot start dragging');
                 mouseRelease(rightPill, rightPill.width / 2, 20); wait(30);
                 bar.check(JSON.stringify(Settings.user) === prior && JSON.stringify(CentrePillOrder.keys) === centreOrder && JSON.stringify(RightPillOrder.keys) === rightOrder, 'locked drag saves nothing');
-                mouseClick(item, item.width / 2, 20);
+                bar.check(OpenPopup.owner === item, 'the press opened the popup and the refused drag left it');
+                OpenPopup.dismiss();
+                mousePress(item, item.width / 2, 20);
+                bar.check(OpenPopup.owner === item, 'popup opens on the press, before the release');
+                mouseRelease(item, item.width / 2, 20);
                 bar.check(OpenPopup.owner === item, 'locked module still opens popup');
                 OpenPopup.dismiss();
                 checkCentre('locked ' + item.settingsKey);
