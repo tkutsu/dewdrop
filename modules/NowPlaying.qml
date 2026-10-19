@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Services.Mpris
 import qs
 import qs.components
@@ -9,11 +11,11 @@ import qs.services
 // that speaks MPRIS — in a pill of its own beyond the music pill. mpd
 // publishes no MPRIS (services/Mpd.qml), so nothing shows here twice.
 //
-// The whole pill plays or pauses; its control appears over the title on hover.
-// Right click plays or pauses too, and the wheel seeks, as on the music pill.
+// The title and app icon focus the player; its playback control appears on hover.
+// Right click plays or pauses, and the wheel seeks, as on the music pill.
 BarItem {
     id: root
-    name: (playing ? "Pause " : "Play ") + (appName || "player")
+    name: appName || "player"
 
     // The player to show: the one playing, or failing that, the one that
     // played last, while it is still paused on something. Pausing one tab
@@ -136,10 +138,29 @@ BarItem {
             root.player.togglePlaying();
     }
 
+    // Let the player select its media window; otherwise match its app and title.
+    function focusPlayer() {
+        if (!root.player)
+            return;
+        if (root.player.canRaise) {
+            root.player.raise();
+            return;
+        }
+        const entry = DesktopEntries.byId(root.player.desktopEntry);
+        const names = [root.player.desktopEntry, entry?.startupClass, root.player.identity]
+            .filter(s => s).map(s => s.toLowerCase());
+        const windows = Hyprland.toplevels.values.filter(t => names.includes((t.wayland?.appId || t.lastIpcObject?.class || "").toLowerCase()));
+        const mediaWindows = windows.filter(t => (t.title || "").toLowerCase().includes(root.label.toLowerCase()));
+        const recent = (mediaWindows.length ? mediaWindows : windows)
+            .sort((a, b) => (a.lastIpcObject?.focusHistoryID ?? 1e9) - (b.lastIpcObject?.focusHistoryID ?? 1e9))[0];
+        if (recent)
+            Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${recent.address}" })`);
+    }
+
     spacing: 0
     dips: false
     actions: ({
-            [Qt.LeftButton]: () => root.toggle(),
+            [Qt.LeftButton]: () => root.focusPlayer(),
             [Qt.RightButton]: () => root.toggle()
         })
 
@@ -163,7 +184,7 @@ BarItem {
             id: titlePress
             icon: titleRoom
             area: root
-            down: root.acting
+            down: root.acting || playTap.acting
             textPress: true
         }
 
@@ -218,6 +239,15 @@ BarItem {
             scale: titlePress.scale
             opacity: root.controlReveal * (root.sliding ? root.pill.geometry.contents(root.reveal) : 1)
             text: root.playing ? Theme.glyph.paused : Theme.glyph.playing
+
+            ClickArea {
+                id: playTap
+                anchors.fill: parent
+                enabled: root.player?.canTogglePlaying ?? false
+                acceptedButtons: Qt.LeftButton
+                name: (root.playing ? "Pause " : "Play ") + (root.appName || "player")
+                actions: ({ [Qt.LeftButton]: () => root.toggle() })
+            }
         }
     }
 
