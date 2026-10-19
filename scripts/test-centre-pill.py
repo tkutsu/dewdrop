@@ -77,16 +77,13 @@ ShellRoot {
             }
             function centralItems() { return clockPill.shown.filter(item => clockPill.order.includes(item.settingsKey)); }
             function checkCentre(why) {
-                const content = centralItems().filter(item => DrawerPins.pinned(item.visibilityKey)).map(item => item.keyBox);
+                const content = centralItems().filter(item => ['date', 'time'].includes(item.settingsKey)).map(item => item.keyBox);
                 if (content.length === 0) {
-                    bar.check(Math.abs(clockPill.x + clockPill.width / 2 - host.width / 2) <= 1, why + ': pill is centred without pinned modules');
+                    bar.check(Math.abs(clockPill.x + clockPill.width / 2 - host.width / 2) <= 1, why + ': pill is centred without time or date');
                     return;
                 }
-                const mid = Math.floor(content.length / 2);
-                const x = content.length % 2
-                    ? content[mid].mapToItem(host, content[mid].width / 2, 0).x
-                    : (content[mid - 1].mapToItem(host, content[mid - 1].width, 0).x + content[mid].mapToItem(host, 0, 0).x) / 2;
-                bar.check(Math.abs(x - host.width / 2) <= 1, why + ': middle content is centred at ' + x);
+                const x = content.reduce((sum, item) => sum + item.mapToItem(host, item.width / 2, 0).x, 0) / content.length;
+                bar.check(Math.abs(x - host.width / 2) <= 1, why + ': time/date content is centred at ' + x);
             }
             function transfer(item, destination, before) {
                 const source = item.pill;
@@ -133,14 +130,26 @@ ShellRoot {
                 CentrePillOrder.move('weather', null, ['date', 'weather', 'time']);
                 settle(); checkCentre('quiet Auto beside two pinned modules');
                 weather.quiet = false; settle(); waitVisibility(weather, true);
-                checkCentre('active Auto does not change the two pinned anchors');
+                checkCentre('weather does not change the time/date anchors');
+                CentrePillOrder.move('date', null, ['date', 'time', 'weather']);
+                settle(); checkCentre('reversed time/date with weather between them');
+                CentrePillOrder.move('date', 'time', ['time', 'weather', 'date']);
+                DrawerPins.setMode('date', 'drawer'); settle(); waitVisibility(clock, false);
+                checkCentre('time alone beside weather');
+                DrawerPins.setMode('date', 'pinned');
+                DrawerPins.setMode('time', 'drawer'); settle(); waitVisibility(timeClock, false);
+                checkCentre('date alone beside weather');
+                DrawerPins.setMode('date', 'drawer'); settle(); waitVisibility(clock, false);
+                checkCentre('weather alone uses screen centre');
+                DrawerPins.setMode('date', 'pinned');
+                DrawerPins.setMode('time', 'pinned'); settle();
                 DrawerPins.setMode('time', 'auto'); settle();
-                checkCentre('active Auto modules do not displace the single pinned anchor');
+                checkCentre('Auto time still anchors with date');
                 weather.quiet = true; settle(); waitVisibility(weather, false);
-                checkCentre('Auto folding away keeps the pinned anchor');
+                checkCentre('weather folding away keeps the time/date anchors');
                 DrawerPins.setMode('weather', 'drawer');
                 drawer.open = true; settle(); waitVisibility(weather, true);
-                checkCentre('drawer reveal does not change the pinned anchor');
+                checkCentre('drawer reveal does not change the time/date anchors');
                 mousePress(weather, weather.width / 2, 20);
                 mouseMove(clockPill, 1, 20, 20); mouseMove(clockPill, 1, 20, 20);
                 settle();
@@ -167,7 +176,7 @@ ShellRoot {
                 drawer.open = true; settle();
                 transfer(audio, clockPill, clock);
                 transfer(network, clockPill, null);
-                bar.check(centralItems().length === 5, 'five central modules centre the middle item');
+                bar.check(centralItems().length === 5, 'five central modules retain time/date centring');
                 for (const item of [clock, weather, timeClock]) transfer(item, rightPill, null);
                 transfer(audio, rightPill, null);
                 checkLocked(network);

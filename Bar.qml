@@ -193,8 +193,7 @@ PanelWindow {
         visible: false
     }
 
-    // Centre the middle pinned icon or label, or the gap between two pinned
-    // components (Pill.centreAt). Folding modules do not choose the anchor.
+    // Centre the time and date content when shown, otherwise the whole pill.
     readonly property var movableModules: [clock, weather, timeClock, audio, email, tasks, updater, feeds, bell,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
     readonly property var centreKeys: {
@@ -287,16 +286,15 @@ PanelWindow {
         lockedKeys: clockItems.length === 1 ? [clockItems[0].settingsKey] : []
         onModuleReceived: key => Settings.set(key + "Position", "centre")
         readonly property var clockItems: shown.filter(item => order.includes(item.settingsKey))
-        readonly property var centreItems: clockItems.filter(item => DrawerPins.pinned(item.visibilityKey))
-        centreOn: centreItems.length % 2 === 1 ? centreItems[Math.floor(centreItems.length / 2)].keyBox : null
+        readonly property var centreItems: clockItems.filter(item => item.settingsKey === "date" || item.settingsKey === "time")
+        centreOn: centreItems.length === 1 ? centreItems[0].keyBox : null
         centreAt: {
             if (centreOn)
                 return centreOnX;
-            if (centreItems.length > 0) {
-                const middle = centreItems.length / 2;
-                const left = centreItems[middle - 1];
-                const right = centreItems[middle];
-                return (left.x + left.keyBox.x + left.keyBox.width + right.x + right.keyBox.x) / 2;
+            if (centreItems.length === 2) {
+                const [left, right] = centreItems;
+                return (left.x + left.keyBox.x + left.keyBox.width / 2
+                    + right.x + right.keyBox.x + right.keyBox.width / 2) / 2;
             }
             return width / 2;
         }
@@ -412,7 +410,7 @@ PanelWindow {
     // Everything that comes and goes sits either side of the clock, placed off
     // where the clock pill actually ended up rather than given a Side of its
     // own: the centre pill is not where the centre is — it shifts itself so
-    // that its middle content lands on the middle of the bar rather than the
+    // that its time and date land on the middle of the bar rather than the
     // pill's own middle (see Pill.centreAt) — and the only honest way to sit
     // beside something that has moved is to read where it ended up. A spread
     // between each pair of neighbours, the same air all the way along.
