@@ -29,10 +29,6 @@
     // (window count). Single windows and expanded groups have no indicator.
     "groupWindowBadgeStyle": "hide",
 
-    // The workspace mark lifts to move and magnifies the icons it passes
-    // over, like a lens.
-    "magnifyMark": true,
-
     // Drag modules between the central and right pills, or within a pill to
     // reorder them. Moving to the right pins the module; Drawer settings can
     // return it to Auto or keep it behind the chevron, in either pill.
