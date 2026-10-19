@@ -100,24 +100,20 @@ Popup {
     }
 
     PopupHeader {
+        id: clearAll
         width: root.bodyWidth
         // Over the cards, which run on under it (ScrollUnder).
         z: 1
         title: "Notifications"
-
-        PopupButton {
-            id: clearAll
-            visible: Notifications.count > 0
-            framed: true
-            glyph: Theme.glyph.clearAll
-            label: "Clear All"
-            name: "Clear all notifications"
-            blink: choice
-            live: !choice.running
-            onTapped: {
-                const items = Notifications.list.slice();
-                choice.start(clearAll, () => root.clear(items));
-            }
+        addable: Notifications.count > 0
+        addGlyph: Theme.glyph.clearAll
+        addLabel: "Clear"
+        addName: "Clear all notifications"
+        blink: choice
+        enabled: !choice.running
+        onAdd: {
+            const items = Notifications.list.slice();
+            choice.start(clearAll, () => root.clear(items));
         }
     }
 
