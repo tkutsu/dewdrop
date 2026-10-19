@@ -24,12 +24,21 @@ QtObject {
     property bool canTogglePlaying: true
     property bool canPlay: true
     property bool canSeek: false
+    property bool canGoPrevious: false
+    property bool canGoNext: false
+    property bool canQuit: false
+    property int previousCalls: 0
+    property int nextCalls: 0
+    property int quits: 0
     property int toggles: 0
     property int plays: 0
     property bool canRaise: true
     property int raises: 0
     signal trackChanged()
     function raise() { raises++; }
+    function previous() { previousCalls++; }
+    function next() { nextCalls++; }
+    function quit() { quits++; playbackState = MprisPlaybackState.Stopped; }
     function togglePlaying() {
         toggles++;
         playbackState = isPlaying ? MprisPlaybackState.Paused : MprisPlaybackState.Playing;
@@ -110,6 +119,34 @@ ShellRoot {
                 mouseMove(window.contentItem, 950, 90); wait(250);
                 check(pause.opacity === 0 && title.width === restingTitleWidth && playerPill.width === restingWidth,
                       "leaving hides pause and restores the title without resizing");
+                const icon = appIcon(nowPlaying);
+                const previous = icon.parent.children.find(item => item.previous === true);
+                const next = room.children.find(item => item.previous === false);
+                first.canGoPrevious = true; first.canGoNext = true;
+                mouseMove(title, title.width / 2, title.height / 2); wait(800);
+                check(previous.opacity === 1 && next.opacity === 1 && icon.opacity === 0 && playerPill.width > restingWidth,
+                      "hover replaces the app icon with previous and unfolds next like MPD");
+                const beforeSteps = first.raises;
+                mouseClick(previous.children[0], previous.children[0].width / 2, 0); wait(80);
+                mouseClick(next.children[0], next.children[0].width / 2, 0); wait(80);
+                check(first.previousCalls === 1 && first.nextCalls === 1 && first.raises === beforeSteps && first.toggles === 0,
+                      "top-edge previous and next clicks dispatch once without focusing or toggling playback");
+                previous.children[0].Accessible.pressAction();
+                next.children[0].Accessible.pressAction();
+                check(first.previousCalls === 2 && first.nextCalls === 2,
+                      "previous and next support accessible activation");
+                first.canGoPrevious = false; wait(600);
+                check(previous.width === 0 && icon.opacity === 1 && next.opacity === 1,
+                      "previous capability loss restores the app icon while next stays available");
+                previous.children[0].Accessible.pressAction();
+                check(first.previousCalls === 2, "unsupported previous cannot be activated");
+                first.canGoNext = false; wait(600);
+                next.children[0].Accessible.pressAction();
+                check(next.width === 0 && first.nextCalls === 2,
+                      "unsupported next folds away and cannot be activated");
+                mouseMove(window.contentItem, 950, 90); wait(800);
+                check(icon.opacity === 1 && playerPill.width === restingWidth,
+                      "leaving restores the app icon and resting pill width");
                 const originalTitle = first.trackTitle;
                 first.trackTitle = "A very long video title that overflows the Now Playing pill by a comfortable margin";
                 Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: false}); wait(1000);
@@ -255,6 +292,14 @@ ShellRoot {
                 check(!playerPill.visible && !nowPlayingNote.visible, "disabling MPRIS hides the pill and central icon");
                 Settings.user = Object.assign({}, Settings.user, {showMpris: true}); wait(1100);
                 check(nowPlayingNote.visible, "re-enabling a paused player restores its central icon");
+                mouseClick(nowPlayingNote, nowPlayingNote.width / 2, nowPlayingNote.height / 2, Qt.RightButton); wait(80);
+                nowPlaying.closePlayer();
+                check(second.quits === 0 && !nowPlayingNote.answers(Qt.RightButton) && !second.isPlaying,
+                      "a player without Quit leaves right-click inactive and playback untouched");
+                second.canQuit = true;
+                mouseClick(nowPlayingNote, nowPlayingNote.width / 2, nowPlayingNote.height / 2, Qt.RightButton); wait(1100);
+                check(second.quits === 1 && nowPlaying.player === null && !nowPlayingNote.visible && !playerPill.visible,
+                      "merged-icon right-click quits a supported player once and dismisses its controls");
                 second.playbackState = MprisPlaybackState.Stopped; wait(1100);
                 check(nowPlaying.player === null && !playerPill.visible && !nowPlayingNote.visible, "stopped MPRIS players leave no pill or icon");
                 nowPlaying.focusPlayer();

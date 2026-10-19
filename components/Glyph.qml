@@ -17,6 +17,8 @@ Item {
     // Optional shared geometry for drawings whose parts differ only in opacity.
     property string layoutSource: ""
     property int fontSize: Theme.glyphSize
+    // Optional visible extent, shared by font glyphs and artwork in a fixed slot.
+    property int inkSize: 0
     property color color: Theme.fg
     property color inkColor: Theme.barInk(root, root.color, true)
 
@@ -68,9 +70,18 @@ Item {
     implicitHeight: Theme.barHeight
     baselineOffset: label.baselineOffset
 
+    TextMetrics {
+        id: fontBounds
+        text: root.inkSize > 0 && !root.shownDrawing ? root.shown : ""
+        font.family: Theme.glyphFont
+        font.weight: Font.Normal
+        font.pixelSize: root.fontSize
+    }
+
     BarText {
         id: label
         visible: !root.shownDrawing
+        x: root.inkSize > 0 ? Math.floor((root.width - width) / 2) : 0
         width: implicitWidth
         height: parent.height
         text: root.shownDrawing ? "" : root.shown
@@ -78,7 +89,12 @@ Item {
         weight: Font.Normal
         opticalCentre: true
         tightWidth: root.tightWidth
-        fontSize: root.fontSize
+        fontSize: {
+            const bounds = fontBounds.tightBoundingRect;
+            const extent = Math.max(bounds.width, bounds.height);
+            return root.inkSize > 0 && extent > 0
+                ? Math.max(1, Math.round(root.fontSize * root.inkSize / extent)) : root.fontSize;
+        }
         color: root.color
         inkColor: root.inkColor
         nudge: root.nudge
@@ -90,17 +106,27 @@ Item {
     Loader {
         id: art
         active: root.shownDrawing
-        x: root.tightWidth ? -(item?.inkX ?? 0) : 0
+        x: root.inkSize > 0
+            ? Math.floor((root.width - (item?.inkWidth ?? 0)) / 2) - (item?.inkX ?? 0)
+            : root.tightWidth ? -(item?.inkX ?? 0) : 0
         y: Math.floor((root.height - height) / 2) + root.nudge
         opacity: root.inkColor.a
 
         sourceComponent: FittedIcon {
             source: root.shownDrawing ? root.shown : ""
             layoutSource: root.layoutSource || source
-            // A cut from the font stays at the font size rather than fitting its ink.
-            size: root.fontCut ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize)
+            // A visible target overrides source margins; otherwise keep the usual sizing.
+            size: {
+                if (root.inkSize > 0) {
+                    const span = Ink.spanOf(layoutSource);
+                    const extent = Math.max(Ink.extentOf(layoutSource), span ? span.right - span.left : 0);
+                    if (extent > 0)
+                        return Math.max(1, Math.round(root.inkSize / extent));
+                }
+                return root.fontCut ? root.fontSize : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize);
+            }
             box: size
-            ink: Theme.glyphInk
+            ink: root.inkSize > 0 ? 0 : Theme.glyphInk
             fitsInk: !root.fontCut
         }
     }

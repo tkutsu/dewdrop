@@ -309,7 +309,9 @@ PanelWindow {
             }
             return width / 2;
         }
-        animatePosition: true
+        // Clearing folds the bell without turning its width change into a recoil.
+        animatePosition: Services.Notifications.list.includes(Services.Notifications.latest)
+            || (!bell.animating && !notice.animating)
         // Mirror a leading media slot's displacement through Pill's existing centring motion.
         centreShift: !Theme.reduceMotion && bell.pill === clockPill
             && notice.mergedIcon === bell.keyBox.children[0]
@@ -361,7 +363,8 @@ PanelWindow {
             }
 
             actions: ({
-                    [Qt.LeftButton]: () => nowPlaying.expand()
+                    [Qt.LeftButton]: () => nowPlaying.expand(),
+                    [Qt.RightButton]: nowPlaying.player?.canQuit ? () => nowPlaying.closePlayer() : null
                 })
         }
 
@@ -385,7 +388,8 @@ PanelWindow {
             }
 
             actions: ({
-                    [Qt.LeftButton]: () => music.expand()
+                    [Qt.LeftButton]: () => music.expand(),
+                    [Qt.RightButton]: () => Services.Mpd.stopServer()
                 })
         }
 

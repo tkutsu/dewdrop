@@ -42,6 +42,7 @@ QtObject {
     function pictureOf(value) { return value.appIcon || ""; }
     function url(value) { return value || ""; }
     function dismissNotice(value) { showing = false; }
+    function clearAll() { list = []; showing = false; }
 }
 '''
 
@@ -72,7 +73,6 @@ ShellRoot {
         id: window; implicitWidth: 1000; implicitHeight: 100
         Pill {
             id: clockPill; side: Pill.Side.Centre; centreOn: clock.keyBox
-            animatePosition: true
             order: ["clock", "bell", "tail"]
             CENTRE_MOTION
             BarItem { id: clock; settingsKey: "clock"; BarText { text: "Clock" } }
@@ -166,6 +166,33 @@ ShellRoot {
                 wait(Theme.startMs + 50);
                 bar.placeModules();
                 DrawerPins.setMode("bell", "auto");
+                if (CLEAR_ONLY) {
+                    for (const remaining of [false, true]) {
+                        for (const showing of [false, true]) {
+                            for (const fromBell of [false, true]) {
+                                Notifications.latest = Object.assign({}, Notifications.latest, {
+                                    dismiss: () => { Notifications.list = Notifications.list.filter(n => n !== Notifications.latest); Notifications.showing = false; }
+                                });
+                                Notifications.list = remaining ? [Notifications.latest, {}] : [Notifications.latest]; Notifications.showing = true;
+                                wait(Theme.dropMs + 100);
+                                Notifications.showing = showing;
+                                wait(1200);
+                                const restingX = clock.keyBox.mapToItem(window.contentItem, 0, 0).x;
+                                if (fromBell) bell.actions[Qt.RightButton]();
+                                else Notifications.latest.dismiss();
+                                for (let i = 0; i < 75; i++) {
+                                    wait(16);
+                                    const clockX = clock.keyBox.mapToItem(window.contentItem, 0, 0).x;
+                                    check(Math.abs(clockX - restingX) < 0.01,
+                                          "clearing notifications keeps the centre pill still (notice=" + showing
+                                          + ", bell=" + fromBell + ", remaining=" + remaining + "): clock=" + clockX + ", rest=" + restingX);
+                                }
+                            }
+                        }
+                    }
+                    console.log("PASS: clearing notifications keeps the centre pill still");
+                    return;
+                }
                 Notifications.list = [Notifications.latest]; Notifications.showing = true;
                 wait(Theme.dropMs + 100);
                 const sender = notice.keyBox.children.find(item => item instanceof AppIcon);
@@ -309,9 +336,10 @@ def main():
     bar = (ROOT / "Bar.qml").read_text()
     placement = re.search(r"^    function placeModules\(\): void \{.*?^    \}", bar, re.M | re.S)
     qml = QML.replace("PLACE_MODULES", placement[0]).replace("PLACEMENT_ONLY", "true" if "--placement" in sys.argv else "false")
+    qml = qml.replace("CLEAR_ONLY", "true" if "--clear" in sys.argv else "false")
     qml = qml.replace("BELL", block(bar, "id: bell", "NotificationBell {"))
     qml = qml.replace("NOTICE", block(bar, "id: noticePill", "SidePill {"))
-    motion_start = bar.index("        // Mirror a leading media slot")
+    motion_start = bar.index("        animatePosition:")
     motion_end = bar.index("        // Quiet capture controls", motion_start)
     qml = qml.replace("CENTRE_MOTION", bar[motion_start:motion_end])
     for placeholder, name in (("RIGHT_LIP", "rightLip"), ("CLOCK_GLASS", "clockGlass")):
@@ -334,8 +362,11 @@ def main():
                                 capture_output=True, text=True, timeout=50)
         output = result.stdout + result.stderr
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Binding loop", "Unable to assign", "Cannot assign", "Failed to load configuration")
-        ok = result.returncode == 0 and "PASS: media bell handoff" in output and not any(e in output for e in errors)
+        passed = "PASS: clearing notifications" if "--clear" in sys.argv else "PASS: media bell handoff"
+        ok = result.returncode == 0 and passed in output and not any(e in output for e in errors)
         success = "PASS: Auto bell visibility, alignment, edge swell and rebound after real module placement" if "--placement" in sys.argv else "PASS: media bell handoff in both directions, sender fade/scale, interruption, other positions and reduced motion"
+        if "--clear" in sys.argv:
+            success = "PASS: bell clear and individual dismissal keep the centre pill still, with and without an active notice"
         print(success if ok else output)
         return 0 if ok else 1
 

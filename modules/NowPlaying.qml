@@ -138,6 +138,12 @@ BarItem {
             root.player.togglePlaying();
     }
 
+    // Quit only players that explicitly support closing through MPRIS.
+    function closePlayer() {
+        if (root.player?.canQuit)
+            root.player.quit();
+    }
+
     // Let the player select its media window; otherwise match its app and title.
     function focusPlayer() {
         if (!root.player)
@@ -165,6 +171,7 @@ BarItem {
         })
 
     property real controlReveal: containsMouse ? 1 : 0
+    contentAnimating: previousStep.animating || nextStep.animating
     Behavior on controlReveal {
         NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
     }
@@ -176,7 +183,7 @@ BarItem {
         readonly property bool inkLit: true
 
         Layout.fillHeight: true
-        implicitWidth: appIcon.implicitWidth + Theme.mediaGap + Math.max(title.implicitWidth, play.implicitWidth)
+        implicitWidth: leading.width + nextStep.width + Math.max(title.implicitWidth, play.implicitWidth)
         transform: Translate { x: root.iconHandoff.sourceX }
 
         // Keep press feedback off the app icon while it follows the closing glass.
@@ -197,20 +204,50 @@ BarItem {
             }
         }
 
-        AppIcon {
-            id: appIcon
-            scale: 1
-            tightWidth: true
-            opacity: 1 - root.iconHandoff.progress
-            windowClass: root.shownApp
-            visible: !root.sliding || root.iconHandoff.progress < 1
+        // Match Music's hover controls: previous replaces the app icon,
+        // and next unfolds into the space before the title.
+        Item {
+            id: leading
+            width: Math.max(appIcon.implicitWidth + Theme.mediaGap, previousStep.implicitWidth)
             height: parent.height
+
+            MediaStep {
+                id: previousStep
+                width: implicitWidth
+                height: parent.height
+                previous: true
+                open: root.containsMouse && root.settled && (root.player?.canGoPrevious ?? false)
+                settled: root.settled
+                onTriggered: if (root.player?.canGoPrevious)
+                    root.player.previous()
+            }
+
+            AppIcon {
+                id: appIcon
+                scale: 1
+                tightWidth: true
+                opacity: root.settled ? 1 - previousStep.opacity : 1 - root.iconHandoff.progress
+                windowClass: root.shownApp
+                visible: !root.sliding || root.iconHandoff.progress < 1
+                height: parent.height
+            }
+        }
+
+        MediaStep {
+            id: nextStep
+            x: leading.width
+            width: implicitWidth
+            height: parent.height
+            open: root.containsMouse && root.settled && (root.player?.canGoNext ?? false)
+            settled: root.settled
+            onTriggered: if (root.player?.canGoNext)
+                root.player.next()
         }
 
         Marquee {
             id: title
 
-            x: appIcon.width + Theme.mediaGap
+            x: leading.width + nextStep.width
             width: Math.max(0, Math.min(implicitWidth, titleRoom.width - x - root.titleLoss
                 - root.controlReveal * (play.implicitWidth + Theme.mediaGap)))
             height: parent.height
@@ -219,7 +256,7 @@ BarItem {
             contentWidth: titleText.implicitWidth
             scale: titlePress.scale
             hovered: root.containsMouse
-            paused: !root.settled
+            paused: root.contentAnimating || !root.settled
             // Reuse the marquee edge shader as the contracting edge overtakes text.
             travel: root.titleLoss
 
