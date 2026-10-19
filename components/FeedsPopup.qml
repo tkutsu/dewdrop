@@ -13,6 +13,7 @@ import qs.services
 // back the swipes (and "Mark All Seen") until the popup closes.
 Popup {
     id: root
+    dismissWhenEmpty: Feeds.count === 0
 
     readonly property int bodyWidth: Theme.popupWideWidth
     readonly property int rowGap: 3
@@ -73,7 +74,7 @@ Popup {
         root.headerOffset = 0;
         root.headerExpansion = 1;
         root.movingSection = "";
-        if (Settings.reduceMotion || !root.visible) {
+        if (Settings.reduceMotion || !root.visible || root.dismissWhenEmpty) {
             root.moveSectionLast(root.requestedSection);
             root.shownSection = root.requestedSection;
             root.sectionOpacity = 1;

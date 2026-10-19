@@ -8,8 +8,8 @@
 // than a Rectangle and a Rim because neither can bend.
 //
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o drop.frag.qsb drop.frag
-// A hot reload keeps drawing with the shader it already loaded, so restart
-// Quickshell after recompiling.
+// A hot reload retains shaders by URL. Bump Drop.qml's shader URL revision
+// after recompiling so the running shell loads the new program.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -23,6 +23,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 box;
     float radius;
     float bell;
+    float sag;
     float lineWidth;
     // Straight (not premultiplied) alpha.
     vec4 fill;
@@ -43,6 +44,10 @@ float field(vec2 p) {
     float s = mix(1.0, mix(0.35, 1.0, sqrt(t)), bell);
     float cx = box.x + box.z * 0.5;
     vec2 q0 = vec2(cx + (p.x - cx) / s, p.y);
+    // The gel prototype's bottom bow: fixed at the top and the side edges,
+    // with the center of the foot taking the full displacement.
+    float u = (p.x - cx) / (box.z * 0.5);
+    q0.y -= sag * max(1.0 - u * u, 0.0) * t;
 
     vec2 half_ = box.zw * 0.5;
     float r = min(radius, min(half_.x, half_.y));
