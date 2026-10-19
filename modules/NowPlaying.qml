@@ -9,12 +9,11 @@ import qs.services
 // that speaks MPRIS — in a pill of its own beyond the music pill. mpd
 // publishes no MPRIS (services/Mpd.qml), so nothing shows here twice.
 //
-// The app icon, track title and play/pause, and no popup: the app
-// itself is where the rest of it lives, and the title takes you there.
+// The whole pill plays or pauses; its control appears over the title on hover.
 // Right click plays or pauses too, and the wheel seeks, as on the music pill.
 BarItem {
     id: root
-    name: "Now Playing"
+    name: (playing ? "Pause " : "Play ") + (appName || "player")
 
     // The player to show: the one playing, or failing that, the one that
     // played last, while it is still paused on something. Pausing one tab
@@ -137,21 +136,17 @@ BarItem {
             root.player.togglePlaying();
     }
 
-    // The player's own window, the way a notification's sender is found.
-    function show() {
-        if (root.player)
-            Notifications.focusSender({
-                desktopEntry: root.player.desktopEntry,
-                appName: root.player.identity
-            });
-    }
-
     spacing: 0
-    // Each target presses in by itself (PressGlass), as on the music pill.
     dips: false
     actions: ({
+            [Qt.LeftButton]: () => root.toggle(),
             [Qt.RightButton]: () => root.toggle()
         })
+
+    property real controlReveal: containsMouse ? 1 : 0
+    Behavior on controlReveal {
+        NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
+    }
 
     // The title's room, which is what sizes the pill, springing to a new
     // title's width as the music pill's does.
@@ -160,27 +155,16 @@ BarItem {
         readonly property bool inkLit: true
 
         Layout.fillHeight: true
-        implicitWidth: appIcon.implicitWidth + Theme.mediaGap + title.implicitWidth
-        scale: titlePress.scale
+        implicitWidth: appIcon.implicitWidth + Theme.mediaGap + Math.max(title.implicitWidth, play.implicitWidth)
         transform: Translate { x: root.iconHandoff.sourceX }
 
+        // Keep press feedback off the app icon while it follows the closing glass.
         PressGlass {
             id: titlePress
             icon: titleRoom
-            area: titleTap
+            area: root
+            down: root.acting
             textPress: true
-        }
-
-        Accessible.role: Accessible.Button
-        Accessible.name: "Show " + (root.appName || "player")
-        Accessible.onPressAction: if (enabled && visible)
-            root.show()
-
-        TapHandler {
-            id: titleTap
-            // Keep the top screen pixel inside the target as it shrinks.
-            margin: Theme.barInset
-            onTapped: root.show()
         }
 
         Behavior on implicitWidth {
@@ -206,13 +190,15 @@ BarItem {
             id: title
 
             x: appIcon.width + Theme.mediaGap
-            width: Math.max(0, Math.min(implicitWidth, titleRoom.width - x - root.titleLoss))
+            width: Math.max(0, Math.min(implicitWidth, titleRoom.width - x - root.titleLoss
+                - root.controlReveal * (play.implicitWidth + Theme.mediaGap)))
             height: parent.height
             text: root.shownLabel
             maxWidth: Theme.mediaTitleWidth
             contentWidth: titleText.implicitWidth
-            active: Settings.scrollMusicTitles && !Theme.reduceMotion
-            paused: !root.settled
+            scale: titlePress.scale
+            active: (Settings.scrollMusicTitles && !Theme.reduceMotion) || root.controlReveal > 0
+            paused: !Settings.scrollMusicTitles || Theme.reduceMotion || !root.settled
             // Reuse the marquee edge shader as the contracting edge overtakes text.
             travel: root.titleLoss
 
@@ -223,43 +209,15 @@ BarItem {
                 maxWidth: Settings.scrollMusicTitles && !Theme.reduceMotion ? 0 : Theme.mediaTitleWidth
             }
         }
-    }
 
-    // Play/pause to the right of the title, with its gap before it.
-    Item {
-        id: slot
-        readonly property bool inkLit: true
-
-        Layout.fillHeight: true
-        implicitWidth: play.implicitWidth + Theme.mediaGap
-        scale: playPress.scale
-        opacity: root.sliding ? pill.geometry.contents(root.reveal) : 1
-        transform: Translate { x: root.glassLeft + root.glassWidth - (root.pill?.width ?? root.width) }
-
-        PressGlass {
-            id: playPress
-            icon: slot
-            area: playTap
-        }
-
-        Accessible.role: Accessible.Button
-        Accessible.name: root.playing ? "Pause" : "Play"
-        Accessible.onPressAction: if (enabled && visible)
-            root.toggle()
-
-        TapHandler {
-            id: playTap
-            // Keep the top screen pixel inside the target as it shrinks.
-            margin: Theme.barInset
-            onTapped: root.toggle()
-        }
-
-        // What pressing it will do, as on the music pill.
+        // Overlay the control without adding room to the pill's layout.
         Glyph {
             id: play
 
-            x: Theme.mediaGap
+            x: titleRoom.width - width - root.titleLoss
             height: parent.height
+            scale: titlePress.scale
+            opacity: root.controlReveal * (root.sliding ? root.pill.geometry.contents(root.reveal) : 1)
             text: root.playing ? Theme.glyph.paused : Theme.glyph.playing
         }
     }

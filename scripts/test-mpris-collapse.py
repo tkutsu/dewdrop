@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise paused MPRIS pills and their central app-icon restore button."""
+"""Exercise MPRIS pill hover, playback clicks and central app-icon restore."""
 
 from pathlib import Path
 import runpy
@@ -84,18 +84,52 @@ ShellRoot {
                 check(nowPlaying.player === first && nowPlaying.reveal === 1 && !nowPlayingNote.visible,
                       "playing MPRIS player shows the full pill");
                 const centreX = centreAnchor.mapToItem(window.contentItem, centreAnchor.width / 2, 0).x;
-                const pause = nowPlaying.keyBox.children.find(item => item.Accessible.name === "Pause");
-                check(pause !== undefined, "playing MPRIS exposes its pause button");
-                const pauseX = pause.mapToItem(nowPlaying, pause.width / 2, 0).x;
-                mousePress(nowPlaying, pauseX, 0); wait(200);
-                check(pause.scale < 1, "pause button shrinks while held at the top edge");
-                mouseRelease(nowPlaying, pauseX, 0); wait(80);
+                const room = nowPlaying.keyBox.children[0];
+                const title = room.children.find(item => item.travel !== undefined);
+                const pause = room.children.find(item => item.text === Theme.glyph.paused);
+                mouseMove(window.contentItem, 950, 90); wait(250);
+                check(pause && pause.opacity === 0, "pause icon is hidden away from the pill");
+                const restingWidth = playerPill.width;
+                const restingTitleWidth = title.width;
+                mouseMove(nowPlaying, nowPlaying.width / 2, nowPlaying.height / 2);
+                let fixedWidth = true;
+                for (let frame = 0; frame < 20; frame++) {
+                    wait(16);
+                    fixedWidth = fixedWidth && playerPill.width === restingWidth;
+                }
+                check(fixedWidth, "hover keeps the pill width fixed throughout the transition");
+                check(pause.opacity === 1 && title.width < restingTitleWidth && title.rightFade > 0 && title.layer.enabled,
+                      "hover reveals pause over a shortened title with a gradient");
+                Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: false, reduceMotion: true}); wait(100);
+                check(!title.scrolling && title.rightFade > 0 && title.layer.enabled,
+                      "hover keeps the gradient with title scrolling and motion disabled");
+                Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: true, reduceMotion: false});
+                mouseMove(window.contentItem, 950, 90); wait(250);
+                check(pause.opacity === 0 && title.width === restingTitleWidth && playerPill.width === restingWidth,
+                      "leaving hides pause and restores the title without resizing");
+                for (const target of [appIcon(nowPlaying), pause, nowPlaying]) {
+                    const before = first.toggles;
+                    // The root target exercises the trailing pill padding.
+                    mouseClick(target, target === nowPlaying ? target.width - 1 : target.width / 2, 0); wait(80);
+                    check(first.toggles === before + 1 && !first.isPlaying,
+                          "app icon, hover icon and padding each pause exactly once");
+                    first.playbackState = MprisPlaybackState.Playing; wait(1100);
+                }
+                const beforeAccessible = first.toggles;
+                nowPlaying.Accessible.pressAction(); wait(80);
+                check(first.toggles === beforeAccessible + 1 && !first.isPlaying,
+                      "accessible pill action toggles playback exactly once");
+                first.playbackState = MprisPlaybackState.Playing; wait(1100);
+                first.toggles = 0;
+                const titleX = title.mapToItem(nowPlaying, title.width / 2, 0).x;
+                mousePress(nowPlaying, titleX, 0); wait(200);
+                check(title.scale < 1 && pause.scale < 1, "title and pause shrink while the pill is held at the top edge");
+                mouseRelease(nowPlaying, titleX, 0); wait(80);
                 check(first.toggles === 1 && !first.isPlaying, "a held top-edge click pauses MPRIS exactly once");
                 check(nowPlaying.stowed && nowPlaying.reveal > 0 && nowPlaying.reveal < 1,
                       "pausing MPRIS starts collapsing its pill");
                 const travellingIcon = appIcon(nowPlaying);
                 let followedGlass = true;
-                const title = nowPlaying.keyBox.children[0].children.find(item => item.travel !== undefined);
                 let sawGradient = false;
                 let frames = 0;
                 let stayedHidden = nowPlayingNote.stowed && !nowPlayingNote.visible;
@@ -196,7 +230,7 @@ def main():
         music_end = bar.index("        Clock {", end)
         (target / "shell.qml").write_text(SHELL.replace("APP_NOTE", bar[start:end]).replace("MUSIC_NOTE", bar[end:music_end]))
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
-                                capture_output=True, text=True, timeout=30)
+                                capture_output=True, text=True, timeout=45)
         output = result.stdout + result.stderr
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Binding loop", "Unable to assign", "Cannot assign", "Failed to load configuration")
         ok = result.returncode == 0 and "DONE: MPRIS collapse" in output and not any(error in output for error in errors)
