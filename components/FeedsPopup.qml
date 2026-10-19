@@ -10,8 +10,7 @@ import qs.services
 // part folded under a header with its count until a click opens it. A click
 // on a row opens it in the browser, a swipe either way puts it away, and
 // both count it seen, so it leaves the list and the badge. The header takes
-// back the swipes (and "Mark All Seen") until the popup closes. A story's
-// discussion is the button on its row.
+// back the swipes (and "Mark All Seen") until the popup closes.
 Popup {
     id: root
 
@@ -24,6 +23,12 @@ Popup {
     readonly property int thumbHeight: 36
     readonly property int textX: root.inset + root.thumbWidth + 8
     readonly property int listMax: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
+    // Animate the box inside a fixed surface, avoiding compositor repositioning.
+    reserveHeight: root.vPadding + root.bottomPadding + feedHeader.height + root.spacing + root.listMax
+        + (troubleNote.visible ? troubleNote.height + root.spacing : 0)
+        + (emptyNote.visible ? emptyNote.height + root.spacing : 0)
+    readonly property int sectionFadeMs: Math.round(Theme.fadeMs * 2 / 3)
+    readonly property int sectionFoldMs: Math.round(Theme.foldMs * 2 / 3)
     // Ages move on the minute.
     readonly property real now: Google.now.getTime()
     readonly property string requestedSection: root.sections.find(s => Feeds.unfolded(s.section))?.section ?? ""
@@ -31,62 +36,149 @@ Popup {
     property real sectionOpacity: 1
     property real sectionExpansion: 1
     property bool sectionReady: false
+    property var sectionKeys: []
+    property string movingSection: ""
+    property real headerOffset: 0
+    property real headerExpansion: 1
+    property real heldListHeight: -1
 
     onRequestedSectionChanged: root.updateSection()
+    onSectionsChanged: root.syncSectionOrder()
     Component.onCompleted: {
+        root.syncSectionOrder();
         root.sectionReady = true;
         root.updateSection();
     }
 
-    // Keep the outgoing drawer still until it is invisible, then lay out the next.
+    // Retain positions on close and refresh; newly available feeds join the end.
+    function syncSectionOrder(): void {
+        const keys = root.sections.map(s => s.section);
+        root.sectionKeys = root.sectionKeys.filter(key => keys.includes(key))
+            .concat(keys.filter(key => !root.sectionKeys.includes(key)));
+    }
+
+    function moveSectionLast(section: string): void {
+        if (section !== "" && root.sectionKeys.includes(section))
+            root.sectionKeys = root.sectionKeys.filter(key => key !== section).concat([section]);
+    }
+
+    // Move the selected header last, then fade its content in after it arrives.
     function updateSection(): void {
         if (!root.sectionReady)
             return;
+        // Hold the viewport through interruptions too, then ease the viewport to its final size.
+        root.heldListHeight = view.height;
+        viewportResize.stop();
         sectionTransition.stop();
+        root.headerOffset = 0;
+        root.headerExpansion = 1;
+        root.movingSection = "";
         if (Settings.reduceMotion || !root.visible) {
+            root.moveSectionLast(root.requestedSection);
             root.shownSection = root.requestedSection;
             root.sectionOpacity = 1;
             root.sectionExpansion = 1;
+            root.heldListHeight = -1;
         } else if (root.shownSection !== root.requestedSection || root.sectionOpacity < 1 || root.sectionExpansion < 1) {
-            fadeOut.duration = root.shownSection === "" ? 0 : Theme.fadeMs;
-            expandIn.duration = root.requestedSection === "" ? 0 : Theme.foldMs;
+            if (root.requestedSection !== "" && root.sectionKeys.indexOf(root.requestedSection) < root.sectionKeys.length - 1)
+                root.movingSection = root.requestedSection;
+            fadeOut.duration = root.shownSection === "" ? 0 : root.sectionFadeMs;
+            slideOut.duration = root.movingSection === "" ? 0 : root.sectionFadeMs;
+            collapseSlot.duration = collapseDrawer.duration = root.movingSection === "" ? 0 : root.sectionFoldMs;
+            slideIn.duration = root.movingSection === "" ? 0 : root.sectionFadeMs;
+            fadeIn.duration = root.requestedSection === "" ? 0 : root.sectionFadeMs;
             sectionTransition.start();
-        }
+        } else
+            root.heldListHeight = -1;
     }
 
     SequentialAnimation {
         id: sectionTransition
+        onFinished: {
+            for (const part of list.children)
+                if (part.forceLayout)
+                    part.forceLayout();
+            list.forceLayout();
+            viewportResize.from = root.heldListHeight;
+            viewportResize.to = Math.min(list.implicitHeight, root.listMax);
+            viewportResize.start();
+        }
 
-        NumberAnimation {
-            id: fadeOut
-            target: root
-            property: "sectionOpacity"
-            to: 0
-            easing.type: Easing.InOutCubic
+        ParallelAnimation {
+            NumberAnimation {
+                id: fadeOut
+                target: root
+                property: "sectionOpacity"
+                to: 0
+                easing.type: Easing.InOutCubic
+            }
+            NumberAnimation {
+                id: slideOut
+                target: root
+                property: "headerOffset"
+                to: -root.bodyWidth
+                easing.type: Easing.InOutCubic
+            }
+        }
+        ParallelAnimation {
+            NumberAnimation {
+                id: collapseSlot
+                target: root
+                property: "headerExpansion"
+                to: 0
+                easing.type: Easing.InOutCubic
+            }
+            NumberAnimation {
+                id: collapseDrawer
+                target: root
+                property: "sectionExpansion"
+                to: 0
+                easing.type: Easing.InOutCubic
+            }
         }
         ScriptAction {
             script: {
+                root.moveSectionLast(root.requestedSection);
                 root.sectionExpansion = 0;
                 root.shownSection = root.requestedSection;
-                root.sectionOpacity = 1;
+                root.sectionOpacity = 0;
+                root.headerExpansion = 1;
+                root.headerOffset = root.movingSection === "" ? 0 : -root.bodyWidth;
             }
         }
         NumberAnimation {
-            id: expandIn
+            id: slideIn
             target: root
-            property: "sectionExpansion"
+            property: "headerOffset"
+            to: 0
+            easing.type: Easing.InOutCubic
+        }
+        ScriptAction { script: root.sectionExpansion = 1 }
+        NumberAnimation {
+            id: fadeIn
+            target: root
+            property: "sectionOpacity"
             from: 0
             to: 1
             easing.type: Easing.InOutCubic
         }
+        ScriptAction { script: root.movingSection = "" }
+    }
+
+    NumberAnimation {
+        id: viewportResize
+        target: root
+        property: "heldListHeight"
+        duration: root.sectionFoldMs
+        easing.type: Easing.InOutCubic
+        onFinished: root.heldListHeight = -1
     }
 
     readonly property var sections: [{ section: "videos", title: "YouTube", videos: Feeds.unseenVideos, stories: [] }]
             .concat(Feeds.unseenSources.map(s => ({ section: s.url, title: s.title, videos: [], stories: s.items })))
             .filter(s => s.videos.length + s.stories.length > 0)
-    // Reorder only after the outgoing drawer has faded away.
-    readonly property var sectionOrder: root.sections.filter(s => s.section !== root.shownSection)
-        .concat(root.sections.filter(s => s.section === root.shownSection))
+    readonly property var sectionOrder: root.sectionKeys.map(key => root.sections.find(s => s.section === key))
+        .filter(s => s !== undefined)
 
     onVisibleChanged: {
         Feeds.undos = [];
@@ -97,10 +189,17 @@ Popup {
     Component.onDestruction: Feeds.undos = []
 
     PopupHeader {
+        id: feedHeader
+
         width: root.bodyWidth
         // Over the rows, which run on under it (ScrollUnder).
         z: 1
         title: "Feeds"
+        addable: Feeds.count > 0
+        addGlyph: Theme.glyph.checkAll
+        addLabel: "Clear"
+        addName: "Mark All Seen"
+        onAdd: Feeds.markAllSeen()
 
         // YouTube's own sign-in (YouTubeAccount), not the mail one: the
         // subscriptions can be a brand account's.
@@ -129,14 +228,6 @@ Popup {
         }
 
         PopupButton {
-            visible: Feeds.count > 0
-            framed: true
-            glyph: Theme.glyph.checkAll
-            label: "Mark All Seen"
-            onTapped: Feeds.markAllSeen()
-        }
-
-        PopupButton {
             framed: true
             glyph: Theme.glyph.openApp
             name: "Open YouTube"
@@ -145,6 +236,8 @@ Popup {
     }
 
     PopupNote {
+        id: troubleNote
+
         width: root.bodyWidth
         visible: Feeds.trouble !== "" && Feeds.trouble !== YouTubeAccount.reconnect
         text: Feeds.trouble
@@ -152,6 +245,8 @@ Popup {
     }
 
     PopupNote {
+        id: emptyNote
+
         width: root.bodyWidth
         visible: !Feeds.connected || !Feeds.loaded || Feeds.count === 0
         text: !Feeds.connected ? (YouTubeAccount.configured ? "YouTube needs reconnecting." : "Connect the account or channel that holds your subscriptions.")
@@ -167,7 +262,7 @@ Popup {
         Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
 
         width: root.bodyWidth
-        height: Math.min(list.implicitHeight, root.listMax)
+        height: root.heldListHeight >= 0 ? root.heldListHeight : Math.min(list.implicitHeight, root.listMax)
         visible: Feeds.count > 0
         contentHeight: list.implicitHeight
         clip: true
@@ -176,6 +271,8 @@ Popup {
             parent: view
             view: view
             box: root.chromeItem
+            // The held viewport ends at a feed header until its resize finishes.
+            bottomReach: root.heldListHeight >= 0 ? 0 : Theme.scrollEdge
         }
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
@@ -189,7 +286,7 @@ Popup {
             spacing: root.rowGap
 
             Repeater {
-                // Stable keys preserve delegates when closed headers move up.
+                // Stable keys preserve delegates when an opened feed moves last.
                 model: ScriptModel {
                     values: root.sectionOrder.map(s => s.section)
                 }
@@ -201,13 +298,17 @@ Popup {
                     readonly property var source: root.sections.find(s => s.section === part.modelData)
                         ?? { title: "", videos: [], stories: [] }
                     readonly property bool shown: root.shownSection === part.modelData
+                    property int storyLimit: Feeds.storiesShown
 
                     width: root.bodyWidth
+                    height: implicitHeight * (root.movingSection === part.modelData ? root.headerExpansion : 1)
+                    clip: true
                     spacing: 0
                     z: part.shown ? 1 : 0
 
                     Fold {
                         id: fold
+                        x: root.movingSection === part.modelData ? root.headerOffset : 0
                         section: part.modelData
                         title: part.source.title
                         unseen: part.source.videos.length + part.source.stories.length
@@ -236,8 +337,28 @@ Popup {
                             }
 
                             Repeater {
-                                model: part.shown ? part.source.stories : []
+                                model: part.shown ? part.source.stories.slice(0, part.storyLimit) : []
                                 delegate: storyRow
+                            }
+
+                            PopupRow {
+                                name: "Load More"
+                                width: root.bodyWidth
+                                height: moreLabel.implicitHeight + root.rowPad * 2
+                                visible: part.shown && part.source.stories.length > part.storyLimit
+                                gesturePolicy: TapHandler.ReleaseWithinBounds
+                                onTapped: part.storyLimit += Feeds.storiesShown
+
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                                PopupText {
+                                    id: moreLabel
+                                    x: root.inset
+                                    y: root.rowPad
+                                    text: "Load More"
+                                    color: Theme.label2
+                                    font.pixelSize: Theme.footnoteSize
+                                }
                             }
                         }
                     }
@@ -321,6 +442,7 @@ Popup {
             id: story
 
             required property var modelData
+            readonly property int textInset: thumbnail.visible ? root.textX : root.inset
             readonly property var facts: [
                 story.modelData.points >= 0 ? `${story.modelData.points} points` : "",
                 story.modelData.replies >= 0 ? `${story.modelData.replies} comments` : "",
@@ -329,17 +451,46 @@ Popup {
 
             name: story.modelData.title
             width: root.bodyWidth
-            fullHeight: lines.implicitHeight + root.rowPad * 2
+            fullHeight: Math.max(lines.implicitHeight, thumbnail.visible ? root.thumbHeight : 0) + root.rowPad * 2
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: Feeds.open(story.modelData, "")
             onSwiped: Feeds.hide(story.modelData)
 
-            Column {
-                id: lines
+            ClippingRectangle {
+                id: thumbnail
 
                 x: root.inset + story.swipe
                 y: root.rowPad
-                width: parent.width - root.inset * 2 - (talk.visible ? talk.width + 4 : 0)
+                width: root.thumbWidth
+                height: root.thumbHeight
+                visible: (story.modelData.thumb ?? "") !== "" && artwork.status !== Image.Error
+                radius: Theme.selectionRadius
+                color: Theme.well
+
+                Image {
+                    id: artwork
+
+                    anchors.fill: parent
+                    source: story.modelData.thumb ?? ""
+                    sourceSize.width: root.thumbWidth * 2
+                    sourceSize.height: root.thumbHeight * 2
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    smooth: true
+                    opacity: status === Image.Ready ? 1 : 0
+
+                    Behavior on opacity {
+                        NumberAnimation { duration: Theme.fadeMs }
+                    }
+                }
+            }
+
+            Column {
+                id: lines
+
+                x: story.textInset + story.swipe
+                y: root.rowPad
+                width: parent.width - story.textInset - root.inset
                 spacing: 1
 
                 PopupText {
@@ -353,24 +504,24 @@ Popup {
 
                 PopupText {
                     width: parent.width
+                    visible: text !== ""
+                    text: story.modelData.summary ?? ""
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                    color: Theme.label2
+                    font.pixelSize: Theme.footnoteSize
+                }
+
+                PopupText {
+                    width: parent.width
                     text: story.facts.join(" · ")
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                     color: Theme.label2
                     font.pixelSize: Theme.footnoteSize
                 }
-            }
-
-            PopupButton {
-                id: talk
-
-                anchors.right: parent.right
-                anchors.rightMargin: root.inset - story.swipe
-                anchors.verticalCenter: parent.verticalCenter
-                visible: story.hovered && !story.swiping && story.modelData.comments !== ""
-                glyph: Theme.glyph.comments
-                name: "Comments"
-                onTapped: Feeds.open(story.modelData, story.modelData.comments)
             }
         }
     }
@@ -402,7 +553,7 @@ Popup {
 
             Behavior on rotation {
                 NumberAnimation {
-                    duration: Settings.reduceMotion ? 0 : Theme.foldMs
+                    duration: Settings.reduceMotion ? 0 : root.sectionFoldMs
                     easing.type: Easing.InOutCubic
                 }
             }
@@ -416,6 +567,7 @@ Popup {
             text: fold.title
             textFormat: Text.PlainText
             elide: Text.ElideRight
+            color: Theme.label2
             font.pixelSize: Theme.captionSize
             font.weight: Font.DemiBold
         }

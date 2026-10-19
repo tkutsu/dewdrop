@@ -28,8 +28,8 @@ def firefox(home, visits):
     return db
 
 
-def chromium(home, visits):
-    profile = home / ".config/chromium/Profile 1"
+def chromium(home, visits, browser="chromium", profile="Profile 1"):
+    profile = home / ".config" / browser / profile
     profile.mkdir(parents=True)
     db = sqlite3.connect(profile / "History")
     db.execute("create table urls (id integer primary key, url text, last_visit_time integer)")
@@ -53,11 +53,16 @@ def main():
             ("https://www.youtube.com/watch?v=AAAAAAAAAAA&t=42s", NOW - 3600),
             ("https://example.com/story/", NOW - 7200),
             ("https://www.youtube.com/watch?v=OLDOLDOLDOL", NOW - 30 * DAY),
+            ("https://example.com/old-firefox", NOW - 30 * DAY),
         ])
         chromium(home, [
             ("https://youtu.be/BBBBBBBBBBB", NOW - 60),
             ("https://news.ycombinator.com/item?id=7", NOW - 60),
+            ("https://example.com/old-chromium", NOW - 30 * DAY),
         ])
+        chromium(home, [("https://example.com/brave", NOW - 30 * DAY)], "BraveSoftware/Brave-Browser", "Default")
+        chromium(home, [("https://example.com/edge", NOW - 30 * DAY)], "microsoft-edge")
+        chromium(home, [("https://example.com/chrome", NOW - 30 * DAY)], "google-chrome", "Default")
         # Held the way a running browser can hold it.
         fox.execute("pragma locking_mode=exclusive")
         fox.execute("insert into moz_places (url, last_visit_date) values (?, ?)",
@@ -73,6 +78,11 @@ def main():
             "https://example.com/story",
             "https://news.ycombinator.com/item?id=7",
             "https://news.ycombinator.com/item?id=8",
+            "https://example.com/old-firefox",
+            "https://example.com/old-chromium",
+            "https://example.com/brave",
+            "https://example.com/edge",
+            "https://example.com/chrome",
         ]
         env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"))
         run = subprocess.run([sys.executable, "-I", str(SCRIPT), str(NOW - 7 * DAY), *wanted],
@@ -88,6 +98,13 @@ def main():
         check(wanted[4] not in seen, "unvisited video")
         check(wanted[5] in seen, "story despite a trailing slash")
         check(wanted[6] in seen and wanted[7] not in seen, "comments link")
+
+        run = subprocess.run([sys.executable, "-I", str(SCRIPT), "0", *wanted],
+                             env=env, capture_output=True, text=True, timeout=30)
+        seen = set(run.stdout.split())
+        check(run.returncode == 0 and run.stderr == "", "all-history lookup runs cleanly")
+        check(wanted[8] in seen and wanted[9] in seen, "old RSS visits in Firefox and Chromium count")
+        check(wanted[10] in seen and wanted[11] in seen and wanted[12] in seen, "Brave, Edge and Chrome histories count")
 
         # No browsers at all: nothing, quietly.
         empty = Path(scratch) / "empty"
