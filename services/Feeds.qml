@@ -64,8 +64,8 @@ Singleton {
     // {id, title, url, summary, thumb, comments, points, replies, published}.
     property var sources: []
 
-    // The subscriptions as last read, and when; zero reads them next refresh.
-    property var subscribed: []
+    // When the subscriptions (store.subscribed) were last read; zero reads
+    // them next refresh.
     property real subscribedAt: 0
 
     // Whether anything has been heard back yet, and what went wrong since.
@@ -178,7 +178,7 @@ Singleton {
             root.readSources();
             if (root.connected && root.restored)
                 root.readSubscriptions(() => root.resolve(Settings.feedChannels,
-                    extra => root.readChannels(root.subscribed.concat(extra))));
+                    extra => root.readChannels(store.subscribed.concat(extra))));
         })();
     }
 
@@ -304,17 +304,18 @@ Singleton {
 
     // All of the history for links not looked for before, else only what was
     // visited since the last look (a minute's overlap), which the script can
-    // skip without opening a database that has not changed since.
+    // skip without opening a database that has not changed since. A look
+    // counts once it read every history: the script exits 1 if one failed.
     property var checkedLinks: new Set()
     property real checkedAt: 0
+    property var checking: null
 
     function checkHistory(): void {
         const links = root.links(root.unseenItems());
         if (history.running || links.length === 0)
             return;
         const since = links.every(link => root.checkedLinks.has(link)) ? Math.floor(root.checkedAt / 1000) - 60 : 0;
-        root.checkedLinks = new Set(links);
-        root.checkedAt = Date.now();
+        root.checking = { links: new Set(links), at: Date.now() };
         history.command = ["python3", "-I", Quickshell.shellPath("scripts/feeds-seen.py"),
             String(Math.max(0, since)), ...links];
         history.running = true;
@@ -332,6 +333,12 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: root.seenInBrowser(text)
         }
+        onExited: function (exitCode) {
+            if (exitCode === 0) {
+                root.checkedLinks = root.checking.links;
+                root.checkedAt = root.checking.at;
+            }
+        }
     }
 
     Timer {
@@ -346,7 +353,8 @@ Singleton {
 
     // --- fetching ------------------------------------------------------------
     // The subscriptions, every page, unless read within `subscriptionsMs`.
-    // A failed read keeps the last list.
+    // A failed read keeps the last list, saved, so a restart that cannot read
+    // them (the quota spent) drops no channel's videos.
     function readSubscriptions(then: var): void {
         if (Date.now() - root.subscribedAt < root.subscriptionsMs) {
             then();
@@ -354,7 +362,7 @@ Singleton {
         }
         root.readSubscriptionPage("", [], ids => {
             if (ids !== null) {
-                root.subscribed = ids;
+                store.subscribed = ids;
                 root.subscribedAt = Date.now();
             }
             then();
@@ -424,11 +432,14 @@ Singleton {
 
     // Each channel's videos within the window, merged into what it said
     // before (store.channels, {t, videos}), so a feed that fails, or a
-    // channel feed crowded with Shorts, drops nothing already known.
+    // channel feed crowded with Shorts, drops nothing already known. An ask
+    // that fails waits out `staleMs` like one that answers, so a playlist the
+    // API has not got, or an outage, is not paid for every poll.
     function readChannels(ids: var): void {
         const channels = [...new Set(ids)];
         const started = Date.now();
         const read = {};
+        const asked = new Set();
         root.pool(channels.map(id => ({
                     urls: [`https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${id.slice(2)}`,
                         `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`],
@@ -438,6 +449,7 @@ Singleton {
                             done();
                             return;
                         }
+                        asked.add(id);
                         root.get(`playlistItems?part=snippet&playlistId=UULF${id.slice(2)}&maxResults=15&fields=items/snippet(publishedAt,title,videoOwnerChannelTitle,resourceId/videoId)`, body => {
                             read[id] = (body?.items ?? []).map(item => root.video(item.snippet.resourceId.videoId,
                                 item.snippet.title, item.snippet.videoOwnerChannelTitle ?? "", Date.parse(item.snippet.publishedAt)))
@@ -455,13 +467,13 @@ Singleton {
             const kept = {};
             for (const id of channels) {
                 const before = store.channels[id];
-                if (!read[id] && !before)
+                if (!read[id] && !asked.has(id) && !before)
                     continue;
                 const merged = {};
                 for (const v of (before?.videos ?? []).concat(read[id] ?? []))
                     if (v.published > cutoff)
                         merged[v.video] = { video: v.video, title: v.title, channel: v.channel, published: v.published };
-                kept[id] = { t: read[id] ? started : before.t, videos: Object.values(merged) };
+                kept[id] = { t: read[id] || asked.has(id) ? started : before.t, videos: Object.values(merged) };
             }
             store.channels = kept;
             root.classify();
@@ -798,9 +810,11 @@ Singleton {
             // Video id to {live, duration, t}, or {t, retry} when the API
             // left it out.
             property var verdicts: ({})
-            // Channel id to {t: last read, videos: [{video, title, channel,
-            // published}]}, within the window.
+            // Channel id to {t: last read or asked, videos: [{video, title,
+            // channel, published}]}, within the window.
             property var channels: ({})
+            // The subscribed channel ids as last read.
+            property var subscribed: []
             // @handle to {id, t}; id "" when it named no channel.
             property var handles: ({})
             // Until when the day's API quota is spent.
