@@ -141,9 +141,15 @@ OverlayWindow {
 
     readonly property var powerRows: Launcher.powerCommands.map(p => root.shownInLauncher("power:" + p.key, p.name ?? (p.label[0].toUpperCase() + p.label.slice(1)), { glyph: p.glyph }))
 
-    // A comma- or space-separated field as the list settings.json keeps.
-    function listOf(text: string): var {
-        return text.split(/[\s,]+/).filter(s => s !== "");
+    function feedAddressProblem(value: string): string {
+        return /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/.test(value)
+            ? "" : "Enter a full http:// or https:// feed address.";
+    }
+
+    function channelProblem(value: string): string {
+        return /^(?:@[\w.-]+|UC[\w-]{22})$/.test(value)
+            || /^https?:\/\/(?:www\.|m\.)?youtube\.com\/(?:@[\w.-]+|channel\/UC[\w-]{22})(?:[/?#][^\s]*)?$/.test(value)
+            ? "" : "Enter a YouTube @handle, channel ID or channel link.";
     }
 
     // Gmail's inbox tabs, by the names its search takes (category:updates).
@@ -284,7 +290,7 @@ OverlayWindow {
                     title: "Date",
                     rows: [
                         { type: "text", id: "dateFormat", title: "Custom Format", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
-                        { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }, { value: "capitalize", label: "Capital" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
+                        { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
                     ]
                 }
             ]
@@ -363,10 +369,11 @@ OverlayWindow {
                 },
                 {
                     title: "Feeds",
-                    text: "Your YouTube subscriptions are followed already. Separate entries with commas.",
+                    text: "Your YouTube subscriptions are followed already. Add extra channels or RSS and Atom feeds below.",
                     rows: [
-                        { type: "text", id: "feedChannels", title: "More Channels", tooltip: "@handles, channel IDs (UC…) or links to either.", placeholder: "@handle, UC…", get: () => Settings.feedChannels.join(", "), set: v => Settings.set("feedChannels", root.listOf(v)) },
-                        { type: "text", id: "feedUrls", title: "RSS Feeds", tooltip: "RSS or Atom feed addresses, shown under the videos.", placeholder: "No feeds", get: () => Settings.feedUrls.join(", "), set: v => Settings.set("feedUrls", root.listOf(v)) }
+                        { type: "list", id: "feedChannels", title: "Extra YouTube Channels", placeholder: "@handle or channel link", validate: root.channelProblem, get: () => Settings.feedChannels, set: v => Settings.set("feedChannels", v) },
+                        { type: "list", id: "feedUrls", title: "RSS Feeds", tooltip: "RSS or Atom feed addresses, shown under the videos. Leave a title blank to use the feed's own title.", placeholder: "https://example.com/feed.xml", validate: root.feedAddressProblem, get: () => Settings.feedUrls, set: v => Settings.set("feedUrls", v),
+                            getTitle: url => Settings.feedTitles[url] ?? "", setTitle: (url, title) => Settings.setFeedTitle(url, title) }
                     ]
                 },
                 {

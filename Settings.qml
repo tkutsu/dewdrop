@@ -62,6 +62,7 @@ Singleton {
     readonly property var mailCategories: root.values.mailCategories ?? []
     readonly property var feedChannels: root.values.feedChannels ?? []
     readonly property var feedUrls: root.values.feedUrls ?? []
+    readonly property var feedTitles: root.values.feedTitles ?? ({})
     readonly property var webApps: root.values.webApps ?? ({})
     readonly property string downloadsDir: root.expand(root.values.downloadsDir || "~/Downloads")
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
@@ -91,6 +92,16 @@ Singleton {
 
     function modulePosition(key: string): string {
         return root.centralComponents.includes(key) ? "centre" : "right";
+    }
+
+    // An empty override restores the title supplied by the feed.
+    function setFeedTitle(url: string, title: string): void {
+        const titles = Object.assign({}, root.feedTitles);
+        if (title.trim())
+            titles[url] = title.trim();
+        else
+            delete titles[url];
+        root.set("feedTitles", titles);
     }
 
     function badgeStyle(key: string): string {
