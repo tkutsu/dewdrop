@@ -36,6 +36,7 @@ Item {
     signal moduleReceived(string key)
     readonly property var modules: row.children.filter(item => item.settingsKey)
     property alias dragging: reorder.dragging
+    readonly property bool reorderPressed: reorder.pressSource !== null
     readonly property bool animating: dragging || centreMove.running || row.children.some(item => item.animating === true)
     onAnimatingChanged: Tooltips.setMoving(root, animating)
     Component.onDestruction: Tooltips.setMoving(root, false)

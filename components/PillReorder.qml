@@ -69,6 +69,7 @@ Item {
     // Resolve the drop from current geometry, including a drawer still settling.
     // A null point is a drag that ended without a release, which cancels.
     function finishDrag(point): void {
+        const wasDragging = dragging;
         if (dragging && dragValid && point !== null) {
             const target = targetAt(point);
             const local = target.mapFromItem(root.pill, point);
@@ -83,6 +84,9 @@ Item {
             }
         }
         cancelDrag();
+        // Closing a Wayland popup during the drag ends the bar's pointer grab.
+        if (wasDragging)
+            OpenPopup.dismiss();
     }
 
     // An ancestor handler observes child MouseAreas without swallowing their clicks.
@@ -104,7 +108,6 @@ Item {
                 return;
             root.dragPoint = centroid.position;
             root.dragging = true;
-            OpenPopup.dismiss();
         }
         onCentroidChanged: if (active && root.dragging) root.dragPoint = centroid.position
         // Every end of the drag comes through here, released or not. Only a
