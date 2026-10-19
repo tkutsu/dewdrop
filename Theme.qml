@@ -328,7 +328,8 @@ Singleton {
     // The ink of anything on the bar you can click (inkLit), lifted most of
     // the way to white. It used to rest a step dimmer and come up under the
     // pointer; now it is always up, and the glass answers the pointer instead.
-    function barInk(item, color) {
+    // Glyphs use full opacity; text keeps its label hierarchy.
+    function barInk(item, color, opaque = false) {
         for (let p = item; p; p = p.parent) {
             if (!p.inkLit)
                 continue;
@@ -337,7 +338,7 @@ Singleton {
             return Qt.rgba(color.r + (1 - color.r) * 0.65,
                 color.g + (1 - color.g) * 0.65,
                 color.b + (1 - color.b) * 0.65,
-                color.a + (1 - color.a) * 0.8);
+                opaque ? 1 : color.a + (1 - color.a) * 0.8);
         }
         return color;
     }
@@ -586,7 +587,7 @@ Singleton {
     readonly property var monogramTones: ["#5e7896", "#7a6a96", "#94677c", "#94785e", "#5e8a74", "#5e8a91", "#8a8257", "#6f7680"]
 
     // --- opacity -------------------------------------------------------------
-    readonly property real dimOpacity: 0.55   // .stale / .loading
+    readonly property real dimOpacity: 1   // Status changes keep bar icons fully opaque.
     readonly property int moduleEnterMs: 200
     readonly property int moduleExitMs: 220
     readonly property int moduleOpenMs: 240
@@ -609,10 +610,10 @@ Singleton {
     readonly property real switchSpring: reduceMotion ? calmSpring : 2.15
     readonly property real switchDamping: reduceMotion ? calmDamping : 0.29
 
-    // The workspaces you are not on, a little under the one you are: their
+    // Workspace artwork outside the mark rests at 66% opacity: its
     // letters and icons, not their counts, so a number stays as legible as
     // it was.
-    readonly property real restOpacity: 0.75
+    readonly property real restOpacity: 0.66
 
     // Something folding into or out of place in a popup or a pill: a message
     // in the mail popup, the music pill's parts. Longer than a fade, because

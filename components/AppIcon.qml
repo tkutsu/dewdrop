@@ -77,6 +77,10 @@ Item {
     // rather than erroring, which would hide the fallback.
     readonly property bool hasIcon: art.status === Image.Ready
 
+    // Visible horizontal bounds let the workspace mark light the artwork as it enters.
+    readonly property real inkLeft: hasIcon ? art.x + art.inkX : fallback.x
+    readonly property real inkWidth: hasIcon ? art.inkWidth : fallback.width
+
     implicitWidth: hasIcon ? (tightWidth ? art.inkWidth : art.implicitWidth) : fallback.implicitWidth
     // Full bar height, so the dot can be placed against the bar's dot line
     // rather than against a box that is itself floating in the middle of the row.
@@ -110,9 +114,6 @@ Item {
             x: root.tightWidth ? -inkX : 0
             visible: root.hasIcon
             opacity: Theme.barInk(root, Qt.rgba(1, 1, 1, 1)).a * root.inkOpacity
-            Behavior on opacity {
-                NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
-            }
             y: Math.round((root.height - implicitHeight) / 2)
             source: root.source || (root.iconName ? Quickshell.iconPath(root.iconName, true) : "")
             // The tray's line, found the same way (services/Ink.qml). The
