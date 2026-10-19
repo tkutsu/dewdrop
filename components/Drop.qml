@@ -1,7 +1,7 @@
 import QtQuick
 import qs
 
-// A popover's box while a pill turns into it (shaders/drop.frag): its frost
+// A popover's box during a pill morph or a height change (shaders/drop.frag): its frost
 // and the hairline round it, lit from above as Rim draws it, in a box that
 // can be a drop, a bell or the popover. Fills its parent and draws `box`,
 // in its parent's pixels. Draws the fill or the rim, or both.
@@ -9,6 +9,8 @@ ShaderEffect {
     property vector4d box
     property real radius
     property real bell: 0
+    // The bottom's center can lag behind its corners while the box settles.
+    property real sag: 0
     property color color
     property real showFill: 0
     property real showRim: 0
@@ -21,5 +23,6 @@ ShaderEffect {
 
     anchors.fill: parent
 
-    fragmentShader: Qt.resolvedUrl("../shaders/drop.frag.qsb")
+    // A new URL also replaces Qt's cached shader when the live shell reloads.
+    fragmentShader: Qt.resolvedUrl("../shaders/drop.frag.qsb?revision=bottom-flex")
 }
