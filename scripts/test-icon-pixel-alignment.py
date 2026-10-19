@@ -23,7 +23,7 @@ ShellRoot {
             id: host; anchors.fill: parent
             Pill {
                 id: clockPill; side: Pill.Side.Centre; drawsSlab: false
-                order: ["time", "bell"]; moduleGap: Theme.gap + 3
+                order: ["time", "audio", "bell"]; moduleGap: Theme.gap + 3
                 CENTRAL_ANCHOR
                 BarItem {
                     id: timeClock; settingsKey: "time"; visibilityKey: "time"
@@ -66,8 +66,11 @@ ShellRoot {
                 settled("bell visible with a pinned time anchor");
                 const initial = clockPill.x;
                 const width = clockPill.width;
-                // Recentring on the whole pill needs a fractional raw target.
                 DrawerPins.pins = {};
+                wait(700);
+                check(clockPill.x === initial, "unpinning time keeps its content centred");
+                // Substitute a non-clock module to exercise whole-pill centring.
+                timeClock.settingsKey = "audio";
                 let moving = false, fractional = false;
                 for (let i = 0; i < 35; i++) {
                     wait(16);
@@ -78,7 +81,7 @@ ShellRoot {
                 }
                 check(moving && fractional && clockPill.x !== initial,
                     "existing transition keeps smooth fractional motion between aligned endpoints");
-                settled("unpinned central group");
+                settled("central group without time or date");
                 check(clockPill.width === width, "pixel alignment preserves layout widths");
                 const final = clockPill.x; wait(150);
                 check(clockPill.x === final, "no delayed correction after settling");
