@@ -41,7 +41,9 @@ PanelWindow {
     readonly property bool keyed: (OpenPopup.keyed.length > 0 && OpenPopup.owner?.QsWindow.window === bar) || OpenPopup.selected?.QsWindow.window === bar
     property bool acquiringFocus: false
     onKeyedChanged: bar.acquiringFocus = bar.keyed && !keyReceiver.activeFocus
-    WlrLayershell.keyboardFocus: bar.keyed && bar.acquiringFocus ? WlrKeyboardFocus.Exclusive
+    // Exclusive focus during mouse-down cancels Wayland's ongoing pointer grab.
+    WlrLayershell.keyboardFocus: bar.keyed && bar.acquiringFocus
+        && !clockPill.reorderPressed && !rightPill.reorderPressed ? WlrKeyboardFocus.Exclusive
         : bar.keyed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     PopupKeyRelay {
@@ -404,6 +406,7 @@ PanelWindow {
             Layout.rightMargin: -1
             popup: TimerPopup {}
             actions: clock.actions
+            tooltip: Qt.formatDate(clock.date, "dddd d MMMM yyyy")
 
             RollingText {
                 Layout.fillHeight: true
