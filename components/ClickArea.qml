@@ -5,7 +5,7 @@ import QtQuick
 //
 //     actions: ({
 //         [Qt.LeftButton]: () => Launcher.toggle(),
-//         [Qt.RightButton]: () => Power.toggle()
+//         [Qt.RightButton]: () => Launcher.openWith("!")
 //     })
 //
 // The table is the whole of what clicking means. A click runs its button's

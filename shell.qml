@@ -62,21 +62,17 @@ ShellRoot {
         Backdrop {}
     }
 
-    // One menu for the whole session rather than one per screen; it picks the
-    // focused monitor itself. Loaded only while it is up, so an overlay layer
-    // with exclusive keyboard focus does not sit there all session.
-    //
-    // Off `active` rather than `shown` because the menu animates itself shut and
-    // has to still be here while it does — see services/Power.qml.
+    // The black a power action leaves the screen in, from the launcher's CRT
+    // exit until the session goes or the machine wakes. See services/Power.qml.
     LazyLoader {
-        active: Power.active
+        active: Power.dark
 
-        PowerMenu {}
+        Blackout {}
     }
 
-    // Same treatment as the power menu, and for the same two reasons: nothing
-    // holds exclusive keyboard focus while the launcher is closed, and there is
-    // no screen-sized click target over the desktop the rest of the time.
+    // Loaded only while it is up, for two reasons: nothing holds keyboard
+    // focus while the launcher is closed, and there is no screen-sized click
+    // target over the desktop the rest of the time.
     //
     // The window is normally rebuilt on each open, but not always: a reopen
     // inside its own closing animation gets the same window back, so clearing

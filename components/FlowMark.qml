@@ -45,7 +45,7 @@ Liquid {
     // placed once, or it would flow in from the screen's edge.
     property bool placed: false
 
-    // A hidden power selector resets; workspaces retain motion through IPC gaps.
+    // A hidden selector can reset; workspaces retain motion through IPC gaps.
     onVisibleChanged: {
         if (visible && !placed)
             Qt.callLater(() => { if (root.visible) root.placed = true; });

@@ -93,9 +93,9 @@ PanelWindow {
         return found.sort((a, b) => at.get(a) - at.get(b));
     }
 
-    // The launcher puts popups away as it opens; the power menu and the
-    // settings window want the keyboard as well, so they end selection mode.
-    readonly property bool overlayUp: Services.Power.active || Services.Preferences.active
+    // The launcher puts popups away as it opens; the settings window wants
+    // the keyboard as well, so it ends selection mode.
+    readonly property bool overlayUp: Services.Preferences.active
     onOverlayUpChanged: if (overlayUp && OpenPopup.selected?.QsWindow.window === bar)
         OpenPopup.dismiss()
 

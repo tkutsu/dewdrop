@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Exercise power menu dismissal and the CRT handoff with harmless commands."""
+"""Exercise the black hold behind the launcher's CRT exit with harmless commands."""
 
 from pathlib import Path
 import os
+import re
 import runpy
 import shutil
 import tempfile
@@ -14,20 +15,8 @@ STUBS = {
     'Theme.qml': '''pragma Singleton
 import QtQuick
 QtObject {
-    property bool reduceMotion: false
-    property int revealMs: 160
     property int fadeMs: 200
-    property int markInset: 4
-    property int pillBorder: 1
-    property color tint: "#222222"
-    property color barBg: "#88222222"
-    property color label: "white"
-    property string bodyFont: "sans-serif"
-    property int labelSize: 14
-    property int bodyWeight: Font.Normal
-    property real switchSpring: 2.5
-    property real switchDamping: 0.14
-    property var glyph: ({powerSuspend: "", powerReboot: "", powerShutdown: "", powerLogout: "", powerKill: ""})
+    property var glyph: ({powerSuspend: "", powerReboot: "", powerShutdown: "", powerLogout: "", powerKill: "", lock: ""})
 }''',
     'Paths.qml': '''pragma Singleton
 import QtQuick
@@ -35,33 +24,6 @@ QtObject {
     id: root
     property bool fail: false
     function script(name: string): string { return root.fail ? "/bin/false" : "/bin/true"; }
-}''',
-    'services/Wallpaper.qml': '''pragma Singleton
-import QtQuick
-QtObject { property var backdrops: ({}) }''',
-    'components/OverlayWindow.qml': '''import QtQuick
-import QtQuick.Window
-Window {
-    required property bool shown
-    required property string name
-    required property Item inputItem
-    property bool dismissOnOutsidePress: true
-    signal dismissed
-    property bool completed: false
-    readonly property bool opened: completed && shown
-    property real devicePixelRatio: 1
-    width: 800; height: 600; visible: true
-    Component.onCompleted: completed = true
-}''',
-    'components/Glyph.qml': 'import QtQuick\nText { property int fontSize: 18 }',
-    'components/Liquid.qml': '''import QtQuick
-Item { property vector4d box0; property real rimFrom; property real rimTo; property vector4d fill }''',
-    'components/FlowMark.qml': '''import QtQuick
-Item {
-    property bool resetWhenHidden; property bool held; property real slabHeight
-    property real spring; property real damping
-    property real wantLeft; property real wantRight; property bool atFirst; property bool atLast
-    property real wallLeft; property real wallRight
 }''',
 }
 
@@ -73,84 +35,50 @@ import qs
 import qs.modules
 import qs.services
 ShellRoot {
-    LazyLoader { id: menu; active: Power.active; PowerMenu {} }
+    LazyLoader { id: black; active: Power.dark; Blackout {} }
     Window {
         visible: true; width: 1; height: 1
         TestCase {
             id: test
             when: false
             function check(ok, message) { if (!ok) throw Error(message); }
-            // The entrance waits on the wallpaper, so poll rather than guess its length.
-            function settle(ok) { for (let t = 0; t < 2000 && !ok(); t += 20) wait(20); return ok(); }
-            function open() {
-                Power.blackout = false;
-                Power.shown = true;
-                check(settle(() => menu.item !== null && menu.item.reveal === 1), "menu finishes appearing");
-                check(menu.item.shade === 0, "wallpaper stays visible before an action");
-                check(settle(() => menu.item.contentAlpha === 1), "popover-style entrance settles");
-            }
-            function checkPointer() {
-                open();
-                const window = menu.item;
-                const desktop = Qt.createQmlObject('import QtQuick; MouseArea { anchors.fill: parent; z: -1; property int clicks: 0; onClicked: clicks++ }', window.contentItem);
-                mousePress(window.contentItem, 20, 20, Qt.LeftButton);
-                check(Power.shown, "wallpaper press keeps the surface until release");
-                mouseRelease(window.contentItem, 20, 20, Qt.LeftButton);
-                check(!Power.shown && desktop.clicks === 0, "wallpaper click dismisses without reaching the desktop");
+            function fill() { return black.item.contentItem.children[0]; }
+            // What the launcher does: the exit plays, then the command runs.
+            function leave(arg) {
+                Power.leaving = {key: arg, arg: arg};
                 wait(250);
-                open();
-                check(menu.item.inputItem.width === menu.item.width && menu.item.inputItem.height === menu.item.height, "power menu input covers the wallpaper");
-                menu.item.choose(1);
-                check(menu.item.pending !== null, "restart requests confirmation");
-                mouseClick(menu.item.contentItem, 20, 20, Qt.RightButton);
-                check(!Power.shown && !Power.blackout, "wallpaper click also dismisses confirmation without executing it");
-                wait(250);
-                console.log("PASS: wallpaper clicks are consumed and dismiss the entire power menu");
+                check(black.item !== null && fill().opacity === 1, "black fades in under the exit for " + arg);
+                Power.run(arg, true);
+                Power.leaving = null;
             }
             function checkSleep() {
-                open();
-                menu.item.execute("--suspend");
-                wait(950);
-                check(!Power.shown && Power.blackout && menu.item !== null, "Sleep keeps the desktop covered after the CRT and queued request");
-                check(menu.item.reveal === 1 && menu.item.shade === 1, "Sleep keeps the final frame black");
-                wait(1300);
-                check(!Power.blackout && !Power.active && menu.item === null, "wake signal restores the desktop");
+                leave("--suspend");
+                wait(300);
+                check(Power.blackout && black.item !== null, "Sleep keeps the screen black after the request");
+                wait(1200);
+                check(!Power.blackout && !Power.dark && black.item === null, "wake signal restores the desktop");
                 console.log("PASS: Sleep holds black until the wake signal");
             }
             function run() {
-                for (const reduced of [false, true]) {
-                    Theme.reduceMotion = reduced;
-                    for (const action of reduced ? ["--logout"] : ["--logout", "--reboot", "--poweroff"]) {
-                        open();
-                        const window = menu.item;
-                        window.execute(action);
-                        wait(1000);
-                        check(!Power.shown && Power.blackout && Power.active, "service holds the overlay after " + action);
-                        check(menu.item === window, "menu survives beyond dismissal linger");
-                        check(window.reveal === 1 && window.shade === 1, "CRT black stays opaque after " + action);
-                        check(window.afterglow === 0, "CRT finishes before black hold");
-                        Power.blackout = false;
-                        wait(250);
-                        check(menu.item === null, "explicit cancellation releases blackout");
-                    }
+                for (const arg of ["--logout", "--reboot", "--poweroff"]) {
+                    leave(arg);
+                    wait(800);
+                    check(Power.blackout && black.item !== null, "black holds after " + arg);
+                    Power.blackout = false;
+                    check(black.item === null, "explicit release unloads the black");
                 }
-                Theme.reduceMotion = false;
-                open();
-                menu.item.execute("--logout");
-                wait(100);
-                menu.item.cancelCrt();
-                wait(800);
-                check(Power.shown && !Power.blackout && menu.item.shade === 0, "Escape before handoff restores the undimmed menu");
+                Power.leaving = {key: "logout", arg: "--logout"};
+                wait(50);
+                Power.leaving = null;
+                check(!Power.dark && black.item === null, "an exit taken back leaves no black");
+                Power.run("--lock", true);
+                check(!Power.blackout && !Power.dark, "lock never holds black");
                 Paths.fail = true;
-                menu.item.execute("--logout");
-                wait(1000);
-                check(!Power.blackout && !Power.active && menu.item === null, "failed command releases black hold");
+                leave("--logout");
+                wait(800);
+                check(!Power.blackout && black.item === null, "failed command releases the black");
                 Paths.fail = false;
-                open();
-                Power.shown = false;
-                wait(300);
-                check(!Power.active && menu.item === null, "ordinary dismissal still unloads the menu");
-                console.log("PASS: CRT black persists after successful commands, with and without reduced motion");
+                console.log("PASS: black persists after successful commands and lets go on failure");
             }
         }
         Timer { interval: 100; running: true; onTriggered: {
@@ -161,29 +89,34 @@ ShellRoot {
 }'''
 
 
+def offscreen(source):
+    """Offscreen Qt has no layer shell: keep the window, drop its placement."""
+    source = re.sub(r'\n    anchors \{.*?\n    \}\n', '\n', source, flags=re.DOTALL)
+    keep = [line for line in source.splitlines()
+            if not re.match(r'\s*(WlrLayershell\.|exclusionMode:|mask:|screen:|import Quickshell\.(Wayland|Hyprland))', line)]
+    source = '\n'.join(keep).replace('PanelWindow {', 'Window {\n    width: 100; height: 100; visible: true', 1)
+    return 'import QtQuick.Window\n' + source
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix='quickshell-power-test-') as folder:
         target = Path(folder)
-        for name in ('components', 'modules', 'services'):
+        for name in ('modules', 'services'):
             (target / name).mkdir()
         (target / 'runtime').mkdir(mode=0o700)
         (target / 'bin').mkdir()
         monitor = target / 'bin/gdbus'
         monitor.write_text('#!/bin/sh\nsleep 1.2\nprintf "%s\\n" "/org/freedesktop/login1: org.freedesktop.login1.Manager.PrepareForSleep (false,)"\nsleep 1\n')
         monitor.chmod(0o700)
-        for name in ('Linger.qml', 'services/Power.qml'):
-            shutil.copyfile(ROOT / name, target / name)
-        # Offscreen Qt has no layer shell; only replace the platform window/focus.
-        source = (ROOT / 'modules/PowerMenu.qml').read_text()
-        source = '\n'.join(line for line in source.splitlines() if 'WlrLayershell.keyboardFocus:' not in line)
-        (target / 'modules/PowerMenu.qml').write_text(source)
+        shutil.copyfile(ROOT / 'services/Power.qml', target / 'services/Power.qml')
+        (target / 'modules/Blackout.qml').write_text(offscreen((ROOT / 'modules/Blackout.qml').read_text()))
         for name, source in STUBS.items():
             (target / name).write_text(source)
         original_path = os.environ['PATH']
         try:
             os.environ['PATH'] = str(target / 'bin') + ':' + original_path
             # One run each, so every scenario stays inside run_shell's timeout.
-            for check in ('checkPointer', 'checkSleep', 'run'):
+            for check in ('checkSleep', 'run'):
                 support['run_shell'](target, SCENARIO.replace('test.run();', f'test.{check}();'))
         finally:
             os.environ['PATH'] = original_path
