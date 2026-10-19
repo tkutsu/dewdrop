@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise MPRIS pill hover, playback clicks and central app-icon restore."""
+"""Exercise MPRIS focus, playback controls and central app-icon handoff."""
 
 from pathlib import Path
 import runpy
@@ -26,7 +26,10 @@ QtObject {
     property bool canSeek: false
     property int toggles: 0
     property int plays: 0
+    property bool canRaise: true
+    property int raises: 0
     signal trackChanged()
+    function raise() { raises++; }
     function togglePlaying() {
         toggles++;
         playbackState = isPlaying ? MprisPlaybackState.Paused : MprisPlaybackState.Playing;
@@ -123,25 +126,55 @@ ShellRoot {
                 check(!title.scrolling && title.overflow === 0 && !title.layer.enabled,
                       "fitting static Now Playing title has no gradient");
                 Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: true});
-                for (const target of [appIcon(nowPlaying), pause, nowPlaying]) {
-                    const before = first.toggles;
+                for (const target of [appIcon(nowPlaying), title, nowPlaying]) {
+                    const before = first.raises;
                     // The root target exercises the trailing pill padding.
                     mouseClick(target, target === nowPlaying ? target.width - 1 : target.width / 2, 0); wait(80);
-                    check(first.toggles === before + 1 && !first.isPlaying,
-                          "app icon, hover icon and padding each pause exactly once");
-                    first.playbackState = MprisPlaybackState.Playing; wait(1100);
+                    check(first.raises === before + 1 && first.toggles === 0 && first.isPlaying,
+                          "app icon, title and padding focus the player without changing playback");
                 }
-                const beforeAccessible = first.toggles;
+                const beforeAccessible = first.raises;
                 nowPlaying.Accessible.pressAction(); wait(80);
-                check(first.toggles === beforeAccessible + 1 && !first.isPlaying,
-                      "accessible pill action toggles playback exactly once");
+                check(first.raises === beforeAccessible + 1 && first.toggles === 0 && first.isPlaying,
+                      "accessible pill action focuses the player without changing playback");
+                first.canRaise = false;
+                nowPlaying.testWindows = [
+                    {address: "aaa", wayland: {appId: first.desktopEntry}, lastIpcObject: {focusHistoryID: 5}},
+                    {address: "bbb", lastIpcObject: {class: first.desktopEntry, focusHistoryID: 1}},
+                    {address: "ccc", wayland: {appId: second.desktopEntry}, lastIpcObject: {focusHistoryID: 0}}
+                ];
+                mouseClick(title, title.width / 2, 0); wait(80);
+                check(nowPlaying.testDispatches.length === 1
+                      && nowPlaying.testDispatches[0] === 'hl.dsp.focus({ window = "address:0xbbb" })'
+                      && first.raises === beforeAccessible + 1 && first.isPlaying,
+                      "a player without Raise focuses its most recent matching window");
+                nowPlaying.testWindows = [
+                    {address: "aaa", title: "A VIDEO — Browser", wayland: {appId: first.desktopEntry}, lastIpcObject: {focusHistoryID: 5}},
+                    {address: "bbb", title: "Other tab", wayland: {appId: first.desktopEntry}, lastIpcObject: {focusHistoryID: 0}},
+                    {address: "ccc", title: first.trackTitle, wayland: {appId: second.desktopEntry}, lastIpcObject: {focusHistoryID: 0}}
+                ];
+                mouseClick(title, title.width / 2, 0); wait(80);
+                check(nowPlaying.testDispatches.length === 2
+                      && nowPlaying.testDispatches[1] === 'hl.dsp.focus({ window = "address:0xaaa" })',
+                      "media title picks the playing window ahead of a more recent unrelated window");
+                nowPlaying.testWindows = [];
+                mouseClick(title, title.width / 2, 0); wait(80);
+                check(nowPlaying.testDispatches.length === 2 && first.isPlaying,
+                      "a player without Raise or a matching window leaves playback alone");
+                first.canRaise = true;
+                mouseMove(title, title.width / 2, title.height / 2); wait(250);
+                mouseClick(pause, pause.width / 2, 0); wait(80);
+                check(first.toggles === 1 && !first.isPlaying,
+                      "hover playback control pauses exactly once without focusing");
                 first.playbackState = MprisPlaybackState.Playing; wait(1100);
                 first.toggles = 0;
                 const titleX = title.mapToItem(nowPlaying, title.width / 2, 0).x;
                 mousePress(nowPlaying, titleX, 0); wait(200);
                 check(title.scale < 1 && pause.scale < 1, "title and pause shrink while the pill is held at the top edge");
                 mouseRelease(nowPlaying, titleX, 0); wait(80);
-                check(first.toggles === 1 && !first.isPlaying, "a held top-edge click pauses MPRIS exactly once");
+                check(first.toggles === 0 && first.isPlaying, "a held top-edge title click keeps playback running");
+                mouseClick(nowPlaying, nowPlaying.width / 2, 0, Qt.RightButton); wait(80);
+                check(first.toggles === 1 && !first.isPlaying, "right-click pauses MPRIS exactly once");
                 check(nowPlaying.stowed && nowPlaying.reveal > 0 && nowPlaying.reveal < 1,
                       "pausing MPRIS starts collapsing its pill");
                 const travellingIcon = appIcon(nowPlaying);
@@ -155,15 +188,15 @@ ShellRoot {
                     const iconX = travellingIcon.mapToItem(playerPill, travellingIcon.width / 2, 0).x;
                     followedGlass = followedGlass && travellingIcon.visible && travellingIcon.opacity === 1
                         && playerPill.contentOpacity === 1 && playerPill.contentZoom === 1
-                        && travellingIcon.scale === playerPill.iconScale
+                        && travellingIcon.scale === 1
                         && Math.abs(iconX - playerPill.foldBox.x - nowPlaying.iconInset - travellingIcon.width / 2) < 1;
                     wait(10);
                 }
                 check(sawGradient, "contracting title slides behind the icon through the marquee gradient");
-                check(followedGlass, "opaque app icon follows the contracting edge with its scale bounce");
+                check(followedGlass, "opaque app icon follows the contracting edge at its fixed size");
                 check(stayedHidden && nowPlaying.iconInCentre && !nowPlayingNote.stowed,
                       "central icon waits until the bead has been absorbed");
-                wait(30);
+                while (nowPlaying.iconHandoff.progress < 1) wait(10);
                 check(nowPlayingNote.reveal === 1 && !travellingIcon.visible,
                       "handoff shows exactly the central icon after absorption");
                 wait(1000);
@@ -180,7 +213,10 @@ ShellRoot {
                       "music takes the outside slot when its icon is absorbed last");
                 check(Math.abs(centreAnchor.mapToItem(window.contentItem, centreAnchor.width / 2, 0).x - centreX) <= 1,
                       "reordering the two icons keeps the central anchor fixed");
+                const beforeCollapsed = first.raises;
                 mouseClick(nowPlayingNote, nowPlayingNote.width / 2, 0); wait(80);
+                check(first.raises === beforeCollapsed && first.isPlaying && first.plays === 1,
+                      "central app icon resumes playback without focusing a window");
                 check(nowPlaying.reveal > 0 && nowPlaying.reveal < 0.3 && nowPlayingNote.visible && !travellingIcon.visible,
                       "central icon stays while expansion begins inside the central pill");
                 while (nowPlaying.iconInCentre) wait(10);
@@ -189,7 +225,7 @@ ShellRoot {
                       "expansion hands the icon back to the emerging pill");
                 wait(1100);
                 check(playerPill.visible && playerPill.enabled && nowPlaying.reveal === 1 && !nowPlayingNote.visible,
-                      "clicking the app icon at the top edge restores the MPRIS pill");
+                      "clicking the app icon restores the MPRIS pill");
                 check(musicNote.visible && centrePill.leadingOrder[0] === musicNote,
                       "expanding the inner MPRIS icon preserves the resting music order");
                 check(first.plays === 1 && first.toggles === 1 && first.isPlaying, "expanding MPRIS resumes playback once");
@@ -211,12 +247,19 @@ ShellRoot {
                 nowPlaying.testPlayers = [second]; wait(1100);
                 check(!nowPlaying.expanded && !playerPill.visible && nowPlayingNote.visible && appIcon(nowPlayingNote).windowClass === second.desktopEntry,
                       "switching paused players resets expansion and updates the app icon");
+                mouseClick(nowPlayingNote, nowPlayingNote.width / 2, nowPlayingNote.height / 2); wait(80);
+                check(second.raises === 0 && second.isPlaying && second.plays === 1 && second.toggles === 0,
+                      "central icon resumes the newly selected player without focusing it");
+                second.playbackState = MprisPlaybackState.Paused; wait(1100);
                 Settings.user = Object.assign({}, Settings.user, {showMpris: false}); wait(1100);
                 check(!playerPill.visible && !nowPlayingNote.visible, "disabling MPRIS hides the pill and central icon");
                 Settings.user = Object.assign({}, Settings.user, {showMpris: true}); wait(1100);
                 check(nowPlayingNote.visible, "re-enabling a paused player restores its central icon");
                 second.playbackState = MprisPlaybackState.Stopped; wait(1100);
                 check(nowPlaying.player === null && !playerPill.visible && !nowPlayingNote.visible, "stopped MPRIS players leave no pill or icon");
+                nowPlaying.focusPlayer();
+                check(nowPlaying.testDispatches.length === 2 && second.raises === 0,
+                      "focusing with no active player is harmless");
                 console.log("DONE: MPRIS collapse");
             }
         }
@@ -235,8 +278,11 @@ def main():
         copy_shell(target)
         player = target / "modules/NowPlaying.qml"
         # Substitute the external player objects while keeping selection and UI bindings.
-        player.write_text(player.read_text().replace("    id: root\n", "    id: root\n    property var testPlayers: []\n", 1)
-                          .replace("Mpris.players.values", "root.testPlayers").replace("property MprisPlayer", "property QtObject"))
+        player.write_text(player.read_text().replace("    id: root\n", "    id: root\n    property var testPlayers: []\n"
+                                                   "    property var testWindows: []\n    property var testDispatches: []\n"
+                                                   "    function testDispatch(command) { testDispatches.push(command); }\n", 1)
+                          .replace("Mpris.players.values", "root.testPlayers").replace("property MprisPlayer", "property QtObject")
+                          .replace("Hyprland.toplevels.values", "root.testWindows").replace("Hyprland.dispatch(", "root.testDispatch("))
         bar = (ROOT / "Bar.qml").read_text()
         start = bar.rfind("        BarItem {", 0, bar.index("id: nowPlayingNote"))
         end = bar.rfind("        BarItem {", 0, bar.index("id: musicNote"))
