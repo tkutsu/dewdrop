@@ -51,6 +51,7 @@ ShellRoot {
                     hover: Qt.vector4d(0, 0, 1, 0); press: Qt.vector4d(0, 0, 1, 0)
                 }
                 Row {
+                    id: letters
                     x: 54; y: 14; spacing: 48
                     Repeater {
                         model: ["A", "B", "C", "D"]
@@ -65,7 +66,7 @@ ShellRoot {
             }
             GlassMark {
                 id: glass; anchors.fill: parent
-                mark: mark; pillItem: pill; wallpaperItem: texture
+                mark: mark; slabItem: slab; inkItem: letters; wallpaperItem: texture
             }
             function check(ok, message) {
                 console.log((ok ? "PASS: " : "FAIL: ") + message);
@@ -136,7 +137,7 @@ def main():
         (target / "shell.qml").write_text(QML)
         # Disable only optical displacement; retain the real tint and border.
         shader = (ROOT / "shaders/glassmark.frag").read_text()
-        shader = shader.replace("vec3 glass =", "shift = vec2(0.0); seen = p;\n    vec3 glass =")
+        shader = shader.replace("vec3 bent =", "shift = vec2(0.0); seen = p;\n    vec3 bent =")
         (target / "flat.frag").write_text(shader)
         subprocess.run(["/usr/lib/qt6/bin/qsb", "--qt6", "-o", str(target / "flat.frag.qsb"),
                         str(target / "flat.frag")], check=True)

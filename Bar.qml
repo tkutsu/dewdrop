@@ -182,7 +182,8 @@ PanelWindow {
         width: leftPill.width
         height: leftPill.height
         mark: workspaces.markItem
-        pillItem: leftPill
+        slabItem: leftPill.slabItem
+        inkItem: leftPill.moduleHost
         wallpaperItem: wallpaperImage
     }
 

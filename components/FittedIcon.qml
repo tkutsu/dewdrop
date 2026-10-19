@@ -62,8 +62,8 @@ Item {
     }
 
     // How far towards a larger size the artwork is drawn, 0..1, about its
-    // centre, and that size in pixels: an even step up from `drawn`, so it
-    // lands on whole pixels. Rastered at the larger size the moment it sets
+    // centre, and that size in pixels. Placed on whole pixels, half a pixel
+    // off centre when it grows by an odd count. Rastered at the larger size the moment it sets
     // off, because a raster scaled either way blurs: sharp at both ends, and
     // only soft while it moves. Measurements and layout keep to `drawn`.
     property real magnify: 0
@@ -82,8 +82,8 @@ Item {
         // box gives a half pixel, and half a pixel is a blurred icon. Where
         // the artwork sits at its own size, which the ink is measured from.
         readonly property int restX: Math.floor((root.implicitWidth - root.drawn) / 2)
-        x: restX - (raster - root.drawn) / 2
-        y: Math.floor((root.implicitHeight - root.drawn) / 2) - (raster - root.drawn) / 2
+        x: restX - Math.floor((raster - root.drawn) / 2)
+        y: Math.floor((root.implicitHeight - root.drawn) / 2) - Math.floor((raster - root.drawn) / 2)
         width: raster
         height: raster
         scale: (root.drawn + (root.magnifiedSize - root.drawn) * root.magnify) / raster

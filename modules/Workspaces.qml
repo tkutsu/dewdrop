@@ -873,6 +873,10 @@ BarItem {
                                 // And the glass magnifies it as far (Theme.markZoom).
                                 magnify: strip.coverAt(button.drawnX + row.x + app.x + app.inkLeft * app.scale,
                                     app.inkWidth * app.scale)
+                                // Away from the group's middle by the same share, so
+                                // the gaps grow with the icons.
+                                spread: Math.round((Theme.markZoom - 1) * magnify
+                                    * (app.x + app.inkLeft + app.inkWidth / 2 - row.implicitWidth / 2))
                                 cornerDot: groupCount.visible && groupCount.dot
                                     ? Qt.rect(groupCount.localAt.x, groupCount.localAt.y, groupCount.width, groupCount.height)
                                     : Qt.rect(0, 0, 0, 0)
@@ -891,7 +895,7 @@ BarItem {
                                             + (dot ? Theme.badgeSize - height - 1 : 0))
                                     // Follow layout and folding while drawing above the selection's lens.
                                     readonly property point at: {
-                                        app.x; app.y; app.scale; workspaceShift.x; strip.x; root.x; root.y; root.shift;
+                                        app.x; app.y; app.scale; app.spread; workspaceShift.x; strip.x; root.x; root.y; root.shift;
                                         return app.mapToItem(parent, localAt.x, localAt.y);
                                     }
                                     x: at.x
