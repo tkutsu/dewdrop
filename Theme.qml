@@ -105,11 +105,6 @@ Singleton {
     // sits in its track: at three the mark was a chip floating in the pill,
     // and exactly as tall as the app icons it holds.
     readonly property int markInset: 2
-    // How much the workspace mark's glass magnifies the icons under it,
-    // and the gaps between them, while it is lifted to travel: 13px of ink
-    // is drawn at 15, a fresh raster rather than a scaled one, so it stays
-    // sharp.
-    readonly property real markZoom: Settings.magnifyMark ? 15 / 13 : 1
     // The bar selection's mark (Pill.qml) on an icon, whatever the icon's
     // own width: every glyph on the bar fits inside it with air either side,
     // so the mark is the same size from one icon to the next, and only text
@@ -614,10 +609,6 @@ Singleton {
     // terms, 90% of the way at 256 ms with 0.6% overshoot.
     readonly property real switchSpring: reduceMotion ? calmSpring : 2.15
     readonly property real switchDamping: reduceMotion ? calmDamping : 0.29
-    // The workspace mark lifting off to travel and settling back down once
-    // it lands, eased in and out: on the spring it jolted up and dropped.
-    readonly property int markLiftMs: 300
-    readonly property int markSettleMs: 450
 
     // Workspace artwork outside the mark rests at 66% opacity: its
     // letters and icons, not their counts, so a number stays as legible as

@@ -14,7 +14,7 @@ target=Path(folder.name)
 (target/'components').mkdir()
 (target/'runtime').mkdir(mode=0o700)
 (target/'Theme.qml').write_text((root/'Theme.qml').read_text())
-(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property string groupWindowBadgeStyle: "hide"; property bool magnifyMark: true; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
+(target/'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool groupWindows: true; property string groupWindowBadgeStyle: "hide"; property bool reduceMotion: false; property bool reduceTransparency: false; property string font: "sans"; property string monoFont: "monospace" }')
 (target/'services/Hyprland.qml').write_text('''pragma Singleton
 import QtQuick
 import Quickshell
@@ -42,7 +42,7 @@ RowLayout { id: layout; height: root.height }
 }''')
 (target/'components/AppIcon.qml').write_text('''import QtQuick
 Item { property string windowClass; property bool focused; property bool urgent; property bool pressed
-property real inkOpacity; property real magnify: 0; property int spread: 0; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
+property real inkOpacity; property rect cornerDot: Qt.rect(0, 0, 0, 0); readonly property real shift: 0
 readonly property real inkLeft: 0; readonly property real inkWidth: width
 property var entry: null; property real token: Math.random()
 implicitWidth: 16; implicitHeight: 30 }
@@ -55,7 +55,7 @@ import qs
 Item { property bool held; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
 property real wallLeft; property real wallRight; property real wantLeft; property real wantRight; property bool resizing
 readonly property real frontLeft: wantLeft; readonly property real frontRight: wantRight
-property real spring; property real damping; property int inset: Theme.markInset; property real rise: 1; property real lift: 0; property bool liftsToTravel; property bool animating: false }''')
+property real spring; property real damping; property int inset: Theme.markInset; property bool animating: false }''')
 if '--marks' in sys.argv or '--mark-input' in sys.argv or '--mark-ink' in sys.argv:
     (target/'components/FlowMark.qml').write_text((root/'components/FlowMark.qml').read_text())
     # Inspect the real animation's shader geometry without requiring a GPU.
@@ -390,18 +390,15 @@ if '--mark-ink' in sys.argv:
    const right=app.mapToItem(pill.auditStrip,app.inkLeft+app.inkWidth,0).x;
    return Math.max(0,Math.min(right,mark.x+mark.frontRight)-Math.max(x,mark.x+mark.frontLeft))/(right-x);
  }
- let partial=0,passing=0,separate=0,maxError=0,artError=0,maxLift=0,zoomError=0,fullZoom=0,lopsided=0;
+ let partial=0,passing=0,separate=0,maxError=0,artError=0;
  function sample() {
-   maxLift=Math.max(maxLift,mark.lift);
    for (const app of apps) {
      const covered=coverage(app);
      const expected=Theme.restOpacity+(1-Theme.restOpacity)*covered*covered*(3-2*covered);
      maxError=Math.max(maxError,Math.abs(app.inkOpacity-expected));
-     zoomError=Math.max(zoomError,Math.abs(app.magnify-covered*covered*(3-2*covered)*Math.max(0,Math.min(1,mark.lift))));
      if(app.inkOpacity>Theme.restOpacity+0.001 && app.inkOpacity<0.999)partial++;
    }
    if(apps[1].inkOpacity>Theme.restOpacity+0.001)passing++;
-   if(apps[2].magnify>0.99 && apps[3].magnify>0.99){fullZoom++;if(!(apps[2].spread<0 && apps[3].spread===-apps[2].spread))lopsided++;}
    if(Math.abs(apps[2].inkOpacity-apps[3].inkOpacity)>0.01)separate++;
    const art=artwork(artworkApp);
    if(art)artError=Math.max(artError,Math.abs(art.opacity-artworkApp.inkOpacity));
@@ -414,9 +411,6 @@ if '--mark-ink' in sys.argv:
  for(let ms=0;ms<600;ms+=10){test.wait(10);sample();}
  check(maxError<0.001,'brightness follows the drawn mark on every sampled frame');
  check(partial>0 && separate>0,'icons brighten smoothly and individually as the edge crosses them');
- check(maxLift>0.9,'the mark lifts to travel');
- check(Theme.markZoom>1 && zoomError<0.001,'lifted glass magnifies icons by the coverage that lights them');
- check(fullZoom>0 && lopsided===0,'a magnified group spreads about its middle, by whole pixels');
  check(passing>0,'icons on an intermediate workspace light as the mark passes');
  check(artError<0.001,'loaded artwork follows coverage without an extra opacity fade');
  check(apps[0].inkOpacity===Theme.restOpacity && apps[2].inkOpacity===1 && apps[3].inkOpacity===1,
@@ -428,10 +422,7 @@ if '--mark-ink' in sys.argv:
  OpenPopup.selected=button(2);test.wait(500);
  check(apps[1].inkOpacity===1 && apps[2].inkOpacity===Theme.restOpacity,
    'keyboard selection lights the icons under its mark');
- OpenPopup.selected=null;test.wait(2000);
- check(mark.lift===0 && mark.thickness===Theme.barHeight-2*(Theme.markInset+3),
-   'the mark settles back to its smaller resting size');
- check(apps.every(app=>app.magnify===0 && app.spread===0),'settled icons are drawn at their own size and place');
+ OpenPopup.selected=null;test.wait(500);
  Settings.reduceMotion=true;Hyprland.focusedWorkspace=w1;test.wait(400);
  check(apps[0].inkOpacity===1 && apps.slice(1).every(app=>app.inkOpacity===Theme.restOpacity),
    'reduced motion retains full and resting opacity at the mark destination');

@@ -12,10 +12,7 @@ import qs.services
 // under it while it holds the focused window.
 Item {
     id: root
-    transform: [
-        ModuleIconScale { icon: root },
-        Translate { x: root.spread }
-    ]
+    transform: ModuleIconScale { icon: root }
 
     property string windowClass
     // Hyprland says this window wants you, or this is an urgent notice's
@@ -40,15 +37,6 @@ Item {
     property bool tightWidth: false
     // A corner dot's bounds in this icon, supplied by the workspace badge.
     property rect cornerDot: Qt.rect(0, 0, 0, 0)
-    // How far the glass passing over it has magnified the artwork, 0..1, to
-    // Theme.markZoom. The dot and the hole keep their places.
-    property real magnify: 0
-    // How far the glass moves it sideways, in whole pixels, so the gaps in a
-    // magnified group grow as much as the icons do.
-    property int spread: 0
-    // Room either side for the magnified artwork in the layer that cuts the
-    // dot's hole, which would otherwise crop it to the icon's width.
-    readonly property int bleed: Math.ceil(Theme.iconSize * (Theme.markZoom - 1) / 2)
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -90,7 +78,7 @@ Item {
     readonly property bool hasIcon: art.status === Image.Ready
 
     // Visible horizontal bounds let the workspace mark light the artwork as it enters.
-    readonly property real inkLeft: artwork.x + (hasIcon ? art.x + art.inkX : fallback.x)
+    readonly property real inkLeft: hasIcon ? art.x + art.inkX : fallback.x
     readonly property real inkWidth: hasIcon ? art.inkWidth : fallback.width
 
     implicitWidth: hasIcon ? (tightWidth ? art.inkWidth : art.implicitWidth) : fallback.implicitWidth
@@ -107,9 +95,7 @@ Item {
     Item {
         id: artwork
 
-        x: -root.bleed
-        width: root.width + root.bleed * 2
-        height: root.height
+        anchors.fill: parent
         // Under Reduce motion the bounce dims the artwork instead (Bounce.fade).
         opacity: bounce.fade
         layer.enabled: root.dotShown > 0 || root.cornerDot.width > 0
@@ -125,7 +111,7 @@ Item {
         FittedIcon {
             id: art
 
-            x: root.bleed + (root.tightWidth ? -inkX : 0)
+            x: root.tightWidth ? -inkX : 0
             visible: root.hasIcon
             opacity: Theme.barInk(root, Qt.rgba(1, 1, 1, 1)).a * root.inkOpacity
             y: Math.round((root.height - implicitHeight) / 2)
@@ -141,8 +127,6 @@ Item {
             // the second box size goes.
             ink: Theme.iconInk
             transform: Translate { y: root.shift }
-            magnify: root.magnify
-            magnifiedSize: Math.round(drawn * Theme.markZoom)
             // Unlike the tray, the box follows the artwork rather than staying
             // fixed. The tray keeps identical boxes so a row of unrelated icons
             // holds a steady rhythm; a workspace is the opposite job — its icons
@@ -155,20 +139,11 @@ Item {
         Glyph {
             id: fallback
 
-            x: root.bleed
             visible: !root.hasIcon
             opacity: root.inkOpacity
             implicitHeight: root.height
             text: root.fallbackGlyph
-            transform: [
-                Scale {
-                    origin.x: fallback.width / 2
-                    origin.y: fallback.height / 2
-                    xScale: 1 + (Theme.markZoom - 1) * root.magnify
-                    yScale: xScale
-                },
-                Translate { y: root.shift }
-            ]
+            transform: Translate { y: root.shift }
             // A glyph rather than artwork, so it is not the probe's to measure:
             // BarText lays it out on its ink already, and glyphSizeLarge is what
             // puts that ink on the same line the icons are pulled down to.
@@ -180,7 +155,6 @@ Item {
     Item {
         id: hole
 
-        x: artwork.x
         width: artwork.width
         height: artwork.height
         visible: false
@@ -193,7 +167,7 @@ Item {
             width: (Theme.focusDotSize + Theme.focusDotClearance * 2) * root.dotShown
             height: width
             radius: width / 2
-            x: centreX - width / 2 - hole.x
+            x: centreX - width / 2
             y: centreY - height / 2
         }
 
@@ -202,7 +176,7 @@ Item {
             width: root.cornerDot.width + Theme.focusDotClearance * 2
             height: width
             radius: width / 2
-            x: root.cornerDot.x - Theme.focusDotClearance - hole.x
+            x: root.cornerDot.x - Theme.focusDotClearance
             y: root.cornerDot.y - Theme.focusDotClearance
         }
     }
@@ -212,7 +186,7 @@ Item {
     Rectangle {
         id: dot
 
-        readonly property real inkCentre: artwork.x + (root.hasIcon ? art.x + art.inkX + art.inkWidth / 2 : fallback.x + fallback.width / 2)
+        readonly property real inkCentre: root.hasIcon ? art.x + art.inkX + art.inkWidth / 2 : fallback.x + fallback.width / 2
 
         width: Theme.focusDotSize
         height: width
