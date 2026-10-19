@@ -52,7 +52,7 @@ BarItem {
         id: details
         Layout.fillHeight: true
         implicitWidth: parts.implicitWidth
-        visible: implicitWidth > 0
+        visible: root.kept.recording || (root.kept.listening && root.kept.sharing)
         transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
 
         Marquee {
