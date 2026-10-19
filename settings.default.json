@@ -216,4 +216,6 @@
     // RSS or Atom feeds shown under the videos. hnrss.org's points= keeps
     // Hacker News to what made the front page properly.
     "feedUrls": ["https://hnrss.org/frontpage?points=300"],
+    // Optional display titles, keyed by RSS or Atom feed URL.
+    "feedTitles": {},
 }

@@ -869,6 +869,7 @@ Singleton {
         // sits at the end of a row the width of a word, and a circle at that
         // size is a ring around two pixels of sign.
         plus: "\u{f0415}",            // nf-md-plus
+        minus: "\u{f0374}",           // nf-md-minus
 
         // Google Tasks: a checklist for the module and an empty circle for
         // each task in its popup.
