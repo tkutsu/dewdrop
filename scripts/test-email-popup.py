@@ -96,8 +96,8 @@ ShellRoot {
                 mouseClick(text, link.x + 2, link.y + link.height / 2);
                 test.check(p.auditLink === "https://example.com" && p.expanded === "a", "link receives its click");
 
-                const task = test.find(row, "Make a task");
-                mouseClick(task, task.width / 2, task.height / 2);
+                const code = test.find(row, "Copy code 654321");
+                mouseClick(code, code.width / 2, code.height / 2);
                 test.check(Email.pending.length === 1 && p.expanded === "b", "footer button acts and opens next mail: pending=" + Email.pending.length + ", expanded=" + p.expanded);
                 Email.undo();
                 test.check(p.expanded === "a", "undo restores mail after pointer action");
@@ -163,7 +163,7 @@ ShellRoot {
             mail("b", now - 3600000, "Γιώργος Παπαδόπουλος <g@example.gr>", "Τα κλειδιά", true),
             mail("c", now - 86400000 * 2, "GitHub <noreply@github.com>", "Your verification code", false)
         ];
-        Email.bodies = {ma: "Shall we? Twelve thirty at the usual place.\\n\\nhttps://example.com", mb: "Τα άφησα στο γραφείο.", mc: "Code 123456"};
+        Email.bodies = {ma: "Shall we? Twelve thirty at the usual place. Code 654321.\\n\\nhttps://example.com", mb: "Τα άφησα στο γραφείο.", mc: "Code 123456"};
         Email.files = {mb: [{id: "f1", name: "κλειδιά-φωτογραφία.jpg", size: 1843200, type: "image/jpeg"}, {id: "f2", name: "notes.txt", size: 812, type: "text/plain"}]};
         Email.total = 3;
         Email.otherThreads = [mail("x", now - 7200000, "Shop <news@shop.example>", "Autumn sale", false)];
