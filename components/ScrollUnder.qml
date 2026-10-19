@@ -32,6 +32,7 @@ Item {
     required property Flickable view
     // The popup's box (Popup.chromeItem).
     required property Item box
+    property real bottomReach: Theme.scrollEdge
 
     readonly property bool active: view.contentHeight + view.topMargin + view.bottomMargin > view.height + 1
 
@@ -100,7 +101,7 @@ Item {
         readonly property real through: 0.65
         // As ScrollEdges does it: the foot fades only while there is more
         // below, and in step with how much.
-        readonly property real fadeBottom: Math.min(Theme.scrollEdge, Math.max(0, root.view.originY + root.view.contentHeight + root.view.bottomMargin - root.view.height - root.view.contentY))
+        readonly property real fadeBottom: Math.min(root.bottomReach, Math.max(0, root.view.originY + root.view.contentHeight + root.view.bottomMargin - root.view.height - root.view.contentY))
         readonly property real boxHeight: root.box.height
         readonly property real radius: root.box.radius
 
