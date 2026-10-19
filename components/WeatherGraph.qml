@@ -239,7 +239,34 @@ Item {
                                     ctx.stroke();
                                 }
                                 // Keep the series hue on both sides of now, dimming elapsed time.
-                                function drawSeries(color) {
+                                function drawSeries(color, fillOpacity) {
+                                    ctx.fillStyle = Qt.rgba(color.r, color.g, color.b, fillOpacity);
+                                    ctx.beginPath();
+                                    let areaEnd = null;
+                                    const baseline = height - 2;
+                                    for (const hour of hours) {
+                                        const value = hour[series.modelData.key];
+                                        if (typeof value !== "number" || !Number.isFinite(value)) {
+                                            if (areaEnd !== null) {
+                                                ctx.lineTo(areaEnd, baseline);
+                                                ctx.closePath();
+                                                areaEnd = null;
+                                            }
+                                            continue;
+                                        }
+                                        const x = graph.end > graph.start ? (hour.at - graph.start) / (graph.end - graph.start) * width : width / 2;
+                                        const y = 2 + (high - value) / (high - low) * (height - 4);
+                                        if (areaEnd === null)
+                                            ctx.moveTo(x, baseline);
+                                        ctx.lineTo(x, y);
+                                        areaEnd = x;
+                                    }
+                                    if (areaEnd !== null) {
+                                        ctx.lineTo(areaEnd, baseline);
+                                        ctx.closePath();
+                                    }
+                                    ctx.fill();
+
                                     ctx.strokeStyle = color;
                                     ctx.fillStyle = color;
                                     ctx.lineCap = "round";
@@ -274,13 +301,13 @@ Item {
                                 ctx.beginPath();
                                 ctx.rect(0, 0, passedX, height);
                                 ctx.clip();
-                                drawSeries(pastColor);
+                                drawSeries(pastColor, 0.035);
                                 ctx.restore();
                                 ctx.save();
                                 ctx.beginPath();
                                 ctx.rect(passedX, 0, width - passedX, height);
                                 ctx.clip();
-                                drawSeries(futureColor);
+                                drawSeries(futureColor, 0.12);
                                 ctx.restore();
                             }
                         }

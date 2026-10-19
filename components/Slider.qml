@@ -94,9 +94,9 @@ Item {
     readonly property bool beads: knob && !trackGradient && !Theme.reduceTransparency
     readonly property int knobSize: height - 2
     readonly property int beadSize: 22
-    // Room round the slider for the bead, and the knob's middle.
-    readonly property int room: (beadSize - knobSize) / 2
-    readonly property real knobX: Math.max(0, Math.min(width - knobSize, value * width - knobSize / 2)) + knobSize / 2
+    // Room beyond the track ends for the bead and its spring overshoot.
+    readonly property int room: Math.max(beadSize, knobSize)
+    readonly property real knobX: Math.max(0, Math.min(1, value)) * width
 
     property real beadR: area.pressed && beads ? beadSize / 2 : knobSize / 2
     Behavior on beadR {
@@ -296,7 +296,7 @@ Item {
         width: root.height - 2
         height: width
         radius: width / 2
-        x: Math.max(0, Math.min(root.width - width, root.value * root.width - width / 2))
+        x: root.knobX - width / 2
         color: Theme.fg
         border.width: Theme.pillBorder
         border.color: Theme.knobEdge
