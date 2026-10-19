@@ -66,6 +66,32 @@ ShellRoot {
                 wait(20);
                 tryVerify(() => !desktop.pan.running, 1500);
             }
+            function checkWorkspaceMotion() {
+                const pan = desktop.pan;
+                // Samples from the installed hyprutils 0.14.2 advanceSpring,
+                // using Hyprland's glide (mass 1, stiffness 246.7, damping 31.42).
+                for (const [seconds, expected] of [[0.008, 0.007263184], [0.2, 0.820896506], [0.4, 0.986360431], [0.6, 0.999153376]]) {
+                    pan.moveTo(0, true);
+                    pan.moveTo(1, false);
+                    pan.motion.pause();
+                    pan.advance(seconds);
+                    check(Math.abs(pan.fraction - expected) < 0.000002, 'pan matches the compositor curve at ' + seconds + ' seconds: ' + pan.fraction);
+                    check(pan.running, 'pan continues while the compositor spring is moving');
+                }
+                pan.advance(0.175);
+                check(!pan.running && pan.fraction === 1, 'pan stops on the compositor spring completion frame');
+                pan.moveTo(0, true);
+                pan.moveTo(1, false);
+                pan.motion.pause();
+                pan.advance(0.08);
+                const turningCrop = pan.fraction;
+                pan.moveTo(0, false);
+                pan.motion.pause();
+                check(pan.fraction === turningCrop, 'reversal starts at the visible crop');
+                pan.advance(0.2);
+                check(Math.abs(pan.fraction - turningCrop * (1 - 0.820896506)) < 0.000002, 'reversal restarts the incoming workspace curve without old momentum');
+                pan.moveTo(0, true);
+            }
             function run() {
                 tryVerify(() => Wallpaper.restored && desktop.ready, 5000);
                 check(!Wallpaper.parallax && Wallpaper.parallaxY === 0.5, 'older state files default to stationary wallpaper');
@@ -77,6 +103,7 @@ ShellRoot {
                 tryVerify(() => !desktop.pan.running, 1500);
                 check(near(desktop.pan.fraction, 0), 'first workspace uses the start of the occupied-plus-empty ring');
                 tryVerify(() => desktop.front.zoom > 1 && faded(), 2000);
+                checkWorkspaceMotion();
                 const firstImage = strip.stripFor(desktop.front).children[0];
                 tryVerify(() => strip.readyFor(desktop.front), 5000);
                 const request = firstImage.sampleRequest;

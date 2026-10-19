@@ -197,8 +197,8 @@ BarItem {
             maxWidth: Theme.mediaTitleWidth
             contentWidth: titleText.implicitWidth
             scale: titlePress.scale
-            active: (Settings.scrollMusicTitles && !Theme.reduceMotion) || root.controlReveal > 0
-            paused: !Settings.scrollMusicTitles || Theme.reduceMotion || !root.settled
+            hovered: root.containsMouse
+            paused: !root.settled
             // Reuse the marquee edge shader as the contracting edge overtakes text.
             travel: root.titleLoss
 
@@ -206,7 +206,6 @@ BarItem {
                 id: titleText
                 height: parent.height
                 text: root.shownLabel
-                maxWidth: Settings.scrollMusicTitles && !Theme.reduceMotion ? 0 : Theme.mediaTitleWidth
             }
         }
 

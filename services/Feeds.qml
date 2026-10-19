@@ -37,9 +37,8 @@ Singleton {
     readonly property string api: "https://www.googleapis.com/youtube/v3"
     readonly property string web: "https://www.youtube.com/feed/subscriptions"
 
-    // A channel posts a few times a week; half an hour is plenty, and the
-    // feeds are fetched without quota anyway.
-    readonly property int pollMs: 30 * 60000
+    // Check public feeds often; paid fallbacks have their own cooldown.
+    readonly property int pollMs: 5 * 60000
     readonly property int retryMs: 2 * 60000
     // How far back videos look, and how many RSS stories appear at a time.
     readonly property int days: 7
@@ -52,7 +51,7 @@ Singleton {
     // asked instead, and how long the subscriptions and a handle that names
     // no channel are believed. A video the API did not return (private,
     // removed, still processing) is asked about again after `staleMs` too.
-    readonly property int staleMs: 2 * 3600000
+    readonly property int staleMs: 15 * 60000
     readonly property int subscriptionsMs: 6 * 3600000
     readonly property int unknownHandleMs: 24 * 3600000
 

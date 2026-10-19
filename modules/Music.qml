@@ -321,7 +321,7 @@ BarItem {
                 text: root.shownLabel
                 maxWidth: Theme.mediaTitleWidth
                 contentWidth: titleText.implicitWidth
-                active: Settings.scrollMusicTitles && !Theme.reduceMotion
+                hovered: root.containsMouse
                 paused: root.contentAnimating || !root.settled
                 travel: root.titleLoss
                 opacity: root.titleMix
@@ -330,18 +330,24 @@ BarItem {
                     id: titleText
                     height: parent.height
                     text: root.shownLabel
-                    maxWidth: Settings.scrollMusicTitles && !Theme.reduceMotion ? 0 : Theme.mediaTitleWidth
                 }
             }
 
-            BarText {
+            Marquee {
                 width: Math.max(0, Math.min(implicitWidth, titleRoom.width - root.titleLoss))
                 height: parent.height
-                clip: true
                 text: root.outgoingLabel
+                contentWidth: outgoingText.implicitWidth
                 maxWidth: Theme.mediaTitleWidth
+                active: false
                 visible: root.settled && root.titleMix < 1 && text !== ""
                 opacity: 1 - root.titleMix
+
+                BarText {
+                    id: outgoingText
+                    height: parent.height
+                    text: root.outgoingLabel
+                }
             }
         }
     }
