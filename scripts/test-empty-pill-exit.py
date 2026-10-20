@@ -11,6 +11,7 @@ from test_support import copy_shell, shell_env
 MPD = '''pragma Singleton
 import QtQuick
 QtObject {
+    property bool connected: true
     property bool loaded: true
     property string state: "play"
     property string title: "A track title"; property string label: title
@@ -21,21 +22,23 @@ QtObject {
     property bool randomOn: false; property string repeatMode: "off"; property string repeatIcon: ""
     property var playlists: []; property bool playlistsOpen: false; property string armedPlaylist: ""
     property var queue: []; property int songPos: -1
-    property int stops: 0
+    property int stops: 0; property int toggles: 0
     signal queueChanging
     function clock(seconds) { return "0:30"; }
-    function stopServer() { stops++; loaded = false; }
-    function toggle() { state = state === "play" ? "pause" : "play"; }
+    function stopServer() { stops++; connected = false; }
+    function toggle() { toggles++; state = state === "play" ? "pause" : "play"; }
 }
 '''
 
 SHELL = '''import QtQuick
+import QtQuick.Layouts
 import QtTest
 import Quickshell
 import qs
 import qs.components
 import qs.modules
 import qs.services
+import qs.services as Services
 ShellRoot {
     FloatingWindow {
         implicitWidth: 1000; implicitHeight: 100
@@ -43,9 +46,9 @@ ShellRoot {
         Morph { id: timerMorph; open: countdown.popupOpen }
         SidePill {
             id: musicPill; control: music; morphValue: musicMorph.value; slidesContent: true
-            closeWhenEmpty: true; empty: !Mpd.loaded
+            closeWhenEmpty: true; empty: !Mpd.connected
             side: Pill.Side.Left; edgeOffset: 50
-            Music { id: music; foldDuration: Theme.dropMs; foldEasing: Easing.Linear }
+            Music { id: music; mergedIcon: musicNote.keyBox.children[0]; foldDuration: Theme.dropMs; foldEasing: Easing.Linear }
         }
         SidePill {
             id: timerPill; control: countdown; morphValue: timerMorph.value; slidesContent: true
@@ -57,6 +60,7 @@ ShellRoot {
         }
         Pill {
             side: Pill.Side.Left; edgeOffset: 750
+            MUSIC_NOTE
             BarItem { id: timeClock; popup: TimerPopup {} BarText { text: "Clock" } }
         }
         TestCase {
@@ -148,6 +152,34 @@ ShellRoot {
                 Timers.cancel(Timers.entries[0].id); wait(750);
 
                 open(music);
+                Mpd.loaded = false; Mpd.title = ""; Mpd.duration = 0; Mpd.elapsed = 0; Mpd.state = "stop";
+                wait(750);
+                check(music.popupOpen && music.reveal === 1 && musicPill.visible && !musicPill.retiring && !musicPill.empty,
+                      "clearing the queue keeps the connected module and its popup open");
+                check(music.shownLabel === "Music", "empty connected module shows Music");
+                const toggles = Mpd.toggles;
+                OpenPopup.dismiss(); wait(750);
+                check(music.stowed && music.reveal === 0 && !musicPill.visible && musicNote.visible,
+                      "closing an empty music popup leaves its note in the central pill");
+                mouseClick(musicNote, musicNote.width / 2, musicNote.height / 2); wait(750);
+                check(music.popupOpen && music.popupItem?.opened && music.reveal === 1 && !musicNote.visible,
+                      "clicking the empty music note expands into its real popup");
+                check(Mpd.toggles === toggles && Mpd.state === "stop", "opening empty music never starts playback");
+                OpenPopup.dismiss(); wait(750);
+                check(music.stowed && musicNote.visible, "closing empty music folds back into the central pill again");
+                Mpd.loaded = true; Mpd.title = "Added track"; wait(750);
+                check(!music.stowed && music.reveal === 1 && musicPill.visible && !musicNote.visible,
+                      "adding files restores the stopped MPD pill without opening its popup");
+                check(!music.popupOpen && Mpd.toggles === toggles, "adding files does not toggle playback");
+                open(music);
+                Mpd.loaded = false; Mpd.title = ""; wait(750);
+                check(music.popupOpen && music.reveal === 1, "clearing files keeps an open popup available");
+                Mpd.loaded = true; Mpd.title = "Added while open"; wait(750);
+                OpenPopup.dismiss(); wait(750);
+                check(!music.stowed && musicPill.visible && !musicNote.visible,
+                      "adding files in the popup restores its normal MPD pill on close");
+                open(music);
+                Mpd.loaded = true; Mpd.title = "A track title"; Mpd.state = "play";
                 const popup = music.popupItem;
                 const quit = popup.keyTargets().find(item => item.name === "Quit music player");
                 check(quit !== undefined, "real music popup has quit button");
@@ -157,18 +189,18 @@ ShellRoot {
                 check(Mpd.stops === 1, "confirmed quit requests daemon shutdown once");
                 returned(musicPill, music, musicMorph);
 
-                Mpd.loaded = true; wait(750); open(music);
+                Mpd.connected = true; wait(750); open(music);
                 Mpd.state = "pause"; wait(30);
                 check(!music.popupOpen && music.stowed && !musicPill.retiring, "pause retains normal collapse behaviour");
                 Mpd.state = "play"; wait(750); open(music);
-                Mpd.loaded = false; wait(400); Mpd.loaded = true; wait(800);
+                Mpd.connected = false; wait(400); Mpd.connected = true; wait(800);
                 check(music.reveal === 1 && !musicPill.retiring && musicPill.contentOpacity === 1, "music reconnect cancels an empty return");
 
                 Settings.set("reduceMotion", true);
                 Timers.countdown(600000, "Calm"); wait(750); open(countdown); cancel("Calm");
                 check(OpenPopup.owner === null && !countdown.exitHeld && !timerPill.retiring && timerMorph.value === 0,
                       "reduce motion closes without the extra return and rest");
-                open(music); Mpd.loaded = false; wait(20);
+                open(music); Mpd.connected = false; wait(20);
                 check(OpenPopup.owner === null && !music.exitHeld && !musicPill.retiring && musicMorph.value === 0,
                       "reduce motion skips music's extra return and rest too");
                 console.log("PASS: empty timer and music pill exits");
@@ -207,7 +239,10 @@ QtObject {
 ''')
         timers = target / "services/Timers.qml"
         timers.write_text(timers.read_text().replace('command: ["pw-play", root.alarmSound]', 'command: ["true"]'))
-        (target / "shell.qml").write_text(SHELL)
+        bar = (target / "Bar.qml").read_text()
+        empty_binding = next(line.strip() for line in bar.splitlines() if "empty: !Services.Mpd." in line)
+        note = bar[bar.rfind('        BarItem {', 0, bar.index('id: musicNote')):bar.index('        Clock {')]
+        (target / "shell.qml").write_text(SHELL.replace("empty: !Mpd.connected", empty_binding.replace("Services.Mpd", "Mpd")).replace("MUSIC_NOTE", note))
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
                                 capture_output=True, text=True, timeout=50)
         output = result.stdout + result.stderr

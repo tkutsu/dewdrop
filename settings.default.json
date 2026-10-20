@@ -162,6 +162,19 @@
         "steam:BigPicture", "steam:Friends"
     ],
 
+    // The launcher's . web shortcuts. key is one character; an empty key
+    // is the default for .query. Without an empty key, the first entry wins.
+    // %s inserts the URL-encoded search text. URLs without it open directly.
+    "webShortcuts": [
+        { "key": "", "name": "Google", "url": "https://www.google.com/search?q=%s" },
+        { "key": "y", "name": "YouTube", "url": "https://www.youtube.com/results?search_query=%s" },
+        { "key": "c", "name": "ChatGPT", "url": "https://chatgpt.com/?q=%s" },
+        { "key": "l", "name": "Claude", "url": "https://claude.ai/new?q=%s" },
+        { "key": "x", "name": "1337x", "url": "https://1337x.to/search/%s/1/" },
+        { "key": "t", "name": "Translate", "url": "https://translate.google.com/?sl=auto&tl=en&text=%s&op=translate" },
+        { "key": "m", "name": "Maps", "url": "https://www.google.com/maps/search/%s" }
+    ],
+
     // --- where things are --------------------------------------------------
     // ~ and $XDG_RUNTIME_DIR are expanded.
 

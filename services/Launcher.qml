@@ -17,77 +17,19 @@ Singleton {
 
     // --- modes ---------------------------------------------------------------
 
-    // The first non-space character picks a mode. "%" is search: the word
-    // after it can name an engine ("%y lofi"), and without one the query goes
-    // to the fallback ("%lofi" is a Google search).
+    // The first non-space character picks a mode. "." is search: the word
+    // after it can name an engine (".y lofi"), and without one the query goes
+    // to the fallback (".lofi" is a Google search).
     //
     // One search prefix rather than one per family, because the split between
     // "web" and "AI" was a distinction about the destination, not about what
     // you are doing — in both cases you are typing a question and picking who
     // answers it.
     //
-    // A percent sign leaves the hash free for music. A leading dot would take
-    // decimals off the calculator, since the mode is picked before anything
-    // looks at what follows: ".5*2" would be a web search for "5*2".
-    // See looksLikeMath.
-    //
-    // One letter each, and Google has none at all — it is what a bare "%"
-    // does, so the search run most often costs the fewest keys. Claude is
-    // "%l" because ChatGPT holds the "c", so the key moved to the next free
-    // letter of the word: "%l" opens Claude.
-    //
-    // %s is replaced with the URL-encoded query. Every engine here has a place
-    // to put one, which is why there is no Gemini: neither gemini.google.com
-    // nor AI Studio takes a prompt in the URL, so an entry could only open an
-    // empty chat and drop what was typed.
-    //
-    readonly property string enginePrefix: "%"
-
-    readonly property var engines: [
-        {
-            key: "",
-            name: "Google",
-            url: "https://www.google.com/search?q=%s"
-        },
-        {
-            key: "y",
-            name: "YouTube",
-            url: "https://www.youtube.com/results?search_query=%s"
-        },
-        {
-            key: "c",
-            name: "ChatGPT",
-            url: "https://chatgpt.com/?q=%s"
-        },
-        {
-            key: "l",
-            name: "Claude",
-            // /new is the fresh conversation and q= is what goes
-            // in it, which is the whole test for being in this
-            // list — see the note about Gemini above.
-            url: "https://claude.ai/new?q=%s",
-        },
-        {
-            key: "x",
-            name: "1337x",
-            // Path, not a query string: 1337x takes the term as a
-            // path segment with the page number after it. The 1 is
-            // the first page.
-            url: "https://1337x.to/search/%s/1/"
-        },
-        {
-            key: "t",
-            name: "Translate",
-            // Auto-detect the source, English the target: the
-            // text is what changes, the direction rarely does.
-            url: "https://translate.google.com/?sl=auto&tl=en&text=%s&op=translate"
-        },
-        {
-            key: "m",
-            name: "Maps",
-            url: "https://www.google.com/maps/search/%s"
-        }
-    ]
+    // Each shortcut has a character and a URL; %s inserts the encoded query.
+    // The blank character selects the default search.
+    readonly property string enginePrefix: "."
+    readonly property var engines: Settings.webShortcuts
 
     // Modes with one destination use a prefix directly.
     //
@@ -120,13 +62,13 @@ Singleton {
     readonly property string powerPrefix: "!"
 
     readonly property var modes: [
-        { prefix: root.calcPrefix, hint: "calc" },
         { prefix: root.clipPrefix, hint: "clipboard" },
         { prefix: root.windowPrefix, hint: "windows" },
         { prefix: root.pathPrefix, hint: "files" },
-        { prefix: root.taskPrefix, hint: "tasks, timers, events" },
-        { prefix: root.musicPrefix, hint: "music" },
+        { prefix: root.taskPrefix, hint: "alarms·timers·events" },
         { prefix: root.enginePrefix, hint: "web" },
+        { prefix: root.musicPrefix, hint: "music" },
+        { prefix: root.calcPrefix, hint: "calc" },
         { prefix: root.mailPrefix, hint: "email" },
         { prefix: root.powerPrefix, hint: "power" }
     ]
@@ -224,7 +166,9 @@ Singleton {
 
         const leading = q.replace(/^\s+/, "");
         const sym = leading.charAt(0);
-        if (root.modeResults[sym] || sym === root.enginePrefix) {
+        // Dot calculations and relative paths retain their inferred modes.
+        const dotIsPathOrMath = sym === "." && (root.looksLikeMath(leading.trim()) || /^(?:\.{1,2}\/|\.[^\s/]+\/)/.test(leading));
+        if (!dotIsPathOrMath && (root.modeResults[sym] || sym === root.enginePrefix)) {
             // Keep an absolute path intact; "/ query" still selects file search.
             if (sym === root.pathPrefix && /^\/\S/.test(leading))
                 return { mode: sym, text: leading.trim() };
@@ -416,7 +360,7 @@ Singleton {
         // against each other and share the ordering.
         const found = root.calcResults(c.math ? c.text : "", true).concat(root.emailResults(c.email), root.urlResults(c.text, c.url), root.mainResults(c.text));
 
-        // Nothing matched, so it was a question: answer it the way "%" would.
+        // Nothing matched, so it was a question: answer it the way "." would.
         // Gated on the sum being spotted rather than on qalc's row, which
         // arrives a beat later and would have the engines flash up first.
         if (!found.length && !c.math)
@@ -517,6 +461,7 @@ Singleton {
 
     // Desktop actions run directly through their existing services.
     readonly property var desktopCommands: [
+        { key: "settings", title: "Settings", aliases: "shell bar preferences configuration", glyph: Theme.glyph.settings, run: () => { Preferences.shown = true; } },
         { key: "mute", title: Audio.muted ? "Unmute sound" : "Mute sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
         { key: "night", title: NightMode.on ? "Turn night mode off" : "Turn night mode on", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
         { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi off" : "Turn Wi-Fi on", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },
@@ -1067,11 +1012,13 @@ Singleton {
 
     function engineResults(sym, rest, keyed = true) {
         const engines = root.engines;
+        if (!engines.length)
+            return [{kind: "note", title: "Add web shortcuts in Settings > Launcher.", raw: true}];
         const m = rest.match(/^(\S+)(?:\s+(.*))?$/);
-        let key = "";
+        let key = engines.some(e => e.key === "") ? "" : engines[0].key;
         let q = rest.trim();
         // The first word is an engine key only if it actually names one, so
-        // "%lofi" searches for lofi rather than looking for an engine "lofi".
+        // ".lofi" searches for lofi rather than looking for an engine "lofi".
         // And only after the prefix: the unprefixed fallback is a question,
         // where "c programming" is about C, not a message to ChatGPT.
         if (keyed && m && engines.some(e => e.key === m[1])) {

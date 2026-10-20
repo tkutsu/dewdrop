@@ -92,6 +92,27 @@ ShellRoot {
             Launcher.query = "#"; test.wait(10);
             check(rows[0]?.kind === "music-queue" && Launcher.index === 1, "clearing a search returns directly to the current queue");
 
+            Library.loaded = false;
+            const reads = Library.reads;
+            Launcher.query = "# "; test.wait(180);
+            check(rows.length === Library.tracks.length && rows.every(row => row.kind === "music-track"),
+                "hash followed by a space shows every library track with a nonempty queue");
+            check(Library.reads === reads + 1 && !LauncherMusic.queueSelectionPending,
+                "explicit library browsing loads tracks without selecting the current queue song");
+            Launcher.index = 4;
+            Mpd.songPos = 2; Mpd.queue = queue.slice(); test.wait(10);
+            check(Launcher.index === 4 && rows.every(row => row.kind === "music-track"),
+                "queue updates keep explicit library browsing and its selection");
+            Launcher.query = "#   "; test.wait(10);
+            check(rows.length === Library.tracks.length && rows.every(row => row.kind === "music-track"),
+                "extra spaces keep the complete library visible");
+            Launcher.query = "# song"; test.wait(80);
+            check(rows.length === 1 && rows[0].title === "Library song", "typing after a space searches the library");
+            Mpd.songPos = 1;
+            Launcher.query = "#"; test.wait(10);
+            check(rows.every(row => row.kind === "music-queue") && Launcher.index === 1,
+                "removing the space restores the queue and selects the current song");
+
             closeMode();
             Library.loaded = false;
             Mpd.connected = false;
@@ -116,9 +137,21 @@ ShellRoot {
             Mpd.connected = true;
             Launcher.query = "#";
             test.wait(300);
-            check(rows[0]?.title === "queue is empty", "an empty queue shows a useful status");
+            check(rows.length === Library.tracks.length && rows.every(row => row.kind === "music-track"),
+                "an empty queue shows every library track");
+            check(rows[0].title === "Library song" && rows[0].indent === 0,
+                "library fallback uses actionable top-level track rows");
+            Mpd.queue = queue;
+            test.wait(10);
+            check(rows.every(row => row.kind === "music-queue"), "an arriving queue replaces the library fallback");
+            Library.loaded = false;
+            Mpd.queue = [];
+            test.wait(180);
+            check(rows.length === Library.tracks.length && rows.every(row => row.kind === "music-track"),
+                "clearing the queue while browsing loads the library fallback");
 
             closeMode();
+            Library.loaded = false;
             Library.delay = 1000;
             Mpd.connected = true;
             Launcher.query = "#song";
@@ -150,6 +183,7 @@ def main():
         (services / "LauncherMusic.qml").write_text((ROOT / "services/LauncherMusic.qml").read_text())
         mocks = {
             "Launcher": '''property string query: ""
+                readonly property string musicPrefix: "#"
                 property int index: 0
                 readonly property bool musicMode: query.startsWith("#")
                 readonly property int maxResults: 50
@@ -178,7 +212,7 @@ def main():
                 property bool failed: false
                 property int reads: 0
                 property int delay: 80
-                property var tracks: [{title: "Library song", artist: "Artist", album: 0, time: "3:00"}]
+                property var tracks: Array.from({length: 60}, (_, at) => ({title: at ? "Track " + at : "Library song", artist: "Artist", album: 0, time: "3:00"}))
                 function search(query) { return query === "song" ? [{kind: "track", at: 0, score: 1}] : []; }
                 function albumName(at) { return "Album"; }
                 function coverDir(kind, at) { return "/music/album/"; }

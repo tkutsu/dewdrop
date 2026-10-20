@@ -5,7 +5,7 @@ import Quickshell
 import qs
 import qs.services
 
-// The launcher's # mode: the current queue, or a search of the music library.
+// The launcher's # mode: the queue, all tracks with a space, or a library search.
 //
 // The one mode whose rows are a tree rather than a list, which is why it is a
 // file of its own beside services/Library.qml rather than a section of
@@ -47,6 +47,11 @@ Singleton {
         onTriggered: root.query = Launcher.classifyQuery(Launcher.query).text
     }
 
+    // Only a bare prefix browses the queue; trailing space explicitly opens the library.
+    function queueQuery(): bool {
+        return Launcher.query.replace(/^\s+/, "") === Launcher.musicPrefix;
+    }
+
     // Every keystroke, from Launcher.route(): whether the box is in this mode
     // and what follows the prefix if it is. A new query is a new tree, and
     // nothing that was open in the old one was opened about this query.
@@ -56,7 +61,7 @@ Singleton {
             statusDelay.restart();
         }
         root.inMode = inMode;
-        root.queueSelectionPending = inMode && !rest;
+        root.queueSelectionPending = inMode && root.queueQuery();
         root.open = ({});
         if (!inMode) {
             statusDelay.stop();
@@ -65,10 +70,10 @@ Singleton {
             root.query = "";
             return;
         }
-        // Queue browsing needs no library read; searches load it on demand.
-        if (Mpd.connected && rest)
+        // Only a bare prefix with a nonempty queue needs no library read.
+        if (Mpd.connected && (!root.queueQuery() || !Mpd.queue.length))
             Library.ensure();
-        if (!rest)
+        if (root.queueSelectionPending)
             Qt.callLater(root.selectCurrent);
         // Scoring ten thousand titles is 50ms for one word and 160ms for
         // three, which is a keystroke the box does not answer. Debounced
@@ -121,6 +126,7 @@ Singleton {
             root.reask();
         }
         function onQueueChanged() {
+            root.reask();
             if (root.queueSelectionPending)
                 Qt.callLater(root.selectCurrent);
         }
@@ -131,13 +137,13 @@ Singleton {
     }
 
     function reask(): void {
-        if (!Library.loaded && !Library.loading && Launcher.musicMode && Launcher.classification.text && Mpd.connected)
+        if (!Library.loaded && !Library.loading && Launcher.musicMode && (!root.queueQuery() || !Mpd.queue.length) && Mpd.connected)
             Library.ensure();
     }
 
     // Select the current song on entry, including a queue arriving after connection.
     function selectCurrent(): void {
-        if (!root.queueSelectionPending || !Launcher.musicMode || Launcher.classification.text || !Mpd.queue.length)
+        if (!root.queueSelectionPending || !Launcher.musicMode || !root.queueQuery() || !Mpd.queue.length)
             return;
         const at = Launcher.results.findIndex(row => row.kind === "music-queue" && row.track.pos === Mpd.songPos);
         Launcher.index = Math.max(0, at);
@@ -200,9 +206,8 @@ Singleton {
         if (!query) {
             if (!Mpd.connected)
                 return start;
-            if (Mpd.queue.length)
+            if (root.queueQuery() && Mpd.queue.length)
                 return Mpd.queue.map(song => root.queueRow(song));
-            return root.showStatus ? [root.note("queue is empty")] : [];
         }
 
         // Brief reads need no placeholder. A slower read shows its status
@@ -214,6 +219,9 @@ Singleton {
                 return start.length ? start : [root.note("mpd is not running")];
             return [root.note(Library.failed ? "could not read the library" : "reading the library")];
         }
+
+        if (!query)
+            return Library.tracks.map((track, at) => root.trackRow(at, 0, ""));
 
         const rows = [];
         for (const x of root.hits) {
