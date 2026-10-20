@@ -56,6 +56,8 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Top
         Linger { id: raise; shown: OpenPopup.owner !== null || barHover.hovered || PopupPointer.hovered > 0 }
         KEYBOARD
+        QtObject { id: clockPill; readonly property bool reorderPressed: false }
+        QtObject { id: rightPill; readonly property bool reorderPressed: false }
         HoverHandler { HOVER
         }
         BarItem {

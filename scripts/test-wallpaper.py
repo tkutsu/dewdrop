@@ -398,6 +398,7 @@ Item {
     default property alias content: body.data
     property alias spacing: body.spacing
     property real reserveHeight: 0
+    readonly property bool animateContents: !Theme.reduceMotion
     readonly property real chromeHeight: implicitHeight
     readonly property real radius: Theme.popupRadius
     readonly property Item chromeItem: root
