@@ -558,9 +558,17 @@ Singleton {
             return cur;
         }
 
+        // What a row is called. Mostly the process's own name, but Claude
+        // Code's native build names each binary after its version, so it would
+        // read "2.1.304" — and a session left over from the last update would
+        // be a row of its own under "2.1.303". Every version is one program.
+        function label(proc) {
+            return /\/claude\/versions\//.test(exe[proc.pid] ?? "") ? "Claude Code" : proc.name;
+        }
+
         for (const p of procs) {
             jiffies[p.pid] = p.used;
-            const name = owner(p).name;
+            const name = label(owner(p));
             const g = byName[name] ?? (byName[name] = {
                 name: name,
                 n: 0,
