@@ -163,7 +163,7 @@ Rectangle {
         }
 
         // Engine rows have no icon; the key you would be using
-        // goes here instead, so "%" then "y" shows you
+        // goes here instead, so "." then "y" shows you
         // landing on YouTube as you type it.
         Text {
             anchors.centerIn: parent

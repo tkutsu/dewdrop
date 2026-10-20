@@ -6,6 +6,7 @@ import Quickshell.Services.Mpris
 import qs
 import qs.components
 import qs.services
+import "../MediaText.js" as MediaText
 
 // Whatever else is playing — a browser tab, a video, a podcast app, anything
 // that speaks MPRIS — in a pill of its own beyond the music pill. mpd
@@ -69,7 +70,7 @@ BarItem {
     property real progress: -1
     readonly property string appName: player?.identity || player?.desktopEntry || ""
     readonly property string appId: player?.desktopEntry || player?.identity || ""
-    readonly property string label: player?.trackTitle ?? ""
+    readonly property string label: MediaText.display(player?.trackTitle ?? "")
     readonly property bool timed: (player?.positionSupported && player.lengthSupported && player.length > 0) ?? false
     onLabelChanged: if (label)
         shownLabel = label

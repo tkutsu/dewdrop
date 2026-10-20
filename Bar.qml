@@ -373,7 +373,7 @@ PanelWindow {
             id: musicNote
             leadingControl: true
             tooltip: Services.Mpd.label
-            stowed: !Services.Mpd.loaded || !music.iconInCentre
+            stowed: !Services.Mpd.connected || !music.iconInCentre
             onStowedChanged: if (!stowed && music.stowed && pill)
                 pill.leadingOrder = [musicNote]
             folds: false
@@ -499,7 +499,7 @@ PanelWindow {
         slidesContent: true
         morphValue: musicMorph.value
         closeWhenEmpty: true
-        empty: !Services.Mpd.loaded
+        empty: !Services.Mpd.connected
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.musicEdge + Theme.pillSpread

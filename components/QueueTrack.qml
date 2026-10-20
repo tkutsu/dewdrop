@@ -1,6 +1,7 @@
 import QtQuick
 import qs
 import qs.services
+import "../MediaText.js" as MediaText
 
 // The same track readout stays under a queue row and its lifted drag preview.
 Item {
@@ -31,7 +32,7 @@ Item {
             id: title
             anchors.verticalCenter: parent.verticalCenter
             width: Math.min(implicitWidth, root.song?.artist ? line.width * 0.62 : line.width)
-            text: root.song?.title ?? ""
+            text: MediaText.display(root.song?.title ?? "")
             font.pixelSize: Theme.captionSize
             font.weight: root.current ? Font.DemiBold : Font.Normal
             opacity: root.current ? 1 : 0.8
@@ -42,7 +43,7 @@ Item {
             anchors.leftMargin: 6
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: root.song?.artist ?? ""
+            text: MediaText.display(root.song?.artist ?? "")
             font.pixelSize: Theme.captionSize
             opacity: 0.45
             elide: Text.ElideRight

@@ -58,6 +58,7 @@ Singleton {
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
+    readonly property var webShortcuts: root.values.webShortcuts ?? []
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
     readonly property var mailCategories: root.values.mailCategories ?? []
     readonly property var feedChannels: root.values.feedChannels ?? []

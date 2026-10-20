@@ -4,6 +4,7 @@ import Quickshell.Widgets
 import qs
 import qs.components
 import qs.services
+import "../MediaText.js" as MediaText
 
 // Everything the mpd tooltip's five lines of text were reaching for: the cover,
 // a position that can be dragged rather than only read, the transport, the
@@ -52,11 +53,68 @@ Popup {
     property bool quitArmed: false
 
 
-    // The window is always the height of the popup with the playlists
-    // unfolded, so folding them only redraws inside it (see Popup.reserveHeight).
-    reserveHeight: chromeHeight + (Mpd.playlistsOpen ? 0 : Mpd.playlists.length * rowHeight)
+    // Queue and playlist changes redraw inside a fixed compositor surface.
+    reserveHeight: root.vPadding + root.bottomPadding + playerHeader.height
+        + queueSeparator.height + root.visibleRows * root.rowHeight + root.spacing * 2
+        + (storedPlaylists.visible ? storedPlaylists.height + root.spacing
+            + (Mpd.playlistsOpen ? 0 : Mpd.playlists.length * root.rowHeight) : 0)
+
+    property var removalQueue: null
+    property int removing: -1
+    property real departureFade: 0
+    property real departureFold: 0
+    readonly property bool removingTrack: removalQueue !== null || removalResize.running
+
+    // As in notifications, fade first, close the slot, then resize the popup.
+    function removeTrack(queue, pos): void {
+        if (root.removingTrack || Mpd.queue !== queue)
+            return;
+        if (!root.animateContents) {
+            Mpd.removeAt(pos);
+            return;
+        }
+        list.cancelFlick();
+        list.heldHeight = list.height;
+        list.scrollBeforeRemoval = list.contentY;
+        root.removalQueue = queue;
+        root.removing = pos;
+        removal.start();
+    }
+
+    function finishRemoval(): void {
+        removal.stop();
+        removalResize.restart();
+        root.removalQueue = null;
+        root.removing = -1;
+        root.departureFade = 0;
+        root.departureFold = 0;
+        list.heldHeight = -1;
+    }
+
+    SequentialAnimation {
+        id: removal
+        NumberAnimation { target: root; property: "departureFade"; from: 0; to: 1; duration: Theme.fadeMs }
+        NumberAnimation {
+            target: root
+            property: "departureFold"
+            from: 0
+            to: 1
+            duration: Theme.fadeMs
+            easing.type: Easing.OutCubic
+        }
+        ScriptAction { script: Mpd.removeAt(root.removing) }
+        // Keep the closed slot until MPD replies; restore it if no reply arrives.
+        PauseAnimation { duration: 1000 }
+        ScriptAction { script: root.finishRemoval() }
+    }
+
+    Timer {
+        id: removalResize
+        interval: Theme.fadeMs
+    }
 
     Row {
+        id: playerHeader
         spacing: 10
 
         Item {
@@ -288,7 +346,7 @@ Popup {
                         rightMargin: 6
                         verticalCenter: parent.verticalCenter
                     }
-                    text: Mpd.title
+                    text: MediaText.display(Mpd.title)
                     contentWidth: songTitleText.implicitWidth
                     implicitHeight: songTitleText.implicitHeight
                     hovered: titleHover.hovered
@@ -297,7 +355,7 @@ Popup {
 
                     PopupText {
                         id: songTitleText
-                        text: Mpd.title
+                        text: songTitle.text
                         font.weight: Font.DemiBold
                         elide: Text.ElideNone
                     }
@@ -348,7 +406,7 @@ Popup {
             PopupText {
                 width: root.columnWidth
                 rightPadding: Theme.popupInset
-                text: [Mpd.artist, Mpd.album].filter(part => part).join("  ·  ")
+                text: [Mpd.artist, Mpd.album].filter(part => part).map(MediaText.display).join("  ·  ")
                 color: Theme.label2
                 elide: Text.ElideRight
             }
@@ -436,6 +494,7 @@ Popup {
     // reason Mpd.premute does: the popup is rebuilt each time it opens,
     // while this preference lasts for the session.
     Column {
+        id: storedPlaylists
         width: root.bodyWidth
         spacing: 0
         // Nothing saved, nothing to say.
@@ -606,6 +665,7 @@ Popup {
     }
 
     PopupSeparator {
+        id: queueSeparator
         width: root.bodyWidth
         visible: list.count > 0
     }
@@ -626,14 +686,20 @@ Popup {
         width: root.bodyWidth
         // A short queue draws short rather than padding itself out with empty
         // rows, the same way the launcher's list does.
-        height: Math.min(count, root.visibleRows) * root.rowHeight
+        property real heldHeight: -1
+        height: heldHeight >= 0 ? heldHeight : Math.min(count, root.visibleRows) * root.rowHeight
+        Behavior on height {
+            enabled: root.animateContents && removalResize.running
+            NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.OutCubic }
+        }
         clip: true
         layer.enabled: contentHeight > height
         layer.effect: ScrollEdges {
             view: list
         }
-        model: reorder.showing ? reorder.rows : Mpd.queue
-        interactive: !reorder.showing
+        model: root.removalQueue ?? (reorder.showing ? reorder.rows : Mpd.queue)
+        enabled: !root.removingTrack
+        interactive: !reorder.showing && !root.removingTrack
         // Ease wheel motion while keeping the ends firm.
         boundsBehavior: Flickable.StopAtBounds
         SmoothScroll { view: list }
@@ -653,11 +719,13 @@ Popup {
         })
 
         property real scrollBeforeRefresh: NaN
+        property real scrollBeforeRemoval: 0
         property bool revealCurrentPending: false
 
-        // Restore browsing before following a track change in the same MPD reply.
+        // Measure refreshed rows before restoring browsing or following a track change.
         function updateQueuePosition() {
             if (!isNaN(scrollBeforeRefresh)) {
+                list.forceLayout();
                 list.contentY = Math.max(0, Math.min(list.contentHeight - list.height, scrollBeforeRefresh));
                 scrollBeforeRefresh = NaN;
             }
@@ -673,6 +741,11 @@ Popup {
         Connections {
             target: Mpd
 
+            function onQueueChanged() {
+                if (root.removalQueue !== null && root.removalQueue !== Mpd.queue)
+                    root.finishRemoval();
+            }
+
             function onSongPosChanged() {
                 list.revealCurrentPending = true;
                 Qt.callLater(list.updateQueuePosition);
@@ -682,7 +755,7 @@ Popup {
             // refresh, which puts the view back at the top with it. Removing a
             // song should not cost you your place in the queue it came out of.
             function onQueueChanging() {
-                list.scrollBeforeRefresh = list.contentY;
+                list.scrollBeforeRefresh = root.removalQueue !== null ? list.scrollBeforeRemoval : list.contentY;
                 Qt.callLater(list.updateQueuePosition);
             }
 
@@ -693,7 +766,7 @@ Popup {
             view: list
             model: Mpd.queue
             rowHeight: root.rowHeight
-            rightGuard: root.buttonWidth
+            rightGuard: root.buttonWidth + Theme.popupInset
             onMoved: (from, to) => { if (from !== to) Mpd.moveTo(rows[from].pos, rows[to].pos); }
             onClicked: index => { if (!choice.running) Mpd.playAt(rows[index].pos); }
             lifted: Component {
@@ -718,9 +791,10 @@ Popup {
 
             name: "Play " + (row.modelData.title || "Track " + (row.index + 1))
             width: ListView.view.width
-            height: root.rowHeight
+            height: root.rowHeight * (row.index === root.removing ? 1 - root.departureFold : 1)
             onTapped: if (!choice.running) Mpd.playAt(row.modelData.pos)
-            opacity: reorder.showing && row.index === reorder.from ? 0 : 1
+            opacity: reorder.showing && row.index === reorder.from ? 0
+                : row.index === root.removing ? 1 - root.departureFade : 1
             transform: Translate {
                 y: reorder.shift(row.index)
 
@@ -762,13 +836,12 @@ Popup {
                     visible: row.hovered
                     name: "Remove " + (row.modelData.title || "track") + " from queue"
                     glyph: Theme.glyph.queueRemove
-                    live: !choice.running
+                    live: !choice.running && !root.removingTrack
                     onTapped: {
-                        const track = row.modelData;
+                        const queue = Mpd.queue;
+                        const pos = row.modelData.pos;
                         choice.start(row, () => {
-                            const pos = Mpd.queue.indexOf(track);
-                            if (pos >= 0)
-                                Mpd.removeAt(pos);
+                            root.removeTrack(queue, pos);
                         });
                     }
                 }

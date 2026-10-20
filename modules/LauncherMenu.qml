@@ -295,7 +295,7 @@ OverlayWindow {
     readonly property int visibleRows: 12
     readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !LauncherMail.open
     readonly property int boxPad: Theme.panelPadding
-    // The right-hand slot every row ends in: an app icon, or the "%y" badge
+    // The right-hand slot every row ends in: an app icon, or the ".y" badge
     // that says which engine Enter would use.
     readonly property int slotWidth: 24
     // How far a row is set in per level of the music mode's tree. Wide enough
@@ -715,7 +715,7 @@ OverlayWindow {
                                         color: Theme.label3
                                         font.family: Theme.bodyFont
                                         font.pixelSize: Theme.popupTextSize
-                                        font.bold: true
+                                        font.weight: Font.Black
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter

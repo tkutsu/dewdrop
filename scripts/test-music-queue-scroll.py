@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep the current queue row visible after music transport actions."""
+"""Exercise music queue scrolling, removal and hold-to-reorder gestures."""
 
 import importlib.util
 from pathlib import Path
@@ -28,7 +28,7 @@ ShellRoot {
                 console.log("PASS: " + message);
             }
             function named(item, name) {
-                if (item.objectName === name) return item;
+                if (item.objectName === name || item.name === name) return item;
                 for (const child of item.children || []) {
                     const found = named(child, name);
                     if (found) return found;
@@ -81,6 +81,42 @@ ShellRoot {
                 check(list.contentY === browsing, "no current track leaves the scroll position alone");
                 list.positionViewAtIndex(0, ListView.Beginning);
                 wait(30);
+                // Exercise hit targets independently of the staged exit animation.
+                Settings.set("reduceMotion", true);
+                const remove = named(list.itemAtIndex(0), "Remove Track 0 from queue");
+                check(remove !== null, "queue remove button found");
+                for (const x of [remove.width / 2, 1, remove.width - 1]) {
+                    mouseMove(remove, x, remove.height / 2);
+                    wait(30);
+                    check(remove.visible, "remove target at x=" + x + " is visible");
+                    const calls = Mpd.removeCalls;
+                    mouseClick(remove, x, remove.height / 2);
+                    wait(400);
+                    check(Mpd.removeCalls === calls + 1,
+                        "remove click at x=" + x + " reaches remove once (remove=" + Mpd.removeCalls
+                        + ", play=" + Mpd.playCalls + ", lifted=" + popup.auditReorder.showing + ")");
+                    check(Mpd.playCalls === 0 && !popup.auditReorder.showing,
+                        "remove click at x=" + x + " does not play or lift the track");
+                }
+                mousePress(remove, 1, remove.height / 2);
+                wait(350);
+                check(!popup.auditReorder.dragging, "holding remove does not lift the track");
+                mouseRelease(remove, 1, remove.height / 2);
+                tryCompare(Mpd, "removeCalls", 4, 500);
+                const second = named(list.itemAtIndex(1), "Remove Track 1 from queue");
+                mouseMove(second, second.width / 2, second.height / 2);
+                wait(30);
+                mouseClick(second, second.width / 2, second.height / 2);
+                Mpd.queueChanging(); Mpd.queue = Mpd.queue.slice();
+                wait(400);
+                check(Mpd.removeCalls === 4, "refresh during remove feedback cancels the stale removal");
+                const refreshed = named(list.itemAtIndex(1), "Remove Track 1 from queue");
+                mouseMove(refreshed, refreshed.width / 2, refreshed.height / 2);
+                wait(30);
+                mouseClick(refreshed, refreshed.width / 2, refreshed.height / 2);
+                tryCompare(Mpd, "removeCalls", 5, 500);
+                check(Mpd.removed.join(",") === "0,0,0,0,1", "remove uses the clicked track's MPD position");
+                Settings.set("reduceMotion", false);
                 mouseClick(list, 25, 11);
                 check(Mpd.playCalls === 1, "queue tap plays exactly once");
                 mousePress(list, 25, 33);
@@ -127,7 +163,18 @@ def main():
     property int nextPos: -1
     property bool replaceQueue: false
     property int playCalls: 0
+    property int removeCalls: 0
+    property var removed: []
+    property bool applyRemovals: false
     property var moves: []
+    function removeAt(pos) {
+        removeCalls++; removed = removed.concat([pos]);
+        if (applyRemovals) Qt.callLater(() => {
+            const next = queue.filter(song => song.pos !== pos);
+            queueChanging();
+            queue = next.map((song, index) => Object.assign({}, song, {pos: index}));
+        });
+    }
     function playAt(pos) { playCalls++; songPos = pos; }
     function moveTo(from, to) {
         moves = moves.concat([{from: from, to: to}]);
@@ -164,7 +211,7 @@ def main():
                      'height: root.transportBand\n                                objectName: modelData.name\n\n                                Glyph', 1))
         (target / "shell.qml").write_text(SHELL)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
-                                capture_output=True, text=True, timeout=10)
+                                capture_output=True, text=True, timeout=20)
         output = result.stdout + result.stderr
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Unable to assign", "Cannot assign",
                   "Binding loop", "Failed to load configuration")

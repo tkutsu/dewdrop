@@ -11,6 +11,7 @@ Liquid {
     required property real slabHeight
 
     property int inset: Theme.markInset
+    property int verticalInset: inset
 
     // How the ends run: the workspace mark's pace unless told otherwise.
     property real spring: Theme.markSpring
@@ -31,7 +32,7 @@ Liquid {
         }
     }
 
-    readonly property real edge: inset - lift
+    readonly property real edge: verticalInset - lift
     readonly property real slabTop: root.slabY + edge
     readonly property real thickness: root.slabHeight - edge * 2
     readonly property color tone: Theme.mix(Theme.selectionStrong, Theme.markLifted, lift)
