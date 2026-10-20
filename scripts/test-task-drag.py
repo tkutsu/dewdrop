@@ -48,6 +48,29 @@ CASES = r'''
                     mouseRelease(list, x, y);
                     wait(200);
                 }
+                function named(item, name) {
+                    if (item.name === name) return item;
+                    for (const child of item.children || []) {
+                        const found = named(child, name);
+                        if (found) return found;
+                    }
+                    return null;
+                }
+
+                reset();
+                const task = Tasks.rows.findIndex(r => r.id === "d");
+                const edit = named(list.itemAtIndex(task), "Edit Third task");
+                check(edit !== null, "task edit button found");
+                mouseMove(edit, 1, edit.height / 2);
+                wait(30);
+                check(edit.visible, "task edit button is visible");
+                mousePress(edit, 1, edit.height / 2);
+                wait(350);
+                check(!drag.showing && popup.editing === null, "holding task edit neither lifts nor edits before release");
+                mouseRelease(edit, 1, edit.height / 2);
+                check(popup.editing?.id === "d" && !Tasks.isCrossed(Tasks.tasks.find(t => t.id === "d")),
+                    "task edit edge opens the editor without completing the task");
+                popup.cancelEdit();
 
                 reset();
                 hold("d", 60);

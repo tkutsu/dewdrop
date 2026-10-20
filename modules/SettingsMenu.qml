@@ -133,6 +133,7 @@ OverlayWindow {
     // Named for what they do rather than by Launcher's own titles, which
     // say which way they would flip right now ("Turn Wi-Fi off").
     readonly property var controlRows: [
+        root.shownInLauncher("desktop:settings", "Settings", { glyph: Theme.glyph.settings }),
         root.shownInLauncher("desktop:mute", "Mute Sound", { glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1] }),
         root.shownInLauncher("desktop:night", "Night Mode", { glyph: Theme.glyph.nightOff }),
         root.shownInLauncher("desktop:wifi", "Wi-Fi", { glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] }),
@@ -298,6 +299,14 @@ OverlayWindow {
         {
             title: "Launcher",
             sections: [
+                {
+                    title: "Web Search",
+                    rows: [
+                        { type: "shortcuts", id: "webShortcuts", title: "Web Shortcuts", text: "Type . plus a character to choose a shortcut. Use %s in the URL for your search text.",
+                            tooltip: "Leave Character blank on one entry to make it the default search. Otherwise the first entry is used. URLs without %s open directly.",
+                            get: () => Settings.webShortcuts, set: v => Settings.set("webShortcuts", v) }
+                    ]
+                },
                 {
                     title: "File Search",
                     rows: [

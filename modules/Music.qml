@@ -4,6 +4,7 @@ import Quickshell
 import qs
 import qs.components
 import qs.services
+import "../MediaText.js" as MediaText
 
 // The music pill: what is playing, with previous and next shown on hover.
 // The title opens the popup — it is the widest thing in the pill and the
@@ -17,14 +18,18 @@ import qs.services
 BarItem {
     id: root
 
-    // A paused player rests in the clock pill until its note is pressed.
+    // A paused or empty player rests in the clock pill until its note is pressed.
     // Keep that choice until playback changes or the queue goes away.
     readonly property bool paused: Mpd.loaded && Mpd.state === "pause"
     property bool expanded: false
     onPausedChanged: expanded = false
 
-    // Reveal the controls immediately while mpd acknowledges the resume.
+    // Empty music opens its popup; paused music reveals controls and resumes.
     function expand() {
+        if (Mpd.connected && !Mpd.loaded) {
+            OpenPopup.set(root);
+            return;
+        }
         if (!root.paused)
             return;
         root.expanded = true;
@@ -32,12 +37,12 @@ BarItem {
     }
 
     // The bar draws the pill into its neighbour off `reveal` (Bar.drop).
-    stowed: (!Mpd.loaded || (paused && !expanded)) && !exitHeld
+    stowed: (!Mpd.connected || (!Mpd.loaded && !popupOpen) || (paused && !expanded)) && !exitHeld
     folds: false
 
-    // Pause closes immediately. On unload the side pill closes the popover
+    // Pause closes immediately. On disconnect the side pill closes the popover
     // and holds the empty capsule until it is ready to leave.
-    onStowedChanged: if (stowed && (Mpd.loaded || !root.pill?.closeWhenEmpty))
+    onStowedChanged: if (stowed && (Mpd.connected || !root.pill?.closeWhenEmpty))
         OpenPopup.close(root)
 
     // Whether a change is run rather than set: only for a pill at rest. One
@@ -60,7 +65,7 @@ BarItem {
 
     // And for the outline it draws: how far through the track we are. Held
     // like the title below, so the line fades with the pill rather than
-    // dropping out the moment the queue empties.
+    // dropping out the moment MPD disconnects.
     property real progress: 0
     readonly property real position: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
     // How fast that runs while playing, for the pill to carry the line on
@@ -75,7 +80,7 @@ BarItem {
     // under way is let finish rather than restarted by the next second's
     // tick, and lands on wherever the track has got to by then.
     function track() {
-        if (!Mpd.loaded || rewind.running)
+        if (!Mpd.connected || rewind.running)
             return;
         if (root.settled && root.position < root.progress) {
             rewind.to = root.position;
@@ -96,10 +101,7 @@ BarItem {
         onFinished: root.track()
     }
 
-    // The title and the sleeve, kept while the pill goes: the queue is empty
-    // before the pill has gone, and the line should not blank on the way.
-    // Taken from mpd only while there is something to show and left holding
-    // the last value after.
+    // Hold the title and sleeve during disconnect; an empty queue shows Music.
     property string shownLabel: ""
     property string shownCover: ""
     property string outgoingLabel: ""
@@ -144,17 +146,21 @@ BarItem {
 
     // The titles overlap as the pill springs to the arriving title's width.
     function follow() {
-        if (!Mpd.loaded || (Mpd.label === root.shownLabel && Mpd.cover === root.shownCover))
+        if (!Mpd.connected)
             return;
-        if (Mpd.label !== root.shownLabel) {
+        const label = Mpd.loaded ? MediaText.display(Mpd.label) : "Music";
+        const cover = Mpd.loaded ? Mpd.cover : "";
+        if (label === root.shownLabel && cover === root.shownCover)
+            return;
+        if (label !== root.shownLabel) {
             titleFade.stop();
             root.outgoingLabel = root.settled ? root.shownLabel : "";
-            root.shownLabel = Mpd.label;
+            root.shownLabel = label;
             root.titleMix = 1;
             if (root.outgoingLabel)
                 titleFade.restart();
         }
-        root.shownCover = Mpd.cover;
+        root.shownCover = cover;
     }
 
     contentAnimating: titleFade.running || previousStep.animating || titleWidth.running || nextStep.animating
@@ -180,6 +186,10 @@ BarItem {
             root.follow();
         }
         function onLoadedChanged() {
+            root.follow();
+            Qt.callLater(root.track);
+        }
+        function onConnectedChanged() {
             root.follow();
             Qt.callLater(root.track);
         }

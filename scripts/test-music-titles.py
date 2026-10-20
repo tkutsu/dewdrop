@@ -11,6 +11,7 @@ from test_support import ROOT, copy_shell, shell_env
 MPD = '''pragma Singleton
 import QtQuick
 QtObject {
+    property bool connected: true
     property bool loaded: true
     property string title: "A very long track title that overflows both the pill and the music player header by a comfortable margin"
     property string label: title

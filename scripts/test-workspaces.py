@@ -55,7 +55,7 @@ import qs
 Item { property bool held; property real slabY; property real slabHeight; property bool atFirst; property bool atLast
 property real wallLeft; property real wallRight; property real wantLeft; property real wantRight; property bool resizing
 readonly property real frontLeft: wantLeft; readonly property real frontRight: wantRight
-property real spring; property real damping; property int inset: Theme.markInset; property bool animating: false }''')
+property real spring; property real damping; property int inset: Theme.markInset; property int verticalInset: inset; property bool animating: false }''')
 if '--marks' in sys.argv or '--mark-input' in sys.argv or '--mark-ink' in sys.argv:
     (target/'components/FlowMark.qml').write_text((root/'components/FlowMark.qml').read_text())
     # Inspect the real animation's shader geometry without requiring a GPU.
@@ -442,6 +442,8 @@ if '--marks' in sys.argv:
  const a=win('a',w1,'first'),b=win('b',w2,'second'),c=win('c',w3,'third');
  reset([a,b,c],[w1,w2,w3]);
  const mark=pill.auditMark;
+ check(mark.thickness===Theme.barHeight-8 && mark.slabTop===mark.slabY+4,'workspace mark gains 2px vertically and stays centred');
+ check(mark.inset===Theme.markInset+3,'workspace mark retains its horizontal inset');
  empty.active=true;w1.active=false;
  Hyprland.workspaces.values=[w1,w2,w3,empty];Hyprland.focusedWorkspace=empty;
  let extraMarks=0,maxError=0;

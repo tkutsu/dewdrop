@@ -402,7 +402,7 @@ Singleton {
         }
     }
 
-    // Queue appends files; play replaces the queue and starts it.
+    // Queue appends files and starts an empty queue; play replaces it.
     function enqueue(files, mode): void {
         if (!files || !files.length)
             return;
@@ -411,7 +411,7 @@ Singleton {
             commands.push("clear");
         for (let i = 0; i < files.length; i++)
             commands.push("add " + root.quote(files[i]));
-        if (mode === "play")
+        if (mode === "play" || root.queue.length === 0)
             commands.push("play");
         root.run(commands);
     }
@@ -423,7 +423,7 @@ Singleton {
         if (mode === "play")
             commands.push("clear");
         commands.push("load " + root.quote(name));
-        if (mode === "play")
+        if (mode === "play" || root.queue.length === 0)
             commands.push("play");
         root.run(commands);
     }

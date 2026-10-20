@@ -14,6 +14,7 @@ STUBS = {
     'services/Mpd.qml': '''pragma Singleton
 import QtQuick
 QtObject {
+    property bool connected: true
     property bool loaded: true
     property string label: "A track title"; property string cover: ""; property string state: "play"
     property real duration: 120; property real elapsed: 30
@@ -163,8 +164,13 @@ ShellRoot {
                 Mpd.state = "play"; wait(1100);
                 check(music.reveal === 1 && !musicNote.visible, "a quick pause and resume settles on the playing pill");
                 Mpd.state = "pause"; wait(1100);
-                Mpd.loaded = false; wait(1100);
-                check(!musicPill.visible && !musicNote.visible, "unloading hides both the paused pill and its note");
+                Mpd.loaded = false; Mpd.label = "Unknown"; Mpd.duration = 0; Mpd.elapsed = 0; Mpd.state = "stop"; wait(1100);
+                check(!musicPill.visible && music.stowed && musicNote.visible,
+                      "an empty queue leaves the connected MPD note in the central pill");
+                check(music.shownLabel === "Music" && music.progress === 0,
+                      "an empty queue clears the old track label and progress");
+                Mpd.connected = false; wait(1100);
+                check(!musicPill.visible && !musicNote.visible, "disconnecting hides the music pill and its note");
                 console.log("DONE: " + failures + " failures");
             }
         }
