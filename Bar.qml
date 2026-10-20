@@ -13,6 +13,18 @@ import qs.services as Services
 PanelWindow {
     id: bar
 
+    // Fade the complete bar in place while its initial layout settles.
+    contentItem.opacity: 0
+    NumberAnimation {
+        target: bar.contentItem
+        property: "opacity"
+        from: 0
+        to: 1
+        duration: Theme.reduceMotion ? 0 : Theme.fadeMs
+        easing.type: Easing.InOutQuad
+        running: true
+    }
+
     readonly property var drops: Drops.geometry(Theme)
     required property var modelData
     screen: modelData

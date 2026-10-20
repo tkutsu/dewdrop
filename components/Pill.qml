@@ -68,7 +68,6 @@ Item {
     Component.onCompleted: {
         arrange();
         Tooltips.setMoving(root, animating);
-        Qt.callLater(() => root._positionReady = true);
     }
 
     // Where on the bar this pill sits. It anchors itself from this rather than
@@ -186,6 +185,12 @@ Item {
     property real centreShift: 0
     property bool animatePosition: false
     property bool _positionReady: false
+    // Window sizing and service replies settle before ordinary position changes animate.
+    Timer {
+        interval: Theme.startMs
+        running: true
+        onTriggered: root._positionReady = true
+    }
     // Animate between whole-pixel left edges; fractional frames keep the motion smooth.
     property real _centreLeft: parent ? Math.round(parent.width / 2 - centreAt - centreShift) : 0
     Behavior on _centreLeft {
