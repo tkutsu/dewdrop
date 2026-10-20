@@ -447,9 +447,9 @@ BarItem {
         // end is a wall the head stops against.
         FlowMark {
             id: mark
-            // Three pixels in from other marks on every side, so the glass
-            // sits light round its icons.
+            // Keep the ends inset, with one extra pixel of glass above and below.
             inset: Theme.markInset + 3
+            verticalInset: inset - 1
             held: strip.held
             // Keep keyboard steps quick; workspace switches take a gentler spring.
             spring: strip.keyed ? Theme.keyMarkSpring : Theme.switchSpring

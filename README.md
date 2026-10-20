@@ -31,7 +31,7 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 | `/` | Files, with preview. Ctrl+Enter shows the file in its folder, Ctrl+C copies its path |
 | `_` | Open windows; `_firefox` searches them, then falls back if none match |
 | `"` | Clipboard history |
-| `%` | Web search (`%y lofi` for YouTube, also ChatGPT, Claude, Translate, Maps) |
+| `.` | Web search (`.y lofi` for YouTube, also ChatGPT, Claude, Translate, Maps) |
 | `@` | Gmail: unread, read in place, search |
 | `,` | Google task, timer, alarm or calendar event (see below) |
 | `#` | MPD library and playlists |

@@ -58,7 +58,7 @@ ShaderEffect {
     readonly property real depth: 0.65
     readonly property real steep: 1.6
     readonly property real dispersion: Theme.glassDispersion
-    readonly property real tint: 0.22 - 0.06 * motion
+    readonly property real tint: 0.32 - 0.06 * motion
     readonly property vector3d tintColor: Qt.vector3d(0.62, 0.62, 0.64)
     readonly property real lineWidth: Theme.pillBorder
     readonly property vector4d rimTop: Qt.vector4d(Theme.pillRimTop.r, Theme.pillRimTop.g, Theme.pillRimTop.b, Theme.pillRimTop.a)

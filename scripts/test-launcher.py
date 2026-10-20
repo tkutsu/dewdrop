@@ -2,6 +2,7 @@
 """Exercise launcher discovery and dispatch with desktop services isolated."""
 
 import ast
+import json
 import os
 from pathlib import Path
 import re
@@ -12,6 +13,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 MOCKS = {
+    "Preferences": "property bool shown: false",
     "Hyprland": '''property var toplevels: ({values: []})
         function dispatch(command) { throw new Error("Unexpected window activation: " + command); }''',
     "AppIcons": 'function resolve(windowClass, entry) { return ""; }',
@@ -316,8 +318,29 @@ ShellRoot {
             Launcher.query = "@";
             Launcher.query = "@ ";
             check(Email.searches === 0, "fresh recent-mail search is reused");
-            Launcher.query = "%y cats";
-            check(Launcher.results[0].badge === "%y", "explicit engine key selects YouTube");
+            Launcher.query = ".y cats";
+            check(Launcher.results[0].badge === ".y", "explicit engine key selects YouTube");
+            for (const query of [".cats", ". cats", "  .cats"]) {
+                Launcher.query = query;
+                check(Launcher.results[0]?.badge === "." && Launcher.results[0].url === "https://www.google.com/search?q=cats",
+                    "dot prefix selects Google: " + query);
+            }
+            const originalShortcuts = Settings.webShortcuts;
+            Settings.webShortcuts = [{key: "z", name: "Custom", url: "https://example.com/?q=%s"}, {key: "", name: "Default", url: "https://example.org/%s"}];
+            Launcher.query = ".z a & b";
+            check(Launcher.results[0].url === "https://example.com/?q=a%20%26%20b", "custom character and encoded query apply immediately");
+            Launcher.query = ".cats";
+            check(Launcher.results[0].url === "https://example.org/cats", "blank character selects custom default");
+            Settings.webShortcuts = [{key: "z", name: "Custom", url: "https://example.com/"}];
+            check(Launcher.engineResults(".", "cats")[0].url === "https://example.com/", "first shortcut is the fallback and static URLs open directly");
+            Settings.webShortcuts = [];
+            check(Launcher.results[0].kind === "note", "empty shortcuts give an actionable note");
+            Settings.webShortcuts = originalShortcuts;
+            check(Launcher.classifyQuery("%y cats").mode !== Launcher.enginePrefix, "percent no longer selects web mode");
+            for (const query of [".5*2", ".5 / 2", ".5 kg to g"])
+                check(Launcher.classifyQuery(query).math, "dot decimals retain calculator inference: " + query);
+            for (const query of ["./notes.txt", "../notes.txt", ".plans/automate-phone-test.md"])
+                check(Launcher.classifyQuery(query).mode === Launcher.pathPrefix, "dot paths retain file inference: " + query);
             Launcher.query = "";
             check(!Launcher.results.some(r => r.kind === "desktop"), "no unused toggles on home");
 
@@ -352,7 +375,7 @@ ShellRoot {
             check(LauncherFiles.browserFocus("/tmp/index.html") === "", "HTML supports no existing browser");
             check(Launcher.classifyQuery("_projects").mode === "main", "unmatched underscore query falls back");
             Launcher.query = "_zzmissingwindow";
-            check(Launcher.results[0]?.kind === "url" && Launcher.results[0].badge === "%", "unmatched window query reaches web fallback");
+            check(Launcher.results[0]?.kind === "url" && Launcher.results[0].badge === ".", "unmatched window query reaches web fallback");
             const htmlPath = "_projects/_personal/liquidglass/launcher/prototypes/index.html";
             for (const query of [htmlPath, "  " + htmlPath, "~/" + htmlPath, "/home/test/" + htmlPath, "./" + htmlPath]) {
                 const classified = Launcher.classifyQuery(query);
@@ -418,6 +441,10 @@ ShellRoot {
             check(!desktop("mute"), "mute unavailable without audio");
             Audio.sink = ({audio: {}});
 
+            Launcher.show();
+            activateDesktop("settings");
+            check(Preferences.shown && !Launcher.shown, "Settings opens shell preferences and closes launcher");
+            Preferences.shown = false;
             Launcher.show();
             activateDesktop("mute");
             check(Audio.muted && !Launcher.shown && desktop("mute").title === "Unmute sound", "mute changes state and label");
@@ -630,7 +657,7 @@ ShellRoot {
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
-            check(Launcher.modes.map(mode => mode.prefix).join("") === '=\"_/,#%@!', "requested mode hint order");
+            check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/,.#=@!', "requested mode hint order");
             check(!keys.findChild(menu, "disclosure"), "chevron removed");
             const files = modes.children.find(child => child.modelData?.prefix === "/");
             check(files.children[0].font.bold && files.children[1].font.pixelSize < files.children[0].font.pixelSize, "mode symbols are bold and labels smaller");
@@ -641,7 +668,7 @@ ShellRoot {
                 ["/", Theme.glyph.folder], ["~/docs", Theme.glyph.folder],
                 [",", Theme.glyph.tasks], [",call mum", Theme.glyph.tasks], [",0m", Theme.glyph.tasks],
                 [",25m tea", Theme.glyph.timer], [",7:30 wake up", Theme.glyph.alarm], [",8pm dinner", Theme.glyph.alarm],
-                ["#", Theme.glyph.launcherMusic], ["%", Theme.glyph.launcherWeb], ["%y cats", Theme.glyph.launcherWeb],
+                ["#", Theme.glyph.launcherMusic], [".", Theme.glyph.launcherWeb], [".y cats", Theme.glyph.launcherWeb],
                 ["example.com/docs", Theme.glyph.launcherWeb], ["no-fixture-can-match-this", Theme.glyph.launcherWeb],
                 ["_zzmissingwindow", Theme.glyph.launcherWeb],
                 ["@", Theme.glyph.mailUnread], ["person@example.com", Theme.glyph.mailUnread],
@@ -654,7 +681,7 @@ ShellRoot {
             keys.wait(Theme.rollMs * 1.45 + 180);
             const arrivingIcon = keys.findChild(searchIcon, "arrivingIcon");
             const departingIcon = keys.findChild(searchIcon, "departingIcon");
-            input.adopt("%cats"); keys.wait(Theme.rollMs * 1.45 + 210);
+            input.adopt(".cats"); keys.wait(Theme.rollMs * 1.45 + 210);
             input.adopt(""); keys.wait(40);
             check(searchIcon.shown === Theme.glyph.launcherWeb && !searchIcon.rolling, "brief empty query does not flash or roll to the magnifier");
             input.adopt("=2+2"); keys.wait(80);
@@ -662,7 +689,7 @@ ShellRoot {
             keys.wait(100);
             check(searchIcon.rolling && searchIcon.shown === Theme.glyph.launcherCalc && searchIcon.was === Theme.glyph.launcherWeb, "stable calculator rolls directly from web without the intermediate magnifier");
             keys.wait(Theme.rollMs * 1.45 + 30);
-            input.adopt("%cats"); keys.wait(40);
+            input.adopt(".cats"); keys.wait(40);
             input.adopt("=2+3"); keys.wait(180);
             check(searchIcon.shown === Theme.glyph.launcherCalc && !searchIcon.rolling, "returning to the displayed mode cancels the pending icon change");
             input.adopt(""); keys.wait(Theme.rollMs * 1.45 + 210);
@@ -672,7 +699,7 @@ ShellRoot {
             const rollTime = searchIcon.s;
             input.adopt("=2+3"); keys.wait(30);
             check(searchIcon.s > rollTime && searchIcon.was === Theme.glyph.launcher, "typing within one mode leaves the roll running");
-            input.adopt("%cats"); keys.wait(190);
+            input.adopt(".cats"); keys.wait(190);
             check(searchIcon.rolling && searchIcon.shown === Theme.glyph.launcherWeb && searchIcon.was === Theme.glyph.launcherCalc, "interrupted mode roll follows the latest icon");
             keys.wait(Theme.rollMs * 1.45 + 30);
             check(!searchIcon.rolling && arrivingIcon.y === 0 && arrivingIcon.scale === 1 && arrivingIcon.opacity === 1 && !arrivingIcon.layer.enabled && !departingIcon.visible, "roll settles sharp at its original position");
@@ -685,7 +712,7 @@ ShellRoot {
             input.adopt("2+2"); keys.wait(30);
             Launcher.calcAnswer = {expr: "2+2", text: "4"}; keys.wait(30);
             check(searchIcon.text === Theme.glyph.launcherCalc, "calculator icon stays stable when the answer arrives");
-            input.adopt("%cats"); keys.wait(30);
+            input.adopt(".cats"); keys.wait(30);
             Launcher.index = 1; keys.wait(30);
             check(searchIcon.text === Theme.glyph.launcherWeb, "result selection keeps the query-mode icon");
             input.adopt(""); keys.wait(250);
@@ -1113,6 +1140,9 @@ def main():
             (target / name).write_text((ROOT / name).read_text())
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property string home: "/tmp"; property string editor: "/usr/bin/true"; property string fileSearchIgnore: ""; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
+        defaults = json.loads(re.search(r'"webShortcuts": (\[.*?\n    \])', (ROOT / "settings.default.json").read_text(), re.S).group(1))
+        settings = target / "Settings.qml"
+        settings.write_text(settings.read_text().replace("property var disabled:", "property var webShortcuts: " + json.dumps(defaults) + "; property var disabled:"))
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')

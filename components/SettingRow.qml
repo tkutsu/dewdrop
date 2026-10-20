@@ -6,7 +6,7 @@ import qs
 //
 // A setting is a plain object, which is all a page has to write to add one:
 //
-//   type      "toggle", "choice", "dropdown", "slider", "text" or "list"
+//   type      "toggle", "choice", "dropdown", "slider", "text", "list" or "shortcuts"
 //   title     its name
 //   text      what it does, optional
 //   tooltip   extra help shown on info-icon hover, optional
@@ -23,6 +23,7 @@ import qs
 //   text      placeholder
 //   list      placeholder, validate(value): an error message or an empty string
 //             optional getTitle(value), setTitle(value, title) for named entries
+//   shortcuts [{ key, name, url }], with one character per key or a blank default
 //
 // A new kind of control is one file beside this one, taking `setting`, and
 // one line in `controls` below. A toggle row answers to a click anywhere on
@@ -49,7 +50,8 @@ Item {
             dropdown: "SettingDropdown.qml",
             slider: "SettingSlider.qml",
             text: "SettingField.qml",
-            list: "SettingList.qml"
+            list: "SettingList.qml",
+            shortcuts: "SettingShortcuts.qml"
         })
 
     // Up to three short options sit side by side in a capsule; more, or
@@ -61,7 +63,8 @@ Item {
 
     readonly property bool hasMark: !!(root.setting.icon || root.setting.glyph)
     readonly property int lead: root.hasMark ? 32 : Theme.popupInset
-    readonly property bool stacked: root.kind === "list" || control.implicitWidth > (root.width - root.lead - 24) / 2
+    readonly property bool listControl: root.kind === "list" || root.kind === "shortcuts"
+    readonly property bool stacked: root.listControl || control.implicitWidth > (root.width - root.lead - 24) / 2
 
     implicitHeight: Math.max(28, words.implicitHeight + (root.setting.text ? 12 : 8),
         root.stacked ? words.implicitHeight + control.height + 20 : control.height + 12)
@@ -189,7 +192,7 @@ Item {
 
         x: root.stacked ? root.lead : root.width - width - Theme.popupInset
         y: root.stacked ? words.y + words.height + 8 : Math.round((root.height - height) / 2)
-        width: root.kind === "list" ? root.width - root.lead - Theme.popupInset : Math.min(implicitWidth, root.width - root.lead - Theme.popupInset)
+        width: root.listControl ? root.width - root.lead - Theme.popupInset : Math.min(implicitWidth, root.width - root.lead - Theme.popupInset)
         source: root.controls[root.kind] ?? ""
         onLoaded: {
             item.setting = Qt.binding(() => root.setting);
