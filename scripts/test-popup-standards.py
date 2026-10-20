@@ -93,8 +93,11 @@ ShellRoot {
             interval: 1500; running: true
             onTriggered: {
                 const loaders = parent.children.filter(c => c.source !== undefined);
-                for (const l of loaders)
+                for (const l of loaders) {
                     console.log("WIDTH " + l.source.toString().split("/").pop().replace(".qml", "") + " " + (l.item ? l.item.bodyWidth : -1));
+                    if (l.item)
+                        console.log("MOTION " + l.source.toString().split("/").pop().replace(".qml", "") + " " + l.item.grows + " " + l.item.fadesIn);
+                }
                 console.log("POPUP WIDTH " + Theme.popupWidth + " " + Theme.popupWideWidth);
                 Qt.quit();
             }
@@ -197,11 +200,14 @@ def main():
                                 capture_output=True, text=True, timeout=20)
         output = result.stdout + result.stderr
         widths = {m[0]: float(m[1]) for m in re.findall(r"WIDTH (\w+) (-?[\d.]+)", output)}
+        motion = {m[0]: m[1:] for m in re.findall(r"MOTION (\w+) (true|false) (true|false)", output)}
         standard, wide = (int(x) for x in re.search(r"POPUP WIDTH (\d+) (\d+)", output).groups())
         failures = []
         for name in ALL:
             if widths.get(name, -1) <= 0:
                 failures.append(f"{name} did not build")
+            if motion.get(name) != ("true", "true"):
+                failures.append(f"{name} overrides the shared popup entry transition")
         for name in STANDARD:
             if widths.get(name) != standard:
                 failures.append(f"{name} is {widths.get(name)} wide, not {standard}")
