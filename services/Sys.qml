@@ -561,9 +561,13 @@ Singleton {
         // What a row is called. Mostly the process's own name, but Claude
         // Code's native build names each binary after its version, so it would
         // read "2.1.304" — and a session left over from the last update would
-        // be a row of its own under "2.1.303". Every version is one program.
+        // be a row of its own under "2.1.303". Codex is a CLI and an app
+        // server, each with helpers under names of their own. Every version
+        // and every helper is one program.
+        const programs = [[/\/claude\/versions\//, "Claude Code"], [/\/(\.codex|openai-codex)\//, "Codex"]];
         function label(proc) {
-            return /\/claude\/versions\//.test(exe[proc.pid] ?? "") ? "Claude Code" : proc.name;
+            const path = exe[proc.pid] ?? "";
+            return programs.find(([pattern]) => pattern.test(path))?.[1] ?? proc.name;
         }
 
         for (const p of procs) {
