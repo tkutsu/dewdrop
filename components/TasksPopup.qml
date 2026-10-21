@@ -27,6 +27,8 @@ Popup {
     // The header's plus is 20 wide at the right edge; the row buttons sit
     // under it.
     readonly property int actionsWidth: 20
+    // Headings sit as the feeds popup's do, past their chevron.
+    readonly property int headingX: Theme.popupInset + 16
     readonly property int foldMs: Settings.reduceMotion ? 0 : Math.round(Theme.foldMs * 2 / 3)
     readonly property real listCap: Math.min(320, (root.screen?.height ?? 800) * 0.6)
     // A folding list grows the box inside a window that keeps the list's
@@ -327,7 +329,7 @@ Popup {
             }
             Glyph {
                 visible: row.header && !row.editing
-                x: (root.gutter - width) / 2
+                x: Theme.popupInset
                 anchors.verticalCenter: label.verticalCenter
                 text: Theme.glyph.sectionShut
                 rotation: row.folded ? 0 : 90
@@ -348,13 +350,14 @@ Popup {
                     font: label.font
                 }
                 visible: !row.editing
-                x: row.indent + root.gutter
+                x: row.header ? root.headingX : row.indent + root.gutter
                 y: root.rowPad
                 width: parent.width - x - root.actionsWidth - (row.dayText ? root.dayWidth : 0) - Theme.popupInset
                 text: row.modelData.title
                 textFormat: Text.PlainText
                 font.pixelSize: Theme.captionSize
                 font.strikeout: row.crossed
+                font.weight: row.header ? Font.DemiBold : Font.Normal
                 color: row.header ? Theme.label2 : Theme.fg
                 wrapMode: root.compact >= 1 ? Text.NoWrap : Text.WordWrap
                 elide: root.compact >= 1 ? Text.ElideRight : Text.ElideNone
@@ -373,12 +376,14 @@ Popup {
                 // All of it: a note is the rest of what the task says.
                 wrapMode: Text.WordWrap
             }
+            // A folded heading's count sits at the edge, as in the feeds
+            // popup, and gives way to the rename button under the pointer.
             PopupText {
-                anchors.right: actions.left
-                anchors.rightMargin: 2
+                anchors.right: row.header ? parent.right : actions.left
+                anchors.rightMargin: row.header ? Theme.popupInset : 2
                 anchors.baseline: label.baseline
                 width: row.dayText ? root.dayWidth : 0
-                visible: !row.editing
+                visible: !row.editing && !(row.header && actions.visible)
                 text: row.dayText
                 font.pixelSize: Theme.footnoteSize
                 horizontalAlignment: Text.AlignRight
@@ -405,7 +410,7 @@ Popup {
                 objectName: "taskEditor"
                 Accessible.name: row.header ? "Task list name" : "Task title and notes"
                 visible: row.editing
-                x: row.indent + root.gutter
+                x: row.header ? root.headingX : row.indent + root.gutter
                 y: root.rowPad
                 // Clear of the copy button; a list name has none.
                 width: parent.width - x - (row.header ? 0 : root.actionsWidth) - Theme.popupInset
