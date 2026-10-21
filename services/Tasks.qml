@@ -120,6 +120,15 @@ GoogleService {
     }
 
     readonly property var rows: root.flatRows(false)
+    // Task lists folded shut under their headings in the popup, by id.
+    readonly property var folded: Array.from(foldStore.ids ?? [])
+    function isFolded(listId: string): bool {
+        return root.folded.includes(listId);
+    }
+    function toggleFold(listId: string): void {
+        foldStore.ids = root.isFolded(listId) ? root.folded.filter(id => id !== listId) : root.folded.concat([listId]);
+        foldFile.writeAdapter();
+    }
     readonly property var dragRows: root.flatRows(true)
     readonly property var ordered: root.rows.filter(r => r.kind !== "header")
     readonly property var topLevel: root.tasks.filter(root.isTopLevel)
@@ -627,6 +636,17 @@ GoogleService {
         }
         root.add(p.task.title, p.task.day, p.task.list, "");
         return p.task.day === "" ? `Adding ${p.task.title}` : `Adding ${p.task.title} for ${root.sayDay(p.task.day)}`;
+    }
+
+    FileView {
+        id: foldFile
+        path: Paths.state("tasks.json")
+        printErrors: false
+
+        JsonAdapter {
+            id: foldStore
+            property var ids: []
+        }
     }
 
     Timer {
