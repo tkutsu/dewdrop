@@ -77,7 +77,9 @@ ShellRoot {
             }
             function centralItems() { return clockPill.shown.filter(item => clockPill.order.includes(item.settingsKey)); }
             function checkCentre(why) {
-                const content = centralItems().filter(item => ['date', 'time'].includes(item.settingsKey)).map(item => item.keyBox);
+                const anchor = Settings.centrePillAnchor;
+                const keys = ({ between: ['date', 'time'], middle: [] })[anchor] ?? [anchor];
+                const content = centralItems().filter(item => keys.includes(item.settingsKey)).map(item => item.keyBox);
                 if (content.length === 0) {
                     bar.check(Math.abs(clockPill.x + clockPill.width / 2 - host.width / 2) <= 1, why + ': pill is centred without time or date');
                     return;
@@ -143,12 +145,19 @@ ShellRoot {
                 DrawerPins.setMode('date', 'pinned');
                 DrawerPins.setMode('time', 'drawer'); settle(); waitVisibility(timeClock, false);
                 checkCentre('date alone beside weather');
+                Settings.set('centrePillAnchor', 'time'); settle();
+                checkCentre('Centre On time without time falls back to the middle');
+                Settings.set('centrePillAnchor', 'between'); settle();
                 DrawerPins.setMode('date', 'drawer'); settle(); waitVisibility(clock, false);
                 checkCentre('weather alone uses screen centre');
                 DrawerPins.setMode('date', 'pinned');
                 DrawerPins.setMode('time', 'pinned'); settle();
                 DrawerPins.setMode('time', 'auto'); settle();
                 checkCentre('Auto time still anchors with date');
+                for (const anchor of ['time', 'date', 'middle', 'between']) {
+                    Settings.set('centrePillAnchor', anchor); settle();
+                    checkCentre('Centre On ' + anchor);
+                }
                 weather.quiet = true; settle(); waitVisibility(weather, false);
                 checkCentre('weather folding away keeps the time/date anchors');
                 DrawerPins.setMode('weather', 'drawer');

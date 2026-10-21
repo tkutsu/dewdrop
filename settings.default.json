@@ -38,6 +38,12 @@
     "weatherPosition": "centre",
     "timePosition": "centre",
 
+    // What the central pill keeps on the screen's centre line: "time",
+    // "date", "between" (midway between the two) or "middle" (the pill's
+    // own middle). "between" with one of the two moved out keeps the other;
+    // anything not in the central pill falls back to its middle.
+    "centrePillAnchor": "between",
+
     // Scroll overflowing track titles in the music pill and player.
     // Off keeps titles truncated. Reduce motion also stops scrolling.
     "scrollMusicTitles": true,
