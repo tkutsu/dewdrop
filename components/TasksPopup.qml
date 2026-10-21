@@ -5,6 +5,7 @@ import qs.components
 import qs.services
 
 // Google task lists keep their manual order and wrap to fit.
+// A click on a list's heading folds it shut under its count, remembered.
 // A hold folds the rows to one line so a drop can choose a task list or parent.
 Popup {
     id: root
@@ -26,6 +27,11 @@ Popup {
     // The header's plus is 20 wide at the right edge; the row buttons sit
     // under it.
     readonly property int actionsWidth: 20
+    readonly property int foldMs: Settings.reduceMotion ? 0 : Math.round(Theme.foldMs * 2 / 3)
+    readonly property real listCap: Math.min(320, (root.screen?.height ?? 800) * 0.6)
+    // A folding list grows the box inside a window that keeps the list's
+    // tallest size (see Popup.reserveHeight).
+    reserveHeight: root.chromeHeight - list.height + root.listCap
     property var editing: null
     property string draft: ""
     readonly property var rows: Tasks.rows
@@ -175,7 +181,7 @@ Popup {
         width: root.bodyWidth
         // Compaction changes content height, but the pointer's coordinate system
         // must stay fixed until the held row has landed.
-        height: reorder.showing ? reorder.holdHeight : Math.min(contentHeight, 320, (root.screen?.height ?? 800) * 0.6)
+        height: reorder.showing ? reorder.holdHeight : Math.min(contentHeight, root.listCap)
         clip: true
         interactive: !reorder.showing && !root.editing && contentHeight > height
         boundsBehavior: Flickable.StopAtBounds
@@ -192,7 +198,8 @@ Popup {
             id: reorder
             view: list
             model: root.rows
-            heldModel: Tasks.dragRows
+            // A folded list is a place to drop, at its top.
+            heldModel: Tasks.dragRows.filter(r => r.kind === "header" || !Tasks.isFolded(r.listId))
             rowHeight: root.rowHeight
             rightGuard: root.actionsWidth
             allowSingle: true
@@ -236,24 +243,34 @@ Popup {
             readonly property bool lastChild: sub && root.rows[index + 1]?.kind !== "subtask"
             readonly property bool crossed: !header && Tasks.isCrossed(modelData)
             readonly property bool editing: root.editing?.id === modelData.id && (root.editing.kind === "header") === header
+            readonly property bool folded: Tasks.isFolded(modelData.listId)
             readonly property int indent: sub ? root.gutter : 0
             readonly property var keyEdit: () => root.beginEdit(modelData)
             readonly property string dayText: {
-                if (header) return "";
+                if (header) return folded ? String(root.rows.filter(r => r.kind === "task" && r.listId === modelData.listId).length) : "";
                 const day = Tasks.dayOf(modelData);
                 return day === "" || day === Tasks.today || day === Tasks.tomorrow ? "" : Tasks.sayDay(day);
             }
-            // A list name is renamed by its edit button, so the header itself
-            // neither lights nor takes a press.
-            name: header ? "" : (crossed ? "Reopen " : "Complete ") + modelData.title
-            acceptsTap: false
+            // A list name is renamed by its edit button; the heading itself
+            // folds the list.
+            name: (header ? (folded ? "Show " : "Fold ") : crossed ? "Reopen " : "Complete ") + modelData.title
+            acceptsTap: header && !editing
             width: list.width
             readonly property real fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + root.rowPad * 2) : header ? root.rowHeight
                 : Math.max(root.rowHeight, label.implicitHeight + (modelData.notes ? notes.implicitHeight + 2 : 0) + root.rowPad * 2)
-            height: fullHeight + (root.rowHeight - fullHeight) * root.compact
-            clip: root.compact > 0
+            // Folded rows close up to nothing under their heading.
+            property real shown: header || !folded ? 1 : 0
+            Behavior on shown {
+                NumberAnimation {
+                    duration: root.foldMs
+                    easing.type: Easing.InOutCubic
+                }
+            }
+            visible: shown > 0
+            height: (fullHeight + (root.rowHeight - fullHeight) * root.compact) * shown
+            clip: root.compact > 0 || shown < 1
             opacity: reorder.showing && index === reorder.from ? 0 : crossed ? 0.4 : 1
-            onTapped: if (!editing && !reorder.showing) Tasks.complete(modelData)
+            onTapped: if (!editing && !reorder.showing) header ? Tasks.toggleFold(modelData.listId) : Tasks.complete(modelData)
             transform: Translate {
                 y: reorder.shift(row.index)
                 Behavior on y {
@@ -308,6 +325,22 @@ Popup {
                 horizontalAlignment: Text.AlignRight
                 color: Tasks.urgency(row.modelData) === "none" ? Theme.label2 : Tasks.dotColour(row.modelData)
             }
+            Glyph {
+                visible: row.header && !row.editing
+                x: (root.gutter - width) / 2
+                anchors.verticalCenter: label.verticalCenter
+                text: Theme.glyph.sectionShut
+                rotation: row.folded ? 0 : 90
+                fontSize: Theme.footnoteSize
+                color: Theme.label2
+
+                Behavior on rotation {
+                    NumberAnimation {
+                        duration: root.foldMs
+                        easing.type: Easing.InOutCubic
+                    }
+                }
+            }
             PopupText {
                 id: label
                 FontMetrics {
@@ -315,7 +348,7 @@ Popup {
                     font: label.font
                 }
                 visible: !row.editing
-                x: row.header ? root.dotLeft : row.indent + root.gutter
+                x: row.indent + root.gutter
                 y: root.rowPad
                 width: parent.width - x - root.actionsWidth - (row.dayText ? root.dayWidth : 0) - Theme.popupInset
                 text: row.modelData.title
@@ -349,7 +382,7 @@ Popup {
                 text: row.dayText
                 font.pixelSize: Theme.footnoteSize
                 horizontalAlignment: Text.AlignRight
-                color: Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
+                color: !row.header && Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
                 elide: Text.ElideRight
             }
             // One button in one place: edit under the pointer, and copy once
@@ -372,7 +405,7 @@ Popup {
                 objectName: "taskEditor"
                 Accessible.name: row.header ? "Task list name" : "Task title and notes"
                 visible: row.editing
-                x: row.header ? root.dotLeft : row.indent + root.gutter
+                x: row.indent + root.gutter
                 y: root.rowPad
                 // Clear of the copy button; a list name has none.
                 width: parent.width - x - (row.header ? 0 : root.actionsWidth) - Theme.popupInset

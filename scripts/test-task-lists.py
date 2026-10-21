@@ -46,6 +46,13 @@ CASES = r'''
                 wait(60);
                 check(popup.editing === null, "clicking a task list heading does not edit it");
                 check(Tasks.calls.length === 0 && Object.keys(Tasks.crossed).length === 0, "heading click neither completes tasks nor writes");
+                wait(400);
+                const milk = popup.auditList.itemAtIndex(headerIndex + 1);
+                check(Tasks.isFolded("home") && !milk.visible && milk.height === 0, "heading click folds its task list");
+                check(header.dayText === "1", "folded heading shows its task count");
+                mouseClick(popup.auditList, 28, headerY);
+                wait(400);
+                check(!Tasks.isFolded("home") && milk.visible && milk.height > 0, "second heading click unfolds it");
                 // The edit button sits under the header's plus, 10 in from the edge.
                 mouseMove(popup.auditList, popup.auditList.width - 10, headerY);
                 wait(30);
