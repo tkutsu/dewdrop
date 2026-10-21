@@ -34,18 +34,25 @@ BarItem {
     readonly property real glassLeft: sliding ? pill.foldBox.x : 0
     readonly property real iconInset: Math.min(padLeft, Math.max(0, (glassWidth - microphone.width) / 2))
     readonly property real contentLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
-    readonly property bool iconInCentre: reveal <= 0 || (sliding
-        ? glassLeft + iconInset >= pill.width + Theme.pillSpread
-        : reveal <= 0.3)
+    // Move and crossfade into the central icon as the glass joins it, the
+    // same path the media pills take.
+    property Item mergedIcon: null
+    readonly property MediaIconHandoff iconHandoff: MediaIconHandoff {
+        source: microphone
+        target: root.mergedIcon
+        reveal: root.reveal
+        restingX: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0
+    }
+    readonly property bool iconInCentre: iconHandoff.progress > 0
 
     Glyph {
         id: microphone
         scale: root.sliding ? root.pill.iconScale : 1
         Layout.fillHeight: true
         visible: root.kept.listening || root.kept.sharing
-        opacity: root.iconInCentre ? 0 : 1
+        opacity: 1 - root.iconHandoff.progress
         text: root.kept.listening ? (root.kept.muted ? Theme.glyph.micMuted : Theme.glyph.mic) : Theme.glyph.screenShare
-        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
+        transform: Translate { x: root.iconHandoff.sourceX }
     }
 
     Item {
