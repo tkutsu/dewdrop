@@ -342,11 +342,17 @@ PanelWindow {
                 else if (recording.stowed && pill)
                     pill.leadingOrder = [recordingNote];
             }
-            folds: false
-            foldDuration: 0
+            handedOver: recording.iconHandoff.progress < 1
+            implicitWidth: Math.round(_fullWidth * _fold * recording.iconHandoff.progress)
             popup: PrivacyPopup {}
 
             Glyph {
+                id: recordingNoteIcon
+                opacity: recording.iconHandoff.progress
+                transform: [
+                    ModuleIconScale { icon: recordingNoteIcon },
+                    Translate { x: recording.iconHandoff.targetX }
+                ]
                 Layout.fillHeight: true
                 text: Theme.glyph.micMuted
             }
@@ -362,13 +368,16 @@ PanelWindow {
             // The last absorbed icon occupies the outside edge of the pair.
             onStowedChanged: if (!stowed && nowPlaying.stowed && pill)
                 pill.leadingOrder = [nowPlayingNote]
-            folds: false
-            foldDuration: 0
-            implicitWidth: Math.round(_fullWidth * nowPlaying.iconHandoff.progress)
+            handedOver: nowPlaying.iconHandoff.progress < 1
+            implicitWidth: Math.round(_fullWidth * _fold * nowPlaying.iconHandoff.progress)
 
             AppIcon {
+                id: nowPlayingNoteIcon
                 opacity: nowPlaying.iconHandoff.progress
-                transform: Translate { x: nowPlaying.iconHandoff.targetX }
+                transform: [
+                    ModuleIconScale { icon: nowPlayingNoteIcon },
+                    Translate { x: nowPlaying.iconHandoff.targetX }
+                ]
                 Layout.fillHeight: true
                 tightWidth: true
                 windowClass: nowPlaying.shownApp
@@ -391,13 +400,16 @@ PanelWindow {
             stowed: !Services.Mpd.connected || !music.iconInCentre
             onStowedChanged: if (!stowed && music.stowed && pill)
                 pill.leadingOrder = [musicNote]
-            folds: false
-            foldDuration: 0
-            implicitWidth: Math.round(_fullWidth * music.iconHandoff.progress)
+            handedOver: music.iconHandoff.progress < 1
+            implicitWidth: Math.round(_fullWidth * _fold * music.iconHandoff.progress)
 
             Glyph {
+                id: musicNoteIcon
                 opacity: music.iconHandoff.progress
-                transform: Translate { x: music.iconHandoff.targetX }
+                transform: [
+                    ModuleIconScale { icon: musicNoteIcon },
+                    Translate { x: music.iconHandoff.targetX }
+                ]
                 Layout.fillHeight: true
                 text: Theme.glyph.track
             }
@@ -634,6 +646,7 @@ PanelWindow {
 
         Recording {
             id: recording
+            mergedIcon: recordingNote.keyBox.children[0]
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
         }
