@@ -11,7 +11,7 @@ from test_support import ROOT, copy_shell, shell_env
 
 def main():
     source = (ROOT / "Bar.qml").read_text()
-    names = ("clockLeft", "recordingBase", "recordingDrop", "musicEdge", "musicBase", "musicDrop", "nowPlayingEdge", "nowPlayingDrop")
+    names = ("clockLeft", "recordingBase", "recordingDrop", "mediaEdge", "musicEdge", "musicBase", "musicDrop", "nowPlayingEdge", "nowPlayingDrop")
     bindings = "\n".join(re.search(r"^    readonly property [^\n]+ " + name + r": [^\n]+", source, re.M).group(0) for name in names)
     pills = []
     for name, width in (("recording", 44), ("music", 120), ("nowPlaying", 150)):
@@ -38,6 +38,7 @@ ShellRoot {
         Item { id: clockPill; x: 500; width: 180 }
         Item { id: recordingMorph; property real value: 0 }
         Item { id: musicMorph; property real value: 0 }
+        property bool mprisInside: false
         BINDINGS
         PILLS
         function check(ok, message) { if (!ok) throw Error(message); }
@@ -73,6 +74,16 @@ ShellRoot {
                         music.reveal = step / 20;
                         bar.check([bar.nowPlayingEdge, bar.nowPlayingDrop.x, bar.nowPlayingDrop.z].every(isFinite), "music arrival keeps now playing finite");
                         bar.check([bar.musicEdge, bar.musicDrop.x, bar.musicDrop.z, bar.recordingDrop.x, bar.recordingDrop.z].every(isFinite), "arrival geometry stays finite");
+                    }
+                    music.implicitWidth = 120;
+                    bar.mprisInside = true;
+                    bar.check(nowPlayingPill.x + nowPlayingPill.width + Theme.pillSpread === recordingPill.x, "now playing opened from the clock sits beside recording");
+                    bar.check(musicPill.x + musicPill.width + Theme.pillSpread === nowPlayingPill.x, "music moves out beyond now playing");
+                    nowPlaying.stowed = true; nowPlaying.reveal = 0;
+                    bar.check(musicPill.x + musicPill.width + Theme.pillSpread === recordingPill.x, "music closes back up when now playing goes");
+                    for (let step = 0; step <= 20; step++) {
+                        nowPlaying.reveal = step / 20;
+                        bar.check([bar.musicEdge, bar.musicDrop.x, bar.musicDrop.z].every(isFinite), "now playing arrival keeps music finite");
                     }
                     console.log("PASS: recording/music/now playing layout");
                 } catch (error) { console.log("FAIL: " + error); }
