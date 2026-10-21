@@ -348,9 +348,14 @@ Singleton {
 
         // Read config once per connection; command replies otherwise need
         // only their errors reported. A refused config never blocks playback.
+        //
+        // And rescan, because auto_update watches the folder only while mpd
+        // runs: a song copied in while it was down is otherwise missing until
+        // someone types `mpc update`. Only changed files are read again, and
+        // `idle database` reports it only when something was found.
         onLine: line => {
             if (line.startsWith("OK MPD")) {
-                cmdLink.write("config\n");
+                cmdLink.write("config\nupdate\n");
                 root.flush();
             } else if (line.startsWith("music_directory: "))
                 root.musicDirectory = line.slice("music_directory: ".length);
