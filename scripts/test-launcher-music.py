@@ -89,6 +89,14 @@ ShellRoot {
             watching = false;
             Launcher.query = "#fixture"; test.wait(80);
             check(rows[0]?.kind === "music-playlist", "stored playlists remain searchable");
+            Launcher.query = "#single"; test.wait(80);
+            check(rows.length === 1 && rows[0].kind === "music-track" && rows[0].title === "Track 3",
+                "a one-track album is listed once, as its track");
+            Launcher.query = "#band"; test.wait(80);
+            check(rows[0]?.subtitle === "1 album  ·  3 tracks", "an artist counts only albums with more than one track");
+            LauncherMusic.open = {"artist:0": true};
+            check(rows.length === 3 && rows[1].kind === "music-album" && rows[2].kind === "music-track" && rows[2].indent === 1,
+                "an open artist lists a single as its track");
             Launcher.query = "#"; test.wait(10);
             check(rows[0]?.kind === "music-queue" && Launcher.index === 1, "clearing a search returns directly to the current queue");
 
@@ -213,7 +221,17 @@ def main():
                 property int reads: 0
                 property int delay: 80
                 property var tracks: Array.from({length: 60}, (_, at) => ({title: at ? "Track " + at : "Library song", artist: "Artist", album: 0, time: "3:00"}))
-                function search(query) { return query === "song" ? [{kind: "track", at: 0, score: 1}] : []; }
+                property var artists: [{name: "Band", albums: [0, 1], tracks: 3}]
+                property var albums: [{name: "Record", artist: 0, date: "", tracks: [1, 2]}, {name: "Single", artist: 0, date: "", tracks: [3]}]
+                function artistName(at) { return "Band"; }
+                function year(date) { return ""; }
+                function search(query) {
+                    if (query === "single")
+                        return [{kind: "album", at: 1, score: 1}, {kind: "track", at: 3, score: 0.9}];
+                    if (query === "band")
+                        return [{kind: "artist", at: 0, score: 1}];
+                    return query === "song" ? [{kind: "track", at: 0, score: 1}] : [];
+                }
                 function albumName(at) { return "Album"; }
                 function coverDir(kind, at) { return "/music/album/"; }
                 function ensure() { if (!loaded && !loading) { reads++; loading = true; ready.restart(); } }
