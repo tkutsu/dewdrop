@@ -80,11 +80,12 @@ ShellRoot {
 
             closeMode();
             Library.loaded = false;
+            const searchReads = Library.reads;
             temporaryRows = [];
             watching = true;
             Launcher.query = "#song";
             test.wait(180);
-            check(rows[0]?.kind === "music-track" && Library.reads === 1, "typing after hash searches the library");
+            check(rows[0]?.kind === "music-track" && Library.reads === searchReads + 1, "typing after hash searches the library");
             check(temporaryRows.length === 0, "quick library read flashes a temporary row: " + temporaryRows.join(", "));
             watching = false;
             Launcher.query = "#fixture"; test.wait(80);
@@ -132,6 +133,20 @@ ShellRoot {
             Launcher.query = "#";
             test.wait(300);
             check(rows[0]?.kind === "music-start", "stopped MPD still offers start music after settling");
+            check(rows.length === Library.tracks.length + 1 && rows.slice(1).every(row => row.kind === "music-track"),
+                "every track is listed under start music");
+
+            closeMode();
+            Library.loaded = false;
+            temporaryRows = [];
+            watching = true;
+            Launcher.query = "#song";
+            test.wait(300);
+            check(rows.length === 1 && rows[0].title === "Library song" && temporaryRows.length === 0,
+                "a search with MPD stopped finds songs without saying it is stopped");
+            Mpd.commands = [];
+            check(LauncherMusic.activate(rows[0], "play") && Mpd.commands.join(",") === "start,clear,add 0,play",
+                "choosing a song with MPD stopped starts it, then plays the song");
 
             closeMode();
             Mpd.connected = true;
@@ -206,6 +221,8 @@ def main():
                 function pause() { commands = commands.concat("pause"); state = "pause"; }
                 function toggle() { commands = commands.concat("resume"); state = "play"; }
                 function playAt(pos) { commands = commands.concat("play " + pos); songPos = pos; state = "play"; }
+                function startServer(then) { commands = commands.concat("start"); then(); }
+                function enqueue(files, mode) { commands = commands.concat(mode === "play" ? ["clear"] : [], files.map(file => "add " + file), mode === "play" ? ["play"] : []); }
                 property var playlists: ["fixture playlist"]''',
             "Library": '''property bool loaded: false
                 property bool loading: false
@@ -215,6 +232,7 @@ def main():
                 property var tracks: Array.from({length: 60}, (_, at) => ({title: at ? "Track " + at : "Library song", artist: "Artist", album: 0, time: "3:00"}))
                 function search(query) { return query === "song" ? [{kind: "track", at: 0, score: 1}] : []; }
                 function albumName(at) { return "Album"; }
+                function files(kind, at) { return [String(at)]; }
                 function coverDir(kind, at) { return "/music/album/"; }
                 function ensure() { if (!loaded && !loading) { reads++; loading = true; ready.restart(); } }
                 property Timer ready: Timer { interval: delay; onTriggered: { loaded = true; loading = false; } }''',
