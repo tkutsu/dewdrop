@@ -70,8 +70,9 @@ Singleton {
             root.query = "";
             return;
         }
-        // Only a bare prefix with a nonempty queue needs no library read.
-        if (Mpd.connected && (!root.queueQuery() || !Mpd.queue.length))
+        // Only a bare prefix with a nonempty queue needs no library read. With
+        // mpd down the read is the last dump's copy (see Library's cache).
+        if (!root.queueQuery() || !Mpd.queue.length)
             Library.ensure();
         if (root.queueSelectionPending)
             Qt.callLater(root.selectCurrent);
@@ -137,7 +138,7 @@ Singleton {
     }
 
     function reask(): void {
-        if (!Library.loaded && !Library.loading && Launcher.musicMode && (!root.queueQuery() || !Mpd.queue.length) && Mpd.connected)
+        if (!Library.loaded && !Library.loading && Launcher.musicMode && (!root.queueQuery() || !Mpd.queue.length))
             Library.ensure();
     }
 
@@ -189,9 +190,9 @@ Singleton {
     // --- rows ----------------------------------------------------------------
 
     function results(query) {
-        // "#" on its own with mpd down is one row: start it. That is what the
-        // mode is being opened for, and it is gone the moment anything is
-        // typed, which is a search rather than a wish to hear something.
+        // "#" on its own with mpd down leads with a row to start it, above
+        // every track. It is gone the moment anything is typed: that is a
+        // search, and the song it finds starts mpd itself (see activate).
         const start = root.showStatus && !Mpd.connected && !query ? [
             {
                 kind: "music-start",
@@ -204,8 +205,10 @@ Singleton {
         ] : [];
 
         if (!query) {
+            // Held until the start row is due, so the tracks do not jump down
+            // a row when it arrives.
             if (!Mpd.connected)
-                return start;
+                return start.length && Library.loaded ? start.concat(root.allTracks()) : start;
             if (root.queueQuery() && Mpd.queue.length)
                 return Mpd.queue.map(song => root.queueRow(song));
         }
@@ -221,7 +224,7 @@ Singleton {
         }
 
         if (!query)
-            return Library.tracks.map((track, at) => root.trackRow(at, 0, ""));
+            return root.allTracks();
 
         const rows = [];
         for (const x of root.hits) {
@@ -235,6 +238,10 @@ Singleton {
                 rows.push(root.trackRow(x.hit.at, 0, ""));
         }
         return rows;
+    }
+
+    function allTracks() {
+        return Library.tracks.map((track, at) => root.trackRow(at, 0, ""));
     }
 
     function note(text) {
@@ -406,6 +413,10 @@ Singleton {
     // read.
     //
     // Library play closes the launcher; queue playback controls keep it open.
+    //
+    // With mpd down the row starts it first. The files are looked up now: once
+    // mpd is up the library is read again, and an index into this copy may
+    // name something else in that one.
     function activate(r, mode): bool {
         if (r.kind === "music-queue") {
             if (!Mpd.connected)
@@ -427,10 +438,12 @@ Singleton {
             return false;
         }
         mode = mode || "queue";
-        if (r.kind === "music-playlist")
-            Mpd.loadPlaylist(r.name, mode);
+        const files = r.kind === "music-playlist" ? null : Library.files(r.kind.slice(6), r.at);
+        const act = () => files ? Mpd.enqueue(files, mode) : Mpd.loadPlaylist(r.name, mode);
+        if (Mpd.connected)
+            act();
         else
-            Mpd.enqueue(Library.files(r.kind.slice(6), r.at), mode);
+            Mpd.startServer(act);
         return mode === "play";
     }
 }

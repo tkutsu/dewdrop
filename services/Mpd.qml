@@ -145,18 +145,31 @@ Singleton {
     // pulling the headphones out makes one (see `unplugged` above). `play`
     // resumes a paused song where it was and starts a stopped one, and
     // run() holds it for the command link if that is not up yet.
-    function startServer() {
+    //
+    // Unless `then` says what to do instead: a song chosen from the cached
+    // library while mpd was down. In place of `play` rather than after it,
+    // because the outbox holds one command and the second would push out the
+    // first.
+    function startServer(then) {
+        root.afterStart = then ?? null;
         starter.running = true;
     }
 
     readonly property bool starting: starter.running
+    property var afterStart: null
 
     Process {
         id: starter
         command: ["systemctl", "--user", "start", "mpd.service"]
         onExited: function (exitCode) {
             link.dialNow();
-            if (exitCode === 0)
+            const then = root.afterStart;
+            root.afterStart = null;
+            if (exitCode !== 0)
+                return;
+            if (then)
+                then();
+            else
                 root.run(["play"]);
         }
     }
