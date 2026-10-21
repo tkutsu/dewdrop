@@ -3,7 +3,8 @@
 
 The right pill folds a module under its closing edge, into the drawer; the
 centre pill's modules fade and shrink in place while the gap closes round
-them, without running past.
+them, without running past, and the pill's edge on that side of the clock
+holds while the module slides out into it.
 """
 
 import subprocess
@@ -36,6 +37,19 @@ ShellRoot {
                     id: leaving; _started: true
                     Glyph { id: leaveIcon; Layout.fillHeight: true; text: "X" }
                 }
+            }
+        }
+        Item {
+            id: bar; y: 60; width: 500; height: 40
+            Pill {
+                id: pinned
+                drawsSlab: false
+                animatePosition: true
+                _positionReady: true
+                centreOn: clock.keyBox
+                BarItem { id: before; _started: true; Glyph { id: beforeIcon; Layout.fillHeight: true; text: "X" } }
+                BarItem { id: clock; _started: true; Glyph { Layout.fillHeight: true; text: "12:00" } }
+                BarItem { id: after; _started: true; Glyph { id: afterIcon; Layout.fillHeight: true; text: "X" } }
             }
         }
         TestCase {
@@ -91,7 +105,21 @@ ShellRoot {
                 if (overran)
                     throw Error("centre gap ran past shut");
                 finish(leaving, "centre module");
-                console.log("PASS: module exit folds in the right pill and leaves in place in the centre");
+
+                for (const [module, icon, side] of [[before, beforeIcon, -1], [after, afterIcon, 1]]) {
+                    const edge = () => side < 0 ? pinned.x : pinned.x + pinned.width;
+                    const middle = () => icon.mapToItem(bar, icon.width / 2, 0).x;
+                    const [held, from] = [edge(), middle()];
+                    module.stowed = true;
+                    wait(75);
+                    if (Math.abs(edge() - held) > 1)
+                        throw Error("pill edge beside a leaving module moved (" + held + " -> " + edge() + ")");
+                    if ((middle() - from) * side <= 0)
+                        throw Error("leaving module did not slide out into its edge");
+                    finish(module, "pinned module");
+                    for (let i = 0; i < 80 && pinned.animating; i++) wait(10);
+                }
+                console.log("PASS: module exit folds in the right pill and leaves in place in the centre, under its edge");
             }
         }
         Timer { interval: 300; running: true; onTriggered: {

@@ -111,7 +111,7 @@ ShellRoot {
                     const recoil = bar.drops.lip(noticePill.dropReveal, notice.stowed);
                     recoiling = recoiling || Math.abs(bar.rightLip) > 0.001;
                     pillTravel = Math.max(pillTravel, Math.abs(clockPill.x - restX));
-                    check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill.centreShift) < 0.01,
+                    check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill.centreShift - clockPill._rightHold) < 0.01,
                           "notification recoil moves the whole centre pill");
                     check(Math.abs(bar.rightLip - recoil) < 0.001
                           && Math.abs(bar.clockGlass.z - clockPill.width - recoil) < 0.01
@@ -267,7 +267,7 @@ ShellRoot {
                         fading = fading || (bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1);
                         scaled = scaled || (rect.width > glyph.width * 0.8 && rect.width < glyph.width * 0.899);
                         check(rect.width <= glyph.width + 0.01, "icon never grows beyond its resting size");
-                        check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill.centreShift) < 0.01, "central pill follows its position animation");
+                        check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill.centreShift - clockPill._rightHold) < 0.01, "central pill follows its position animation");
                         wait(10);
                     }
                     check(fading && scaled && bell.reveal === 1, "bell fades and scales into its full-size slot: fade=" + fading + ", scale=" + scaled + ", reveal=" + bell.reveal + ", transforms=" + glyph.transform.length + ", width=" + glyph.width);
@@ -326,7 +326,7 @@ ShellRoot {
                 const glyph = bell.keyBox.children[0];
                 check(Math.abs(glyph.mapToItem(bell, 0, 0).x - bell.padLeft - bell._leftGap) < 0.01,
                       "bell settles in its usual position with reduced motion");
-                check(Math.abs(clockPill.x - clockPill._centreLeft) < 0.01,
+                check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill._rightHold) < 0.01,
                       "reduced motion keeps the central pill still");
                 console.log("PASS: media bell handoff in both directions, sender fade/scale, interruption, other positions and reduced motion");
             }
