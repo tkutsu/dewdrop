@@ -238,6 +238,16 @@ OverlayWindow {
                     ]
                 },
                 {
+                    title: "Centre Pill",
+                    rows: [
+                        { type: "choice", id: "centrePillAnchor", title: "Centre On",
+                            tooltip: "Falls back to the middle of the pill when that module isn't in it.",
+                            options: [{ value: "time", label: "Time" }, { value: "between", label: "Between" },
+                                { value: "date", label: "Date" }, { value: "middle", label: "Middle" }],
+                            get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) }
+                    ]
+                },
+                {
                     title: "Count Indicators",
                     rows: ["email", "tasks", "countdown", "bell", "updater", "feeds"].map(key => root.badgeStyle(key))
                 },
