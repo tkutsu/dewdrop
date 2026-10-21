@@ -201,7 +201,8 @@ QtObject {
     property real pillTrack: 1; property real pillTrackFoot: 1; property real pillTrackRest: 0.2
     property color fg: 'white'; property color backdrop: 'black'; property color tint: 'black'; property color barBg: 'black'
     property real drawerSpring: 3; property real drawerDamping: 0.4
-    property int moduleEnterMs: 200; property int moduleExitMs: 220
+    property real calmSpring: 8; property real calmDamping: 0.6
+    property int moduleEnterMs: 200; property int moduleExitMs: 220; property int moduleRetireMs: 150
     property int moduleOpenMs: 240; property int moduleCloseMs: 200
     property int startMs: 10000; property int foldMs: 100; property int fadeMs: 120
     property int pressDip: 1; property int pinMarkSize: 6; property int pinGlyphSize: 6
@@ -214,6 +215,7 @@ QtObject {
     property var glyph: ({pin: 'p', nightOn: 'on', nightOff: 'off'})
     function moduleOpacity(progress) { return reduceMotion ? progress : Math.min(1, progress / 0.55); }
     function moduleScale(progress) { return reduceMotion ? 1 : 0.8 + 0.2 * progress; }
+    function moduleRetireScale(progress) { return reduceMotion ? 1 : 0.7 + 0.3 * progress; }
     function pillTop(height) { return (height - barHeight) / 2; }
     function mix(a, b, c) { return a; }
     function badgeBg(item) { return 'black'; }

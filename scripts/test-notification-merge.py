@@ -275,11 +275,19 @@ ShellRoot {
                           "bell settles at its normal inset");
                     Notifications.list = [];
                     const fullWidth = bell.width;
-                    wait(160);
-                    check(bell.width < fullWidth && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1,
-                          "exit fades the icon while its slot springs shut");
-                    wait(Theme.moduleExitMs + 30);
-                    check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "slot contracts after the ink disappears");
+                    if (bell.exitsInPlace) {
+                        wait(75);
+                        check(!bell.clip && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1 && bell.appearanceScale < 1,
+                              "centre exit fades and shrinks the icon in place");
+                        wait(Theme.moduleRetireMs);
+                        check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "centre slot closes after the quick fade");
+                    } else {
+                        wait(160);
+                        check(bell.width < fullWidth && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1,
+                              "exit fades the icon while its slot springs shut");
+                        wait(Theme.moduleExitMs + 30);
+                        check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "slot contracts after the ink disappears");
+                    }
                     wait(Theme.moduleCloseMs + 30);
                     check(!bell.visible, "exit finishes cleanly");
                     Notifications.list = [Notifications.latest]; wait(Theme.moduleOpenMs + 30);
