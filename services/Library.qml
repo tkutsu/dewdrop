@@ -43,6 +43,11 @@ Singleton {
         if (root.failed && Date.now() - root.triedAt < 5000)
             return;
         root.triedAt = Date.now();
+        // A file on disk rather than a process: read on the spot.
+        if (!Mpd.connected) {
+            root.build(cache.text());
+            return;
+        }
         root.loading = true;
         dump.running = true;
     }
@@ -91,11 +96,27 @@ Singleton {
             else
                 root.failed = true;
             root.loading = false;
+            if (code === 0 && root.loaded)
+                cache.setText(collector.text);
         }
 
         stdout: StdioCollector {
             id: collector
         }
+    }
+
+    // The last good dump, kept for while mpd is down: "#" can still search
+    // what was in it, and the row chosen starts mpd on the way to playing.
+    // Paths are mpd's own, and a stopped mpd has not rescanned anything since.
+    FileView {
+        id: cache
+
+        path: Paths.cache("mpd-library.tsv")
+        // Read on the first "#" with mpd down, not at startup.
+        preload: false
+        blockAllReads: true
+        // No file until mpd has been read once.
+        printErrors: false
     }
 
     function build(text): void {
