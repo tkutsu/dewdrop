@@ -234,7 +234,10 @@ Singleton {
             else
                 rows.push(root.trackRow(x.hit.at, 0, ""));
         }
-        return rows;
+        // A one-track record is its track (see pushAlbum), so the song can
+        // be found twice: once by its title and once by the record's.
+        const seen = new Set();
+        return rows.filter(r => !seen.has(r.key) && seen.add(r.key));
     }
 
     function note(text) {
@@ -278,6 +281,8 @@ Singleton {
     function pushArtist(rows, at): void {
         const a = Library.artists[at];
         const key = "artist:" + at;
+        // Counted the way they open: a single is listed as its song.
+        const records = a.albums.filter(al => Library.albums[al].tracks.length > 1).length;
         rows.push({
             kind: "music-artist",
             key: key,
@@ -285,7 +290,7 @@ Singleton {
             indent: 0,
             glyph: Theme.glyph.artist,
             title: a.name,
-            subtitle: [a.albums.length ? root.plural(a.albums.length, "album") : "", root.plural(a.tracks, "track")].filter(x => x).join("  ·  "),
+            subtitle: [records ? root.plural(records, "album") : "", root.plural(a.tracks, "track")].filter(x => x).join("  ·  "),
             raw: true
         });
 
@@ -295,8 +300,14 @@ Singleton {
             root.pushAlbum(rows, al, 1, key + "/");
     }
 
+    // A record of one song is that song: a row to open for a single row
+    // inside is a step that shows nothing new.
     function pushAlbum(rows, at, indent, prefix): void {
         const l = Library.albums[at];
+        if (l.tracks.length === 1) {
+            rows.push(root.trackRow(l.tracks[0], indent, (prefix ?? "").slice(0, -1)));
+            return;
+        }
         const key = (prefix ?? "") + "album:" + at;
         rows.push({
             kind: "music-album",
