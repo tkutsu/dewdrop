@@ -54,7 +54,7 @@ ShellRoot {
                 const pos = image.mapToItem(host, 0, 0);
                 check(onPixel(clockPill.x) && onPixel(pos.x) && onPixel(pos.y),
                     why + ": centre=" + clockPill.x + ", icon=" + JSON.stringify(pos));
-                check(Math.abs(clockPill.x - clockPill._centreLeft) < 0.001,
+                check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill._rightHold) < 0.001,
                     "centred anchor preserves the animated left edge exactly");
                 check(noticePill.iconScale === 1 && noticePill.contentBlur === 0,
                     "notification has no residual scaling or blur");
@@ -76,7 +76,7 @@ ShellRoot {
                     wait(16);
                     moving = moving || clockPill.animating;
                     fractional = fractional || (clockPill.animating && !onPixel(clockPill.x));
-                    check(Math.abs(clockPill.x-clockPill._centreLeft) < 0.001,
+                    check(Math.abs(clockPill.x-clockPill._centreLeft-clockPill._rightHold) < 0.001,
                         "animation follows the left edge without a rounding step");
                 }
                 check(moving && fractional && clockPill.x !== initial,

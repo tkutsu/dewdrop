@@ -39,7 +39,7 @@ Item {
     readonly property var modules: row.children.filter(item => item.settingsKey)
     property alias dragging: reorder.dragging
     readonly property bool reorderPressed: reorder.pressSource !== null
-    readonly property bool animating: dragging || centreMove.running || row.children.some(item => item.animating === true)
+    readonly property bool animating: dragging || centreMove.running || rightMove.running || row.children.some(item => item.animating === true)
     onAnimatingChanged: Tooltips.setMoving(root, animating)
     Component.onDestruction: Tooltips.setMoving(root, false)
     property alias dragSource: reorder.dragSource
@@ -201,6 +201,22 @@ Item {
             easing.type: Easing.InOutCubic
         }
     }
+    // The right edge travels the same way. A module changing width left of the
+    // centre point leaves the left edge where it was while the pill eases back
+    // round the clock; one changing width right of it holds the right edge
+    // instead, so a module leaving either side is closed over by the edge
+    // beside it rather than carried in by it.
+    readonly property real _rightSpan: width - centreAt
+    property real _centreRight: _rightSpan
+    Behavior on _centreRight {
+        enabled: root.animatePosition && root._positionReady && !Theme.reduceMotion
+        NumberAnimation {
+            id: rightMove
+            duration: Theme.foldMs
+            easing.type: Easing.InOutCubic
+        }
+    }
+    readonly property real _rightHold: _centreRight - _rightSpan
 
     anchors {
         // Our left edge already chooses the grid. Qt's centre rounding would
@@ -212,8 +228,8 @@ Item {
         right: root.side === Pill.Side.Right ? parent.right : undefined
         rightMargin: root.side === Pill.Side.Right ? root.edgeOffset : 0
         horizontalCenter: root.side === Pill.Side.Centre ? parent.horizontalCenter : undefined
-        // Compensate for width changes immediately while the left edge travels.
-        horizontalCenterOffset: root._centreLeft + root.centreShift + root.width / 2 - (root.parent?.width ?? 0) / 2
+        // Compensate for width changes immediately while the edges travel.
+        horizontalCenterOffset: root._centreLeft + root.centreShift + root._rightHold + root.width / 2 - (root.parent?.width ?? 0) / 2
     }
 
     implicitWidth: row.implicitWidth
