@@ -242,7 +242,7 @@ OverlayWindow {
                     rows: [
                         { type: "choice", id: "centrePillAnchor", title: "Centre On",
                             tooltip: "Falls back to the middle of the pill when that module isn't in it.",
-                            options: [{ value: "time", label: "Time" }, { value: "between", label: "Between" },
+                            options: [{ value: "time", label: "Time" }, { value: "between", label: "Time & Date" },
                                 { value: "date", label: "Date" }, { value: "middle", label: "Middle" }],
                             get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) }
                     ]
