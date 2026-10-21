@@ -165,8 +165,12 @@ Singleton {
             link.dialNow();
             const then = root.afterStart;
             root.afterStart = null;
-            if (exitCode !== 0)
+            // Said out loud: the row it came from has gone back to "start
+            // music", and a song chosen with play has closed the launcher.
+            if (exitCode !== 0) {
+                Quickshell.execDetached(["notify-send", "-a", "quickshell", "Music not started", "mpd did not start: journalctl --user -u mpd"]);
                 return;
+            }
             if (then)
                 then();
             else
