@@ -342,24 +342,17 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: buttons.implicitWidth
 
-        // Use the drawer's spring when workspace groups make the left pill grow or shrink.
+        // The pill's end follows apps and workspaces coming and going on the
+        // calm spring, the way a gap opens and closes round any other icon.
         Behavior on implicitWidth {
             id: widthChange
-
             enabled: root._started && !root.folding
-            property bool growing: true
-            onTargetValueChanged: growing = targetValue > strip.implicitWidth
 
-            SequentialAnimation {
+            SpringAnimation {
                 id: stripResize
-                PauseAnimation {
-                    duration: widthChange.growing ? 0 : Theme.moduleExitMs
-                }
-                SpringAnimation {
-                    spring: widthChange.growing ? Theme.springStiffness : Theme.foldSpring
-                    damping: Theme.foldDamping
-                    epsilon: 0.1
-                }
+                spring: Theme.calmSpring
+                damping: Theme.calmDamping
+                epsilon: 0.1
             }
         }
 
@@ -821,10 +814,13 @@ BarItem {
                                 // shrinks under it: shrinking the icon itself would
                                 // spill its artwork over the next one, or crop it
                                 // and resize its layer every frame while it has a dot.
+                                // An app opening or closing grows or shrinks where it
+                                // stands instead, the way a module does (BarItem.inPlace).
                                 visible: reveal > 0 && appearance > 0
-                                opacity: reveal * Theme.moduleOpacity(appearance)
-                                scale: reveal * Theme.moduleScale(appearance)
-                                transformOrigin: Item.Left
+                                opacity: reveal * appearance
+                                scale: reveal * Theme.moduleRetireScale(appearance)
+                                transformOrigin: reveal < 1 ? Item.Left : Item.Center
+                                readonly property real drawnInkLeft: (reveal < 1 ? 0 : width / 2 * (1 - scale)) + inkLeft * scale
                                 property real appearance: 1
                                 readonly property bool closing: icon.closing ?? false
                                 enabled: !closing
@@ -833,8 +829,8 @@ BarItem {
                                         root.cancelDrag();
                                     lifeMotion.stop();
                                     lifeMotion.to = closing ? 0 : 1;
-                                    lifeMotion.duration = closing ? Theme.moduleExitMs : Theme.moduleEnterMs;
-                                    lifeMotion.easing.type = closing ? Easing.InOutCubic : Easing.OutCubic;
+                                    lifeMotion.duration = closing ? Theme.moduleRetireMs : Theme.moduleEnterMs;
+                                    lifeMotion.easing.type = closing ? Easing.InQuad : Easing.OutCubic;
                                     lifeMotion.start();
                                 }
                                 Component.onCompleted: {
@@ -866,7 +862,7 @@ BarItem {
                                 // would point at a window you are not in.
                                 focused: button.active && icon.addresses.includes(Hyprland.activeToplevel?.address)
                                 pressed: tap.pressed && !root.dragging
-                                inkOpacity: strip.inkAt(button.drawnX + row.x + app.x + app.inkLeft * app.scale,
+                                inkOpacity: strip.inkAt(button.drawnX + row.x + app.x + app.drawnInkLeft,
                                     app.inkWidth * app.scale) * (root.dragging && root.dragSource === app ? 0.35 : 1)
                                 cornerDot: groupCount.visible && groupCount.dot
                                     ? Qt.rect(groupCount.localAt.x, groupCount.localAt.y, groupCount.width, groupCount.height)
