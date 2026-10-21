@@ -635,7 +635,10 @@ Singleton {
     // then the box snapping shut after them.
     readonly property int foldMs: 360
 
-    // The drawer folds on a spring that runs past by 12%.
+    // The left pill's spring for a workspace going away: 30% past.
+    readonly property real foldSpring: reduceMotion ? calmSpring : 2.5
+    readonly property real foldDamping: reduceMotion ? calmDamping : 0.14
+    // The drawer folds on a softer one: a 12% overshoot.
     // Drawer modules land first, then the glass settles (Pill.stretch).
     // At 2.2 / 0.20, Qt's spring first reaches its target at about 208 ms.
     readonly property real drawerSpring: reduceMotion ? calmSpring : 2.2
