@@ -342,17 +342,24 @@ BarItem {
         Layout.fillHeight: true
         implicitWidth: buttons.implicitWidth
 
-        // The pill's end follows apps and workspaces coming and going on the
-        // calm spring, the way a gap opens and closes round any other icon.
+        // The pill's end follows apps coming and going on the calm spring,
+        // the way a gap opens and closes round any other icon. A workspace
+        // going away (closedAt) waits out its exit and bounces in.
         Behavior on implicitWidth {
             id: widthChange
             enabled: root._started && !root.folding
 
-            SpringAnimation {
+            SequentialAnimation {
                 id: stripResize
-                spring: Theme.calmSpring
-                damping: Theme.calmDamping
-                epsilon: 0.1
+                readonly property bool losing: strip.closedAt < Infinity
+                PauseAnimation {
+                    duration: stripResize.losing ? Theme.moduleExitMs : 0
+                }
+                SpringAnimation {
+                    spring: stripResize.losing ? Theme.foldSpring : Theme.calmSpring
+                    damping: stripResize.losing ? Theme.foldDamping : Theme.calmDamping
+                    epsilon: 0.1
+                }
             }
         }
 
