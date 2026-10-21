@@ -262,7 +262,7 @@ ShellRoot {
                     let framesIn = 0, fading = false, scaled = false;
                     while (framesIn++ < 30) {
                         check(bell.reveal >= 0 && bell.reveal <= 1, "slot stays bounded while the glass can bounce");
-                        check(bell.clip === (bell.reveal < 1), "partly folded module uses its clipped slide");
+                        check(!bell.clip, "bell grows in place, unclipped");
                         const rect = glyph.mapToItem(bell, 0, 0, glyph.width, glyph.height);
                         fading = fading || (bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1);
                         scaled = scaled || (rect.width > glyph.width * 0.8 && rect.width < glyph.width * 0.899);
@@ -275,19 +275,11 @@ ShellRoot {
                           "bell settles at its normal inset");
                     Notifications.list = [];
                     const fullWidth = bell.width;
-                    if (bell.exitsInPlace) {
-                        wait(75);
-                        check(!bell.clip && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1 && bell.appearanceScale < 1,
-                              "centre exit fades and shrinks the icon in place");
-                        wait(Theme.moduleRetireMs);
-                        check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "centre slot closes after the quick fade");
-                    } else {
-                        wait(160);
-                        check(bell.width < fullWidth && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1,
-                              "exit fades the icon while its slot springs shut");
-                        wait(Theme.moduleExitMs + 30);
-                        check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "slot contracts after the ink disappears");
-                    }
+                    wait(75);
+                    check(!bell.clip && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1 && bell.appearanceScale < 1,
+                          "exit fades and shrinks the icon in place");
+                    wait(Theme.moduleRetireMs);
+                    check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "slot closes after the quick fade");
                     wait(Theme.moduleCloseMs + 30);
                     check(!bell.visible, "exit finishes cleanly");
                     Notifications.list = [Notifications.latest]; wait(Theme.moduleOpenMs + 30);

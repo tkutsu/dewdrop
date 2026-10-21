@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Keep a module's exit visible long enough to read as motion.
 
-The right pill folds a module under its closing edge, into the drawer; the
-centre pill's modules fade and shrink in place while the gap closes round
-them, without running past, and the pill's edge on that side of the clock
-holds while the module slides out into it.
+A pill folding its drawer folds a module under its closing edge, into the
+drawer; anywhere else a module fades and shrinks in place while the gap
+closes round it, without running past, and comes back the same way. The
+centre pill's edge on that side of the clock holds while the module slides
+out into it or in from it.
 """
 
 import subprocess
@@ -26,6 +27,7 @@ ShellRoot {
             Pill {
                 side: Pill.Side.Right
                 drawsSlab: false
+                foldsUnder: true
                 BarItem {
                     id: folding; _started: true
                     Glyph { id: foldIcon; Layout.fillHeight: true; text: "X" }
@@ -106,6 +108,20 @@ ShellRoot {
                     throw Error("centre gap ran past shut");
                 finish(leaving, "centre module");
 
+                leaving.stowed = false;
+                for (let i = 0; i < 60 && leaving.animating; i++) {
+                    wait(5);
+                    const box = leaving.keyBox;
+                    if (leaving.width > 4 && Math.abs(box.x + box.width / 2 - leaving.width / 2) > 1.5)
+                        throw Error("arriving icon left the middle of its slot");
+                    if (leaving.clip)
+                        throw Error("arriving icon was clipped");
+                    if (leaving._sprung > 1.001)
+                        throw Error("arriving gap ran past open");
+                }
+                if (leaving.reveal !== 1 || leaving._ink !== 1)
+                    throw Error("arriving module did not settle open");
+
                 for (const [module, icon, side] of [[before, beforeIcon, -1], [after, afterIcon, 1]]) {
                     const edge = () => side < 0 ? pinned.x : pinned.x + pinned.width;
                     const middle = () => icon.mapToItem(bar, icon.width / 2, 0).x;
@@ -118,8 +134,17 @@ ShellRoot {
                         throw Error("leaving module did not slide out into its edge");
                     finish(module, "pinned module");
                     for (let i = 0; i < 80 && pinned.animating; i++) wait(10);
+
+                    const [kept, at] = [edge(), middle()];
+                    module.stowed = false;
+                    wait(75);
+                    if (Math.abs(edge() - kept) > 1)
+                        throw Error("pill edge beside an arriving module moved (" + kept + " -> " + edge() + ")");
+                    if ((middle() - at) * side >= 0)
+                        throw Error("arriving module did not come in from its edge");
+                    for (let i = 0; i < 80 && (module.animating || pinned.animating); i++) wait(10);
                 }
-                console.log("PASS: module exit folds in the right pill and leaves in place in the centre, under its edge");
+                console.log("PASS: module exit folds into a drawer and comes and goes in place elsewhere, under its edge");
             }
         }
         Timer { interval: 300; running: true; onTriggered: {
@@ -137,7 +162,7 @@ def main():
         copy_shell(target)
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
-                                capture_output=True, text=True, timeout=5)
+                                capture_output=True, text=True, timeout=10)
         output = result.stdout + result.stderr
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Binding loop", "Unable to assign", "Cannot assign", "Failed to load configuration")
         ok = result.returncode == 0 and "PASS: module exit" in output and not any(e in output for e in errors)
