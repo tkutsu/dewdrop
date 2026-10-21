@@ -318,12 +318,15 @@ if '--lifecycle' in sys.argv:
  const exiting=icon(button(1),'b');
  Hyprland.toplevels.values=[a];test.wait(75);
  check(icon(button(1),'b')===exiting && exiting.opacity>=0.35 && exiting.scale<0.96 && exiting.transformOrigin===Item.Center,'closing app shrinks in place, still visible at 75 ms');
- test.wait(400);
+ let appLow=Infinity;for(let i=0;i<80;i++){test.wait(10);appLow=Math.min(appLow,pill.auditStrip.implicitWidth);}
  check(!icon(button(1),'b'),'closing app delegate retires after its exit');
+ check(appLow>=pill.auditStrip.implicitWidth-0.5,'pill end follows a closing app without running past');
  const c=win('c',w2,'third');Hyprland.toplevels.values=[a,c];test.wait(400);
  Hyprland.toplevels.values=[a];test.wait(75);
  check(button(2)!==null && icon(button(2),'c') && icon(button(2),'c').opacity>=0.35,'last app exits before its workspace disappears');
- test.wait(400);check(button(2)===null,'empty workspace retires after the last app exits');
+ let wsLow=Infinity;for(let i=0;i<120;i++){test.wait(10);wsLow=Math.min(wsLow,pill.auditStrip.implicitWidth);}
+ check(button(2)===null,'empty workspace retires after the last app exits');
+ check(wsLow<pill.auditStrip.implicitWidth-1,'pill end bounces in past a lost workspace');
  Hyprland.toplevels.values=[a,b];test.wait(400);
  move(b,w2);test.wait(35);
  instant(icon(button(2),'b'),'workspace transfer remains immediate');
