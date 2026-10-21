@@ -40,6 +40,7 @@ ShellRoot {
         Pill {
             id: right; side: Pill.Side.Right; drawsSlab: false
             stretch: modules.reduce((sum, m) => sum + (m.here ? m.overrun : 0), drawer.windup)
+            foldsUnder: drawer.moving
             Drawer { id: drawer; holding: true }
             BarItem {
                 id: drawerModule; settingsKey: "test"; stowed: !drawer.out
@@ -95,16 +96,16 @@ ShellRoot {
                     const icon = symbol.mapToItem(mixed, 0, 0, symbol.width, symbol.height);
                     const text = label.mapToItem(mixed, 0, 0, label.width, label.height);
                     scaled = scaled || icon.width < symbol.width * 0.999;
-                    centrePeak = Math.max(centrePeak, mixed.overrun);
-                    if (mixed.reveal > 0 && mixed.reveal < 1) {
-                        clipped = clipped || mixed.clip;
-                        check(Math.abs(mixed.keyBox.x + mixed.keyBox.width - mixed.width + mixed.padRight + mixed._rightGap) < 0.01,
-                              "contents slide behind the clipped left edge at natural width");
-                    }
+                    centrePeak = Math.max(centrePeak, mixed._sprung - 1);
+                    clipped = clipped || mixed.clip;
+                    if (mixed.reveal > 0 && mixed.reveal < 1)
+                        check(Math.abs(mixed.keyBox.x + mixed.keyBox.width / 2 - mixed.width / 2
+                                       - (mixed.padLeft + mixed._leftGap - mixed.padRight - mixed._rightGap) / 2) < 0.75,
+                              "contents grow in the middle of their slot at natural width");
                     check(Math.abs(text.width - label.width) < 0.01, "text always stays at full size");
                     check(icon.width <= symbol.width + 0.01, "icon never overshoots");
                 }
-                check(centrePeak > 1 && clipped, "centre modules keep their spring and clipped slide");
+                check(centrePeak < 0.001 && !clipped, "centre modules arrive in place, unclipped, without running past");
                 check(scaled && mixed.keyBox.opacity === 1, "module icon scales while its text fades");
                 mixed.stowed = true; wait(50); mixed.stowed = false; tryVerify(() => !mixed.animating, 2500);
                 check(mixed.reveal === 1 && mixed.keyBox.opacity === 1 && !mixed.animating,
