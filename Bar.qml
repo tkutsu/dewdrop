@@ -309,7 +309,10 @@ PanelWindow {
         lockedKeys: clockItems.length === 1 ? [clockItems[0].settingsKey] : []
         onModuleReceived: key => Settings.set(key + "Position", "centre")
         readonly property var clockItems: shown.filter(item => order.includes(item.settingsKey))
-        readonly property var centreItems: clockItems.filter(item => item.settingsKey === "date" || item.settingsKey === "time")
+        // The modules Centre On names, among those here: one is pinned, two
+        // pin the point between them, none leaves the pill's own middle.
+        readonly property var anchorKeys: ({ between: ["date", "time"], middle: [] })[Settings.centrePillAnchor] ?? [Settings.centrePillAnchor]
+        readonly property var centreItems: clockItems.filter(item => anchorKeys.includes(item.settingsKey))
         centreOn: centreItems.length === 1 ? centreItems[0].keyBox : null
         centreAt: {
             if (centreOn)
