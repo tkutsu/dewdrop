@@ -46,7 +46,7 @@ import qs.services as Services
 ShellRoot {
     id: bar
     function check(ok, why) { if (!ok) throw Error(why); }
-    QtObject { id: recording; property bool iconInCentre: true; property bool stowed: true }
+    QtObject { id: recording; property bool iconInCentre: true; property bool stowed: true; property var iconHandoff: ({progress: 1, targetX: 0}) }
     QtObject { id: nowPlaying; property bool paused: true; property bool expanded: false; property bool iconInCentre: true; property var iconHandoff: ({progress: 1, targetX: 0}); property var player: null; property real reveal: 0; property string label: ''; property string appName: ''; property string shownApp: '' }
     QtObject { id: music; property bool paused: true; property bool expanded: false; property bool iconInCentre: true; property var iconHandoff: ({progress: 1, targetX: 0}); property real reveal: 0 }
     QtObject { id: notice; property bool stowed: true; property real reveal: 0; property Item mergedIcon: null; property var iconHandoff: ({progress: 1, targetX: 0}) }
