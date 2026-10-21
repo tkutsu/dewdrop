@@ -599,6 +599,13 @@ Singleton {
     function moduleScale(progress: real): real {
         return reduceMotion ? 1 : 0.8 + 0.2 * progress;
     }
+    // An icon leaving the centre pill goes the way Apple's do: it fades and
+    // shrinks where it stands, quicker than it came, and the gap closes
+    // after it on the calm spring, which never runs past (BarItem.exitsInPlace).
+    readonly property int moduleRetireMs: 150
+    function moduleRetireScale(progress: real): real {
+        return reduceMotion ? 1 : 0.7 + 0.3 * progress;
+    }
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
     // Workspace icon fades and group folding keep pace with the selection spring.
