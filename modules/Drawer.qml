@@ -45,6 +45,9 @@ BarItem {
     // Load the glass in the opposite direction before releasing the modules.
     property bool out: false
     property real windup: 0
+    // Opening or shutting, from the windup on: what changes then goes into
+    // the drawer or out of it (Pill.foldsUnder).
+    readonly property bool moving: anticipate.running
     onOpenChanged: {
         if (Theme.reduceMotion) {
             anticipate.stop();

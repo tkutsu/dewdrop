@@ -684,6 +684,7 @@ PanelWindow {
 
         // The glass winds up, then runs past the drawer's resting width as its spring settles.
         stretch: drawable.reduce((sum, m) => sum + (m.here ? m.overrun : 0), drawer.windup)
+        foldsUnder: drawer.moving
 
         Drawer {
             id: drawer

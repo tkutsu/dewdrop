@@ -149,9 +149,9 @@ ClickArea {
     // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
     // `showsClosed` and whether the drawer is open.
     property bool stowed: false
-    // Leave in place rather than under the folding edge: the centre pill's
-    // icons, which have no drawer beside them to fold into.
-    readonly property bool exitsInPlace: pill?.side === Pill.Side.Centre
+    // Come and go in place rather than under the folding edge: every module
+    // but those of a pill folding its drawer (Pill.foldsUnder).
+    readonly property bool inPlace: !(pill?.foldsUnder ?? false)
     // While another pill's icon is sliding into or out of this slot (the
     // media notes' MediaIconHandoff), the slot comes and goes at once: the
     // handoff draws that motion. A landed icon leaves by the common exit.
@@ -174,7 +174,7 @@ ClickArea {
     }
     readonly property real reveal: folds
         ? (_landed ? (stowed ? 0 : 1) : Math.min(1, Math.max(0, _sprung))) : _eased
-    readonly property real overrun: folds && !Theme.reduceMotion ? (_sprung - reveal) * _fullWidth : 0
+    readonly property real overrun: folds && !_centred && !Theme.reduceMotion ? (_sprung - reveal) * _fullWidth : 0
     property bool _started: false
     Timer {
         interval: Theme.startMs
@@ -200,8 +200,6 @@ ClickArea {
         else if (stowed ? _sprung > 0 : _sprung < 1)
             return;
         _landed = true;
-        if (!stowed)
-            _centred = false;
     }
     property bool _springs: false
     // Whether this move keeps the contents centred in the slot, unclipped.
@@ -236,11 +234,11 @@ ClickArea {
 
     property real _ink: 1
     onStowedChanged: {
+        // Turning back partway retraces the move the way it came, rather
+        // than jumping the contents to the edge or off it.
+        _centred = _landed ? inPlace : _centred;
         _landed = false;
         inkMotion.stop();
-        // Coming back partway through an exit in place retraces it, rather
-        // than jumping the contents to the edge.
-        _centred = stowed ? exitsInPlace : _centred && _sprung > 0;
         const instant = !folds || !_started || handedOver;
         _springs = !instant && !Theme.reduceMotion;
         _sprung = stowed ? 0 : 1;
@@ -338,7 +336,7 @@ ClickArea {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.rightMargin: root.padRight + root._rightGap - (root._centred ? (root._fullWidth - root.width) / 2 : 0)
+        anchors.rightMargin: root.padRight + root._rightGap - (root._centred && root._fold < 1 ? (root._fullWidth - root.width) / 2 : 0)
         width: implicitWidth
         opacity: (!root.folds ? 1 : root._centred ? root._ink : Theme.moduleOpacity(root._ink)) * (root.reordering ? 0.35 : 1)
         spacing: Theme.gap
