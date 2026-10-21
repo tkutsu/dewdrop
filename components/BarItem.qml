@@ -149,6 +149,13 @@ ClickArea {
     // Put away in the drawer. Set by whoever owns the drawer (Bar.qml), off
     // `showsClosed` and whether the drawer is open.
     property bool stowed: false
+    // Leave in place rather than under the folding edge: the centre pill's
+    // icons, which have no drawer beside them to fold into.
+    readonly property bool exitsInPlace: pill?.side === Pill.Side.Centre
+    // While another pill's icon is sliding into or out of this slot (the
+    // media notes' MediaIconHandoff), the slot comes and goes at once: the
+    // handoff draws that motion. A landed icon leaves by the common exit.
+    property bool handedOver: false
 
     // A side pill can wait for its empty popover to return before leaving.
     property bool exitHeld: false
@@ -161,7 +168,9 @@ ClickArea {
     property bool _initialized: false
     Component.onCompleted: {
         _initialized = true;
-        _landed = stowed ? _sprung <= 0 : _sprung >= 1;
+        _sprung = stowed ? 0 : 1;
+        _ink = _sprung;
+        _landed = true;
     }
     readonly property real reveal: folds
         ? (_landed ? (stowed ? 0 : 1) : Math.min(1, Math.max(0, _sprung))) : _eased
@@ -177,15 +186,32 @@ ClickArea {
     property int foldDuration: Theme.foldMs
     property int foldEasing: Easing.InOutCubic
     property bool folds: true
-    property real _sprung: stowed ? 0 : 1
-    on_SprungChanged: if (_initialized && (stowed ? _sprung <= 0 : _sprung >= 1))
-        _landed = true
+    // Set from onStowedChanged, after the move is chosen: a binding here
+    // could fire the spring before the choice was made.
+    property real _sprung: 1
+    on_SprungChanged: {
+        if (!_initialized || _landed)
+            return;
+        // The calm spring crawls its last pixel, and the width is whole
+        // pixels, so a move in place lands within half of one.
+        const rest = stowed ? 0 : 1;
+        if (_centred && springFold.running && Math.abs(_sprung - rest) * _fullWidth < 0.5)
+            springFold.complete();
+        else if (stowed ? _sprung > 0 : _sprung < 1)
+            return;
+        _landed = true;
+        if (!stowed)
+            _centred = false;
+    }
+    property bool _springs: false
+    // Whether this move keeps the contents centred in the slot, unclipped.
+    property bool _centred: false
     Behavior on _sprung {
-        enabled: root.folds && root._started && !Theme.reduceMotion
+        enabled: root._springs
         SpringAnimation {
             id: springFold
-            spring: Theme.drawerSpring
-            damping: Theme.drawerDamping
+            spring: root._centred ? Theme.calmSpring : Theme.drawerSpring
+            damping: root._centred ? Theme.calmDamping : Theme.drawerDamping
             epsilon: 0.001
         }
     }
@@ -208,17 +234,23 @@ ClickArea {
         }
     }
 
-    property real _ink: stowed ? 0 : 1
+    property real _ink: 1
     onStowedChanged: {
         _landed = false;
         inkMotion.stop();
-        if (!folds || !_started) {
+        // Coming back partway through an exit in place retraces it, rather
+        // than jumping the contents to the edge.
+        _centred = stowed ? exitsInPlace : _centred && _sprung > 0;
+        const instant = !folds || !_started || handedOver;
+        _springs = !instant && !Theme.reduceMotion;
+        _sprung = stowed ? 0 : 1;
+        if (instant) {
             _ink = stowed ? 0 : 1;
         } else {
             inkPause.duration = stowed || Theme.reduceMotion ? 0 : Theme.moduleOpenMs - Theme.moduleEnterMs;
             inkTween.to = stowed ? 0 : 1;
-            inkTween.duration = stowed ? Theme.moduleExitMs : Theme.moduleEnterMs;
-            inkTween.easing.type = stowed ? Easing.InOutCubic : Easing.OutCubic;
+            inkTween.duration = !stowed ? Theme.moduleEnterMs : _centred ? Theme.moduleRetireMs : Theme.moduleExitMs;
+            inkTween.easing.type = !stowed ? Easing.OutCubic : _centred ? Easing.InQuad : Easing.InOutCubic;
             inkMotion.start();
         }
     }
@@ -232,11 +264,11 @@ ClickArea {
             easing.type: Easing.OutCubic
         }
     }
-    readonly property real appearanceScale: folds ? Theme.moduleScale(_ink) : 1
+    readonly property real appearanceScale: !folds ? 1 : _centred ? Theme.moduleRetireScale(_ink) : Theme.moduleScale(_ink)
     readonly property real _fold: folds ? reveal : 1
 
     visible: here && (reveal > 0 || (folds && _ink > 0))
-    clip: _fold < 1 && !Theme.reduceMotion
+    clip: _fold < 1 && !Theme.reduceMotion && !_centred
     // Half the gap on each side with a neighbour. Pill turns these off at
     // the row's ends, where padLeft/padRight carry the pill's padding instead.
     property bool lead: true
@@ -299,15 +331,16 @@ ClickArea {
         height: root.height
     }
 
-    // Keep natural-size contents against the right edge as the left edge folds over them.
+    // Keep natural-size contents against the right edge as the left edge
+    // folds over them, or in the middle of the slot as it closes round them.
     RowLayout {
         id: layout
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.rightMargin: root.padRight + root._rightGap
+        anchors.rightMargin: root.padRight + root._rightGap - (root._centred ? (root._fullWidth - root.width) / 2 : 0)
         width: implicitWidth
-        opacity: (root.folds ? Theme.moduleOpacity(root._ink) : 1) * (root.reordering ? 0.35 : 1)
+        opacity: (!root.folds ? 1 : root._centred ? root._ink : Theme.moduleOpacity(root._ink)) * (root.reordering ? 0.35 : 1)
         spacing: Theme.gap
         scale: press.scale
     }
