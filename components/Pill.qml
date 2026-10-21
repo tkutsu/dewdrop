@@ -129,6 +129,11 @@ Item {
     // places, so nothing rounds to a pixel or reflows while it happens.
     property real stretch: 0
 
+    // Whether modules come and go under the edge beside them rather than in
+    // place: the right pill's while its drawer opens or shuts, which reads as
+    // them going into the drawer and out of it (BarItem.inPlace).
+    property bool foldsUnder: false
+
     onStretchChanged: {
         const shown = root.shown;
         if (shown.length === 0)
