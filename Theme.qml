@@ -599,9 +599,10 @@ Singleton {
     function moduleScale(progress: real): real {
         return reduceMotion ? 1 : 0.8 + 0.2 * progress;
     }
-    // An icon leaving the centre pill goes the way Apple's do: it fades and
-    // shrinks where it stands, quicker than it came, and the gap closes
-    // after it on the calm spring, which never runs past (BarItem.exitsInPlace).
+    // An icon comes and goes the way Apple's do: it grows in where it will
+    // stand, and leaves by fading and shrinking where it stands, quicker than
+    // it came, while the gap opens or closes round it on the calm spring,
+    // which never runs past (BarItem.inPlace, Workspaces' apps).
     readonly property int moduleRetireMs: 150
     function moduleRetireScale(progress: real): real {
         return reduceMotion ? 1 : 0.7 + 0.3 * progress;
@@ -634,10 +635,7 @@ Singleton {
     // then the box snapping shut after them.
     readonly property int foldMs: 360
 
-    // The side pills' spring for workspace width changes.
-    readonly property real foldSpring: springStiffness
-    readonly property real foldDamping: reduceMotion ? calmDamping : 0.14
-    // The drawer folds on a softer one: a 12% overshoot rather than 30%.
+    // The drawer folds on a spring that runs past by 12%.
     // Drawer modules land first, then the glass settles (Pill.stretch).
     // At 2.2 / 0.20, Qt's spring first reaches its target at about 208 ms.
     readonly property real drawerSpring: reduceMotion ? calmSpring : 2.2
@@ -665,9 +663,6 @@ Singleton {
     // contents going, the pill rounding up and the drop travelling in, and
     // each of them needs time enough to read as a move of its own.
     readonly property int dropMs: 650
-
-    // Stiffness shared by the pill and selection springs; each uses its own damping.
-    readonly property real springStiffness: reduceMotion ? calmSpring : 2.5
 
     // Reduce motion (Settings): every spring above swaps to this one, which
     // never runs past its target and lands about when the bouncy ones first
