@@ -923,6 +923,8 @@ Singleton {
         screenShare: "\u{f1483}",    // nf-md-monitor_share
 
         playing: "\u{f040a}",
+        equalizer: fontCut("equalizer"),
+        equalizerReset: "\u{f0459}", // nf-md-replay
         paused: "\u{f03e4}",
         stopped: "\u{f04db}",
         // The ones with the bar against them: these move to the track either
