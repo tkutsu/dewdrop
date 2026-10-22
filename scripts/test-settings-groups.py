@@ -36,22 +36,36 @@ ShellRoot {
             menu.contentAlpha = 1; menu.widthRatio = 1;
             saved.reload();
             check(saved.text().trim() === "{}", "opening settings does not write effective defaults");
-            check(menu.pages.map(p => p.title).join("|") === "Bar|Appearance|Date & Time|Launcher|Apps & Services|Accessibility", "six tabs appear in the agreed order");
+            check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Date & Time|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "sixteen focused tabs appear in the agreed order");
             const ids = rows().map(r => r.id);
             check(new Set(ids).size === ids.length, "settings and generated rows appear once");
-            const covered = new Set(ids.concat(["layoutNames", "hiddenApps", "webApps", "mailCategories", "datePosition", "weatherPosition", "timePosition", "wallpaperParallaxZoom"]));
+            const covered = new Set(ids.concat(["layoutNames", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datePosition", "weatherPosition", "timePosition", "wallpaperParallaxZoom"]));
             const missing = Object.keys(Settings.defaults).filter(key => !covered.has(key));
             check(missing.length === 0, "every default preference is reachable (missing: " + missing.join(", ") + ")");
-            const bar = menu.pages[0].sections;
-            check(bar[bar.length - 1].title === "Tray Icons" && bar[bar.length - 2].title === "Module Visibility", "long bar lists follow the short settings");
-            check(menu.pages[3].sections.slice(-1)[0].title === "Apps" && menu.pages[4].sections.slice(-1)[0].title === "Mail Inbox Tabs", "application and inbox lists are last on their pages");
+            function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }
+            check(sections("Bar") === "Displays|Workspaces|Centre Pill", "Bar contains only its short general preferences");
+            check(sections("Modules") === "Module Visibility|Tray Icons", "module visibility has a dedicated page");
+            check(sections("Web Search") === "Web Search" && sections("Launcher Apps") === "Desktop Actions|Apps", "large launcher editors have dedicated pages");
+            check(sections("Mail") === "Mail|Mail Inbox Tabs", "mail preferences stay together");
             check(hits("mail primary").includes("mail:primary"), "search includes section context");
             check(hits("music socket").includes("mpdSocket"), "search finds a service by feature");
             check(hits("wallpaper folder").includes("wallpaperDir"), "short labels retain their section context");
             check(hits("24h").includes("twelveHour"), "search includes choice labels");
             check(hits("gmail").includes("webApp:gmail"), "search finds the app name behind Open With");
-            menu.page = 2; menu.query = "";
+            menu.page = menu.pages.findIndex(p => p.title === "Date & Time"); menu.query = "";
             check(menu.entries.filter(e => e.setting).length === 6, "clearing search restores the selected page");
+
+            check(hits("ephemeral").includes("ephemeralNotificationApps"), "search finds the ephemeral app list");
+            wait(80);
+            const ephemeral = find(menu.contentItem, i => i.setting?.id === "ephemeralNotificationApps" && i.commit !== undefined);
+            check(ephemeral && ephemeral.values().includes("Gmail") && ephemeral.values().includes("Email"), "both mail senders are ephemeral by default");
+            const added = ephemeral.values().length;
+            ephemeral.add(); wait(30);
+            const appInput = find(ephemeral, i => i.index === added && i.input !== undefined).input;
+            appInput.text = "Fixture App"; appInput.textEdited(); appInput.editingFinished();
+            check(Settings.ephemeralNotificationApps.includes("Fixture App"), "the list editor saves another ephemeral app");
+            ephemeral.remove(ephemeral.values().indexOf("Gmail"));
+            check(!Settings.ephemeralNotificationApps.includes("Gmail") && Settings.ephemeralNotificationApps.includes("Email"), "removing one app preserves the other entries");
 
             row("screens").set(false);
             check(Settings.screens.join("|") === "DP-1|HDMI-A-1", "specific display mode starts with connected displays");
@@ -138,7 +152,7 @@ ShellRoot {
                 for (const c of item.children ?? []) collect(c);
             }
             collect(menu.contentItem);
-            check(labels.some(i => i.implicitWidth <= 132), "sidebar title fits: " + menu.pages[shots].title);
+            check(labels.some(i => i.implicitWidth <= i.parent.width - i.x), "sidebar title fits: " + menu.pages[shots].title);
             menu.auditBox.grabToImage(result => {
                 result.saveToFile(Quickshell.env("SETTINGS_PREVIEW_DIR") + "/settings-" + shots + ".png");
                 shots++; capture();
@@ -182,7 +196,8 @@ import qs
 ShellRoot { Timer { interval: 100; running: true; onTriggered: {
     const ok = Settings.values.terminal === "test-terminal" && Settings.values.editor === "test-editor"
         && Settings.layoutNames.Offline === "ZZ" && Settings.layoutChangeBounce && Settings.wallpaperParallaxZoom === 1.22
-        && Settings.groupWindowBadgeStyle === "dot";
+        && Settings.groupWindowBadgeStyle === "dot" && Settings.ephemeralNotificationApps.includes("Fixture App")
+        && !Settings.ephemeralNotificationApps.includes("Gmail") && Settings.ephemeralNotificationApps.includes("Email");
     console.log(ok ? "PASS: settings reopen" : "FAIL: settings reopen"); Qt.quit();
 } } }''')
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target), capture_output=True, text=True, timeout=5)

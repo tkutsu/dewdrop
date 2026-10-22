@@ -6,5 +6,6 @@ import Quickshell
 Singleton {
     property string loaded: ""
     property var samples: []
-    property var beats: []
+    property var reactions: []
+    property real step: 0
 }

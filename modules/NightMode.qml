@@ -7,8 +7,10 @@ import qs.services
 // custom/nightmode: left click opens the brightness popup, right click
 // toggles the mode, scroll steps the backlight.
 BarItem {
+    id: root
     name: "Display"
     tooltip: NightMode.tooltip
+    tooltipEnabled: !root.feedbackVisible
     popup: DisplayPopup {}
     // On is a state worth seeing; off is the screen as it always is.
     quiet: !NightMode.on
@@ -46,6 +48,40 @@ BarItem {
     scrolls: true
     Accessible.onScrollUpAction: scrollUp()
     Accessible.onScrollDownAction: scrollDown()
-    onScrollUp: NightMode.nudge(true)
-    onScrollDown: NightMode.nudge(false)
+    onScrollUp: root.adjustBrightness(false)
+    onScrollDown: root.adjustBrightness(true)
+
+    property bool feedbackVisible: false
+
+    // Extend the readout without closing and reopening its surface.
+    function adjustBrightness(up: bool): void {
+        NightMode.nudge(up);
+        if (OpenPopup.owner === null && !root.pillDragging) {
+            root.feedbackVisible = true;
+            feedback.restart();
+        }
+    }
+
+    Timer {
+        id: feedback
+        interval: 1200
+        onTriggered: root.feedbackVisible = false
+    }
+
+    Connections {
+        target: OpenPopup
+        function onOwnerChanged(): void {
+            if (OpenPopup.owner !== null) {
+                root.feedbackVisible = false;
+                feedback.stop();
+            }
+        }
+    }
+
+    HoverPopup {
+        parent: root
+        anchorItem: root
+        open: root.feedbackVisible && root.visible && !root.pillDragging && !Tooltips.blocked
+        popup: BrightnessLevelPopup {}
+    }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that an urgent notice stays until answered, with arrivals queued behind it."""
+"""Check urgent notice queuing and configurable ephemeral notification retention."""
 
 import os
 from pathlib import Path
@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 CLIENT = r'''
 import json
+from pathlib import Path
 import subprocess
 import sys
 import time
@@ -40,8 +41,10 @@ try:
         assert result.returncode == 0, result.stdout + result.stderr
         return result.stdout.strip()
 
-    def send(summary, urgency=1, app="Fixture", timeout=-1, actions=()):
+    def send(summary, urgency=1, app="Fixture", timeout=-1, actions=(), transient=False):
         hints = {"urgency": GLib.Variant("y", urgency)}
+        if transient:
+            hints["transient"] = GLib.Variant("b", True)
         return call("Notify", GLib.Variant("(susssasa{sv}i)", (app, 0, "", summary, "", list(actions), hints, timeout))).unpack()[0]
 
     def expect(**wanted):
@@ -95,8 +98,50 @@ try:
     state = expect(showing=False)
     assert "G" in state["kept"], state
 
+    # All existing app rules and both mail senders expire with their notices.
+    for app in ("Herdr", "Email", "Gmail", "satty", "qBittorrent", "udiskie", "gMaIl"):
+        summary = "Ephemeral " + app
+        send(summary, app=app, timeout=300)
+        expect(latest=summary, showing=True)
+        state = expect(showing=False)
+        assert summary not in state["kept"], state
+
+    # Settings changes affect the next arrival without restarting the server.
+    Path(target, "settings.json").write_text(json.dumps({"ephemeralNotificationApps": ["Custom Mail"]}))
+    expect(apps=["Custom Mail"])
+    send("Custom app", app="custom mail", timeout=300)
+    expect(latest="Custom app", showing=True)
+    state = expect(showing=False)
+    assert "Custom app" not in state["kept"], state
+    send("Removed app", app="Gmail", timeout=300)
+    expect(latest="Removed app", showing=True)
+    state = expect(showing=False)
+    assert "Removed app" in state["kept"], state
+
+    # Opening an ephemeral notification in the centre retains it.
+    send("Keep in centre", app="Custom Mail", timeout=300)
+    expect(latest="Keep in centre", showing=True)
+    ipc("left")
+    state = expect(showing=False)
+    assert "Keep in centre" in state["kept"], state
+
+    # An empty app list keeps normal notifications; sender hints and summary
+    # rules still expire notifications meant only for the moment.
+    Path(target, "settings.json").write_text(json.dumps({"ephemeralNotificationApps": []}))
+    expect(apps=[])
+    send("Unlisted app", timeout=300)
+    expect(latest="Unlisted app", showing=True)
+    state = expect(showing=False)
+    assert "Unlisted app" in state["kept"], state
+    for summary, transient in (("Transient hint", True), ("hyprwhspr finished", False), ("Claude Code finished", False)):
+        send(summary, transient=transient, timeout=300)
+        expect(latest=summary, showing=True)
+        state = expect(showing=False)
+        assert summary not in state["kept"], state
+
     passed = True
     print("PASS: urgent notices stay until answered and hand over to what waited behind them")
+    print("PASS: ephemeral defaults, edited app lists, transient hints and centre retention")
 finally:
     shell.terminate()
     output, _ = shell.communicate(timeout=3)
@@ -107,6 +152,7 @@ finally:
 
 SHELL = r'''import Quickshell
 import Quickshell.Io
+import qs
 import qs.services
 ShellRoot {
     property var notificationService: Notifications
@@ -117,6 +163,7 @@ ShellRoot {
                 latest: Notifications.latest?.summary ?? "",
                 showing: Notifications.showing,
                 burst: Notifications.burst,
+                apps: Settings.ephemeralNotificationApps,
                 kept: Notifications.list.map(n => n.summary)
             });
         }
@@ -155,6 +202,9 @@ def main():
         service = (ROOT / "services/Notifications.qml").read_text()
         service = service.replace("NotificationUrgency.Low ? 3000 : 6000", "NotificationUrgency.Low ? 300 : 600")
         (target / "services/Notifications.qml").write_text(service)
+        for name in ("Settings.qml", "RightPillOrder.js", "settings.default.json"):
+            (target / name).write_text((ROOT / name).read_text())
+        (target / "settings.json").write_text("{}\n")
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var glyph: ({notif: "N"}) }\n')
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         (target / "shell.qml").write_text(SHELL)

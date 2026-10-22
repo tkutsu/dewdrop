@@ -15,8 +15,8 @@ import qs
 // What PipeWire does not expose through Quickshell is *port availability*, and
 // that is the whole point of the old script: an analog jack with nothing in it
 // should read as disconnected rather than as "speakers". So one long-lived
-// `pactl subscribe` supplies the events and a one-shot `pactl list sinks`
-// answers the port question, only when something about a sink actually moved —
+// `pactl subscribe` supplies the events and a one-shot `pactl list`
+// answers the port question for outputs and inputs when a device changes —
 // not on every volume tick, which is what the shell version did.
 Singleton {
     id: root
@@ -30,7 +30,8 @@ Singleton {
     // point of them, so they skip the availability check entirely.
     readonly property bool bluetooth: (sink?.properties?.["device.api"] ?? "") === "bluez5"
 
-    property bool portAvailable: false
+    property var devicePorts: ({})
+    readonly property bool portAvailable: devicePorts[sink?.name]?.plugged ?? false
 
     readonly property bool connected: !!sink && sink.name !== "auto_null" && (bluetooth || portAvailable)
     // 0% is silent either way, so it is dimmed like muted.
@@ -57,6 +58,32 @@ Singleton {
     // Everything the machine could play through, for the popup to choose
     // between: what pavucontrol's output tab was opened for.
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioSink).sort((a, b) => (a.description || a.name).localeCompare(b.description || b.name))
+    readonly property var availableSinks: sinks.filter(n => deviceAvailable(n)).sort((a, b) => deviceName(a).localeCompare(deviceName(b)))
+
+    // The motherboard uses USB internally. Its ports need a detected plug;
+    // devices without jack detection (such as USB headsets) remain selectable.
+    function readPorts(snapshot): void {
+        const ports = {};
+        for (const entry of snapshot.sinks.concat(snapshot.sources)) {
+            const port = entry.ports?.find(p => p.name === entry.active_port);
+            const onboard = entry.properties?.["alsa.components"] === "USB0b05:1a5c";
+            const labels = {Speaker: "Speakers", Headphones: "Front Headphones", Mic: "Microphone", Line: "Line In", SPDIF: "Digital Output (S/PDIF)"};
+            ports[entry.name] = {
+                available: onboard ? port?.availability === "available" : port?.availability !== "not available",
+                plugged: port?.availability === "available",
+                label: onboard ? (labels[port?.type] || port?.description || entry.description) : entry.description
+            };
+        }
+        root.devicePorts = ports;
+    }
+
+    function deviceAvailable(node): bool {
+        return node.name !== "auto_null" && (devicePorts[node.name]?.available ?? false);
+    }
+
+    function deviceName(node): string {
+        return devicePorts[node.name]?.label || node.description || node.name;
+    }
 
     // Every app playing right now, each with its own volume. Picked by type
     // rather than by media.class, which like the rest of `properties` stays
@@ -91,6 +118,7 @@ Singleton {
     // muted or not. Read from PipeWire like the output.
     readonly property PwNode source: Pipewire.defaultAudioSource
     readonly property var sources: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioSource).sort((a, b) => (a.description || a.name).localeCompare(b.description || b.name))
+    readonly property var availableSources: sources.filter(n => deviceAvailable(n)).sort((a, b) => deviceName(a).localeCompare(deviceName(b)))
     readonly property bool micMuted: source?.audio?.muted ?? false
     readonly property int micVolume: Math.round((source?.audio?.volume ?? 0) * 100)
 
@@ -161,7 +189,7 @@ Singleton {
 
     Process {
         id: probe
-        command: ["pactl", "--format=json", "list", "sinks"]
+        command: ["pactl", "--format=json", "list"]
 
         // A burst of pactl events can land while the probe is already out. The
         // debounce collapses those into one reload() that then finds `running`
@@ -187,21 +215,13 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const name = root.sink?.name;
-                if (!name)
-                    return;
-                let sinks;
+                let snapshot;
                 try {
-                    sinks = JSON.parse(text);
+                    snapshot = JSON.parse(text);
                 } catch (e) {
                     return;
                 }
-                const entry = sinks.find(s => s.name === name);
-                const port = entry?.ports?.find(p => p.name === entry.active_port);
-                // Ports without jack detection (S/PDIF) report "unknown" and so
-                // read as disconnected, which is what we want here: the analog
-                // outs are the ones actually in use on this box.
-                root.portAvailable = port?.availability === "available";
+                root.readPorts(snapshot);
             }
         }
     }
@@ -221,7 +241,7 @@ Singleton {
 
         stdout: SplitParser {
             onRead: function (line) {
-                if (/ on (sink|server|card) /.test(line))
+                if (/ on (sink|source|server|card) /.test(line))
                     debounce.restart();
             }
         }

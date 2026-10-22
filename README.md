@@ -10,7 +10,7 @@ My Hyprland bar, launcher, notifications and popups, written for [Quickshell](ht
 - One icon per app on each workspace, drag a window to another workspace, scroll to switch
 - Popups grow from their item and switch on hover once one is open; the arrows walk an open popup, Return presses, Escape closes
 - Quiet modules fold into a drawer; pin any of them from settings or with a middle click
-- Drag modules to reorder them or move them between the central and right pills, keeping at least one in the centre. Settings > Bar controls their visibility.
+- Drag modules to reorder them or move them between the central and right pills, keeping at least one in the centre. Settings > Modules controls their visibility.
 - Paused MPD and MPRIS players collapse to a music note or app icon beside the clock; click to expand them again
 - Wallpaper pans as you change workspace; the window border takes its colour
 - Settings window with search, including macOS's Reduce motion and Reduce transparency
@@ -60,7 +60,7 @@ If Calendar cannot remove the event, QS shows a notification; remove it in Calen
 Paths also select file mode automatically. Names starting with `_` try windows first.
 HTML/XHTML files open in the default application; other text files open in the editor.
 File search includes hidden and Git-ignored files, while respecting `.ignore` files and the optional ignore file in Settings > Launcher > File Search.
-Settings > Launcher > Desktop Actions shows or hides all app shortcuts together. They start hidden.
+Settings > Launcher Apps > Desktop Actions shows or hides all app shortcuts together. They start hidden.
 
 ### Built in
 
@@ -71,7 +71,7 @@ Settings > Launcher > Desktop Actions shows or hides all app shortcuts together.
 - Gmail's unread (the whole inbox, or the tabs picked in settings), cleared from the popup: archive, mark read and star on every row or by swiping it, each undoable for a few seconds; login codes to copy, attachments to save, unsubscribe; a notification for each new mail
 - Weather (Open-Meteo, no account), with an hourly forecast and a seven-day outlook showing the predominant daylight condition and a second icon when the worst condition differs
 - MPD player with cover, seek and an editable queue
-- Now Playing for browsers and other MPRIS apps, with an app icon, play/pause and scroll to seek; hide it in Settings > Apps & Services > Music
+- Now Playing for browsers and other MPRIS apps, with an app icon, play/pause and scroll to seek; hide it in Settings > Music
 - Audio output and per-app volume
 - Recording indicator: while an app uses a microphone or shares the screen, a pill with a red dot comes out of the right pill; its popup mutes an app's mic or stops the share
 - Wi-Fi and Bluetooth
@@ -125,6 +125,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Bluetooth | BlueZ (`busctl`) |
 | Drives | UDisks2 (`udisksctl`), UPower |
 | Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket` |
+| Music equalizer | Python 3, FFmpeg, and a user `mpd.service`. The config at `mpdConfig` must have one FFmpeg EQ filter attached to an output and a `state_file` to preserve the queue. Apply saves a `.quickshell-eq.bak` backup and briefly restarts MPD. |
 | Launcher file search | `fd` |
 | File previews | `file`; `pdftoppm` (poppler) for PDFs, `ffmpeg` for videos, LibreOffice (`soffice`) for office documents. ImageMagick handles additional image formats. Missing renderers leave a generic icon. |
 | Calculator | `qalc` |
@@ -163,9 +164,9 @@ Power, display, update and cleanup actions still use external helpers from `scri
 
 The update and cleanup runner opens a new dropdown pane, starting the dropdown when needed. It waits about five seconds for the control socket, then falls back to a regular Kitty window if the dropdown is unavailable.
 
-Settings > Apps & Services > Screenshots accepts a shell command. The bar adds no arguments and expects no output; the tool handles selection, editing, saving and the clipboard. An empty command hides the screenshot button. Settings > Launcher > File Search accepts an optional fd ignore file, which can also be shared with a terminal file picker.
+Settings > Default Apps > Screenshots accepts a shell command. The bar adds no arguments and expects no output; the tool handles selection, editing, saving and the clipboard. An empty command hides the screenshot button. Settings > Launcher > File Search accepts an optional fd ignore file, which can also be shared with a terminal file picker.
 
-Gmail, Google Calendar and Google Tasks open their installed Chromium PWAs when available, or their websites otherwise. Their sections in Settings > Apps & Services let you choose another installed app or always use the website. Mail also has its attachment folder; External Helpers has the scripts folder. Settings > Appearance has fonts and the wallpaper folder. Parallax zoom stays in the wallpaper popup. The music directory is read directly from MPD when it connects.
+Gmail, Google Calendar and Google Tasks open their installed Chromium PWAs when available, or their websites otherwise. Settings > Mail and Settings > Tasks & Calendar let you choose another installed app or always use the website. Mail also has its attachment folder; Default Apps > External Helpers has the scripts folder. Settings > Appearance has fonts and the wallpaper folder. Parallax zoom stays in the wallpaper popup. The music directory is read directly from MPD when it connects.
 
 ### TODO: Remaining external helpers
 

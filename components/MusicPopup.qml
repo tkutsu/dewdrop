@@ -51,10 +51,12 @@ Popup {
     // Whether the quit button in the header has been pressed once. See the
     // button itself for why it takes two.
     property bool quitArmed: false
+    property bool equalizerOpen: false
 
 
     // Queue and playlist changes redraw inside a fixed compositor surface.
-    reserveHeight: root.vPadding + root.bottomPadding + playerHeader.height
+    reserveHeight: equalizerOpen ? root.vPadding + root.bottomPadding + equalizer.height
+        : root.vPadding + root.bottomPadding + playerHeader.height
         + queueSeparator.height + root.visibleRows * root.rowHeight + root.spacing * 2
         + (storedPlaylists.visible ? storedPlaylists.height + root.spacing
             + (Mpd.playlistsOpen ? 0 : Mpd.playlists.length * root.rowHeight) : 0)
@@ -115,6 +117,7 @@ Popup {
 
     Row {
         id: playerHeader
+        visible: !root.equalizerOpen
         spacing: 10
 
         Item {
@@ -342,7 +345,7 @@ Popup {
 
                     anchors {
                         left: parent.left
-                        right: add.left
+                        right: equalizerButton.left
                         rightMargin: 6
                         verticalCenter: parent.verticalCenter
                     }
@@ -359,6 +362,19 @@ Popup {
                         font.weight: Font.DemiBold
                         elide: Text.ElideNone
                     }
+                }
+
+                PopupButton {
+                    id: equalizerButton
+                    name: "Show equalizer"
+                    anchors.right: add.left
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    framed: true
+                    implicitHeight: root.headerButtonSize
+                    glyph: Theme.glyph.equalizer
+                    glyphSize: 16
+                    onTapped: root.equalizerOpen = true
                 }
 
                 // The way to put something else on: the launcher's # mode,
@@ -433,22 +449,18 @@ Popup {
                 onIconTapped: Mpd.toggleMute()
             }
 
-            Item {
-                width: 1
-                height: 3
-            }
-
             // How far through, twice over: the track says how far, the figures
             // say how far in what. They were a row apart from each other and
             // are one reading.
             Row {
-                height: Theme.popupTextSize + 4
+                height: Math.max(Theme.popupTextSize + 4, playback.height)
                 spacing: 2
 
                 Slider {
                     id: playback
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
+                    height: 26
                     name: "Playback position"
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
                     // A stream has no length to seek through.
@@ -457,11 +469,13 @@ Popup {
                     fill: root.accent
                     wave: waveform.samples.length > 0
                     waveSamples: waveform.samples
-                    wavePulse: waveform.pulse
+                    waveBass: waveform.bass
+                    waveMid: waveform.mid
+                    waveTreble: waveform.treble
                     MusicWaveform {
                         id: waveform
-                        active: root.visible
-                        playing: root.visible && Mpd.state === "play" && !Theme.reduceMotion
+                        active: root.visible && !root.equalizerOpen
+                        playing: root.visible && !root.equalizerOpen && Mpd.state === "play" && !Theme.reduceMotion
                     }
                     // Ten seconds a notch, as on the pill.
                     wheelStep: Mpd.duration > 0 ? 10 / Mpd.duration : 0
@@ -469,16 +483,43 @@ Popup {
                 }
 
                 PopupText {
-                    anchors.verticalCenter: parent.verticalCenter
+                    id: playbackTime
+                    anchors.bottom: playback.bottom
                     width: root.readoutWidth
                     rightPadding: Theme.popupInset
                     horizontalAlignment: Text.AlignRight
-                    text: Mpd.duration > 0 ? `${Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}` : Mpd.clock(Mpd.elapsed)
+                    text: Mpd.duration > 0
+                        ? `${Mpd.showRemaining ? "-" + Mpd.clock(Math.max(0, Mpd.duration - Mpd.elapsed)) : Mpd.clock(Mpd.elapsed)} / ${Mpd.clock(Mpd.duration)}`
+                        : Mpd.clock(Mpd.elapsed)
                     color: Theme.label2
                     font.pixelSize: Theme.captionSize
+
+                    readonly property var keyPress: Mpd.duration > 0 ? () => Mpd.showRemaining = !Mpd.showRemaining : null
+                    Accessible.role: Accessible.Button
+                    Accessible.name: (Mpd.showRemaining ? "Remaining time: " : "Elapsed time: ") + text
+                    Accessible.description: Mpd.showRemaining ? "Show elapsed time" : "Show remaining time"
+                    Accessible.onPressAction: if (enabled && visible && keyPress)
+                        keyPress()
+
+                    TapHandler {
+                        enabled: Mpd.duration > 0
+                        gesturePolicy: TapHandler.ReleaseWithinBounds
+                        onTapped: playbackTime.keyPress()
+                    }
                 }
             }
 
+        }
+    }
+
+    Loader {
+        id: equalizer
+        width: root.bodyWidth
+        active: root.equalizerOpen
+        visible: active
+        sourceComponent: MusicEqualizer {
+            width: equalizer.width
+            onBack: root.equalizerOpen = false
         }
     }
 
@@ -498,7 +539,7 @@ Popup {
         width: root.bodyWidth
         spacing: 0
         // Nothing saved, nothing to say.
-        visible: Mpd.playlists.length > 0
+        visible: !root.equalizerOpen && Mpd.playlists.length > 0
 
         PopupSeparator {
             width: root.bodyWidth
@@ -667,11 +708,12 @@ Popup {
     PopupSeparator {
         id: queueSeparator
         width: root.bodyWidth
-        visible: list.count > 0
+        visible: !root.equalizerOpen && list.count > 0
     }
 
     ListView {
         id: list
+        visible: !root.equalizerOpen
 
         // In the accessibility tree as a list to scroll, half a view a step.
 

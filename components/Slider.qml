@@ -24,7 +24,9 @@ Item {
     // A song's envelope keeps its shape as the played colour advances.
     property bool wave: false
     property var waveSamples: []
-    property real wavePulse: 0
+    property real waveBass: 0
+    property real waveMid: 0
+    property real waveTreble: 0
     property real waveAmount: wave ? 1 : 0
     Behavior on waveAmount {
         NumberAnimation {
@@ -37,8 +39,7 @@ Item {
     // to whatever is underneath — the sound popup has one handler for all
     // its rows, which a slider taking the wheel for itself would cut short.
     // Down is on, towards the right end, for every slider alike, and up is
-    // back: the track lies across the wheel, so it reads like a page. The
-    // bar's icons go the other way round, up for more.
+    // back: the track lies across the wheel, so it reads like a page.
     property real wheelStep: 0
     property bool wheelSnap: false
     property real _wheelAcc: 0
@@ -247,10 +248,10 @@ Item {
                 easing.type: Easing.InOutQuad
             }
 
-            readonly property var paintInputs: [width, height, end, hoverEnd, hoverAmount, blend, fromSamples, toSamples, root.waveAmount, root.wavePulse, root.fill, Theme.sliderTrack, visible]
+            readonly property var paintInputs: [width, height, end, hoverEnd, hoverAmount, blend, fromSamples, toSamples, root.waveAmount, root.waveBass, root.waveMid, root.waveTreble, root.fill, Theme.sliderTrack, visible]
             onPaintInputsChanged: requestPaint()
 
-            // Bars span the whole song; clip the accent to the seek position.
+            // Bars span the whole song and fill as whole units at their centers.
             onPaint: {
                 const ctx = getContext("2d");
                 ctx.clearRect(0, 0, width, height);
@@ -266,21 +267,23 @@ Item {
                         const b = toSamples[i] ?? 0;
                         sample = Math.max(sample, a + (b - a) * blend);
                     }
-                    const barHeight = Math.round(Math.min(height - 2, 2 + 9 * sample * root.waveAmount * (1 + 0.18 * root.wavePulse)));
+                    // Bass swells the whole shape; mids and treble accent finer groups.
+                    const reaction = Theme.reduceMotion ? 0 : 6 * root.waveBass
+                        + 3 * root.waveMid * (index % 5 < 3 ? 1 : 0.3)
+                        + 4 * root.waveTreble * (index % 3 === 0 ? 1 : 0.15);
+                    // Deepen the resting valleys while keeping full-height peaks.
+                    const barHeight = Math.round(Math.min(height - 2,
+                        1 + (10 * sample * sample + reaction * (0.25 + 0.75 * sample)) * root.waveAmount));
                     const x = left + index * step;
                     const y = height - 1 - barHeight;
                     const barWidth = Math.min(2, step - 1);
-                    ctx.fillStyle = Theme.sliderTrack;
+                    const center = x + barWidth / 2;
+                    const played = center <= end;
+                    ctx.fillStyle = played ? root.fill : Theme.sliderTrack;
                     ctx.fillRect(x, y, barWidth, barHeight);
-                    const hoverStart = Math.max(x, end);
-                    const hoverWidth = Math.min(x + barWidth, hoverEnd) - hoverStart;
-                    if (hoverWidth > 0 && hoverAmount > 0) {
+                    if (!played && center <= hoverEnd && hoverAmount > 0) {
                         ctx.fillStyle = Qt.rgba(Theme.sliderTrack.r, Theme.sliderTrack.g, Theme.sliderTrack.b, 0.14 * hoverAmount);
-                        ctx.fillRect(hoverStart, y, hoverWidth, barHeight);
-                    }
-                    if (x < end) {
-                        ctx.fillStyle = root.fill;
-                        ctx.fillRect(x, y, Math.min(barWidth, end - x), barHeight);
+                        ctx.fillRect(x, y, barWidth, barHeight);
                     }
                 }
             }
