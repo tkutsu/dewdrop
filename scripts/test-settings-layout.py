@@ -49,7 +49,10 @@ ShellRoot {
                 expect(control.y >= 0 && control.y + control.height <= row.height, "row contains selector height");
                 if (row.setting.type === "toggle" && row.enabled) {
                     const before = row.setting.get();
+                    // Narrow controls wrap onto more lines; keep the click inside the window.
+                    page.y = Math.min(12, win.height - row.y - row.height - 12);
                     pointer.mouseClick(row, row.width / 2, row.height / 2);
+                    page.y = 12;
                     expect(row.setting.get() === !before, "toggle can be changed");
                 }
                 if (row.setting.type === "choice" && row.kind === "dropdown") {

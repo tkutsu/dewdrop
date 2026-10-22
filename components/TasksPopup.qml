@@ -249,7 +249,7 @@ Popup {
             readonly property int indent: sub ? root.gutter : 0
             readonly property var keyEdit: () => root.beginEdit(modelData)
             readonly property string dayText: {
-                if (header) return folded ? String(root.rows.filter(r => r.kind === "task" && r.listId === modelData.listId).length) : "";
+                if (header) return String(Tasks.tasks.filter(t => t.listId === modelData.listId).length);
                 const day = Tasks.dayOf(modelData);
                 return day === "" || day === Tasks.today || day === Tasks.tomorrow ? "" : Tasks.sayDay(day);
             }
@@ -376,7 +376,7 @@ Popup {
                 // All of it: a note is the rest of what the task says.
                 wrapMode: Text.WordWrap
             }
-            // A folded heading's count sits at the edge, as in the feeds
+            // Each heading's count sits at the edge, as in the feeds
             // popup, and gives way to the rename button under the pointer.
             PopupText {
                 anchors.right: row.header ? parent.right : actions.left

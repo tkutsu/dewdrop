@@ -238,15 +238,15 @@ Singleton {
     }
 
     function nudge(up) {
-        Quickshell.execDetached([Paths.script("display.sh"), up ? "up" : "down"]);
+        root.setBrightness(root.brightness + (up ? 20 : -20));
     }
 
-    // The popup's slider, as `display.sh set`. A drag asks for far more levels
+    // The slider and wheel use `display.sh set`. They ask for far more levels
     // than DDC can take — each setvcp is a good fraction of a second — so one
     // run at a time, and whatever was asked for last goes next. The ones in
     // between were never going to be seen anyway.
     //
-    // `brightness` follows the drag rather than the cache while that is going
+    // `brightness` follows the request rather than the cache while that is going
     // on: read mid-drag, the cache holds a level the slider has already left,
     // and the knob would jump back to it. `committed` is the cache's level, for
     // the knob to settle on once the drag is done.

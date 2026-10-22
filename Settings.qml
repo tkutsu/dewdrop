@@ -63,6 +63,7 @@ Singleton {
     readonly property var webShortcuts: root.values.webShortcuts ?? []
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
     readonly property var mailCategories: root.values.mailCategories ?? []
+    readonly property var ephemeralNotificationApps: root.values.ephemeralNotificationApps ?? []
     readonly property var feedChannels: root.values.feedChannels ?? []
     readonly property var feedUrls: root.values.feedUrls ?? []
     readonly property var feedTitles: root.values.feedTitles ?? ({})
@@ -75,6 +76,7 @@ Singleton {
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true
     readonly property bool showMpris: root.values.showMpris !== false
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
+    readonly property string mpdConfig: root.expand(root.values.mpdConfig ?? "~/.config/mpd/mpd.conf")
     readonly property string scriptsDir: root.expand(root.values.scriptsDir ?? "")
 
     // The settings window's way in: one key into settings.json. The file is

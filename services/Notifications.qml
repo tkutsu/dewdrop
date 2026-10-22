@@ -301,9 +301,8 @@ Singleton {
     }
 
     // --- arrival ------------------------------------------------------------
-    // Senders that only ever have something to say in the moment: shown as
-    // they arrive and then gone, never kept in the centre. Carried over from
-    // swaync's notification-visibility rules, where these were "transient".
+    // Summary rules for notices that only matter at arrival. App-name rules
+    // live in Settings.ephemeralNotificationApps so they can be edited.
     //
     // Claude Code names itself in the summary through whichever terminal it
     // runs in; inside herdr it is herdr that speaks (`notify-send --app-name
@@ -313,29 +312,16 @@ Singleton {
             summary: /Claude Code/
         },
         {
-            app: /^Herdr$/
-        },
-        {
-            app: /^Email$/
-        },
-        {
             summary: /hyprwhspr/
-        },
-        {
-            app: /^satty$/
-        },
-        {
-            app: /^qBittorrent$/
-        },
-        {
-            app: /^udiskie$/
         }
     ]
 
     function isFleeting(n) {
         if (n.transient)
             return true;
-        return root.fleeting.some(r => (!r.app || r.app.test(n.appName)) && (!r.summary || r.summary.test(n.summary)));
+        const app = (n.appName ?? "").toLowerCase();
+        return Settings.ephemeralNotificationApps.some(name => name.toLowerCase() === app)
+            || root.fleeting.some(r => r.summary.test(n.summary));
     }
 
     // The ids that go as soon as their notice has been seen. Only ever read

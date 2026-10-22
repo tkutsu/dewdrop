@@ -6,6 +6,7 @@ import io
 import json
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
@@ -124,6 +125,7 @@ class WeatherTemperatures(unittest.TestCase):
         days = [1790985600 + i * 86400 for i in range(7)]
         self.body = {
             "timezone": "UTC",
+            "utc_offset_seconds": 0,
             "hourly": {
                 "time": days,
                 "temperature_2m": [20] * 7,
@@ -221,6 +223,40 @@ class WeatherTemperatures(unittest.TestCase):
             self.body["hourly"][key] = [value + hour * 3600 if key == "time" else
                                       int(7 <= hour < 19) if key == "is_day" else value
                                       for value in values for hour in range(24)]
+
+    def test_daily_dates_stay_unique_across_clock_changes(self):
+        for zone, start_date, changed_date, count in [
+            ("Europe/Athens", "2026-10-22", "2026-10-25", 25),
+            ("Europe/Athens", "2026-03-26", "2026-03-29", 23),
+            ("America/New_York", "2026-10-29", "2026-11-01", 25),
+            ("America/New_York", "2026-03-05", "2026-03-08", 23),
+        ]:
+            with self.subTest(zone=zone, start=start_date):
+                start = datetime.fromisoformat(start_date).replace(tzinfo=weather.ZoneInfo(zone))
+                first = int(start.timestamp())
+                body = {
+                    **self.body, "timezone": zone,
+                    "utc_offset_seconds": int(start.utcoffset().total_seconds()),
+                    "hourly": {
+                        key: [first + i * 3600 for i in range(168)] if key == "time" else [values[0]] * 168
+                        for key, values in self.body["hourly"].items()
+                    },
+                    "daily": {
+                        **self.body["daily"],
+                        "time": [first + i * 86400 for i in range(7)],
+                        "temperature_2m_max": list(range(20, 27)),
+                    },
+                }
+                days = weather.normalize(body)["days"]
+                dates = [start + timedelta(days=i) for i in range(7)]
+                self.assertEqual([day["date"] for day in days], [date.date().isoformat() for date in dates])
+                self.assertEqual([day["weekday"] for day in days], [date.strftime("%a") for date in dates])
+                self.assertEqual([day["high"] for day in days], list(range(20, 27)))
+                changed = next(day for day in days if day["date"] == changed_date)
+                self.assertEqual(len(changed["hours"]), count)
+                for day in days:
+                    for hour in day["hours"]:
+                        self.assertEqual(datetime.fromtimestamp(hour["at"], start.tzinfo).date().isoformat(), day["date"])
 
     def test_daily_icons_pair_predominant_daylight_with_worst_full_day(self):
         self.full_days()

@@ -1,5 +1,6 @@
 import "../KeyTargets.js" as KeyTargets
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
@@ -147,7 +148,8 @@ PopupWindow {
     }
 
     // Whether the pointer is on the popup, which the bar counts (below).
-    readonly property bool hovered: pointer.hovered
+    // Dropdowns move into Qt's overlay, outside the body's hover tree.
+    readonly property bool hovered: pointer.hovered || root.contentItem.Controls.Overlay.overlay?.visible === true
 
     // Fade the surface and compositor blur together without crossing the
     // blur mask's alpha cutoff; keep the surface alive through its exit.

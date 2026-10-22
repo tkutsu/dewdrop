@@ -53,7 +53,17 @@ ShellRoot {
                 }
                 mouseMove(popup.contentItem,popup.contentItem.width-2,popup.contentItem.height-2);wait(250);
                 const oldHeight=barHeight(2);
-                check(barHeight(Math.floor(ripple.width/3)-3)>=10 && oldHeight<=4,"waveform stays large with pronounced peaks and valleys");
+                check(barHeight(Math.floor(ripple.width/3)-3)>=10 && oldHeight<=2
+                    && barHeight(Math.floor(ripple.width/6))<=5,"waveform keeps tall peaks with deeper lows and midrange valleys");
+                const barLeft=at(30)-1;
+                Mpd.elapsed=Mpd.duration*(barLeft+0.5)/ripple.width;wait(30);
+                const before=Array.from(ripple.getContext("2d").getImageData(barLeft,ripple.height-2,2,1).data);
+                check(before.slice(0,4).every((v,i)=>v===before[i+4]),"playhead leaves the next bar entirely unfilled");
+                Mpd.elapsed=Mpd.duration*(barLeft+1.5)/ripple.width;wait(30);
+                const after=Array.from(ripple.getContext("2d").getImageData(barLeft,ripple.height-2,2,1).data);
+                check(after.slice(0,4).every((v,i)=>v===after[i+4]) && after.some((v,i)=>v!==before[i]),
+                    "crossing a bar center fills the whole bar at once");
+                Mpd.elapsed=30;wait(30);
                 const still=raster();
                 const played=alpha(3), future=alpha(30), later=alpha(Math.floor(ripple.width/3)-3);
                 mouseMove(slider,slider.width*0.65,slider.height/2);wait(250);
@@ -64,6 +74,22 @@ ShellRoot {
                 mouseMove(slider,slider.width*0.1,slider.height/2);wait(50);
                 check(alpha(30)===future,"hovering behind the playhead leaves future bars grey");
                 mouseMove(popup.contentItem,popup.contentItem.width-2,popup.contentItem.height-2);wait(250);
+                const quietHeight=barHeight(Math.floor(ripple.width/3)-3);
+                Mpd.state="play";Mpd.playbackSampledAt=Date.now();wait(80);
+                check(source.bass>0.7 && source.mid>0.5 && source.treble>0.8,
+                    "playback follows all three cached frequency envelopes");
+                check(barHeight(Math.floor(ripple.width/3)-3)>=quietHeight+7,
+                    "audio reactions produce substantially taller waveform peaks");
+                Mpd.elapsed=121;Mpd.playbackSampledAt=Date.now();wait(50);
+                check(source.bass===0 && source.mid===0 && source.treble===0,"seeking beyond audio clears the reaction");
+                Mpd.elapsed=30;Mpd.playbackSampledAt=Date.now();wait(50);
+                check(source.treble>0.8,"seeking back restores the correct reaction immediately");
+                Settings.set("reduceMotion",true);wait(50);
+                check(source.bass===0 && source.mid===0 && source.treble===0
+                    && barHeight(Math.floor(ripple.width/3)-3)===quietHeight,"Reduce motion stops audio reactions");
+                Settings.set("reduceMotion",false);wait(50);
+                Mpd.state="pause";wait(250);
+                check(source.bass===0 && source.mid===0 && source.treble===0,"pausing settles all reaction bands");
                 const previous=JSON.stringify(source.samples);
                 check(slider.waving,"first song waveform is visible");
                 Mpd.file="b.wav";wait(75);
@@ -93,13 +119,13 @@ ShellRoot {
                 tryVerify(()=>source.loaded.endsWith("c.wav"),2000);wait(450);
                 check(source.samples.every(value=>value===0.65),"rapid skipping ignores superseded decoder output");
                 Mpd.file="b.wav";wait(60);Mpd.file="c.wav";wait(450);
-                check(source.loaded.endsWith("c.wav") && source.samples.every(value=>value===0.65) && source.beats[0]===1.5,
-                    "returning to the displayed song retains its waveform and beat timings");
+                check(source.loaded.endsWith("c.wav") && source.samples.every(value=>value===0.65) && source.reactions[0][0]===0.8,
+                    "returning to the displayed song retains its waveform and reactions");
                 Settings.set("reduceMotion",true);wait(30);
                 ripple.replaceSamples(Array(256).fill(0.4));
                 check(ripple.blend===1 && slider.waving,"Reduce motion replaces the waveform without animation or blanking");
 
-                const samples=JSON.stringify(source.samples), beats=JSON.stringify(source.beats), loaded=source.loaded;
+                const samples=JSON.stringify(source.samples), reactions=JSON.stringify(source.reactions), loaded=source.loaded;
                 decodeLog.reload();
                 const decodes=decodeLog.text();
                 popupHost.open=false;
@@ -108,7 +134,7 @@ ShellRoot {
                 popupHost.open=true;
                 tryVerify(()=>popup!==null,1000);
                 check(popup.auditWaveform.loaded===loaded && JSON.stringify(popup.auditWaveform.samples)===samples
-                    && JSON.stringify(popup.auditWaveform.beats)===beats,"recreated music popup has the cached waveform immediately");
+                    && JSON.stringify(popup.auditWaveform.reactions)===reactions,"recreated music popup has the cached waveform immediately");
                 wait(450);decodeLog.reload();
                 check(decodeLog.text()===decodes,"reopening the same song starts no decoder");
 
@@ -143,7 +169,7 @@ with Path(sys.argv[1]).with_name("decode.log").open("a") as log:
     log.write(name+"\\n")
 time.sleep(0.35 if name=="b.wav" else 0.02)
 bars=[0.15+0.85*i/255 if name=="a.wav" else 1-0.85*i/255 if name=="b.wav" else 0.65 for i in range(256)]
-print(json.dumps({"bars":bars,"beats":[0.5 if name=="a.wav" else 1 if name=="b.wav" else 1.5],"duration":120}))
+print(json.dumps({"bars":bars,"reactions":[[0.8,0.6,0.9]]*6000,"step":0.02,"duration":120}))
 '''
 
 

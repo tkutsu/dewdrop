@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Services.SystemTray
@@ -231,13 +232,6 @@ OverlayWindow {
                     ]
                 },
                 {
-                    title: "Keyboard Layout",
-                    rows: [
-                        { type: "toggle", id: "layoutChangeNotification", title: "Show Notification", text: "Transient, for three seconds.", get: () => Settings.layoutChangeNotification, set: v => Settings.set("layoutChangeNotification", v) },
-                        { type: "toggle", id: "layoutChangeBounce", title: "Show And Bounce For 3s", tooltip: "Shows the module for three seconds and bounces once. Reduce Motion dims it instead.", get: () => Settings.layoutChangeBounce, set: v => Settings.set("layoutChangeBounce", v) }
-                    ]
-                },
-                {
                     title: "Centre Pill",
                     rows: [
                         { type: "choice", id: "centrePillAnchor", title: "Centre On",
@@ -246,15 +240,12 @@ OverlayWindow {
                                 { value: "date", label: "Date" }, { value: "middle", label: "Middle" }],
                             get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) }
                     ]
-                },
-                {
-                    title: "Count Indicators",
-                    rows: ["email", "tasks", "countdown", "bell", "updater", "feeds"].map(key => root.badgeStyle(key))
-                },
-                {
-                    title: "Keyboard Labels",
-                    rows: root.layoutRows
-                },
+                }
+            ]
+        },
+        {
+            title: "Modules",
+            sections: [
                 {
                     title: "Module Visibility",
                     text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them.",
@@ -264,6 +255,31 @@ OverlayWindow {
                     title: "Tray Icons",
                     text: "Off keeps an icon in the drawer.",
                     rows: root.trayRows
+                }
+            ]
+        },
+        {
+            title: "Indicators",
+            sections: [
+                {
+                    title: "Count Indicators",
+                    rows: ["email", "tasks", "countdown", "bell", "updater", "feeds"].map(key => root.badgeStyle(key))
+                }
+            ]
+        },
+        {
+            title: "Keyboard",
+            sections: [
+                {
+                    title: "Keyboard Layout",
+                    rows: [
+                        { type: "toggle", id: "layoutChangeNotification", title: "Show Notification", text: "Transient, for three seconds.", get: () => Settings.layoutChangeNotification, set: v => Settings.set("layoutChangeNotification", v) },
+                        { type: "toggle", id: "layoutChangeBounce", title: "Show And Bounce For 3s", tooltip: "Shows the module for three seconds and bounces once. Reduce Motion dims it instead.", get: () => Settings.layoutChangeBounce, set: v => Settings.set("layoutChangeBounce", v) }
+                    ]
+                },
+                {
+                    title: "Keyboard Labels",
+                    rows: root.layoutRows
                 }
             ]
         },
@@ -310,23 +326,9 @@ OverlayWindow {
             title: "Launcher",
             sections: [
                 {
-                    title: "Web Search",
-                    rows: [
-                        { type: "shortcuts", id: "webShortcuts", title: "Web Shortcuts", text: "Type . plus a character to choose a shortcut. Use %s in the URL for your search text.",
-                            tooltip: "Leave Character blank on one entry to make it the default search. Otherwise the first entry is used. URLs without %s open directly.",
-                            get: () => Settings.webShortcuts, set: v => Settings.set("webShortcuts", v) }
-                    ]
-                },
-                {
                     title: "File Search",
                     rows: [
                         { type: "text", id: "fileSearchIgnore", title: "Ignore File", tooltip: "Extra patterns in fd's ignore-file format. Empty uses fd's normal rules.", placeholder: "No extra ignore file", get: () => Settings.values.fileSearchIgnore ?? "", set: v => Settings.set("fileSearchIgnore", v.trim()) }
-                    ]
-                },
-                {
-                    title: "Desktop Actions",
-                    rows: [
-                        { type: "toggle", id: "showDesktopActions", title: "Include App Shortcuts", tooltip: "App actions such as New Private Window.", get: () => Settings.showDesktopActions, set: v => Settings.set("showDesktopActions", v) }
                     ]
                 },
                 {
@@ -336,6 +338,30 @@ OverlayWindow {
                 {
                     title: "Power",
                     rows: root.powerRows
+                }
+            ]
+        },
+        {
+            title: "Web Search",
+            sections: [
+                {
+                    title: "Web Search",
+                    rows: [
+                        { type: "shortcuts", id: "webShortcuts", title: "Web Shortcuts", text: "Type . plus a character to choose a shortcut. Use %s in the URL for your search text.",
+                            tooltip: "Leave Character blank on one entry to make it the default search. Otherwise the first entry is used. URLs without %s open directly.",
+                            get: () => Settings.webShortcuts, set: v => Settings.set("webShortcuts", v) }
+                    ]
+                }
+            ]
+        },
+        {
+            title: "Launcher Apps",
+            sections: [
+                {
+                    title: "Desktop Actions",
+                    rows: [
+                        { type: "toggle", id: "showDesktopActions", title: "Include App Shortcuts", tooltip: "App actions such as New Private Window.", get: () => Settings.showDesktopActions, set: v => Settings.set("showDesktopActions", v) }
+                    ]
                 },
                 {
                     title: "Apps",
@@ -345,7 +371,7 @@ OverlayWindow {
             ]
         },
         {
-            title: "Apps & Services",
+            title: "Default Apps",
             sections: [
                 {
                     title: "Default Apps",
@@ -366,15 +392,39 @@ OverlayWindow {
                     rows: [
                         { type: "text", id: "scriptsDir", title: "Scripts Folder", tooltip: "Helpers for power, display, updates and cleanup.", placeholder: Settings.defaults.scriptsDir, get: () => Settings.values.scriptsDir, set: v => Settings.set("scriptsDir", v.trim() || Settings.defaults.scriptsDir) }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            title: "Notifications",
+            sections: [
+                {
+                    title: "Notifications",
+                    rows: [
+                        { type: "list", id: "ephemeralNotificationApps", title: "Ephemeral Apps", text: "Notifications from these apps disappear when their notice ends.",
+                            tooltip: "Use the app name shown in a notification. Letter case is ignored. Opening a notification in the centre keeps it for later.",
+                            placeholder: "App name", get: () => Settings.ephemeralNotificationApps, set: v => Settings.set("ephemeralNotificationApps", v) }
+                    ]
+                }
+            ]
+        },
+        {
+            title: "Music",
+            sections: [
                 {
                     title: "Music",
                     rows: [
                         { type: "toggle", id: "showMpris", title: "Show Now Playing", tooltip: "Media from browsers and other MPRIS apps.", get: () => Settings.showMpris, set: v => Settings.set("showMpris", v) },
                         { type: "toggle", id: "scrollMusicTitles", title: "Scroll Long Titles", tooltip: "Reduce Motion keeps titles still.", get: () => Settings.scrollMusicTitles, set: v => Settings.set("scrollMusicTitles", v) },
-                        { type: "text", id: "mpdSocket", title: "MPD Socket", placeholder: Settings.defaults.mpdSocket, get: () => Settings.values.mpdSocket, set: v => Settings.set("mpdSocket", v.trim() || Settings.defaults.mpdSocket) }
+                        { type: "text", id: "mpdSocket", title: "MPD Socket", placeholder: Settings.defaults.mpdSocket, get: () => Settings.values.mpdSocket, set: v => Settings.set("mpdSocket", v.trim() || Settings.defaults.mpdSocket) },
+                        { type: "text", id: "mpdConfig", title: "MPD Config", tooltip: "Applying equalizer changes backs up this file and briefly restarts MPD.", placeholder: Settings.defaults.mpdConfig, get: () => Settings.values.mpdConfig, set: v => Settings.set("mpdConfig", v.trim() || Settings.defaults.mpdConfig) }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            title: "Tasks & Calendar",
+            sections: [
                 {
                     title: "Tasks",
                     rows: [
@@ -385,7 +435,12 @@ OverlayWindow {
                 {
                     title: "Calendar",
                     rows: [root.webApp("calendar")]
-                },
+                }
+            ]
+        },
+        {
+            title: "Feeds",
+            sections: [
                 {
                     title: "Feeds",
                     text: "Your YouTube subscriptions are followed already. Add extra channels or RSS and Atom feeds below.",
@@ -394,7 +449,12 @@ OverlayWindow {
                         { type: "list", id: "feedUrls", title: "RSS Feeds", tooltip: "RSS or Atom feed addresses, shown under the videos. Leave a title blank to use the feed's own title.", placeholder: "https://example.com/feed.xml", validate: root.feedAddressProblem, get: () => Settings.feedUrls, set: v => Settings.set("feedUrls", v),
                             getTitle: url => Settings.feedTitles[url] ?? "", setTitle: (url, title) => Settings.setFeedTitle(url, title) }
                     ]
-                },
+                }
+            ]
+        },
+        {
+            title: "Mail",
+            sections: [
                 {
                     title: "Mail",
                     rows: [
@@ -590,38 +650,75 @@ OverlayWindow {
                     height: 8
                 }
 
-                Repeater {
-                    model: root.pages
+                Flickable {
+                    id: sidebar
 
-                    PopupRow {
-                        id: tab
+                    width: parent.width
+                    height: root.boxHeight - 2 * root.boxPad - y
+                    contentHeight: tabsColumn.height
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
 
-                        required property var modelData
-                        required property int index
-                        readonly property bool open: root.page === index && !root.query
+                    SmoothScroll { view: sidebar }
+                    Controls.ScrollBar.vertical: SettingsScrollBar {
+                        id: tabScroll
+                        Accessible.name: "Settings tabs"
+                    }
 
-                        name: tab.modelData.title
-                        width: parent.width
-                        height: 26
-                        gesturePolicy: TapHandler.ReleaseWithinBounds
-                        onTapped: {
-                            filter.text = "";
-                            root.page = index;
-                        }
+                    // Keyboard tab changes keep the selected tab within view.
+                    function revealPage(): void {
+                        const tab = tabs.itemAt(root.page);
+                        if (!tab) return;
+                        sidebar.cancelFlick();
+                        sidebar.contentY = Math.max(0, Math.min(sidebar.contentHeight - sidebar.height,
+                            tab.y < sidebar.contentY ? tab.y : Math.max(sidebar.contentY, tab.y + tab.height - sidebar.height)));
+                    }
 
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Theme.selectionRadius
-                            color: Theme.selectionStrong
-                            visible: tab.open
-                        }
+                    Connections {
+                        target: root
+                        function onPageChanged(): void { Qt.callLater(sidebar.revealPage); }
+                    }
 
-                        PopupText {
-                            x: Theme.popupInset
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: tab.modelData.title
-                            font.weight: tab.open ? Font.DemiBold : Font.Normal
-                            color: tab.open ? Theme.fg : Theme.label2
+                    Column {
+                        id: tabsColumn
+                        width: sidebar.width - 8
+                        spacing: 2
+
+                        Repeater {
+                            id: tabs
+                            model: root.pages
+
+                            PopupRow {
+                                id: tab
+
+                                required property var modelData
+                                required property int index
+                                readonly property bool open: root.page === index && !root.query
+
+                                name: tab.modelData.title
+                                width: parent.width
+                                height: 26
+                                gesturePolicy: TapHandler.ReleaseWithinBounds
+                                onTapped: {
+                                    filter.text = "";
+                                    root.page = index;
+                                }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: Theme.selectionRadius
+                                    color: Theme.selectionStrong
+                                    visible: tab.open
+                                }
+
+                                PopupText {
+                                    x: Theme.popupInset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: tab.modelData.title
+                                    font.weight: tab.open ? Font.DemiBold : Font.Normal
+                                    color: tab.open ? Theme.fg : Theme.label2
+                                }
+                            }
                         }
                     }
                 }
@@ -665,18 +762,37 @@ OverlayWindow {
                 boundsBehavior: Flickable.StopAtBounds
 
                 SmoothScroll { view: list }
+                Controls.ScrollBar.vertical: SettingsScrollBar {
+                    id: pageScroll
+                    parent: content
+                    anchors.top: list.top
+                    anchors.bottom: list.bottom
+                    anchors.right: parent.right
+                    anchors.rightMargin: 3
+                    anchors.topMargin: root.boxPad
+                    anchors.bottomMargin: root.boxPad
+                    Accessible.name: "Settings page"
+                }
 
                 // A page, and a new search, start at their top.
                 Connections {
                     target: root
 
                     function onPageChanged(): void {
-                        list.contentY = list.originY - list.topMargin;
+                        Qt.callLater(list.resetPosition);
                     }
 
                     function onQueryChanged(): void {
-                        list.contentY = list.originY - list.topMargin;
+                        Qt.callLater(list.resetPosition);
                     }
+                }
+
+                // ScriptModel changes can move the origin; position after its rows settle.
+                function resetPosition(): void {
+                    list.cancelFlick();
+                    list.forceLayout();
+                    list.positionViewAtBeginning();
+                    list.contentY = list.originY - list.topMargin;
                 }
 
                 model: ScriptModel {
