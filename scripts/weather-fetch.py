@@ -8,7 +8,7 @@ import os
 import tempfile
 import time
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
@@ -18,8 +18,8 @@ from zoneinfo import ZoneInfo
 
 # km/h, where the six-hour summary starts saying "Strong winds".
 WINDY = 39
-# Refetch forecasts cached before the restored day/night cloud icons.
-CACHE_VERSION = 5
+# Refetch forecasts cached before daily dates used the provider's fixed offset.
+CACHE_VERSION = 6
 
 
 def condition(code, daylight=True):
@@ -110,8 +110,10 @@ def normalize(body):
             "description": description, "icon": icon, "severity": severity,
         })
     days = []
+    # Daily epochs encode calendar dates at a fixed offset, even across DST.
+    daily_zone = timezone(timedelta(seconds=body["utc_offset_seconds"]))
     for i, stamp in enumerate(daily["time"]):
-        local = datetime.fromtimestamp(stamp, zone)
+        local = datetime.fromtimestamp(stamp, daily_zone)
         date = local.date().isoformat()
         hours = hours_by_day.get(date, [])
         days.append({

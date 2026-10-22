@@ -23,6 +23,7 @@ ClickArea {
     // `popupItem` is the live instance, for modules that need to drive it
     // (scrolling the calendar through months).
     property string tooltip: ""
+    property bool tooltipEnabled: true
     property Component popup: null
     readonly property var popupItem: clicked.item
 
@@ -428,7 +429,7 @@ ClickArea {
     HoverPopup {
         id: hover
         anchorItem: root
-        hovered: root.containsMouse && !root.pillDragging
+        hovered: root.containsMouse && !root.pillDragging && root.tooltipEnabled
         pressed: root.pressed || pin.pressed || opener.pressed
         text: root.tooltip
     }

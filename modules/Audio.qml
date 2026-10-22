@@ -17,6 +17,7 @@ BarItem {
 
     // The level the waves only hint at; which device is the popup's to say.
     tooltip: !Audio.connected ? "No output" : Audio.muted ? "Muted" : `Volume ${Audio.volume}%`
+    tooltipEnabled: !root.feedbackVisible
     popup: AudioPopup {}
     // Nothing to play through — no speaker, no headphones in the jack — is
     // nothing to set a volume on either, so it waits in the drawer until an
@@ -82,6 +83,40 @@ BarItem {
     scrolls: true
     Accessible.onScrollUpAction: scrollUp()
     Accessible.onScrollDownAction: scrollDown()
-    onScrollUp: Audio.step(true)
-    onScrollDown: Audio.step(false)
+    onScrollUp: root.adjustVolume(false)
+    onScrollDown: root.adjustVolume(true)
+
+    property bool feedbackVisible: false
+
+    // Keep visibility steady when restarting the hide timer for another notch.
+    function adjustVolume(up: bool): void {
+        Audio.step(up);
+        if (Audio.connected && OpenPopup.owner === null && !root.pillDragging) {
+            root.feedbackVisible = true;
+            feedback.restart();
+        }
+    }
+
+    Timer {
+        id: feedback
+        interval: 1200
+        onTriggered: root.feedbackVisible = false
+    }
+
+    Connections {
+        target: OpenPopup
+        function onOwnerChanged(): void {
+            if (OpenPopup.owner !== null) {
+                root.feedbackVisible = false;
+                feedback.stop();
+            }
+        }
+    }
+
+    HoverPopup {
+        parent: root
+        anchorItem: root
+        open: root.feedbackVisible && root.visible && !root.pillDragging && !Tooltips.blocked
+        popup: AudioLevelPopup {}
+    }
 }

@@ -29,6 +29,7 @@ Singleton {
     property real playbackElapsed: 0
     property real playbackSampledAt: 0
     property int duration: 0
+    property bool showRemaining: false
     readonly property bool connected: link.connected
     property string album: ""
     property string file: ""
