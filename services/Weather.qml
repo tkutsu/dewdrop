@@ -41,15 +41,17 @@ Singleton {
     readonly property string temperatureSymbol: Settings.weatherUnit === "fahrenheit" ? "°F" : Settings.weatherUnit === "kelvin" ? "K" : "°C"
     // Open-Meteo's global models with a full week of rain chances; the others
     // leave the popup's rain line blank.
+    // `about`: who runs it and what it is good for, under the setting.
     readonly property var models: [
-        { value: "best_match", label: "Auto" },
-        { value: "ecmwf_ifs", label: "ECMWF" },
-        { value: "icon_seamless", label: "DWD ICON" },
-        { value: "gfs_seamless", label: "NOAA GFS" },
-        { value: "ukmo_seamless", label: "UK Met Office" },
-        { value: "gem_seamless", label: "Canada GEM" }
+        { value: "best_match", label: "Auto", about: "Open-Meteo picks the sharpest model covering the place." },
+        { value: "ecmwf_ifs", label: "ECMWF", about: "Europe's joint forecast centre, Reading. Global at 9 km; the reference for the week ahead." },
+        { value: "icon_seamless", label: "DWD ICON", about: "Germany's weather service. Global, down to 7 km over Europe." },
+        { value: "gfs_seamless", label: "NOAA GFS", about: "The US National Weather Service. Global, down to 3 km over the US." },
+        { value: "ukmo_seamless", label: "UK Met Office", about: "The UK's weather service, Exeter. Global at 10 km, 2 km over the UK." },
+        { value: "gem_seamless", label: "Canada GEM", about: "Environment Canada. Global at 15 km, 2.5 km over Canada." }
     ]
     readonly property string model: root.models.some(option => option.value === Settings.weatherModel) ? Settings.weatherModel : "best_match"
+    readonly property string modelAbout: root.models.find(option => option.value === root.model).about
     // The models as settings lists them, each with its temperature now, to
     // hold against a thermometer nearby.
     readonly property var modelOptions: root.models.map(option => {

@@ -343,8 +343,8 @@ OverlayWindow {
                 {
                     title: "Forecast",
                     rows: [
-                        { type: "choice", id: "weatherModel", title: "Weather Model", text: "Each model's temperature this hour. Pick the one closest to a thermometer near you.",
-                            tooltip: "Auto lets Open-Meteo pick a model for the place, which can be a few degrees out locally.",
+                        { type: "choice", id: "weatherModel", title: "Weather Model", text: Weather.modelAbout,
+                            tooltip: "Each model shows its temperature this hour. Pick the one closest to a thermometer near you.",
                             options: Weather.modelOptions, get: () => Weather.model, set: v => Settings.set("weatherModel", v) }
                     ]
                 }
