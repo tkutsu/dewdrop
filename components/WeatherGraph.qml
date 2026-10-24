@@ -18,7 +18,7 @@ Item {
     property MouseArea cursor: plotHover
     // The three measurements, in drawing order.
     readonly property var series: [
-        {key: graph.feelsLike ? "feelsLike" : "temperature", label: graph.feelsLike ? "Feels like · °C" : "Celsius · °C", color: "#f2b36e", minimum: 0, maximum: 40, step: 10, pixels: 1.5},
+        {key: graph.feelsLike ? "feelsLike" : "temperature", label: `${graph.feelsLike ? "Feels like" : Settings.weatherUnit.charAt(0).toUpperCase() + Settings.weatherUnit.slice(1)} · ${Weather.temperatureSymbol}`, color: "#f2b36e", minimum: 0, maximum: 40, step: 10, pixels: 1.5},
         {key: "rain", label: "Rain chance · %", color: "#86b8f0", minimum: 0, maximum: 100, step: 25, pixels: 0.6},
         {key: "wind", label: "Wind · km/h", color: "#b4cfa0", minimum: 0, maximum: 40, step: 10, pixels: 1.5}
     ]
@@ -49,7 +49,7 @@ Item {
             return Weather.measure(hour.rain, "%");
         if (key === "wind")
             return [Weather.windLabel(hour.wind).toLowerCase(), hour.wind >= 1 ? Weather.windBearing(hour.windDirection) : "", Weather.measure(hour.wind, " km/h")].filter(part => part !== "").join(" ");
-        return Weather.measure(hour[key], "°");
+        return Weather.formatTemperature(hour[key], false);
     }
 
     Column {
@@ -168,7 +168,7 @@ Item {
                             x: 20
                             width: 28
                             y: plot.parent.y + (series.high - modelData) / (series.high - series.low) * (plot.height - 4) - height / 2 + 2
-                            text: Math.round(modelData)
+                            text: Math.round(series.modelData.key === "temperature" || series.modelData.key === "feelsLike" ? Weather.temperatureValue(modelData) : modelData)
                             horizontalAlignment: Text.AlignRight
                             color: Theme.label2
                             font.pixelSize: Theme.footnoteSize

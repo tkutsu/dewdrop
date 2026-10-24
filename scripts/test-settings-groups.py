@@ -36,7 +36,7 @@ ShellRoot {
             menu.contentAlpha = 1; menu.widthRatio = 1;
             saved.reload();
             check(saved.text().trim() === "{}", "opening settings does not write effective defaults");
-            check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Date & Time|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "sixteen focused tabs appear in the agreed order");
+            check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Date & Time|Weather|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "seventeen focused tabs appear in the agreed order");
             const ids = rows().map(r => r.id);
             check(new Set(ids).size === ids.length, "settings and generated rows appear once");
             const covered = new Set(ids.concat(["layoutNames", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datePosition", "weatherPosition", "timePosition", "wallpaperParallaxZoom"]));
@@ -45,6 +45,7 @@ ShellRoot {
             function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }
             check(sections("Bar") === "Displays|Workspaces|Centre Pill", "Bar contains only its short general preferences");
             check(sections("Modules") === "Module Visibility|Tray Icons", "module visibility has a dedicated page");
+            check(menu.pages.find(p => p.title === "Weather").sections[0].rows.map(r => r.id).join("|") === "weatherDisplay|weatherUnit", "weather has a dedicated tab for display and units");
             check(sections("Web Search") === "Web Search" && sections("Launcher Apps") === "Desktop Actions|Apps", "large launcher editors have dedicated pages");
             check(sections("Mail") === "Mail|Mail Inbox Tabs", "mail preferences stay together");
             check(hits("mail primary").includes("mail:primary"), "search includes section context");

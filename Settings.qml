@@ -39,6 +39,10 @@ Singleton {
     }
     readonly property string datePosition: root.centralComponents.includes("date") ? "centre" : "right"
     readonly property string weatherPosition: root.centralComponents.includes("weather") ? "centre" : "right"
+    readonly property string weatherDisplay: ["hour", "temperature", "day"].includes(root.values.weatherDisplay)
+        ? root.values.weatherDisplay : "hour"
+    readonly property string weatherUnit: ["celsius", "fahrenheit", "kelvin"].includes(root.values.weatherUnit)
+        ? root.values.weatherUnit : "celsius"
     readonly property string timePosition: root.centralComponents.includes("time") ? "centre" : "right"
     readonly property string centrePillAnchor: ["time", "date", "between", "middle"].includes(root.values.centrePillAnchor)
         ? root.values.centrePillAnchor : "between"

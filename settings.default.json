@@ -44,6 +44,13 @@
     // anything not in the central pill falls back to its middle.
     "centrePillAnchor": "between",
 
+    // Weather in the bar: "hour" for the current hour's icon, "temperature"
+    // for its temperature (following Feels Like), or "day" for today's predominant daylight icon.
+    "weatherDisplay": "hour",
+
+    // Temperature units throughout weather: "celsius", "fahrenheit", or "kelvin".
+    "weatherUnit": "celsius",
+
     // Scroll overflowing track titles in the music pill and player.
     // Off keeps titles truncated. Reduce motion also stops scrolling.
     "scrollMusicTitles": true,

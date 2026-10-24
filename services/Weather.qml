@@ -35,6 +35,7 @@ Singleton {
     readonly property string summary: root.summarize(root.upcoming)
     readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
+    readonly property string temperatureSymbol: Settings.weatherUnit === "fahrenheit" ? "°F" : Settings.weatherUnit === "kelvin" ? "K" : "°C"
     // The popup's icons in the colour of their weather. Rain and wind share
     // the graph's hues for those series.
     readonly property var tints: ({
@@ -57,7 +58,7 @@ Singleton {
     // The six-hour line the bar and popup share: the summary, marked when it
     // is a cached forecast, or why there is none yet.
     readonly property string nextSixHours: root.upcoming.length ? `${root.stale ? "Last forecast: " : ""}${root.summary}` : root.trouble || "Loading weather..."
-    readonly property string tooltip: root.location ? `6h: ${root.nextSixHours}` : "Choose a weather location"
+    readonly property string tooltip: root.location ? `Next 6 hours: ${root.nextSixHours}` : "Choose a weather location"
 
     // Merge matching hourly forecasts without bridging missing hours or DST epochs.
     function hourRanges(hours: var, key: string): var {
@@ -157,12 +158,12 @@ Singleton {
             const first = hours[0].temperature;
             const last = hours[hours.length - 1].temperature;
             if (maximum >= 35)
-                return `Hot, up to ${high}°C`;
+                return `Hot, up to ${root.formatTemperature(maximum, true)}`;
             if (minimum <= 0)
-                return `Freezing, down to ${low}°C`;
+                return `Freezing, down to ${root.formatTemperature(minimum, true)}`;
             if (finite(first) && finite(last) && Math.abs(Math.round(last) - Math.round(first)) >= 3)
-                return `${last > first ? "Warming" : "Cooling"} to ${Math.round(last)}°C`;
-            return high - low <= 2 ? `Around ${Math.round((low + high) / 2)}°C` : `Around ${low}-${high}°C`;
+                return `${last > first ? "Warming" : "Cooling"} to ${root.formatTemperature(last, true)}`;
+            return high - low <= 2 ? `Around ${root.formatTemperature((low + high) / 2, true)}` : `Around ${root.measure(root.temperatureValue(minimum), "")}-${root.formatTemperature(maximum, true)}`;
         }
 
         const sentences = [conditions(), wind(), temperature()].filter(sentence => sentence !== "");
@@ -198,6 +199,18 @@ Singleton {
         retryWake.stop();
         // A retry must reach the provider even if a failed manual refresh left a fresh cache.
         root.forecastRequest = JSON.stringify([++root.revision, root.location.latitude, root.location.longitude, root.location.timezone || "auto", !!force || root.trouble !== ""]);
+    }
+
+    // Forecasts stay in Celsius so thresholds and graph geometry do not depend on display units.
+    function temperatureValue(value: var): var {
+        if (typeof value !== "number" || !Number.isFinite(value))
+            return null;
+        return Settings.weatherUnit === "fahrenheit" ? value * 9 / 5 + 32 : Settings.weatherUnit === "kelvin" ? value + 273.15 : value;
+    }
+
+    // Compact Celsius and Fahrenheit readouts share a degree sign; Kelvin never takes one.
+    function formatTemperature(value: var, withUnit: bool): string {
+        return root.measure(root.temperatureValue(value), root.temperatureSymbol === "K" ? " K" : withUnit ? root.temperatureSymbol : "°");
     }
 
     function measure(value: var, suffix: string): string {

@@ -34,7 +34,7 @@ def main():
                 source = source.replace('text: plot.marked ?', 'objectName: "reading"\n                                text: plot.marked ?')
                 source = source.replace('y: plots.y + 2\n', 'objectName: "cursorLine"\n        y: plots.y + 2\n', 1)
                 source = source.replace('id: plots\n', 'id: plots\n            objectName: "plots"\n')
-                source = source.replace('text: Math.round(modelData)', 'objectName: "axisTick"\n                            text: Math.round(modelData)')
+                source = source.replace('text: Math.round(', 'objectName: "axisTick"\n                            text: Math.round(')
             (components / name).write_text(source)
         (components / "Popup.qml").write_text('''import QtQuick
 Item {
@@ -242,8 +242,27 @@ ShellRoot {
                 wait(40);
                 const graph = named(reel, "outgoing");
                 const plots = named(graph, "plots");
-                const firstPlot = namedAll(graph, "plot")[0];
-                const firstSeries = firstPlot.parent.parent;
+                for (const [unit, actual, apparent, daily, topTick, title, hot] of [
+                    ["fahrenheit", "68°", "64°", "68° / 59°", "104", "Fahrenheit · °F", "95°F"],
+                    ["kelvin", "293 K", "291 K", "293 K / 288 K", "313", "Kelvin · K", "308 K"],
+                    ["celsius", "20°", "18°", "20° / 15°", "40", "Celsius · °C", "35°C"]
+                ]) {
+                    Settings.set("weatherUnit", unit);
+                    wait(40);
+                    const unitSeries = named(graph, "plot").parent.parent;
+                    check(current.text === actual, "current temperature uses " + unit);
+                    check(Array.from(firstDay.content).some(child => child.text === daily), "daily high and low use " + unit);
+                    check(graph.reading("temperature", graph.hours[0]) === actual, "graph readout uses " + unit);
+                    check(named(unitSeries, "seriesTitle").text === title && named(unitSeries, "axisTick").text === topTick, "graph axis and legend use " + unit);
+                    check(Weather.summarize([Object.assign({}, graph.hours[0], {temperature: 35})]).includes(hot), "summary converts units while preserving heat thresholds for " + unit);
+                    check(unitSeries.isSevere(35) && unitSeries.isSevere(0) && !unitSeries.isSevere(20), "temperature thresholds stay in Celsius for " + unit);
+                    Weather.feelsLike = true;
+                    wait(30);
+                    check(current.text === apparent && graph.reading("feelsLike", graph.hours[0]) === apparent, "feels like uses " + unit);
+                    Weather.feelsLike = false;
+                    wait(30);
+                }
+                const firstSeries = named(graph, "plot").parent.parent;
                 const gapY = firstSeries.y + firstSeries.height + graph.spacing / 2;
                 const secondSeries = namedAll(graph, "plot")[1].parent.parent;
                 mouseMove(plots, graph.plotLeft + graph.plotWidth / 3, secondSeries.y + secondSeries.height + graph.spacing / 2);

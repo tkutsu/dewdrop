@@ -73,7 +73,7 @@ Popup {
         PopupText {
             id: current
             anchors.verticalCenter: parent.verticalCenter
-            text: Weather.measure(Weather.thisHour?.[Weather.feelsLike ? "feelsLike" : "temperature"], "°")
+            text: Weather.formatTemperature(Weather.thisHour?.[Weather.feelsLike ? "feelsLike" : "temperature"], false)
             font.pixelSize: Theme.figureTextSize
         }
 
@@ -92,7 +92,7 @@ Popup {
             }
             PopupText {
                 width: parent.width
-                text: `6h: ${Weather.nextSixHours}`
+                text: `Next 6 hours: ${Weather.nextSixHours}`
                 color: Theme.label2
                 wrapMode: Text.WordWrap
             }
@@ -348,7 +348,7 @@ Popup {
                         y: 46
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: `${Weather.measure(daily.modelData.high, "°")} / ${Weather.measure(daily.modelData.low, "°")}`
+                        text: `${Weather.formatTemperature(daily.modelData.high, false)} / ${Weather.formatTemperature(daily.modelData.low, false)}`
                         font.pixelSize: Theme.captionSize
                     }
                     PopupText {
