@@ -323,6 +323,22 @@ OverlayWindow {
             ]
         },
         {
+            title: "Weather",
+            sections: [
+                {
+                    title: "Display",
+                    rows: [
+                        { type: "choice", id: "weatherDisplay", title: "Bar Display", tooltip: "Current-hour icon, temperature following Feels Like, or today's predominant daylight icon.",
+                            options: [{ value: "hour", label: "Hour" }, { value: "temperature", label: "Temp" }, { value: "day", label: "Day" }],
+                            get: () => Settings.weatherDisplay, set: v => Settings.set("weatherDisplay", v) },
+                        { type: "choice", id: "weatherUnit", title: "Temperature Unit",
+                            options: [{ value: "celsius", label: "Celsius" }, { value: "fahrenheit", label: "Fahrenheit" }, { value: "kelvin", label: "Kelvin" }],
+                            get: () => Settings.weatherUnit, set: v => Settings.set("weatherUnit", v) }
+                    ]
+                }
+            ]
+        },
+        {
             title: "Launcher",
             sections: [
                 {
