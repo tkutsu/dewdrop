@@ -69,6 +69,13 @@ ShellRoot {
             ephemeral.remove(ephemeral.values().indexOf("Gmail"));
             check(!Settings.ephemeralNotificationApps.includes("Gmail") && Settings.ephemeralNotificationApps.includes("Email"), "removing one app preserves the other entries");
 
+            menu.query = "weather model"; wait(80);
+            const weatherModel = () => find(menu.contentItem, i => i.setting?.id === "weatherModel" && i.controls !== undefined);
+            check(weatherModel().setting.text.startsWith("Open-Meteo picks"), "Auto's summary sits under the weather model");
+            row("weatherModel").set("gfs_seamless"); wait(80);
+            check(weatherModel().setting.text.includes("US National Weather Service"), "choosing a model shows who runs it");
+            Settings.set("weatherModel", "best_match");
+
             row("screens").set(false);
             check(Settings.screens.join("|") === "DP-1|HDMI-A-1", "specific display mode starts with connected displays");
             row("screen:HDMI-A-1").set(false);
