@@ -46,6 +46,7 @@ ShellRoot {
             check(sections("Bar") === "Displays|Workspaces|Centre Pill", "Bar contains only its short general preferences");
             check(sections("Modules") === "Module Visibility|Tray Icons", "module visibility has a dedicated page");
             check(menu.pages.find(p => p.title === "Weather").sections[0].rows.map(r => r.id).join("|") === "weatherDisplay|weatherUnit", "weather has a dedicated tab for display and units");
+            check(sections("Weather") === "Display|Forecast" && hits("gfs").includes("weatherModel"), "the forecast model has its own section and is found by a model's name");
             check(sections("Web Search") === "Web Search" && sections("Launcher Apps") === "Desktop Actions|Apps", "large launcher editors have dedicated pages");
             check(sections("Mail") === "Mail|Mail Inbox Tabs", "mail preferences stay together");
             check(hits("mail primary").includes("mail:primary"), "search includes section context");

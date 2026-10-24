@@ -25,6 +25,7 @@ SCENARIO = r'''import QtQuick
 import QtTest
 import Quickshell
 import Quickshell.Io
+import qs
 import qs.services
 ShellRoot {
     id: root
@@ -37,8 +38,8 @@ ShellRoot {
         if (!ok) throw Error(why);
         console.log('PASS: ' + why);
     }
-    function configure(forecast, search = {locations: [{name: 'Athens'}]}, delay = 0, searchDelay = 0) {
-        response.setText(JSON.stringify({forecast: {output: forecast, delay}, search: {output: search, delay: searchDelay}}));
+    function configure(forecast, search = {locations: [{name: 'Athens'}]}, delay = 0, searchDelay = 0, compare = {temperatures: {best_match: 20, gfs_seamless: 25.4}}) {
+        response.setText(JSON.stringify({forecast: {output: forecast, delay}, search: {output: search, delay: searchDelay}, compare: {output: compare}}));
         response.waitForJob();
     }
     function forecast(name) {
@@ -150,6 +151,30 @@ ShellRoot {
         test.tryVerify(() => Weather.locations[0]?.name === 'New search', 2000);
         check(!Weather.searchTrouble, 'new query rejects the old search reply and accepts its own');
         Weather.query = '';
+
+        configure(forecast('gfs'));
+        Settings.set('weatherModel', 'gfs_seamless');
+        test.tryVerify(() => Weather.days[0]?.date === 'gfs', 2000);settled();
+        check(Weather.model === 'gfs_seamless' && lastForecast()[4] === 'gfs_seamless', 'choosing a model refetches the forecast from it');
+        Settings.set('weatherModel', 'retired_model');
+        check(Weather.model === 'best_match', 'an unknown model falls back to Auto');
+        settled();
+        before = count('compare');
+        Weather.compareModels();
+        test.tryVerify(() => Weather.modelTemperatures.gfs_seamless === 25.4, 2000);
+        const label = value => Weather.modelOptions.find(option => option.value === value).label;
+        check(label('gfs_seamless') === 'NOAA GFS · 25°' && label('best_match') === 'Auto · 20°' && label('ecmwf_ifs') === 'ECMWF',
+            'model options carry each temperature this hour, and a bare name where one is missing');
+        Settings.set('weatherUnit', 'fahrenheit');
+        check(label('gfs_seamless') === 'NOAA GFS · 78°', 'model temperatures follow the unit');
+        Settings.set('weatherUnit', 'celsius');
+        Weather.compareModels();test.wait(200);
+        check(count('compare') === before + 1, 'opening settings again within ten minutes asks nothing new');
+        configure(forecast('final'), undefined, 0, 0, {error: 'offline'});
+        AuditClock.now += 600000;
+        Weather.compareModels();
+        test.tryVerify(() => count('compare') === before + 2 && Weather.compareRequest === '', 2000);
+        check(Weather.modelTemperatures.gfs_seamless === 25.4, 'a failed comparison keeps the last temperatures and can ask again');
         requests.reload();
         requests.waitForJob();
         check(!requests.text().includes('--state') && requests.text().includes('--cache') && requests.text().includes('--force'),

@@ -23,6 +23,9 @@ Singleton {
     property int revision: 0
     property int searchRevision: 0
     property string forecastRequest: ""
+    property string compareRequest: ""
+    // Celsius for this hour by model, from the last comparison for this city.
+    property var modelTemperatures: ({})
     readonly property bool loading: !!forecastJob.want && (forecastJob.running || forecastJob.arg !== forecastJob.want)
     readonly property bool searching: !!searchJob.want && (searchJob.running || searchJob.arg !== searchJob.want)
     readonly property bool stale: root.updatedAt > 0 && (root.now - root.updatedAt > 1800 || root.trouble !== "")
@@ -36,6 +39,23 @@ Singleton {
     readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
     readonly property string temperatureSymbol: Settings.weatherUnit === "fahrenheit" ? "°F" : Settings.weatherUnit === "kelvin" ? "K" : "°C"
+    // Open-Meteo's global models with a full week of rain chances; the others
+    // leave the popup's rain line blank.
+    readonly property var models: [
+        { value: "best_match", label: "Auto" },
+        { value: "ecmwf_ifs", label: "ECMWF" },
+        { value: "icon_seamless", label: "DWD ICON" },
+        { value: "gfs_seamless", label: "NOAA GFS" },
+        { value: "ukmo_seamless", label: "UK Met Office" },
+        { value: "gem_seamless", label: "Canada GEM" }
+    ]
+    readonly property string model: root.models.some(option => option.value === Settings.weatherModel) ? Settings.weatherModel : "best_match"
+    // The models as settings lists them, each with its temperature now, to
+    // hold against a thermometer nearby.
+    readonly property var modelOptions: root.models.map(option => {
+        const temperature = root.modelTemperatures[option.value];
+        return { value: option.value, label: temperature == null ? option.label : `${option.label} · ${root.formatTemperature(temperature, false)}` };
+    })
     // The popup's icons in the colour of their weather. Rain and wind share
     // the graph's hues for those series.
     readonly property var tints: ({
@@ -198,7 +218,14 @@ Singleton {
             return;
         retryWake.stop();
         // A retry must reach the provider even if a failed manual refresh left a fresh cache.
-        root.forecastRequest = JSON.stringify([++root.revision, root.location.latitude, root.location.longitude, root.location.timezone || "auto", !!force || root.trouble !== ""]);
+        root.forecastRequest = JSON.stringify([++root.revision, root.location.latitude, root.location.longitude, root.location.timezone || "auto", root.model, !!force || root.trouble !== ""]);
+    }
+
+    // At most once per ten minutes for a city: asking again within them
+    // leaves the request as it was, so nothing runs.
+    function compareModels(): void {
+        if (root.location)
+            root.compareRequest = JSON.stringify([root.location.latitude, root.location.longitude, root.location.timezone || "auto", Math.floor(Date.now() / 600000)]);
     }
 
     // Forecasts stay in Celsius so thresholds and graph geometry do not depend on display units.
@@ -234,13 +261,20 @@ Singleton {
         return ["N ↑", "NE ↗", "E →", "SE ↘", "S ↓", "SW ↙", "W ←", "NW ↖"][Math.round(degrees / 45) % 8];
     }
 
-    onLocationChanged: {
+    // A new city or model drops the old forecast before fetching.
+    function startOver(): void {
         root.days = [];
         root.updatedAt = 0;
         root.trouble = "";
         root.forecastRequest = "";
         root.refresh();
     }
+    onLocationChanged: {
+        root.modelTemperatures = {};
+        root.compareRequest = "";
+        root.startOver();
+    }
+    onModelChanged: root.startOver()
     onQueryChanged: {
         root.searchRevision++;
         root.locations = [];
@@ -318,7 +352,7 @@ Singleton {
             if (!arg)
                 return [];
             const request = JSON.parse(arg);
-            return ["python3", Quickshell.shellPath("scripts/weather-fetch.py"), "forecast", String(request[1]), String(request[2]), request[3], "--cache", Paths.cache("weather-forecast.json"), ...(request[4] ? ["--force"] : [])];
+            return ["python3", Quickshell.shellPath("scripts/weather-fetch.py"), "forecast", String(request[1]), String(request[2]), request[3], request[4], "--cache", Paths.cache("weather-forecast.json"), ...(request[5] ? ["--force"] : [])];
         }
         onResult: (request, output) => {
             const relevant = request === root.forecastRequest;
@@ -338,6 +372,28 @@ Singleton {
             }
             retryWake.stop();
             root.trouble = "";
+        }
+    }
+
+    QueuedProcess {
+        id: compareJob
+        want: root.compareRequest
+        command: {
+            if (!arg)
+                return [];
+            const request = JSON.parse(arg);
+            return ["python3", Quickshell.shellPath("scripts/weather-fetch.py"), "compare", String(request[0]), String(request[1]), request[2], ...root.models.map(option => option.value), "--cache", Paths.cache("weather-forecast.json")];
+        }
+        onResult: (request, output) => {
+            let result;
+            try { result = JSON.parse(output); } catch (e) { result = {}; }
+            if (request !== root.compareRequest)
+                return;
+            // A failed comparison keeps the labels plain; opening settings again asks again.
+            if (!result.temperatures)
+                root.compareRequest = "";
+            else
+                root.modelTemperatures = result.temperatures;
         }
     }
 
