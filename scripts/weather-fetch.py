@@ -128,27 +128,52 @@ def normalize(body):
     return {"days": days}
 
 
+def model(args):
+    """The forecast's model, after its coordinates and timezone."""
+    return args[3] if len(args) > 3 else "best_match"
+
+
+def compare(body, models):
+    """Each model's temperature for this hour, the hour the bar shows."""
+    hourly, now = body["hourly"], time.time()
+    hour = next((i for i, stamp in enumerate(hourly["time"]) if stamp <= now < stamp + 3600), None)
+    if hour is None:
+        raise ValueError("No forecast for this hour")
+    series = {name: hourly.get(f"temperature_2m_{name}") or [] for name in models}
+    return {"temperatures": {name: number(values[hour]) if hour < len(values) else None for name, values in series.items()}}
+
+
 def fetch(mode, args):
     """Fetch public JSON over HTTPS with a bounded network wait."""
     if mode == "search":
         base = "https://geocoding-api.open-meteo.com/v1/search"
         params = {"name": args[0], "count": 5, "language": "en", "format": "json"}
-    elif mode == "forecast":
+    elif mode in ("forecast", "compare"):
         lat, lon = float(args[0]), float(args[1])
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             raise ValueError("Invalid coordinates")
         base = "https://api.open-meteo.com/v1/forecast"
-        params = {
-            "latitude": lat, "longitude": lon, "timezone": args[2], "timeformat": "unixtime", "forecast_days": 7,
-            "hourly": "temperature_2m,apparent_temperature,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day,visibility,cloud_cover",
-            "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
-        }
+        params = {"latitude": lat, "longitude": lon, "timezone": args[2], "timeformat": "unixtime"}
+        if mode == "compare":
+            # Each model's series comes back as temperature_2m_<model>.
+            params.update({"forecast_days": 1, "hourly": "temperature_2m", "models": ",".join(args[3:])})
+        else:
+            params.update({
+                "forecast_days": 7,
+                "hourly": "temperature_2m,apparent_temperature,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day,visibility,cloud_cover",
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+            })
+            # Left out, Open-Meteo picks the best model for the place.
+            if model(args) != "best_match":
+                params["models"] = model(args)
     else:
         raise ValueError("Unknown request")
     with urlopen(base + "?" + urlencode(params), timeout=15) as response:
         body = json.load(response)
     if mode == "forecast":
         return normalize(body)
+    if mode == "compare":
+        return compare(body, args[3:])
     return {"locations": [{
         "name": place["name"], "label": ", ".join(dict.fromkeys(filter(None, [place["name"], place.get("admin1"), place.get("country")]))),
         "latitude": place["latitude"], "longitude": place["longitude"], "timezone": place.get("timezone", "auto"),
@@ -183,7 +208,7 @@ def request(mode, args, cache_path, force=False):
     now = time.time()
     snapshot = {}
     if mode == "forecast":
-        key = [float(args[0]), float(args[1]), args[2]]
+        key = [float(args[0]), float(args[1]), args[2], model(args)]
         cached = read_json(cache_path)
         forecast = cached.get("forecast", {})
         if cached.get("key") == key and len(forecast.get("days", [])) == 7 and number(cached.get("fetchedAt")) is not None:
@@ -207,7 +232,7 @@ def request(mode, args, cache_path, force=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["forecast", "search"])
+    parser.add_argument("mode", choices=["forecast", "compare", "search"])
     parser.add_argument("args", nargs="+")
     parser.add_argument("--cache", required=True)
     parser.add_argument("--force", action="store_true")
