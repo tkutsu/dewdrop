@@ -43,6 +43,8 @@ Singleton {
         ? root.values.weatherDisplay : "hour"
     readonly property string weatherUnit: ["celsius", "fahrenheit", "kelvin"].includes(root.values.weatherUnit)
         ? root.values.weatherUnit : "celsius"
+    // Checked against the models the Weather service offers.
+    readonly property string weatherModel: root.values.weatherModel ?? "best_match"
     readonly property string timePosition: root.centralComponents.includes("time") ? "centre" : "right"
     readonly property string centrePillAnchor: ["time", "date", "between", "middle"].includes(root.values.centrePillAnchor)
         ? root.values.centrePillAnchor : "between"

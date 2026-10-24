@@ -51,8 +51,23 @@ class WeatherRequests(unittest.TestCase):
             self.request(args=["40", "20", "Europe/Athens"])
             self.assertEqual(fetch.call_count, 3)
 
+    def test_cache_does_not_cross_models(self):
+        with patch.object(weather, "fetch", return_value=self.forecast) as fetch:
+            self.request()
+            self.request(args=["37.98", "23.73", "Europe/Athens", "best_match"])
+            self.assertEqual(fetch.call_count, 1)
+            self.request(args=["37.98", "23.73", "Europe/Athens", "gfs_seamless"])
+            self.assertEqual(fetch.call_count, 2)
+
+    def test_comparison_is_never_cached(self):
+        with patch.object(weather, "fetch", return_value={"temperatures": {"gfs_seamless": 17}}) as fetch:
+            self.request("compare", ["37.98", "23.73", "Europe/Athens", "best_match", "gfs_seamless"])
+            self.request("compare", ["37.98", "23.73", "Europe/Athens", "best_match", "gfs_seamless"])
+            self.assertEqual(fetch.call_count, 2)
+        self.assertEqual(list(Path(self.directory.name).iterdir()), [])
+
     def test_fresh_legacy_forecast_is_refetched_for_visibility_and_daily_icons(self):
-        weather.write_json(self.cache, {"key": [37.98, 23.73, "Europe/Athens"],
+        weather.write_json(self.cache, {"key": [37.98, 23.73, "Europe/Athens", "best_match"],
                                        "forecast": self.forecast, "fetchedAt": 10000})
         with patch.object(weather, "fetch", return_value=self.forecast) as fetch:
             self.request()
@@ -62,7 +77,7 @@ class WeatherRequests(unittest.TestCase):
 
     def test_older_cache_is_updated_and_preserved_on_failure(self):
         old = {"days": [{"date": "2026-10-03", "hours": [{"at": 10000}]}] * 7}
-        cached = {"key": [37.98, 23.73, "Europe/Athens"], "forecast": old, "fetchedAt": 10000}
+        cached = {"key": [37.98, 23.73, "Europe/Athens", "best_match"], "forecast": old, "fetchedAt": 10000}
         weather.write_json(self.cache, cached)
         self.clock.return_value += 901
         with patch.object(weather, "fetch", return_value=self.forecast) as fetch:
@@ -106,7 +121,7 @@ class WeatherRequests(unittest.TestCase):
             self.assertNotIn("days", self.request(args=["40", "20", "Europe/Athens"]))
 
     def test_damaged_or_future_cache_does_not_block_fetch(self):
-        for contents in ["broken", "[]", json.dumps({"key": [37.98, 23.73, "Europe/Athens"],
+        for contents in ["broken", "[]", json.dumps({"key": [37.98, 23.73, "Europe/Athens", "best_match"],
                 "forecast": self.forecast, "fetchedAt": 11000})]:
             with self.subTest(contents=contents):
                 self.cache.write_text(contents)
@@ -216,6 +231,24 @@ class WeatherTemperatures(unittest.TestCase):
         fields = parse_qs(urlsplit(opened.call_args.args[0]).query)["hourly"][0].split(",")
         self.assertIn("visibility", fields)
         self.assertIn("cloud_cover", fields)
+
+    def test_forecast_names_a_model_only_when_one_is_chosen(self):
+        for args, models in [(["37.98", "23.73", "Europe/Athens"], None),
+                             (["37.98", "23.73", "Europe/Athens", "best_match"], None),
+                             (["37.98", "23.73", "Europe/Athens", "ecmwf_ifs"], ["ecmwf_ifs"])]:
+            with self.subTest(args=args), patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(self.body))) as opened:
+                weather.fetch("forecast", args)
+                self.assertEqual(parse_qs(urlsplit(opened.call_args.args[0]).query).get("models"), models)
+
+    def test_comparison_reads_each_model_for_this_hour(self):
+        body = {"hourly": {"time": [0, 3600, 7200], "temperature_2m_best_match": [1, 2, 3], "temperature_2m_gfs_seamless": [4, 5, None]}}
+        with patch.object(weather.time, "time", return_value=7300), \
+                patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(body))) as opened:
+            result = weather.fetch("compare", ["37.98", "23.73", "Europe/Athens", "best_match", "gfs_seamless", "ecmwf_ifs"])
+        params = parse_qs(urlsplit(opened.call_args.args[0]).query)
+        self.assertEqual(params["models"], ["best_match,gfs_seamless,ecmwf_ifs"])
+        self.assertEqual(params["hourly"], ["temperature_2m"])
+        self.assertEqual(result, {"temperatures": {"best_match": 3, "gfs_seamless": None, "ecmwf_ifs": None}})
 
     def full_days(self):
         """Expand the seven-day fixture so daily summaries see day and night."""

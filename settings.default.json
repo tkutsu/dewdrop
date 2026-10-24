@@ -51,6 +51,11 @@
     // Temperature units throughout weather: "celsius", "fahrenheit", or "kelvin".
     "weatherUnit": "celsius",
 
+    // The forecast model, as Open-Meteo names it: "best_match" lets it pick one
+    // for the place; or "ecmwf_ifs", "icon_seamless", "gfs_seamless",
+    // "ukmo_seamless", "gem_seamless". Settings shows each one's temperature now.
+    "weatherModel": "best_match",
+
     // Scroll overflowing track titles in the music pill and player.
     // Off keeps titles truncated. Reduce motion also stops scrolling.
     "scrollMusicTitles": true,

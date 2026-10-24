@@ -45,6 +45,10 @@ OverlayWindow {
     property int page: 0
     property string query: ""
 
+    // Weather Model lists each model's temperature now.
+    onOpenedChanged: if (root.opened)
+        Weather.compareModels()
+
     readonly property int boxWidth: 700
     readonly property int boxHeight: 560
     readonly property int boxPad: Theme.panelPadding
@@ -334,6 +338,14 @@ OverlayWindow {
                         { type: "choice", id: "weatherUnit", title: "Temperature Unit",
                             options: [{ value: "celsius", label: "Celsius" }, { value: "fahrenheit", label: "Fahrenheit" }, { value: "kelvin", label: "Kelvin" }],
                             get: () => Settings.weatherUnit, set: v => Settings.set("weatherUnit", v) }
+                    ]
+                },
+                {
+                    title: "Forecast",
+                    rows: [
+                        { type: "choice", id: "weatherModel", title: "Weather Model", text: "Each model's temperature this hour. Pick the one closest to a thermometer near you.",
+                            tooltip: "Auto lets Open-Meteo pick a model for the place, which can be a few degrees out locally.",
+                            options: Weather.modelOptions, get: () => Weather.model, set: v => Settings.set("weatherModel", v) }
                     ]
                 }
             ]
