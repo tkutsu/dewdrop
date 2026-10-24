@@ -75,6 +75,13 @@ PanelWindow {
     // that is on its way out.
     mask: root.shown ? inputRegion : blank
 
+    // A folding box takes no clicks, so its controls shouldn't say they would.
+    Binding {
+        target: root.inputItem
+        property: "enabled"
+        value: root.shown
+    }
+
     Region {
         id: inputRegion
         item: root.inputItem
