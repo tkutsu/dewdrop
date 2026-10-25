@@ -299,8 +299,10 @@ BarItem {
                 textPress: true
             }
 
-            Accessible.role: Accessible.Button
-            Accessible.name: "Music"
+            // A label named by the title it shows, as ClickArea's `shows`.
+            Accessible.role: Accessible.StaticText
+            Accessible.name: root.shownLabel || "Music"
+            Accessible.description: "Music"
             Accessible.onPressAction: if (enabled && visible)
                 root.togglePopup()
 

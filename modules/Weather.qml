@@ -13,6 +13,7 @@ BarItem {
     tooltip: Services.Weather.tooltip
     popup: WeatherPopup {}
     textPress: root.showTemperature
+    shows: root.showTemperature ? temperatureText.text : ""
     Layout.rightMargin: root.showTemperature ? -2 : 0
 
     readonly property bool showTemperature: Settings.weatherDisplay === "temperature"
@@ -33,6 +34,7 @@ BarItem {
     }
 
     BarText {
+        id: temperatureText
         Layout.fillHeight: true
         visible: root.showTemperature
         tightWidth: true
