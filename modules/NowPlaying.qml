@@ -17,6 +17,7 @@ import "../MediaText.js" as MediaText
 BarItem {
     id: root
     name: appName || "player"
+    shows: root.shownLabel
 
     // The player to show: the one playing, or failing that, the one that
     // played last, while it is still paused on something. Pausing one tab

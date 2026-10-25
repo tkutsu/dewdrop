@@ -9,6 +9,7 @@ import qs.services
 BarItem {
     id: root
     name: "Keyboard layout"
+    shows: Keyboard.short
     textPress: true
     tooltip: Keyboard.layout
     popup: LanguagePopup {}

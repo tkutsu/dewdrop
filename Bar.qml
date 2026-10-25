@@ -438,6 +438,7 @@ PanelWindow {
         BarItem {
             id: timeClock
             name: "Timers"
+            shows: timeText.text
             settingsKey: "time"
             textPress: true
             Layout.leftMargin: -1
@@ -447,6 +448,7 @@ PanelWindow {
             tooltip: Qt.formatDate(clock.date, "dddd d MMMM yyyy")
 
             RollingText {
+                id: timeText
                 Layout.fillHeight: true
                 tightWidth: true
                 readonly property var display: Settings.clockDisplay(clock.date)

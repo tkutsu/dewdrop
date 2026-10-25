@@ -230,8 +230,10 @@ BarItem {
             textPress: true
         }
 
-        Accessible.role: Accessible.Button
-        Accessible.name: "Timers"
+        // A label named by the time it shows, as ClickArea's `shows`.
+        Accessible.role: Accessible.StaticText
+        Accessible.name: root.shownLabel || "Timers"
+        Accessible.description: "Timers"
         Accessible.onPressAction: if (labelTap.enabled && enabled && visible)
             root.togglePopup()
 

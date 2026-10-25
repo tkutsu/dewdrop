@@ -94,6 +94,13 @@ ShellRoot {
                 setting: ({title: "Test choice", options: [{value: 0, label: "First"}, {value: 1, label: "Second"}],
                            get: () => win.choiceValue, set: v => {win.changes++; win.choiceValue = v;}})
             }
+            // Below the window: pressed only through accessibility.
+            BarItem {
+                id: shown; name: "Timers"; tooltip: "Sunday 25 October"; shows: "9:16PM"
+                width: 100; height: 38
+                actions: ({[Qt.LeftButton]: () => win.barClicks++})
+                Text { text: "9:16PM" }
+            }
         }
         TestCase {
             id: test; when: false
@@ -123,6 +130,12 @@ ShellRoot {
                 check(OpenPopup.owner === null && win.barClicks === 2, "accessibility closes popup without module action");
                 popup.stowed = true; popup.Accessible.pressAction();
                 check(OpenPopup.owner === null && win.barClicks === 2, "stowed bar item has no press action");
+                check(shown.Accessible.role === Accessible.StaticText && shown.Accessible.name === "9:16PM"
+                      && !shown.Accessible.ignored, "an area that shows text is a label named by it");
+                check(shown.Accessible.description === "Timers\\nSunday 25 October\\nPointer: hover",
+                      "what it does leads its description");
+                shown.Accessible.pressAction();
+                check(win.barClicks === 3, "a label that shows text still presses");
                 mouseClick(button, button.width / 2, button.height / 2); button.Accessible.pressAction();
                 check(win.taps === 2, "PopupButton press matches one tap");
                 button.live = false; button.Accessible.pressAction();

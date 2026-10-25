@@ -9,6 +9,7 @@ import qs.services
 BarItem {
     id: root
     name: "Calendar"
+    shows: dateText.text
     textPress: true
     Layout.leftMargin: -1
     Layout.rightMargin: -1
@@ -60,6 +61,7 @@ BarItem {
 
     // Date format letters use Qt's localized weekday and month names.
     BarText {
+        id: dateText
         Layout.fillHeight: true
         tightWidth: true
         text: Settings.applyCase(Qt.formatDate(clock.date, Settings.dateFormat), Settings.dateCase)
