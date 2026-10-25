@@ -12,8 +12,8 @@ BarItem {
     tooltip: NightMode.tooltip
     tooltipEnabled: !root.feedbackVisible
     popup: DisplayPopup {}
-    // On is a state worth seeing; off is the screen as it always is.
-    quiet: !NightMode.on
+    // Keep reduced brightness visible; full brightness can stay in the drawer.
+    quiet: NightMode.brightness === 100
 
     // Reserve one icon slot so the narrower dim bulb cannot resize the bar.
     Item {
@@ -48,8 +48,8 @@ BarItem {
     scrolls: true
     Accessible.onScrollUpAction: scrollUp()
     Accessible.onScrollDownAction: scrollDown()
-    onScrollUp: root.adjustBrightness(false)
-    onScrollDown: root.adjustBrightness(true)
+    onScrollUp: root.adjustBrightness(true)
+    onScrollDown: root.adjustBrightness(false)
 
     property bool feedbackVisible: false
 

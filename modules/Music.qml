@@ -37,7 +37,8 @@ BarItem {
     }
 
     // The bar draws the pill into its neighbour off `reveal` (Bar.drop).
-    stowed: (!Mpd.connected || (!Mpd.loaded && !popupOpen) || (paused && !expanded)) && !exitHeld
+    stowed: !(Mpd.reconfiguring ?? false)
+        && (!Mpd.connected || (!Mpd.loaded && !popupOpen) || (paused && !expanded)) && !exitHeld
     folds: false
 
     // Pause closes immediately. On disconnect the side pill closes the popover

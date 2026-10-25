@@ -71,9 +71,17 @@ ShellRoot {
         return audio.children.find(child => child.item && child.item.takesKeys === false);
     }
     function row(item) {
-        if (item.volume !== undefined) return item;
+        if (item.level !== undefined || item.volume !== undefined) return item;
         for (const child of item.children || []) {
             const found = row(child);
+            if (found) return found;
+        }
+        return null;
+    }
+    function slider(item) {
+        if (item.name === 'Output volume' && item.value !== undefined) return item;
+        for (const child of item.children || []) {
+            const found = slider(child);
             if (found) return found;
         }
         return null;
@@ -83,56 +91,66 @@ ShellRoot {
         onTriggered: {
             try {
                 check(!level(), "volume feedback starts hidden");
-                scroll(-60);
+                scroll(60);
                 check(Audio.volume === 53 && !level(), "partial wheel notch waits without showing feedback");
-                scroll(-60);test.wait(30);
+                scroll(60);test.wait(30);
                 const hud = level();
-                check(Audio.volume === 55 && hud?.open, "scroll down raises volume and opens the mini popover");
+                check(Audio.volume === 55 && hud?.open, "scroll up raises volume and opens the mini popover");
                 check(hud.item.anchorItem === audio && !hud.item.takesKeys && !hud.item.probes,
                     "mini popover anchors under the audio icon without taking focus");
-                check(row(hud.item.contentItem).volume === 55 && !audio.tooltipEnabled,
+                check(row(hud.item.contentItem).level === 55 && !audio.tooltipEnabled,
                     "mini popover tracks volume and suppresses the plain tooltip");
                 const firstPopup = hud.item;
                 const miniRow = row(firstPopup.contentItem);
-                const miniSlider = miniRow.children.find(child => child.name === 'Output volume');
-                const miniSize = Qt.size(miniSlider.width, miniSlider.height);
+                const miniSlider = slider(miniRow);
+                const percent = miniRow.children.find(child => child.visible && child.text === '55%');
+                check(percent && percent.y + percent.height <= miniSlider.parent.y,
+                    "mini volume percentage sits above its track");
+                check(!miniRow.children.some(child => child.visible && child.fontSize !== undefined),
+                    "mini volume readout has no speaker icon");
+                const empty = miniSlider.mapToItem(miniRow, 0, miniSlider.height / 2);
+                const full = miniSlider.mapToItem(miniRow, miniSlider.width, miniSlider.height / 2);
+                check(full.y < empty.y && Math.abs(full.x - empty.x) < 0.01
+                    && miniSlider.parent.height > miniSlider.parent.width
+                    && firstPopup.chromeHeight > firstPopup.chromeItem.width,
+                    "compact vertical volume track fills from bottom to top");
                 opening.target = firstPopup;
-                test.wait(800);scroll(120);test.wait(30);
-                check(Audio.volume === 50 && row(hud.item.contentItem).volume === 50,
-                    "scroll up lowers the visible volume tracker");
+                test.wait(800);scroll(-120);test.wait(30);
+                check(Audio.volume === 50 && row(hud.item.contentItem).level === 50,
+                    "scroll down lowers the visible volume tracker");
                 const position = miniRow.mapToItem(firstPopup.chromeItem, 0, 0);
                 const top = position.y;
                 const bottom = firstPopup.chromeHeight - position.y - miniRow.height;
-                const left = position.x + miniRow.leftPadding;
-                const right = firstPopup.chromeItem.width - position.x - miniRow.width + miniRow.rightPadding;
+                const left = position.x;
+                const right = firstPopup.chromeItem.width - position.x - miniRow.width;
                 check(hud.item === firstPopup && opening.opens === 0 && opening.closes === 0,
                     "another scroll never closes or reopens the visible popover (same instance: "
                     + (hud.item === firstPopup) + "; opens: " + opening.opens + "; closes: " + opening.closes
                     + ")");
                 check(top === bottom && left === right && top === left,
-                    "slider row has equal padding on all sides (" + [top, right, bottom, left].join(', ') + ")");
+                    "vertical readout has equal padding on all sides (" + [top, right, bottom, left].join(', ') + ")");
                 test.wait(500);
                 check(hud.open, "another scroll extends the display time");
                 test.wait(900);
                 check(!hud.open && !hud.item && audio.tooltipEnabled,
                     "idle feedback fades away and releases its surface");
 
-                scroll(-120);test.wait(30);
+                scroll(120);test.wait(30);
                 audio.togglePopup();test.wait(30);
                 check(audio.popupOpen && !hud.open, "opening the full menu dismisses mini feedback");
                 const master = row(audio.popupItem.contentItem);
                 const masterSlider = master.children.find(child => child.name === 'Output volume');
-                check(miniSize.width === masterSlider.width && miniSize.height === masterSlider.height,
-                    "mini slider dimensions match the full sound popover");
-                scroll(120);
+                check(masterSlider.rotation === 0 && masterSlider.width > masterSlider.height,
+                    "full sound popover keeps its horizontal slider");
+                scroll(-120);
                 check(!hud.open && Audio.volume === 50,
                     "scrolling with the full menu open adjusts volume without a second popover");
                 OpenPopup.dismiss();test.wait(200);
-                Audio.connected = false;scroll(-120);
+                Audio.connected = false;scroll(120);
                 check(!hud.open, "missing output never shows volume feedback");
                 Audio.connected = true;
                 Settings.user = Object.assign({}, Settings.user, {reduceMotion:true});
-                scroll(120);test.wait(30);
+                scroll(-120);test.wait(30);
                 check(hud.open && hud.item.growX === 1 && hud.item.growY === 1,
                     "mini feedback respects Reduce Motion");
                 console.log("DONE: audio feedback");

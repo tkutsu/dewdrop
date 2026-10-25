@@ -34,23 +34,36 @@ ShellRoot {
             if (!ok) throw Error(message);
             console.log("PASS: " + message);
         }
-        function musicSlider(item) {
-            if (item.name === "Music volume") return item;
+        function find(item, predicate) {
+            if (predicate(item)) return item;
             for (const child of item.children || []) {
-                const found = musicSlider(child);
+                const found = find(child, predicate);
                 if (found) return found;
             }
             return null;
         }
         function run() {
-            const slider = musicSlider(popup.contentItem);
+            const slider = find(popup.contentItem, item => item.name === "Music volume");
+            const control = find(popup.contentItem, item => item.objectName === "musicVolumeControl");
+            const metadata = find(popup.contentItem, item => item.objectName === "musicMetadata");
             check(slider !== null, "music volume slider is present");
+            check(!slider.visible && metadata.visible, "music starts with artist and album instead of the slider");
+            mouseMove(control, control.width / 2, control.height / 2); wait(50);
+            check(!slider.visible, "hover alone does not reveal volume");
+            check(Math.abs(control.mapToItem(metadata.parent, 0, control.height / 2).y
+                - (metadata.y + metadata.height / 2)) < 1, "volume icon and percentage sit beside artist and album");
+            const playback = find(popup.contentItem, item => item.name === "Playback position");
+            const time = find(playback.parent, item => item !== playback && item.keyPress && item.text);
+            check(time && Math.abs(time.y + time.height / 2 - playback.y - playback.height / 2) < 1,
+                "playback slider and time share a vertical center");
+            check(playback.y >= 4, "playback slider sits lower in its row");
             function scroll(delta) {
-                mouseWheel(slider, slider.width / 2, slider.height / 2, 0, delta);
+                mouseWheel(control, control.width / 2, control.height / 2, 0, delta);
             }
             Mpd.volume = 53;
             scroll(-120);
             check(Mpd.volume === 55, "scroll down snaps 53% to 55% (got " + Mpd.volume + "%)");
+            check(slider.visible && !metadata.visible, "scrolling the volume readout replaces artist and album with the slider");
             scroll(-120);
             check(Mpd.volume === 60, "the next notch advances by five percentage points");
             Mpd.volume = 53;
@@ -80,6 +93,28 @@ ShellRoot {
             check(true, "every multiple of five advances and reverses correctly");
             mouseClick(slider, slider.width * 0.53, slider.height / 2);
             check(Mpd.volume === 53, "pointer adjustment still allows arbitrary percentages");
+            wait(100);
+            mouseMove(slider, slider.width / 2, slider.height / 2);
+            mousePress(slider, slider.width / 2, slider.height / 2);
+            check(slider.pressed, "press reaches the volume slider");
+            wait(2100);
+            check(slider.visible && !metadata.visible, "holding the slider keeps it visible past the feedback timeout: "
+                + JSON.stringify({pressed: slider.pressed, visible: slider.visible, metadata: metadata.visible}));
+            mouseRelease(slider, slider.width / 2, slider.height / 2); wait(2100);
+            check(slider.visible, "stationary hover keeps the volume slider visible after release");
+            mouseMove(control, control.width / 2, control.height / 2); wait(2100);
+            check(slider.visible, "hovering the volume percentage also holds the slider open");
+            mouseMove(popup.contentItem, popup.contentItem.width - 2, popup.contentItem.height - 2); wait(1300);
+            check(slider.visible, "volume feedback lasts longer than the former 1.2 seconds");
+            mouseMove(slider, slider.width / 2, slider.height / 2); wait(50);
+            mouseMove(popup.contentItem, popup.contentItem.width - 2, popup.contentItem.height - 2); wait(1300);
+            check(slider.visible, "hovering resets the full idle duration");
+            wait(800);
+            check(!slider.visible && metadata.visible, "idle restores artist and album and hides the volume slider");
+            mouseWheel(metadata, metadata.width / 2, metadata.height / 2, 0, -120);
+            check(!slider.visible, "scrolling artist and album does not reveal volume");
+            Mpd.volume = -1; wait(10);
+            check(!control.visible && !slider.visible && metadata.visible, "a player without a mixer keeps metadata and hides volume");
             mouseWheel(relative, relative.width / 2, relative.height / 2, 0, -120);
             check(Math.abs(relative.value - 0.58) < 0.000001, "other sliders retain relative wheel steps");
             console.log("DONE: music volume");
@@ -111,7 +146,7 @@ def main():
         (target / "shell.qml").write_text(SHELL)
         result = subprocess.run(
             ["qs", "-p", str(target), "--no-color"], env=shell_env(target),
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True, timeout=20,
         )
         output = result.stdout + result.stderr
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Unable to assign", "Cannot assign",

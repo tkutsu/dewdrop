@@ -31,6 +31,28 @@ Singleton {
     property int duration: 0
     property bool showRemaining: false
     readonly property bool connected: link.connected
+    property bool reconfiguring: false
+    property bool reconfigurationFinished: false
+
+    // Keep the music UI anchored across the restart required by an EQ write.
+    function beginReconfigure(): void {
+        reconfigureTimeout.stop();
+        root.reconfigurationFinished = false;
+        root.reconfiguring = true;
+    }
+
+    // A fresh status reply must follow playback restoration, including pause.
+    function finishReconfigure(): void {
+        root.reconfigurationFinished = true;
+        link.redial();
+        reconfigureTimeout.restart();
+    }
+
+    Timer {
+        id: reconfigureTimeout
+        interval: 2000
+        onTriggered: root.reconfiguring = false
+    }
     property string album: ""
     property string file: ""
     property bool repeatOn: false
@@ -571,6 +593,11 @@ Singleton {
             root.album = first.album;
             root.file = first.file;
             root.duration = first.duration;
+        }
+        if (root.reconfigurationFinished) {
+            reconfigureTimeout.stop();
+            root.reconfiguring = false;
+            root.reconfigurationFinished = false;
         }
     }
 

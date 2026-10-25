@@ -605,6 +605,18 @@ GoogleService {
     readonly property int searchMax: 10
 
     function search(q: string, starredFirst: bool): void {
+        searchRetry.stop();
+        // A sender lookup is a timeline, including when it contains starred mail.
+        root.runSearch(q, starredFirst && !/(?:^|[\s({])-?from:/i.test(q), 0);
+    }
+
+    Timer {
+        id: searchRetry
+        property var again: null
+        onTriggered: if (searchRetry.again) searchRetry.again()
+    }
+
+    function runSearch(q: string, starredFirst: bool, attempt: int): void {
         root.searches += 1;
         const gen = root.searches;
         const current = () => gen === root.searches;
@@ -622,11 +634,23 @@ GoogleService {
                     trouble: trouble
                 };
         };
-        const failed = function (why, status) {
+        const failed = function (why, status, reason) {
             if (!alive())
                 return;
             broken = true;
-            answer([], status === 403 && why !== Google.reconnect ? "Gmail API not enabled in the Google console" : why);
+            const limited = status === 429 || (status === 403 && /^(?:userRateLimitExceeded|rateLimitExceeded|quotaExceeded|RESOURCE_EXHAUSTED)$/.test(reason ?? ""));
+            const temporary = limited || status === 0 || status === 408 || status >= 500;
+            if (temporary && attempt < 3) {
+                answer([], limited ? "Gmail rate limit reached. Trying again..." : "Gmail search unavailable. Trying again...");
+                searchRetry.interval = 2000 * Math.pow(2, attempt);
+                searchRetry.again = () => { if (current()) root.runSearch(q, starredFirst, attempt + 1); };
+                searchRetry.restart();
+                return;
+            }
+            const disabled = status === 403 && /^(?:accessNotConfigured|SERVICE_DISABLED|serviceDisabled)$/.test(reason ?? "");
+            answer([], disabled ? "Gmail API not enabled in the Google console"
+                : limited ? "Gmail rate limit reached. Try again shortly."
+                : reason ? `${why} (${reason})` : why);
         };
         // Gmail lists newest first.
         const list = (query, then) => root.send("GET", `${root.api}/threads?maxResults=${root.searchMax}&q=${encodeURIComponent(query)}&fields=threads(id,historyId,snippet)`, null, body => {
@@ -698,9 +722,9 @@ GoogleService {
                 if (alive())
                     each(t, thread);
                 settle();
-            }, function (why, status) {
+            }, function (why, status, reason) {
                 if (alive())
-                    (failed ?? root.fail)(why, status);
+                    (failed ?? root.fail)(why, status, reason);
                 settle();
             });
         };

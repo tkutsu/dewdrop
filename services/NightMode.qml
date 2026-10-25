@@ -28,7 +28,7 @@ Singleton {
     property bool restored: false
     property bool flagKnown: false
 
-    readonly property string icon: on ? Theme.glyph.nightOn : Theme.glyph.nightOff
+    readonly property string icon: (on || brightness === 0) ? Theme.glyph.nightOn : Theme.glyph.nightOff
     // The panel is dimmed to 0 whenever night mode goes on, so a dark screen is
     // what the mode looks like from outside; say that rather than "Brightness 0%".
     // Scrolling to 0 by hand is not the mode, so key this off the flag, not the level.
