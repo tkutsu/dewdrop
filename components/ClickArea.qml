@@ -29,6 +29,13 @@ MouseArea {
     property list<int> moreButtons: []
     // What the description says before the pointer line (BarItem's tooltip).
     property string hint: ""
+    // The text the area draws, when it draws some rather than an icon (the
+    // time, a track's title). Qt keeps a button's insides out of the tree,
+    // so an area that shows text is a label named by that text, still
+    // pressable, with `name` leading its description: what a screen reader
+    // says is what is on screen, and a pointer tool finds the area by it
+    // (wayhint's text mode searches labels).
+    property string shows: ""
     // Buttons whose entry runs on the press rather than the click: the ones
     // that open a popup, which like a Mac's menus is down the moment the
     // button is, not a release later.
@@ -45,10 +52,10 @@ MouseArea {
     }
     readonly property list<string> verbs: [root.answers(Qt.RightButton) ? "right click" : "", root.answers(Qt.MiddleButton) ? "middle click" : "", root.hovers ? "hover" : "", root.scrolls ? "scroll" : ""].filter(verb => verb !== "")
 
-    Accessible.role: root.presses ? Accessible.Button : Accessible.StaticText
-    Accessible.name: root.name
-    Accessible.description: [root.hint, root.verbs.length > 0 ? "Pointer: " + root.verbs.join(", ") : ""].filter(line => line !== "").join("\n")
-    Accessible.ignored: root.name === "" || !(root.presses || root.verbs.length > 0)
+    Accessible.role: root.presses && root.shows === "" ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.shows || root.name
+    Accessible.description: [root.shows !== root.name ? (root.shows && root.name) : "", root.hint, root.verbs.length > 0 ? "Pointer: " + root.verbs.join(", ") : ""].filter(line => line !== "").join("\n")
+    Accessible.ignored: (root.name === "" && root.shows === "") || !(root.presses || root.verbs.length > 0)
     Accessible.onPressAction: if (root.enabled && root.visible)
         root.pressAction?.()
 

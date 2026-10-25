@@ -15,6 +15,7 @@ import qs.services
 BarItem {
     id: root
     name: root.kept.line || "Notification"
+    shows: root.kept.line
     textPress: true
 
     readonly property var entry: Notifications.latest
