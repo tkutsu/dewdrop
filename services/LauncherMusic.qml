@@ -168,8 +168,7 @@ Singleton {
 
         // Playlists are ranked here rather than in the library, which has
         // never heard of them — they are mpd's, not the database's. Same
-        // matcher and the same scale, so they sort in among everything else
-        // rather than being a section of their own.
+        // matcher and the same scale, so they compete for the same result limit.
         const scored = Library.search(root.query).map(h => ({
                     hit: h,
                     s: h.score
@@ -184,7 +183,11 @@ Singleton {
                 });
         }
         scored.sort((a, b) => b.s - a.s);
-        return scored.slice(0, Launcher.maxResults);
+        // Group the best matches by their displayed kind; singles appear as tracks.
+        const group = x => x.playlist !== undefined ? 3
+            : x.hit.kind === "artist" ? 0
+            : x.hit.kind === "album" && Library.albums[x.hit.at].tracks.length > 1 ? 1 : 2;
+        return scored.slice(0, Launcher.maxResults).sort((a, b) => group(a) - group(b) || b.s - a.s);
     }
 
     // --- rows ----------------------------------------------------------------

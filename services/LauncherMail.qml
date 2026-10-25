@@ -43,12 +43,38 @@ Singleton {
             return recent.rows.map(root.row);
         }
 
+        const addresses = root.addressResults(query);
         const found = Email.found;
         if (!found || found.q !== query)
-            return note("searching…");
+            return addresses.concat(note("searching…"));
         if (found.trouble)
-            return note(found.trouble);
-        return found.rows.length ? found.rows.map(root.row) : note("no mail matches");
+            return addresses.concat(note(found.trouble));
+        return addresses.concat(found.rows.length ? found.rows.map(root.row) : note("no mail matches"));
+    }
+
+    // Plain text suggests known addresses; Gmail operators keep their own meaning.
+    function addressResults(query) {
+        if (/["{}():]|(?:^|\s)(?:OR|AND|NOT)(?:\s|$)/.test(query))
+            return [];
+        const terms = Launcher.prepTerms(query);
+        if (!terms.length)
+            return [];
+        const scored = [];
+        for (const entry of MailAddresses.entries) {
+            const score = Launcher.matchPrepped(terms, entry.fields);
+            if (score !== null)
+                scored.push({entry, score});
+        }
+        scored.sort((a, b) => b.score - a.score || b.entry.at - a.entry.at || a.entry.address.localeCompare(b.entry.address));
+        const rows = scored.slice(0, 5).map(({entry}) => ({
+            kind: "mail-address", address: entry.address, title: entry.address,
+            subtitle: entry.name || "Search mail from this address", glyph: Theme.glyph.mailRead, raw: true
+        }));
+        if (MailAddresses.trouble)
+            rows.push(Launcher.noteRow(Theme.glyph.mailRead, MailAddresses.trouble));
+        else if (MailAddresses.more)
+            rows.push(Launcher.noteRow(Theme.glyph.mailRead, "Indexing mail addresses...", `${MailAddresses.scanned} messages scanned`));
+        return rows;
     }
 
     // The thread Tab opened to read, or null. The thread itself rather than
@@ -115,6 +141,8 @@ Singleton {
     // debounce: nothing was typed to wait out.
     function route(inMode, text): void {
         root.open = null;
+        if (inMode)
+            MailAddresses.ensure();
         if (inMode && !text && !Email.threads.length && !(Email.found?.q === root.recentMail && !Email.found.trouble && Date.now() - Email.found.at < 30000))
             Email.search(root.recentMail, false);
         const want = inMode ? text : "";
@@ -132,12 +160,26 @@ Singleton {
         mailSearch.want = "";
     }
 
+    // Search the selected address or mail's sender in the launcher.
+    function searchSender(row): void {
+        const address = row?.kind === "mail-address" ? row.address : row?.kind === "mail" ? row.thread.address : "";
+        if (!address)
+            return;
+        const query = Launcher.mailPrefix + 'from:"' + address.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+        Launcher.query = query;
+        Launcher.queryReplaced(query);
+    }
+
     // Ctrl+Enter writes a new one, whatever row is selected and whether or
     // not there is one: what was typed is the subject.
     function activate(row, mode): bool {
         if (mode === "play") {
             Email.compose(Launcher.classification.text);
             return true;
+        }
+        if (row?.kind === "mail-address") {
+            root.searchSender(row);
+            return false;
         }
         if (row?.kind !== "mail")
             return false;

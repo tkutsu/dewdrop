@@ -83,8 +83,8 @@ BarItem {
     scrolls: true
     Accessible.onScrollUpAction: scrollUp()
     Accessible.onScrollDownAction: scrollDown()
-    onScrollUp: root.adjustVolume(false)
-    onScrollDown: root.adjustVolume(true)
+    onScrollUp: root.adjustVolume(true)
+    onScrollDown: root.adjustVolume(false)
 
     property bool feedbackVisible: false
 

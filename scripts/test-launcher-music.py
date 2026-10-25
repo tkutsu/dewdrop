@@ -90,6 +90,12 @@ ShellRoot {
             watching = false;
             Launcher.query = "#fixture"; test.wait(80);
             check(rows[0]?.kind === "music-playlist", "stored playlists remain searchable");
+            Launcher.query = "#mixed"; test.wait(80);
+            check(rows.map(row => row.key).join(",") === "artist:0,album:0,track:1,track:3,track:2,playlist:mixed playlist",
+                "search groups artists, albums, tracks and playlists, retaining score order and treating singles as tracks");
+            LauncherMusic.open = {"artist:0": true};
+            check(rows[1].key === "artist:0/album:0" && rows[2].key === "artist:0/track:3" && rows[3].key === "album:0",
+                "expanded children stay beneath their artist before the next search group");
             Launcher.query = "#single"; test.wait(80);
             check(rows.length === 1 && rows[0].kind === "music-track" && rows[0].title === "Track 3",
                 "a one-track album is listed once, as its track");
@@ -231,7 +237,7 @@ def main():
                 function playAt(pos) { commands = commands.concat("play " + pos); songPos = pos; state = "play"; }
                 function startServer(then) { commands = commands.concat("start"); then(); }
                 function enqueue(files, mode) { commands = commands.concat(mode === "play" ? ["clear"] : [], files.map(file => "add " + file), mode === "play" ? ["play"] : []); }
-                property var playlists: ["fixture playlist"]''',
+                property var playlists: ["fixture playlist", "mixed playlist"]''',
             "Library": '''property bool loaded: false
                 property bool loading: false
                 property bool failed: false
@@ -243,6 +249,10 @@ def main():
                 function artistName(at) { return "Band"; }
                 function year(date) { return ""; }
                 function search(query) {
+                    if (query === "mixed")
+                        return [{kind: "track", at: 1, score: 1}, {kind: "track", at: 2, score: 0.9},
+                            {kind: "album", at: 1, score: 0.95}, {kind: "album", at: 0, score: 0.8},
+                            {kind: "artist", at: 0, score: 0.7}];
                     if (query === "single")
                         return [{kind: "album", at: 1, score: 1}, {kind: "track", at: 3, score: 0.9}];
                     if (query === "band")

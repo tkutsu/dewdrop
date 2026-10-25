@@ -12,11 +12,12 @@ from test_support import copy_shell, shell_env
 
 # The menu extras: one width, so browsing from one to the next only changes
 # what is in the box. The lists that are read take the wide one.
-STANDARD = ["LanguagePopup", "NetworkPopup", "BluetoothPopup", "AudioPopup", "AudioLevelPopup", "DisplayPopup",
-            "BrightnessLevelPopup", "DrivesPopup", "PrivacyPopup", "TimerPopup"]
+STANDARD = ["LanguagePopup", "NetworkPopup", "BluetoothPopup", "AudioPopup", "DisplayPopup",
+            "DrivesPopup", "PrivacyPopup", "TimerPopup"]
 AT_LEAST = []
 WIDE = ["NotificationsPopup", "TasksPopup", "EmailPopup", "UpdatesPopup", "FeedsPopup"]
-OWN = ["WeatherPopup", "WallpaperPopup", "MusicPopup", "SysPopup", "Calendar"]
+OWN = ["WeatherPopup", "WallpaperPopup", "MusicPopup", "SysPopup", "Calendar",
+       "AudioLevelPopup", "BrightnessLevelPopup"]
 ALL = STANDARD + AT_LEAST + WIDE + OWN
 
 # The window chrome is Popup.qml's business; here the body is all there is.

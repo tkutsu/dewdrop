@@ -231,11 +231,11 @@ PanelWindow {
             item.settingsKey = key;
             item.visibilityKey = key;
             item.parent = Qt.binding(() => bar.centreKeys.includes(key) ? clockPill.moduleHost : rightPill.moduleHost);
-            item.pinKey = Qt.binding(() => item.pill === rightPill ? key : "");
+            item.pinKey = key;
             // The bell's visibility also follows the arriving notification's handoff.
             if (item !== bell)
                 item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
-            item.marksPin = Qt.binding(() => item.pill === rightPill && drawer.out);
+            item.marksPin = Qt.binding(() => drawer.out);
         }
     }
     Component.onCompleted: bar.placeModules()
@@ -542,7 +542,7 @@ PanelWindow {
         slidesContent: true
         morphValue: musicMorph.value
         closeWhenEmpty: true
-        empty: !Services.Mpd.connected
+        empty: !Services.Mpd.connected && !Services.Mpd.reconfiguring
 
         side: Pill.Side.Right
         edgeOffset: bar.width - bar.musicEdge + Theme.pillSpread

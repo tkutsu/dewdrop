@@ -13,6 +13,11 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 MOCKS = {
+    "MailAddresses": '''property var entries: []
+        property bool more: false
+        property int scanned: 0
+        property string trouble: ""
+        function ensure() {}''',
     "Preferences": "property bool shown: false",
     "Hyprland": '''property var toplevels: ({values: []})
         function dispatch(command) { throw new Error("Unexpected window activation: " + command); }''',
@@ -266,6 +271,17 @@ ShellRoot {
                 else
                     check(!Launcher.results.some(row => row.path === directPath), "missing file cannot reuse a stale exact result");
             }
+            const deep = "_projects/_personal/qmk/splitkb_userspace/keyboards/splitkb/halcyon/ferris/keymaps/vial_hlc";
+            for (const [query, path, dir] of [
+                [deep + "/autocorrect_dictionary.txt", Settings.home + "/" + deep + "/autocorrect_dictionary.txt", false],
+                [deep + "/", Settings.home + "/" + deep, true],
+                ["/ " + deep + "/a file's $(touch should-not-exist).txt", Settings.home + "/" + deep + "/a file's $(touch should-not-exist).txt", false]
+            ]) {
+                Launcher.query = query;
+                fileKeys.wait(400);
+                const row = Launcher.results[0];
+                check(Launcher.results.length === 1 && row?.path === path && row.dir === dir && !row.dim, "home-relative path resolves directly beyond search depth: " + query);
+            }
             check(Launcher.classifyQuery("/ notes").text === "notes", "explicit file search still strips its prefix");
             for (const query of ["/ automate-phone-test", ".plans/automate-phone-test.md", "/ quickshell automate-phone-test"]) {
                 Launcher.query = query;
@@ -492,6 +508,37 @@ ShellRoot {
             Launcher.activate(0, "play");
             check(LauncherMusic.activated === "play", "Ctrl+Enter play dispatch preserved");
 
+            const addressEntry = (address, name, at) => ({address, name, at,
+                fields: Launcher.prepFields([[address, 1], [name, 0.8]])});
+            MailAddresses.entries = [
+                addressEntry("rsample@example.com", "Robin Sample", 20),
+                addressEntry("unrelated@example.com", "Other Person", 10)
+            ];
+            Launcher.query = "@sampl";
+            check(Launcher.results[0]?.kind === "mail-address" && Launcher.results[0].address === "rsample@example.com",
+                "partial mailbox addresses appear before pending message results");
+            const thread = {id: "address-thread", subject: "A matching message", from: "Robin", at: 0};
+            Email.found = {q: "sampl", rows: [thread]};
+            check(Launcher.results.map(r => r.kind).join(",") === "mail-address,mail", "address suggestions precede matching mail threads");
+            Launcher.query = "@rsmpl";
+            check(Launcher.results[0]?.address === "rsample@example.com", "address matching accepts non-contiguous letters");
+            Launcher.query = "@robin";
+            check(Launcher.results[0]?.address === "rsample@example.com", "mailbox display names also find their addresses");
+            Launcher.activate(0, "queue");
+            check(Launcher.query === '@from:"rsample@example.com"' && test.adopted === Launcher.query && Launcher.shown,
+                "choosing an address fills a sender search and keeps the launcher open");
+            check(!Launcher.results.some(r => r.kind === "mail-address"), "Gmail operators suppress address suggestions");
+            Launcher.query = "@sampl";
+            Email.found = {q: "sampl", rows: [thread]};
+            MailAddresses.trouble = "Offline";
+            check(Launcher.results[0]?.kind === "mail-address" && Launcher.results.some(r => r.kind === "mail"),
+                "an address-index failure preserves cached suggestions and message results");
+            MailAddresses.trouble = "";
+            Launcher.query = "@";
+            check(!Launcher.results.some(r => r.kind === "mail-address"), "bare at-sign keeps the unread-mail view");
+            MailAddresses.entries = [];
+            Email.found = null;
+
             Launcher.query = "shutdown";
             const off = Launcher.results.findIndex(r => r.kind === "power" && r.action.key === "shutdown");
             check(off >= 0, "existing power search preserved");
@@ -637,6 +684,97 @@ ShellRoot {
         geometryChanged = geometryChanged || box.height !== 54 || box.radius !== Theme.panelRadius || Math.abs(box.x + box.width / 2 - menu.width / 2) > 1 || input.scale !== 1 || input.font.pixelSize !== Theme.queryTextSize;
     } }
     function check(ok, message) { if (!ok) throw new Error(message); }
+    function checkActionSelection(input) {
+        const thread = {id: "action-mail", subject: "Mail", from: "Sender Name", address: "sender@example.org", at: 0, unread: false, messages: []};
+        Email.threads = [thread];
+        input.adopt("@"); keys.wait(10);
+        check(menu.actionIndex === 0, "mail initially selects open in gmail");
+        check(menu.rowActions[3].key === "search-sender" && menu.rowActions[3].live,
+            "mail offers search sender as an optional action");
+        MailAddresses.entries = [{address: "rsample@example.com", name: "Robin", at: 0,
+            fields: Launcher.prepFields([["rsample@example.com", 1], ["Robin", 0.8]])}];
+        input.adopt("@sampl"); keys.wait(10);
+        check(menu.rowActions[0].label === "search sender" && menu.actionIndex === 0 && !menu.rowActions[1].live,
+            "matching addresses select search sender and disable the inline reader");
+        menu.accept(false); keys.wait(10);
+        check(input.text === '@from:"rsample@example.com"' && Launcher.shown && input.activeFocus,
+            "Enter on an address adopts its sender search and keeps typing focused");
+        MailAddresses.entries = [];
+        input.adopt("@"); keys.wait(10);
+        menu.runAction(1); keys.wait(10);
+        check(!!LauncherMail.open, "sender search is also available from the inline reader");
+        menu.moveAction(1); menu.moveAction(1);
+        check(menu.selectedAction === "search-sender", "action navigation reaches search sender");
+        menu.accept(false); keys.wait(10);
+        check(input.text === '@from:"sender@example.org"' && Launcher.shown && input.activeFocus && !LauncherMail.open,
+            "search sender uses the address rather than the display name and returns to search");
+        input.adopt("@"); keys.wait(10);
+        Email.threads = [Object.assign({}, thread, {address: ""})]; keys.wait(10);
+        check(!menu.rowActions[3].live, "mail without a sender address cannot search sender");
+        menu.selectedAction = "activate";
+        Email.threads = [];
+        Email.found = {q: LauncherMail.recentMail, rows: [], at: Date.now()};
+        keys.wait(10);
+        check(menu.actionIndex === 2 && menu.selectedAction === "activate", "empty mail falls back to new mail without forgetting open in gmail");
+        Email.threads = [thread]; keys.wait(10);
+        check(menu.actionIndex === 0, "mail restores open in gmail when results return");
+        menu.moveAction(1);
+        check(menu.selectedAction === "mail-fold", "read is the remembered mail action");
+        input.adopt("@missing");
+        Email.found = {q: "missing", rows: []}; keys.wait(10);
+        check(menu.actionIndex === 2 && menu.selectedAction === "mail-fold", "unmatched search falls back without forgetting read");
+        input.adopt("@matching");
+        Email.found = {q: "matching", rows: [thread]}; keys.wait(10);
+        check(menu.actionIndex === 1, "typing a matching query restores read");
+        input.adopt("@waiting"); keys.wait(10);
+        check(menu.actionIndex === 2, "pending mail search also selects new mail");
+        menu.moveAction(1);
+        input.adopt("@"); keys.wait(10);
+        check(menu.actionIndex === 2 && menu.selectedAction === "play", "explicitly choosing the fallback replaces the old preference");
+        Email.threads = [];
+        Email.found = null;
+
+        input.adopt("#artist");
+        const artist = {kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""};
+        const track = {kind: "music-track", title: "Track", subtitle: ""};
+        LauncherMusic.rows = [artist, track]; keys.wait(10);
+        menu.moveAction(-1);
+        check(menu.selectedAction === "music-fold", "music remembers the tree action");
+        Launcher.index = 1; keys.wait(10);
+        check(menu.actionIndex === 0 && menu.selectedAction === "music-fold", "a track falls back to queue without forgetting expand");
+        Launcher.index = 0; keys.wait(10);
+        check(menu.actionIndex === 2, "returning to an artist restores expand");
+        LauncherMusic.rows = []; keys.wait(10);
+        check(menu.actionIndex === -1, "empty music has no selected action");
+        input.adopt("#matching"); LauncherMusic.rows = [artist]; keys.wait(10);
+        check(menu.actionIndex === 2, "music restores expand after an empty search");
+
+        input.adopt("/"); keys.wait(30);
+        const path = {path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1]])};
+        LauncherFiles.pathCache = [path]; keys.wait(10);
+        menu.moveAction(1); menu.moveAction(1);
+        check(menu.selectedAction === "copy-path", "files remember copy path");
+        LauncherFiles.pathCache = []; keys.wait(10);
+        check(menu.actionIndex === -1, "empty files have no selected action");
+        LauncherFiles.pathCache = [path]; keys.wait(10);
+        check(menu.actionIndex === 2, "files restore copy path when results return");
+        LauncherFiles.pathCache = [];
+
+        input.adopt('"'); keys.wait(30);
+        const clip = {id: "action-clip", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]};
+        LauncherClipboard.clipEntries = [clip]; keys.wait(10);
+        menu.moveAction(1);
+        check(menu.selectedAction === "forget", "clipboard remembers delete");
+        LauncherClipboard.clipEntries = []; keys.wait(10);
+        check(menu.actionIndex === -1, "empty clipboard has no selected action");
+        LauncherClipboard.clipEntries = [clip]; keys.wait(10);
+        check(menu.actionIndex === 1, "clipboard restores delete when results return");
+        LauncherClipboard.clipEntries = [];
+        Launcher.openWith("@"); keys.wait(10);
+        check(input.text === "@" && menu.selectedAction === "activate", "external mode changes reset the remembered action");
+        input.adopt(""); keys.wait(10);
+        check(menu.selectedAction === "activate", "changing mode resets the remembered action");
+    }
     Timer { interval: 150; running: true; onTriggered: {
         try {
             Launcher.db = ({});
@@ -645,6 +783,12 @@ ShellRoot {
             keys.wait(400);
             const box = keys.findChild(menu, "box");
             const input = keys.findChild(menu, "input");
+            if (Quickshell.env("LAUNCHER_TEST_ACTIONS")) {
+                checkActionSelection(input);
+                console.log("PASS: launcher menu action fallback and restoration");
+                Qt.quit();
+                return;
+            }
             const hint = keys.findChild(menu, "hint");
             const list = keys.findChild(menu, "list");
             const divider = keys.findChild(menu, "divider");
@@ -661,6 +805,7 @@ ShellRoot {
             check(!keys.findChild(menu, "disclosure"), "chevron removed");
             const files = modes.children.find(child => child.modelData?.prefix === "/");
             check(files.children[0].font.bold && files.children[1].font.pixelSize < files.children[0].font.pixelSize, "mode symbols are bold and labels smaller");
+            checkActionSelection(input);
             for (const [query, icon] of [
                 ["", Theme.glyph.launcher], ["zzlauncher", Theme.glyph.launcher],
                 ["=", Theme.glyph.launcherCalc], ["2+2", Theme.glyph.launcherCalc], ["2/3", Theme.glyph.launcherCalc],
@@ -880,11 +1025,12 @@ ShellRoot {
             LauncherMusic.rows = [{kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""}];
             keys.wait(30);
             check(menu.rowActions[2].label === "expand", "music tree action is available as a button");
-            keys.keyClick(Qt.Key_Home);
+            check(menu.selectedAction === "play", "typing within music preserves the chosen action");
+            keys.keyClick(Qt.Key_End);
             keys.keyClick(Qt.Key_Return);
             check(LauncherMusic.folds === 1, "selected expand button dispatches to the music tree");
             input.adopt("@subject"); keys.wait(30);
-            check(menu.actionIndex === 0 && menu.rowActions[2].label === "new mail", "changing modes resets the action and offers compose without a result");
+            check(menu.actionIndex === 2 && menu.rowActions[2].label === "new mail", "mail without a result selects the first available action");
             keys.keyClick(Qt.Key_End);
             check(menu.selectedAction === "play", "action navigation skips unavailable mail actions");
             keys.keyClick(Qt.Key_Return);
@@ -908,7 +1054,7 @@ ShellRoot {
             keys.wait(30);
             check(menu.rowActions[1]?.key === "forget", "clipboard deletion has a button");
             input.adopt("#"); keys.wait(30);
-            check(menu.selectedAction === "activate", "typing resets the action to the primary one");
+            check(menu.selectedAction === "activate", "changing modes resets the action to the primary one");
             LauncherMusic.rows = Array.from({length: 12}, (_, i) => ({kind: "music", title: "row " + i}));
             keys.wait(240);
             const openedMode = Qt.createComponent(Qt.resolvedUrl("modules/LauncherMenu.qml")).createObject(null);
@@ -1159,6 +1305,10 @@ def main():
         fixture_home = target / "home"
         fixture_home.mkdir()
         (fixture_home / "notes.txt").write_text("fixture")
+        deep = fixture_home / "_projects/_personal/qmk/splitkb_userspace/keyboards/splitkb/halcyon/ferris/keymaps/vial_hlc"
+        deep.mkdir(parents=True)
+        (deep / "autocorrect_dictionary.txt").write_text("fixture")
+        (deep / "a file's $(touch should-not-exist).txt").write_text("fixture")
         repository = fixture_home / ".config/quickshell"
         plans = repository / ".plans"
         plans.mkdir(parents=True)

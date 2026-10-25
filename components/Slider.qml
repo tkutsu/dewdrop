@@ -42,6 +42,7 @@ Item {
     // back: the track lies across the wheel, so it reads like a page.
     property real wheelStep: 0
     property bool wheelSnap: false
+    readonly property bool pressed: area.pressed
     property real _wheelAcc: 0
     signal moved(real value)
 
@@ -271,11 +272,12 @@ Item {
                     const reaction = Theme.reduceMotion ? 0 : 6 * root.waveBass
                         + 3 * root.waveMid * (index % 5 < 3 ? 1 : 0.3)
                         + 4 * root.waveTreble * (index % 3 === 0 ? 1 : 0.15);
-                    // Deepen the resting valleys while keeping full-height peaks.
-                    const barHeight = Math.round(Math.min(height - 2,
+                    // Mirror each bar around the midline, leaving a pixel at each edge.
+                    const halfHeight = Math.round(Math.min(Math.floor(height / 2) - 1,
                         1 + (10 * sample * sample + reaction * (0.25 + 0.75 * sample)) * root.waveAmount));
+                    const barHeight = 2 * halfHeight;
                     const x = left + index * step;
-                    const y = height - 1 - barHeight;
+                    const y = (height - barHeight) / 2;
                     const barWidth = Math.min(2, step - 1);
                     const center = x + barWidth / 2;
                     const played = center <= end;

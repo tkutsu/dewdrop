@@ -350,9 +350,12 @@ Singleton {
         for (let i = 0; i < nL; i++) {
             const parent = albums[i].artist;
             let s = 0;
+            let own = false;
             let k = 0;
             for (; k < n; k++) {
                 let v = lS[k][i];
+                if (v !== null)
+                    own = true;
                 const up = parent >= 0 ? aS[k][parent] : null;
                 if (up !== null && (v === null || up * inherit > v))
                     v = up * inherit;
@@ -362,10 +365,9 @@ Singleton {
             }
             if (k < n)
                 continue;
-            // Already under its artist's row, so not listed twice. Even with
-            // a match of its own: long album titles catch fuzzy queries by
-            // accident, and it is one keystroke away under the artist.
-            if (shownArtist[parent])
+            // Keep title matches visible even when their artist also matches.
+            // Albums found only through the artist stay beneath its row.
+            if (!own && shownArtist[parent])
                 continue;
             shownAlbum[i] = true;
             hits.push({

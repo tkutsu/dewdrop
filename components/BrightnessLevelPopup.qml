@@ -3,37 +3,23 @@ import Quickshell
 import qs
 import qs.services
 
-// The display popup's brightness row, shown briefly after a bar scroll.
+// A vertical brightness readout, shown briefly after a bar scroll.
 Popup {
     id: root
 
-    readonly property int bodyWidth: Theme.popupWidth
-    vPadding: hPadding + Theme.popupInset
+    readonly property int bodyWidth: 34
+    hPadding: padding + Theme.popupInset
+    vPadding: hPadding
     bottomPadding: vPadding
     probes: false
     takesKeys: false
     mask: Region {}
 
-    Row {
-        id: row
-
+    LevelIndicator {
         width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
-        spacing: 10
-
-        Slider {
-            width: root.bodyWidth - Theme.popupInset * 2 - row.spacing - 34
-            anchors.verticalCenter: parent.verticalCenter
-            name: "Brightness"
-            value: NightMode.brightness / 100
-        }
-
-        PopupText {
-            anchors.verticalCenter: parent.verticalCenter
-            width: 34
-            horizontalAlignment: Text.AlignRight
-            text: NightMode.brightness + "%"
-        }
+        name: "Brightness"
+        readoutOnTop: true
+        icon: NightMode.icon
+        level: NightMode.brightness
     }
 }

@@ -73,16 +73,22 @@ OverlayWindow {
         }
     }
 
-    // Keep the action separate from the result so typing never loses focus.
+    // Remember the choice while unavailable; actionIndex supplies a live fallback.
     property string selectedAction: "activate"
+    readonly property string actionMode: Launcher.classification.mode
+    onActionModeChanged: root.selectedAction = "activate"
     readonly property var rowActions: {
         const row = Launcher.selected;
-        if (Launcher.mailMode)
-            return [
-                { key: "activate", label: "open in gmail", live: row?.kind === "mail" },
+        if (Launcher.mailMode) {
+            const actions = [
+                { key: "activate", label: row?.kind === "mail-address" ? "search sender" : "open in gmail", live: row?.kind === "mail" || row?.kind === "mail-address" },
                 { key: "mail-fold", label: LauncherMail.open ? "back to list" : "read", live: row?.kind === "mail" },
                 { key: "play", label: "new mail", live: true }
             ];
+            if (row?.kind === "mail")
+                actions.push({ key: "search-sender", label: "search sender", live: !!row.thread.address });
+            return actions;
+        }
         if (!row || row.kind === "note")
             return [];
         if (row.kind === "path")
@@ -116,7 +122,10 @@ OverlayWindow {
         const label = row.kind === "timer" ? (row.entry.running ? "pause" : "resume") : labels[row.kind] ?? "open";
         return [{ key: "activate", label, live: row.ok !== false }];
     }
-    readonly property int actionIndex: Math.max(0, root.rowActions.findIndex(action => action.key === root.selectedAction))
+    readonly property int actionIndex: {
+        const preferred = root.rowActions.findIndex(action => action.key === root.selectedAction && action.live);
+        return preferred >= 0 ? preferred : root.rowActions.findIndex(action => action.live);
+    }
 
     // Home and End cycle through available actions without moving the caret.
     function moveAction(dir) {
@@ -139,6 +148,9 @@ OverlayWindow {
         switch (action.key) {
         case "mail-fold":
             LauncherMail.fold();
+            break;
+        case "search-sender":
+            LauncherMail.searchSender(Launcher.selected);
             break;
         case "music-fold":
             LauncherMusic.fold();
@@ -760,7 +772,6 @@ OverlayWindow {
                     }
 
                     onTextChanged: {
-                        root.selectedAction = "activate";
                         root.settling = true;
                         Launcher.query = input.text;
                         root.settling = false;

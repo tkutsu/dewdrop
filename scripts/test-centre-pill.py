@@ -100,7 +100,7 @@ ShellRoot {
                 mouseRelease(destination, x, 20); settle();
                 bar.check(item.pill === destination && !source.dragging, key + ': same live module arrives');
                 bar.check(bar.movableModules.length === 20 && clockPill.modules.length + rightPill.modules.length === 20, 'every module has exactly one instance');
-                bar.check(item.pinKey === (destination === rightPill ? key : ''), 'pin controls follow placement');
+                bar.check(item.pinKey === key, 'pin controls remain available in either pill');
                 if (destination === rightPill) bar.check(DrawerPins.pinned(key), key + ': transfer automatically pins');
                 else bar.check(!item.stowed && item.visible, key + ': open drawer reveals central modules');
                 bar.check(bar.drawerRows.some(row => row.id === 'pin:' + key), 'mode settings remain available in both pills');
@@ -131,6 +131,19 @@ ShellRoot {
             function run() {
                 bar.check(centralItems().map(item => item.settingsKey).join(',') === 'date,time', 'Auto hides quiet central weather by default');
                 bar.check(weather.stowed && drawer.holding, 'quiet central module is available through the drawer');
+                drawer.open = true; settle();
+                for (const item of [clock, timeClock, weather]) {
+                    const key = item.settingsKey;
+                    mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
+                    bar.check(DrawerPins.pinned(key), 'middle click pins central ' + key);
+                    bar.check(item.marksPin, 'central pin mark appears while drawer is open');
+                    drawer.open = false; settle();
+                    bar.check(!item.stowed && item.visible, 'pinned central module stays visible: ' + key);
+                    drawer.open = true; settle();
+                    mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
+                    bar.check(DrawerPins.mode(key) === 'auto', 'middle click unpins central ' + key);
+                }
+                drawer.open = false; settle(); waitVisibility(weather, false);
                 DrawerPins.setMode('date', 'pinned');
                 DrawerPins.setMode('time', 'pinned');
                 CentrePillOrder.move('weather', null, ['date', 'weather', 'time']);
@@ -184,7 +197,9 @@ ShellRoot {
                 settle();
                 const middleClicks = clock.middleClicks;
                 mouseClick(clock, clock.width / 2, 20, Qt.MiddleButton);
-                bar.check(clock.middleClicks === middleClicks + 1 && !DrawerPins.pinned('date'), 'central date keeps its own middle-click action');
+                bar.check(clock.middleClicks === middleClicks && DrawerPins.pinned('date'), 'central date middle click pins instead of running its module action');
+                mouseClick(clock, clock.width / 2, 20, Qt.MiddleButton);
+                bar.check(DrawerPins.mode('date') === 'auto', 'central date middle click returns to Auto');
                 checkCentre('default with music notes');
                 drawer.open = true; settle();
                 transfer(audio, clockPill, clock);
@@ -197,7 +212,14 @@ ShellRoot {
                 bar.check(Settings.modulePosition('network') === 'centre', 'last non-clock module is guarded in settings');
                 DrawerPins.setMode('email', 'drawer');
                 transfer(email, clockPill, null);
-                bar.check(email.quiet && !email.stowed && email.pinKey === '', 'open drawer reveals quiet central module');
+                bar.check(email.quiet && !email.stowed && email.pinKey === 'email', 'open drawer reveals pinnable quiet central module');
+                mouseClick(email, email.width / 2, 20, Qt.MiddleButton);
+                bar.check(DrawerPins.pinned('email'), 'middle click pins a module moved to the centre');
+                drawer.open = false; settle();
+                bar.check(email.visible && !email.stowed, 'moved central module remains visible when pinned');
+                drawer.open = true; settle();
+                mouseClick(email, email.width / 2, 20, Qt.MiddleButton);
+                bar.check(DrawerPins.mode('email') === 'auto', 'middle click unpins a module moved to the centre');
                 const emailMode = bar.drawerRows.find(row => row.id === 'pin:email');
                 emailMode.set('auto'); wait(10);
                 drawer.open = false; settle(); waitVisibility(email, false);
@@ -321,6 +343,8 @@ def main():
                 if name == 'OpenPopup.qml':
                     contents = contents.replace('function dismiss()', 'function deselect() { selected = null; } function dismiss()')
                 (target / name).write_text(contents)
+        paths = target / 'Paths.qml'
+        paths.write_text(paths.read_text().replace('function state(name)', 'function cache(name) { return Quickshell.shellPath("cache/" + name); } function state(name)'))
         (target / 'state').mkdir(exist_ok=True)
         (target / 'Settings.qml').write_text((ROOT / 'Settings.qml').read_text())
         for name in ('WeatherPopup', 'TimerPopup'):
@@ -339,8 +363,8 @@ def main():
             quiet = 'true' if name in ('Email', 'Updater', 'Feeds', 'SettingsButton') else 'false'
             if name == 'Tray': quiet = 'DrawerPins.kept("tray:fixture")'
             (target / f'modules/{name}.qml').write_text(f'import QtQuick\nimport qs\nimport qs.components\nBarItem {{ {extra} quiet: {quiet}; popup: Component {{ Item {{}} }} Rectangle {{ implicitWidth: 22; implicitHeight: 20 }} }}\n')
-        (target / 'services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property bool outlook: true; property bool stale: false; function refresh(force) {} }\n")
-        theme = (target / 'Theme.qml').read_text().replace('property int glyphSize:', 'property int trayGlyphSize: 16; property real dimOpacity: 0.5; property int glyphSize:')
+        (target / 'services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property bool outlook: true; property bool stale: false; function refresh(force) {} function formatTemperature(value, unit) { return ''; } }\n")
+        theme = (target / 'Theme.qml').read_text().replace('property int glyphSize:', 'property int textSize: 14; property string bodyFont: "sans-serif"; property int bodyWeight: 400; property var figures: ({}); function barInk(item, color) { return color; } property int trayGlyphSize: 16; property real dimOpacity: 0.5; property int glyphSize:')
         glyphs = {key: 'icon' for key in re.findall(r'Theme.glyph\.(\w+)', metadata)}
         glyphs.update(pin='pin', track='music', micMuted='mic', vol=['volume'], wifiStrength=['wifi'])
         theme = re.sub(r'property var glyph: [^\n]+', 'property var glyph: (' + json.dumps(glyphs) + ')', theme)

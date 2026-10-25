@@ -80,46 +80,51 @@ ShellRoot {
         onTriggered: {
             try {
                 check(!level(), "brightness feedback starts hidden");
-                scroll(-60);
+                scroll(60);
                 check(NightMode.nudges.length === 0 && !level(), "partial wheel notch waits without adjusting brightness");
-                scroll(-60);test.wait(80);
+                scroll(60);test.wait(80);
                 const hud = level();
                 const first = hud?.item;
                 const track = first && slider(first.contentItem);
                 check(hud?.open && NightMode.nudges[0] === true && track.value === 0.58,
-                    "scroll down raises the tracker, which follows delayed brightness updates");
+                    "scroll up raises the tracker, which follows delayed brightness updates");
                 check(first.anchorItem === display && !first.takesKeys && !first.probes && !display.tooltipEnabled,
                     "brightness feedback anchors under Display and suppresses the plain tooltip");
-                const size = Qt.size(track.width, track.height);
-                const row = track.parent;
+                const row = track.parent.parent;
+                const empty = track.mapToItem(row, 0, track.height / 2);
+                const full = track.mapToItem(row, track.width, track.height / 2);
+                check(full.y < empty.y && Math.abs(full.x - empty.x) < 0.01
+                    && track.parent.height > track.parent.width
+                    && first.chromeHeight > first.chromeItem.width,
+                    "compact vertical brightness track fills from bottom to top");
                 const position = row.mapToItem(first.chromeItem, 0, 0);
                 const top = position.y;
                 const bottom = first.chromeHeight - position.y - row.height;
-                const left = position.x + row.leftPadding;
-                const right = first.chromeItem.width - position.x - row.width + row.rightPadding;
+                const left = position.x;
+                const right = first.chromeItem.width - position.x - row.width;
                 check(Math.max(top, right, bottom, left) - Math.min(top, right, bottom, left) < 0.01,
-                    "brightness row has equal padding on all sides (" + [top, right, bottom, left].join(', ') + ")");
+                    "brightness readout has equal padding on all sides (" + [top, right, bottom, left].join(', ') + ")");
                 opening.target = first;
-                test.wait(700);scroll(120);test.wait(80);
+                test.wait(700);scroll(-120);test.wait(80);
                 check(hud.item === first && opening.changes === 0 && track.value === 0.53 && NightMode.nudges[1] === false,
-                    "scroll up lowers brightness without replaying the opening animation");
+                    "scroll down lowers brightness without replaying the opening animation");
                 test.wait(500);
                 check(hud.open, "repeated scrolling extends the display time");
                 test.wait(900);
                 check(!hud.open && !hud.item && display.tooltipEnabled,
                     "idle feedback fades away and releases its surface");
-                scroll(-120);test.wait(80);
+                scroll(120);test.wait(80);
                 display.togglePopup();test.wait(30);
                 check(display.popupOpen && !hud.open, "the full Display popup dismisses mini feedback");
                 const fullTrack = slider(display.popupItem.contentItem);
-                check(size.width === fullTrack.width && size.height === fullTrack.height,
-                    "mini brightness slider matches the full Display popup");
-                scroll(120);test.wait(80);
+                check(fullTrack.rotation === 0 && fullTrack.width > fullTrack.height,
+                    "full Display popup keeps its horizontal brightness slider");
+                scroll(-120);test.wait(80);
                 check(!hud.open && NightMode.brightness === 53,
                     "scrolling with the full popup open adjusts brightness without a second popup");
                 OpenPopup.dismiss();test.wait(200);
                 Settings.user = Object.assign({}, Settings.user, {reduceMotion:true});
-                scroll(-120);test.wait(80);
+                scroll(120);test.wait(80);
                 check(hud.open && hud.item.growX === 1 && hud.item.growY === 1,
                     "brightness feedback respects Reduce Motion");
                 test.mouseClick(display, display.width / 2, display.height / 2, Qt.RightButton);

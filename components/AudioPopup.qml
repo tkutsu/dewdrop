@@ -29,8 +29,8 @@ Popup {
     }
 
     // The wheel moves whichever volume is under the pointer: an app's over
-    // its row, the output's anywhere else, in the same steps as the wheel on
-    // the bar icon: down is louder, the way it is on every Slider. A gap
+    // its row, the output's anywhere else, in Audio's five-percent steps:
+    // down is louder, the way it is on every horizontal Slider. A gap
     // between parts counts as the one below it, and the Input heading carries the mic, so
     // the wheel over it moves the input. Accumulated
     // the same way BarItem does it, so a touchpad's fractions add up to notches
