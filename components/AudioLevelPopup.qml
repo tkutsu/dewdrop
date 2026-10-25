@@ -7,16 +7,18 @@ import qs.services
 Popup {
     id: root
 
-    readonly property int bodyWidth: Theme.popupWidth
-    vPadding: hPadding + Theme.popupInset
+    readonly property int bodyWidth: 34
+    hPadding: padding + Theme.popupInset
+    vPadding: hPadding
     bottomPadding: vPadding
     probes: false
     takesKeys: false
     mask: Region {}
 
-    VolumeRow {
-        sliderWidth: root.bodyWidth - Theme.popupInset * 6 - (Theme.popupTextSize + 2) - 34
-        icon: Audio.icon
-        volume: Audio.volume
+    LevelIndicator {
+        width: root.bodyWidth
+        name: "Output volume"
+        readoutOnTop: true
+        level: Audio.volume
     }
 }

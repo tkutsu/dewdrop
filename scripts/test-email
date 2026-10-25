@@ -68,6 +68,7 @@ STATE = '''
     property var found: null
     property int searches: 0
     property int searchMax: 10
+    Timer { id: searchRetry; property var again: null; onTriggered: if (again) again() }
     property var bodies: ({})
     property var reading: ({})
     property var readQueue: []
@@ -85,7 +86,7 @@ STATE = '''
     }
     function fail(why, status) { trouble = why; }
     function reply(body, index) { requests.splice(index ?? 0, 1)[0].then(body); }
-    function reject(index, status, why) { requests.splice(index ?? 0, 1)[0].failed(why ?? "fixture failure", status ?? 503); }
+    function reject(index, status, why, reason) { requests.splice(index ?? 0, 1)[0].failed(why ?? "fixture failure", status ?? 503, reason); }
     // The poll's two lists: Primary's unread, then the whole inbox's.
     function isPrimary(r) { return r.url.includes("category%3Aprimary"); }
     function isAll(r) { return r.url.includes("labelIds=UNREAD") && !isPrimary(r); }
@@ -159,12 +160,12 @@ class EmailTests(unittest.TestCase):
 
     def test_search_list_failure_stays_local(self):
         self.js('sut.total=7; sut.loaded=true; sut.threads=[{id:"inbox"}]; sut.search("bad query", false); sut.reject();')
-        self.check('sut.found.q === "bad query" && sut.found.trouble === "fixture failure" && sut.found.rows.length === 0')
+        self.check('sut.found.q === "bad query" && sut.found.trouble.includes("Trying again") && sut.found.rows.length === 0')
         self.check('sut.trouble === "" && sut.total === 7 && sut.loaded && sut.threads[0].id === "inbox"')
 
     def test_search_header_failure_stays_local(self):
         self.js('sut.search("query", false); sut.reply({threads:[{id:"t"}]}); sut.reject();')
-        self.check('sut.found.q === "query" && sut.found.trouble === "fixture failure" && sut.found.rows.length === 0')
+        self.check('sut.found.q === "query" && sut.found.trouble.includes("Trying again") && sut.found.rows.length === 0')
         self.check('sut.trouble === ""')
 
     def test_stale_search_failure_preserves_current_results(self):
@@ -173,11 +174,11 @@ class EmailTests(unittest.TestCase):
 
     def test_starred_search_failure_is_not_overwritten(self):
         self.js('sut.search("query", true); sut.reject(); sut.reply({threads:[]});')
-        self.check('sut.found.q === "query" && sut.found.trouble === "fixture failure" && sut.trouble === ""')
+        self.check('sut.found.q === "query" && sut.found.trouble.includes("Trying again") && sut.trouble === ""')
 
     def test_search_preserves_existing_inbox_failure(self):
         self.js('sut.trouble="inbox failure"; sut.search("query", false); sut.reject();')
-        self.check('sut.trouble === "inbox failure" && sut.found.trouble === "fixture failure"')
+        self.check('sut.trouble === "inbox failure" && sut.found.trouble.includes("Trying again")')
 
     def test_search_can_retry_after_failure(self):
         self.js('sut.search("query", false); sut.reject(); sut.search("query", false); sut.reply({threads:[{id:"t"}]}); sut.reply({messages:[{id:"m",internalDate:"10"}]});')
@@ -189,15 +190,56 @@ class EmailTests(unittest.TestCase):
 
     def test_search_header_failure_stops_queued_details(self):
         self.js('sut.search("query", false); sut.reply({threads:Array.from({length:10}, (_,i)=>({id:"t"+i}))}); sut.reject(); while(sut.requests.length) sut.reply({messages:[{id:"m"}]});')
-        self.check('sut.found.trouble === "fixture failure" && sut.trouble === "" && sut.requests.length === 0')
+        self.check('sut.found.trouble.includes("Trying again") && sut.trouble === "" && sut.requests.length === 0')
         self.check('sut.maxPending === sut.headerParallel')
 
     def test_search_preserves_api_and_reconnect_errors(self):
         self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
-        self.js('sut.search("query", false); sut.reject(0, 403, "disabled");')
+        self.js('sut.search("query", false); sut.reject(0, 403, "Google said 403", "accessNotConfigured");')
         self.check('sut.found.trouble === "Gmail API not enabled in the Google console" && sut.trouble === ""')
         self.js('sut.search("query", false); sut.reject(0, 403, "reconnect");')
         self.check('sut.found.trouble === "reconnect" && sut.trouble === ""')
+
+    def test_search_does_not_mislabel_forbidden_errors_as_disabled_api(self):
+        self.engine.rootContext().setContextProperty('Google', {'reconnect': 'reconnect'})
+        for reason in ('userRateLimitExceeded', 'rateLimitExceeded', 'quotaExceeded', 'domainPolicy', ''):
+            with self.subTest(reason=reason):
+                self.js('sut.search("query", false); sut.reject(0, 403, "Google said 403", ' + json.dumps(reason) + ');')
+                self.check('!sut.found.trouble.includes("API not enabled") && sut.found.trouble !== ""')
+
+    def test_sender_search_uses_newest_first_even_with_starred_preference(self):
+        self.js('sut.search(\'from:"ann@example.com"\', true);')
+        self.check('sut.requests.length === 1 && !sut.requests[0].url.includes("is%3Astarred")')
+        self.js('''
+            sut.reply({threads:[{id:"old"},{id:"new"}]});
+            sut.reply({messages:[{id:"old-message",internalDate:"10",labelIds:["STARRED"]}]});
+            sut.reply({messages:[{id:"new-message",internalDate:"20"}]});
+        ''')
+        self.check('sut.found.rows.map(r => r.id).join() === "new,old"')
+
+    def test_search_header_quota_failure_keeps_reason_and_retries(self):
+        self.js('sut.search("query", false); sut.reply({threads:[{id:"t"}]}); sut.reject(0, 403, "Google said 403", "userRateLimitExceeded");')
+        self.check('sut.found.trouble.includes("rate limit")')
+        QTest.qWait(2100)
+        self.check('sut.requests.length === 1')
+        self.js('sut.reply({threads:[{id:"t"}]}); sut.reply({messages:[{id:"m",internalDate:"10"}]});')
+        self.check('sut.found.trouble === "" && sut.found.rows[0].id === "t"')
+
+    def test_search_retries_are_bounded_and_new_queries_cancel_them(self):
+        self.js('''
+            sut.runSearch("query", false, 3);
+            sut.reject(0, 403, "Google said 403", "rateLimitExceeded");
+        ''')
+        self.check('sut.found.trouble.includes("Try again shortly")')
+        QTest.qWait(2100)
+        self.check('sut.requests.length === 0')
+        self.js('sut.search("old", false); sut.reject(0, 429); sut.search("new", false); sut.reply({threads:[]});')
+        QTest.qWait(2100)
+        self.check('sut.requests.length === 0 && sut.found.q === "new" && sut.found.trouble === ""')
+
+    def test_plain_search_keeps_starred_preference(self):
+        self.js('sut.search("ann", true);')
+        self.check('sut.requests.length === 2 && sut.requests[0].url.includes("is%3Astarred")')
 
     def test_inbox_header_failure_still_sets_inbox_status(self):
         self.js('sut.fetchThreads(); sut.lists([{id:"t"}]); sut.reject();')

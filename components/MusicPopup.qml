@@ -52,7 +52,26 @@ Popup {
     // button itself for why it takes two.
     property bool quitArmed: false
     property bool equalizerOpen: false
+    property bool adjustingVolume: false
+    readonly property bool volumeHovered: volumeTrackHover.hovered || volumeReadoutHover.hovered
+    onVolumeHoveredChanged: if (adjustingVolume)
+        showVolume()
 
+    // Count down only after the pointer and any drag leave the volume controls.
+    function showVolume(): void {
+        root.adjustingVolume = true;
+        if (root.volumeHovered || volumeTrack.pressed)
+            volumeFeedback.stop();
+        else
+            volumeFeedback.restart();
+    }
+
+    Timer {
+        id: volumeFeedback
+        interval: 2000
+        onTriggered: if (!volumeTrack.pressed && !root.volumeHovered)
+            root.adjustingVolume = false
+    }
 
     // Queue and playlist changes redraw inside a fixed compositor surface.
     reserveHeight: equalizerOpen ? root.vPadding + root.bottomPadding + equalizer.height
@@ -373,7 +392,6 @@ Popup {
                     framed: true
                     implicitHeight: root.headerButtonSize
                     glyph: Theme.glyph.equalizer
-                    glyphSize: 16
                     onTapped: root.equalizerOpen = true
                 }
 
@@ -419,48 +437,107 @@ Popup {
                 }
             }
 
-            PopupText {
+            // Scrolling the volume readout temporarily replaces the metadata.
+            Item {
                 width: root.columnWidth
-                rightPadding: Theme.popupInset
-                text: [Mpd.artist, Mpd.album].filter(part => part).map(MediaText.display).join("  ·  ")
-                color: Theme.label2
-                elide: Text.ElideRight
-            }
+                height: Math.max(metadata.implicitHeight, volumeControl.height)
 
-            // MPD volume is independent of the system output level.
-            VolumeRow {
-                visible: Mpd.volume >= 0
-                name: "Music"
-                iconBeforeReadout: true
-                leftPadding: 0
-                rightPadding: Theme.popupInset
-                spacing: 2
-                icon: Mpd.volumeIcon
-                volume: Math.max(0, Mpd.volume)
-                iconWidth: root.volumeIconWidth
-                iconFontSize: Theme.popupGlyphSize
-                sliderWidth: root.sliderWidth
-                readoutWidth: root.readoutWidth - Theme.popupInset
-                readoutColor: Theme.label2
-                readoutFontSize: Theme.captionSize
-                wheelStep: 0.05
-                wheelSnap: true
-                onMoved: value => Mpd.setVolume(value)
-                onIconTapped: Mpd.toggleMute()
+                PopupText {
+                    id: metadata
+                    objectName: "musicMetadata"
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: volumeControl.visible ? root.sliderWidth : root.columnWidth
+                    visible: !root.adjustingVolume || Mpd.volume < 0
+                    rightPadding: Theme.popupInset
+                    text: [Mpd.artist, Mpd.album].filter(part => part).map(MediaText.display).join("  ·  ")
+                    color: Theme.label2
+                    elide: Text.ElideRight
+                }
+
+                Slider {
+                    id: volumeTrack
+                    HoverHandler { id: volumeTrackHover }
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: root.sliderWidth
+                    visible: Mpd.volume >= 0 && root.adjustingVolume
+                    name: "Music volume"
+                    value: Math.max(0, Mpd.volume) / 100
+                    wheelStep: 0.05
+                    wheelSnap: true
+                    onMoved: value => {
+                        Mpd.setVolume(value);
+                        root.showVolume();
+                    }
+                    onPressedChanged: if (!pressed && root.adjustingVolume)
+                        root.showVolume()
+                }
+
+                MouseArea {
+                    id: volumeControl
+                    HoverHandler { id: volumeReadoutHover }
+                    objectName: "musicVolumeControl"
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.popupInset
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: root.volumeIconWidth + Theme.popupInset + volumePercent.implicitWidth
+                    height: Theme.popupTextSize + 4
+                    visible: Mpd.volume >= 0
+                    acceptedButtons: Qt.NoButton
+                    property real wheelRemainder: 0
+
+                    onWheel: wheel => {
+                        wheelRemainder -= wheel.angleDelta.y;
+                        const notches = Math.trunc(wheelRemainder / 120);
+                        if (notches === 0)
+                            return;
+                        wheelRemainder -= notches * 120;
+                        const step = notches > 0 ? Math.floor(Mpd.volume / 5) : Math.ceil(Mpd.volume / 5);
+                        Mpd.setVolume(Math.max(0, Math.min(100, (step + notches) * 5)) / 100);
+                        root.showVolume();
+                    }
+
+                    PopupText {
+                        id: volumePercent
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.max(0, Mpd.volume) + "%"
+                        color: Theme.label2
+                        font.pixelSize: Theme.captionSize
+                    }
+
+                    Item {
+                        anchors.right: parent.right
+                        width: root.volumeIconWidth
+                        height: parent.height
+
+                        Glyph {
+                            anchors.right: parent.right
+                            height: parent.height
+                            text: Mpd.volumeIcon
+                            fontSize: Theme.popupGlyphSize
+                        }
+                        Accessible.role: Accessible.Button
+                        Accessible.name: "Toggle music mute"
+                        readonly property var keyPress: () => Mpd.toggleMute()
+                        Accessible.onPressAction: if (enabled && visible)
+                            keyPress()
+                        TapHandler { onTapped: Mpd.toggleMute() }
+                    }
+                }
             }
 
             // How far through, twice over: the track says how far, the figures
             // say how far in what. They were a row apart from each other and
             // are one reading.
             Row {
-                height: Math.max(Theme.popupTextSize + 4, playback.height)
+                height: Math.max(Theme.popupTextSize + 4, playback.height) + 8
                 spacing: 2
 
                 Slider {
                     id: playback
                     anchors.verticalCenter: parent.verticalCenter
                     width: root.sliderWidth
-                    height: 26
+                    height: 24
                     name: "Playback position"
                     value: Mpd.duration > 0 ? Mpd.elapsed / Mpd.duration : 0
                     // A stream has no length to seek through.
@@ -484,7 +561,7 @@ Popup {
 
                 PopupText {
                     id: playbackTime
-                    anchors.bottom: playback.bottom
+                    anchors.verticalCenter: playback.verticalCenter
                     width: root.readoutWidth
                     rightPadding: Theme.popupInset
                     horizontalAlignment: Text.AlignRight

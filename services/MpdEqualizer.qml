@@ -75,6 +75,7 @@ Singleton {
         worker.received = false;
         worker.exited = false;
         root.busy = true;
+        Mpd.beginReconfigure();
         worker.running = true;
     }
 
@@ -84,8 +85,11 @@ Singleton {
         property bool received: false
         property bool exited: false
         function finish(): void {
-            if (received && exited)
+            if (received && exited && root.busy) {
+                if (applying)
+                    Mpd.finishReconfigure();
                 root.busy = false;
+            }
         }
         command: ["python3", "-I", Quickshell.shellPath("scripts/mpd-equalizer.py"),
             applying ? "apply" : "read", "--config", Settings.mpdConfig,

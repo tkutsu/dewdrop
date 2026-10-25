@@ -90,6 +90,12 @@ Singleton {
         return root.fdTerms(query).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
     }
 
+    // Resolve relative paths against the same home directory that fd searches.
+    function absolutePath(query) {
+        const path = Settings.expand(query);
+        return path.startsWith("/") ? path : Settings.home + "/" + path;
+    }
+
     QueuedProcess {
         id: fd
 
@@ -120,8 +126,8 @@ Singleton {
         // giving it enough to rank.
         // Git ignores govern tracking, not launcher visibility: local plans
         // still belong in file search. Keep .ignore and fdIgnore exclusions.
-        // Resolve an existing absolute path before searching the home directory.
-        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", Settings.expand(fd.arg), "fd", "--hidden", "--no-ignore-vcs", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d"].concat(root.fdIgnore ? ["--ignore-file", root.fdIgnore] : []).concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
+        // Resolve an existing absolute or home-relative path before searching.
+        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", root.absolutePath(fd.arg), "fd", "--hidden", "--no-ignore-vcs", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d"].concat(root.fdIgnore ? ["--ignore-file", root.fdIgnore] : []).concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
 
         onResult: function (arg, text) {
             if (!Launcher.shown || arg !== fd.want)
@@ -146,7 +152,7 @@ Singleton {
     function results(query) {
         const hits = root.fdHits;
         if (hits && hits.q === query) {
-            const exact = Settings.expand(query).replace(/\/$/, "") || "/";
+            const exact = root.absolutePath(query).replace(/\/$/, "") || "/";
             const direct = hits.list.find(h => h.path === exact);
             if (direct)
                 return [root.pathRow(direct.path, direct.dir, false)];

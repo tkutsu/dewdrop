@@ -37,6 +37,10 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 | `#` | MPD library and playlists |
 | `=` | Calculator |
 
+In `@` mode, names and email addresses match fuzzily above message results. For example, `@sampl` can suggest `rsample@example.com`; selecting it fills a `from:` search. Gmail search operators still work as typed.
+
+The first `@` starts a background scan of sender and recipient headers across the mailbox, including Spam and Trash. Suggestions fill in as the scan progresses. Its SQLite cache under `$XDG_CACHE_HOME/quickshell/gmail-addresses.sqlite` (normally `~/.cache/quickshell/`) keeps addresses and scan progress across restarts. Later scans use Gmail's change history; an expired history cursor restarts the listing without rereading headers already indexed. Discovered addresses stay available after their messages are deleted. This uses the existing Gmail permission and does not require Google Contacts access.
+
 The more of a time a `,` line gives, the bigger the thing it makes. Events last an hour and go on the primary calendar.
 
 | Typed | Makes |

@@ -45,7 +45,7 @@ ShellRoot {
                     const count=Math.floor(ripple.width/3);
                     return Math.floor((ripple.width-count*3)/2)+index*3+1;
                 }
-                function alpha(index) { return ripple.getContext("2d").getImageData(at(index),ripple.height-2,1,1).data[3]; }
+                function alpha(index) { return ripple.getContext("2d").getImageData(at(index),ripple.height/2,1,1).data[3]; }
                 function barHeight(index) {
                     const data=ripple.getContext("2d").getImageData(at(index),0,1,ripple.height).data;
                     let result=0; for(let y=0;y<ripple.height;y++) if(data[y*4+3]>0) result++;
@@ -53,14 +53,21 @@ ShellRoot {
                 }
                 mouseMove(popup.contentItem,popup.contentItem.width-2,popup.contentItem.height-2);wait(250);
                 const oldHeight=barHeight(2);
-                check(barHeight(Math.floor(ripple.width/3)-3)>=10 && oldHeight<=2
-                    && barHeight(Math.floor(ripple.width/6))<=5,"waveform keeps tall peaks with deeper lows and midrange valleys");
+                check(barHeight(Math.floor(ripple.width/3)-3)>=20 && oldHeight<=4
+                    && barHeight(Math.floor(ripple.width/6))<=10,"waveform keeps tall peaks with deeper lows and midrange valleys");
+                const mirrored=raster();
+                check(mirrored.every((value,i)=> {
+                    const pixel=Math.floor(i/4), x=pixel%ripple.width, y=Math.floor(pixel/ripple.width);
+                    return value===mirrored[((ripple.height-1-y)*ripple.width+x)*4+i%4];
+                }),"waveform mirrors exactly above and below its center");
+                check(ripple.height===24 && barHeight(Math.floor(ripple.width/3)-3)>=ripple.height-4,
+                    "mirrored peaks fill the compact playback row");
                 const barLeft=at(30)-1;
                 Mpd.elapsed=Mpd.duration*(barLeft+0.5)/ripple.width;wait(30);
-                const before=Array.from(ripple.getContext("2d").getImageData(barLeft,ripple.height-2,2,1).data);
+                const before=Array.from(ripple.getContext("2d").getImageData(barLeft,ripple.height/2,2,1).data);
                 check(before.slice(0,4).every((v,i)=>v===before[i+4]),"playhead leaves the next bar entirely unfilled");
                 Mpd.elapsed=Mpd.duration*(barLeft+1.5)/ripple.width;wait(30);
-                const after=Array.from(ripple.getContext("2d").getImageData(barLeft,ripple.height-2,2,1).data);
+                const after=Array.from(ripple.getContext("2d").getImageData(barLeft,ripple.height/2,2,1).data);
                 check(after.slice(0,4).every((v,i)=>v===after[i+4]) && after.some((v,i)=>v!==before[i]),
                     "crossing a bar center fills the whole bar at once");
                 Mpd.elapsed=30;wait(30);
@@ -75,10 +82,11 @@ ShellRoot {
                 check(alpha(30)===future,"hovering behind the playhead leaves future bars grey");
                 mouseMove(popup.contentItem,popup.contentItem.width-2,popup.contentItem.height-2);wait(250);
                 const quietHeight=barHeight(Math.floor(ripple.width/3)-3);
+                const quietHeights=Array.from({length:Math.floor(ripple.width/3)},(_,i)=>barHeight(i));
                 Mpd.state="play";Mpd.playbackSampledAt=Date.now();wait(80);
                 check(source.bass>0.7 && source.mid>0.5 && source.treble>0.8,
                     "playback follows all three cached frequency envelopes");
-                check(barHeight(Math.floor(ripple.width/3)-3)>=quietHeight+7,
+                check(quietHeights.some((height,i)=>barHeight(i)>=height+7),
                     "audio reactions produce substantially taller waveform peaks");
                 Mpd.elapsed=121;Mpd.playbackSampledAt=Date.now();wait(50);
                 check(source.bass===0 && source.mid===0 && source.treble===0,"seeking beyond audio clears the reaction");
@@ -98,7 +106,7 @@ ShellRoot {
                 tryVerify(()=>source.loaded.endsWith("b.wav"),2000);
                 tryVerify(()=>ripple.blend>=0.35 && ripple.blend<=0.7,500);
                 ripple.auditMorph.pause();wait(30);
-                check(ripple.blend>0 && ripple.blend<1 && barHeight(2)>oldHeight && barHeight(2)<11,
+                check(ripple.blend>0 && ripple.blend<1 && barHeight(2)>oldHeight && barHeight(2)<22,
                     "replacement waveform blends through an intermediate shape after decoding");
                 ripple.auditMorph.resume();
                 tryCompare(ripple,"blend",1,1000);

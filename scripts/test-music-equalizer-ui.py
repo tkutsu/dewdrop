@@ -76,8 +76,8 @@ ShellRoot {
             const queue = find(popup.contentItem, item => item.Accessible?.name === "Queue");
             const toggle = find(popup.contentItem, item => item.name === "Show equalizer");
             check(toggle && !popup.equalizerOpen, "music opens with an equalizer header button");
-            check(toggle.label === "" && toggle.glyph === Theme.glyph.equalizer && toggle.glyphSize === 16,
-                "equalizer header button shows only the larger slider icon");
+            check(toggle.label === "" && toggle.glyph === Theme.glyph.equalizer && toggle.glyphSize === Theme.captionSize,
+                "equalizer header icon uses the standard header icon size");
             mouseClick(toggle, toggle.width / 2, toggle.height / 2);
             tryVerify(() => MpdEqualizer.ready && !MpdEqualizer.busy, 3000);
             check(popup.equalizerOpen && popup.width === width, "equalizer replaces the main display at the same width");

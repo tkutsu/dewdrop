@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""Cache mailbox addresses in resumable batches, using GMAIL_TOKEN for requests."""
+
+import argparse
+from email.header import decode_header, make_header
+from email.utils import getaddresses
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import sqlite3
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+
+API = "https://gmail.googleapis.com/gmail/v1/users/me"
+HEADERS = ("From", "Sender", "Reply-To", "To", "Cc", "Bcc")
+
+
+def credential_key(path):
+    """Identify the saved grant without storing its credentials in the cache."""
+    saved = json.loads(Path(path).read_text())
+    grant = [saved.get("client_id", ""), saved.get("refresh_token", "")]
+    if not all(grant):
+        raise ValueError("Google sign-in is missing")
+    return hashlib.sha256(json.dumps(grant).encode()).hexdigest()
+
+
+def addresses_of(message):
+    """Parse sender and recipient lists, including quoted and encoded names."""
+    for header in message.get("payload", {}).get("headers", []):
+        if header.get("name", "").lower() not in {h.lower() for h in HEADERS}:
+            continue
+        for name, address in getaddresses([header.get("value", "")], strict=False):
+            address = address.strip().lower()
+            if not re.fullmatch(r'[^@\s<>"(),;:]+@[^@\s<>"(),;:]+\.[^@\s<>"(),;:]+', address):
+                continue
+            try:
+                name = str(make_header(decode_header(name)))
+            except (LookupError, UnicodeError):
+                pass
+            yield address, " ".join(name.split())
+
+
+class Gmail:
+    """Leave quota available for interactive search while scanning headers."""
+
+    def __init__(self, token):
+        self.token = token
+        self.last_request = 0
+
+    def get(self, path, **params):
+        time.sleep(max(0, 0.5 - (time.monotonic() - self.last_request)))
+        self.last_request = time.monotonic()
+        url = API + path + "?" + urllib.parse.urlencode(params, doseq=True)
+        request = urllib.request.Request(url, headers={"Authorization": "Bearer " + self.token})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.load(response)
+
+
+class Index:
+    """Keep account-specific addresses, pending messages, and Gmail cursors together."""
+
+    def __init__(self, path):
+        self.db = sqlite3.connect(path)
+        self.db.row_factory = sqlite3.Row
+        self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS grants (key TEXT PRIMARY KEY, account TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS accounts (
+                account TEXT PRIMARY KEY, history TEXT NOT NULL, page TEXT NOT NULL DEFAULT '',
+                full_done INTEGER NOT NULL DEFAULT 0, history_page TEXT NOT NULL DEFAULT '');
+            CREATE TABLE IF NOT EXISTS messages (
+                account TEXT, id TEXT, done INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (account, id));
+            CREATE INDEX IF NOT EXISTS pending ON messages (account, done);
+            CREATE TABLE IF NOT EXISTS addresses (
+                account TEXT, address TEXT, name TEXT NOT NULL, at INTEGER NOT NULL,
+                PRIMARY KEY (account, address));
+        """)
+
+    def snapshot(self, key):
+        grant = self.db.execute("SELECT account FROM grants WHERE key = ?", (key,)).fetchone()
+        if grant is None:
+            return {"entries": [], "scanned": 0, "more": True}
+        account = grant["account"]
+        state = self.db.execute("SELECT * FROM accounts WHERE account = ?", (account,)).fetchone()
+        scanned = self.db.execute("SELECT COUNT(*) FROM messages WHERE account = ? AND done = 1", (account,)).fetchone()[0]
+        pending = self.db.execute("SELECT 1 FROM messages WHERE account = ? AND done = 0 LIMIT 1", (account,)).fetchone()
+        rows = self.db.execute("SELECT address, name, at FROM addresses WHERE account = ? ORDER BY address", (account,))
+        return {"entries": [dict(row) for row in rows], "scanned": scanned,
+                "more": not state["full_done"] or bool(state["history_page"]) or pending is not None}
+
+    def enqueue(self, account, messages):
+        self.db.executemany("INSERT OR IGNORE INTO messages (account, id) VALUES (?, ?)",
+                            ((account, m["id"]) for m in messages))
+
+    def sync(self, key, gmail, limit=64, seconds=20):
+        """Drain saved work before advancing either the full scan or change history."""
+        profile = gmail.get("/profile", fields="emailAddress,historyId")
+        account, current = profile["emailAddress"].lower(), profile["historyId"]
+        with self.db:
+            self.db.execute("INSERT OR IGNORE INTO accounts (account, history) VALUES (?, ?)", (account, current))
+            self.db.execute("INSERT OR REPLACE INTO grants VALUES (?, ?)", (key, account))
+        deadline = time.monotonic() + seconds
+        handled = 0
+        caught_up = False
+        while handled < limit and time.monotonic() < deadline:
+            pending = self.db.execute("SELECT id FROM messages WHERE account = ? AND done = 0 LIMIT 1", (account,)).fetchone()
+            if pending is not None:
+                try:
+                    message = gmail.get("/messages/" + urllib.parse.quote(pending["id"], safe=""),
+                                        format="metadata", metadataHeaders=HEADERS, fields="internalDate,payload/headers")
+                except urllib.error.HTTPError as error:
+                    if error.code != 404:
+                        raise
+                    message = {}
+                with self.db:
+                    for address, name in addresses_of(message):
+                        self.db.execute("""INSERT INTO addresses VALUES (?, ?, ?, ?)
+                            ON CONFLICT (account, address) DO UPDATE SET
+                            name = CASE WHEN excluded.name != '' AND (addresses.name = '' OR excluded.at >= addresses.at)
+                                THEN excluded.name ELSE addresses.name END,
+                            at = MAX(addresses.at, excluded.at)""",
+                            (account, address, name, int(message.get("internalDate", 0))))
+                    self.db.execute("UPDATE messages SET done = 1 WHERE account = ? AND id = ?", (account, pending["id"]))
+                handled += 1
+                continue
+            state = self.db.execute("SELECT * FROM accounts WHERE account = ?", (account,)).fetchone()
+            if not state["full_done"]:
+                try:
+                    body = gmail.get("/messages", maxResults=500, includeSpamTrash="true",
+                                     pageToken=state["page"], fields="messages/id,nextPageToken")
+                except urllib.error.HTTPError as error:
+                    if error.code != 400 or not state["page"]:
+                        raise
+                    with self.db:
+                        self.db.execute("UPDATE accounts SET page = '' WHERE account = ?", (account,))
+                    continue
+                with self.db:
+                    self.enqueue(account, body.get("messages", []))
+                    self.db.execute("UPDATE accounts SET page = ?, full_done = ? WHERE account = ?",
+                                    (body.get("nextPageToken", ""), not body.get("nextPageToken"), account))
+            elif not caught_up:
+                try:
+                    body = gmail.get("/history", startHistoryId=state["history"], historyTypes="messageAdded",
+                                     pageToken=state["history_page"], maxResults=500,
+                                     fields="history/messagesAdded/message/id,nextPageToken,historyId")
+                except urllib.error.HTTPError as error:
+                    if error.code != 404:
+                        raise
+                    with self.db:
+                        self.db.execute("UPDATE accounts SET history = ?, page = '', history_page = '', full_done = 0 WHERE account = ?",
+                                        (current, account))
+                    continue
+                next_page = body.get("nextPageToken", "")
+                with self.db:
+                    self.enqueue(account, [added["message"] for h in body.get("history", []) for added in h.get("messagesAdded", [])])
+                    self.db.execute("UPDATE accounts SET history_page = ?, history = ? WHERE account = ?",
+                                    (next_page, state["history"] if next_page else body["historyId"], account))
+                caught_up = not next_page
+            else:
+                break
+        result = self.snapshot(key)
+        result["more"] = result["more"] or not caught_up
+        return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--cache", required=True, type=Path)
+    parser.add_argument("--credentials", required=True, type=Path)
+    parser.add_argument("--cached", action="store_true", help="read the current grant's cache without network access")
+    args = parser.parse_args()
+    os.umask(0o077)
+    args.cache.parent.mkdir(parents=True, exist_ok=True)
+    index = None
+    key = ""
+    result = {"entries": [], "scanned": 0, "more": True}
+    try:
+        key = credential_key(args.credentials)
+        with open(str(args.cache) + ".lock", "a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                print(json.dumps({"busy": True, "more": True}))
+                return 0
+            index = Index(args.cache)
+            result = index.snapshot(key)
+            if not args.cached:
+                token = os.environ.get("GMAIL_TOKEN", "")
+                if not token:
+                    raise ValueError("Google sign-in is missing")
+                result = index.sync(key, Gmail(token))
+    except (OSError, ValueError, sqlite3.Error, urllib.error.URLError) as error:
+        if index is not None:
+            result = index.snapshot(key)
+        status = error.code if isinstance(error, urllib.error.HTTPError) else 0
+        result["trouble"] = f"Google said {status}" if status else "Could not update the mailbox address index"
+        result["status"] = status
+        print(json.dumps(result))
+        return 1
+    finally:
+        if index is not None:
+            index.db.close()
+    print(json.dumps(result))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
