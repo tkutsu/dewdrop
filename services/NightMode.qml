@@ -238,7 +238,8 @@ Singleton {
     }
 
     function nudge(up) {
-        root.setBrightness(root.brightness + (up ? 20 : -20));
+        const step = root.brightness / 5;
+        root.setBrightness((up ? Math.floor(step) + 1 : Math.ceil(step) - 1) * 5);
     }
 
     // The slider and wheel use `display.sh set`. They ask for far more levels

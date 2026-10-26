@@ -28,7 +28,7 @@ Singleton {
         apply.restart();
     }
     function toggle() { on = !on; }
-    function setBrightness(value) { brightness = value; }
+    function setBrightness(value) { brightness = Math.round(value); }
     function setMode(value) { mode = value; }
     function formatTime(minute) { return Math.floor(minute / 60) + ":00"; }
     Timer { id: apply; interval: 50; onTriggered: brightness = pending }
@@ -119,6 +119,24 @@ ShellRoot {
                 const fullTrack = slider(display.popupItem.contentItem);
                 check(fullTrack.rotation === 0 && fullTrack.width > fullTrack.height,
                     "full Display popup keeps its horizontal brightness slider");
+                for (const [start, delta, expected] of [
+                    [53, -120, 55], [53, 120, 50], [55, -120, 60], [55, 120, 50],
+                    [53, -240, 60], [53, 240, 45], [99, -120, 100], [1, 120, 0]
+                ]) {
+                    NightMode.setBrightness(start);
+                    test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, delta);
+                    check(NightMode.brightness === expected,
+                        "brightness slider snaps " + start + "% to " + expected + "% for wheel delta " + delta);
+                }
+                NightMode.setBrightness(53);
+                test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, -60);
+                check(NightMode.brightness === 53, "brightness slider waits for a complete wheel notch");
+                test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, -60);
+                check(NightMode.brightness === 55, "brightness slider accumulates partial wheel notches before snapping");
+                test.mouseMove(fullTrack, fullTrack.width * 0.53, fullTrack.height / 2);
+                test.mouseClick(fullTrack, fullTrack.width * 0.53, fullTrack.height / 2);
+                check(NightMode.brightness === 53, "pointer adjustment still allows brightness between five-percent marks");
+                NightMode.setBrightness(58);
                 scroll(-120);test.wait(80);
                 check(!hud.open && NightMode.brightness === 53,
                     "scrolling with the full popup open adjusts brightness without a second popup");

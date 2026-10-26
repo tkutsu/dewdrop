@@ -47,6 +47,7 @@ ShellRoot {
             id: audio
             x: 100; y: 20; width: implicitWidth; height: implicitHeight
             folds: false
+            pinKey: "audio"
         }
     }
     TestCase { id: test; when: false }
@@ -91,6 +92,18 @@ ShellRoot {
         onTriggered: {
             try {
                 check(!level(), "volume feedback starts hidden");
+                check(audio.opacity === 1, "audible output keeps its full-opacity bar icon");
+                Audio.muted = true;test.wait(Theme.fadeMs + 50);
+                check(audio.opacity === 1 && !audio.quiet && audio.showsClosed && audio.visible,
+                    "muted output stays visible at full opacity without a pin");
+                Audio.volume = 0;test.wait(Theme.fadeMs + 50);
+                check(audio.opacity === 1,
+                    "muted output stays fully opaque even at zero volume");
+                Audio.muted = false;
+                Audio.volume = 0;test.wait(Theme.fadeMs + 50);
+                check(Math.abs(audio.opacity - Theme.label2.a) < 0.01,
+                    "zero volume uses the same no-sound opacity");
+                Audio.volume = 53;test.wait(Theme.fadeMs + 50);
                 scroll(60);
                 check(Audio.volume === 53 && !level(), "partial wheel notch waits without showing feedback");
                 scroll(60);test.wait(30);
@@ -147,7 +160,10 @@ ShellRoot {
                     "scrolling with the full menu open adjusts volume without a second popover");
                 OpenPopup.dismiss();test.wait(200);
                 Audio.connected = false;scroll(120);
+                test.wait(Theme.fadeMs + 50);
                 check(!hud.open, "missing output never shows volume feedback");
+                check(audio.quiet && Math.abs(audio.opacity - Theme.label2.a) < 0.01,
+                    "missing output is quiet and dims the icon even while it remains visible");
                 Audio.connected = true;
                 Settings.user = Object.assign({}, Settings.user, {reduceMotion:true});
                 scroll(-120);test.wait(30);
