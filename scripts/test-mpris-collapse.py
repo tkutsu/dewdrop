@@ -57,6 +57,8 @@ import qs.components
 import qs.modules
 import qs.services as Services
 ShellRoot {
+    id: bar
+    property bool mprisInside: false
     TestPlayer { id: first }
     TestPlayer { id: second; identity: "Second app"; desktopEntry: "second-app"; playbackState: MprisPlaybackState.Paused }
     FloatingWindow {
@@ -101,6 +103,10 @@ ShellRoot {
                 const pause = room.children.find(item => item.text === Theme.glyph.paused);
                 mouseMove(window.contentItem, 950, 90); wait(250);
                 check(pause && pause.opacity === 0, "pause icon is hidden away from the pill");
+                check(!pause.visible || pause.children[0].Accessible.ignored,
+                      "hidden MPRIS playback control stays out of accessibility");
+                pause.children[0].Accessible.pressAction();
+                check(first.toggles === 0, "hidden MPRIS playback control cannot activate");
                 const restingWidth = playerPill.width;
                 const restingTitleWidth = title.width;
                 mouseMove(nowPlaying, nowPlaying.width / 2, nowPlaying.height / 2);
@@ -112,6 +118,8 @@ ShellRoot {
                 check(fixedWidth, "hover keeps the pill width fixed throughout the transition");
                 check(pause.opacity === 1 && title.width < restingTitleWidth && title.rightFade > 0 && title.layer.enabled,
                       "hover reveals pause over a shortened title with a gradient");
+                check(pause.visible && !pause.children[0].Accessible.ignored,
+                      "revealed MPRIS playback control is accessible");
                 Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: false, reduceMotion: true}); wait(100);
                 check(!title.scrolling && title.rightFade > 0 && title.layer.enabled,
                       "hover keeps the gradient with title scrolling and motion disabled");
@@ -123,9 +131,13 @@ ShellRoot {
                 const previous = icon.parent.children.find(item => item.previous === true);
                 const next = room.children.find(item => item.previous === false);
                 first.canGoPrevious = true; first.canGoNext = true;
+                check(previous.children[0].Accessible.ignored && next.children[0].Accessible.ignored,
+                      "supported but folded MPRIS steps stay out of accessibility");
                 mouseMove(title, title.width / 2, title.height / 2); wait(800);
                 check(previous.opacity === 1 && next.opacity === 1 && icon.opacity === 0 && playerPill.width > restingWidth,
                       "hover replaces the app icon with previous and unfolds next like MPD");
+                check(!previous.children[0].Accessible.ignored && !next.children[0].Accessible.ignored,
+                      "revealed MPRIS steps are accessible");
                 const beforeSteps = first.raises;
                 mouseClick(previous.children[0], previous.children[0].width / 2, 0); wait(80);
                 mouseClick(next.children[0], next.children[0].width / 2, 0); wait(80);
@@ -252,8 +264,8 @@ ShellRoot {
                       "reordering the two icons keeps the central anchor fixed");
                 const beforeCollapsed = first.raises;
                 mouseClick(nowPlayingNote, nowPlayingNote.width / 2, 0); wait(80);
-                check(first.raises === beforeCollapsed && first.isPlaying && first.plays === 1,
-                      "central app icon resumes playback without focusing a window");
+                check(first.raises === beforeCollapsed && !first.isPlaying && first.plays === 0,
+                      "central app icon expands without playing or focusing a window");
                 check(nowPlaying.reveal > 0 && nowPlaying.reveal < 0.3 && nowPlayingNote.visible && !travellingIcon.visible,
                       "central icon stays while expansion begins inside the central pill");
                 while (nowPlaying.iconInCentre) wait(10);
@@ -265,9 +277,9 @@ ShellRoot {
                       "clicking the app icon restores the MPRIS pill");
                 check(musicNote.visible && centrePill.leadingOrder[0] === musicNote,
                       "expanding the inner MPRIS icon preserves the resting music order");
-                check(first.plays === 1 && first.toggles === 1 && first.isPlaying, "expanding MPRIS resumes playback once");
+                check(first.plays === 0 && first.toggles === 1 && !first.isPlaying, "expanding MPRIS keeps playback paused");
                 nowPlaying.expand();
-                check(first.plays === 1, "expanding an already playing MPRIS player does not repeat the play command");
+                check(first.plays === 0 && !first.isPlaying, "repeated MPRIS expansion leaves playback alone");
                 first.playbackState = MprisPlaybackState.Playing; wait(50);
                 first.playbackState = MprisPlaybackState.Paused; wait(1100);
                 check(!nowPlaying.expanded && !playerPill.visible && nowPlayingNote.visible, "the next MPRIS pause collapses again");
@@ -285,8 +297,9 @@ ShellRoot {
                 check(!nowPlaying.expanded && !playerPill.visible && nowPlayingNote.visible && appIcon(nowPlayingNote).windowClass === second.desktopEntry,
                       "switching paused players resets expansion and updates the app icon");
                 mouseClick(nowPlayingNote, nowPlayingNote.width / 2, nowPlayingNote.height / 2); wait(80);
-                check(second.raises === 0 && second.isPlaying && second.plays === 1 && second.toggles === 0,
-                      "central icon resumes the newly selected player without focusing it");
+                check(second.raises === 0 && !second.isPlaying && second.plays === 0 && second.toggles === 0,
+                      "central icon expands the newly selected player without playing or focusing it");
+                second.playbackState = MprisPlaybackState.Playing; wait(50);
                 second.playbackState = MprisPlaybackState.Paused; wait(1100);
                 Settings.user = Object.assign({}, Settings.user, {showMpris: false}); wait(1100);
                 check(!playerPill.visible && !nowPlayingNote.visible, "disabling MPRIS hides the pill and central icon");

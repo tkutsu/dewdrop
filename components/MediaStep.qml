@@ -30,6 +30,7 @@ Item {
         PressGlass { id: press; icon: icon; area: tap }
         Accessible.role: Accessible.Button
         Accessible.name: root.previous ? "Previous track" : "Next track"
+        Accessible.ignored: !tap.enabled || root.opacity <= 0
         Accessible.onPressAction: if (tap.enabled && enabled && visible) root.triggered()
         TapHandler {
             id: tap

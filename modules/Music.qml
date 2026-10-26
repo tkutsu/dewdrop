@@ -24,7 +24,7 @@ BarItem {
     property bool expanded: false
     onPausedChanged: expanded = false
 
-    // Empty music opens its popup; paused music reveals controls and resumes.
+    // Empty music opens its popup; paused music reveals controls.
     function expand() {
         if (Mpd.connected && !Mpd.loaded) {
             OpenPopup.set(root);
@@ -33,7 +33,6 @@ BarItem {
         if (!root.paused)
             return;
         root.expanded = true;
-        Mpd.toggle();
     }
 
     // The bar draws the pill into its neighbour off `reveal` (Bar.drop).
@@ -304,11 +303,13 @@ BarItem {
             Accessible.role: Accessible.StaticText
             Accessible.name: root.shownLabel || "Music"
             Accessible.description: "Music"
-            Accessible.onPressAction: if (enabled && visible)
+            Accessible.ignored: !root.settled
+            Accessible.onPressAction: if (popupTap.enabled && enabled && visible)
                 root.togglePopup()
 
             TapHandler {
                 id: popupTap
+                enabled: root.settled
                 // Keep the top screen pixel inside the target as it shrinks.
                 margin: Theme.barInset
                 // On the press, as a bar item's popup opens (ClickArea.eagerButtons).
@@ -385,11 +386,13 @@ BarItem {
 
         Accessible.role: Accessible.Button
         Accessible.name: Mpd.state === "play" ? "Pause music" : "Play music"
-        Accessible.onPressAction: if (enabled && visible)
+        Accessible.ignored: !playTap.enabled || slot.opacity <= 0
+        Accessible.onPressAction: if (playTap.enabled && enabled && visible)
             Mpd.toggle()
 
         TapHandler {
             id: playTap
+            enabled: root.settled && slot.opacity > 0
             margin: Theme.pressDip
             onTapped: Mpd.toggle()
         }

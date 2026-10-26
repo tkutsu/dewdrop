@@ -16,8 +16,8 @@ Item {
 
     Accessible.role: Accessible.Button
     Accessible.name: root.name
-    Accessible.ignored: root.name === ""
-    Accessible.onPressAction: if (root.enabled && root.visible)
+    Accessible.ignored: root.name === "" || root.opacity <= 0
+    Accessible.onPressAction: if (root.enabled && root.visible && !root.Accessible.ignored)
         root.tapped()
 
     // Whether the row is lit: under the pointer, or reached by the keys

@@ -499,8 +499,8 @@ Popup {
                     // The three verbs, always in the same place and order,
                     // over the time column. Centred on the line and a little
                     // taller than it, into the row's padding, so they come
-                    // and go without moving anything. Faded rather than
-                    // hidden, so they stay in the accessibility tree.
+                    // and go without moving anything. Hide the faded row
+                    // from accessibility once its actions disappear.
                     Row {
                         id: verbs
 
@@ -508,6 +508,8 @@ Popup {
                         anchors.rightMargin: -4
                         anchors.verticalCenter: from.verticalCenter
                         opacity: row.showVerbs ? 1 : 0
+                        visible: opacity > 0
+                        enabled: row.showVerbs
 
                         Behavior on opacity {
                             NumberAnimation {

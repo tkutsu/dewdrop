@@ -149,6 +149,12 @@ ShellRoot {
                 check(win.taps === 2, "inactive popup button does nothing");
                 mouseClick(row, 50, 12); row.Accessible.pressAction();
                 check(win.rows === 2, "PopupRow press matches one tap");
+                row.opacity = 0;
+                check(row.Accessible.ignored, "a transparent popup row stays out of accessibility");
+                row.Accessible.pressAction();
+                check(win.rows === 2, "a transparent popup row cannot activate");
+                row.opacity = 1;
+                check(!row.Accessible.ignored, "a restored popup row is accessible again");
                 const sliderValue = slider.children.find(child => child.objectName === "accessibleValue");
                 sliderValue.Accessible.increaseAction();
                 check(win.moves === 1 && Math.abs(slider.value - 0.55) < 0.001, "slider increase emits moved once");

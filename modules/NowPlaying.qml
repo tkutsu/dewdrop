@@ -55,13 +55,11 @@ BarItem {
     property bool expanded: false
     onPausedChanged: expanded = false
 
-    // Reveal the controls and ask the selected app to resume playback.
+    // Reveal the controls while leaving playback paused.
     function expand() {
         if (!root.paused)
             return;
         root.expanded = true;
-        if (root.player.canPlay)
-            root.player.play();
     }
 
     // The title and the line, kept while the pill goes: the player is gone
@@ -277,12 +275,14 @@ BarItem {
             height: parent.height
             scale: titlePress.scale
             opacity: root.controlReveal * (root.sliding ? root.pill.geometry.contents(root.reveal) : 1)
+            visible: opacity > 0
             text: root.playing ? Theme.glyph.paused : Theme.glyph.playing
 
             ClickArea {
                 id: playTap
                 anchors.fill: parent
-                enabled: root.player?.canTogglePlaying ?? false
+                enabled: root.settled && play.opacity > 0 && (root.player?.canTogglePlaying ?? false)
+                Accessible.ignored: !enabled || !visible
                 acceptedButtons: Qt.LeftButton
                 name: (root.playing ? "Pause " : "Play ") + (root.appName || "player")
                 actions: ({ [Qt.LeftButton]: () => root.toggle() })

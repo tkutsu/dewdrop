@@ -268,7 +268,7 @@ Popup {
                     easing.type: Easing.InOutCubic
                 }
             }
-            visible: shown > 0
+            visible: shown > 0 && opacity > 0
             height: (fullHeight + (root.rowHeight - fullHeight) * root.compact) * shown
             clip: root.compact > 0 || shown < 1
             opacity: reorder.showing && index === reorder.from ? 0 : crossed ? 0.4 : 1
