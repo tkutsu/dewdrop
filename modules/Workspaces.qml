@@ -326,7 +326,7 @@ BarItem {
     // Down is the next one: the strip lies across the wheel like a Slider,
     // so it goes the way a slider does rather than the way an icon does.
     // Named so the strip is in the accessibility tree as the area the
-    // wheel cycles through workspaces on; each workspace is its own button.
+    // wheel cycles through workspaces on.
     name: "Workspaces"
     scrolls: true
     Accessible.onScrollUpAction: scrollUp()
@@ -732,10 +732,7 @@ BarItem {
                                 Hyprland.dispatch(`hl.dsp.focus({ workspace = ${button.workspaceInfo.id} })`);
                         }
 
-                        Accessible.role: Accessible.Button
-                        Accessible.name: "Workspace " + button.workspaceInfo.id
-                        Accessible.onPressAction: if (enabled && visible)
-                            button.keyPress()
+                        Accessible.ignored: true
 
                         onPressed: root.collapse()
                         onClicked: press.focusWorkspace()

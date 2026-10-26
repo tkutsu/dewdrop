@@ -111,14 +111,16 @@ ShellRoot {
                 mouseClick(click, 50, 15, Qt.RightButton);
                 check(win.clicks === 2 && win.rights === 1, "right action stays separate");
                 check(click.Accessible.role === Accessible.Button && !click.Accessible.ignored, "a press is a button");
-                check(!hoverOnly.Accessible.ignored && hoverOnly.Accessible.role === Accessible.StaticText, "a hover-only area stays in the tree as text");
+                check(!hoverOnly.Accessible.ignored && hoverOnly.Accessible.role === Accessible.Pane,
+                      "a hover-only area without drawn text is a pane, not searchable text");
                 check(silent.Accessible.ignored, "an area with nothing to press, hover or scroll stays out");
-                check(!wheel.Accessible.ignored, "a wheel area stays in the tree");
+                check(!wheel.Accessible.ignored && wheel.Accessible.role === Accessible.Pane,
+                      "a wheel area without drawn text stays in the tree without claiming a label");
                 wheel.Accessible.scrollUpAction(); wheel.Accessible.scrollUpAction(); wheel.Accessible.scrollDownAction();
                 check(win.wheelSteps === 1, "scroll actions reach the wheel area's handlers");
                 check(click.Accessible.description === "Pointer: right click", "a right action is named on the pointer line");
                 check(hoverOnly.Accessible.description === "Pointer: hover" && wheel.Accessible.description === "Pointer: scroll", "hover and wheel are named");
-                check(!sideButtons.Accessible.ignored && sideButtons.Accessible.role === Accessible.StaticText
+                check(!sideButtons.Accessible.ignored && sideButtons.Accessible.role === Accessible.Pane
                       && sideButtons.Accessible.description === "Pointer: right click, middle click", "right and middle alone keep an area in the tree");
                 check(idle.Accessible.ignored && idle.Accessible.description === "", "buttons mapped to null are not named");
                 check(layered.Accessible.description === "Pointer: right click, middle click, hover", "BarItem names its pin and popup layers' buttons");
@@ -136,6 +138,11 @@ ShellRoot {
                       "what it does leads its description");
                 shown.Accessible.pressAction();
                 check(win.barClicks === 3, "a label that shows text still presses");
+                shown.actions = ({});
+                check(shown.Accessible.role === Accessible.StaticText, "drawn text stays a label without a left action");
+                shown.shows = "";
+                check(shown.Accessible.role === Accessible.Pane && shown.Accessible.name === "Timers",
+                      "removing drawn text leaves a named hover target, not a false text label");
                 mouseClick(button, button.width / 2, button.height / 2); button.Accessible.pressAction();
                 check(win.taps === 2, "PopupButton press matches one tap");
                 button.live = false; button.Accessible.pressAction();

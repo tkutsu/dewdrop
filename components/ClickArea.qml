@@ -52,7 +52,8 @@ MouseArea {
     }
     readonly property list<string> verbs: [root.answers(Qt.RightButton) ? "right click" : "", root.answers(Qt.MiddleButton) ? "middle click" : "", root.hovers ? "hover" : "", root.scrolls ? "scroll" : ""].filter(verb => verb !== "")
 
-    Accessible.role: root.presses && root.shows === "" ? Accessible.Button : Accessible.StaticText
+    // A named hover or scroll target is an area, not text drawn on screen.
+    Accessible.role: root.shows !== "" ? Accessible.StaticText : root.presses ? Accessible.Button : Accessible.Pane
     Accessible.name: root.shows || root.name
     Accessible.description: [root.shows !== root.name ? (root.shows && root.name) : "", root.hint, root.verbs.length > 0 ? "Pointer: " + root.verbs.join(", ") : ""].filter(line => line !== "").join("\n")
     Accessible.ignored: (root.name === "" && root.shows === "") || !(root.presses || root.verbs.length > 0)
