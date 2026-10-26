@@ -40,6 +40,9 @@ CASES = r'''
                     mousePress(list, x, heldY);
                     wait(500);
                     check(drag.dragging, "hold starts drag for " + id);
+                    tryVerify(() => !list.itemAtIndex(drag.from).visible, 1000);
+                    check(!list.itemAtIndex(drag.from).visible,
+                          "lifted task placeholder stays out of accessibility");
                 }
                 function slot(index) {
                     return list.itemAtIndex(index).y - list.contentY + 12;

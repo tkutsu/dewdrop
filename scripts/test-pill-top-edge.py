@@ -51,6 +51,8 @@ import qs.modules
 import qs.services
 import qs.services as Services
 ShellRoot {
+    id: bar
+    property bool mprisInside: false
     FloatingWindow {
         id: window; implicitWidth: 1500; implicitHeight: 100
         SidePill {
@@ -89,6 +91,12 @@ ShellRoot {
                 check(OpenPopup.owner === item, item.objectName + " popup opens at y=" + y + " after " + delay + "ms press");
             }
             function run() {
+                mouseMove(window.contentItem, 850, 80); wait(500);
+                for (const name of ["prev", "next"]) {
+                    const control = named(music, name);
+                    check(control.Accessible.ignored || !control.visible,
+                          "folded MPD " + name + " stays out of accessibility");
+                }
                 for (const item of [music, countdown]) {
                     const target = named(item, item === music ? "titleRoom" : "labelBox");
                     for (const y of [item.height / 2, 0, 1, Theme.barInset])
@@ -98,6 +106,7 @@ ShellRoot {
                 const travellingNote = named(music, "note");
                 check(travellingNote.opacity === 0, "music note yields to previous and next on hover");
                 const next = named(music, "next");
+                check(next.visible && !next.Accessible.ignored, "revealed MPD next is accessible");
                 mouseClick(next, next.width / 2, next.height / 2); wait(30);
                 check(Mpd.following === 1 && OpenPopup.owner === null, "next control acts once without opening popup");
                 mouseClick(next, next.width - 1, next.height / 2); wait(30);
@@ -151,10 +160,10 @@ ShellRoot {
                 mouseClick(musicNote, musicNote.width / 2, 0); wait(1100);
                 check(music.reveal === 1 && musicPill.visible && musicPill.enabled && !musicNote.visible,
                       "clicking the note at the top edge restores the music controls");
-                check(Mpd.state === "play" && Mpd.toggles === toggles + 1 && OpenPopup.owner === null,
-                      "expanding resumes mpd once and leaves the popup closed");
+                check(Mpd.state === "pause" && Mpd.toggles === toggles && OpenPopup.owner === null,
+                      "expanding leaves mpd paused and the popup closed");
                 music.expand();
-                check(Mpd.toggles === toggles + 1, "expanding an already playing mpd does not pause it");
+                check(Mpd.state === "pause" && Mpd.toggles === toggles, "repeated expansion leaves mpd playback alone");
                 Mpd.state = "play"; wait(50);
                 Mpd.state = "pause"; wait(1100);
                 check(music.stowed && !music.expanded && musicNote.visible, "the next pause collapses manually expanded music again");

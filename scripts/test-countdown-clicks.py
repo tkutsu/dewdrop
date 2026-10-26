@@ -101,7 +101,14 @@ ShellRoot {
             }
             function run() {
                 Timers.focus = {id: "running", label: "Tea", total: 30000, running: true};
+                pill.sync(); mouseMove(pill, pill.width + 100, 60); wait(30);
+                const hold = named(pill, "hold");
+                check(hold.Accessible.ignored, "folded timer pause stays out of accessibility");
+                hold.Accessible.pressAction();
+                check(Timers.toggles === 0, "folded timer pause cannot activate");
                 pill.sync(); mouseMove(pill, 15, 15); wait(30);
+                tryVerify(() => !hold.Accessible.ignored, 500, "revealed timer pause is accessible; hover="
+                          + pill.containsMouse + ", opacity=" + hold.parent.opacity + ", width=" + hold.parent.width);
                 let name = named(pill, "name");
                 mouseClick(name, name.width / 2, 15); wait(20);
                 check(Timers.toggles === 1, "running timer name pauses exactly once");
@@ -110,7 +117,6 @@ ShellRoot {
                 check(Timers.toggles === 1 && Timers.hushes === 0, "countdown figures do not pause or clear");
                 mouseClick(pill, 3, 15); wait(20);
                 check(Timers.toggles === 1, "running timer padding does not pause");
-                const hold = named(pill, "hold");
                 mouseClick(hold, hold.width / 2, 15); wait(20);
                 check(Timers.toggles === 2, "running timer pause button works once");
                 done();

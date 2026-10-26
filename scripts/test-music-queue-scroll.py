@@ -122,6 +122,10 @@ ShellRoot {
                 mousePress(list, 25, 33);
                 wait(350);
                 check(popup.auditReorder.dragging, "queue hold starts shared drag");
+                const lifted = list.itemAtIndex(1);
+                check(lifted.Accessible.ignored, "lifted queue placeholder stays out of accessibility");
+                check(!named(lifted, "Remove Track 1 from queue").visible,
+                      "lifted queue placeholder hides its remove control");
                 mouseMove(list, 25, 77);
                 mouseRelease(list, 25, 77);
                 check(Mpd.moves.length === 1 && Mpd.moves[0].from === 1 && Mpd.moves[0].to === 3, "queue drop moves the original track");
