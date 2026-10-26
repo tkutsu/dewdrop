@@ -28,10 +28,8 @@ BarItem {
     // as wider than the rest of the row.
     Layout.leftMargin: -1
 
-    // Off is dim, the same way a module that has nothing to say yet is:
-    // muted, or no sink to play through. The glyph already changes for
-    // both; the dim is what makes the change readable from across the bar.
-    opacity: Audio.connected && !Audio.silent ? 1 : Theme.dimOpacity
+    // Mute stays visible at full opacity; disconnected and zero volume dim.
+    opacity: Audio.connected && (Audio.muted || !Audio.silent) ? 1 : Theme.label2.a
 
     Behavior on opacity {
         NumberAnimation {
