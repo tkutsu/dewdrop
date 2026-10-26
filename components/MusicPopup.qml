@@ -952,7 +952,7 @@ Popup {
                     anchors.rightMargin: Theme.popupInset
                     width: root.buttonWidth
                     height: root.rowHeight
-                    visible: row.hovered
+                    visible: row.hovered && row.opacity > 0
                     name: "Remove " + (row.modelData.title || "track") + " from queue"
                     glyph: Theme.glyph.queueRemove
                     live: !choice.running && !root.removingTrack

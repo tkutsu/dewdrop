@@ -175,10 +175,21 @@ ShellRoot {
 
     function run() {
         const p = test.popup;
-        const row = i => p.contentItem && list(p).itemAt(i);
+        const rows = list(p);
+        const row = i => rows.itemAt(i);
         check(list(p).count === 3, "three rows: " + list(p).count);
         for (const name of ["Archive", "Mark read", "Star"])
             check(find(row(0), name) !== null, "row has " + name);
+        check(!find(row(0), "Archive").visible,
+              "closed mail hides its action buttons from accessibility");
+        p.expanded = "a";
+        pointerTests.wait(300);
+        check(find(row(0), "Archive").visible,
+              "opening mail reveals its action buttons");
+        p.expanded = "";
+        pointerTests.wait(300);
+        check(!find(row(0), "Archive").visible,
+              "closing mail removes its action buttons again");
         check(find(row(1), "Unstar") !== null, "a starred row offers unstar");
 
         p.expanded = "b";

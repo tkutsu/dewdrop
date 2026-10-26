@@ -374,6 +374,7 @@ BarItem {
 
             Accessible.role: Accessible.Button
             Accessible.name: root.target?.running ? "Pause timer" : "Resume timer"
+            Accessible.ignored: !holdTap.enabled || hold.parent.opacity <= 0
             Accessible.onPressAction: if (holdTap.enabled && enabled && visible)
                 root.hold()
 
