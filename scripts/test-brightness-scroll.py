@@ -33,31 +33,41 @@ ShellRoot {
         interval: 100; running: true
         onTriggered: {
             try {
-                until(() => NightMode.brightness === 40 && NightMode.committed === 40 && NightMode.restored,
+                until(() => NightMode.brightness === 43 && NightMode.committed === 43 && NightMode.restored,
                     'real service starts from the fixture brightness');
                 NightMode.nudge(true);
-                check(NightMode.brightness === 60 && NightMode.committed === 40,
-                    'scroll readout advances immediately before the slow monitor write completes');
+                check(NightMode.brightness === 45 && NightMode.committed === 43,
+                    'scroll snaps upward immediately before the slow monitor write completes');
                 NightMode.nudge(true);NightMode.nudge(true);NightMode.nudge(false);
-                check(NightMode.brightness === 80,
+                check(NightMode.brightness === 50,
                     'rapid scrolling accumulates on the requested level without waiting for hardware');
                 const deadline = Date.now() + 2000;
                 let stable = true;
-                while (NightMode.committed !== 80 && Date.now() < deadline) {
+                while (NightMode.committed !== 50 && Date.now() < deadline) {
                     test.wait(10);
-                    stable = stable && NightMode.brightness === 80;
+                    stable = stable && NightMode.brightness === 50;
                 }
                 check(stable, 'older hardware replies do not pull the readout backwards');
-                check(NightMode.committed === 80, 'monitor eventually reaches the last requested brightness');
+                check(NightMode.committed === 50, 'monitor eventually reaches the last requested brightness');
                 calls.reload();calls.waitForJob();
                 const writes = calls.text().trim().split('\n');
-                check(writes.join(',') === '60,80', 'scroll burst coalesces into the active write and the final level');
+                check(writes.join(',') === '45,50', 'scroll burst coalesces into the active write and the final level');
                 failure.setText('fail');failure.waitForJob();
                 NightMode.nudge(false);
-                check(NightMode.brightness === 60, 'the next request also updates immediately');
-                until(() => NightMode.brightness === 80 && NightMode.wanted < 0,
+                check(NightMode.brightness === 45, 'the next request also updates immediately');
+                until(() => NightMode.brightness === 50 && NightMode.wanted < 0,
                     'failed monitor write restores the last confirmed brightness');
                 failure.setText('ok');failure.waitForJob();
+                NightMode.setBrightness(53);
+                NightMode.nudge(false);
+                check(NightMode.brightness === 50, 'scroll down snaps an arbitrary level to the next multiple of five');
+                until(() => NightMode.committed === 50 && NightMode.wanted < 0,
+                    'snapped request reaches the monitor');
+                NightMode.setBrightness(99);
+                NightMode.nudge(true);NightMode.nudge(true);
+                check(NightMode.brightness === 100, 'scroll up snaps and clamps at full brightness');
+                until(() => NightMode.committed === 100 && NightMode.wanted < 0,
+                    'full brightness reaches the monitor');
                 NightMode.setMode('on');
                 until(() => NightMode.on && NightMode.committed === 0 && NightMode.asked === '',
                     'night mode still darkens the monitor through the shared display helper');
@@ -65,8 +75,8 @@ ShellRoot {
                 WallClock.sample(new Date(2026, 9, 22, 12, 0).getTime());
                 NightMode.setAutomatic(true);
                 NightMode.nudge(true);
-                check(NightMode.brightness === 20, 'scrolling out of night mode updates the readout immediately');
-                until(() => NightMode.committed === 20 && !NightMode.on,
+                check(NightMode.brightness === 5, 'scrolling out of night mode updates the readout immediately');
+                until(() => NightMode.committed === 5 && !NightMode.on,
                     'scrolling to a positive level also clears night mode');
                 WallClock.sample(WallClock.now + 5000);test.wait(250);
                 check(NightMode.automatic && !NightMode.on,
@@ -75,6 +85,8 @@ ShellRoot {
                 NightMode.nudge(false);
                 until(() => NightMode.committed === 0, 'scrolling down can still reach zero brightness');
                 check(!NightMode.on, 'manual zero brightness does not enable night mode');
+                NightMode.nudge(false);
+                check(NightMode.brightness === 0, 'scroll down clamps at zero brightness');
                 console.log('DONE: brightness scroll');
             } catch (error) { console.log('FAIL: ' + error); }
             test.wait(500);
@@ -90,7 +102,7 @@ import time
 
 folder = Path(__file__).parent.parent
 if 'getvcp' in sys.argv:
-    print('current value = 40')
+    print('current value = 43')
 else:
     with (folder / 'ddc-calls').open('a') as log:
         print(sys.argv[-1], file=log)
@@ -114,7 +126,7 @@ def main():
         service.write_text(service.read_text().replace('/tmp/flag-brightness', str(target / 'brightness'))
                            .replace('/tmp/flag-night-mode', str(target / 'night-mode')))
         (target / 'settings.json').write_text(json.dumps({'scriptsDir': str(target)}))
-        (target / 'brightness').write_text('40\n')
+        (target / 'brightness').write_text('43\n')
         (target / 'ddc-calls').write_text('')
         (target / 'bin').mkdir()
         (target / 'bin/ddcutil').write_text(DDC)

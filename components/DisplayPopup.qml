@@ -31,6 +31,7 @@ Popup {
             name: "Brightness"
             value: NightMode.brightness / 100
             wheelStep: 0.05
+            wheelSnap: true
             onMoved: value => NightMode.setBrightness(value * 100)
         }
 

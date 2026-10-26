@@ -34,7 +34,7 @@ Singleton {
     readonly property bool portAvailable: devicePorts[sink?.name]?.plugged ?? false
 
     readonly property bool connected: !!sink && sink.name !== "auto_null" && (bluetooth || portAvailable)
-    // 0% is silent either way, so it is dimmed like muted.
+    // Muted output and zero volume are both silent.
     readonly property bool silent: muted || volume <= 0
 
     // The level as how far its waves have lit, and the same speaker whatever
