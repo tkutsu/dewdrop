@@ -486,7 +486,7 @@ Popup {
                     property real wheelRemainder: 0
 
                     onWheel: wheel => {
-                        wheelRemainder -= wheel.angleDelta.y;
+                        wheelRemainder += wheel.angleDelta.y;
                         const notches = Math.trunc(wheelRemainder / 120);
                         if (notches === 0)
                             return;
