@@ -120,8 +120,8 @@ ShellRoot {
                 check(fullTrack.rotation === 0 && fullTrack.width > fullTrack.height,
                     "full Display popup keeps its horizontal brightness slider");
                 for (const [start, delta, expected] of [
-                    [53, -120, 55], [53, 120, 50], [55, -120, 60], [55, 120, 50],
-                    [53, -240, 60], [53, 240, 45], [99, -120, 100], [1, 120, 0]
+                    [53, 120, 55], [53, -120, 50], [55, 120, 60], [55, -120, 50],
+                    [53, 240, 60], [53, -240, 45], [99, 120, 100], [1, -120, 0]
                 ]) {
                     NightMode.setBrightness(start);
                     test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, delta);
@@ -129,9 +129,9 @@ ShellRoot {
                         "brightness slider snaps " + start + "% to " + expected + "% for wheel delta " + delta);
                 }
                 NightMode.setBrightness(53);
-                test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, -60);
+                test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, 60);
                 check(NightMode.brightness === 53, "brightness slider waits for a complete wheel notch");
-                test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, -60);
+                test.mouseWheel(fullTrack, fullTrack.width / 2, fullTrack.height / 2, 0, 60);
                 check(NightMode.brightness === 55, "brightness slider accumulates partial wheel notches before snapping");
                 test.mouseMove(fullTrack, fullTrack.width * 0.53, fullTrack.height / 2);
                 test.mouseClick(fullTrack, fullTrack.width * 0.53, fullTrack.height / 2);
