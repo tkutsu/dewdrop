@@ -30,7 +30,7 @@ Popup {
 
     // The wheel moves whichever volume is under the pointer: an app's over
     // its row, the output's anywhere else, in Audio's five-percent steps:
-    // down is louder, the way it is on every horizontal Slider. A gap
+    // up is louder, the same as the bar's vertical indicator. A gap
     // between parts counts as the one below it, and the Input heading carries the mic, so
     // the wheel over it moves the input. Accumulated
     // the same way BarItem does it, so a touchpad's fractions add up to notches
@@ -50,7 +50,7 @@ Popup {
             const row = content.childAt(0, wheel.y) ?? content.childAt(0, wheel.y + content.spacing);
             const node = row?.modelData ?? null;
             const step = up => node ? Audio.stepNode(node, up) : Audio.step(up);
-            acc -= wheel.angleDelta.y;
+            acc += wheel.angleDelta.y;
             while (acc >= 120) {
                 acc -= 120;
                 step(true);

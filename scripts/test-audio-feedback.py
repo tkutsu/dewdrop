@@ -155,6 +155,12 @@ ShellRoot {
                 const masterSlider = master.children.find(child => child.name === 'Output volume');
                 check(masterSlider.rotation === 0 && masterSlider.width > masterSlider.height,
                     "full sound popover keeps its horizontal slider");
+                test.mouseWheel(masterSlider, masterSlider.width / 2, masterSlider.height / 2, 0, 60);
+                check(Audio.volume === 55, "sound slider waits for a complete wheel notch");
+                test.mouseWheel(masterSlider, masterSlider.width / 2, masterSlider.height / 2, 0, 60);
+                check(Audio.volume === 60, "scroll up on the sound slider raises volume");
+                test.mouseWheel(masterSlider, masterSlider.width / 2, masterSlider.height / 2, 0, -120);
+                check(Audio.volume === 55, "scroll down on the sound slider lowers volume");
                 scroll(-120);
                 check(!hud.open && Audio.volume === 50,
                     "scrolling with the full menu open adjusts volume without a second popover");

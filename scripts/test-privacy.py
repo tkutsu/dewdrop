@@ -215,10 +215,10 @@ ShellRoot {
         volume.moved(0.4);
         check(mic.audio.volume === 0.4 && volume.value === 0.4, "the microphone track writes through to its input device");
         check(volume.wheelStep === 0.05 && volume.wheelSnap, "the microphone wheel uses five-percent steps");
-        readiness.mouseWheel(volume, volume.width / 2, volume.height / 2, 0, -120);
-        check(Math.abs(mic.audio.volume - 0.45) < 0.001, "scrolling the microphone track increases volume by five percent");
         readiness.mouseWheel(volume, volume.width / 2, volume.height / 2, 0, 120);
-        check(Math.abs(mic.audio.volume - 0.4) < 0.001, "scrolling back decreases volume by five percent");
+        check(Math.abs(mic.audio.volume - 0.45) < 0.001, "scroll up on the microphone track increases volume by five percent");
+        readiness.mouseWheel(volume, volume.width / 2, volume.height / 2, 0, -120);
+        check(Math.abs(mic.audio.volume - 0.4) < 0.001, "scroll down decreases microphone volume by five percent");
         check(shareRow.recording && shareRow.detail === "Screen capture", "share rows show a recording dot and readable capture detail");
         check(popup.testDivider.visible, "microphone and screen-share sections are separated by a rule");
         check(micRow.testDot.x === micRow.testTitle.x + micRow.testTitle.width + 6, "recording dots sit immediately after the title");

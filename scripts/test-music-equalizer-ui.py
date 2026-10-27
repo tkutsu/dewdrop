@@ -100,8 +100,11 @@ ShellRoot {
             check(MpdEqualizer.gains[0] === 12 && MpdEqualizer.preset === "Custom", "top of vertical band boosts to +12 dB and selects Custom");
             mouseClick(bass, 1, bass.height / 2);
             check(MpdEqualizer.gains[0] === -12, "bottom of vertical band cuts to -12 dB (got " + MpdEqualizer.gains[0] + ")");
+            mouseWheel(bass, bass.width / 2, bass.height / 2, 0, 120);
+            check(MpdEqualizer.gains[0] === -11.5, "scroll up raises a vertical band by half a decibel");
             mouseWheel(bass, bass.width / 2, bass.height / 2, 0, -120);
-            check(MpdEqualizer.gains[0] === -11.5, "wheel adjusts a band in half-decibel steps");
+            check(MpdEqualizer.gains[0] === -12, "scroll down lowers a vertical band by half a decibel");
+            mouseWheel(bass, bass.width / 2, bass.height / 2, 0, 120);
             bands[9].keyStep(1);
             check(MpdEqualizer.gains[9] === 0.5, "keyboard adjusts the final band in half-decibel steps");
             check(MpdEqualizer.dirty, "edits remain unapplied until Apply");

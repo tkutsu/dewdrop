@@ -61,36 +61,42 @@ ShellRoot {
                 mouseWheel(control, control.width / 2, control.height / 2, 0, delta);
             }
             Mpd.volume = 53;
-            scroll(-120);
-            check(Mpd.volume === 55, "scroll down snaps 53% to 55% (got " + Mpd.volume + "%)");
+            scroll(120);
+            check(Mpd.volume === 55, "scroll up snaps 53% to 55% (got " + Mpd.volume + "%)");
             check(slider.visible && !metadata.visible, "scrolling the volume readout replaces artist and album with the slider");
-            scroll(-120);
+            scroll(120);
             check(Mpd.volume === 60, "the next notch advances by five percentage points");
             Mpd.volume = 53;
-            scroll(120);
-            check(Mpd.volume === 50, "scroll up snaps 53% to 50%");
-            Mpd.volume = 53;
-            scroll(-360);
-            check(Mpd.volume === 65, "three notches reach the third multiple of five");
+            scroll(-120);
+            check(Mpd.volume === 50, "scroll down snaps 53% to 50%");
             Mpd.volume = 53;
             scroll(360);
+            check(Mpd.volume === 65, "three notches reach the third multiple of five");
+            Mpd.volume = 53;
+            scroll(-360);
             check(Mpd.volume === 40, "three reverse notches reach the third multiple of five");
             Mpd.volume = 53;
-            scroll(-60);
+            scroll(60);
             check(Mpd.volume === 53, "half a notch leaves volume unchanged");
-            scroll(-60);
+            scroll(60);
             check(Mpd.volume === 55, "fractional wheel events accumulate to one step");
-            Mpd.volume = 99; scroll(-120);
+            Mpd.volume = 99; scroll(120);
             check(Mpd.volume === 100, "volume clamps at 100%");
-            Mpd.volume = 1; scroll(120);
+            Mpd.volume = 1; scroll(-120);
             check(Mpd.volume === 0, "volume clamps at 0%");
             for (let percent = 0; percent <= 100; percent += 5) {
-                Mpd.volume = percent; scroll(-120);
-                if (Mpd.volume !== Math.min(100, percent + 5)) throw Error("forward step from " + percent + "%");
                 Mpd.volume = percent; scroll(120);
+                if (Mpd.volume !== Math.min(100, percent + 5)) throw Error("forward step from " + percent + "%");
+                Mpd.volume = percent; scroll(-120);
                 if (Mpd.volume !== Math.max(0, percent - 5)) throw Error("reverse step from " + percent + "%");
             }
             check(true, "every multiple of five advances and reverses correctly");
+
+            Mpd.volume = 53;
+            mouseWheel(slider, slider.width / 2, slider.height / 2, 0, 120);
+            check(Mpd.volume === 55, "scroll up on the music slider matches the volume readout");
+            mouseWheel(slider, slider.width / 2, slider.height / 2, 0, -120);
+            check(Mpd.volume === 50, "scroll down on the music slider lowers volume");
             mouseClick(slider, slider.width * 0.53, slider.height / 2);
             check(Mpd.volume === 53, "pointer adjustment still allows arbitrary percentages");
             wait(100);
@@ -115,7 +121,7 @@ ShellRoot {
             check(!slider.visible, "scrolling artist and album does not reveal volume");
             Mpd.volume = -1; wait(10);
             check(!control.visible && !slider.visible && metadata.visible, "a player without a mixer keeps metadata and hides volume");
-            mouseWheel(relative, relative.width / 2, relative.height / 2, 0, -120);
+            mouseWheel(relative, relative.width / 2, relative.height / 2, 0, 120);
             check(Math.abs(relative.value - 0.58) < 0.000001, "other sliders retain relative wheel steps");
             console.log("DONE: music volume");
         }

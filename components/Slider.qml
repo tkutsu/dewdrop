@@ -38,8 +38,7 @@ Item {
     // How far one notch of the wheel moves the value. Zero leaves the wheel
     // to whatever is underneath — the sound popup has one handler for all
     // its rows, which a slider taking the wheel for itself would cut short.
-    // Down is on, towards the right end, for every slider alike, and up is
-    // back: the track lies across the wheel, so it reads like a page.
+    // Up increases the value, whether the track is horizontal or rotated.
     property real wheelStep: 0
     property bool wheelSnap: false
     readonly property bool pressed: area.pressed
@@ -350,7 +349,7 @@ Item {
                 wheel.accepted = false;
                 return;
             }
-            root._wheelAcc -= wheel.angleDelta.y;
+            root._wheelAcc += wheel.angleDelta.y;
             const notches = Math.trunc(root._wheelAcc / 120);
             if (notches === 0)
                 return;
