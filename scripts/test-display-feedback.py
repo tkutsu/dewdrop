@@ -18,6 +18,7 @@ Singleton {
     property int pending: 53
     property var nudges: []
     property string mode: "off"
+    property string solarInfo: "Sunset at 18:00"
     property int startMinute: 1320
     property int endMinute: 420
     readonly property string icon: on ? Theme.glyph.nightOn : Theme.glyph.nightOff

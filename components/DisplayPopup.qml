@@ -4,8 +4,7 @@ import qs.services
 
 // The night mode module's popup, laid out like Control Center's display
 // module: the brightness on a track the pointer can grab, then night mode as
-// a section with Off, On and Auto across its first row, and the schedule's
-// hours opening under them on Auto.
+// a section with a mode picker and editable hours for a custom schedule.
 Popup {
     id: root
 
@@ -51,29 +50,39 @@ Popup {
             title: "Night Mode"
         }
 
-        // Off, On and Auto under the heading, as wide as their labels.
+        // Four modes use the shared dropdown rather than a crowded capsule.
         Item {
             width: root.bodyWidth
             height: choice.y + choice.height
 
-            SettingChoice {
+            SettingDropdown {
                 id: choice
 
                 x: Theme.popupInset
                 y: Theme.popupSpacing
                 setting: ({
                     title: "Night mode",
-                    options: [{ value: "off", label: "Off" }, { value: "on", label: "On" }, { value: "auto", label: "Auto" }],
+                    options: [{ value: "off", label: "Off" }, { value: "on", label: "On" },
+                        { value: "auto", label: "Auto" }, { value: "custom", label: "Custom" }],
                     get: () => NightMode.mode,
                     set: mode => NightMode.setMode(mode)
                 })
             }
         }
 
+        PopupNote {
+            width: root.bodyWidth
+            visible: NightMode.mode === "auto"
+            topPadding: Theme.popupSpacing * 2
+            text: NightMode.solar
+                ? `Sunset at ${Qt.formatDateTime(new Date(NightMode.solar.sunset * 1000), "HH:mm")}\nSunrise at ${Qt.formatDateTime(new Date(NightMode.solar.sunrise * 1000), "HH:mm")}`
+                : NightMode.solarInfo
+        }
+
         // The hours, unfolding the way Wallpaper's framing does. They carry
         // their own air, so a folded schedule leaves none behind.
         Item {
-            readonly property bool shown: NightMode.mode === "auto"
+            readonly property bool shown: NightMode.mode === "custom"
 
             width: root.bodyWidth
             height: shown ? hours.y + hours.height : 0

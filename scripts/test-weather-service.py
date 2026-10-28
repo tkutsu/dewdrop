@@ -22,18 +22,25 @@ print(output if isinstance(output, str) else json.dumps(output))
 '''
 
 SCENARIO = r'''import QtQuick
+import QtQuick.Window
 import QtTest
 import Quickshell
 import Quickshell.Io
 import qs
 import qs.services
+import qs.components
 ShellRoot {
     id: root
+    Window {
+        id: win
+        visible: true; width: 540; height: 500
+        Loader { id: pickerLoader; active: false; sourceComponent: WeatherLocation { width: 500 } }
+        TestCase { id: test; when: false }
+    }
     property int replies: 0
     Connections { target: Weather.auditForecast; function onResult() { root.replies++; } }
     FileView { id: response; path: Quickshell.shellPath('response.json'); blockLoading: true }
     FileView { id: requests; path: Quickshell.shellPath('requests.jsonl'); blockLoading: true; printErrors: false }
-    TestCase { id: test; when: false }
     function check(ok, why) {
         if (!ok) throw Error(why);
         console.log('PASS: ' + why);
@@ -56,6 +63,14 @@ ShellRoot {
         return lines[lines.length - 1];
     }
     function settled() { test.tryVerify(() => !Weather.loading, 2000); }
+    function find(item, predicate) {
+        if (predicate(item)) return item;
+        for (const child of item.children ?? []) {
+            const hit = find(child, predicate);
+            if (hit) return hit;
+        }
+        return null;
+    }
     function run() {
         test.tryVerify(() => Weather.restored && !Weather.loading, 2000);
         check(Weather.location.name === 'Saved' && Weather.feelsLike && Weather.days[0].date === 'startup',
@@ -179,6 +194,48 @@ ShellRoot {
         requests.waitForJob();
         check(!requests.text().includes('--state') && requests.text().includes('--cache') && requests.text().includes('--force'),
             'actual helper commands preserve cache and force flags without request state');
+        pickerLoader.active = true;
+        const picker = pickerLoader.item;
+        win.requestActivate(); test.wait(30);
+        const change = find(picker, item => item.label === 'Change Location');
+        test.mouseClick(change, change.width / 2, change.height / 2);
+        check(picker.choosing, 'the settings location button opens the city search');
+        const input = find(picker, item => item.textEdited !== undefined);
+        const city = {name: 'Athens', label: 'Athens, Greece', latitude: 37.98, longitude: 23.73, timezone: 'Europe/Athens'};
+        const status = find(picker, item => item.warn !== undefined && item.wrapMode !== undefined);
+        const statusChanges = [];
+        const prematureChoices = [];
+        function recordStatus() {
+            statusChanges.push(status.text);
+            if (status.text === 'Choose a location below.' && Weather.locations.length === 0)
+                prematureChoices.push(status.text);
+        }
+        status.textChanged.connect(recordStatus);
+        configure(forecast('selected-city'), {locations: [city]}, 0, 0.25);
+        input.text = 'Ath'; input.textEdited();
+        test.tryVerify(() => status.text === 'Searching…', 2000);
+        check(change.label === 'Cancel' && change.glyph === '', 'Cancel has no location pin');
+        test.tryVerify(() => Weather.locations[0]?.name === 'Athens', 2000);
+        status.textChanged.disconnect(recordStatus);
+        check(prematureChoices.length === 0,
+            'search never offers a city before results arrive; transitions=' + JSON.stringify(statusChanges));
+        win.requestActivate(); input.forceActiveFocus(); test.wait(30);
+        check(input.activeFocus, 'the relocated search accepts keyboard focus');
+        test.keyClick(Qt.Key_Return);
+        settled();
+        check(Weather.location.label === city.label && !picker.choosing && !Weather.query,
+            'Enter chooses and saves the city and folds the settings search');
+        check(change.glyph === Theme.glyph.location, 'Change Location keeps its pin');
+        test.mouseClick(change, change.width / 2, change.height / 2);
+        input.text = 'Other'; input.textEdited();
+        test.mouseClick(change, change.width / 2, change.height / 2);
+        check(!picker.choosing && !Weather.query && Weather.location.label === city.label,
+            'Cancel clears the search and keeps the selected city');
+        test.mouseClick(change, change.width / 2, change.height / 2);
+        input.text = 'Other'; input.textEdited();
+        test.keyClick(Qt.Key_Escape);
+        check(!picker.choosing && !Weather.query && Weather.location.label === city.label,
+            'Escape cancels the search and keeps the selected city');
         console.log('PASS: weather service lifecycle');
     }
     Timer { interval: 100; running: true; onTriggered: {

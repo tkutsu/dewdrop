@@ -172,6 +172,24 @@ ShellRoot {
                 Mpd.state = "pause"; wait(80);
                 Mpd.state = "play"; wait(1100);
                 check(music.reveal === 1 && !musicNote.visible, "a quick pause and resume settles on the playing pill");
+                OpenPopup.set(music); wait(100);
+                const beforeHide = Mpd.toggles;
+                const musicTitle = named(music, "titleRoom");
+                mouseClick(musicTitle, musicTitle.width / 2, 0, Qt.RightButton); wait(1100);
+                check(!musicPill.visible && musicNote.visible && Mpd.state === "play" && Mpd.toggles === beforeHide,
+                      "right-click hides the playing MPD pill without changing playback");
+                check(OpenPopup.owner === null, "hiding MPD closes its popup");
+                Mpd.state = "pause"; Mpd.state = "play"; wait(100);
+                check(!musicPill.visible && musicNote.visible, "manually hidden MPD stays hidden through playback changes");
+                mouseClick(musicNote, musicNote.width / 2, 0); wait(1100);
+                check(music.reveal === 1 && !musicNote.visible && Mpd.state === "play",
+                      "central note reopens a manually hidden playing MPD pill");
+                Mpd.state = "pause"; music.expand(); wait(1100);
+                mouseClick(musicTitle, musicTitle.width / 2, 0, Qt.RightButton); wait(1100);
+                check(!musicPill.visible && musicNote.visible && Mpd.state === "pause" && Mpd.toggles === beforeHide,
+                      "right-click hides expanded paused MPD controls without toggling playback");
+                mouseClick(musicNote, musicNote.width / 2, 0); wait(1100);
+                check(music.reveal === 1 && Mpd.state === "pause", "central note can reopen paused MPD after dismissal");
                 Mpd.state = "pause"; wait(1100);
                 Mpd.loaded = false; Mpd.label = "Unknown"; Mpd.duration = 0; Mpd.elapsed = 0; Mpd.state = "stop"; wait(1100);
                 check(!musicPill.visible && music.stowed && musicNote.visible,
@@ -224,7 +242,7 @@ def main():
                    XDG_DATA_HOME=str(target / 'data'), XDG_CACHE_HOME=str(target / 'cache'))
         for key in ['WAYLAND_DISPLAY', 'HYPRLAND_INSTANCE_SIGNATURE']:
             env.pop(key, None)
-        result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=45)
         output = result.stdout + result.stderr
         print('\n'.join(line for line in output.splitlines() if 'qml:' in line or 'ERROR' in line))
         ok = result.returncode == 0 and 'DONE: 0 failures' in output and 'FAIL:' not in output

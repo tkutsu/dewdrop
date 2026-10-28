@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls as Controls
+import Quickshell
 import qs
 
 // A pop-up button, as a Mac's settings have one: the chosen option on a
@@ -140,10 +141,21 @@ Controls.ComboBox {
     }
 
     popup: Controls.Popup {
+        // Let masked shell windows include this menu in their input region.
+        onAboutToShow: {
+            const window = root.QsWindow.window;
+            if (window && window.dropdown !== undefined)
+                window.dropdown = root;
+        }
+        onClosed: {
+            const window = root.QsWindow.window;
+            if (window?.dropdown === root)
+                window.dropdown = null;
+        }
         y: root.height + 4
         width: Math.max(root.width, sizer.implicitWidth + 32 + 2 * padding)
         padding: 5
-        implicitHeight: Math.min(contentItem.implicitHeight + 2 * padding, 220)
+        implicitHeight: Math.min(root.count * 24 + 2 * padding, 220)
         contentItem: ListView {
             clip: true
             implicitHeight: contentHeight

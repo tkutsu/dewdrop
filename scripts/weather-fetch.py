@@ -18,8 +18,8 @@ from zoneinfo import ZoneInfo
 
 # km/h, where the six-hour summary starts saying "Strong winds".
 WINDY = 39
-# Refetch forecasts cached before daily dates used the provider's fixed offset.
-CACHE_VERSION = 6
+# Refetch older forecasts that do not carry sunrise and sunset epochs.
+CACHE_VERSION = 7
 
 
 def condition(code, daylight=True):
@@ -121,6 +121,8 @@ def normalize(body):
             "high": number(daily["temperature_2m_max"][i]),
             "low": number(daily["temperature_2m_min"][i]),
             "rain": number(daily["precipitation_probability_max"][i]),
+            "sunrise": number(daily.get("sunrise", [None] * len(daily["time"]))[i]),
+            "sunset": number(daily.get("sunset", [None] * len(daily["time"]))[i]),
             "hours": hours,
         })
     if len(days) != 7 or not all(day["hours"] for day in days):
@@ -161,7 +163,7 @@ def fetch(mode, args):
             params.update({
                 "forecast_days": 7,
                 "hourly": "temperature_2m,apparent_temperature,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m,is_day,visibility,cloud_cover",
-                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset",
             })
             # Left out, Open-Meteo picks the best model for the place.
             if model(args) != "best_match":

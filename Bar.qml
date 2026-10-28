@@ -361,7 +361,7 @@ PanelWindow {
             }
         }
 
-        // Paused MPRIS players leave their app icon beside the music note.
+        // Paused or dismissed MPRIS players leave their app icon beside the music note.
         BarItem {
             id: nowPlayingNote
             leadingControl: true
