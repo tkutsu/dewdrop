@@ -218,7 +218,6 @@ ShellRoot {
                 forecast[0].hours[2].icon = "\\u{f0591}";
                 forecast[1].icon = forecast[1].severeIcon = "\\u{f0590}";
                 Weather.days = forecast;
-                popup.choosing = false;
                 wait(60);
                 const reel = named(popup, "reel");
                 check(reel.displayedDay.date === "2026-10-08" && reel.progress === 0, "initial day appears without sliding");
@@ -344,13 +343,10 @@ ShellRoot {
                 settled(reel, "2026-10-09");
                 popup.picked = "2026-10-10";
                 wait(70);
-                popup.choosing = true;
+                Weather.choose({label: "New fixture", latitude: 1, longitude: 1, timezone: "UTC"});
                 wait(60);
-                check(reel.incomingDay === null && reel.progress === 0, "location picker cancels hidden transitions");
-                popup.choosing = false;
-                wait(60);
-                check(reel.displayedDay.date === "2026-10-10" && reel.progress === 0, "returning from the picker shows the selected day immediately");
-                popup.choosing = true;
+                check(reel.displayedDay === null && reel.incomingDay === null && reel.progress === 0,
+                    "changing location from settings clears the previous city's transition");
                 Weather.now = 10000;
                 const missing = day("2026-10-09", 86400, 20);
                 for (const key of ["temperature", "feelsLike", "rain", "wind"])
@@ -358,7 +354,6 @@ ShellRoot {
                 Weather.days = [day("2026-10-08", 0, 20), missing];
                 popup.picked = "";
                 wait(40);
-                popup.choosing = false;
                 wait(60);
                 missingMidnight(named(reel, "outgoing"));
                 missing.hours = missing.hours.slice(1);

@@ -33,9 +33,8 @@ Popup {
     readonly property int cardGap: 6
     readonly property int iconSize: 32
     readonly property int iconRadius: 6
-    // How tall the list gets before it scrolls: two thirds of the screen,
-    // which leaves the popup a popup rather than a panel down the side.
-    readonly property int listMax: Math.round((root.screen?.height ?? 1080) * 2 / 3)
+    // Match the feed list's limit, leaving room for the header on short screens.
+    readonly property int listMax: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
 
     // Animate the cards inside a fixed window to avoid compositor repositioning.
     reserveHeight: root.chromeHeight - cards.height + root.listMax

@@ -83,7 +83,7 @@ Settings > Launcher Apps > Desktop Actions shows or hides all app shortcuts toge
 - CPU/GPU temperature, memory, top processes
 - Arch package updates
 - Wallpaper picker
-- Night mode with schedule
+- Night mode from sunset to sunrise at the weather location, or at custom hours; change the location in Settings > Weather
 - Caffeine, screenshots, keyboard layout, tray
 
 Keybinds can drive it over IPC: `qs ipc call launcher toggle`, plus targets for `timer`, `power`, `notifications`, `tasks`, `email`, `agenda`, `updates`, `caffeine`, `settings`.

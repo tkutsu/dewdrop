@@ -12,8 +12,9 @@ import "../MediaText.js" as MediaText
 // that speaks MPRIS — in a pill of its own beyond the music pill. mpd
 // publishes no MPRIS (services/Mpd.qml), so nothing shows here twice.
 //
-// The title and app icon focus the player; its playback control appears on hover.
-// Right click plays or pauses, and the wheel seeks, as on the music pill.
+// The title and app icon toggle a focused player, or focus and resume it.
+// Its playback control appears on hover.
+// Right click tucks the pill into the clock; the wheel seeks, as on the music pill.
 BarItem {
     id: root
     name: appName || "player"
@@ -31,7 +32,7 @@ BarItem {
 
     // Comes out of its neighbour and is drawn back into it; the bar draws the
     // pill off `reveal` (Bar.drop), and nothing folds.
-    stowed: !Settings.showMpris || player === null || (paused && !expanded)
+    stowed: dismissed || !Settings.showMpris || player === null || (paused && !expanded)
     folds: false
 
     // Keep the icon on the gathering glass; the title slides behind its edge.
@@ -53,10 +54,13 @@ BarItem {
     readonly property bool playing: player?.isPlaying ?? false
     readonly property bool paused: Settings.showMpris && player?.playbackState === MprisPlaybackState.Paused
     property bool expanded: false
+    // A manual hide lasts until the central icon is pressed or the player changes.
+    property bool dismissed: false
     onPausedChanged: expanded = false
 
-    // Reveal the controls while leaving playback paused.
+    // Reveal the controls without changing playback.
     function expand() {
+        root.dismissed = false;
         if (!root.paused)
             return;
         root.expanded = true;
@@ -95,6 +99,7 @@ BarItem {
 
     onPlayerChanged: {
         expanded = false;
+        dismissed = false;
         if (player) {
             progress = -1;
             timingSettle.restart();
@@ -144,30 +149,37 @@ BarItem {
             root.player.quit();
     }
 
-    // Let the player select its media window; otherwise match its app and title.
+    // Toggle the focused app; otherwise raise its media window and resume it.
     function focusPlayer() {
         if (!root.player)
             return;
-        if (root.player.canRaise) {
-            root.player.raise();
-            return;
-        }
         const entry = DesktopEntries.byId(root.player.desktopEntry);
         const names = [root.player.desktopEntry, entry?.startupClass, root.player.identity]
             .filter(s => s).map(s => s.toLowerCase());
         const windows = Hyprland.toplevels.values.filter(t => names.includes((t.wayland?.appId || t.lastIpcObject?.class || "").toLowerCase()));
-        const mediaWindows = windows.filter(t => (t.title || "").toLowerCase().includes(root.label.toLowerCase()));
-        const recent = (mediaWindows.length ? mediaWindows : windows)
-            .sort((a, b) => (a.lastIpcObject?.focusHistoryID ?? 1e9) - (b.lastIpcObject?.focusHistoryID ?? 1e9))[0];
-        if (recent)
+        if (windows.some(t => t.address === Hyprland.activeToplevel?.address)) {
+            root.toggle();
+            return;
+        }
+        if (root.player.canRaise) {
+            root.player.raise();
+        } else {
+            const mediaWindows = windows.filter(t => (t.title || "").toLowerCase().includes(root.label.toLowerCase()));
+            const recent = (mediaWindows.length ? mediaWindows : windows)
+                .sort((a, b) => (a.lastIpcObject?.focusHistoryID ?? 1e9) - (b.lastIpcObject?.focusHistoryID ?? 1e9))[0];
+            if (!recent)
+                return;
             Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${recent.address}" })`);
+        }
+        if (root.paused && root.player.canPlay)
+            root.player.play();
     }
 
     spacing: 0
     dips: false
     actions: ({
             [Qt.LeftButton]: () => root.focusPlayer(),
-            [Qt.RightButton]: () => root.toggle()
+            [Qt.RightButton]: () => { root.expanded = false; root.dismissed = true; }
         })
 
     property real controlReveal: containsMouse ? 1 : 0

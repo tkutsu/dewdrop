@@ -180,6 +180,20 @@ class WeatherTemperatures(unittest.TestCase):
         self.assertNotIn("apparent_temperature_min", params["daily"][0].split(","))
         self.assertEqual(forecast["days"][0]["hours"][0]["feelsLike"], 17)
 
+    def test_solar_times_are_requested_and_preserved_as_epochs(self):
+        rises = [stamp + 6 * 3600 for stamp in self.body["daily"]["time"]]
+        sets = [stamp + 18 * 3600 for stamp in self.body["daily"]["time"]]
+        self.body["daily"].update(sunrise=rises, sunset=sets)
+        with patch.object(weather, "urlopen", return_value=io.StringIO(json.dumps(self.body))) as opened:
+            forecast = weather.fetch("forecast", ["37.98", "23.73", "Europe/Athens"])
+        fields = parse_qs(urlsplit(opened.call_args.args[0]).query)["daily"][0].split(",")
+        self.assertIn("sunrise", fields)
+        self.assertIn("sunset", fields)
+        self.assertEqual([day["sunrise"] for day in forecast["days"]], rises)
+        self.assertEqual([day["sunset"] for day in forecast["days"]], sets)
+        self.body["daily"]["sunrise"][0] = None
+        self.assertIsNone(weather.normalize(self.body)["days"][0]["sunrise"])
+
     def test_normalizes_wind_direction_without_losing_north_or_missing_values(self):
         days = weather.normalize(self.body)["days"]
         self.assertEqual(days[0]["hours"][0]["windDirection"], 0)
