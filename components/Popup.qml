@@ -1,6 +1,5 @@
 import "../KeyTargets.js" as KeyTargets
 import QtQuick
-import QtQuick.Controls as Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Hyprland
@@ -19,7 +18,7 @@ PopupWindow {
     // Not `required`: the loaders that create these set it immediately after
     // construction, and a required property warns on every instantiation.
     property Item anchorItem
-    // Keep keyboard entry available for the weather location search.
+    // Popups with text entry can request keyboard focus.
     property bool acceptsKeyboard: false
     property bool probes: true
     grabFocus: root.acceptsKeyboard && root.requestedVisible
@@ -34,6 +33,11 @@ PopupWindow {
     // The air between the body's parts. A popup whose parts touch (a menu's
     // rows, a list that runs on under its header) sets 0.
     property alias spacing: body.spacing
+    // The shared dropdown registers its menu before opening it.
+    property Item dropdown: null
+    readonly property Item dropdownItem: dropdown?.popup.visible ? dropdown.popup.contentItem.parent : null
+    readonly property real dropdownBottom: dropdownItem
+        ? dropdown.mapToItem(root.contentItem, 0, dropdown.height + 4).y + dropdown.popup.height : 0
 
     anchor {
         item: root.anchorItem
@@ -55,7 +59,7 @@ PopupWindow {
     // ones not written yet.
     implicitWidth: Math.max(1, body.implicitWidth + hPadding * 2) + shadowSide * 2
     implicitHeight: root.closingHeight >= 0 ? root.closingSurfaceHeight
-        : Math.max(chromeHeight, reserveHeight, resizeHeight) + shadowTop + shadowBottom
+        : Math.max(Math.max(chromeHeight, reserveHeight, resizeHeight) + shadowTop + shadowBottom, dropdownBottom)
     color: "transparent"
 
     // The room the window keeps round the box for its shadow to fall into.
@@ -109,6 +113,7 @@ PopupWindow {
     property real reserveHeight: 0
     mask: Region {
         item: reach
+        Region { item: root.dropdownItem }
     }
 
     // Where the compositor puts this window on screen, which Quickshell does
@@ -149,7 +154,13 @@ PopupWindow {
 
     // Whether the pointer is on the popup, which the bar counts (below).
     // Dropdowns move into Qt's overlay, outside the body's hover tree.
-    readonly property bool hovered: pointer.hovered || root.contentItem.Controls.Overlay.overlay?.visible === true
+    readonly property bool hovered: pointer.hovered || (dropdownPointer?.hovered ?? false)
+
+    HoverHandler {
+        id: dropdownPointer
+        parent: root.dropdownItem
+        enabled: root.requestedVisible && root.dropdownItem !== null
+    }
 
     // Fade the surface and compositor blur together without crossing the
     // blur mask's alpha cutoff; keep the surface alive through its exit.

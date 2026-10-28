@@ -222,8 +222,8 @@ ShellRoot {
                 check(title.scale < 1 && pause.scale < 1, "title and pause shrink while the pill is held at the top edge");
                 mouseRelease(nowPlaying, titleX, 0); wait(80);
                 check(first.toggles === 0 && first.isPlaying, "a held top-edge title click keeps playback running");
-                mouseClick(nowPlaying, nowPlaying.width / 2, 0, Qt.RightButton); wait(80);
-                check(first.toggles === 1 && !first.isPlaying, "right-click pauses MPRIS exactly once");
+                nowPlaying.toggle(); wait(80);
+                check(first.toggles === 1 && !first.isPlaying, "playback toggle pauses MPRIS exactly once");
                 check(nowPlaying.stowed && nowPlaying.reveal > 0 && nowPlaying.reveal < 1,
                       "pausing MPRIS starts collapsing its pill");
                 const travellingIcon = appIcon(nowPlaying);
@@ -287,8 +287,8 @@ ShellRoot {
                       "MPRIS takes the outside slot when its icon is absorbed last");
                 first.playbackState = MprisPlaybackState.Playing; wait(1100);
                 check(nowPlaying.reveal === 1 && !nowPlayingNote.visible, "resuming MPRIS restores the full pill");
-                mouseClick(nowPlaying, nowPlaying.width / 2, nowPlaying.height / 2, Qt.RightButton); wait(80);
-                check(first.toggles === 2 && !first.isPlaying, "right-clicking the pill still pauses MPRIS exactly once");
+                nowPlaying.toggle(); wait(80);
+                check(first.toggles === 2 && !first.isPlaying, "playback toggle still pauses MPRIS exactly once");
                 first.playbackState = MprisPlaybackState.Playing; wait(1100);
                 check(nowPlaying.reveal === 1 && !nowPlayingNote.visible, "a quick MPRIS pause and resume cancels the icon entrance");
                 first.playbackState = MprisPlaybackState.Paused; wait(1100);
@@ -315,8 +315,73 @@ ShellRoot {
                       "merged-icon right-click quits a supported player once and dismisses its controls");
                 second.playbackState = MprisPlaybackState.Stopped; wait(1100);
                 check(nowPlaying.player === null && !playerPill.visible && !nowPlayingNote.visible, "stopped MPRIS players leave no pill or icon");
+
+                first.playbackState = MprisPlaybackState.Playing;
+                nowPlaying.testPlayers = [first]; wait(1100);
+                const beforeHide = first.toggles;
+                mouseClick(title, title.width / 2, 0, Qt.RightButton); wait(1100);
+                check(!playerPill.visible && nowPlayingNote.visible && first.isPlaying && first.toggles === beforeHide,
+                      "right-click hides the playing MPRIS pill without changing playback");
+                first.playbackState = MprisPlaybackState.Paused;
+                first.playbackState = MprisPlaybackState.Playing; wait(100);
+                check(!playerPill.visible && nowPlayingNote.visible,
+                      "a manually hidden MPRIS pill stays hidden through playback changes");
+                mouseClick(nowPlayingNote, nowPlayingNote.width / 2, 0); wait(1100);
+                check(playerPill.visible && nowPlaying.reveal === 1 && !nowPlayingNote.visible && first.isPlaying,
+                      "central app icon restores a manually hidden playing MPRIS pill");
+                first.playbackState = MprisPlaybackState.Paused;
+                nowPlaying.expand(); wait(1100);
+                mouseClick(title, title.width / 2, 0, Qt.RightButton); wait(1100);
+                check(!playerPill.visible && nowPlayingNote.visible && !first.isPlaying && first.toggles === beforeHide,
+                      "right-click also hides an expanded paused MPRIS pill without toggling it");
+                mouseClick(nowPlayingNote, nowPlayingNote.width / 2, 0); wait(1100);
+                check(playerPill.visible && nowPlaying.reveal === 1 && !first.isPlaying,
+                      "central app icon can reopen paused MPRIS controls after dismissal");
+                first.playbackState = MprisPlaybackState.Playing;
+                nowPlaying.testWindows = [
+                    {address: "aaa", title: "Other tab", wayland: {appId: first.desktopEntry}},
+                    {address: "bbb", title: first.trackTitle, lastIpcObject: {class: first.desktopEntry}}
+                ];
+                nowPlaying.testActiveWindow = nowPlaying.testWindows[0];
+                const raises = first.raises;
+                const toggles = first.toggles;
+                const plays = first.plays;
+                const dispatches = nowPlaying.testDispatches.length;
+                nowPlaying.actions[Qt.LeftButton]();
+                check(!first.isPlaying && first.toggles === toggles + 1 && first.raises === raises,
+                      "title action pauses an already focused app even on another tab");
+                nowPlaying.actions[Qt.LeftButton]();
+                check(first.isPlaying && first.toggles === toggles + 2 && first.raises === raises && first.plays === plays,
+                      "title action toggles a focused paused app back to playing without raising it");
+                first.canTogglePlaying = false;
+                nowPlaying.actions[Qt.LeftButton]();
+                check(first.toggles === toggles + 2 && first.raises === raises,
+                      "focused player without toggle support is left alone");
+                first.canTogglePlaying = true;
+                nowPlaying.testActiveWindow = {address: "ccc", wayland: {appId: second.desktopEntry}};
+                first.playbackState = MprisPlaybackState.Paused;
+                nowPlaying.actions[Qt.LeftButton]();
+                check(first.isPlaying && first.raises === raises + 1 && first.plays === plays + 1 && first.toggles === toggles + 2,
+                      "title action raises and resumes an unfocused paused app");
+                first.canRaise = false;
+                first.playbackState = MprisPlaybackState.Paused;
+                nowPlaying.actions[Qt.LeftButton]();
+                check(first.isPlaying && first.plays === plays + 2 && nowPlaying.testDispatches.length === dispatches + 1
+                      && nowPlaying.testDispatches[dispatches] === 'hl.dsp.focus({ window = "address:0xbbb" })',
+                      "fallback window focus also resumes paused playback");
+                first.playbackState = MprisPlaybackState.Paused;
+                first.canPlay = false;
+                nowPlaying.actions[Qt.LeftButton]();
+                check(!first.isPlaying && first.plays === plays + 2 && nowPlaying.testDispatches.length === dispatches + 2,
+                      "an unfocused player without Play support is focused without resuming");
+                nowPlaying.testWindows = [];
+                first.canPlay = true;
+                nowPlaying.actions[Qt.LeftButton]();
+                check(!first.isPlaying && first.plays === plays + 2 && nowPlaying.testDispatches.length === dispatches + 2,
+                      "paused playback stays paused when no window can be focused");
+                nowPlaying.testPlayers = [];
                 nowPlaying.focusPlayer();
-                check(nowPlaying.testDispatches.length === 2 && second.raises === 0,
+                check(nowPlaying.testDispatches.length === dispatches + 2 && second.raises === 0,
                       "focusing with no active player is harmless");
                 console.log("DONE: MPRIS collapse");
             }
@@ -337,10 +402,11 @@ def main():
         player = target / "modules/NowPlaying.qml"
         # Substitute the external player objects while keeping selection and UI bindings.
         player.write_text(player.read_text().replace("    id: root\n", "    id: root\n    property var testPlayers: []\n"
-                                                   "    property var testWindows: []\n    property var testDispatches: []\n"
+                                                   "    property var testWindows: []\n    property var testActiveWindow: null\n    property var testDispatches: []\n"
                                                    "    function testDispatch(command) { testDispatches.push(command); }\n", 1)
                           .replace("Mpris.players.values", "root.testPlayers").replace("property MprisPlayer", "property QtObject")
-                          .replace("Hyprland.toplevels.values", "root.testWindows").replace("Hyprland.dispatch(", "root.testDispatch("))
+                          .replace("Hyprland.toplevels.values", "root.testWindows").replace("Hyprland.activeToplevel", "root.testActiveWindow")
+                          .replace("Hyprland.dispatch(", "root.testDispatch("))
         bar = (ROOT / "Bar.qml").read_text()
         start = bar.rfind("        BarItem {", 0, bar.index("id: nowPlayingNote"))
         end = bar.rfind("        BarItem {", 0, bar.index("id: musicNote"))
@@ -350,7 +416,7 @@ def main():
         music_end = bar.index("        Clock {", end)
         (target / "shell.qml").write_text(SHELL.replace("APP_NOTE", bar[start:end]).replace("MUSIC_NOTE", bar[end:music_end]))
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
-                                capture_output=True, text=True, timeout=45)
+                                capture_output=True, text=True, timeout=60)
         output = result.stdout + result.stderr
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Binding loop", "Unable to assign", "Cannot assign", "Failed to load configuration")
         ok = result.returncode == 0 and "DONE: MPRIS collapse" in output and not any(error in output for error in errors)

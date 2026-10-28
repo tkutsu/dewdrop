@@ -22,12 +22,14 @@ Singleton {
     property string searchTrouble: ""
     property int revision: 0
     property int searchRevision: 0
+    property string searchReply: ""
     property string forecastRequest: ""
     property string compareRequest: ""
     // Celsius for this hour by model, from the last comparison for this city.
     property var modelTemperatures: ({})
     readonly property bool loading: !!forecastJob.want && (forecastJob.running || forecastJob.arg !== forecastJob.want)
-    readonly property bool searching: !!searchJob.want && (searchJob.running || searchJob.arg !== searchJob.want)
+    // Process startup briefly looks idle; only an accepted reply finishes a search.
+    readonly property bool searching: !!searchJob.want && root.searchReply !== searchJob.want
     readonly property bool stale: root.updatedAt > 0 && (root.now - root.updatedAt > 1800 || root.trouble !== "")
 
     // Not flatMap: Qt's JavaScript engine does not have it.
@@ -413,6 +415,7 @@ Singleton {
                 return;
             root.locations = result.locations ?? [];
             root.searchTrouble = result.error ?? (root.locations.length === 0 ? "No matching locations." : "");
+            root.searchReply = request;
         }
     }
 }

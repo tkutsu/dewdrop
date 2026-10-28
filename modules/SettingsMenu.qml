@@ -330,6 +330,11 @@ OverlayWindow {
             title: "Weather",
             sections: [
                 {
+                    title: "Location",
+                    text: "Used for weather and automatic Night Mode.",
+                    rows: [{ type: "location", id: "weatherLocation", title: "Change Location", keywords: "city postal code sunrise sunset" }]
+                },
+                {
                     title: "Display",
                     rows: [
                         { type: "choice", id: "weatherDisplay", title: "Bar Display", tooltip: "Current-hour icon, temperature following Feels Like, or today's predominant daylight icon.",
@@ -834,7 +839,13 @@ OverlayWindow {
                     required property var modelData
 
                     width: list.width
-                    sourceComponent: modelData.heading !== undefined ? heading : row
+                    sourceComponent: modelData.heading !== undefined ? heading
+                        : modelData.setting.type === "location" ? weatherLocation : row
+
+                    Component {
+                        id: weatherLocation
+                        WeatherLocation { width: list.width }
+                    }
 
                     Component {
                         id: heading

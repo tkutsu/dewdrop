@@ -30,7 +30,7 @@ Popup {
     // Headings sit as the feeds popup's do, past their chevron.
     readonly property int headingX: Theme.popupInset + 16
     readonly property int foldMs: Settings.reduceMotion ? 0 : Math.round(Theme.foldMs * 2 / 3)
-    readonly property real listCap: Math.min(320, (root.screen?.height ?? 800) * 0.6)
+    readonly property real listCap: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
     // A folding list grows the box inside a window that keeps the list's
     // tallest size (see Popup.reserveHeight).
     reserveHeight: root.chromeHeight - list.height + root.listCap
@@ -148,6 +148,16 @@ Popup {
         onAdd: Launcher.openWith(Launcher.taskPrefix)
         ReconnectButton {}
         RetryButton { service: Tasks }
+
+        PopupButton {
+            visible: Tasks.configured && !Google.needsConsent && !Tasks.retryable
+            live: !Tasks.loading && Tasks.writing === 0 && Tasks.pending.length === 0
+                && !Tasks.commitWanted && !root.editing && !reorder.showing
+            framed: true
+            glyph: Theme.glyph.refresh
+            label: "Refresh"
+            onTapped: Tasks.refresh()
+        }
 
         PopupButton {
             framed: true

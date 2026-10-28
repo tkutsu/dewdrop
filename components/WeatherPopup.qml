@@ -7,19 +7,15 @@ Popup {
     id: root
 
     readonly property int bodyWidth: 548
-    readonly property int panelHeight: root.choosing ? 280 : Weather.days.length ? 82 : 100
-    property bool choosing: !Weather.location
+    readonly property int panelHeight: Weather.days.length ? 82 : 100
     property string picked: ""
     readonly property string todayDate: Weather.today?.date ?? ""
     onTodayDateChanged: if (root.todayDate) root.picked = ""
     readonly property int selected: Math.max(0, root.picked ? Weather.days.findIndex(day => day.date === root.picked) : Weather.days.indexOf(Weather.today))
     readonly property var day: Weather.days[root.selected] ?? null
     readonly property var hours: root.day?.hours ?? []
-    acceptsKeyboard: root.choosing
     onDayChanged: Qt.callLater(reel.syncDay)
-    onChoosingChanged: Qt.callLater(reel.syncDay)
 
-    Component.onDestruction: Weather.query = ""
     Connections {
         target: Weather
         function onLocationChanged(): void { root.picked = ""; }
@@ -36,24 +32,6 @@ Popup {
             label: "Feels Like"
             onTapped: Weather.feelsLike = !Weather.feelsLike
         }
-        // Lit while the search is open; pressed again, it closes it and
-        // keeps the place there was.
-        PopupButton {
-            framed: true
-            lit: root.choosing && !!Weather.location
-            glyph: Theme.glyph.location
-            label: "Change Location"
-            name: root.choosing && Weather.location ? "Cancel changing location" : "Change location"
-            onTapped: {
-                if (root.choosing && Weather.location) {
-                    root.choosing = false;
-                    Weather.query = "";
-                } else {
-                    root.choosing = true;
-                    search.forceActiveFocus();
-                }
-            }
-        }
         PopupButton {
             framed: true
             glyph: Theme.glyph.refresh
@@ -67,7 +45,7 @@ Popup {
     Row {
         x: Theme.popupInset
         width: root.bodyWidth - Theme.popupInset * 2
-        visible: !root.choosing && Weather.days.length > 0
+        visible: Weather.days.length > 0
         spacing: 14
 
         PopupText {
@@ -102,7 +80,7 @@ Popup {
     Item {
         id: reel
         width: root.bodyWidth
-        visible: !root.choosing && root.hours.length > 0
+        visible: root.hours.length > 0
         clip: true
         height: outgoing.implicitHeight
         property var displayedDay: null
@@ -212,93 +190,10 @@ Popup {
         width: root.bodyWidth
         height: root.panelHeight
 
-        Column {
-            width: parent.width
-            visible: root.choosing
-            spacing: 8
-
-            Rectangle {
-                width: parent.width
-                height: 32
-                radius: Theme.selectionRadius
-                color: Theme.selection
-                border.width: Theme.pillBorder
-                border.color: search.activeFocus ? Theme.fg : Theme.stroke
-
-                TextInput {
-                    id: search
-                    Accessible.name: "Weather location"
-                    anchors.fill: parent
-                    anchors.margins: 8
-                    color: Theme.fg
-                    cursorDelegate: TextCaret { textInput: search }
-                    font.family: Theme.bodyFont
-                    font.pixelSize: Theme.captionSize
-                    selectByMouse: true
-                    clip: true
-                    text: Weather.query
-                    onTextEdited: Weather.query = text
-                    Keys.onEscapePressed: {
-                        if (Weather.location) {
-                            root.choosing = false;
-                            Weather.query = "";
-                        } else {
-                            OpenPopup.dismiss();
-                        }
-                    }
-                    Keys.onReturnPressed: if (Weather.locations.length) {
-                        Weather.choose(Weather.locations[0]);
-                        root.choosing = false;
-                    }
-                }
-                PopupText {
-                    anchors.fill: search
-                    visible: search.text === ""
-                    text: "Search city or postal code"
-                    color: Theme.label2
-                    font.pixelSize: Theme.captionSize
-                }
-            }
-
-            PopupText {
-                width: parent.width
-                leftPadding: Theme.popupInset
-                rightPadding: Theme.popupInset
-                text: Weather.searching ? "Searching…" : Weather.searchTrouble || (Weather.query.trim().length < 2 ? "Type at least two characters, then choose a location." : "Choose a location below.")
-                color: Weather.searchTrouble ? Theme.warn : Theme.label2
-                font.pixelSize: Theme.captionSize
-                wrapMode: Text.WordWrap
-            }
-
-            Repeater {
-                model: Weather.locations
-                delegate: PopupRow {
-                    id: place
-                    required property var modelData
-                    name: place.modelData.label
-                    width: root.bodyWidth
-                    height: 32
-                    onTapped: {
-                        Weather.choose(place.modelData);
-                        root.choosing = false;
-                    }
-                    PopupText {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.popupInset
-                        anchors.rightMargin: Theme.popupInset
-                        verticalAlignment: Text.AlignVCenter
-                        text: place.modelData.label
-                        font.pixelSize: Theme.captionSize
-                        elide: Text.ElideRight
-                    }
-                }
-            }
-        }
-
         Row {
             id: week
             anchors.horizontalCenter: parent.horizontalCenter
-            visible: !root.choosing && Weather.days.length > 0
+            visible: Weather.days.length > 0
             spacing: 4
 
             Repeater {
@@ -366,8 +261,8 @@ Popup {
         PopupText {
             anchors.centerIn: parent
             width: parent.width - 24
-            visible: !root.choosing && Weather.days.length === 0
-            text: Weather.loading ? "Loading the forecast…" : Weather.trouble || "Choose a location to see its forecast."
+            visible: Weather.days.length === 0
+            text: Weather.loading ? "Loading the forecast…" : Weather.trouble || "Choose a location in Settings > Weather to see its forecast."
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             color: Weather.trouble ? Theme.warn : Theme.label2
@@ -379,7 +274,7 @@ Popup {
         leftPadding: Theme.popupInset
         rightPadding: Theme.popupInset
         // With no forecast at all, the panel above already says this.
-        visible: !root.choosing && Weather.days.length > 0 && (Weather.trouble !== "" || Weather.loading)
+        visible: Weather.days.length > 0 && (Weather.trouble !== "" || Weather.loading)
         font.pixelSize: Theme.footnoteSize
         color: Weather.trouble ? Theme.warn : Theme.label2
         wrapMode: Text.WordWrap

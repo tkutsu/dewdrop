@@ -23,6 +23,7 @@ Singleton {
     property bool on: false
     property int brightness: 100
     property bool automatic: false
+    property string scheduleKind: "custom"
     property int startMinute: 22 * 60
     property int endMinute: 7 * 60
     property bool restored: false
@@ -32,18 +33,52 @@ Singleton {
     // The panel is dimmed to 0 whenever night mode goes on, so a dark screen is
     // what the mode looks like from outside; say that rather than "Brightness 0%".
     // Scrolling to 0 by hand is not the mode, so key this off the flag, not the level.
-    // On Auto it says what comes next, as Control Center does: "Night mode on
+    // On Custom it says what comes next, as Control Center does: "Night mode on
     // until 07:00", "Brightness 80% · night mode off until 22:00". A manual
     // change holds until the next boundary, so that is the end when on and the
     // start when off.
     readonly property string tooltip: (on ? "Night mode on" : `Brightness ${brightness}%`)
-        + (!automatic ? "" : on ? ` until ${formatTime(endMinute)}` : ` · night mode off until ${formatTime(startMinute)}`)
+        + (!automatic ? "" : scheduleKind === "auto" ? ` · ${solarInfo}`
+            : on ? ` until ${formatTime(endMinute)}` : ` · night mode off until ${formatTime(startMinute)}`)
 
-    // Off, On or Auto, as the popup's choice shows it. A pick holds while
+    // Off, On, Auto or Custom, as the popup's dropdown shows it. A pick holds while
     // display.sh runs: the flag only moves once the DDC write lands, and until
     // then the choice would light the mode being left.
     property string asked: ""
-    readonly property string mode: asked || (automatic ? "auto" : on ? "on" : "off")
+    readonly property string mode: asked || (automatic ? scheduleKind : on ? "on" : "off")
+
+    readonly property var solar: root.solarState(WallClock.now)
+    readonly property string solarInfo: !Weather.location ? "Choose a location in Settings > Weather."
+        : !root.solar ? (Weather.loading ? "Loading sunrise and sunset times…" : "Sunrise and sunset times unavailable.")
+        : root.solar.next ? `${root.solar.next.on ? "Sunset" : "Sunrise"} at ${Qt.formatDateTime(new Date(root.solar.next.at * 1000), "HH:mm")}`
+        : "Waiting for the next sunrise or sunset."
+
+    // Solar epochs belong to the selected city; compare them directly across time zones and DST.
+    function solarState(at) {
+        const now = at / 1000;
+        const day = Weather.days.find(day => day.hours.length && day.hours[0].at <= now
+            && now < day.hours[day.hours.length - 1].at + 3600);
+        if (!day || !(day.sunrise > 0) || !(day.sunset > day.sunrise))
+            return null;
+        const events = [];
+        for (const forecast of Weather.days) {
+            if (forecast.sunrise > 0 && forecast.sunset > forecast.sunrise)
+                events.push({at: forecast.sunrise, on: false}, {at: forecast.sunset, on: true});
+        }
+        return {on: now < day.sunrise || now >= day.sunset, sunrise: day.sunrise, sunset: day.sunset,
+            next: events.filter(event => event.at > now).sort((a, b) => a.at - b.at)[0] ?? null};
+    }
+
+    onSolarChanged: if (root.scheduleKind === "auto") root.checkSchedule()
+    Connections {
+        target: Weather
+        function onLocationChanged() {
+            if (root.scheduleKind === "auto") {
+                memory.applied = -1;
+                root.resetScheduleRetry();
+            }
+        }
+    }
 
     function formatTime(minute) {
         return ("0" + Math.floor(minute / 60)).slice(-2) + ":" + ("0" + minute % 60).slice(-2);
@@ -58,6 +93,8 @@ Singleton {
 
     // Compare local times, including ranges that cross midnight. The end is exclusive.
     function scheduledOn(at) {
+        if (root.scheduleKind === "auto")
+            return root.solarState(at)?.on ?? null;
         const date = new Date(at);
         const minute = date.getHours() * 60 + date.getMinutes();
         return startMinute < endMinute ? minute >= startMinute && minute < endMinute
@@ -74,13 +111,22 @@ Singleton {
         root.checkSchedule();
     }
 
-    // Auto hands the mode to the schedule. Off and On take it back, and a pick
+    // Auto and Custom hand the mode to their schedule. Off and On take it back; a pick
     // made while the last one is still landing goes next.
     function setMode(mode) {
-        root.setAutomatic(mode === "auto");
-        root.asked = mode === "auto" || (!chooser.running && root.on === (mode === "on")) ? "" : mode;
+        const scheduled = mode === "auto" || mode === "custom";
+        if (scheduled && root.scheduleKind !== mode) {
+            root.scheduleKind = mode;
+            memory.applied = -1;
+            root.resetScheduleRetry();
+        }
+        root.setAutomatic(scheduled);
+        root.saveSchedule();
+        root.asked = scheduled || (!chooser.running && root.on === (mode === "on")) ? "" : mode;
         if (root.asked && !chooser.running)
             root.choose();
+        else
+            root.checkSchedule();
     }
 
     function choose() {
@@ -137,7 +183,10 @@ Singleton {
     function checkSchedule() {
         if (!root.restored || !root.flagKnown || !root.automatic || modeSetter.running || chooser.running)
             return;
-        const due = root.scheduledOn(WallClock.now) ? 1 : 0;
+        const scheduled = root.scheduledOn(WallClock.now);
+        if (scheduled === null)
+            return;
+        const due = scheduled ? 1 : 0;
         if (due !== root.pendingMode)
             root.resetScheduleRetry();
         if (due === memory.applied)
@@ -210,6 +259,7 @@ Singleton {
                 && schedule.startMinute !== schedule.endMinute) {
                 root.startMinute = schedule.startMinute;
                 root.endMinute = schedule.endMinute;
+                root.scheduleKind = schedule.scheduleKind === "auto" ? "auto" : "custom";
                 root.automatic = schedule.automatic;
             }
             root.restored = true;
@@ -219,6 +269,7 @@ Singleton {
         JsonAdapter {
             id: schedule
             property bool automatic: false
+            property string scheduleKind: "custom"
             property int startMinute: 22 * 60
             property int endMinute: 7 * 60
         }
@@ -228,6 +279,7 @@ Singleton {
         if (!root.restored)
             return;
         schedule.automatic = root.automatic;
+        schedule.scheduleKind = root.scheduleKind;
         schedule.startMinute = root.startMinute;
         schedule.endMinute = root.endMinute;
         scheduleFile.writeAdapter();

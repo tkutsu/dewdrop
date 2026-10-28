@@ -9,7 +9,7 @@ import "../MediaText.js" as MediaText
 // The music pill: what is playing, with previous and next shown on hover.
 // The title opens the popup — it is the widest thing in the pill and the
 // one you are already looking at, so it is also the cheapest to hit. The
-// glyph beside it is play/pause, and so is a right click anywhere on the pill.
+// glyph beside it is play/pause; a right click tucks the pill into the clock.
 //
 // The four left targets are TapHandlers rather than the BarItem's own click,
 // which only has the right button here: one module, four targets, and a
@@ -19,13 +19,16 @@ BarItem {
     id: root
 
     // A paused or empty player rests in the clock pill until its note is pressed.
-    // Keep that choice until playback changes or the queue goes away.
+    // Keep expanded controls until playback changes or the queue goes away.
     readonly property bool paused: Mpd.loaded && Mpd.state === "pause"
     property bool expanded: false
+    // A manual hide lasts until the central note is pressed.
+    property bool dismissed: false
     onPausedChanged: expanded = false
 
-    // Empty music opens its popup; paused music reveals controls.
+    // Empty music opens its popup; collapsed music reveals controls.
     function expand() {
+        root.dismissed = false;
         if (Mpd.connected && !Mpd.loaded) {
             OpenPopup.set(root);
             return;
@@ -37,7 +40,7 @@ BarItem {
 
     // The bar draws the pill into its neighbour off `reveal` (Bar.drop).
     stowed: !(Mpd.reconfiguring ?? false)
-        && (!Mpd.connected || (!Mpd.loaded && !popupOpen) || (paused && !expanded)) && !exitHeld
+        && (dismissed || !Mpd.connected || (!Mpd.loaded && !popupOpen) || (paused && !expanded)) && !exitHeld
     folds: false
 
     // Pause closes immediately. On disconnect the side pill closes the popover
@@ -215,7 +218,7 @@ BarItem {
     dips: false
 
     actions: ({
-            [Qt.RightButton]: () => Mpd.toggle()
+            [Qt.RightButton]: () => { root.expanded = false; root.dismissed = true; }
         })
 
     // At rest it is the title and play; on hover, previous and next appear

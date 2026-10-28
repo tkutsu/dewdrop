@@ -27,6 +27,7 @@ PanelWindow {
     required property string name
     // The input area: the box the window draws.
     required property Item inputItem
+    property Item dropdown: null
 
     // Clicking anywhere that is not the box.
     signal dismissed
@@ -85,6 +86,7 @@ PanelWindow {
     Region {
         id: inputRegion
         item: root.inputItem
+        Region { item: root.dropdown?.popup.visible ? root.dropdown.popup.contentItem.parent : null }
     }
 
     Region {

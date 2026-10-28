@@ -14,6 +14,7 @@ Popup {
 
     readonly property int bodyWidth: Theme.popupWidth
     readonly property int rowHeight: 22
+    readonly property int listMax: Math.max(120, Math.min(560, (root.screen?.height ?? 900) - 160))
 
     // The readout is a fixed column rather than as wide as what it says. It
     // changes every second, and a popup that sized itself to it would ask the
@@ -31,7 +32,7 @@ Popup {
     // Nothing in here may read Timers.now, and that is the whole point of the
     // way it is written.
     //
-    // This list is a Repeater's model. A model is replaced by rebuilding the
+    // This list is the view's model. A model is replaced by rebuilding the
     // array, and replacing it destroys every delegate and builds it again — so
     // a list that mentioned the time left would be torn down and rebuilt once a
     // second. Qt only works out which item is under the pointer when the
@@ -142,7 +143,21 @@ Popup {
         text: "Nothing set"
     }
 
-    Repeater {
+    ListView {
+        id: list
+        width: root.bodyWidth
+        height: Math.min(contentHeight, root.listMax)
+        spacing: root.spacing
+        clip: true
+        interactive: contentHeight > height
+        boundsBehavior: Flickable.StopAtBounds
+        SmoothScroll { view: list }
+        layer.enabled: contentHeight > height
+        layer.effect: ScrollEdges { view: list }
+        Accessible.role: Accessible.List
+        Accessible.name: "Timers"
+        Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+        Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
         model: root.rows
 
         delegate: PopupRow {
