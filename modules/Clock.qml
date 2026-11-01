@@ -44,7 +44,7 @@ BarItem {
         // By the minute unless the format shows seconds: at Seconds this
         // re-evaluated the date and the time, on every bar, sixty times for
         // each time it could possibly have mattered.
-        precision: Settings.timeFormat.includes("s") ? SystemClock.Seconds : SystemClock.Minutes
+        precision: (Settings.timeFormat + Settings.dateFormat).includes("s") ? SystemClock.Seconds : SystemClock.Minutes
     }
 
     // Its countdown stops while the machine sleeps, so after a wake it still
@@ -64,7 +64,7 @@ BarItem {
         id: dateText
         Layout.fillHeight: true
         tightWidth: true
-        text: Settings.applyCase(Qt.formatDate(clock.date, Settings.dateFormat), Settings.dateCase)
+        text: Settings.applyCase(Qt.formatDateTime(clock.date, Settings.dateFormat), Settings.dateCase)
     }
 
     // Left is the calendar (BarItem.popupButton); right is the app.

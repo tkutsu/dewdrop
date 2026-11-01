@@ -98,21 +98,26 @@ ShellRoot {
             }
             function handoff(closing) {
                 const restX = clockPill.x;
+                const clockRestX = clock.keyBox.mapToItem(window.contentItem, 0, 0).x;
                 Notifications.showing = !closing;
                 const source = notice.keyBox.children.find(item => item instanceof BadgedGlyph);
                 const sender = notice.keyBox.children.find(item => item instanceof AppIcon);
                 const target = bell.keyBox.children[0];
-                let frames = 0, fading = false, scaling = false, recoiling = false, pillTravel = 0;
+                let frames = 0, fading = false, scaling = false, recoiling = false, pillTravel = 0, clockTravel = 0;
                 for (let i = 0; i < 55; i++) {
                     wait(16);
                     if (closing && i === 6)
                         check(sender.opacity >= 0.35 && sender.scale < 0.96,
                               "notification app icon remains legible while shrinking on exit");
-                    const recoil = bar.drops.lip(noticePill.dropReveal, notice.stowed);
+                    const recoil = Settings.centrePillRecoil ? bar.drops.lip(noticePill.dropReveal, notice.stowed) * clockPill.recoilStrength : 0;
                     recoiling = recoiling || Math.abs(bar.rightLip) > 0.001;
                     pillTravel = Math.max(pillTravel, Math.abs(clockPill.x - restX));
-                    check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill.centreShift - clockPill._rightHold) < 0.01,
-                          "notification recoil moves the whole centre pill");
+                    clockTravel = Math.max(clockTravel, Math.abs(clock.keyBox.mapToItem(window.contentItem, 0, 0).x - clockRestX));
+                    const fullRecoil = clockPill._centreLeft + clockPill.centreShift + clockPill._rightHold - clockPill._centreRest;
+                    check(Math.abs(clockPill.x - clockPill._centreRest - fullRecoil * clockPill.recoilStrength) < 0.01,
+                          "notification recoil moves the whole centre pill at reduced strength");
+                    check(clockPill.recoilStrength > 0 && clockPill.recoilStrength <= 0.4,
+                          "centre recoil uses less than half the original travel");
                     check(Math.abs(bar.rightLip - recoil) < 0.001
                           && Math.abs(bar.clockGlass.z - clockPill.width - recoil) < 0.01
                           && Math.abs(bar.clockGlass.x - clockPill.x) < 0.01,
@@ -149,8 +154,11 @@ ShellRoot {
                               "central slot follows the same media handoff");
                     }
                 }
-                if (closing) check(recoiling, "receiving edge recoils during notification merging");
-                if (closing) check(pillTravel > 1, "whole centre pill visibly recoils on the bell merge");
+                if (closing) {
+                    check(recoiling === Settings.centrePillRecoil, "receiving edge follows the recoil preference");
+                    check(Settings.centrePillRecoil ? pillTravel > 1 : clockTravel < 0.01,
+                          "centre anchor follows the recoil preference on the bell merge: pill=" + pillTravel + ", clock=" + clockTravel);
+                }
                 check(frames > 2 && fading && scaling, "sampled the bell handoff and sender fade/scale");
                 check(closing ? !noticePill.visible && bell.visible : noticePill.visible && !bell.visible,
                       "handoff ends with one visible bell");
@@ -228,7 +236,8 @@ ShellRoot {
                     }
                 }
                 check(placedFrames > 2, "sampled Auto bell handoff after real module placement");
-                check(peakLip > 1 && reboundLip < 0, "receiving edge swells and rebounds with Auto bell visible");
+                check(Settings.centrePillRecoil ? peakLip > 0.2 && peakLip < 1 && reboundLip < 0 : peakLip === 0 && reboundLip === 0,
+                      "receiving edge follows the recoil preference with Auto bell visible");
                 if (PLACEMENT_ONLY) {
                     console.log("PASS: media bell handoff after real module placement in Auto mode");
                     return;
@@ -267,7 +276,8 @@ ShellRoot {
                         fading = fading || (bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1);
                         scaled = scaled || (rect.width > glyph.width * 0.8 && rect.width < glyph.width * 0.899);
                         check(rect.width <= glyph.width + 0.01, "icon never grows beyond its resting size");
-                        check(Math.abs(clockPill.x - clockPill._centreLeft - clockPill.centreShift - clockPill._rightHold) < 0.01, "central pill follows its position animation");
+                        const fullRecoil = clockPill._centreLeft + clockPill.centreShift + clockPill._rightHold - clockPill._centreRest;
+                        check(Math.abs(clockPill.x - clockPill._centreRest - fullRecoil * clockPill.recoilStrength) < 0.01, "central pill follows its position animation at reduced strength");
                         wait(10);
                     }
                     check(fading && scaled && bell.reveal === 1, "bell fades and scales into its full-size slot: fade=" + fading + ", scale=" + scaled + ", reveal=" + bell.reveal + ", transforms=" + glyph.transform.length + ", width=" + glyph.width);
@@ -348,6 +358,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix="qs-notification-merge-") as folder:
         target = Path(folder)
         copy_shell(target)
+        if "--no-recoil" in sys.argv:
+            (target / "settings.json").write_text('{"centrePillRecoil": false}\n')
         (target / "sender.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="red"/></svg>')
         (target / "services/Notifications.qml").write_text(NOTIFICATIONS)
         (target / "components/NotificationsPopup.qml").write_text("import QtQuick\nItem {}\n")

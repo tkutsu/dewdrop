@@ -44,6 +44,10 @@ ShellRoot {
             check(missing.length === 0, "every default preference is reachable (missing: " + missing.join(", ") + ")");
             function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }
             check(sections("Bar") === "Displays|Workspaces|Centre Pill", "Bar contains only its short general preferences");
+            check(row("centrePillRecoil").get() === true, "centre pill recoil stays enabled by default");
+            check(hits("recoil").includes("centrePillRecoil"), "search finds centre pill recoil");
+            row("centrePillRecoil").set(false);
+            check(!Settings.centrePillRecoil, "centre pill recoil can be disabled independently");
             check(sections("Modules") === "Module Visibility|Tray Icons", "module visibility has a dedicated page");
             check(menu.pages.find(p => p.title === "Weather").sections.find(s => s.title === "Display").rows.map(r => r.id).join("|") === "weatherDisplay|weatherUnit", "weather has a dedicated tab for display and units");
             check(sections("Weather") === "Location|Display|Forecast" && hits("gfs").includes("weatherModel"), "location and forecast model have their own sections");
@@ -59,6 +63,9 @@ ShellRoot {
             check(hits("gmail").includes("webApp:gmail"), "search finds the app name behind Open With");
             menu.page = menu.pages.findIndex(p => p.title === "Date & Time"); menu.query = "";
             check(menu.entries.filter(e => e.setting).length === 6, "clearing search restores the selected page");
+            check(JSON.stringify(row("timeCase").options) === JSON.stringify(row("dateCase").options), "time and date offer Default, UPPER and lower in the same order");
+            row("timeCase").set("normal");
+            check(Settings.timeCase === "normal" && row("timeCase").get() === "normal", "time Default preserves the formatter's letter case");
 
             check(hits("ephemeral").includes("ephemeralNotificationApps"), "search finds the ephemeral app list");
             wait(80);
@@ -208,7 +215,7 @@ import qs
 ShellRoot { Timer { interval: 100; running: true; onTriggered: {
     const ok = Settings.values.terminal === "test-terminal" && Settings.values.editor === "test-editor"
         && Settings.layoutNames.Offline === "ZZ" && Settings.layoutChangeBounce && Settings.wallpaperParallaxZoom === 1.22
-        && Settings.groupWindowBadgeStyle === "dot" && Settings.ephemeralNotificationApps.includes("Fixture App")
+        && Settings.groupWindowBadgeStyle === "dot" && !Settings.centrePillRecoil && Settings.ephemeralNotificationApps.includes("Fixture App")
         && !Settings.ephemeralNotificationApps.includes("Gmail") && Settings.ephemeralNotificationApps.includes("Email");
     console.log(ok ? "PASS: settings reopen" : "FAIL: settings reopen"); Qt.quit();
 } } }''')

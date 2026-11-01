@@ -48,10 +48,11 @@ Singleton {
     readonly property string timePosition: root.centralComponents.includes("time") ? "centre" : "right"
     readonly property string centrePillAnchor: ["time", "date", "between", "middle"].includes(root.values.centrePillAnchor)
         ? root.values.centrePillAnchor : "between"
+    readonly property bool centrePillRecoil: root.values.centrePillRecoil !== false
     readonly property string dateFormat: root.values.dateFormat ?? ""
     readonly property string timeFormat: root.values.timeFormat ?? ""
     readonly property string dateCase: root.values.dateCase ?? ""
-    readonly property string timeCase: root.values.timeCase === "lowercase" ? "lowercase" : "uppercase"
+    readonly property string timeCase: ["normal", "uppercase", "lowercase"].includes(root.values.timeCase) ? root.values.timeCase : "uppercase"
     readonly property bool smallAmPm: root.values.smallAmPm === true
     readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})

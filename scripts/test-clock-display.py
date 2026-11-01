@@ -12,6 +12,7 @@ QML = '''import QtQuick
 import Quickshell
 import qs
 import qs.components
+import qs.modules
 ShellRoot {
     id: test
     readonly property date stamp: new Date(2026, 9, 13, 20, 5, 9)
@@ -23,6 +24,7 @@ ShellRoot {
     }
     FloatingWindow {
         implicitWidth: 240; implicitHeight: 60
+        Clock { id: dateLabel; y: 30; height: 30 }
         RollingText {
             id: clock
             height: 30
@@ -58,6 +60,10 @@ ShellRoot {
                         ["h:mm AP 'and' ap", "uppercase", true, "8:05PM ANDPM", [{start: 4, end: 6}, {start: 10, end: 12}]],
                         ["'straße' h:mm AP", "uppercase", true, "STRASSE 8:05PM", [{start: 12, end: 14}]],
                         ["HH:mm 'AP'", "normal", true, "20:05 AP", []],
+                        ["yyyy-MM-dd HH:mm:ss", "normal", false, "2026-10-13 20:05:09", []],
+                        ["ddd d MMM h:mm ap 'MiXeD'", "normal", false, "Tue 13 Oct 8:05 pm MiXeD", []],
+                        ["ddd d MMM h:mm ap 'MiXeD'", "normal", true, "Tue 13 Oct 8:05pm MiXeD", [{start: 15, end: 17}]],
+                        ["ddd d MMM h:mm AP", "lowercase", true, "tue 13 oct 8:05pm", [{start: 15, end: 17}]],
                         ["HH:mm", "normal", true, "20:05", []]
                     ]) {
                         const result = test.display(format, mode, small);
@@ -70,7 +76,8 @@ ShellRoot {
                     Settings.set("timeFormat", "h:mm AP");
                 } else if (test.phase === 1 || test.phase === 2) {
                     check(clock.text === "8:05pm", "clock binding updates");
-                    check(Settings.applyCase(Qt.formatDate(test.stamp, Settings.dateFormat), Settings.dateCase) === "tue 13 oct", "date binding updates");
+                    check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, Settings.dateFormat).toLowerCase(), "date binding updates");
+                    check(dateLabel.testPrecision === SystemClock.Minutes, "minute precision by default");
                     const columns = clock.children.find(child => typeof child.itemAt === "function");
                     const label = index => columns.itemAt(index).children.find(child => child.fontSize !== undefined);
                     const full = label(2);
@@ -83,8 +90,20 @@ ShellRoot {
                     check(columns.itemAt(2).x + columns.itemAt(2).width === columns.itemAt(1).x, "AM/PM touches the preceding character column");
                     if (test.phase === 1) clock.fontSize = 16;
                     else Settings.set("smallAmPm", false);
-                } else {
+                } else if (test.phase === 3) {
                     check(clock.text === "8:05 pm" && clock.smallRanges.length === 0, "turning option off restores original spacing and size");
+                    Settings.set("dateFormat", "yyyy-MM-dd HH:mm:ss");
+                } else if (test.phase === 4) {
+                    check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, "yyyy-MM-dd HH:mm:ss"), "date renders time tokens");
+                    check(dateLabel.testPrecision === SystemClock.Seconds, "seconds in date update every second");
+                    Settings.set("dateFormat", "ddd d MMM h:mm AP 'HH:mm'");
+                    Settings.set("timeFormat", "HH:mm:ss");
+                } else if (test.phase === 5) {
+                    check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, Settings.dateFormat).toLowerCase(), "mixed date preserves casing and quoted literals");
+                    check(dateLabel.testPrecision === SystemClock.Seconds, "seconds in time still update every second");
+                    Settings.set("timeFormat", "HH:mm");
+                } else {
+                    check(dateLabel.testPrecision === SystemClock.Minutes, "removing seconds restores minute precision");
                     console.log("PASS: clock casing, token ranges, two-thirds-size AM/PM and baselines");
                     Qt.quit();
                 }
@@ -103,6 +122,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix="qs-clock-display-") as folder:
         target = Path(folder)
         copy_shell(target)
+        module = target / "modules/Clock.qml"
+        module.write_text(module.read_text().replace("id: root\n", "id: root\n    readonly property int testPrecision: clock.precision\n", 1))
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(
             ["qs", "-p", str(target), "--no-color"],

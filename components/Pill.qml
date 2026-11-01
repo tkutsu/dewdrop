@@ -189,6 +189,8 @@ Item {
     // that compensates for a leading media slot brings the whole pill back.
     property real centreShift: 0
     property bool animatePosition: false
+    // Scale only the temporary recoil; the chosen centre point stays unchanged.
+    property real recoilStrength: 1
     property bool _positionReady: false
     // Window sizing and service replies settle before ordinary position changes animate.
     Timer {
@@ -222,6 +224,7 @@ Item {
         }
     }
     readonly property real _rightHold: _centreRight - _rightSpan
+    readonly property real _centreRest: parent ? Math.round(parent.width / 2 - centreAt) : 0
 
     anchors {
         // Our left edge already chooses the grid. Qt's centre rounding would
@@ -234,7 +237,9 @@ Item {
         rightMargin: root.side === Pill.Side.Right ? root.edgeOffset : 0
         horizontalCenter: root.side === Pill.Side.Centre ? parent.horizontalCenter : undefined
         // Compensate for width changes immediately while the edges travel.
-        horizontalCenterOffset: root._centreLeft + root.centreShift + root._rightHold + root.width / 2 - (root.parent?.width ?? 0) / 2
+        horizontalCenterOffset: root._centreRest
+            + (root._centreLeft + root.centreShift + root._rightHold - root._centreRest) * root.recoilStrength
+            + root.width / 2 - (root.parent?.width ?? 0) / 2
     }
 
     implicitWidth: row.implicitWidth

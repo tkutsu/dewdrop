@@ -44,6 +44,10 @@
     // anything not in the central pill falls back to its middle.
     "centrePillAnchor": "between",
 
+    // Let the central pill recoil as modules change or neighbouring pills merge.
+    // Off keeps its chosen centre point steady and stops its glass edges recoiling.
+    "centrePillRecoil": true,
+
     // Weather in the bar: "hour" for the current hour's icon, "temperature"
     // for its temperature (following Feels Like), or "day" for today's predominant daylight icon.
     "weatherDisplay": "hour",
@@ -78,22 +82,24 @@
     // Opening one in the notification centre keeps it for later interaction.
     "ephemeralNotificationApps": ["Herdr", "Email", "Gmail", "satty", "qBittorrent", "udiskie"],
 
-    // The date, as a Qt date format: "ddd d MMM" reads Tue 13 Oct,
-    // "dd/MM/yyyy" reads 13/10/2026. Weekday and month names use your locale.
-    // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDate-method
+    // The date, as a Qt date/time format: "ddd d MMM" reads Tue 13 Oct,
+    // "dd/MM/yyyy HH:mm" adds the time. Names use your locale.
+    // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "dateFormat": "ddd d MMM",
 
     // Letter case for the bar date: normal, capitalize, uppercase or lowercase.
     // Capitalize makes the first character of each space-separated word uppercase.
     "dateCase": "normal",
 
-    // The clock, as a Qt time format: "HH:mm" reads 14:05, "h:mm AP" reads
-    // 2:05 PM, and anything with seconds ("HH:mm:ss") ticks every second.
+    // The clock, as a Qt date/time format: "HH:mm" reads 14:05, "h:mm AP" reads
+    // 2:05 PM. Date tokens work here too ("ddd HH:mm"). Seconds in either
+    // format ("HH:mm:ss") make both displays tick every second.
     // Alarms follow the same 12h/24h notation, always without seconds.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "timeFormat": "HH:mm",
 
-    // Letter case for the bar clock and alarm times: uppercase or lowercase.
+    // Letter case for the bar clock and alarm times: normal, uppercase or lowercase.
+    // Normal preserves the case supplied by the format. Default: uppercase.
     "timeCase": "uppercase",
 
     // Draw AM/PM at two-thirds font size in bar clock and alarm readouts, on

@@ -16,7 +16,7 @@ STUBS = {
 import QtQuick
 QtObject {
     property int fadeMs: 200
-    property var glyph: ({powerSuspend: "", powerReboot: "", powerShutdown: "", powerLogout: "", powerKill: "", lock: ""})
+    property var glyph: ({powerSuspend: "", powerReboot: "", powerShutdown: "", powerLogout: "", powerKill: "", powerLock: ""})
 }''',
     'Paths.qml': '''pragma Singleton
 import QtQuick
