@@ -770,20 +770,16 @@ Singleton {
         // an outline — the bar and the launcher used to mix in Font Awesome
         // and filled shapes, and read as drawn by several hands.
         //
-        // The launcher's power rows: WhiteSur's drawings, which hold their
-        // hairlines at row size.
+        // The launcher's power rows use drawings with matching thin outlines.
         powerShutdown: panel("system-shutdown"),
         powerReboot: panel("system-reboot"),
         powerSuspend: panel("system-suspend"),
-        powerLogout: panel("system-log-out"),
-        // A crosshair rather than the skull it used to be: the skull was the
-        // loudest thing on the strip for the least destructive action on it,
-        // and a crosshair is what the action actually puts on screen —
-        // hyprctl kill is a click-to-kill cursor (nf-md-crosshairs_gps).
-        powerKill: "\u{f01a4}",
+        powerLogout: panel("power-log-out"),
+        powerLock: panel("power-lock"),
+        powerKill: panel("power-kill"),
         powerConfirm: "\u{f012c}",
         // Launcher rows that are not apps: a detected domain, a clipboard
-        // entry, and the lock command.
+        // entry, and secured networks.
         web: "\u{f059f}",
         clipboard: "\u{f014c}",
         lock: "\u{f0341}",

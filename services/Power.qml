@@ -64,7 +64,7 @@ Singleton {
             key: "lock",
             label: "lock",
             name: "Lock Screen",
-            glyph: Theme.glyph.lock,
+            glyph: Theme.glyph.powerLock,
             arg: "--lock",
             confirm: false
         },

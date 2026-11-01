@@ -53,6 +53,7 @@ def main():
         references += f"""
         Pill {{
             id: {name}Centre; side: Pill.Side.Centre; animatePosition: true
+            recoilStrength: clockPill.recoilStrength
             anchors.topMargin: {y}; moduleGap: clockPill.moduleGap
             centreOn: {name}Clock.keyBox
             {note_qml}
