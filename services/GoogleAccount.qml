@@ -73,7 +73,7 @@ Singleton {
     Process {
         id: consent
 
-        command: Settings.inTerminal(["sh", "-c", '"$1" || { printf "\nPress Enter to close. "; read _; }', "sh", Quickshell.shellPath("scripts/gtasks-auth"), ...root.consentArgs], "Google sign-in (floating)")
+        command: Settings.inTerminal(["sh", "-c", '"$@" || { printf "\nPress Enter to close. "; read _; }', "sh", Quickshell.shellPath("scripts/gtasks-auth"), ...root.consentArgs], "Google sign-in (floating)")
 
         // Whatever it did, the file is the truth now: forget the token in
         // memory and read the credentials again. Their `loaded` is `ready`,

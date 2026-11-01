@@ -4,6 +4,7 @@
 import json
 import ctypes
 import os
+import re
 from pathlib import Path
 import runpy
 import shutil
@@ -203,6 +204,35 @@ def check_oauth_save(target):
     print("PASS: OAuth saves use private files and preserve the old token on failure")
 
 
+def check_consent_args(target):
+    """Run the consent wrapper with a stub script and check every argument reaches it."""
+    source = (ROOT / "services/GoogleAccount.qml").read_text()
+    wrapper = re.search(r'\["sh", "-c", \'(.*?)\', "sh",', source).group(1)
+    stub = target / "auth-stub"
+    stub.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+    stub.chmod(0o700)
+    result = subprocess.run(["sh", "-c", wrapper, "sh", str(stub), "--youtube"], capture_output=True, text=True, check=True)
+    assert result.stdout.splitlines() == ["--youtube"], result.stdout
+    print("PASS: consent passes its arguments through, so YouTube sign-in stays YouTube")
+
+
+def check_fd_order(target):
+    """Run fd with the launcher's patterns for a query in both word orders."""
+    source = (ROOT / "services/LauncherFiles.qml").read_text()
+    js = "const Settings = {expand: value => value}; const root = {};\n"
+    for name in ("fdTerms", "fdPatterns"):
+        body = re.search(r"    function " + name + r"\(query\) \{(.*?)\n    \}", source, re.S).group(1)
+        js += f"root.{name} = function(query) {{{body}\n}};\n"
+    js += 'console.log(JSON.stringify(["downloads report", "report downloads"].map(q => root.fdPatterns(q))));'
+    home = target / "fd-home"
+    (home / "Downloads").mkdir(parents=True)
+    (home / "Downloads/report.pdf").write_text("fixture")
+    for patterns in json.loads(subprocess.check_output(["node", "-e", js], text=True)):
+        found = subprocess.check_output(["fd", "--full-path", *patterns, str(home)], text=True).splitlines()
+        assert found == [str(home / "Downloads/report.pdf")], (patterns, found)
+    print("PASS: file search finds a path whatever order its words are typed in")
+
+
 def check_parent_death():
     """Kill only a fixture parent and reap its parent-death-protected helper."""
     assert ctypes.CDLL(None).prctl(36, 1, 0, 0, 0) == 0  # Adopt the fixture orphan for waitpid.
@@ -248,6 +278,8 @@ def main():
                 shutil.copy2(source, dest)
         check_oauth_save(target)
         check_parent_death()
+        check_consent_args(target)
+        check_fd_order(target)
         (target / "settings.json").write_text("{}\n")
         (target / "services/Google.qml").write_text(GOOGLE)
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property Item owner: null; property bool switched: false; function dropKeys(item) {} }')
