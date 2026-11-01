@@ -270,6 +270,9 @@ ShellRoot {
                 mouseMove(plots, graph.plotLeft + graph.plotWidth / 2, gapY);
                 wait(30);
                 check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gaps between graphs retain the cursor readout and vertical line");
+                mouseMove(graph.cursor, graph.contentOffset + graph.plotWidth - 1, gapY);
+                wait(30);
+                check(graph.hoveredHour?.at === graph.end, "hovering the right edge picks the plotted midnight endpoint");
                 const strip = named(graph, "strip");
                 mouseMove(strip, strip.width / 4, strip.height / 2);
                 wait(30);
