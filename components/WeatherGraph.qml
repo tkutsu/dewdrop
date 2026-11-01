@@ -40,7 +40,7 @@ Item {
             return null;
         const fraction = graph.pointerX / graph.plotWidth;
         const at = graph.start + fraction * (graph.end - graph.start);
-        return graph.hours.reduce((nearest, hour) => Math.abs(hour.at - at) < Math.abs(nearest.at - at) ? hour : nearest, graph.hours[0]);
+        return graph.plotHours.reduce((nearest, hour) => Math.abs(hour.at - at) < Math.abs(nearest.at - at) ? hour : nearest, graph.plotHours[0]);
     }
 
     // What a series reads at an hour, shown over its dot.

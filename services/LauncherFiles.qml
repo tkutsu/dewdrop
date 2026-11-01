@@ -83,11 +83,13 @@ Singleton {
         return Settings.expand(query).toLowerCase().split(/[\s/]+/).filter(t => t.length && t !== "." && t !== "..");
     }
 
-    // Terms joined with a gap, so "hypr key" finds keybinds.lua under hypr the
-    // same way the fasd half does. Escaped first: a query is typed text, and
-    // an unbalanced bracket in it would be a regex error rather than no match.
-    function fdPattern(query) {
-        return root.fdTerms(query).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+    // One pattern per term, every one required and in any order, so "hypr
+    // key" and "key hypr" both find keybinds.lua under hypr, the same way the
+    // fasd half matches. Escaped first: a query is typed text, and an
+    // unbalanced bracket in it would be a regex error rather than no match.
+    function fdPatterns(query) {
+        const [first = "", ...rest] = root.fdTerms(query).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+        return [].concat(...rest.map(t => ["--and", t]), [first]);
     }
 
     // Resolve relative paths against the same home directory that fd searches.
@@ -127,7 +129,7 @@ Singleton {
         // Git ignores govern tracking, not launcher visibility: local plans
         // still belong in file search. Keep .ignore and fdIgnore exclusions.
         // Resolve an existing absolute or home-relative path before searching.
-        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", root.absolutePath(fd.arg), "fd", "--hidden", "--no-ignore-vcs", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d"].concat(root.fdIgnore ? ["--ignore-file", root.fdIgnore] : []).concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat([root.fdPattern(fd.arg), Settings.home])
+        command: ["timeout", "5", "sh", "-c", 'case "$1" in /*) if [ -d "$1" ]; then printf "%s/\\n" "${1%/}"; exit; elif [ -e "$1" ]; then printf "%s\\n" "$1"; exit; fi;; esac; shift; exec "$@"', "sh", root.absolutePath(fd.arg), "fd", "--hidden", "--no-ignore-vcs", "--max-results", root.fdTerms(fd.arg).length > 1 ? "200" : "60", "--max-depth", "6", "--type", "f", "--type", "d"].concat(root.fdIgnore ? ["--ignore-file", root.fdIgnore] : []).concat(root.fdTerms(fd.arg).length > 1 ? ["--full-path"] : []).concat(root.fdPatterns(fd.arg)).concat([Settings.home])
 
         onResult: function (arg, text) {
             if (!Launcher.shown || arg !== fd.want)
