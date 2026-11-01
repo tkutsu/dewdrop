@@ -246,8 +246,8 @@ PanelWindow {
     // Whichever pill is against the clock's left end, whose drop pushes it out.
     readonly property Item clockNeighbour: recording.reveal > 0 ? recording : bar.innerMedia.reveal > 0 ? bar.innerMedia : bar.outerMedia
     readonly property real clockNeighbourReveal: bar.clockNeighbour === music ? musicPill.dropReveal : bar.clockNeighbour.reveal
-    readonly property real leftLip: bar.drops.lip(bar.clockNeighbourReveal, bar.clockNeighbour.stowed)
-    readonly property real rightLip: bar.drops.lip(countdownPill.dropReveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(noticePill.dropReveal, notice.stowed))
+    readonly property real leftLip: Settings.centrePillRecoil ? bar.drops.lip(bar.clockNeighbourReveal, bar.clockNeighbour.stowed) * clockPill.recoilStrength : 0
+    readonly property real rightLip: Settings.centrePillRecoil ? (bar.drops.lip(countdownPill.dropReveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(noticePill.dropReveal, notice.stowed))) * clockPill.recoilStrength : 0
     readonly property vector4d clockGlass: Qt.vector4d(clockPill.x - leftLip, Theme.barInset, clockPill.width + leftLip + rightLip, Theme.barHeight)
 
     Item {
@@ -325,10 +325,11 @@ PanelWindow {
             return width / 2;
         }
         // Clearing folds the bell without turning its width change into a recoil.
-        animatePosition: Services.Notifications.list.includes(Services.Notifications.latest)
-            || (!bell.animating && !notice.animating)
+        animatePosition: Settings.centrePillRecoil && (Services.Notifications.list.includes(Services.Notifications.latest)
+            || (!bell.animating && !notice.animating))
+        recoilStrength: 0.35
         // Mirror a leading media slot's displacement through Pill's existing centring motion.
-        centreShift: !Theme.reduceMotion && bell.pill === clockPill
+        centreShift: Settings.centrePillRecoil && !Theme.reduceMotion && bell.pill === clockPill
             && notice.mergedIcon === bell.keyBox.children[0]
             ? -(bell.width + (bell.visible ? Math.floor(moduleGap / 2) - Theme.pillPad : 0)) : 0
 

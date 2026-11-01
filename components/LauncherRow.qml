@@ -155,6 +155,8 @@ Rectangle {
         // icon nothing answered to falls back to one.
         Glyph {
             anchors.centerIn: parent
+            // Centre the Log Out profile, with its arrow extending to the right.
+            anchors.horizontalCenterOffset: row.modelData.glyph === Theme.glyph.powerLogout ? 3 : 0
             visible: !!row.modelData.glyph || (!!row.modelData.icon && !icon.visible)
             text: row.modelData.glyph ?? Theme.glyph.window
             color: row.modelData.armed ? Theme.warn : Theme.fg

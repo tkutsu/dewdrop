@@ -242,7 +242,10 @@ OverlayWindow {
                             tooltip: "Falls back to the middle of the pill when that module isn't in it.",
                             options: [{ value: "time", label: "Time" }, { value: "between", label: "Time & Date" },
                                 { value: "date", label: "Date" }, { value: "middle", label: "Middle" }],
-                            get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) }
+                            get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) },
+                        { type: "toggle", id: "centrePillRecoil", title: "Recoil",
+                            tooltip: "Move the centre pill and flex its edges when modules change or other pills merge into it.",
+                            get: () => Settings.centrePillRecoil, set: v => Settings.set("centrePillRecoil", v) }
                     ]
                 }
             ]
@@ -312,15 +315,15 @@ OverlayWindow {
                     title: "Time",
                     rows: [
                         { type: "choice", id: "twelveHour", title: "Hour Format", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "timeFormat", title: "Custom Format", tooltip: "Clock and alarms.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
-                        { type: "choice", id: "timeCase", title: "Letter Case", options: [{ value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
+                        { type: "text", id: "timeFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\nAlarms follow the hour format.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
+                        { type: "choice", id: "timeCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
                         { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", tooltip: "For 12h bar readouts. Popup times stay full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
                     ]
                 },
                 {
                     title: "Date",
                     rows: [
-                        { type: "text", id: "dateFormat", title: "Custom Format", tooltip: "d/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
+                        { type: "text", id: "dateFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
                         { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
                     ]
                 }

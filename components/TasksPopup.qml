@@ -400,8 +400,8 @@ Popup {
                 color: !row.header && Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
                 elide: Text.ElideRight
             }
-            // One button in one place: edit under the pointer, and copy once
-            // editing, for what the editor holds now, saved or not.
+            // One button in one place: edit under the pointer, then copy
+            // the current draft and save it to finish editing.
             PopupButton {
                 id: actions
                 anchors.right: parent.right
@@ -413,7 +413,12 @@ Popup {
                 visible: !reorder.showing && (row.editing ? !row.header : row.hovered)
                 glyph: row.editing ? Theme.glyph.copy : Theme.glyph.edit
                 name: (row.editing ? "Copy " : row.header ? "Rename task list " : "Edit ") + row.modelData.title
-                onTapped: row.editing ? Launcher.copy(root.draft) : root.beginEdit(row.modelData)
+                onTapped: {
+                    if (row.editing) {
+                        Launcher.copy(root.draft);
+                        root.saveEdit();
+                    } else root.beginEdit(row.modelData);
+                }
             }
             TextEdit {
                 id: editor
