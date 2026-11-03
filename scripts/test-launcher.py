@@ -1152,8 +1152,14 @@ ShellRoot {
             keys.wait(400);
             Launcher.show(); keys.wait(400);
             input.adopt("!"); keys.wait(20);
-            input.adopt("sleep"); keys.wait(20);
+            menu.requestActivate(); input.forceActiveFocus(); keys.wait(20);
+            keys.keyClick(Qt.Key_Backspace); keys.wait(20);
             check(!menu.veiled && !catcher.Window.window.visible, "leaving ! mode lifts the veil");
+            check(Launcher.shown && menu.active && input.activeFocus,
+                "Backspace out of power mode keeps the launcher focused");
+            keys.keyClick(Qt.Key_S); keys.wait(20);
+            check(input.text === "s" && Launcher.query === "s",
+                "typing continues after Backspace out of power mode");
             input.adopt("!"); keys.wait(250);
             const suspendRow = Launcher.results.findIndex(r => r.action?.key === "suspend");
             Launcher.index = suspendRow;
@@ -1207,6 +1213,7 @@ def check_menu(target, env):
     modules = target / "modules"
     modules.mkdir()
     source = (ROOT / "modules/LauncherMenu.qml").read_text()
+    source = re.sub(r'^    WlrLayershell.keyboardFocus:.*\n        :.*\n', '', source, flags=re.MULTILINE)
     for name in ("box", "input", "hint", "list", "divider", "modeHints", "placeholder", "searchIcon", "listEdges", "rowEntrance", "actionBar", "actionButtons", "queueControl"):
         source = source.replace(f"id: {name}\n", f'id: {name}\n                objectName: "{name}"\n')
     (modules / "LauncherMenu.qml").write_text(source)
