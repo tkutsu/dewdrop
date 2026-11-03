@@ -835,11 +835,11 @@ PanelWindow {
         Language {
             id: language
             pinKey: "language"
-            quiet: true
+            quiet: Services.Keyboard.index <= 0
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
-            Layout.leftMargin: -1
-            Layout.rightMargin: rightPill.languageAtLauncher ? -2 : -1
+            Layout.leftMargin: -2
+            Layout.rightMargin: rightPill.languageAtLauncher ? -3 : -2
         }
         LauncherButton {
             Layout.leftMargin: -1

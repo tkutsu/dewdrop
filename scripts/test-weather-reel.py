@@ -241,6 +241,20 @@ ShellRoot {
                 wait(40);
                 const graph = named(reel, "outgoing");
                 const plots = named(graph, "plots");
+                mouseMove(popup, 1, 1);
+                for (const [now, at] of [[8940, 7200], [9000, 10800], [9060, 10800], [10800, 10800], [84600, 86400]]) {
+                    Weather.now = now;
+                    wait(20);
+                    check(graph.hoveredHour === null && graph.selectedHour.at === at,
+                        "default dots advance at half past, including midnight: " + now);
+                    for (const plot of namedAll(graph, "plot"))
+                        check(Math.abs(plot.markX - (at - graph.start) / (graph.end - graph.start) * plot.width) < 0.01,
+                            "every dot moves to the selected hourly tick");
+                    check(Weather.thisHour.at === Math.floor(now / 3600) * 3600,
+                        "rounding the graph does not advance the shared current hour");
+                }
+                Weather.now = 10000;
+                wait(20);
                 for (const [unit, actual, apparent, daily, topTick, title, hot] of [
                     ["fahrenheit", "68°", "64°", "68° / 59°", "104", "Fahrenheit · °F", "95°F"],
                     ["kelvin", "293 K", "291 K", "293 K / 288 K", "313", "Kelvin · K", "308 K"],
@@ -363,6 +377,10 @@ ShellRoot {
                 Weather.days = [Weather.days[0], missing];
                 wait(60);
                 missingMidnight(named(reel, "outgoing"));
+                Weather.now = 84600;
+                wait(20);
+                check(named(reel, "outgoing").currentHour.at === 82800,
+                    "dots keep the last available hour when the next tick has no forecast");
                 console.log("PASS: weather header, weather reel, graph and gap scrolling, fixed cursor readout, continuous curves, fixed axes, rapid clicks, refresh and midnight rollover");
             }
         }

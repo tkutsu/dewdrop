@@ -158,7 +158,7 @@ ShellRoot {
                     && preview.lineCount === 3 && preview.truncated, "preview is plain text capped at three lines");
                 check(artwork && artwork.status === Image.Ready && artwork.width === 64 && artwork.height === 36,
                     "story thumbnail loads at the YouTube thumbnail size");
-                check(previewRow.height > plainRow.height && plainTitle.parent.x === Theme.popupInset,
+                check(previewRow.height > plainRow.height && plainTitle.mapToItem(plainRow, 0, 0).x === Theme.popupInset,
                     "text-only stories keep compact rows without image space");
                 check(previewRow.height >= preview.parent.height + 8, "row contains the whole preview and metadata");
                 const imageX = thumbnail.x;
@@ -286,6 +286,29 @@ ShellRoot {
                 Feeds.sources = extraSources.slice().reverse().concat([originalSource]);
                 wait(30);
                 check(order() === movedOrder, "closing and source refresh retain the displayed order");
+                Settings.user = Object.assign({}, Settings.user, {reduceMotion: true});
+                Feeds.sources = [{url: "releases", title: "Quickshell", items: [
+                    {id: "breaking", title: "Quickshell v0.3.0", published: now, url: "", summary: "Old preview",
+                        release: {breaking: true, status: "ready", excerpt: "Config paths are no longer canonicalized."}},
+                    {id: "ordinary", title: "Quickshell v0.3.2", published: now, url: "", release: {breaking: false, status: "ready"}},
+                    {id: "missing", title: "Quickshell v0.3.1", published: now, url: "", release: {breaking: false, status: "unavailable"}}
+                ]}];
+                wait(30);
+                header("releases").tapped();
+                wait(30);
+                const releaseBody = body(header("releases"));
+                const breaking = find(releaseBody, i => i.name === "Quickshell v0.3.0");
+                const ordinary = find(releaseBody, i => i.name === "Quickshell v0.3.2");
+                const missing = find(releaseBody, i => i.name === "Quickshell v0.3.1");
+                check(find(breaking, i => i.text === Theme.glyph.warning && i.visible
+                    && String(i.color) === "#ffd60a" && i.font.family === Theme.glyphFont),
+                    "declared breaking changes show a yellow warning icon");
+                check(find(breaking, i => i.text === "Config paths are no longer canonicalized." && i.visible),
+                    "breaking excerpt replaces the ordinary preview");
+                check(!find(ordinary, i => i.text === Theme.glyph.warning && i.visible),
+                    "ordinary releases have no warning icon");
+                check(find(missing, i => i.text === "Release details unavailable" && i.visible),
+                    "failed notes remain distinguishable from checked notes");
                 console.log("PASS: feed drawers keep closed order and animate opening last");
             }
         }

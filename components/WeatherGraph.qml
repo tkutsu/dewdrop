@@ -33,7 +33,14 @@ Item {
     readonly property var plotHours: graph.nextHour ? graph.hours.concat([graph.nextHour]) : graph.hours
     readonly property var iconRanges: Weather.hourRanges(graph.hours, "icon")
     readonly property real pointerX: graph.cursor.mouseX - graph.contentOffset
-    readonly property var currentHour: graph.hours.includes(Weather.thisHour) ? Weather.thisHour : null
+    // The default dots follow the nearest hour, including the midnight endpoint.
+    readonly property var currentHour: {
+        const hour = Weather.thisHour;
+        if (!graph.hours.includes(hour))
+            return null;
+        const next = graph.plotHours.find(sample => sample.at === hour.at + 3600);
+        return next && Weather.now >= hour.at + 1800 ? next : hour;
+    }
     readonly property var selectedHour: graph.hoveredHour ?? graph.currentHour
     readonly property var hoveredHour: {
         if (!graph.cursor.containsMouse || !graph.hours.length || graph.pointerX < 0 || graph.pointerX > graph.plotWidth)

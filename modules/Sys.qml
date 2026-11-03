@@ -11,8 +11,15 @@ BarItem {
     id: root
     name: "System monitor"
     // The figure the tube stands for, and which chip it is reading.
-    tooltip: Sys.temp > 0 ? `CPU ${Math.round(Sys.temp)} °C` : "No temperature sensor"
+    tooltip: [Sys.temp > 0 ? `CPU ${Math.round(Sys.temp)} °C` : "No temperature sensor"]
+        .concat(Sys.topCpu.filter(p => p.cpu >= 0.5).map(p => `${p.name} · ${Math.round(p.cpu * 100)}% CPU`))
+        .join("\n")
     popup: SysPopup {}
+
+    // Hovering needs current process rates, without waking the disk or GPU probes.
+    readonly property bool watchingProcesses: root.containsMouse && root.visible && !root.pillDragging
+    onWatchingProcessesChanged: Sys.processWatchers += watchingProcesses ? 1 : -1
+    Component.onDestruction: if (watchingProcesses) Sys.processWatchers--
 
     // A temperature is only news once it is a warning, so the tube waits in
     // the drawer until the reading crosses the top of its scale.

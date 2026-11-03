@@ -15,7 +15,7 @@ Singleton {
     property int tries: 0
     property int generation: 0
 
-    readonly property bool hasPlaceholder: Hyprland.workspaces.values.some(w => w.id === -1
+    readonly property bool hasPlaceholder: Hyprland.workspaces.values.some(w => w.id === -1 && !w.address
         && (w.active || Hyprland.toplevels.values.some(t => t.workspace === w)))
     onHasPlaceholderChanged: if (hasPlaceholder) root.unsettle()
 
@@ -39,30 +39,36 @@ Singleton {
         console.warn("Workspace synchronization failed after " + root.tries + " attempts; waiting for a compositor event");
     }
 
-    // Compare IDs, window placement and monitor focus rather than assuming requests have finished.
+    // Hyprland 0.57 omits numeric IDs for named and special workspaces.
+    function sameWorkspace(actual, expected): bool {
+        return !!actual && !!expected && (expected.address
+            ? actual.address === expected.address : actual.id === expected.id);
+    }
+
+    // Compare workspace identities, window placement and monitor focus after refreshes.
     function agrees(workspaces, clients, monitors): bool {
         if (root.hasPlaceholder)
             return false;
         const actualWorkspaces = Hyprland.workspaces.values;
         // Unmapped XWayland windows reach the model without a workspace and are never removed.
         const actualWindows = Hyprland.toplevels.values.filter(t => t.workspace);
-        if (!workspaces.every(expected => actualWorkspaces.some(w => w.id === expected.id && w.name === expected.name)))
+        if (!workspaces.every(expected => actualWorkspaces.some(w => root.sameWorkspace(w, expected) && w.name === expected.name)))
             return false;
         // Public refreshes leave unused old IDs behind; they do not belong to the drawn strip.
-        if (actualWorkspaces.some(w => !workspaces.some(expected => expected.id === w.id)
+        if (actualWorkspaces.some(w => !workspaces.some(expected => root.sameWorkspace(w, expected))
             && (w.active || w.lastIpcObject?.ispersistent || actualWindows.some(t => t.workspace === w))))
             return false;
         const windows = clients.filter(c => c.mapped);
         if (actualWindows.length !== windows.length || !windows.every(expected =>
             actualWindows.some(t => t.address === expected.address.replace(/^0x/, "")
-                && t.workspace?.id === expected.workspace.id)))
+                && root.sameWorkspace(t.workspace, expected.workspace))))
             return false;
         const actualMonitors = Hyprland.monitors.values;
         if (!monitors.every(expected => actualMonitors.some(m => m.name === expected.name
-            && m.activeWorkspace?.id === expected.activeWorkspace.id)))
+            && root.sameWorkspace(m.activeWorkspace, expected.activeWorkspace))))
             return false;
         const focused = monitors.find(m => m.focused);
-        return !focused || Hyprland.focusedWorkspace?.id === focused.activeWorkspace.id;
+        return !focused || root.sameWorkspace(Hyprland.focusedWorkspace, focused.activeWorkspace);
     }
 
     Connections {

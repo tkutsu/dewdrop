@@ -9,9 +9,9 @@ import qs
 //
 // Three tiers of asking. The badge only ever shows a temperature, and that is
 // one sysfs file read in place, no process at all. The CPU, memory and fan
-// section runs while the popup is up, and every process's CPU time and the
-// disks are only worth paying for while something is on screen to read them,
-// so that half runs while `watchers` is up and stops when the popup closes.
+// section and disk probes run while the popup is up (`watchers`). Process
+// sampling also runs while the
+// thermometer is hovered, so its tooltip can name programs using high CPU.
 // nvidia-smi is one long-lived process for as long as anything reads the
 // card while the popup is open.
 Singleton {
@@ -67,6 +67,8 @@ Singleton {
     // Raised by whatever is showing the detail (components/SysPopup.qml) for as
     // long as it is on screen, which is what gates the expensive poll.
     property int watchers: 0
+    property int processWatchers: 0
+    readonly property bool processesWanted: watchers > 0 || processWatchers > 0
 
     readonly property real temp: cpuTemp
 
@@ -756,10 +758,13 @@ Singleton {
     }
 
     function sampleDetail() {
-        if (!procs.running)
-            procs.running = true;
         if (!disks.running)
             disks.running = true;
+    }
+
+    function sampleProcesses() {
+        if (!procs.running && !exeProbe.running)
+            procs.running = true;
     }
 
     // Every 2s while the popup is up, 5s otherwise. The badge is a ten-step
@@ -773,14 +778,35 @@ Singleton {
         onTriggered: root.sample()
     }
 
-    // Started by the first watcher, which is when the first detail sample
-    // runs.
+    // Disk detail is only needed by the popup.
     Timer {
         interval: 1500
         running: root.watchers > 0
         repeat: true
         triggeredOnStart: true
         onTriggered: root.sampleDetail()
+    }
+
+    Timer {
+        interval: 1500
+        running: root.processesWanted
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.sampleProcesses()
+    }
+
+    Timer {
+        id: processBaseline
+        interval: 300
+        onTriggered: root.sampleProcesses()
+    }
+
+    onProcessesWantedChanged: {
+        processBaseline.stop();
+        root._procPrev = {};
+        root.topCpu = [];
+        if (processesWanted)
+            processBaseline.restart();
     }
 
     Timer {
@@ -826,7 +852,6 @@ Singleton {
         // until the second sample. Mapped, so the per-thread rows stay put.
         root.cpuUse = 0;
         root.coreUse = root.coreUse.map(() => 0);
-        root._procPrev = {};
         root._drivePrev = {};
         root.sample();
         honest.restart();

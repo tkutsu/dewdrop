@@ -393,9 +393,8 @@ Popup {
 
                 Image {
                     anchors.fill: parent
-                    source: video.modelData.thumb
-                    sourceSize.width: root.thumbWidth * 2
-                    sourceSize.height: root.thumbHeight * 2
+                    source: Feeds.thumbnailSource(video.modelData.thumb ?? "")
+                    sourceSize: Feeds.thumbnailSize
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     smooth: true
@@ -452,6 +451,7 @@ Popup {
             ].filter(s => s !== "")
 
             name: story.modelData.title
+            Accessible.description: story.modelData.release?.breaking ? "Breaking changes" : ""
             width: root.bodyWidth
             fullHeight: Math.max(lines.implicitHeight, thumbnail.visible ? root.thumbHeight : 0) + root.rowPad * 2
             gesturePolicy: TapHandler.ReleaseWithinBounds
@@ -473,9 +473,8 @@ Popup {
                     id: artwork
 
                     anchors.fill: parent
-                    source: story.modelData.thumb ?? ""
-                    sourceSize.width: root.thumbWidth * 2
-                    sourceSize.height: root.thumbHeight * 2
+                    source: Feeds.thumbnailSource(story.modelData.thumb ?? "")
+                    sourceSize: Feeds.thumbnailSize
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     smooth: true
@@ -495,19 +494,42 @@ Popup {
                 width: parent.width - story.textInset - root.inset
                 spacing: 1
 
-                PopupText {
+                Row {
                     width: parent.width
-                    text: story.modelData.title
-                    textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                    font.pixelSize: Theme.captionSize
-                    font.weight: Font.DemiBold
+                    spacing: 5
+
+                    PopupText {
+                        id: breakingIcon
+                        visible: story.modelData.release?.breaking ?? false
+                        text: Theme.glyph.warning
+                        color: Theme.releaseWarning
+                        font.family: Theme.glyphFont
+                        font.pixelSize: Theme.captionSize
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    PopupText {
+                        width: parent.width - (breakingIcon.visible ? breakingIcon.width + parent.spacing : 0)
+                        text: story.modelData.title
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        font.pixelSize: Theme.captionSize
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                PopupText {
+                    visible: text !== ""
+                    text: story.modelData.release?.breaking ? "Breaking Changes"
+                        : story.modelData.release?.status === "unavailable" ? "Release details unavailable" : ""
+                    color: Theme.label2
+                    font.pixelSize: Theme.footnoteSize
                 }
 
                 PopupText {
                     width: parent.width
                     visible: text !== ""
-                    text: story.modelData.summary ?? ""
+                    text: story.modelData.release?.excerpt || story.modelData.release?.summary || story.modelData.summary || ""
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     maximumLineCount: 3

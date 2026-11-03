@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs
+import "../ReleaseNotes.js" as ReleaseNotes
 
 // New videos from YouTube channels and new stories from a few RSS feeds,
 // counted on the bar until they have been opened.
@@ -62,6 +63,60 @@ Singleton {
     // One per feed URL, in settings order: {title, url, items}, each item
     // {id, title, url, summary, thumb, comments, points, replies, published}.
     property var sources: []
+
+    readonly property size thumbnailSize: Qt.size(128, 72)
+    property var thumbnailFiles: ({})
+    property var thumbnailPending: ({})
+    property var thumbnailQueue: []
+    property var thumbnailBatch: []
+
+    // Fetch only thumbnails whose rows have been opened; reuse disk copies.
+    function thumbnailSource(url: string): string {
+        if (!/^https?:\/\//i.test(url))
+            return url;
+        if (root.thumbnailFiles[url] !== undefined)
+            return root.thumbnailFiles[url];
+        if (!root.thumbnailPending[url]) {
+            root.thumbnailPending[url] = true;
+            root.thumbnailQueue.push(url);
+            thumbnailPump.start();
+        }
+        return "";
+    }
+
+    Timer {
+        id: thumbnailPump
+        interval: 1
+        onTriggered: {
+            if (thumbnailFetch.running || !root.thumbnailQueue.length)
+                return;
+            root.thumbnailBatch = root.thumbnailQueue.splice(0, 100);
+            thumbnailFetch.exec(["python3", Quickshell.shellPath("scripts/feed-thumbnails.py"),
+                Paths.cache("feed-thumbnails")].concat(root.thumbnailBatch));
+        }
+    }
+
+    Process {
+        id: thumbnailFetch
+        stdout: SplitParser {
+            onRead: data => {
+                const result = JSON.parse(data);
+                root.thumbnailFiles = Object.assign({}, root.thumbnailFiles, { [result.url]: result.source });
+            }
+        }
+        onExited: {
+            // If the helper fails, preserve the direct-image fallback.
+            const files = Object.assign({}, root.thumbnailFiles);
+            for (const url of root.thumbnailBatch) {
+                if (files[url] === undefined)
+                    files[url] = url;
+                delete root.thumbnailPending[url];
+            }
+            root.thumbnailFiles = files;
+            root.thumbnailBatch = [];
+            thumbnailPump.start();
+        }
+    }
 
     // When the subscriptions (store.subscribed) were last read; zero reads
     // them next refresh.
@@ -253,7 +308,10 @@ Singleton {
         onTriggered: root.refresh()
     }
 
-    Component.onCompleted: root.refresh()
+    Component.onCompleted: {
+        releaseFile.text();
+        root.refresh();
+    }
 
     // The sign-in landed, at startup or after Connect, maybe as another
     // account: read its subscriptions afresh.
@@ -543,11 +601,123 @@ Singleton {
                 const source = read[url] ?? root.sources.find(s => s.url === url);
                 return source ? Object.assign({ url: url }, source) : null;
             }).filter(s => s !== null && s.items.length > 0);
+            root.enrichReleases();
             // With every feed in hand, forget stories seen that have left
             // their feed a month ago: they will not be listed again. An
             // empty answer is not in hand; it may be a broken page.
             if (urls.every(url => read[url]?.items.length > 0))
                 root.forgetStories(Date.now() - 30 * 86400000);
+        });
+    }
+
+    // Notes are disposable; deleting this cache must never reset read status.
+    property bool releaseCacheReady: false
+    property bool releaseNotesBusy: false
+    property var releaseEntries: ({})
+    FileView {
+        id: releaseFile
+        path: Paths.cache("feed-release-notes.json")
+        blockLoading: true
+        printErrors: false
+        onLoaded: {
+            if (!root.releaseCacheReady) {
+                root.releaseEntries = releaseCache.entries;
+                root.releaseCacheReady = true;
+                Qt.callLater(root.enrichReleases);
+            }
+        }
+        onLoadFailed: {
+            if (!root.releaseCacheReady) {
+                root.releaseCacheReady = true;
+                Qt.callLater(root.enrichReleases);
+            }
+        }
+        JsonAdapter {
+            id: releaseCache
+            property var entries: ({})
+        }
+    }
+
+    Timer {
+        id: releaseSave
+        interval: 100
+        onTriggered: {
+            releaseCache.entries = root.releaseEntries;
+            releaseFile.writeAdapter();
+        }
+    }
+
+    function showReleaseNotes(): void {
+        root.sources = root.sources.map(source => Object.assign({}, source, {
+            items: source.items.map(item => {
+                if (!item.release) return item;
+                const detail = root.releaseEntries[item.id] ?? {};
+                return Object.assign({}, item, {release: Object.assign({}, item.release, {
+                    status: detail.status ?? "loading", breaking: detail.breaking ?? false,
+                    excerpt: detail.excerpt ?? "", summary: detail.summary ?? "",
+                    notesLink: detail.notesUrl ?? item.release.notesUrl
+                })});
+            })
+        }));
+    }
+
+    // Discovery appears immediately; optional note lookups never hide a release.
+    function enrichReleases(): void {
+        if (!root.releaseCacheReady || root.releaseNotesBusy)
+            return;
+        const items = [].concat(...root.sources.map(s => s.items)).filter(i => i.release);
+        if (!items.length)
+            return;
+        const entries = {};
+        for (const item of items)
+            if (root.releaseEntries[item.id]) entries[item.id] = root.releaseEntries[item.id];
+        const pruned = Object.keys(entries).length !== Object.keys(root.releaseEntries).length;
+        root.releaseEntries = entries;
+        const pending = items.filter(i => !ReleaseNotes.reusable(entries[i.id], i.release, Date.now()));
+        root.showReleaseNotes();
+        if (!pending.length) {
+            if (pruned) releaseSave.restart();
+            return;
+        }
+        root.releaseNotesBusy = true;
+        const save = (item, result, url, valid) => {
+            const previous = entries[item.id];
+            entries[item.id] = Object.assign({}, !valid ? previous : {}, {
+                detectorVersion: ReleaseNotes.detectorVersion, updated: item.release.updated,
+                checkedAt: Date.now(), status: valid ? "ready" : "unavailable"
+            }, valid || result.breaking ? {breaking: result.breaking, excerpt: result.excerpt,
+                summary: result.summary, notesUrl: url || item.url} : {});
+            root.releaseEntries = Object.assign({}, entries);
+            root.showReleaseNotes();
+        };
+        let news = null;
+        const hyprland = pending.some(i => i.release.project === "Hyprland");
+        root.pool(hyprland ? [{urls: ["https://hypr.land/rss.xml"], got: xml => {
+            if (/<rss\b/.test(xml)) news = root.parseStories(xml, "https://hypr.land/rss.xml").items;
+        }}] : [], () => {
+            const jobs = [];
+            for (const item of pending) {
+                const release = item.release;
+                const markdown = release.project === "Quickshell";
+                const inline = ReleaseNotes.examine(release.body, false);
+                const url = markdown ? release.notesUrl : ReleaseNotes.newsUrl(release, news ?? []);
+                if (!url) {
+                    save(item, inline, item.url, !markdown && news !== null && release.body.trim() !== "");
+                    continue;
+                }
+                jobs.push({urls: [url], got: body => {
+                    const result = ReleaseNotes.examine(markdown ? body : ReleaseNotes.article(body), markdown);
+                    if (inline.breaking && !result.breaking) {
+                        result.breaking = true;
+                        result.excerpt = inline.excerpt;
+                    }
+                    save(item, result, url, result.valid);
+                }, failed: done => { save(item, inline, item.url, false); done(); }});
+            }
+            root.pool(jobs, () => {
+                root.releaseNotesBusy = false;
+                releaseSave.restart();
+            });
         });
     }
 
@@ -717,7 +887,7 @@ Singleton {
             const summary = root.summary(about, feed || link) || root.summary(content, feed || link);
             const points = about.match(/Points:\s*(\d+)/);
             const replies = about.match(/# Comments:\s*(\d+)/);
-            return {
+            const item = {
                 id: root.tag(block, atom ? "id" : "guid") || link,
                 title: root.tag(block, "title"),
                 url: link,
@@ -728,6 +898,12 @@ Singleton {
                 replies: replies ? Number(replies[1]) : -1,
                 published: Date.parse(root.tag(block, atom ? "published" : "pubDate") || root.tag(block, "updated"))
             };
+            const release = ReleaseNotes.release(feed, link, content || about, root.tag(block, "updated") || String(item.published));
+            if (release) {
+                item.release = release;
+                item.title = release.project + " " + release.tag;
+            }
+            return item;
         }).filter(i => i.id !== "" && !isNaN(i.published))
             .sort((a, b) => b.points - a.points || b.published - a.published);
         return {

@@ -461,7 +461,7 @@ Singleton {
 
     // Desktop actions run directly through their existing services.
     readonly property var desktopCommands: [
-        { key: "settings", title: "Settings", aliases: "shell bar preferences configuration", glyph: Theme.glyph.settings, run: () => { Preferences.shown = true; } },
+        { key: "settings", title: "dewdrop settings", aliases: "shell bar preferences configuration", glyph: Theme.glyph.settings, run: () => { Preferences.shown = true; } },
         { key: "mute", title: Audio.muted ? "Unmute sound" : "Mute sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
         { key: "night", title: NightMode.on ? "Turn night mode off" : "Turn night mode on", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
         { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi off" : "Turn Wi-Fi on", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },

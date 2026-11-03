@@ -66,7 +66,7 @@ ShellRoot {
   id: eventStorm;interval:50;repeat:true
   onTriggered: Hyprland.rawEvent({name:'movewindowv2',data:''})
  }
- Component { id: workspace; QtObject { property int id; property string name; property bool active: false; property var lastIpcObject: ({}) } }
+ Component { id: workspace; QtObject { property int id; property string address; property string name; property bool active: false; property var lastIpcObject: ({}) } }
  Component { id: toplevel; QtObject { property string address; property var workspace } }
  Component { id: monitor; QtObject { property string name; property var activeWorkspace } }
  TestCase { id: test; when: false }
@@ -97,6 +97,19 @@ ShellRoot {
  Hyprland.toplevels.values=[window,ghost];WorkspaceSync.unsettle();test.wait(700);
  check(WorkspaceSync.settled,'windows without a workspace do not keep the strip frozen');
  Hyprland.toplevels.values=[window];
+
+ // Hyprland 0.57 gives special workspaces an address but no numeric ID.
+ one.address='1';later.address='2';
+ const special=workspace.createObject(root,{id:-1,address:'special:dolphin',name:'special:dolphin'});
+ const scratch=toplevel.createObject(root,{address:'s',workspace:special});
+ Hyprland.workspaces.values=[one,later,special];Hyprland.toplevels.values=[window,scratch];test.wait(25);
+ check(!WorkspaceSync.hasPlaceholder,'a special workspace with an address is not a placeholder');
+ check(WorkspaceSync.agrees(
+  [{id:1,address:'1',name:'1'},{id:2,address:'2',name:'2'},{address:'special:dolphin',name:'special:dolphin'}],
+  [{address:'0xa',mapped:true,workspace:{id:2,address:'2'}},{address:'0xs',mapped:true,workspace:{address:'special:dolphin'}}],
+  [{name:'fixture',focused:true,activeWorkspace:{id:1,address:'1'}}]
+ ),'workspace addresses reconcile special workspace membership without numeric IDs');
+ one.address='';later.address='';Hyprland.workspaces.values=[one,later];Hyprland.toplevels.values=[window];
 
  const stale=workspace.createObject(root,{id:9,name:'9'});
  const unused=workspace.createObject(root,{id:-1,name:'unused'});
