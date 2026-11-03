@@ -553,6 +553,7 @@ Singleton {
     readonly property color badgeFg: "white"
 
     readonly property color warn: "#ff88aa"
+    readonly property color releaseWarning: "#ffd60a"
     // Something is listening or watching (modules/Recording.qml): the
     // system red macOS draws its recording dot in, rather than warn's pink,
     // which says "look at this" and not "this is on".
@@ -752,6 +753,7 @@ Singleton {
     }
 
     readonly property var glyph: ({
+        warning: "\u{f002a}",         // nf-md-alert_outline
         // Drawn after SF Symbols' magnifyingglass rather than nf-md-magnify:
         // that glyph centred on its ink sat the lens a pixel and a half up and
         // left of centre, with the long handle pulling the box the other way.

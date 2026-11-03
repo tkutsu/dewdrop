@@ -65,6 +65,7 @@ BarItem {
             required property var modelData
             required property int index
             readonly property bool inkLit: true
+            readonly property bool isSteam: modelData.id === "steam"
 
             // A tray menu is one of the bar's popups like any other: one up at
             // a time, closed by a click elsewhere, handed over as the pointer
@@ -134,7 +135,10 @@ BarItem {
                 x: -inkX
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !entry.glyph
-                source: entry.glyph ? "" : entry.modelData.icon
+                // Pin Steam to Themis's 22px panel SVG rather than its tray artwork.
+                source: entry.glyph ? "" : entry.isSteam
+                    ? "file://" + Quickshell.env("HOME") + "/.local/share/icons/themis/panel/22/steam_tray_mono.svg"
+                    : entry.modelData.icon
                 opacity: Theme.barInk(entry, Qt.rgba(1, 1, 1, 1)).a
                 Behavior on opacity {
                     NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
@@ -206,18 +210,16 @@ BarItem {
                 onContainsMouseChanged: if (entry.modelData.hasMenu)
                     OpenPopup.browse(entry, containsMouse && !root.pillDragging)
 
-                // Right is the menu. An item that is nothing but its menu has
-                // no useful activate(), so on one of those every button is.
-                actions: entry.modelData.onlyMenu ? ({
-                        [Qt.LeftButton]: entry.toggleMenu,
+                // Steam has no activation method; its Library URL supplies
+                // the left click. Other menu-only items use every button.
+                actions: ({
+                        [Qt.LeftButton]: entry.isSteam ? () => Qt.openUrlExternally("steam://open/games")
+                            : entry.modelData.onlyMenu ? entry.toggleMenu : () => entry.modelData.activate(),
                         [Qt.RightButton]: entry.toggleMenu,
-                        [Qt.MiddleButton]: entry.toggleMenu
-                    }) : ({
-                        [Qt.LeftButton]: () => entry.modelData.activate(),
-                        [Qt.RightButton]: entry.toggleMenu,
-                        [Qt.MiddleButton]: () => entry.modelData.secondaryActivate()
+                        [Qt.MiddleButton]: entry.modelData.onlyMenu ? entry.toggleMenu : () => entry.modelData.secondaryActivate()
                     })
-                eagerButtons: entry.modelData.onlyMenu ? acceptedButtons : Qt.RightButton
+                eagerButtons: entry.modelData.onlyMenu
+                    ? (entry.isSteam ? Qt.RightButton | Qt.MiddleButton : acceptedButtons) : Qt.RightButton
 
                 onWheel: function (wheel) {
                     if (wheel.angleDelta.y !== 0)
