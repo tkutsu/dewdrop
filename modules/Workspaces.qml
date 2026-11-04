@@ -915,13 +915,23 @@ BarItem {
                                     enabled: WorkspaceSync.settled
                                     hoverEnabled: true
                                     preventStealing: true
-                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                                     property point pressPoint: Qt.point(0, 0)
                                     property string addressOnPress: ""
                                     property bool suppressClick: false
 
                                     function focusWindow(address: string): void {
                                         Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${address}" })`);
+                                    }
+
+                                    // Brings the window forward and fills the screen with it,
+                                    // or gives it back its place when it already does.
+                                    function toggleFullscreen(address: string): void {
+                                        const handle = Hyprland.toplevels.values.find(t => t.address === address)?.wayland;
+                                        if (!handle)
+                                            return;
+                                        tap.focusWindow(address);
+                                        handle.fullscreen = !handle.fullscreen;
                                     }
 
                                     // The press's half: a bunched app opens out and its
@@ -943,13 +953,20 @@ BarItem {
                                     Accessible.role: Accessible.Button
                                     Accessible.name: label.text
                                     // Resting on an icon shows its window's title (ClickArea).
-                                    Accessible.description: "Pointer: middle click, hover"
+                                    Accessible.description: "Pointer: right click, middle click, hover"
                                     Accessible.onPressAction: if (enabled && visible && !tap.pressApp())
                                         tap.focusWindow(app.icon.addresses[0])
 
                                     onPressed: mouse => {
-                                        // Middle-click opens a group without focusing or dragging a window.
+                                        // Right-click closes a lone window and opens a group, so each
+                                        // of its windows can be closed on its own. Neither it nor
+                                        // middle-click (fullscreen) starts a drag.
                                         if (mouse.button === Qt.MiddleButton) {
+                                            addressOnPress = "";
+                                            suppressClick = false;
+                                            return;
+                                        }
+                                        if (mouse.button === Qt.RightButton) {
                                             addressOnPress = "";
                                             suppressClick = app.icon.addresses.length > 1;
                                             if (suppressClick)
@@ -995,8 +1012,10 @@ BarItem {
                                     onClicked: mouse => {
                                         if (suppressClick)
                                             return;
-                                        if (mouse.button === Qt.MiddleButton)
+                                        if (mouse.button === Qt.RightButton)
                                             Hyprland.toplevels.values.find(t => t.address === app.modelData)?.wayland?.close();
+                                        else if (mouse.button === Qt.MiddleButton)
+                                            tap.toggleFullscreen(app.icon.addresses[0]);
                                         else
                                             tap.focusWindow(app.icon.addresses[0]);
                                     }
