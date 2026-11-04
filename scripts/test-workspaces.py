@@ -272,36 +272,43 @@ if '--window-input' in sys.argv:
  const a=win('a',w2,'same'),b=win('b',w2,'same'),c=win('c',w1,'single');
  let closed=[];
  for (const window of [a,b,c])
-   window.wayland={appId:window.wayland.appId,close:()=>closed.push(window.address)};
+   window.wayland={appId:window.wayland.appId,fullscreen:false,close:()=>closed.push(window.address)};
  reset([a,b,c],[w1,w2]);Hyprland.commands=[];
  function click(app,which) { test.mouseClick(app,app.width/2,app.height/2,which);test.wait(300); }
- click(icon(button(1),'c'),Qt.MiddleButton);
- check(closed.join(',')==='c' && Hyprland.commands.length===0,'middle-click requests only the individual window close without focusing');
+ click(icon(button(1),'c'),Qt.RightButton);
+ check(closed.join(',')==='c' && Hyprland.commands.length===0,'right-click requests only the individual window close without focusing');
  check(icon(button(1),'c').enabled && !icon(button(1),'c').closing,'close request waits for the application to actually close');
- click(icon(button(2),'a'),Qt.MiddleButton);
- check(pill.expandedWorkspace===2 && !icon(button(2),'b').icon.folded,'middle-click expands a collapsed group');
+ click(icon(button(2),'a'),Qt.RightButton);
+ check(pill.expandedWorkspace===2 && !icon(button(2),'b').icon.folded,'right-click expands a collapsed group');
  check(closed.join(',')==='c' && Hyprland.commands.length===0,'opening a group neither closes nor focuses a window');
- click(icon(button(2),'b'),Qt.MiddleButton);
- check(closed.join(',')==='c,b','middle-click closes only the selected expanded window');
+ click(icon(button(2),'b'),Qt.RightButton);
+ check(closed.join(',')==='c,b','right-click closes only the selected expanded window');
  Settings.groupWindows=false;test.wait(300);
- click(icon(button(2),'a'),Qt.MiddleButton);
- check(closed.join(',')==='c,b,a','middle-click closes individual windows when grouping is disabled');
+ click(icon(button(2),'a'),Qt.RightButton);
+ check(closed.join(',')==='c,b,a','right-click closes individual windows when grouping is disabled');
 
  const single=icon(button(1),'c');
- test.mousePress(single,single.width/2,single.height/2,Qt.MiddleButton);
+ test.mousePress(single,single.width/2,single.height/2,Qt.RightButton);
  test.mouseMove(pill,-40,80,30);test.wait(30);
- check(!pill.dragging,'middle-button movement never starts a window drag');
- test.mouseRelease(pill,-40,80,Qt.MiddleButton);test.wait(30);
- check(closed.join(',')==='c,b,a','middle-button release outside the icon cancels close');
+ check(!pill.dragging,'right-button movement never starts a window drag');
+ test.mouseRelease(pill,-40,80,Qt.RightButton);test.wait(30);
+ check(closed.join(',')==='c,b,a','right-button release outside the icon cancels close');
  click(single,Qt.LeftButton);
  check(Hyprland.commands.length===1 && Hyprland.commands[0]==='hl.dsp.focus({ window = "address:0xc" })','left-click still focuses an individual window');
  Settings.groupWindows=true;test.wait(300);Hyprland.commands=[];
  click(icon(button(2),'a'),Qt.LeftButton);
  check(pill.expandedWorkspace===2 && Hyprland.commands[0]==='hl.dsp.focus({ window = "address:0xa" })','left-click still expands and focuses a group');
  WorkspaceSync.settled=false;test.wait(30);
- click(icon(button(1),'c'),Qt.MiddleButton);
- check(closed.join(',')==='c,b,a','workspace renumbering blocks middle-click close');
+ click(icon(button(1),'c'),Qt.RightButton);
+ check(closed.join(',')==='c,b,a','workspace renumbering blocks right-click close');
  WorkspaceSync.settled=true;
+ Hyprland.commands=[];
+ click(icon(button(1),'c'),Qt.MiddleButton);
+ check(c.wayland.fullscreen && closed.join(',')==='c,b,a' && Hyprland.commands[0]==='hl.dsp.focus({ window = "address:0xc" })','middle-click focuses the window and fills the screen with it');
+ click(icon(button(1),'c'),Qt.MiddleButton);
+ check(!c.wayland.fullscreen,'a second middle-click gives the window back its place');
+ click(icon(button(2),'a'),Qt.MiddleButton);
+ check(a.wayland.fullscreen && !b.wayland.fullscreen,'middle-click on a group fills the screen with its first window');
 """ + shell_source[end:]
 if '--lifecycle' in sys.argv:
     start = shell_source.index(' const w1=ws(1)')
