@@ -38,8 +38,8 @@ BarItem {
     // height stands well in from the ink box, and at the full gap it read as
     // set apart from both neighbours. Kept from the tray, which measured it.
     readonly property bool cone: !Network.wiredUp
-    Layout.leftMargin: cone ? -1 : 0
-    Layout.rightMargin: cone ? -1 : 0
+    trimLeft: cone ? 1 : 0
+    trimRight: cone ? 1 : 0
 
     Glyph {
         Layout.fillHeight: true

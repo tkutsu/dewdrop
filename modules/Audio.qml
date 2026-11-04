@@ -26,7 +26,7 @@ BarItem {
 
     // A pixel in from the left: beside the thin Wi-Fi arcs the full gap read
     // as wider than the rest of the row.
-    Layout.leftMargin: -1
+    trimLeft: 1
 
     // Mute stays visible at full opacity; disconnected and zero volume dim.
     opacity: Audio.connected && (Audio.muted || !Audio.silent) ? 1 : Theme.label2.a

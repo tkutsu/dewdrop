@@ -28,7 +28,7 @@ BarItem {
 
     // A pixel less air on its right than the row gives: at the full gap the
     // chevron read as set apart from the icon beside it.
-    Layout.rightMargin: -1
+    trimRight: 1
     onHoldingChanged: if (!holding)
         open = false
 

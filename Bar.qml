@@ -442,8 +442,8 @@ PanelWindow {
             shows: timeText.text
             settingsKey: "time"
             textPress: true
-            Layout.leftMargin: -1
-            Layout.rightMargin: -1
+            trimLeft: 1
+            trimRight: 1
             popup: TimerPopup {}
             actions: clock.actions
             tooltip: Qt.formatDate(clock.date, "dddd d MMMM yyyy")
@@ -722,7 +722,7 @@ PanelWindow {
             pinKey: "audio"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
-            Layout.rightMargin: -1
+            trimRight: 1
         }
         Email {
             id: email
@@ -829,20 +829,19 @@ PanelWindow {
         // of side bearing to the right of the "N". That pixel comes back
         // out, and one more beside the launcher: its ring meets the N's
         // straight stem only at its middle, and at the measured gap the pair
-        // read as further apart than their neighbours. Trimming the gap
-        // rather than shifting the label keeps the module's own width fixed,
-        // so nothing moves when the layout changes.
+        // read as further apart than their neighbours. Trim the module's own
+        // padding so its hitbox still meets its neighbours without overlap.
         Language {
             id: language
             pinKey: "language"
             quiet: Services.Keyboard.index <= 0
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
-            Layout.leftMargin: -2
-            Layout.rightMargin: rightPill.languageAtLauncher ? -3 : -2
+            trimLeft: 2
+            trimRight: rightPill.languageAtLauncher ? 3 : 2
         }
         LauncherButton {
-            Layout.leftMargin: -1
+            trimLeft: 1
         }
     }
 

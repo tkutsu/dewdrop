@@ -16,6 +16,7 @@ import QtQuick.Layouts
 import Quickshell
 import qs
 import qs.components
+import qs.services as Services
 ShellRoot {
     id: test
     property int phase: 0
@@ -26,6 +27,11 @@ ShellRoot {
         property real reveal: 0
         property string appName: "Fixture player"
         property string shownApp: ""
+        property string label: "Fixture player"
+        property var player: ({canQuit: false})
+        property bool iconInCentre: true
+        property bool stowed: true
+        property var iconHandoff: ({progress: 1, targetX: 0})
         function expand() {}
     }
     QtObject {
@@ -33,6 +39,9 @@ ShellRoot {
         property bool paused: true
         property bool expanded: false
         property real reveal: 0
+        property bool iconInCentre: true
+        property bool stowed: true
+        property var iconHandoff: ({progress: 1, targetX: 0})
         function expand() {}
     }
     property var cases: [
@@ -53,11 +62,11 @@ ShellRoot {
                 moduleGap: Theme.gap + 3
                 drawsSlab: false
                 PLAYER_NOTES
-                BarItem { id: date; DATE_MARGINS; BarText { text: test.cases[test.phase].date; tightWidth: true; inkColor: "white" } }
+                BarItem { id: date; DATE_PADDING; BarText { text: test.cases[test.phase].date; tightWidth: true; inkColor: "white" } }
                 BarItem { id: weather; present: test.phase !== 4; Glyph { text: Theme.glyph.weather; inkColor: "white" } }
                 BarItem {
                     id: time
-                    TIME_MARGINS
+                    TIME_PADDING
                     RollingText {
                         Layout.fillHeight: true
                         tightWidth: true
@@ -75,6 +84,8 @@ ShellRoot {
             const boxes = [nowPlayingNote, musicNote, date, weather, time].filter(item => item.visible).map(item => ({
                 x: item.keyBox.mapToItem(scene, 0, 0).x,
                 width: item.keyBox.width,
+                moduleX: item.mapToItem(scene, 0, 0).x,
+                moduleWidth: item.width,
                 text: item === date || item === time
             }));
             const phase = test.phase;
@@ -94,6 +105,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix="qs-text-spacing-") as folder:
         target = Path(folder)
         copy_shell(target)
+        (target / "services/Mpd.qml").write_text('''pragma Singleton
+import QtQuick
+QtObject {
+    property bool connected: true
+    property string label: "Fixture track"
+    function stopServer() {}
+}
+''')
         (target / "fixture-player.svg").write_text(
             '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">'
             '<rect x="16" y="0" width="32" height="64" fill="white"/></svg>'
@@ -105,10 +124,10 @@ def main():
         date_source = (ROOT / "modules/Clock.qml").read_text()
         time_source = bar[bar.index("id: timeClock"):bar.index("RollingText {", bar.index("id: timeClock"))]
         qml = QML.replace("PLAYER_NOTES", notes)
-        for token, source in [("DATE_MARGINS", date_source), ("TIME_MARGINS", time_source)]:
-            margins = [line.strip() for line in source.splitlines()
-                       if line.strip().startswith(("Layout.leftMargin:", "Layout.rightMargin:"))]
-            qml = qml.replace(token, "; ".join(margins))
+        for token, source in [("DATE_PADDING", date_source), ("TIME_PADDING", time_source)]:
+            padding = [line.strip() for line in source.splitlines()
+                       if line.strip().startswith(("trimLeft:", "trimRight:"))]
+            qml = qml.replace(token, "; ".join(padding))
         (target / "shell.qml").write_text(qml)
         result = subprocess.run(
             ["qs", "-p", str(target), "--no-color"],
@@ -136,7 +155,9 @@ def main():
             expected = [19 - frame["boxes"][i]["text"] - frame["boxes"][i + 1]["text"]
                         for i in range(len(bounds) - 1)]
             assert gaps == expected, (frame, gaps, expected)
-        print("PASS: icon gaps stay at 19px; each date/time edge removes 1px, including adjacent text modules")
+            for left, right in zip(frame["boxes"], frame["boxes"][1:]):
+                assert left["moduleX"] + left["moduleWidth"] == right["moduleX"], (frame, left, right)
+        print("PASS: date/time padding preserves ink gaps and adjacent module boxes meet without overlap")
 
 
 if __name__ == "__main__":

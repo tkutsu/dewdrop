@@ -19,7 +19,7 @@ BarItem {
     quiet: !active
 
     // A pixel less air on the left than the row gives (user's call).
-    Layout.leftMargin: -1
+    trimLeft: 1
 
     // Bound rather than read once: the bar's window does not exist yet when
     // this item completes. One per bar is harmless; any of them holds it.

@@ -11,8 +11,8 @@ BarItem {
     name: "Calendar"
     shows: dateText.text
     textPress: true
-    Layout.leftMargin: -1
-    Layout.rightMargin: -1
+    trimLeft: 1
+    trimRight: 1
 
     popup: Calendar {}
 
