@@ -85,6 +85,9 @@ ClickArea {
     // widens the MouseArea; the content still sits where the margin put it.
     property int padLeft: 0
     property int padRight: 0
+    // Optical corrections shorten our own padding, keeping adjacent hitboxes separate.
+    property int trimLeft: 0
+    property int trimRight: 0
 
     // The click's press-in: while a button with something to do is held, the
     // glass under the contents lights and the contents shrink
@@ -276,7 +279,9 @@ ClickArea {
     // Split odd gaps asymmetrically to keep settled content on whole pixels.
     readonly property real _leftGap: lead ? Math.floor(_moduleGap / 2) : 0
     readonly property real _rightGap: trail ? Math.ceil(_moduleGap / 2) : 0
-    readonly property real _fullWidth: layout.implicitWidth + padLeft + padRight + _leftGap + _rightGap
+    readonly property real leftPadding: Math.max(0, padLeft + _leftGap - trimLeft)
+    readonly property real rightPadding: Math.max(0, padRight + _rightGap - trimRight)
+    readonly property real _fullWidth: layout.implicitWidth + leftPadding + rightPadding
 
     // How far the pill has pushed this module along, drawn only, while its
     // glass runs past or is squeezed in (Pill.stretch).
@@ -337,7 +342,7 @@ ClickArea {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.rightMargin: root.padRight + root._rightGap - (root._centred && root._fold < 1 ? (root._fullWidth - root.width) / 2 : 0)
+        anchors.rightMargin: root.rightPadding - (root._centred && root._fold < 1 ? (root._fullWidth - root.width) / 2 : 0)
         width: implicitWidth
         opacity: (!root.folds ? 1 : root._centred ? root._ink : Theme.moduleOpacity(root._ink)) * (root.reordering ? 0.35 : 1)
         spacing: Theme.gap

@@ -14,8 +14,8 @@ BarItem {
     popup: DisplayPopup {}
     // Keep reduced brightness visible; full brightness can stay in the drawer.
     quiet: NightMode.brightness === 100
-    Layout.leftMargin: -1
-    Layout.rightMargin: -1
+    trimLeft: 1
+    trimRight: 1
 
     // Reserve one icon slot so the narrower dim bulb cannot resize the bar.
     Item {
