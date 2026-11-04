@@ -14,7 +14,7 @@ BarItem {
     popup: WeatherPopup {}
     textPress: root.showTemperature
     shows: root.showTemperature ? temperatureText.text : ""
-    trimRight: root.showTemperature ? 2 : 0
+    trimRight: root.showTemperature ? 3 : 1
 
     readonly property bool showTemperature: Settings.weatherDisplay === "temperature"
     readonly property var temperature: Services.Weather.thisHour?.[Services.Weather.feelsLike ? "feelsLike" : "temperature"]

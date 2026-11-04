@@ -26,9 +26,9 @@ BarItem {
     present: holding
     tooltip: open ? "Show less" : "Show more"
 
-    // A pixel less air on its right than the row gives: at the full gap the
+    // Two pixels less air on its right than the row gives: at the full gap the
     // chevron read as set apart from the icon beside it.
-    trimRight: 1
+    trimRight: 2
     onHoldingChanged: if (!holding)
         open = false
 
