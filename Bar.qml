@@ -714,15 +714,15 @@ PanelWindow {
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null || OpenPopup.selected !== null
         }
 
-        // A pixel less air on its right than the row gives: the speaker's
-        // waves thin out to nothing at the edge of its box, and at the full
-        // gap the icon beside it read as set apart from it.
+        // A pixel more air on its right than the row gives: the speaker's
+        // waves fan out to the edge of its box, and at the full gap the icon
+        // beside it read as crowding them.
         Audio {
             id: audio
             pinKey: "audio"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
-            trimRight: 1
+            trimRight: -1
         }
         Email {
             id: email
