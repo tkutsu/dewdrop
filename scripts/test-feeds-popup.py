@@ -309,6 +309,51 @@ ShellRoot {
                     "ordinary releases have no warning icon");
                 check(find(missing, i => i.text === "Release details unavailable" && i.visible),
                     "failed notes remain distinguishable from checked notes");
+
+                mouseClick(ordinary, ordinary.width / 2, ordinary.height / 2);
+                check(ordinary.chosen && !ordinary.blinkOn && Feeds.opened.length === 0,
+                    "a story blinks off before opening or being marked seen");
+                ordinary.tapped();
+                wait(Theme.blinkMs + 20);
+                check(ordinary.chosen && ordinary.blinkOn && Feeds.opened.length === 0,
+                    "the chosen story blinks on before opening");
+                wait(Theme.blinkMs + 30);
+                check(Feeds.opened.join(",") === "ordinary" && !find(releaseBody, i => i.name === "Quickshell v0.3.2"),
+                    "repeated activation opens a story once, then marks it seen");
+
+                header("videos").tapped();
+                wait(50);
+                let video = find(body(header("videos")), i => i.name === "Video 0");
+                video.keyPress();
+                check(video.chosen && !video.blinkOn && Feeds.opened.length === 1,
+                    "keyboard activation blinks the video before opening");
+                popup.requestedVisible = false;
+                wait(Theme.blinkMs * 2 + 30);
+                check(Feeds.opened.length === 1 && !video.chosen,
+                    "closing the popup cancels the pending browser launch");
+                popup.requestedVisible = true;
+                video.keyPress();
+                header("releases").tapped();
+                wait(Theme.blinkMs * 2 + 30);
+                check(Feeds.opened.length === 1,
+                    "switching sections cancels the pending browser launch");
+                header("videos").tapped();
+                wait(50);
+                video = find(body(header("videos")), i => i.name === "Video 0");
+                video.keyPress();
+                wait(Theme.blinkMs + 20);
+                check(video.chosen && video.blinkOn && Feeds.opened.length === 1,
+                    "the chosen video blinks on before opening");
+                wait(Theme.blinkMs + 30);
+                check(Feeds.opened.join(",") === "ordinary,v0" && !find(body(header("videos")), i => i.name === "Video 0"),
+                    "keyboard activation opens a video once, then marks it seen");
+                const swiped = find(body(header("videos")), i => i.name === "Video 1");
+                swiped.track(swiped.reach + 1);
+                swiped.release();
+                wait(500);
+                check(Feeds.opened.length === 2 && !header("videos"),
+                    "swiping still dismisses without opening the browser");
+                console.log("PASS: feed opening blink, cancellation and swipe dismissal");
                 console.log("PASS: feed drawers keep closed order and animate opening last");
             }
         }
@@ -481,6 +526,11 @@ def main():
     with tempfile.TemporaryDirectory(prefix="qs-feeds-popup-") as folder:
         target = Path(folder)
         copy_shell(target)
+        feeds = target / "services/Feeds.qml"
+        feeds.write_text(feeds.read_text()
+            .replace("    id: root", "    id: root\n    property var opened: []", 1)
+            .replace('Quickshell.execDetached(["xdg-open", link || item.url]);',
+                     "root.opened = root.opened.concat([item.id]);"))
         (target / "settings.json").write_text('{"feedUrls": []}\n')
         (target / "shell.qml").write_text(WINDOW_QML)
         window = subprocess.run(["qs", "-p", str(target), "--no-color"],

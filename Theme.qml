@@ -702,7 +702,7 @@ Singleton {
     readonly property int selectMs: 110
     // Each beat of a menu row's blink when it is chosen: out for this long,
     // back for this long, then the menu acts (components/MenuPopup.qml).
-    readonly property int blinkMs: 60
+    readonly property int blinkMs: 100
 
     // The attention bounce (components/Bounce.qml). The numbers below are the
     // only ones chosen by hand; every later hop is derived from them, so the

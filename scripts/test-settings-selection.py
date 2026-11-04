@@ -52,7 +52,7 @@ ShellRoot {
                 event("click");
                 mouseClick(option, option.width / 2, option.height / 2);
                 event("click-release");
-                wait(150);
+                tryVerify(() => !box.popup.visible);
                 check(Settings.badgeStyle("email") === value, "selection applies: " + value);
                 check(Preferences.shown, "Settings stays open after selecting " + value);
                 check(!box.popup.visible, "only dropdown closes after selecting " + value);

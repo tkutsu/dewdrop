@@ -43,7 +43,13 @@ Popup {
     property real headerExpansion: 1
     property real heldListHeight: -1
 
-    onRequestedSectionChanged: root.updateSection()
+    ChoiceBlink { id: choice }
+
+    onRequestedVisibleChanged: if (!root.requestedVisible) choice.cancel()
+    onRequestedSectionChanged: {
+        choice.cancel();
+        root.updateSection();
+    }
     onSectionsChanged: root.syncSectionOrder()
     Component.onCompleted: {
         root.syncSectionOrder();
@@ -182,6 +188,8 @@ Popup {
         .filter(s => s !== undefined)
 
     onVisibleChanged: {
+        if (!root.visible)
+            choice.cancel();
         Feeds.undos = [];
         root.updateSection();
         if (root.visible)
@@ -377,10 +385,16 @@ Popup {
             required property var modelData
 
             name: video.modelData.title
+            blink: choice
+            enabled: !choice.running || video.chosen
+            draggable: !choice.running
             width: root.bodyWidth
             fullHeight: root.thumbHeight + root.rowPad * 2
             gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: Feeds.open(video.modelData, "")
+            onTapped: {
+                const item = video.modelData;
+                choice.start(video, () => Feeds.open(item, ""));
+            }
             onSwiped: Feeds.hide(video.modelData)
 
             ClippingRectangle {
@@ -451,11 +465,17 @@ Popup {
             ].filter(s => s !== "")
 
             name: story.modelData.title
+            blink: choice
+            enabled: !choice.running || story.chosen
+            draggable: !choice.running
             Accessible.description: story.modelData.release?.breaking ? "Breaking changes" : ""
             width: root.bodyWidth
             fullHeight: Math.max(lines.implicitHeight, thumbnail.visible ? root.thumbHeight : 0) + root.rowPad * 2
             gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: Feeds.open(story.modelData, "")
+            onTapped: {
+                const item = story.modelData;
+                choice.start(story, () => Feeds.open(item, ""));
+            }
             onSwiped: Feeds.hide(story.modelData)
 
             ClippingRectangle {

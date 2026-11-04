@@ -16,10 +16,9 @@ BarItem {
 
     popup: Calendar {}
 
-    // What is left of today: the all-day ones, then what is on now, then
-    // what is still to come. Nothing to say once the day's last has ended.
-    tooltip: Agenda.todays.filter(ev => ev.allDay || ev.end > WallClock.now)
-        .map(ev => `${ev.allDay ? "All day" : ev.start <= WallClock.now ? "Now" : Agenda.sayTime(ev)} · ${ev.title}`)
+    // Every event today gets its own line, including ones that have ended.
+    tooltip: Agenda.todays
+        .map(ev => `${ev.allDay ? "All day" : ev.start <= WallClock.now && ev.end > WallClock.now ? "Now" : Agenda.sayTime(ev)} · ${ev.title}`)
         .join("\n")
 
     readonly property alias date: clock.date

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dated tasks on the calendar popover, events written to Google, and right-click to add."""
+"""Calendar events without task rows, today's tooltip, and right-click to add."""
 import subprocess
 import tempfile
 from pathlib import Path
@@ -13,10 +13,12 @@ import QtTest
 import Quickshell
 import qs
 import qs.components
+import qs.modules
 import qs.services
 ShellRoot {
     FloatingWindow { visible: true; implicitWidth: 400; implicitHeight: 400
         Item { id: anchor; width: 40; height: 20 }
+        Clock { id: clock; y: 30; height: 30 }
         TestCase { id: test; when: false
             function check(ok, text) { if (!ok) throw Error(text); console.log("PASS: " + text); }
             function find(item, test) {
@@ -38,27 +40,41 @@ ShellRoot {
                 wait(50);
                 const cell = find(popup.contentItem, i => i.dayKey === fri);
                 check(cell && !cell.busy, "a day with only tasks has no dot");
-                check(popup.tasksByDay[fri].map(t => t.id).join(",") === "a", "subtasks stay off the calendar");
-                const list = find(popup.contentItem, i => i.rows !== undefined && i.events !== undefined);
+                const list = find(popup.contentItem, i => i.events !== undefined);
                 mouseMove(cell, 14, 14);
                 wait(50);
-                check(list.rows.length === 1 && list.rows[0].task.id === "a", "the day's list shows its task");
+                check(list.events.length === 0 && !find(list, i => i.text === "Call bank" || i.text === "Bring forms"), "dated tasks and subtasks stay off the calendar list");
+                const now = new Date(2026, 9, 14, 12).getTime();
+                WallClock.now = now;
+                const events = [
+                    {title: "Holiday", allDay: true, start: now - 43200000, end: now + 43200000},
+                    {title: "Breakfast", allDay: false, start: now - 7200000, end: now - 3600000},
+                    {title: "Lunch", allDay: false, start: now - 60000, end: now + 60000},
+                    {title: "Dinner", allDay: false, start: now + 7200000, end: now + 10800000}
+                ];
+                const days = ({});
+                days[Agenda.today] = events;
+                days[fri] = [{title: "Appointment", allDay: false, start: now, end: now + 3600000}];
+                Agenda.months = ({[Agenda.thisMonth]: days});
+                wait(50);
+                check(clock.tooltip === "All day · Holiday\\n10:00 · Breakfast\\nNow · Lunch\\n14:00 · Dinner", "tooltip lists all today's events on separate lines, including past events");
+                check(!clock.tooltip.includes("Call bank"), "tooltip excludes tasks");
+                check(cell.busy && list.events.length === 1 && find(list, i => i.text === "Appointment"), "hovered day shows its event beside no task rows");
                 // Off the day and onto the list: the list stays that day's.
                 mouseMove(list, 60, list.height - 10);
                 wait(250);
                 check(popup.listDay === fri, "moving to the list keeps the day");
-                const row = find(list, i => i.task?.id === "a");
+                const row = find(list, i => i.modelData?.title === "Appointment");
                 mouseClick(row, 60, 10);
-                check(Tasks.isCrossed(Tasks.tasks[0]), "tapping a task row crosses it out");
-                mouseClick(row, 60, 10);
-                check(!Tasks.isCrossed(Tasks.tasks[0]), "a second tap reopens it");
+                check(!Tasks.isCrossed(Tasks.tasks[0]), "event rows leave tasks unchanged");
                 const title = find(popup.contentItem, i => i.font?.weight === Font.DemiBold && /\\d{4}$/.test(i.text ?? ""));
                 mouseMove(title, 5, 5);
                 wait(250);
                 check(popup.listDay === Agenda.today, "leaving the list returns to today");
-                Tasks.tasks = Tasks.tasks.filter(t => t.id === "c");
+                check(list.events.length === 4, "leaving the list restores today's events");
+                Agenda.months = ({});
                 wait(50);
-                check(!cell.busy && !popup.tasksByDay[fri], "a task completed elsewhere leaves at the next poll");
+                check(!cell.busy && list.events.length === 0 && clock.tooltip === "", "empty calendar clears dots, rows and tooltip despite remaining tasks");
 
                 // Writing an event.
                 Agenda.haveCalendars = true;

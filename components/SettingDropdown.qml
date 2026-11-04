@@ -12,6 +12,9 @@ Controls.ComboBox {
 
     property var setting: null
     readonly property var current: root.setting?.get()
+    property int chosenIndex: -1
+    property bool blinkOn: true
+    property var pendingChoice: null
 
     implicitWidth: Math.min(220, Math.ceil(Math.max(sizer.implicitWidth, valueText.implicitWidth)) + leftPadding + rightPadding)
     implicitHeight: 22
@@ -21,7 +24,18 @@ Controls.ComboBox {
     currentIndex: root.model.findIndex(option => option.value === root.current)
     enabled: count > 0
     Accessible.name: root.setting?.title ?? ""
-    onActivated: index => root.setting.set(root.model[index].value)
+    onActivated: index => {
+        if (root.pendingChoice !== null)
+            return;
+        const setting = root.setting;
+        const value = root.model[index].value;
+        if (root.popup.visible) {
+            root.chosenIndex = index;
+            root.pendingChoice = { setting, value };
+        } else {
+            setting.set(value);
+        }
+    }
     leftPadding: 10
     rightPadding: 22
 
@@ -100,11 +114,14 @@ Controls.ComboBox {
 
         required property var modelData
         required property int index
-        readonly property bool lit: root.highlightedIndex === index || option.hovered
+        readonly property bool lit: root.chosenIndex >= 0
+            ? root.chosenIndex === option.index && root.blinkOn
+            : root.highlightedIndex === index || option.hovered
 
         width: ListView.view.width
         height: 24
         hoverEnabled: true
+        enabled: root.pendingChoice === null
         leftPadding: 0
         rightPadding: 10
 
@@ -143,14 +160,36 @@ Controls.ComboBox {
     popup: Controls.Popup {
         // Let masked shell windows include this menu in their input region.
         onAboutToShow: {
+            root.pendingChoice = null;
+            root.chosenIndex = -1;
+            root.blinkOn = true;
             const window = root.QsWindow.window;
             if (window && window.dropdown !== undefined)
                 window.dropdown = root;
         }
         onClosed: {
+            root.chosenIndex = -1;
             const window = root.QsWindow.window;
             if (window?.dropdown === root)
                 window.dropdown = null;
+        }
+        // Qt closes the menu after activation; acknowledge the choice during
+        // that exit so mouse, keyboard and accessibility keep Qt's dispatch.
+        exit: Transition {
+            SequentialAnimation {
+                PropertyAction { target: root; property: "blinkOn"; value: false }
+                PauseAnimation { duration: root.pendingChoice !== null ? Theme.blinkMs : 0 }
+                PropertyAction { target: root; property: "blinkOn"; value: true }
+                PauseAnimation { duration: root.pendingChoice !== null ? Theme.blinkMs : 0 }
+                ScriptAction {
+                    script: {
+                        const choice = root.pendingChoice;
+                        root.pendingChoice = null;
+                        if (choice !== null)
+                            choice.setting.set(choice.value);
+                    }
+                }
+            }
         }
         y: root.height + 4
         width: Math.max(root.width, sizer.implicitWidth + 32 + 2 * padding)
