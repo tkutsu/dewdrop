@@ -18,6 +18,14 @@ QtObject {
         sequence.start();
     }
 
+    // A dismissed popup or replaced list must not run its pending selection.
+    function cancel(): void {
+        sequence.stop();
+        root.action = null;
+        root.item = null;
+        root.lit = true;
+    }
+
     property SequentialAnimation sequence: SequentialAnimation {
         PropertyAction { target: root; property: "lit"; value: false }
         PauseAnimation { duration: Theme.blinkMs }

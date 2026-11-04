@@ -36,23 +36,8 @@ Popup {
     property string hoverDay: ""
     readonly property string listDay: hoverDay !== "" ? hoverDay : Agenda.today
     // The day under the pointer or the keys right now. Moving off it to the
-    // list below keeps its list, so its tasks can be ticked off there.
+    // list below keeps that day's events in view.
     property string litDay: ""
-
-    // Dated tasks are in the day's list too, after its events, though only an
-    // event earns a day its dot. Subtasks stay with their parent.
-    readonly property var tasksByDay: {
-        const map = ({});
-        for (const task of Tasks.topLevel) {
-            const day = Tasks.dayOf(task);
-            if (day !== "")
-                map[day] = (map[day] ?? []).concat([task]);
-        }
-        return map;
-    }
-
-    onRequestedVisibleChanged: if (!requestedVisible)
-        Tasks.commit()
 
     Timer {
         id: letGo
@@ -235,8 +220,7 @@ Popup {
                     readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
                     readonly property bool isToday: day.toDateString() === root.today.toDateString()
                     readonly property string dayKey: Agenda.dayString(day)
-                    // Events only: a day with nothing but tasks keeps a bare
-                    // numeral, and its tasks are in the list when it is rested on.
+                    // A dot marks a day with calendar events.
                     readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown))
 
                     width: root.cell
@@ -374,8 +358,6 @@ Popup {
             spacing: 0
 
             readonly property var events: Agenda.forDay(root.listDay, root.hoverDay ? Agenda.monthKey(root.shown) : Agenda.thisMonth)
-            // The day's tasks after its events, the way the dot counts both.
-            readonly property var rows: events.map(e => ({ event: e })).concat((root.tasksByDay[root.listDay] ?? []).map(t => ({ task: t })))
             // The most the list can take: a full page and the "more" line.
             readonly property real fullHeight: topPadding + root.listRowHeight * (root.listRows + 1)
 
@@ -397,7 +379,7 @@ Popup {
             // Wraps rather than elides: the one long thing that lands here
             // is the reconnect message, which is no use cut short.
             PopupText {
-                visible: parent.rows.length === 0
+                visible: parent.events.length === 0
                 width: parent.width
                 height: Math.max(root.listRowHeight, implicitHeight)
                 verticalAlignment: Text.AlignVCenter
@@ -407,53 +389,23 @@ Popup {
             }
 
             Repeater {
-                model: parent.rows.slice(0, root.listRows)
+                model: parent.events.slice(0, root.listRows)
 
-                // A task row crosses its task out the way the tasks popup
-                // does; an event row is only read.
-                PopupRow {
+                Item {
                     id: entry
 
                     required property var modelData
-                    readonly property var task: modelData.task ?? null
-                    readonly property bool crossed: !!task && Tasks.isCrossed(task)
 
                     width: list.width
                     height: root.listRowHeight
-                    name: task ? (crossed ? "Reopen " : "Complete ") + task.title : ""
-                    acceptsTap: !!task
-                    opacity: crossed ? 0.4 : 1
-                    onTapped: if (task)
-                        Tasks.complete(task)
 
                     PopupText {
-                        visible: !entry.task
                         width: 42
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter
-                        text: entry.task ? "" : Agenda.sayTime(entry.modelData.event)
-                        color: entry.modelData.event?.allDay ? Theme.label3 : Theme.label2
+                        text: Agenda.sayTime(entry.modelData)
+                        color: entry.modelData.allDay ? Theme.label3 : Theme.label2
                         font.pixelSize: Theme.captionSize
-                    }
-
-                    Glyph {
-                        visible: !!entry.task
-                        height: root.listRowHeight
-                        text: Theme.glyph.tasks
-                        fontSize: Theme.captionSize
-                        color: Theme.label2
-                    }
-
-                    // The task popup's dot, so a late task reads as late here.
-                    // At the end of the time column, so every title lines up.
-                    Rectangle {
-                        visible: !!entry.task
-                        x: 42 - width
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 6
-                        height: 6
-                        radius: 3
-                        color: entry.task ? Tasks.dotColour(entry.task) : "transparent"
                     }
 
                     PopupText {
@@ -461,18 +413,17 @@ Popup {
                         width: list.width - x
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter
-                        text: entry.task ? entry.task.title : entry.modelData.event.title
-                        font.strikeout: entry.crossed
+                        text: entry.modelData.title
                         elide: Text.ElideRight
                     }
                 }
             }
 
             PopupText {
-                visible: parent.rows.length > root.listRows
+                visible: parent.events.length > root.listRows
                 height: root.listRowHeight
                 verticalAlignment: Text.AlignVCenter
-                text: `+${parent.rows.length - root.listRows} more`
+                text: `+${parent.events.length - root.listRows} more`
                 color: Theme.label3
                 font.pixelSize: Theme.captionSize
             }
