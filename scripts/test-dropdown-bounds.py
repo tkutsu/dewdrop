@@ -88,7 +88,14 @@ ShellRoot {
                     mouseMove(option, option.width / 2, option.height / 2);
                     wait(30);
                     check(popup.hovered, "the menu pointer keeps the parent popup active");
+                    const before = NightMode.mode;
                     mouseClick(option, option.width / 2, option.height / 2);
+                    check(NightMode.mode === before && picker.popup.visible && !option.lit,
+                          "selection blinks off before changing the setting");
+                    wait(Theme.blinkMs + 20);
+                    check(NightMode.mode === before && picker.popup.visible && option.lit,
+                          "selection blinks on before changing the setting");
+                    tryVerify(() => !picker.popup.visible);
                     check(NightMode.mode === picker.model[index].value && !picker.popup.visible,
                           "click selects " + picker.model[index].label + " and closes the menu");
                     wait(500);
@@ -100,6 +107,8 @@ ShellRoot {
                 wait(50);
                 keyClick(Qt.Key_End);
                 keyClick(Qt.Key_Return);
+                check(picker.popup.visible && NightMode.mode === "off", "keyboard selection waits for the blink");
+                tryVerify(() => !picker.popup.visible);
                 check(NightMode.mode === "custom" && !picker.popup.visible, "keyboard selection still works");
                 wait(500);
                 mouseClick(picker, picker.width / 2, picker.height / 2);
@@ -112,6 +121,17 @@ ShellRoot {
                 wait(100);
                 const outside = Qt.point(popup.width - 1, popup.height - 1);
                 check(!contains(popup.mask, outside), "closing restores click-through outside the popup box");
+                mouseClick(picker, picker.width / 2, picker.height / 2);
+                tryVerify(() => picker.popup.visible);
+                wait(50);
+                const interrupted = picker.popup.contentItem.itemAtIndex(0);
+                mouseClick(interrupted, interrupted.width / 2, interrupted.height / 2);
+                wait(30);
+                picker.popup.open();
+                wait(Theme.blinkMs * 2 + 30);
+                check(picker.popup.visible && NightMode.mode === "custom" && picker.pendingChoice === null,
+                      "reopening during the blink cancels the old choice and leaves the menu usable");
+                keyClick(Qt.Key_Escape);
                 console.log("PASS: dropdown bounds complete");
             }
         }

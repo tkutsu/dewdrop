@@ -52,7 +52,7 @@ QtObject {
     property color selection: "#222222"; property color selectionStrong: "#444444"
     property int popupInset: 6; property int popupPadding: 6; property int popupRadius: 10; property int popupWideWidth: 400;
     property int selectionRadius: 4; property int fadeMs: 100; property int captionSize: 14
-    property int blinkMs: 60
+    property int blinkMs: 100
     property int foldMs: 180; property real drawerSpring: 3; property real drawerDamping: 0.3
     property bool reduceMotion: false
     property int popupTextSize: 16; property int glyphSizeLarge: 16; property int pillBorder: 1

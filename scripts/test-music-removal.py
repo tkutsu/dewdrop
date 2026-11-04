@@ -103,7 +103,7 @@ CASES = '''
                     "scrolled removal preserves browsing within the new queue bounds: "
                     + JSON.stringify({beforeScroll, now: list.contentY, content: list.contentHeight, origin: list.originY, height: list.height}));
                 reset(3);
-                remove(0); wait(180);
+                remove(0); wait(Theme.blinkMs * 2 + 60);
                 const calls = Mpd.removeCalls;
                 Mpd.queueChanging(); Mpd.queue = Mpd.queue.slice();
                 wait(700);
