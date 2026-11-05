@@ -199,6 +199,9 @@ Singleton {
 
     // { appId: { count, last } }
     property var db: ({})
+    // Picks made while the box stays open to show their progress. Counted when
+    // it closes, because a bump re-ranks the list under the selection.
+    property var heldBumps: []
 
     // A changed query starts at its first match.
     onQueryChanged: {
@@ -264,6 +267,9 @@ Singleton {
         root.armed = "";
         // Closing mid-CRT takes the command back with it.
         Power.leaving = null;
+        for (const id of root.heldBumps)
+            root.bump(id);
+        root.heldBumps = [];
         // Closing is not a keystroke, so route() never runs to stop the clocks
         // the modes keep; a run they started against a box that is gone would
         // be work nobody sees.
@@ -485,8 +491,10 @@ Singleton {
         return scored;
     }
 
-    // Match both actions and sort by name, so connection progress changes
-    // the label without moving the device away from the selection.
+    // Match both actions and rank by the device's history, then its name, so
+    // connection progress changes the label without moving the row. History
+    // is per device, not per action: the one you connect is the one you
+    // disconnect.
     function bluetoothMatches(terms) {
         if (!Bluetooth.present || !Bluetooth.on)
             return [];
@@ -499,10 +507,10 @@ Singleton {
             const title = (connecting ? "Connecting to " : disconnecting ? "Disconnecting " : device.connected ? "Disconnect " : "Connect ") + device.name;
             const status = connecting ? "Connecting…" : disconnecting ? "Disconnecting…" : device.pairing ? "Pairing…" : device.connected ? "Connected" : "Disconnected";
             const aliases = "bluetooth wireless connect disconnect" + (device.icon?.startsWith("audio-") ? " headphones headset audio" : "");
-            const s = terms.length ? root.matchScore(terms, [[device.name, 1], ["Connect " + device.name, 1], ["Disconnect " + device.name, 1], [aliases, 0.8]]) : 0;
-            if (s !== null)
+            const m = terms.length ? root.matchScore(terms, [[device.name, 1], ["Connect " + device.name, 1], ["Disconnect " + device.name, 1], [aliases, 0.8]]) : 0;
+            if (m !== null)
                 scored.push({
-                    s,
+                    s: m + root.frecencyWeight * Math.log2(1 + root.frecency("bluetooth:" + device.address)),
                     row: {
                         kind: "bluetooth",
                         address: device.address,
@@ -526,6 +534,7 @@ Singleton {
         const device = Bluetooth.devices.find(d => d.address === row.address && d.paired);
         if (!device || device.pairing || device.state === BlueZ.BluetoothDeviceState.Connecting || device.state === BlueZ.BluetoothDeviceState.Disconnecting || row.connect === device.connected)
             return;
+        root.heldBumps.push("bluetooth:" + device.address);
         Bluetooth.activate(device);
     }
 
