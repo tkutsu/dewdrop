@@ -16,10 +16,11 @@ BarItem {
 
     popup: Calendar {}
 
-    // Every event today gets its own line, including ones that have ended.
+    // Every event today gets its own line, including ones that have ended. A
+    // calendar it could not read says nothing rather than that the day is free.
     tooltip: Agenda.todays
         .map(ev => `${ev.allDay ? "All day" : ev.start <= WallClock.now && ev.end > WallClock.now ? "Now" : Agenda.sayTime(ev)} · ${ev.title}`)
-        .join("\n")
+        .join("\n") || (Agenda.stale ? "" : "No events today")
 
     readonly property alias date: clock.date
 

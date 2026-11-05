@@ -15,6 +15,7 @@ def main():
     service = (ROOT / "services/Notifications.qml").read_text()
     start = service.index("    // --- presentation helpers")
     end = service.index("    // What AppIcon", start)
+    tooltip = service[service.index("    // How many from each app"):service.index("    // --- the notice beside the clock")]
     popup = (ROOT / "components/NotificationsPopup.qml").read_text()
     labels = re.findall(r"                PopupText \{\n.*?\n                \}", popup, re.S)
     labels = [label for label in labels if "card.n?.summary" in label or "card.n?.body" in label]
@@ -83,6 +84,9 @@ ShellRoot {
                 check(summaryLabel.truncated && summaryLabel.lineCount === 10, "summary elides after ten lines");
                 root.sample = "plain text";
                 check(bodyLabel.font.weight === Font.Normal && summaryLabel.font.weight === Font.Normal, "plain text has no forced bold weight");
+                check(Notifications.tooltip === "No notifications", "an empty tooltip says so");
+                Notifications.list = [{appName: "Discord"}, {appName: ""}, {appName: "Firefox"}, {appName: "Discord"}, {appName: "Discord"}];
+                check(Notifications.tooltip === "Discord · 3\\nNotification · 1\\nFirefox · 1", "tooltip counts by app, the latest to arrive first");
                 console.log("PASS: notification formatting and bar preview");
             } catch (error) { console.log("FAIL: " + error); }
             Qt.quit();
@@ -94,7 +98,7 @@ ShellRoot {
         target = Path(folder)
         (target / "services").mkdir()
         (target / "services/Notifications.qml").write_text(
-            "pragma Singleton\nimport QtQuick\nQtObject {\n    id: root\n" + service[start:end] + "}\n")
+            "pragma Singleton\nimport QtQuick\nQtObject {\n    id: root\n    property var list: []\n" + tooltip + service[start:end] + "}\n")
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property color label: "white"; property color label2: "grey"; property color warn: "red" }\n')
         (target / "shell.qml").write_text(test)
         runtime = target / "runtime"

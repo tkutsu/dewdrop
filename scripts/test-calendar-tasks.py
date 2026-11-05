@@ -74,7 +74,11 @@ ShellRoot {
                 check(list.events.length === 4, "leaving the list restores today's events");
                 Agenda.months = ({});
                 wait(50);
-                check(!cell.busy && list.events.length === 0 && clock.tooltip === "", "empty calendar clears dots, rows and tooltip despite remaining tasks");
+                check(!cell.busy && list.events.length === 0 && clock.tooltip === "No events today", "empty calendar clears dots and rows, and the tooltip says so despite remaining tasks");
+                Agenda.stale = true;
+                wait(50);
+                check(clock.tooltip === "", "a calendar it could not read does not claim a free day");
+                Agenda.stale = false;
 
                 // Writing an event.
                 Agenda.haveCalendars = true;
