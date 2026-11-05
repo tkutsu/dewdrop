@@ -189,10 +189,10 @@ PanelWindow {
     // The workspace mark's glass, over the pill it moves in, which it bends.
     GlassMark {
         id: glassMark
-        x: leftPill.x
-        y: leftPill.y
-        width: leftPill.width
-        height: leftPill.height
+        x: leftPill.x - swell
+        y: leftPill.y - swell
+        width: leftPill.width + 2 * swell
+        height: leftPill.height + 2 * swell
         mark: workspaces.markItem
         slabItem: leftPill.slabItem
         inkItem: leftPill.moduleHost
