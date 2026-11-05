@@ -97,7 +97,7 @@ void main() {
     vec2 seen = p;
     // Never past the mark's middle line, where the two rims would cross.
     float pull = bend * lens;
-    vec2 shift = n * mix(pull, min(pull, max(0.0, 0.7 * (radius + d))), wholeRim);
+    vec2 shift = n * mix(pull, min(pull, max(0.0, 0.85 * (radius + d))), wholeRim);
     vec3 bent = vec3(behind(seen - shift * (1.0 - dispersion)).r,
                      behind(seen - shift).g,
                      behind(seen - shift * (1.0 + dispersion)).b);
