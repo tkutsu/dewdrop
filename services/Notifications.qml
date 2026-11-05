@@ -40,7 +40,15 @@ Singleton {
     // Hidden at 0, held at 99.
     readonly property string label: waiting === 0 ? "" : String(Math.min(waiting, 99))
 
-    readonly property string tooltip: count === 0 ? "No notifications" : count === 1 ? "1 notification" : `${count} notifications`
+    // How many from each app, a line each, the latest to arrive on top.
+    readonly property string tooltip: {
+        const apps = new Map();
+        for (const n of list) {
+            const app = n.appName || "Notification";
+            apps.set(app, (apps.get(app) ?? 0) + 1);
+        }
+        return [...apps].map(([app, kept]) => `${app} · ${kept}`).join("\n") || "No notifications";
+    }
 
     // --- the notice beside the clock ----------------------------------------
     // The one on show, and whether it still is. The object goes null by itself
