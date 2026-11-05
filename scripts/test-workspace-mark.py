@@ -106,7 +106,11 @@ ShellRoot {
                     glass.fragmentShader = Qt.resolvedUrl("shaders/glassmark.frag.qsb");
                     glass.anchors.fill = null;
                     glass.x = 20;glass.y = 8;glass.width = 320;glass.height = 30;
-                } else if (phase === 9) {
+                } else if (phase === 9 || phase === 10) {
+                    Settings.user = {glassWorkspaceMark: true};
+                    glass.fragmentShader = phase === 9
+                        ? Qt.resolvedUrl("shaders/glassmark.frag.qsb") : Qt.resolvedUrl("flat.frag.qsb");
+                } else if (phase === 11) {
                     console.log("RESULT: " + failures + " failures"); Qt.quit(); return;
                 }
                 delay.start();
@@ -172,6 +176,18 @@ def main():
         cropped = Image.open(target / "mark-8.png").convert("RGB")
         delta = ImageChops.difference(full, cropped)
         checks["narrowed glass preserves wallpaper and pill texture coordinates"] = max(max(channel) for channel in delta.getdata()) <= 2
+        clear = Image.open(target / "mark-9.png").convert("RGB")
+        delta = ImageChops.difference(clear, Image.open(target / "mark-10.png").convert("RGB"))
+        # Narrowed by now, so the box is 20, 8 in from the capture's corner.
+        x, y, width, height = boxes[5]
+        x += 20
+        y += 8
+        radius = min(width, height) / 2
+        middle = int(x + width / 2)
+        middle_y = int(y + height / 2)
+        checks["clear glass bends the straight top edge too"] = delta.crop((middle - 4, int(y + 2), middle + 4, int(y + 4))).getbbox() is not None
+        checks["clear glass leaves the middle of the mark straight"] = delta.crop((int(x + radius), middle_y, int(x + width - radius), middle_y + 1)).getbbox() is None
+        checks["clear glass drops the grey"] = ImageChops.difference(cropped, clear).getbbox() is not None
         if destination := os.environ.get("MARK_PREVIEW_DIR"):
             preview = Path(destination)
             preview.mkdir(parents=True, exist_ok=True)
