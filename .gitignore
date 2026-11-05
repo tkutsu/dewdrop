@@ -5,3 +5,6 @@ __pycache__/
 
 # Scratch windows, private buses and tree dumps from accessibility checks.
 .a11y-test/
+
+# Measurements and previews made while working on the bar.
+output/
