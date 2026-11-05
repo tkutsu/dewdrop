@@ -27,6 +27,8 @@ ShellRoot {
             id: capture; anchors.fill: parent
             property int phase: 0
             property int failures: 0
+            property real peak: 0
+            Connections { target: glass; function onMotionChanged() { capture.peak = Math.max(capture.peak, glass.motion); } }
             Rectangle {
                 id: ground; anchors.fill: parent; color: "#34383e"
                 Repeater {
@@ -106,11 +108,28 @@ ShellRoot {
                     glass.fragmentShader = Qt.resolvedUrl("shaders/glassmark.frag.qsb");
                     glass.anchors.fill = null;
                     glass.x = 20;glass.y = 8;glass.width = 320;glass.height = 30;
-                } else if (phase === 9 || phase === 10) {
+                } else if (phase >= 9 && phase < 13) {
                     Settings.user = {glassWorkspaceMark: true};
-                    glass.fragmentShader = phase === 9
+                    mark.held = phase >= 11;
+                    glass.x = 20 - glass.swell; glass.y = 8 - glass.swell;
+                    glass.width = 320 + 2 * glass.swell; glass.height = 30 + 2 * glass.swell;
+                    glass.fragmentShader = phase % 2 === 1
                         ? Qt.resolvedUrl("shaders/glassmark.frag.qsb") : Qt.resolvedUrl("flat.frag.qsb");
-                } else if (phase === 11) {
+                } else if (phase === 13) {
+                    check(glass.box.w >= mark.thickness + 2 * glass.swell - 0.1, "held clear glass swells");
+                    mark.held = false;
+                    glass.fragmentShader = Qt.resolvedUrl("shaders/glassmark.frag.qsb");
+                } else if (phase === 14) {
+                    check(glass.motion < 0.01 && glass.box.w - mark.thickness < 0.1, "clear glass settles back to its size");
+                    mark.placed = true; capture.peak = 0;
+                    mark.wantLeft = 200; mark.wantRight = 260;
+                } else if (phase === 15) {
+                    check(capture.peak > 0.5, "clear glass grows while it moves");
+                    check(glass.motion < 0.05, "clear glass settles after moving");
+                    Settings.user = {glassWorkspaceMark: true, reduceMotion: true};
+                    mark.held = true;
+                } else if (phase === 16) {
+                    check(glass.motion === 0 && glass.box.w === mark.thickness, "Reduce motion keeps clear glass flat");
                     console.log("RESULT: " + failures + " failures"); Qt.quit(); return;
                 }
                 delay.start();
@@ -149,7 +168,7 @@ def main():
                    XDG_STATE_HOME=str(target / "state"), XDG_CACHE_HOME=str(target / "cache"),
                    XDG_DATA_HOME=str(target / "data"))
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env,
-                                capture_output=True, text=True, timeout=30)
+                                capture_output=True, text=True, timeout=60)
         output = result.stdout + result.stderr
         print(output, end="")
         if result.returncode or "RESULT: 0 failures" not in output:
@@ -177,11 +196,14 @@ def main():
         delta = ImageChops.difference(full, cropped)
         checks["narrowed glass preserves wallpaper and pill texture coordinates"] = max(max(channel) for channel in delta.getdata()) <= 2
         clear = Image.open(target / "mark-9.png").convert("RGB")
-        delta = ImageChops.difference(clear, Image.open(target / "mark-10.png").convert("RGB"))
-        # Narrowed by now, so the box is 20, 8 in from the capture's corner.
-        x, y, width, height = boxes[5]
-        x += 20
-        y += 8
+        checks["clear glass at rest is free of distortion"] = ImageChops.difference(
+            clear, Image.open(target / "mark-10.png").convert("RGB")).getbbox() is None
+        delta = ImageChops.difference(Image.open(target / "mark-11.png").convert("RGB"),
+                                      Image.open(target / "mark-12.png").convert("RGB"))
+        # The glass sits round the pill by now: 17, 5 in from the capture's corner.
+        x, y, width, height = boxes[7]
+        x += 17
+        y += 5
         radius = min(width, height) / 2
         middle = int(x + width / 2)
         middle_y = int(y + height / 2)

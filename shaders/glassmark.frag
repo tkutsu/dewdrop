@@ -3,8 +3,8 @@
 // Grey workspace glass: the straight middle stays undistorted while the
 // rounded caps bend the pill's glass beneath them, the icons seen straight
 // through. As clear glass (wholeRim) it looks most of the way through the
-// pill to the sharp wallpaper, and the bend runs round the whole edge, takes
-// the icons a little way with it, and lights the rim where it bends.
+// pill to the sharp wallpaper; whatever bend it is given runs round the whole
+// edge, takes the icons a little way with it, and lights the rim.
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -96,7 +96,8 @@ void main() {
     lens *= mix(cap, 1.0, wholeRim);
     vec2 seen = p;
     // Never past the mark's middle line, where the two rims would cross.
-    vec2 shift = n * min(bend * lens, max(0.0, 0.7 * (radius + d)));
+    float pull = bend * lens;
+    vec2 shift = n * mix(pull, min(pull, max(0.0, 0.7 * (radius + d))), wholeRim);
     vec3 bent = vec3(behind(seen - shift * (1.0 - dispersion)).r,
                      behind(seen - shift).g,
                      behind(seen - shift * (1.0 + dispersion)).b);
