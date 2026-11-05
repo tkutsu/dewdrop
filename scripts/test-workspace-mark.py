@@ -200,6 +200,14 @@ def main():
             clear, Image.open(target / "mark-10.png").convert("RGB")).getbbox() is None
         delta = ImageChops.difference(Image.open(target / "mark-11.png").convert("RGB"),
                                       Image.open(target / "mark-12.png").convert("RGB"))
+        # The white letters, as tall at rest and held: only the lens's 12% taller.
+        def ink_height(frame):
+            ink = frame.crop((110, 9, 250, 37)).convert("L").point(lambda v: 255 if v > 225 else 0)
+            box = ink.getbbox()
+            return box[3] - box[1]
+        rest_height = ink_height(clear)
+        held_height = ink_height(Image.open(target / "mark-11.png").convert("RGB"))
+        checks["clear glass keeps the icons' proportions"] = rest_height < held_height <= rest_height * 1.25
         # The glass sits round the pill by now: 17, 5 in from the capture's corner.
         x, y, width, height = boxes[7]
         x += 17

@@ -4,7 +4,8 @@
 // rounded caps bend the pill's glass beneath them, the icons seen straight
 // through. As clear glass (wholeRim) it looks most of the way through the
 // pill to the sharp wallpaper; whatever bend it is given runs round the whole
-// edge, takes the icons a little way with it, and lights the rim.
+// edge and lights the rim. The icons are magnified evenly, and curve only
+// sideways round the caps: pulled along the bend they stretch tall and break up.
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -27,6 +28,8 @@ layout(std140, binding = 0) uniform buf {
     // glass gets where it bends.
     float wholeRim;
     float glow;
+    // How much larger the icons are seen through clear glass.
+    float magnify;
     // Grey tint, cleared a little by movement and held presses.
     float tint;
     vec3 tintColor;
@@ -102,7 +105,8 @@ void main() {
                      behind(seen - shift).g,
                      behind(seen - shift * (1.0 + dispersion)).b);
     bent = min(bent * (1.0 + glow * lens), 1.0);
-    vec3 glass = mix(inked(bent, p - shift * wholeRim * 0.3), tintColor, tint);
+    vec2 inkAt = mix(p, centre + (p - centre) / (1.0 + magnify) - vec2(n.x * pull * 0.1, 0.0), wholeRim);
+    vec3 glass = mix(inked(bent, inkAt), tintColor, tint);
     float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
         : mix(rimTop, rimBottom, clamp((p.y - box.y) / max(box.w, 1.0), 0.0, 1.0));
