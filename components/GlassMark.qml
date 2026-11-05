@@ -54,11 +54,16 @@ ShaderEffect {
     readonly property point at: root.mark ? Qt.point(root.mark.windowPos.x - root.windowPos.x, root.mark.windowPos.y - root.windowPos.y) : Qt.point(0, 0)
     readonly property size size: Qt.size(width, height)
     readonly property vector4d box: Qt.vector4d(root.at.x + (root.mark?.frontLeft ?? 0), root.at.y + (root.mark?.slabTop ?? 0), root.mark ? root.mark.frontRight - root.mark.frontLeft : 0, root.mark?.thickness ?? 0)
-    readonly property real bend: 4 + 2 * motion
-    readonly property real depth: 0.65
-    readonly property real steep: 1.6
+    // Clear glass bends the whole rim, as the pills' own edges do, and all
+    // but drops the grey.
+    readonly property bool clearGlass: Settings.glassWorkspaceMark
+    readonly property real wholeRim: clearGlass ? 1 : 0
+    readonly property real glow: clearGlass ? 0.25 : 0
+    readonly property real bend: (clearGlass ? 8 : 4) + 2 * motion
+    readonly property real depth: clearGlass ? 0.9 : 0.65
+    readonly property real steep: clearGlass ? 2.2 : 1.6
     readonly property real dispersion: Theme.glassDispersion
-    readonly property real tint: 0.32 - 0.06 * motion
+    readonly property real tint: clearGlass ? 0.08 : 0.32 - 0.06 * motion
     readonly property vector3d tintColor: Qt.vector3d(0.62, 0.62, 0.64)
     readonly property real lineWidth: Theme.pillBorder
     readonly property vector4d rimTop: Qt.vector4d(Theme.pillRimTop.r, Theme.pillRimTop.g, Theme.pillRimTop.b, Theme.pillRimTop.a)

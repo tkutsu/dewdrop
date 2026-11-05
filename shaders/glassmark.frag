@@ -1,8 +1,10 @@
 #version 440
 
 // Grey workspace glass: the straight middle stays undistorted while the
-// rounded caps bend the pill's glass beneath them. The icons are seen
-// straight through, untouched by the bend.
+// rounded caps bend the pill's glass beneath them. As clear glass (wholeRim)
+// it looks most of the way through the pill to the sharp wallpaper, and the
+// bend runs round the whole edge, lighting it where it bends. The icons are
+// seen straight through, untouched by the bend.
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -21,6 +23,10 @@ layout(std140, binding = 0) uniform buf {
     float depth;
     float steep;
     float dispersion;
+    // 0 bends the round caps only, 1 the whole rim; how much brighter the
+    // glass gets where it bends.
+    float wholeRim;
+    float glow;
     // Grey tint, cleared a little by movement and held presses.
     float tint;
     vec3 tintColor;
@@ -46,11 +52,19 @@ float capsule(vec2 p) {
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
-// The pill's glass over the wallpaper, and the icons over that.
+vec3 wall(vec2 p) {
+    return texture(wallpaper, (p - wallOrigin) / wallSize).rgb;
+}
+
+// The pill's glass over the wallpaper.
 vec3 under(vec2 p) {
-    vec3 wall = texture(wallpaper, (p - wallOrigin) / wallSize).rgb;
     vec4 c = texture(slab, p / size);
-    return wall * (1.0 - c.a) + c.rgb;
+    return wall(p) * (1.0 - c.a) + c.rgb;
+}
+
+// What the mark's own glass bends.
+vec3 behind(vec2 p) {
+    return mix(under(p), wall(p), wholeRim * 0.7);
 }
 
 vec3 inked(vec3 under, vec2 p) {
@@ -79,12 +93,13 @@ void main() {
     // at their original coordinates even along the top and bottom edges.
     float radius = min(box.z, box.w) * 0.5;
     float cap = smoothstep(0.0, max(radius * 0.35, 1.0), abs(p.x - centre.x) - (box.z * 0.5 - radius));
-    lens *= cap;
+    lens *= mix(cap, 1.0, wholeRim);
     vec2 seen = p;
     vec2 shift = n * bend * lens;
-    vec3 bent = vec3(under(seen - shift * (1.0 - dispersion)).r,
-                     under(seen - shift).g,
-                     under(seen - shift * (1.0 + dispersion)).b);
+    vec3 bent = vec3(behind(seen - shift * (1.0 - dispersion)).r,
+                     behind(seen - shift).g,
+                     behind(seen - shift * (1.0 + dispersion)).b);
+    bent = min(bent * (1.0 + glow * lens), 1.0);
     vec3 glass = mix(inked(bent, p), tintColor, tint);
     float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
