@@ -63,9 +63,9 @@ ShaderEffect {
     readonly property vector4d box: Qt.vector4d(root.at.x + (root.mark?.frontLeft ?? 0) - grown, root.at.y + (root.mark?.slabTop ?? 0) - grown, root.mark ? root.mark.frontRight - root.mark.frontLeft + 2 * grown : 0, (root.mark?.thickness ?? 0) + 2 * grown)
     readonly property real wholeRim: clearGlass ? 1 : 0
     readonly property real glow: clearGlass ? 0.25 * motion : 0
-    readonly property real bend: clearGlass ? Theme.glassBend * motion : 4 + 2 * motion
+    readonly property real bend: clearGlass ? 20 * motion : 4 + 2 * motion
     readonly property real depth: clearGlass ? 0.9 : 0.65
-    readonly property real steep: clearGlass ? 2 : 1.6
+    readonly property real steep: clearGlass ? 1.7 : 1.6
     readonly property real dispersion: Theme.glassDispersion
     readonly property real tint: clearGlass ? 0.08 : 0.32 - 0.06 * motion
     readonly property vector3d tintColor: Qt.vector3d(0.62, 0.62, 0.64)
