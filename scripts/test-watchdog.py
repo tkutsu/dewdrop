@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     source = (ROOT / "scripts/qs-watchdog").read_text()
-    functions = "\n".join(re.findall(r"^(?:bar_identity|select_bar|same_bar|render_ticks|restart)\(\) \{.*?^}", source, re.M | re.S))
+    functions = "\n".join(re.findall(r"^(?:bar_identity|select_bar|same_bar|render_ticks|relaunch|bar_gone|restart)\(\) \{.*?^}", source, re.M | re.S))
     with tempfile.TemporaryDirectory(prefix="quickshell-watchdog-test-") as folder:
         target = Path(folder)
         proc = target / "proc"
@@ -69,6 +69,13 @@ kill() {
     fi
 }
 hyprctl() { printf 'relaunch\\n' >>"$events"; }
+INTERVAL=5 GONE=60 COOLDOWN=300 absent=0 relaunched=-300 bars=0
+pgrep() { [ "$bars" -gt 0 ]; }
+ticks_until_gone() {
+    local n=0
+    until bar_gone; do n=$((n + 1)); [ "$n" -lt 100 ] || return 1; done
+    echo $((n + 1))
+}
 '''
             code = prelude + functions.replace("/proc/", "${fixture_proc}/") + "\n" + body
             result = subprocess.run(["bash", "-c", code, "fixture", config, bar, str(proc), str(instances), str(events)], capture_output=True, text=True, timeout=5)
@@ -91,6 +98,14 @@ hyprctl() { printf 'relaunch\\n' >>"$events"; }
         assert output.count("signal -TERM 10") == 1 and output.count("signal -KILL 10") == 1
         assert output.count("relaunch") == 1
         print("PASS: changed identities block signals; an unchanged frozen fixture can restart")
+        run([], '[ "$(ticks_until_gone)" = 12 ]')
+        print("PASS: a missing bar only counts as gone after GONE seconds")
+        run([], 'bars=1; if ticks_until_gone; then exit 1; fi')
+        print("PASS: any running quickshell holds a relaunch off, whatever qs list says")
+        run([], 'absent=11; bars=1; if bar_gone; then exit 1; fi; [ "$absent" = 0 ]; bars=0; if bar_gone; then exit 1; fi')
+        print("PASS: a bar that reappears restarts the count")
+        run([], 'SECONDS=1000; relaunched=800; absent=11; if bar_gone; then exit 1; fi; relaunched=700; absent=11; bar_gone')
+        print("PASS: relaunches stay COOLDOWN apart")
 
 
 if __name__ == "__main__":
