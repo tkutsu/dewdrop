@@ -38,6 +38,10 @@ Item {
     // A corner dot's bounds in this icon, supplied by the workspace badge.
     property rect cornerDot: Qt.rect(0, 0, 0, 0)
 
+    // Clear workspace glass magnifies what it passes over, so it needs the
+    // pixels to do that with.
+    readonly property int detail: Settings.glassWorkspaceMark ? 2 : 1
+
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
     // How far the focus dot has come in, 0..1. The dot fades with it and the
@@ -99,6 +103,7 @@ Item {
         // Under Reduce motion the bounce dims the artwork instead (Bounce.fade).
         opacity: bounce.fade
         layer.enabled: root.dotShown > 0 || root.cornerDot.width > 0
+        layer.textureSize: root.detail > 1 ? Qt.size(width * root.detail, height * root.detail) : Qt.size(0, 0)
         layer.effect: MultiEffect {
             autoPaddingEnabled: false
             maskEnabled: true
@@ -134,6 +139,7 @@ Item {
             // a fixed box would have each icon carrying whatever margin the ink
             // measurement took off it into the gap to the next.
             box: art.drawn
+            detail: root.detail
         }
 
         Glyph {

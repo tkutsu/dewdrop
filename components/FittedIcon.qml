@@ -61,6 +61,10 @@ Item {
         return Math.min(root.size, Math.round(root.size * root.ink / root.extent));
     }
 
+    // How many times its drawn size to rasterise the artwork, for an icon
+    // that gets seen larger than it is laid out.
+    property real detail: 1
+
     implicitWidth: box
     implicitHeight: box
 
@@ -78,6 +82,13 @@ Item {
         IconImage {
             id: image
             anchors.fill: parent
+        }
+
+        Binding {
+            when: root.detail > 1
+            target: image.backer
+            property: "sourceSize"
+            value: Qt.size(root.drawn * root.detail, root.drawn * root.detail)
         }
     }
 }
