@@ -1,10 +1,10 @@
 #version 440
 
 // Grey workspace glass: the straight middle stays undistorted while the
-// rounded caps bend the pill's glass beneath them. As clear glass (wholeRim)
-// it looks most of the way through the pill to the sharp wallpaper, and the
-// bend runs round the whole edge, lighting it where it bends. The icons are
-// seen straight through, untouched by the bend.
+// rounded caps bend the pill's glass beneath them, the icons seen straight
+// through. As clear glass (wholeRim) it looks most of the way through the
+// pill to the sharp wallpaper, and the bend runs round the whole edge, takes
+// the icons a little way with it, and lights the rim where it bends.
 // Compiled with: /usr/lib/qt6/bin/qsb --qt6 -o glassmark.frag.qsb glassmark.frag
 
 layout(location = 0) in vec2 qt_TexCoord0;
@@ -95,12 +95,13 @@ void main() {
     float cap = smoothstep(0.0, max(radius * 0.35, 1.0), abs(p.x - centre.x) - (box.z * 0.5 - radius));
     lens *= mix(cap, 1.0, wholeRim);
     vec2 seen = p;
-    vec2 shift = n * bend * lens;
+    // Never past the mark's middle line, where the two rims would cross.
+    vec2 shift = n * min(bend * lens, max(0.0, 0.7 * (radius + d)));
     vec3 bent = vec3(behind(seen - shift * (1.0 - dispersion)).r,
                      behind(seen - shift).g,
                      behind(seen - shift * (1.0 + dispersion)).b);
     bent = min(bent * (1.0 + glow * lens), 1.0);
-    vec3 glass = mix(inked(bent, p), tintColor, tint);
+    vec3 glass = mix(inked(bent, p - shift * wholeRim * 0.3), tintColor, tint);
     float band = shape - clamp(0.5 - (d + lineWidth), 0.0, 1.0);
     vec4 rim = sheen.w > 0.0 ? vec4(rimTop.rgb, mix(rimBottom.a * 0.35, sheen.w, shine))
         : mix(rimTop, rimBottom, clamp((p.y - box.y) / max(box.w, 1.0), 0.0, 1.0));
