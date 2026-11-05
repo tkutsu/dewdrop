@@ -244,6 +244,27 @@ ShellRoot {
         check(!bluetoothRow(), "empty device list has no action");
     }
 
+    function checkBluetoothHistory() {
+        const order = () => Launcher.results.filter(r => r.kind === "bluetooth").map(r => r.address);
+        const counted = () => Launcher.db["bluetooth:" + headphones.address]?.count ?? 0;
+        Launcher.hide();
+        Launcher.db = ({});
+        Bluetooth.devices = [headphones, keyboard];
+        Launcher.show();
+        Launcher.query = "bluetooth";
+        check(order()[0] === keyboard.address, "unused devices sort by name");
+        Launcher.index = Launcher.results.findIndex(r => r.address === headphones.address);
+        Launcher.activate(Launcher.index);
+        check(counted() === 0 && order()[0] === keyboard.address && Launcher.selected?.address === headphones.address, "a device pick leaves the open list in place");
+        Launcher.hide();
+        check(counted() === 1 && Launcher.heldBumps.length === 0, "a device pick counts once the box closes");
+        Launcher.show();
+        Launcher.query = "bluetooth";
+        check(order()[0] === headphones.address, "the used device leads the next opening");
+        headphones.state = BlueZ.BluetoothDeviceState.Disconnected;
+        Bluetooth.devices = [];
+    }
+
     function run() {
         try {
             check(Launcher.results.length === 0, "a closed launcher computes nothing");
@@ -475,6 +496,7 @@ ShellRoot {
             activateDesktop("bluetooth-power");
             check(!Bluetooth.on && !Launcher.shown, "Bluetooth power-off delegates and closes");
             checkBluetooth();
+            checkBluetoothHistory();
 
             Launcher.db = ({});
             Launcher.show();
