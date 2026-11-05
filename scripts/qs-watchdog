@@ -27,11 +27,19 @@
 # of Hyprland state stop following. The bar logs the drop once; seeing that on
 # a bar that answers again means a restart.
 #
+# A bar can also just exit, with no coredump and no crash relaunch (2026-11-05,
+# a popup's EGL surface failed after a wake lost the GPU context). Nothing
+# named quickshell for GONE seconds means a relaunch, at most once per COOLDOWN
+# so a bar that keeps dying doesn't keep coming back. To keep the bar down on
+# purpose, stop this script first.
+#
 # Started from Hyprland's exec.lua, so the relaunch, which goes through
 # Hyprland anyway, never hands the bar this script's env.
 
 INTERVAL=5   # seconds between probes
 LIMIT=30     # frozen this long = not healing on its own (heals took <= 23 s)
+GONE=60      # no bar this long = not a restart in progress (those took <= 55 s)
+COOLDOWN=300 # seconds between relaunches
 STATE="$HOME/.local/state/quickshell-watchdog"
 LOG="$STATE/log"
 BAR_CONFIG=$(realpath "$HOME/.config/quickshell/shell.qml") || exit 1
@@ -122,13 +130,29 @@ dump() {
     log "  stacks -> $out"
 }
 
+relaunch() {
+    hyprctl dispatch "hl.dsp.exec_cmd(\"$HOME/.config/quickshell/scripts/qs-launch\")" >/dev/null
+}
+
+# Whether no bar has run for GONE seconds. It asks for any process rather than
+# trusting qs list, which comes back empty when it times out on a busy machine.
+# Counted in ticks, which stop during suspend.
+bar_gone() {
+    if pgrep -x 'quickshell|qs' >/dev/null; then
+        absent=0
+        return 1
+    fi
+    absent=$((absent + 1))
+    [ $((absent * INTERVAL)) -ge "$GONE" ] && [ $((SECONDS - relaunched)) -ge "$COOLDOWN" ]
+}
+
 restart() {
     same_bar || { log "  bar identity changed; skipping restart"; return; }
     timeout 2 qs kill --pid "$pid" >/dev/null 2>&1
     same_bar && kill -TERM "$pid" 2>/dev/null
     for _ in 1 2 3 4 5 6; do same_bar || break; sleep 0.5; done
     same_bar && kill -KILL "$pid" 2>/dev/null && log "  needed SIGKILL"
-    hyprctl dispatch "hl.dsp.exec_cmd(\"$HOME/.config/quickshell/scripts/qs-launch\")" >/dev/null
+    relaunch
 }
 
 # Whether the kernel logged the semsurf error since the given epoch second.
@@ -138,7 +162,7 @@ semsurf_since() {
 
 
 log "watchdog started (pid $$)"
-since=0 frozen="" lost="" tick=$(date +%s)
+since=0 frozen="" lost="" tick=$(date +%s) absent=0 relaunched=-$COOLDOWN
 while sleep "$INTERVAL"; do
     # sleep runs on the monotonic clock, which stops during suspend, so a
     # wall-clock gap far longer than INTERVAL means the machine slept.
@@ -146,10 +170,15 @@ while sleep "$INTERVAL"; do
     select_bar || {
         [ "$lost" ] || log "no unique bar instance for $BAR_CONFIG, not watching"
         lost=1 since=0
+        if bar_gone; then
+            log "no bar for $GONE s, relaunching"
+            relaunch
+            relaunched=$SECONDS absent=0
+        fi
         continue
     }
     [ "$lost" ] && log "watching quickshell $pid"
-    lost=""
+    lost="" absent=0
     if [ $((tick - last)) -gt $((INTERVAL * 4)) ]; then
         semsurf_since "$last" && log "wake logged the semsurf error, leaving quickshell $pid to the probes"
         continue
