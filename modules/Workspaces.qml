@@ -33,7 +33,29 @@ BarItem {
     readonly property Item markItem: mark
     property bool drawsMark: true
     property Item badgeLayer: null
-    contentAnimating: folding || stripResize.running || mark.animating
+    contentAnimating: folding || stripResize.running || mark.animating || popMotion.running
+
+    // With no app to show, and no workspace shouting for an app that draws no
+    // icon (emptyBounce), the strip has nothing to say and the bar pops the
+    // pill out of view. Only windows the strip would draw an icon for count.
+    readonly property bool occupied: Hyprland.toplevels.values.some(t => t.wayland
+            && !root.ignored.some(re => re.test(root.windowClass(t))))
+        || root.shownWorkspaces.some(w => w.urgent)
+    // How far out the pill is: 0 gone, 1 there, a little past 1 as it lands.
+    property real pop: occupied ? 1 : 0
+    Behavior on pop {
+        enabled: root._started
+        // It comes in past its size and goes without a bounce, which would
+        // bring a pill that had already left back for a moment.
+        onTargetValueChanged: {
+            popMotion.spring = targetValue > 0 ? Theme.drawerSpring : Theme.calmSpring;
+            popMotion.damping = targetValue > 0 ? Theme.drawerDamping : Theme.calmDamping;
+        }
+        SpringAnimation {
+            id: popMotion
+            epsilon: 0.001
+        }
+    }
 
     Timer {
         id: foldTimer

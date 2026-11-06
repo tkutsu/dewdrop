@@ -173,38 +173,53 @@ PanelWindow {
     // separately anchored islands do that; a single RowLayout would not. Each
     // one places itself from its `side`, which is the same thing that tells it
     // whether it backs onto a screen edge and owes the margin a hit area.
-    Pill {
-        id: leftPill
-
-        side: Pill.Side.Left
-        backdrop: wallpaperImage
-
-        Workspaces {
-            id: workspaces
-            drawsMark: !glassMark.active
-            badgeLayer: workspaceBadges
-        }
-    }
-
-    // The workspace mark's glass, over the pill it moves in, which it bends.
-    GlassMark {
-        id: glassMark
-        x: leftPill.x - swell
-        y: leftPill.y - swell
-        width: leftPill.width + 2 * swell
-        height: leftPill.height + 2 * swell
-        mark: workspaces.markItem
-        slabItem: leftPill.slabItem
-        inkItem: leftPill.moduleHost
-        wallpaperItem: wallpaperImage
-    }
-
+    // The left pill and what the bar draws over it pop in and out as one, for
+    // as long as the strip has something to show (Workspaces.occupied).
     Item {
-        id: workspaceBadges
-        x: leftPill.x
-        y: leftPill.y
-        width: leftPill.width
-        height: leftPill.height
+        anchors.fill: parent
+        visible: workspaces.pop > 0
+        opacity: Math.min(1, workspaces.pop)
+        transform: Scale {
+            readonly property real size: Theme.moduleRetireScale(workspaces.pop)
+            origin.x: leftPill.x + leftPill.width / 2
+            origin.y: leftPill.y + leftPill.height / 2
+            xScale: size
+            yScale: size
+        }
+
+        Pill {
+            id: leftPill
+
+            side: Pill.Side.Left
+            backdrop: wallpaperImage
+
+            Workspaces {
+                id: workspaces
+                drawsMark: !glassMark.active
+                badgeLayer: workspaceBadges
+            }
+        }
+
+        // The workspace mark's glass, over the pill it moves in, which it bends.
+        GlassMark {
+            id: glassMark
+            x: leftPill.x - swell
+            y: leftPill.y - swell
+            width: leftPill.width + 2 * swell
+            height: leftPill.height + 2 * swell
+            mark: workspaces.markItem
+            slabItem: leftPill.slabItem
+            inkItem: leftPill.moduleHost
+            wallpaperItem: wallpaperImage
+        }
+
+        Item {
+            id: workspaceBadges
+            x: leftPill.x
+            y: leftPill.y
+            width: leftPill.width
+            height: leftPill.height
+        }
     }
 
     // Glass and badge colours follow the desktop's exact wallpaper blend.

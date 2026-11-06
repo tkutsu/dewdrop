@@ -153,6 +153,24 @@ ShellRoot {
  check(!icon(dest,'menu') && icons(dest).length===2,'a menu window without a Wayland handle draws no icon');
  Hyprland.toplevels.values=[b,c,a];test.wait(100);
 
+ // The bar pops the pill away while the strip has nothing to show.
+ check(pill.occupied && pill.pop===1,'windows keep the pill out');
+ const lastOnly=win('last',w1,'other'),ignoredWin=win('game',w1,'gamescope'),menuWin=toplevel.createObject(suite,{address:'menuwin',workspace:w1});
+ reset([lastOnly],[w1]);
+ check(pill.occupied && pill.pop===1,'one window keeps the pill out');
+ Hyprland.toplevels.values=[];test.wait(20);
+ check(!pill.occupied && pill.pop>0,'the pill does not vanish at once as the last window closes');
+ test.tryCompare(pill,'pop',0,1500);
+ Hyprland.toplevels.values=[ignoredWin,menuWin];test.wait(50);
+ check(!pill.occupied,'windows the strip draws no icon for do not bring the pill out');
+ w1.urgent=true;Hyprland.workspaces.values=[w1];test.wait(50);
+ check(pill.occupied,'a shouting workspace keeps its marker in view');
+ w1.urgent=false;Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.tryCompare(pill,'pop',0,1500);
+ Hyprland.toplevels.values=[lastOnly];
+ let peak=0;for(let i=0;i<40;i++){test.wait(16);peak=Math.max(peak,pill.pop);}
+ check(pill.occupied && peak>1,'the pill comes in past its size, peaked at '+peak);
+ test.tryCompare(pill,'pop',1,1500);
+
  a.workspace=w2;a.wayland={appId:'same'};b.wayland={appId:'same'};
  reset([b,c,a],[w1,w2,w3]);
  const group=button(3);

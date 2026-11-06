@@ -84,8 +84,8 @@ def main():
     badge = 'Badge {' + source.split('                                Badge {', 1)[1].split(
         '\n                                Component.onDestruction', 1)[0]
     bar = (ROOT / 'Bar.qml').read_text()
-    layer = re.search(r'^            badgeLayer: (.+)$', bar, re.M)
-    overlay = re.search(r'    Item \{\n        id: workspaceBadges\n.*?^    \}', bar, re.M | re.S)
+    layer = re.search(r'^ +badgeLayer: (.+)$', bar, re.M)
+    overlay = re.search(r'^( +)Item \{\n +id: workspaceBadges\n.*?^\1\}', bar, re.M | re.S)
     qml = QML.replace('BADGE_LAYER', layer[1] if layer else 'null')
     qml = qml.replace('BADGE_OVERLAY', overlay[0] if overlay else '').replace('BADGE', badge)
     with tempfile.TemporaryDirectory(prefix='qs-workspace-badge-') as folder:
