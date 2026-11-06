@@ -251,15 +251,28 @@ BarItem {
                     handle: entry.modelData.menu
                     requestedVisible: menuLifetime.shown
 
+                    // A menu too wide for the room to its right comes back
+                    // until it ends where the pill does. The compositor's own
+                    // slide would keep the whole window on screen, shadow's
+                    // room and all, and stop short of that. Read again when
+                    // the rows come in and set the width.
+                    readonly property int slide: {
+                        const boxWidth = menu.implicitWidth - menu.shadowSide * 2;
+                        const boxLeft = entry.mapToItem(null, 0, 0).x - menu.hPadding;
+                        return Math.max(0, Math.ceil(boxLeft + boxWidth + Theme.barMargin - entry.QsWindow.window.width));
+                    }
+
                     // Flush under the icon and hung from its left edge, the
                     // way the system drops a menu from a menu bar extra —
                     // rather than centred on it and a margin's worth lower.
-                    // Out by the shadow's room on the left and up by its
-                    // room on top, so the box rather than its window is what
-                    // lines up with the icon.
-                    anchor.rect: Qt.rect(-menu.shadowSide, 0, entry.width, entry.height - Theme.barInset + Theme.popupGap - menu.shadowTop)
+                    // Out by the box's padding, so a row's fill rather than
+                    // the box starts under the icon. Out by the shadow's room
+                    // on the left and up by its room on top, so the box rather
+                    // than its window is what lines up with it.
+                    anchor.rect: Qt.rect(-menu.shadowSide - menu.hPadding - menu.slide, 0, entry.width, entry.height - Theme.barInset + Theme.popupGap - menu.shadowTop)
                     anchor.edges: Edges.Bottom | Edges.Left
                     anchor.gravity: Edges.Bottom | Edges.Right
+                    anchor.adjustment: PopupAdjustment.None
 
                     onDismissed: OpenPopup.close(entry)
                 }
