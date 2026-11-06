@@ -9,18 +9,19 @@ import qs.services
 BarItem {
     quiet: Downloads.unopened.length === 0
     name: "Downloads"
-    tooltip: {
-        const files = Downloads.unopened;
-        return files.length === 0 ? "Downloads" : files.length === 1 ? files[0].name : `${files.length} new downloads`;
-    }
+    tooltip: Downloads.summary
 
-    Glyph {
+    BadgedGlyph {
         Layout.fillHeight: true
-        text: Theme.glyph.downloads
-        fontSize: Theme.glyphSizeLarge
+        glyph: Theme.glyph.downloads
+        glyphSize: Theme.glyphSizeLarge
+        badge: Settings.badgeStyle("downloads") === "hide" ? "" : Downloads.label
+        dot: Settings.badgeStyle("downloads") === "dot"
+        underdot: Settings.badgeStyle("downloads") === "underdot"
     }
 
     actions: ({
-            [Qt.LeftButton]: () => Downloads.open()
+            [Qt.LeftButton]: () => Downloads.open(),
+            [Qt.RightButton]: () => Downloads.clear()
         })
 }
