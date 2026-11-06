@@ -49,6 +49,8 @@ Singleton {
     readonly property string centrePillAnchor: ["time", "date", "between", "middle"].includes(root.values.centrePillAnchor)
         ? root.values.centrePillAnchor : "between"
     readonly property bool centrePillRecoil: root.values.centrePillRecoil !== false
+    readonly property string caretAnimation: ["phase", "blink", "static"].includes(root.values.caretAnimation) ? root.values.caretAnimation : "phase"
+    readonly property string caretShape: root.values.caretShape === "block" ? "block" : "line"
     readonly property string dateFormat: root.values.dateFormat ?? ""
     readonly property string timeFormat: root.values.timeFormat ?? ""
     readonly property string dateCase: root.values.dateCase ?? ""

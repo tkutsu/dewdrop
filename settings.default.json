@@ -102,6 +102,12 @@
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "timeFormat": "HH:mm",
 
+    // The text cursor in the launcher and every other field. Animation: phase
+    // (a quick fade out and back), blink (hard on and off) or static. Shape: line
+    // or block.
+    "caretAnimation": "phase",
+    "caretShape": "line",
+
     // Letter case for the bar clock and alarm times: normal, uppercase or lowercase.
     // Normal preserves the case supplied by the format. Default: uppercase.
     "timeCase": "uppercase",

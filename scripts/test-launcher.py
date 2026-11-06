@@ -1243,7 +1243,7 @@ def check_menu(target, env):
     (modules / "PowerVeil.qml").write_text(offscreen(veil))
     (target / "Theme.qml").write_text((ROOT / "Theme.qml").read_text())
     settings = target / "Settings.qml"
-    settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property var disabled:'))
+    settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property string caretAnimation: "phase"; property string caretShape: "line"; property var disabled:'))
     components = target / "components"
     (components / "Rim.qml").write_text((ROOT / "components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "components/TextCaret.qml").read_text())

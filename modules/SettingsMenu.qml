@@ -302,6 +302,13 @@ OverlayWindow {
                     ]
                 },
                 {
+                    title: "Text Cursor",
+                    rows: [
+                        { type: "choice", id: "caretAnimation", title: "Animation", options: [{ value: "phase", label: "Phase" }, { value: "blink", label: "Blink" }, { value: "static", label: "Static" }], get: () => Settings.caretAnimation, set: v => Settings.set("caretAnimation", v) },
+                        { type: "choice", id: "caretShape", title: "Shape", options: [{ value: "line", label: "Line" }, { value: "block", label: "Block" }], get: () => Settings.caretShape, set: v => Settings.set("caretShape", v) }
+                    ]
+                },
+                {
                     title: "Wallpaper",
                     rows: [
                         { type: "text", id: "wallpaperDir", title: "Image Folder", placeholder: Settings.defaults.wallpaperDir, get: () => Settings.values.wallpaperDir, set: v => Settings.set("wallpaperDir", v.trim() || Settings.defaults.wallpaperDir) }
