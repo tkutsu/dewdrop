@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs
 
 // The caffeine switch, one for the session so every bar's cup agrees. Each bar
 // holds its own inhibitor bound to it (modules/IdleInhibit.qml): an inhibitor
@@ -10,7 +11,7 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    property alias active: state.active
+    property alias active: stored.active
 
     // For the keybind (SUPER+J): the cup sits in the drawer while caffeine is
     // off, so the mouse way in is two clicks deep.
@@ -23,16 +24,23 @@ Singleton {
         }
     }
 
-    // Kept through a hot reload of the config. As a plain property it went
-    // back to false on every reload, and with it the cup went back into the
-    // drawer, so caffeine had to be found and switched on again by hand after
-    // each edit. Only reloads: a restart still comes up with it off, which is
-    // what a thing that holds the screen awake should do.
-    PersistentProperties {
-        id: state
+    // Kept on disk, so it comes back as it was after a reload or a restart.
+    // Read before the first bar asks, so the cup never leaves the bar and
+    // comes back, and the screen is never let go in between.
+    Component.onCompleted: file.text()
 
-        reloadableId: "caffeine"
+    FileView {
+        id: file
 
-        property bool active: false
+        path: Paths.state("caffeine.json")
+        blockLoading: true
+        printErrors: false
+        onAdapterUpdated: file.writeAdapter()
+
+        JsonAdapter {
+            id: stored
+
+            property bool active: false
+        }
     }
 }
