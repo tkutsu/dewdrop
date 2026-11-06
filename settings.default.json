@@ -220,7 +220,8 @@
     // The images the wallpaper module cycles through (jpg and png).
     "wallpaperDir": "~/Pictures/Wallpapers",
 
-    // Mail attachments saved from the bar.
+    // What the downloads button opens and watches, and where mail attachments
+    // are saved from the bar.
     "downloadsDir": "~/Downloads",
 
     // Shell command run by the screenshot button, with no arguments added.

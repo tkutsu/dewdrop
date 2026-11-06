@@ -430,7 +430,7 @@ def main():
 import Quickshell
 import qs
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 20) console.log('FAIL: defaults');
+    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 21) console.log('FAIL: defaults');
     else if (RightPillOrder.move('audio', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();

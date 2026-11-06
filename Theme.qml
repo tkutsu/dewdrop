@@ -852,6 +852,7 @@ Singleton {
         // The drives module: a simple USB symbol and an outlined eject
         // for safe removal (nf-md-usb, nf-md-eject_outline).
         drive: "\u{f0553}",
+        downloads: "\u{f0b8f}",      // nf-md-download_outline
         eject: "\u{f0b91}",
 
         // The timer module. A countdown and an alarm are the same machine

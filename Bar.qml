@@ -217,7 +217,7 @@ PanelWindow {
     }
 
     // Centre the time and date content when shown, otherwise the whole pill.
-    readonly property var movableModules: [clock, weather, timeClock, audio, email, tasks, updater, feeds, bell,
+    readonly property var movableModules: [clock, weather, timeClock, audio, email, tasks, updater, feeds, downloads, bell,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
     readonly property var centreKeys: {
         const keys = Settings.centralComponents;
@@ -745,6 +745,12 @@ PanelWindow {
         Feeds {
             id: feeds
             pinKey: "feeds"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
+        Downloads {
+            id: downloads
+            pinKey: "downloads"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }
