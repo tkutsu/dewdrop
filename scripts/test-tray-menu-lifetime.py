@@ -66,7 +66,7 @@ def main():
         copy_shell(target)
         (target / 'Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
         (target / 'OpenPopup.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { function close(item) {} }')
-        (target / 'components/MenuAnchor.qml').write_text('import QtQuick\nQtObject { property rect rect; property int edges; property int gravity }')
+        (target / 'components/MenuAnchor.qml').write_text('import QtQuick\nQtObject { property rect rect; property int edges; property int gravity; property int adjustment }')
         (target / 'components/MenuPopup.qml').write_text('''import QtQuick
 Item {
     property Item anchorItem
@@ -75,6 +75,7 @@ Item {
     property int exitMs: 160
     property real shadowSide: 0
     property real shadowTop: 0
+    property real hPadding: 0
     property MenuAnchor anchor: MenuAnchor {}
     signal dismissed
     opacity: requestedVisible ? 1 : 0
