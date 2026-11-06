@@ -31,7 +31,14 @@ Popup {
     // configure, that answer, still sized for the empty menu, landed last:
     // the window stayed one row tall with the rest spilling out of the box.
     // Shown only now, it is built at its full size and never resized.
-    visible: body.entries.length > 0
+    //
+    // And up from then on. An Electron app replaces every row whenever its
+    // state changes, which a click on Connect does at once. Hiding for the
+    // moment the list is empty destroyed the surface under the fade, and
+    // setting HyprlandWindow.opacity on a destroyed surface is a protocol
+    // error that takes the whole bar's Wayland connection with it.
+    visible: root.populated
+    property bool populated: false
 
     // The row that was clicked, for the moment it blinks before the menu
     // acts and closes; null the rest of the time.
@@ -101,6 +108,8 @@ Popup {
                 kept.pop();
             return kept;
         }
+        onEntriesChanged: if (body.entries.length > 0)
+            root.populated = true
 
         Repeater {
             model: ScriptModel {
