@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""A tray app replacing its menu's rows must not hide the menu's window.
+"""A tray menu opens as a popover does, and stays up while its app replaces the rows.
 
-Electron rebuilds its whole DBusMenu, under new ids, on every state change.
-Hiding destroys the surface while Popup's fade still sets HyprlandWindow.opacity
-on it, which Hyprland answers with a protocol error that ends the bar. Offscreen
-there is no compositor to object, so this asserts the hide itself.
+Its rows come in over DBus, so the box has to open at their full height rather
+than animate up to it with the rows already drawn.
+
+Hiding is fatal. Electron rebuilds its whole DBusMenu, under new ids, on every
+state change. Hiding destroys the surface while Popup's fade still sets
+HyprlandWindow.opacity on it, which Hyprland answers with a protocol error that
+ends the bar. Offscreen there is no compositor to object, so this asserts the
+hide itself.
 """
 
 import os
@@ -28,6 +32,11 @@ ShellRoot {
         property int hides: 0
         property real fullHeight: 0
         property int ticks: 0
+        property int samples: 0
+        property real shortest: Infinity
+        property real smallest: 1
+        property real largest: 1
+        property real faintest: 1
 
         readonly property var tray: SystemTray.items.values.find(i => i.id === "fake") ?? null
 
@@ -54,6 +63,21 @@ ShellRoot {
             return null;
         }
 
+        // The opening, before the app's first rebuild.
+        Timer {
+            interval: 10
+            repeat: true
+            running: host.samples < 50 && (loader.item?.opened ?? false)
+            onTriggered: {
+                const menu = loader.item;
+                host.samples++;
+                host.shortest = Math.min(host.shortest, menu.chromeItem.height);
+                host.smallest = Math.min(host.smallest, menu.growY);
+                host.largest = Math.max(host.largest, menu.growY);
+                host.faintest = Math.min(host.faintest, menu.revealProgress);
+            }
+        }
+
         // Long enough for the app's rebuilds to finish, then read what is left.
         Timer {
             interval: 100
@@ -64,8 +88,17 @@ ShellRoot {
                 host.ticks++;
                 if (menu && menu.implicitHeight > host.fullHeight)
                     host.fullHeight = menu.implicitHeight;
-                if (host.ticks < 25)
+                if (host.ticks < 35)
                     return;
+                console.log(host.shortest >= menu.chromeHeight - 1
+                    ? "PASS: the box opens at its full height"
+                    : "FAIL: the box opened at " + host.shortest + " of " + menu.chromeHeight);
+                console.log(host.smallest < 0.95 && host.largest > 1.003
+                    ? "PASS: it grows and bounces like a popover"
+                    : "FAIL: scale ran " + host.smallest + " to " + host.largest);
+                console.log(host.faintest < 0.5
+                    ? "PASS: it fades in"
+                    : "FAIL: faintest " + host.faintest);
                 console.log(host.hides === 0 && host.fullHeight > 0 ? "PASS: stayed up" : "FAIL: hid " + host.hides + " times");
                 console.log(menu && menu.implicitHeight === host.fullHeight && host.row(menu.contentItem, "Connect")
                     ? "PASS: rows back at full height"
@@ -141,7 +174,7 @@ def register():
     if not bus.name_has_owner(WATCHER):
         return True
     bus.get_object(WATCHER, '/StatusNotifierWatcher').RegisterStatusNotifierItem('/StatusNotifierItem', dbus_interface=WATCHER)
-    GLib.timeout_add(200, menu.rebuild)
+    GLib.timeout_add(1500, lambda: GLib.timeout_add(200, menu.rebuild) and False)
     return False
 
 
@@ -160,7 +193,7 @@ def run(target):
         tray.terminate()
     output = result.stdout + result.stderr
     print(output, end='')
-    assert result.returncode == 0 and output.count('PASS:') == 2 and 'FAIL:' not in output
+    assert result.returncode == 0 and output.count('PASS:') == 5 and 'FAIL:' not in output
 
 
 def main():

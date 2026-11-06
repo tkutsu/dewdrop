@@ -38,7 +38,6 @@ Item {
     property bool acceptsKeyboard: false
     property bool probes: true
     property bool grows: true
-    property bool fadesIn: true
     property bool morphs: false
     property bool morphRun: false
     property bool landed: true
@@ -98,7 +97,7 @@ ShellRoot {
                 for (const l of loaders) {
                     console.log("WIDTH " + l.source.toString().split("/").pop().replace(".qml", "") + " " + (l.item ? l.item.bodyWidth : -1));
                     if (l.item)
-                        console.log("MOTION " + l.source.toString().split("/").pop().replace(".qml", "") + " " + l.item.grows + " " + l.item.fadesIn);
+                        console.log("MOTION " + l.source.toString().split("/").pop().replace(".qml", "") + " " + l.item.grows);
                 }
                 console.log("POPUP WIDTH " + Theme.popupWidth + " " + Theme.popupWideWidth);
                 Qt.quit();
@@ -202,13 +201,13 @@ def main():
                                 capture_output=True, text=True, timeout=20)
         output = result.stdout + result.stderr
         widths = {m[0]: float(m[1]) for m in re.findall(r"WIDTH (\w+) (-?[\d.]+)", output)}
-        motion = {m[0]: m[1:] for m in re.findall(r"MOTION (\w+) (true|false) (true|false)", output)}
+        motion = dict(re.findall(r"MOTION (\w+) (true|false)", output))
         standard, wide = (int(x) for x in re.search(r"POPUP WIDTH (\d+) (\d+)", output).groups())
         failures = []
         for name in ALL:
             if widths.get(name, -1) <= 0:
                 failures.append(f"{name} did not build")
-            if motion.get(name) != ("true", "true"):
+            if motion.get(name) != "true":
                 failures.append(f"{name} overrides the shared popup entry transition")
         for name in STANDARD:
             if widths.get(name) != standard:
