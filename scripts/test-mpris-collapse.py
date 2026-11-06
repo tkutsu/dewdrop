@@ -100,33 +100,28 @@ ShellRoot {
                 const centreX = centreAnchor.mapToItem(window.contentItem, centreAnchor.width / 2, 0).x;
                 const room = nowPlaying.keyBox.children[0];
                 const title = room.children.find(item => item.travel !== undefined);
-                const pause = room.children.find(item => item.text === Theme.glyph.paused);
+                const slot = nowPlaying.keyBox.children[1];
+                const pause = slot.children.find(item => item.text === Theme.glyph.paused);
+                const playTap = slot.children.find(item => item.actions !== undefined);
                 mouseMove(window.contentItem, 950, 90); wait(250);
-                check(pause && pause.opacity === 0, "pause icon is hidden away from the pill");
-                check(!pause.visible || pause.children[0].Accessible.ignored,
-                      "hidden MPRIS playback control stays out of accessibility");
-                pause.children[0].Accessible.pressAction();
-                check(first.toggles === 0, "hidden MPRIS playback control cannot activate");
+                const pauseX = pause.mapToItem(window.contentItem, 0, 0).x;
+                const titleEnd = title.mapToItem(window.contentItem, title.width, 0).x;
+                check(pause.visible && pause.opacity === 1 && slot.opacity === 1 && !playTap.Accessible.ignored,
+                      "pause stays visible and accessible away from the pill");
+                check(pauseX >= titleEnd, "pause sits to the right of the title");
                 const restingWidth = playerPill.width;
                 const restingTitleWidth = title.width;
                 mouseMove(nowPlaying, nowPlaying.width / 2, nowPlaying.height / 2);
-                let fixedWidth = true;
+                let steady = true;
                 for (let frame = 0; frame < 20; frame++) {
                     wait(16);
-                    fixedWidth = fixedWidth && playerPill.width === restingWidth;
+                    steady = steady && playerPill.width === restingWidth && title.width === restingTitleWidth
+                        && title.overflow === 0 && !title.scrolling && title.offset === 0;
                 }
-                check(fixedWidth, "hover keeps the pill width fixed throughout the transition");
-                check(pause.opacity === 1 && title.width < restingTitleWidth && title.rightFade > 0 && title.layer.enabled,
-                      "hover reveals pause over a shortened title with a gradient");
-                check(pause.visible && !pause.children[0].Accessible.ignored,
-                      "revealed MPRIS playback control is accessible");
-                Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: false, reduceMotion: true}); wait(100);
-                check(!title.scrolling && title.rightFade > 0 && title.layer.enabled,
-                      "hover keeps the gradient with title scrolling and motion disabled");
-                Settings.user = Object.assign({}, Settings.user, {scrollMusicTitles: true, reduceMotion: false});
+                check(steady, "hover leaves the pill and a fitting title still, with nothing scrolling");
                 mouseMove(window.contentItem, 950, 90); wait(250);
-                check(pause.opacity === 0 && title.width === restingTitleWidth && playerPill.width === restingWidth,
-                      "leaving hides pause and restores the title without resizing");
+                check(pause.opacity === 1 && playerPill.width === restingWidth && title.width === restingTitleWidth,
+                      "leaving keeps pause and the title as they were");
                 const icon = appIcon(nowPlaying);
                 const previous = icon.parent.children.find(item => item.previous === true);
                 const next = room.children.find(item => item.previous === false);
@@ -211,6 +206,12 @@ ShellRoot {
                 check(nowPlaying.testDispatches.length === 2 && first.isPlaying,
                       "a player without Raise or a matching window leaves playback alone");
                 first.canRaise = true;
+                nowPlaying.testWindows = [{address: "aaa", wayland: {appId: first.desktopEntry}}];
+                const raisesBeforeWindow = first.raises;
+                mouseClick(title, title.width / 2, 0); wait(80);
+                check(nowPlaying.testDispatches.length === 3 && first.raises === raisesBeforeWindow,
+                      "a matching window is focused ahead of the player's Raise");
+                nowPlaying.testWindows = [];
                 mouseMove(title, title.width / 2, title.height / 2); wait(250);
                 mouseClick(pause, pause.width / 2, 0); wait(80);
                 check(first.toggles === 1 && !first.isPlaying,
@@ -219,7 +220,7 @@ ShellRoot {
                 first.toggles = 0;
                 const titleX = title.mapToItem(nowPlaying, title.width / 2, 0).x;
                 mousePress(nowPlaying, titleX, 0); wait(200);
-                check(title.scale < 1 && pause.scale < 1, "title and pause shrink while the pill is held at the top edge");
+                check(title.scale < 1 && slot.scale === 1, "the title presses in by itself at the top edge");
                 mouseRelease(nowPlaying, titleX, 0); wait(80);
                 check(first.toggles === 0 && first.isPlaying, "a held top-edge title click keeps playback running");
                 nowPlaying.toggle(); wait(80);
@@ -342,43 +343,24 @@ ShellRoot {
                     {address: "aaa", title: "Other tab", wayland: {appId: first.desktopEntry}},
                     {address: "bbb", title: first.trackTitle, lastIpcObject: {class: first.desktopEntry}}
                 ];
-                nowPlaying.testActiveWindow = nowPlaying.testWindows[0];
                 const raises = first.raises;
                 const toggles = first.toggles;
                 const plays = first.plays;
                 const dispatches = nowPlaying.testDispatches.length;
                 nowPlaying.actions[Qt.LeftButton]();
-                check(!first.isPlaying && first.toggles === toggles + 1 && first.raises === raises,
-                      "title action pauses an already focused app even on another tab");
-                nowPlaying.actions[Qt.LeftButton]();
-                check(first.isPlaying && first.toggles === toggles + 2 && first.raises === raises && first.plays === plays,
-                      "title action toggles a focused paused app back to playing without raising it");
-                first.canTogglePlaying = false;
-                nowPlaying.actions[Qt.LeftButton]();
-                check(first.toggles === toggles + 2 && first.raises === raises,
-                      "focused player without toggle support is left alone");
-                first.canTogglePlaying = true;
-                nowPlaying.testActiveWindow = {address: "ccc", wayland: {appId: second.desktopEntry}};
-                first.playbackState = MprisPlaybackState.Paused;
-                nowPlaying.actions[Qt.LeftButton]();
-                check(first.isPlaying && first.raises === raises + 1 && first.plays === plays + 1 && first.toggles === toggles + 2,
-                      "title action raises and resumes an unfocused paused app");
-                first.canRaise = false;
-                first.playbackState = MprisPlaybackState.Paused;
-                nowPlaying.actions[Qt.LeftButton]();
-                check(first.isPlaying && first.plays === plays + 2 && nowPlaying.testDispatches.length === dispatches + 1
+                check(first.isPlaying && first.toggles === toggles && first.raises === raises
                       && nowPlaying.testDispatches[dispatches] === 'hl.dsp.focus({ window = "address:0xbbb" })',
-                      "fallback window focus also resumes paused playback");
+                      "title action focuses the player's window without touching playback");
                 first.playbackState = MprisPlaybackState.Paused;
-                first.canPlay = false;
                 nowPlaying.actions[Qt.LeftButton]();
-                check(!first.isPlaying && first.plays === plays + 2 && nowPlaying.testDispatches.length === dispatches + 2,
-                      "an unfocused player without Play support is focused without resuming");
+                check(!first.isPlaying && first.plays === plays && first.toggles === toggles
+                      && nowPlaying.testDispatches.length === dispatches + 2,
+                      "title action focuses a paused player without resuming it");
                 nowPlaying.testWindows = [];
-                first.canPlay = true;
                 nowPlaying.actions[Qt.LeftButton]();
-                check(!first.isPlaying && first.plays === plays + 2 && nowPlaying.testDispatches.length === dispatches + 2,
-                      "paused playback stays paused when no window can be focused");
+                check(!first.isPlaying && first.raises === raises + 1 && first.plays === plays
+                      && nowPlaying.testDispatches.length === dispatches + 2,
+                      "with no matching window the player is asked to raise itself");
                 nowPlaying.testPlayers = [];
                 nowPlaying.focusPlayer();
                 check(nowPlaying.testDispatches.length === dispatches + 2 && second.raises === 0,
@@ -402,10 +384,10 @@ def main():
         player = target / "modules/NowPlaying.qml"
         # Substitute the external player objects while keeping selection and UI bindings.
         player.write_text(player.read_text().replace("    id: root\n", "    id: root\n    property var testPlayers: []\n"
-                                                   "    property var testWindows: []\n    property var testActiveWindow: null\n    property var testDispatches: []\n"
+                                                   "    property var testWindows: []\n    property var testDispatches: []\n"
                                                    "    function testDispatch(command) { testDispatches.push(command); }\n", 1)
                           .replace("Mpris.players.values", "root.testPlayers").replace("property MprisPlayer", "property QtObject")
-                          .replace("Hyprland.toplevels.values", "root.testWindows").replace("Hyprland.activeToplevel", "root.testActiveWindow")
+                          .replace("Hyprland.toplevels.values", "root.testWindows")
                           .replace("Hyprland.dispatch(", "root.testDispatch("))
         bar = (ROOT / "Bar.qml").read_text()
         start = bar.rfind("        BarItem {", 0, bar.index("id: nowPlayingNote"))

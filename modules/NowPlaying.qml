@@ -12,8 +12,8 @@ import "../MediaText.js" as MediaText
 // that speaks MPRIS — in a pill of its own beyond the music pill. mpd
 // publishes no MPRIS (services/Mpd.qml), so nothing shows here twice.
 //
-// The title and app icon toggle a focused player, or focus and resume it.
-// Its playback control appears on hover.
+// The title and app icon focus the player's window. Play/pause stays visible
+// to the right of the title; previous and next appear on hover.
 // Right click tucks the pill into the clock; the wheel seeks, as on the music pill.
 BarItem {
     id: root
@@ -149,7 +149,7 @@ BarItem {
             root.player.quit();
     }
 
-    // Toggle the focused app; otherwise raise its media window and resume it.
+    // Hyprland's window first: a browser offers Raise, but it needn't take.
     function focusPlayer() {
         if (!root.player)
             return;
@@ -157,22 +157,13 @@ BarItem {
         const names = [root.player.desktopEntry, entry?.startupClass, root.player.identity]
             .filter(s => s).map(s => s.toLowerCase());
         const windows = Hyprland.toplevels.values.filter(t => names.includes((t.wayland?.appId || t.lastIpcObject?.class || "").toLowerCase()));
-        if (windows.some(t => t.address === Hyprland.activeToplevel?.address)) {
-            root.toggle();
-            return;
-        }
-        if (root.player.canRaise) {
-            root.player.raise();
-        } else {
-            const mediaWindows = windows.filter(t => (t.title || "").toLowerCase().includes(root.label.toLowerCase()));
-            const recent = (mediaWindows.length ? mediaWindows : windows)
-                .sort((a, b) => (a.lastIpcObject?.focusHistoryID ?? 1e9) - (b.lastIpcObject?.focusHistoryID ?? 1e9))[0];
-            if (!recent)
-                return;
+        const mediaWindows = windows.filter(t => (t.title || "").toLowerCase().includes(root.label.toLowerCase()));
+        const recent = (mediaWindows.length ? mediaWindows : windows)
+            .sort((a, b) => (a.lastIpcObject?.focusHistoryID ?? 1e9) - (b.lastIpcObject?.focusHistoryID ?? 1e9))[0];
+        if (recent)
             Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${recent.address}" })`);
-        }
-        if (root.paused && root.player.canPlay)
-            root.player.play();
+        else if (root.player.canRaise)
+            root.player.raise();
     }
 
     spacing: 0
@@ -182,11 +173,7 @@ BarItem {
             [Qt.RightButton]: () => { root.expanded = false; root.dismissed = true; }
         })
 
-    property real controlReveal: containsMouse ? 1 : 0
     contentAnimating: previousStep.animating || nextStep.animating
-    Behavior on controlReveal {
-        NumberAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
-    }
 
     // The title's room, which is what sizes the pill, springing to a new
     // title's width as the music pill's does.
@@ -195,7 +182,7 @@ BarItem {
         readonly property bool inkLit: true
 
         Layout.fillHeight: true
-        implicitWidth: leading.width + nextStep.width + Math.max(title.implicitWidth, play.implicitWidth)
+        implicitWidth: leading.width + nextStep.width + title.implicitWidth
         transform: Translate { x: root.iconHandoff.sourceX }
 
         // Keep press feedback off the app icon while it follows the closing glass.
@@ -203,7 +190,7 @@ BarItem {
             id: titlePress
             icon: titleRoom
             area: root
-            down: root.acting || playTap.acting
+            down: root.acting
             textPress: true
         }
 
@@ -260,8 +247,7 @@ BarItem {
             id: title
 
             x: leading.width + nextStep.width
-            width: Math.max(0, Math.min(implicitWidth, titleRoom.width - x - root.titleLoss
-                - root.controlReveal * (play.implicitWidth + Theme.mediaGap)))
+            width: Math.max(0, Math.min(implicitWidth, titleRoom.width - x - root.titleLoss))
             height: parent.height
             text: root.shownLabel
             maxWidth: Theme.mediaTitleWidth
@@ -278,27 +264,42 @@ BarItem {
                 text: root.shownLabel
             }
         }
+    }
 
-        // Overlay the control without adding room to the pill's layout.
+    // Play/pause stays visible to the right of the title, with its gap before it.
+    Item {
+        id: slot
+        readonly property bool inkLit: true
+
+        Layout.fillHeight: true
+        implicitWidth: play.implicitWidth + Theme.mediaGap
+        scale: playPress.scale
+        opacity: root.sliding ? root.pill.geometry.contents(root.reveal) : 1
+        transform: Translate { x: root.glassLeft + root.glassWidth - (root.pill?.width ?? root.width) }
+
+        PressGlass {
+            id: playPress
+            icon: slot
+            area: playTap
+            down: playTap.acting
+        }
+
         Glyph {
             id: play
 
-            x: titleRoom.width - width - root.titleLoss
+            x: Theme.mediaGap
             height: parent.height
-            scale: titlePress.scale
-            opacity: root.controlReveal * (root.sliding ? root.pill.geometry.contents(root.reveal) : 1)
-            visible: opacity > 0
             text: root.playing ? Theme.glyph.paused : Theme.glyph.playing
+        }
 
-            ClickArea {
-                id: playTap
-                anchors.fill: parent
-                enabled: root.settled && play.opacity > 0 && (root.player?.canTogglePlaying ?? false)
-                Accessible.ignored: !enabled || !visible
-                acceptedButtons: Qt.LeftButton
-                name: (root.playing ? "Pause " : "Play ") + (root.appName || "player")
-                actions: ({ [Qt.LeftButton]: () => root.toggle() })
-            }
+        ClickArea {
+            id: playTap
+            anchors.fill: parent
+            enabled: root.settled && slot.opacity > 0 && (root.player?.canTogglePlaying ?? false)
+            Accessible.ignored: !enabled || slot.opacity <= 0
+            acceptedButtons: Qt.LeftButton
+            name: (root.playing ? "Pause " : "Play ") + (root.appName || "player")
+            actions: ({ [Qt.LeftButton]: () => root.toggle() })
         }
     }
 
