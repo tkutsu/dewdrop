@@ -791,9 +791,10 @@ BarItem {
                         height: parent.height
                         spacing: 0
 
-                        // An empty workspace occupies one icon's ink width without drawing an icon.
+                        // An empty workspace occupies one icon's ink width without drawing an icon,
+                        // once its last icon has faded: ahead of it, this would push it along.
                         Item {
-                            visible: button.apps.length === 0 && !emptyBounce.running
+                            visible: button.apps.length === 0 && button.renderedIcons.length === 0 && !emptyBounce.running
                             Layout.fillHeight: true
                             implicitWidth: root.emptyWidth
                         }

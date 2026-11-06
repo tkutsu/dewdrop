@@ -158,10 +158,13 @@ ShellRoot {
  const lastOnly=win('last',w1,'other'),ignoredWin=win('game',w1,'gamescope'),menuWin=toplevel.createObject(suite,{address:'menuwin',workspace:w1});
  reset([lastOnly],[w1]);
  check(pill.occupied && pill.pop===1,'one window keeps the pill out');
+ const leaving=icon(button(1),'last'),leavingAt=left(leaving);
  Hyprland.toplevels.values=[];test.wait(20);
+ check(leaving.closing && Math.abs(left(leaving)-leavingAt)<0.5,'the last icon fades where it stands, moved '+(left(leaving)-leavingAt));
  check(!pill.occupied && pill.pop>0,'the pill does not vanish at once as the last window closes: occupied='+pill.occupied+' pop='+pill.pop+' burst='+pill.burst);
  check(pill.burst>0,'the pill bursts as the last window closes');
  test.tryCompare(pill,'pop',0,400);
+ test.tryCompare(button(1),'width',pill.emptyWidth,1500);
  let rebound=0;for(let i=0;i<20;i++){test.wait(16);rebound=Math.max(rebound,pill.pop);}
  check(rebound===0,'a pill that has gone stays gone, came back to '+rebound);
  Hyprland.toplevels.values=[ignoredWin,menuWin];test.wait(50);
