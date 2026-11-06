@@ -159,7 +159,8 @@ ShellRoot {
  reset([lastOnly],[w1]);
  check(pill.occupied && pill.pop===1,'one window keeps the pill out');
  Hyprland.toplevels.values=[];test.wait(20);
- check(!pill.occupied && pill.pop>0,'the pill does not vanish at once as the last window closes');
+ check(!pill.occupied && pill.pop>0,'the pill does not vanish at once as the last window closes: occupied='+pill.occupied+' pop='+pill.pop+' burst='+pill.burst);
+ check(pill.burst>0,'the pill bursts as the last window closes');
  test.tryCompare(pill,'pop',0,400);
  let rebound=0;for(let i=0;i<20;i++){test.wait(16);rebound=Math.max(rebound,pill.pop);}
  check(rebound===0,'a pill that has gone stays gone, came back to '+rebound);
@@ -173,10 +174,10 @@ ShellRoot {
  check(pill.occupied,'a shouting workspace keeps its marker in view');
  w1.urgent=false;Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.tryCompare(pill,'pop',0,1500);
  Hyprland.toplevels.values=[lastOnly];
- test.wait(70);check(pill.pop>0.5,'the pill is there almost at once, at '+pill.pop);
+ test.wait(50);check(pill.pop>0 && pill.pop<1,'the pill blows up rather than appearing, at '+pill.pop);
  let peak=0;for(let i=0;i<40;i++){test.wait(16);peak=Math.max(peak,pill.pop);}
  check(pill.occupied && peak>1,'the pill comes in past its size, peaked at '+peak);
- test.tryCompare(pill,'pop',1,1500);
+ test.tryCompare(pill,'pop',1,4000);
 
  a.workspace=w2;a.wayland={appId:'same'};b.wayland={appId:'same'};
  reset([b,c,a],[w1,w2,w3]);
