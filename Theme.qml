@@ -610,6 +610,13 @@ Singleton {
     }
     readonly property int fadeMs: 200         // transition: 0.2s ease-in-out
 
+    // The left pill popping in and out of view: at its mark in about 100 ms,
+    // then a few swings that die away inside about 600 (Workspaces.pop).
+    readonly property real popSpring: reduceMotion ? calmSpring : 9
+    readonly property real popDamping: reduceMotion ? calmDamping : 0.2
+    readonly property real popOutSpring: reduceMotion ? calmSpring : 20
+    readonly property real popOutDamping: reduceMotion ? calmDamping : 0.9
+
     // Workspace icon fades and group folding keep pace with the selection spring.
     readonly property int markMs: 220
     readonly property real markSpring: reduceMotion ? calmSpring : 9
