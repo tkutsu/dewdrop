@@ -31,7 +31,7 @@
 
     // The current workspace's mark as clear glass, its whole edge bending the
     // wallpaper. false keeps the grey mark, bent only at its round ends.
-    "glassWorkspaceMark": false,
+    "glassWorkspaceMark": true,
 
     // Drag modules between the central and right pills, or within a pill to
     // reorder them. Moving to the right pins the module; Drawer settings can
