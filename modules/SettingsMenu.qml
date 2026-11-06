@@ -63,6 +63,7 @@ OverlayWindow {
             tasks: { title: "Tasks", glyph: Theme.glyph.tasks },
             updater: { title: "Updates", glyph: Theme.glyph.update },
             feeds: { title: "Feeds", glyph: Theme.glyph.feeds },
+            downloads: { title: "Downloads", glyph: Theme.glyph.downloads },
             bell: { title: "Notifications", glyph: Theme.glyph.notif },
             satty: { title: "Screenshot", glyph: Theme.glyph.satty },
             idle: { title: "Caffeine", glyph: Theme.glyph.idleOff },
@@ -503,7 +504,7 @@ OverlayWindow {
                     title: "Mail",
                     rows: [
                         root.webApp("gmail"),
-                        { type: "text", id: "downloadsDir", title: "Attachment Folder", placeholder: Settings.defaults.downloadsDir, get: () => Settings.values.downloadsDir || Settings.defaults.downloadsDir, set: v => Settings.set("downloadsDir", v.trim() || Settings.defaults.downloadsDir) }
+                        { type: "text", id: "downloadsDir", title: "Downloads Folder", placeholder: Settings.defaults.downloadsDir, get: () => Settings.values.downloadsDir || Settings.defaults.downloadsDir, set: v => Settings.set("downloadsDir", v.trim() || Settings.defaults.downloadsDir) }
                     ]
                 },
                 {
