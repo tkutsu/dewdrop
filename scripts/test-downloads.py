@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A new, finished, unopened file counts as a download; opening the folder clears it."""
+"""A new, finished, unopened file counts as a download; opening the folder clears it and floats its window."""
 
 import json
 import os
@@ -46,9 +46,21 @@ def main():
         target = Path(folder)
         copy_shell(target)
         (target / "shell.qml").write_text(SHELL)
-        downloads = target / "dl"
+        # Awkward on purpose: the path crosses a shell and a Lua string.
+        downloads = target / "it's dl"
         downloads.mkdir()
         (target / "settings.json").write_text(json.dumps({"downloadsDir": str(downloads), "fileManager": f"touch {target / 'opened'}"}))
+
+        # Stands in for Hyprland: keeps what it was asked and runs the command.
+        bin_dir = target / "bin"
+        bin_dir.mkdir()
+        hyprctl = bin_dir / "hyprctl"
+        hyprctl.write_text(f"""#!/usr/bin/env python3
+import json, subprocess, sys
+open({str(target / 'dispatched')!r}, "w").write(sys.argv[2])
+subprocess.run(["sh", "-c", json.loads(sys.argv[2].split("exec_cmd(")[1].split(", {{ float")[0])])
+""")
+        hyprctl.chmod(0o755)
 
         now = time.time()
         state = target / "state/quickshell"
@@ -75,7 +87,7 @@ def main():
         os.utime(fixture("opened.bin"), (now + 30, now))
 
         result = subprocess.run(["quickshell", "-p", str(target / "shell.qml")], cwd=target,
-                                env=shell_env(target), capture_output=True, text=True, timeout=30)
+                                env=shell_env(target, PATH=f"{bin_dir}:{os.environ['PATH']}"), capture_output=True, text=True, timeout=30)
         output = result.stdout + result.stderr
         lines = [line for line in output.splitlines() if "PASS:" in line or "FAIL:" in line]
         print("\n".join(lines))
@@ -86,7 +98,8 @@ def main():
             if (target / "opened").exists():
                 break
             time.sleep(0.1)
-        if not ok or seen <= now or not (target / "opened").exists():
+        floats = (target / "dispatched").exists() and "float = true" in (target / "dispatched").read_text()
+        if not ok or seen <= now or not (target / "opened").exists() or not floats:
             print(output)
             raise SystemExit(1)
 
