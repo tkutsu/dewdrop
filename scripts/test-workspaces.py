@@ -160,13 +160,20 @@ ShellRoot {
  check(pill.occupied && pill.pop===1,'one window keeps the pill out');
  Hyprland.toplevels.values=[];test.wait(20);
  check(!pill.occupied && pill.pop>0,'the pill does not vanish at once as the last window closes');
- test.tryCompare(pill,'pop',0,1500);
+ test.tryCompare(pill,'pop',0,400);
+ let rebound=0;for(let i=0;i<20;i++){test.wait(16);rebound=Math.max(rebound,pill.pop);}
+ check(rebound===0,'a pill that has gone stays gone, came back to '+rebound);
  Hyprland.toplevels.values=[ignoredWin,menuWin];test.wait(50);
  check(!pill.occupied,'windows the strip draws no icon for do not bring the pill out');
+ const hidden=workspace.createObject(suite,{id:-98,name:'special:dolphin'}),dolphin=win('dolphin',hidden,'org.kde.dolphin');
+ Hyprland.workspaces.values=[w1,hidden];Hyprland.toplevels.values=[dolphin];test.wait(50);
+ check(!pill.occupied && pill.pop===0,'a window on a special workspace does not bring the pill out');
+ Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.wait(50);
  w1.urgent=true;Hyprland.workspaces.values=[w1];test.wait(50);
  check(pill.occupied,'a shouting workspace keeps its marker in view');
  w1.urgent=false;Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.tryCompare(pill,'pop',0,1500);
  Hyprland.toplevels.values=[lastOnly];
+ test.wait(70);check(pill.pop>0.5,'the pill is there almost at once, at '+pill.pop);
  let peak=0;for(let i=0;i<40;i++){test.wait(16);peak=Math.max(peak,pill.pop);}
  check(pill.occupied && peak>1,'the pill comes in past its size, peaked at '+peak);
  test.tryCompare(pill,'pop',1,1500);
