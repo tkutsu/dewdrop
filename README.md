@@ -81,6 +81,7 @@ Settings > Launcher Apps > Desktop Actions shows or hides all app shortcuts toge
 - Recording indicator: while an app uses a microphone or shares the screen, a pill with a red dot comes out of the right pill; its popup mutes an app's mic or stops the share
 - Wi-Fi and Bluetooth
 - Removable drives with safe eject, device batteries
+- Downloads folder button, out of the drawer while a new download is unopened
 - CPU/GPU temperature, memory, top processes
 - Arch package updates
 - Wallpaper picker
