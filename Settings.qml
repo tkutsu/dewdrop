@@ -78,7 +78,7 @@ Singleton {
     readonly property string downloadsDir: root.expand(root.values.downloadsDir || "~/Downloads")
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
-    readonly property bool glassWorkspaceMark: root.values.glassWorkspaceMark === true
+    readonly property bool glassWorkspaceMark: root.values.glassWorkspaceMark !== false
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true

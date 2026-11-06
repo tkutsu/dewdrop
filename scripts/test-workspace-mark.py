@@ -89,13 +89,13 @@ ShellRoot {
                         && glass.box.y === mark.slabTop
                         && glass.box.z === mark.frontRight - mark.frontLeft,
                         "held glass strengthens the lens without swelling or trailing");
-                    Settings.user = {reduceMotion: true}; mark.held = false;
+                    Settings.user = {glassWorkspaceMark: false, reduceMotion: true}; mark.held = false;
                 } else if (phase === 3) {
                     check(glass.motion === 0 && glass.box.w === mark.thickness,
                         "Reduce motion settles the glass");
-                    Settings.user = {reduceTransparency: true};
+                    Settings.user = {glassWorkspaceMark: false, reduceTransparency: true};
                     check(!glass.active, "Reduce transparency uses the plain selection");
-                    Settings.user = {};
+                    Settings.user = {glassWorkspaceMark: false};
                     texture.glassWeight = 0;
                     check(!glass.active, "missing wallpaper uses the plain selection");
                     texture.glassWeight = 1;
@@ -156,7 +156,7 @@ def main():
         for source in ROOT.iterdir():
             if source.name not in (".git", "settings.json", "shell.qml"):
                 (target / source.name).symlink_to(source)
-        (target / "settings.json").write_text("{}\n")
+        (target / "settings.json").write_text('{"glassWorkspaceMark": false}\n')
         (target / "shell.qml").write_text(QML)
         # Disable only optical displacement; retain the real tint and border.
         shader = (ROOT / "shaders/glassmark.frag").read_text()
