@@ -28,7 +28,7 @@
 # a bar that answers again means a restart.
 #
 # A bar can also just exit, with no coredump and no crash relaunch (2026-11-05,
-# a popup's EGL surface failed after a wake lost the GPU context). Nothing
+# most likely a protocol error from a tray menu hiding, see MenuPopup). Nothing
 # named quickshell for GONE seconds means a relaunch, at most once per COOLDOWN
 # so a bar that keeps dying doesn't keep coming back. To keep the bar down on
 # purpose, stop this script first.
