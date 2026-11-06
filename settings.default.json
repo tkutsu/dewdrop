@@ -80,6 +80,7 @@
     "bellBadgeStyle": "badge",
     "updaterBadgeStyle": "badge",
     "feedsBadgeStyle": "badge",
+    "downloadsBadgeStyle": "badge",
 
     // Notifications from these apps disappear when their notice ends.
     // Use the app name shown in the notification; letter case is ignored.

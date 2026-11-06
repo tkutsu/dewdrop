@@ -28,12 +28,31 @@ Singleton {
 
     // [{ name, arrived, read }]
     property var files: []
-    readonly property var unopened: root.files.filter(f => f.arrived > stored.seen && f.read <= f.arrived + root.readingGrace)
+    // Newest first.
+    readonly property var unopened: root.files.filter(f => f.arrived > stored.seen && f.read <= f.arrived + root.readingGrace).sort((a, b) => b.arrived - a.arrived)
+    readonly property string label: root.unopened.length === 0 ? "" : String(Math.min(root.unopened.length, 99))
+
+    // The tooltip, one name a line. A long run stops rather than filling the screen.
+    readonly property int summaryLines: 8
+    readonly property string summary: {
+        const count = root.unopened.length;
+        if (count === 0)
+            return "Downloads";
+        const names = root.unopened.slice(0, root.summaryLines).map(f => f.name);
+        if (count > root.summaryLines)
+            names.push(`and ${count - root.summaryLines} more`);
+        return names.join("\n");
+    }
 
     function open(): void {
+        root.clear();
+        Quickshell.execDetached(Settings.inFileManager(Settings.downloadsDir));
+    }
+
+    // Everything here so far is no longer news. The files stay as they are.
+    function clear(): void {
         stored.seen = Date.now() / 1000;
         state.writeAdapter();
-        Quickshell.execDetached(Settings.inFileManager(Settings.downloadsDir));
     }
 
     function refresh(): void {

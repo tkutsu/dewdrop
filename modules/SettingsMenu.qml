@@ -272,7 +272,7 @@ OverlayWindow {
             sections: [
                 {
                     title: "Count Indicators",
-                    rows: ["email", "tasks", "countdown", "bell", "updater", "feeds"].map(key => root.badgeStyle(key))
+                    rows: ["email", "tasks", "countdown", "bell", "updater", "feeds", "downloads"].map(key => root.badgeStyle(key))
                 }
             ]
         },

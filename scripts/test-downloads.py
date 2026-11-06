@@ -15,15 +15,26 @@ import QtTest
 import Quickshell
 import qs
 import qs.services
+import qs.modules as Modules
 ShellRoot {
+    FloatingWindow {
+        implicitWidth: 100; implicitHeight: 40
+        Modules.Downloads { id: module; anchors.top: parent.top; anchors.left: parent.left }
+    }
     TestCase { id: test; when: false
         function check(ok, message) { if (!ok) throw Error(message); console.log("PASS: " + message); }
         function names() { return Downloads.unopened.map(f => f.name).sort().join(","); }
         function run() {
             test.tryVerify(() => Downloads.files.length > 0, 3000);
             check(names() === "fresh.bin,old-date.bin,renamed.bin", "only new, finished, unopened top-level files count: " + names());
-            Downloads.open();
-            check(names() === "", "opening the folder clears them");
+            check(!module.quiet && Downloads.label === "3", "the module is out with a count of three");
+            check(module.tooltip === "renamed.bin\\nold-date.bin\\nfresh.bin", "the tooltip names them, newest first: " + module.tooltip);
+            test.mouseClick(module, module.width / 2, 10, Qt.RightButton);
+            check(names() === "" && module.quiet && Downloads.label === "", "a right click clears them");
+            check(module.tooltip === "Downloads", "the tooltip falls back to the module's name");
+            test.wait(500);
+            test.mouseClick(module, module.width / 2, 10, Qt.LeftButton);
+            test.wait(300);
         }
     }
     Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log("FAIL: " + e + "\\n" + e.stack); } Qt.quit(); } }
@@ -37,7 +48,7 @@ def main():
         (target / "shell.qml").write_text(SHELL)
         downloads = target / "dl"
         downloads.mkdir()
-        (target / "settings.json").write_text(json.dumps({"downloadsDir": str(downloads), "fileManager": "true"}))
+        (target / "settings.json").write_text(json.dumps({"downloadsDir": str(downloads), "fileManager": f"touch {target / 'opened'}"}))
 
         now = time.time()
         state = target / "state/quickshell"
@@ -69,8 +80,13 @@ def main():
         lines = [line for line in output.splitlines() if "PASS:" in line or "FAIL:" in line]
         print("\n".join(lines))
         seen = json.loads((state / "downloads.json").read_text())["seen"]
-        ok = sum("PASS:" in line for line in lines) == 2 and not any("FAIL:" in line for line in lines)
-        if not ok or seen <= now:
+        ok = sum("PASS:" in line for line in lines) == 5 and not any("FAIL:" in line for line in lines)
+        # The file manager is detached, so it can finish just after the shell.
+        for _ in range(20):
+            if (target / "opened").exists():
+                break
+            time.sleep(0.1)
+        if not ok or seen <= now or not (target / "opened").exists():
             print(output)
             raise SystemExit(1)
 
