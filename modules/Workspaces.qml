@@ -33,7 +33,7 @@ BarItem {
     readonly property Item markItem: mark
     property bool drawsMark: true
     property Item badgeLayer: null
-    contentAnimating: folding || stripResize.running || mark.animating || popMotion.running
+    contentAnimating: folding || stripResize.running || mark.animating || bubbleIn.running || burstOut.running
 
     // With no app on the strip, and no workspace on it shouting for an app that
     // draws no icon (emptyBounce), there is nothing to say and the bar pops the
@@ -42,19 +42,41 @@ BarItem {
     readonly property bool occupied: root.shownWorkspaces.some(w => w.urgent
         || Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id && t.wayland
             && !root.ignored.some(re => re.test(root.windowClass(t)))))
-    // How far out the pill is: 0 gone, 1 there, swinging about 1 as it lands.
-    property real pop: occupied ? 1 : 0
-    Behavior on pop {
-        enabled: root._started
-        // It lands with a wobble and goes without one: a swing back from past
-        // 0 would bring a pill that had left back for a moment.
-        onTargetValueChanged: {
-            popMotion.spring = targetValue > 0 ? Theme.popSpring : Theme.popOutSpring;
-            popMotion.damping = targetValue > 0 ? Theme.popDamping : Theme.popOutDamping;
-        }
-        SpringAnimation {
-            id: popMotion
-            epsilon: 0.001
+    // The pill is a bubble. `pop` is how far it has blown up: 0 gone, 1 there,
+    // swinging about 1 as it lands. `burst` is how far through bursting it is,
+    // 0..1, after which it is gone.
+    property real pop: 0
+    property real burst: 0
+    onOccupiedChanged: {
+        bubbleIn.stop();
+        burstOut.stop();
+        burst = 0;
+        if (!_started)
+            pop = occupied ? 1 : 0;
+        else if (occupied)
+            bubbleIn.start();
+        else
+            burstOut.start();
+    }
+    SpringAnimation {
+        id: bubbleIn
+        target: root
+        property: "pop"
+        to: 1
+        spring: Theme.popSpring
+        damping: Theme.popDamping
+        epsilon: 0.005
+    }
+    NumberAnimation {
+        id: burstOut
+        target: root
+        property: "burst"
+        to: 1
+        duration: Theme.popOutMs
+        easing.type: Easing.OutQuad
+        onFinished: {
+            root.pop = 0;
+            root.burst = 0;
         }
     }
 
@@ -311,7 +333,11 @@ BarItem {
                 delete knownAddresses[address];
         root.lastWhole = { workspaces: root.liveWorkspaces, focused: root.focusedId, placement: root.livePlacement };
     }
-    Component.onCompleted: { Qt.callLater(root.snapshot); Qt.callLater(root.syncWorkspaces); }
+    Component.onCompleted: {
+        root.pop = root.occupied ? 1 : 0;
+        Qt.callLater(root.snapshot);
+        Qt.callLater(root.syncWorkspaces);
+    }
 
     HoverHandler {
         id: stripHover

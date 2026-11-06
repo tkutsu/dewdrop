@@ -173,20 +173,22 @@ PanelWindow {
     // separately anchored islands do that; a single RowLayout would not. Each
     // one places itself from its `side`, which is the same thing that tells it
     // whether it backs onto a screen edge and owes the margin a hit area.
-    // The left pill and what the bar draws over it pop in and out as one, for
-    // as long as the strip has something to show (Workspaces.occupied). There
-    // almost at once and nearly at size, then a wobble as the spring lands:
-    // wider and flatter past its size, narrower and taller short of it.
+    // The left pill and what the bar draws over it are one bubble, for as long
+    // as the strip has something to show (Workspaces.occupied). It blows up from
+    // a bead, narrower than it is tall, runs a little past its size going wide
+    // and flat, and wobbles to rest. It leaves by bursting: a last swell, and
+    // nothing, holding its opacity until the end of it.
     Item {
         anchors.fill: parent
         visible: workspaces.pop > 0
-        opacity: Math.min(1, 3 * workspaces.pop - 0.5)
+        opacity: Math.min(1, 3 * workspaces.pop) * (1 - workspaces.burst * workspaces.burst)
         transform: Scale {
             readonly property real swing: Theme.reduceMotion ? 0 : workspaces.pop - 1
+            readonly property real swell: Theme.reduceMotion ? 0 : 0.1 * workspaces.burst
             origin.x: leftPill.x + leftPill.width / 2
             origin.y: leftPill.y + leftPill.height / 2
-            xScale: 1 + 0.08 * swing
-            yScale: 1 - 0.05 * swing
+            xScale: 1 + (swing > 0 ? 0.12 : 0.4) * swing + swell
+            yScale: 1 + (swing > 0 ? -0.06 : 0.3) * swing + swell
         }
 
         Pill {
