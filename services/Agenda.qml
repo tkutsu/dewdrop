@@ -236,7 +236,7 @@ GoogleService {
                 root.fetchMonth(event.start, false);
         }, (why, status) => {
             root.fail(why, status);
-            Quickshell.execDetached(["notify-send", "-a", "quickshell", "Event not added", `${event.title}: ${why}`]);
+            Notify.send("Event not added", `${event.title}: ${why}`);
         });
     }
 

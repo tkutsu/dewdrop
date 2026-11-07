@@ -427,7 +427,7 @@ Singleton {
         target: PhoneAlarms
         function onFailed(reason: string): void {
             console.warn("Phone alert: " + reason);
-            Quickshell.execDetached(["notify-send", "-a", "quickshell", "-u", "normal", "Phone alert failed", reason]);
+            Notify.send("Phone alert failed", reason, ["-u", "normal"]);
         }
         function onFinished(): void { root.tick(); }
         function onAcknowledged(id: string, firedAt: real): void {

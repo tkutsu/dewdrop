@@ -53,7 +53,7 @@ Singleton {
     }
 
     function notify(title: string, body: string): void {
-        Quickshell.execDetached(["notify-send", "-a", "quickshell", "-i", "drive-removable-media", title, body]);
+        Notify.send(title, body, ["-i", "drive-removable-media"]);
     }
 
     // Every filesystem off it, then the power: one script so that a busy

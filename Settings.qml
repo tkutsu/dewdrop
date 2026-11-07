@@ -367,7 +367,7 @@ Singleton {
             return root.parse(view.text());
         } catch (e) {
             console.warn(`${name}: ${e.message}`);
-            Quickshell.execDetached(["notify-send", "-a", "Bar", `${name} did not parse`, "Look for a missing comma or quote in the last change. The bar keeps the settings it had."]);
+            Notify.send(`${name} did not parse`, "Look for a missing comma or quote in the last change. The bar keeps the settings it had.");
             return null;
         }
     }

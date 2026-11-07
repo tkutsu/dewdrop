@@ -27,7 +27,7 @@ Singleton {
             return;
         root.switched();
         if (Settings.layoutChangeNotification)
-            Quickshell.execDetached(["notify-send", "-e", "-a", "Bar", "-i", "input-keyboard", "-u", "low", "-t", "3000", "-h", "string:x-canonical-private-synchronous:keyboard-layout", "Keyboard Layout", root.layout]);
+            Notify.send("Keyboard Layout", root.layout, ["-e", "-i", "input-keyboard", "-u", "low", "-t", "3000", "-h", "string:x-canonical-private-synchronous:keyboard-layout"]);
     }
 
     // Which keyboard's layout the bar is showing. A different event source
