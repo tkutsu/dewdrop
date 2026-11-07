@@ -4,9 +4,8 @@ import qs
 import qs.components
 import qs.services
 
-// custom/updater. The upgrade itself still runs taskbar-update.sh, in the
-// dropdown when it is open or a kitty window otherwise — that half of the
-// script is the action, not bar plumbing.
+// custom/updater. The upgrade itself is the popup's button, which runs
+// settings.json's updateCommand.
 BarItem {
     name: "Updates"
 

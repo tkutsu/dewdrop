@@ -11,7 +11,7 @@ import qs.services
 // Future-dated tasks remain available in the popup.
 //
 // Hidden entirely until Google Tasks is connected: a machine that has never run
-// gtasks-setup is not a machine with an empty task list, and an icon for
+// gtasks-auth is not a machine with an empty task list, and an icon for
 // something that was never set up is one more thing to wonder about.
 BarItem {
     id: root

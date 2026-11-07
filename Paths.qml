@@ -2,8 +2,8 @@ pragma Singleton
 
 import Quickshell
 
-// Where the shell keeps what it writes, and where it finds the scripts it
-// runs. Nothing else builds a path out of $HOME, so a file moves in one place.
+// Where the shell keeps what it writes. Nothing else builds a path out of
+// $HOME, so a file moves in one place.
 //
 // Three kinds of file, each in a quickshell/ of its own under the matching
 // XDG base directory: state is what the shell remembers across restarts (the
@@ -26,11 +26,6 @@ Singleton {
 
     function cache(name: string): string {
         return root.under("XDG_CACHE_HOME", ".cache", name);
-    }
-
-    // One of the machine's own scripts (settings.json's scriptsDir).
-    function script(name: string): string {
-        return `${Settings.scriptsDir}/${name}`;
     }
 
     function under(variable: string, fallback: string, name: string): string {

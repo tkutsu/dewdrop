@@ -37,15 +37,15 @@ Popup {
         // upgrade is pressed on.
         title: Updates.pending === 0 ? "Updates"
             : `${Updates.pending} ${Updates.pending === 1 ? "Update" : "Updates"}` + (Updates.aur > 0 ? ` (${Updates.aur} AUR)` : "")
-        // The upgrade itself, in a terminal; only while there is something
-        // to take.
-        addable: Updates.pending > 0
+        // The upgrade itself, settings.json's updateCommand; only while there
+        // is something to take and something to take it with.
+        addable: Updates.pending > 0 && Settings.updateCommand !== ""
         addGlyph: Theme.glyph.download
         addLabel: "Upgrade"
         addName: "Upgrade"
         onAdd: {
             OpenPopup.dismiss();
-            Quickshell.execDetached([Paths.script("taskbar-update.sh")]);
+            Quickshell.execDetached(Settings.inTerminal(["sh", "-c", Settings.updateCommand], "Upgrade (floating)", true));
         }
 
         // The same check as a right-click on the bar, where it can be found.
@@ -59,18 +59,17 @@ Popup {
             onTapped: Updates.retryNow()
         }
 
-        // The system's maintenance: caches, orphans, snapshots, logs. A button
-        // you have to open the popup to reach rather than a click on the bar,
-        // because it removes packages without asking. Runs where the upgrade
-        // does: a dropdown pane, starting the dropdown if needed. A Kitty
-        // window is the fallback if the dropdown cannot become ready.
+        // The system's maintenance, whatever settings.json's cleanupCommand
+        // makes that. A button you have to open the popup to reach rather than
+        // a click on the bar, because it may remove things without asking.
         PopupButton {
+            visible: Settings.cleanupCommand !== ""
             framed: true
             glyph: Theme.glyph.cleanup
             label: "Clean Up"
             onTapped: {
                 OpenPopup.dismiss();
-                Quickshell.execDetached([Paths.script("dropdown-run.sh"), "cleanup", Paths.script("cleanup.sh")]);
+                Quickshell.execDetached(Settings.inTerminal(["sh", "-c", Settings.cleanupCommand], "Clean Up (floating)", true));
             }
         }
     }

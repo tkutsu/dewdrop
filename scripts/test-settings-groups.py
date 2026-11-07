@@ -137,8 +137,9 @@ ShellRoot {
 
             // Exercise the actual text controls and field commits across relocated sections.
             for (const [id, value] of [["terminal", "test-terminal"], ["editor", "test-editor"], ["fileManager", "test-files --new-window"],
-                    ["mpdSocket", "$XDG_RUNTIME_DIR/test mpd.sock"], ["scriptsDir", "~/test helpers"], ["downloadsDir", "~/test attachments"],
-                    ["screenshotCommand", "printf should-not-run"]]) {
+                    ["mpdSocket", "$XDG_RUNTIME_DIR/test mpd.sock"], ["downloadsDir", "~/test attachments"], ["screenshotCommand", "printf should-not-run"],
+                    ["updateCommand", "printf should-not-run"], ["cleanupCommand", "printf should-not-run"],
+                    ["sessionSaveCommand", "printf should-not-run"], ["displayBus", "7"]]) {
                 menu.query = row(id).title;
                 wait(80);
                 const field = find(menu.contentItem, i => i.stored !== undefined && i.parent?.setting?.id === id);

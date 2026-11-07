@@ -78,7 +78,7 @@ ShellRoot {
                 tasks.set("custom-pwa");
                 launch(() => Quickshell.execDetached(Settings.webApp("tasks", "https://tasks.google.com/deep", "https://tasks.google.com/")));
 
-                const folders = menu.pages.reduce((rows, p) => rows.concat(...p.sections.map(s => s.rows)), []).filter(r => ["downloadsDir", "wallpaperDir", "scriptsDir"].includes(r.id));
+                const folders = menu.pages.reduce((rows, p) => rows.concat(...p.sections.map(s => s.rows)), []).filter(r => ["downloadsDir", "wallpaperDir"].includes(r.id));
                 for (const row of folders) {
                     menu.query = row.title;
                     wait(80);

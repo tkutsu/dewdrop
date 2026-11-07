@@ -9,7 +9,7 @@
 #
 # The popup's cells are 104x58 and the wallpapers are 4K photographs, 70MB of
 # them, all decoded again every time it opened. Each is drawn down here once,
-# to 512 on the long edge like ~/_scripts/thumb.sh's renders, and kept.
+# to 512 on the long edge like scripts/thumb.sh's renders, and kept.
 #
 # Keyed by path, mtime and size, again the way thumb.sh keys, so a wallpaper
 # replaced in place gets a new picture. Every run is handed the whole folder,
