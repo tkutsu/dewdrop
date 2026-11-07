@@ -461,9 +461,12 @@ OverlayWindow {
                     ]
                 },
                 {
-                    title: "External Helpers",
+                    title: "External Commands",
                     rows: [
-                        { type: "text", id: "scriptsDir", title: "Scripts Folder", tooltip: "Helpers for power, display, updates and cleanup.", placeholder: Settings.defaults.scriptsDir, get: () => Settings.values.scriptsDir, set: v => Settings.set("scriptsDir", v.trim() || Settings.defaults.scriptsDir) }
+                        { type: "text", id: "updateCommand", title: "Upgrade Command", text: "Runs in the terminal. Empty hides the Upgrade button.", placeholder: "yay", get: () => Settings.updateCommand, set: v => Settings.set("updateCommand", v.trim()) },
+                        { type: "text", id: "cleanupCommand", title: "Clean Up Command", text: "Runs in the terminal. Empty hides the Clean Up button.", placeholder: "Not configured", get: () => Settings.cleanupCommand, set: v => Settings.set("cleanupCommand", v.trim()) },
+                        { type: "text", id: "sessionSaveCommand", title: "Session Save Command", text: "Runs before logging out.", placeholder: "Not configured", get: () => Settings.sessionSaveCommand, set: v => Settings.set("sessionSaveCommand", v.trim()) },
+                        { type: "text", id: "displayBus", title: "Monitor Bus", text: "Empty uses the first monitor.", tooltip: "The DDC/CI bus from ddcutil detect. A laptop's panel does not use this.", placeholder: "Not configured", get: () => Settings.values.displayBus ?? "", set: v => Settings.set("displayBus", v.trim()) }
                     ]
                 }
             ]

@@ -7,9 +7,9 @@ import qs
 // The bar's main Google sign-in, shared by Tasks, Agenda and Email. The
 // sign-in itself is GoogleAccount.qml.
 //
-// ~/_scripts/gtasks-setup walks the consent once and leaves a refresh token in
-// gtasks.json, granted for every scope these services use; scripts/gtasks-auth
-// is the consent step on its own, which the popups run to reconnect.
+// scripts/gtasks-auth walks the consent once and leaves a refresh token in
+// gtasks.json, granted for every scope these services use; the popups run it
+// again to reconnect.
 GoogleAccount {
     id: root
 
@@ -19,7 +19,7 @@ GoogleAccount {
     requireAny: ["calendar", "calendar.events", "calendar.events.owned"]
 
     // The one-time sign-in, as the messages name it for you to go and run.
-    readonly property string setup: Paths.script("gtasks-setup").replace(Settings.home, "~")
+    readonly property string setup: Quickshell.shellPath("scripts/gtasks-auth").replace(Settings.home, "~")
 
     // --- days ----------------------------------------------------------------
     // Google's APIs speak in calendar days, and both services compare them as

@@ -256,6 +256,14 @@
     // Applying equalizer changes backs up this file and restarts mpd.service.
     "mpdConfig": "~/.config/mpd/mpd.conf",
 
+    // The updates popup's Upgrade button: a shell command, run in the terminal
+    // above, like "yay" or "sudo pacman -Syu". Empty hides the button.
+    "updateCommand": "",
+
+    // The Clean Up button beside it, run the same way: your system's
+    // maintenance, whatever that is. Empty hides the button.
+    "cleanupCommand": "",
+
     // Run before logging out, to save your windows for next time. Empty saves
     // nothing.
     "sessionSaveCommand": "",
@@ -264,9 +272,6 @@
     // it. Naming it is quicker. Empty uses the first monitor. A laptop's panel
     // does not use this.
     "displayBus": "",
-
-    // External helpers for updates and cleanup.
-    "scriptsDir": "~/_scripts",
 
     // App desktop IDs for gmail, calendar and tasks. An empty value detects
     // an installed Chromium PWA; "browser" always opens the website.
