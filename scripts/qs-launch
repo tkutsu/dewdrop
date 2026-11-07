@@ -8,6 +8,10 @@
 # The bar's env (the gtk3 platform theme) lives in the pragmas at the
 # top of ~/.config/quickshell/shell.qml, so any launch gets it.
 #
+# A Wayland protocol error reaches only stderr, never the bar's own logs, so
+# stderr goes to a file. The last launch's moves to stderr.old: that is the one
+# holding a dead bar's last words once the watchdog has relaunched it.
+#
 # Launch through Hyprland so the bar gets Hyprland's env, not a shell's:
 #   hyprctl dispatch 'hl.dsp.exec_cmd("/home/kutsui/.config/quickshell/scripts/qs-launch")'
 
@@ -16,6 +20,14 @@ import os
 
 PR_SET_PTRACER = 0x59616D61
 PR_SET_PTRACER_ANY = ctypes.c_ulong(2**64 - 1)
+STATE = os.path.expanduser("~/.local/state/quickshell-watchdog")
+STDERR = f"{STATE}/stderr"
 
 ctypes.CDLL(None).prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0)
+
+os.makedirs(STATE, exist_ok=True)
+if os.path.exists(STDERR):
+    os.replace(STDERR, f"{STDERR}.old")
+os.dup2(os.open(STDERR, os.O_WRONLY | os.O_CREAT, 0o644), 2)
+
 os.execvp("quickshell", ["quickshell"])
