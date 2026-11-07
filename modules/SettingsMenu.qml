@@ -508,11 +508,19 @@ OverlayWindow {
                     ]
                 },
                 {
-                    title: "External Commands",
+                    // The switch is these two buttons' alone, so it sits with
+                    // them and names them, apart from the other commands.
+                    title: "Updates",
+                    text: "The Upgrade and Clean Up buttons in the updates popup.",
                     rows: [
-                        { type: "text", id: "updateCommand", title: "Upgrade Command", text: "Runs in the terminal. Empty uses yay, or else pacman.", placeholder: "yay", get: () => Settings.values.updateCommand ?? "", set: v => Settings.set("updateCommand", v.trim()) },
-                        { type: "text", id: "cleanupCommand", title: "Clean Up Command", text: "Runs in the terminal. Empty hides the Clean Up button.", placeholder: "Not configured", get: () => Settings.cleanupCommand, set: v => Settings.set("cleanupCommand", v.trim()) },
-                        { type: "toggle", id: "commandsInTerminal", title: "Run In Terminal", text: "Turn off for commands that open their own terminal.", get: () => Settings.commandsInTerminal, set: v => Settings.set("commandsInTerminal", v) },
+                        { type: "text", id: "updateCommand", title: "Upgrade Command", text: "Empty uses yay, or else pacman.", placeholder: "yay", get: () => Settings.values.updateCommand ?? "", set: v => Settings.set("updateCommand", v.trim()) },
+                        { type: "text", id: "cleanupCommand", title: "Clean Up Command", text: "Empty hides the Clean Up button.", placeholder: "Not configured", get: () => Settings.cleanupCommand, set: v => Settings.set("cleanupCommand", v.trim()) },
+                        { type: "toggle", id: "commandsInTerminal", title: "Open In Terminal", text: "Runs Upgrade and Clean Up in your terminal. Turn off when they open their own, like a dropdown.", get: () => Settings.commandsInTerminal, set: v => Settings.set("commandsInTerminal", v) }
+                    ]
+                },
+                {
+                    title: "Other Commands",
+                    rows: [
                         { type: "text", id: "sessionSaveCommand", title: "Session Save Command", text: "Runs before logging out.", placeholder: "Not configured", get: () => Settings.sessionSaveCommand, set: v => Settings.set("sessionSaveCommand", v.trim()) },
                         { type: "text", id: "installCommand", title: "Install Command", text: "Install runs it with Arch package names after it.", placeholder: Tools.installCommand || "Not configured", get: () => Settings.values.installCommand ?? "", set: v => Settings.set("installCommand", v.trim()) },
                         { type: "text", id: "displayBus", title: "Monitor Bus", text: "Empty uses the first monitor.", tooltip: "The DDC/CI bus from ddcutil detect. A laptop's panel does not use this.", placeholder: "Not configured", get: () => Settings.values.displayBus ?? "", set: v => Settings.set("displayBus", v.trim()) }
