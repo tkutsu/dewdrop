@@ -49,11 +49,15 @@ BarItem {
         nudge: root.cone ? -1 : 0
     }
 
-    // Left is the popup (BarItem.popupButton).
+    // Left is the popup (BarItem.popupButton); right is networkCommand, or
+    // the popup again when that is missing, where it says so.
     actions: ({
             [Qt.RightButton]: () => {
+                const command = Settings.helper(Settings.networkCommand, false);
+                if (command.length === 0)
+                    return root.togglePopup();
                 OpenPopup.dismiss();
-                Quickshell.execDetached(["nm-connection-editor"]);
+                Quickshell.execDetached(command);
             }
         })
 }

@@ -50,6 +50,14 @@ Popup {
             title: "Night Mode"
         }
 
+        // The dimming works without it; the warmth is hyprsunset's.
+        NeedsNote {
+            width: root.bodyWidth
+            topPadding: Theme.popupSpacing
+            feature: "Night tint"
+            programs: ["hyprsunset"]
+        }
+
         // Four modes use the shared dropdown rather than a crowded capsule.
         Item {
             width: root.bodyWidth

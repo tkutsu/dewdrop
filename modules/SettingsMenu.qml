@@ -88,9 +88,29 @@ OverlayWindow {
         { value: "drawer", label: "Drawer" }
     ]
 
+    // A right click's app (Settings.networkCommand and the rest).
+    function helperRow(key: string, title: string, glyph: string, text: string): var {
+        return { type: "text", id: key, title, glyph, text, placeholder: "Not configured", get: () => Settings.values[key] ?? "", set: v => Settings.set(key, v.trim()),
+            needs: { programs: Settings[key] ? [Settings.program(Settings[key])] : [] } };
+    }
+
+    // What each module is missing without these, said under its row with an
+    // Install link: the ones that hide for want of a program, and the ones
+    // whose right click opens one.
+    readonly property var moduleNeeds: ({
+            weather: ["python3"],
+            updater: ["checkupdates"],
+            night: [NightMode.needs, "hyprsunset"].filter(name => name !== ""),
+            network: Settings.networkCommand ? [Settings.program(Settings.networkCommand)] : [],
+            bluetooth: Settings.bluetoothCommand ? [Settings.program(Settings.bluetoothCommand)] : [],
+            sys: Settings.monitorCommand ? [Settings.program(Settings.monitorCommand), Tools.terminal] : [],
+            email: ["notify-send"]
+        })
+
     function placement(key: string): var {
         const m = root.modules[key];
-        return { type: "choice", id: "pin:" + key, title: m.title, glyph: m.glyph, options: root.pinOptions, get: () => DrawerPins.mode(key), set: v => DrawerPins.setMode(key, v) };
+        return { type: "choice", id: "pin:" + key, title: m.title, glyph: m.glyph, options: root.pinOptions, get: () => DrawerPins.mode(key), set: v => DrawerPins.setMode(key, v),
+            needs: { programs: root.moduleNeeds[key] ?? [] } };
     }
 
     function badgeStyle(key: string): var {
@@ -169,7 +189,9 @@ OverlayWindow {
         root.shownInLauncher("desktop:bluetooth-power", "Bluetooth", { glyph: Theme.glyph.bluetooth })
     ]
 
-    readonly property var powerRows: Power.actions.map(p => root.shownInLauncher("power:" + p.key, p.name, { glyph: p.glyph }))
+    // Each says what its black screen is missing (Power.fades).
+    readonly property var powerRows: Power.actions.map(p => Object.assign(root.shownInLauncher("power:" + p.key, p.name, { glyph: p.glyph }),
+        { needs: { feature: "The black screen animation", programs: Power.fadeNeeds(p.arg ?? "") } }))
 
     function feedAddressProblem(value: string): string {
         return /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/.test(value)
@@ -337,7 +359,15 @@ OverlayWindow {
                     rows: [
                         { type: "text", id: "wallpaperDir", title: "Image Folder", placeholder: Settings.defaults.wallpaperDir, get: () => Settings.values.wallpaperDir, set: v => Settings.set("wallpaperDir", v.trim() || Settings.defaults.wallpaperDir) }
                     ]
-                }
+                },
+                // Only while it is missing: the bar asks for Themis by name
+                // (shell.qml), and falls back to plain icons without it.
+                ...(Tools.has("themis") ? [] : [{
+                    title: "Icons",
+                    rows: [
+                        { type: "info", id: "themis", title: "App Icons", needs: { feature: "The bar's monochrome look", programs: ["themis"] } }
+                    ]
+                }])
             ]
         },
         {
@@ -449,9 +479,20 @@ OverlayWindow {
                 {
                     title: "Default Apps",
                     rows: [
-                        { type: "text", id: "terminal", title: "Terminal", tooltip: "Must accept --title=<title> and -e <command>.", placeholder: Settings.defaults.terminal, get: () => Settings.values.terminal, set: v => Settings.set("terminal", v.trim() || Settings.defaults.terminal) },
+                        { type: "text", id: "terminal", title: "Terminal", text: "Empty uses the first of kitty, foot, alacritty and ghostty installed.", tooltip: "Must accept --title=<title> and -e <command>.",
+                            placeholder: Tools.terminal || "None found", get: () => Settings.values.terminal ?? "", set: v => Settings.set("terminal", v.trim()),
+                            needs: { programs: [Tools.terminal] } },
                         { type: "text", id: "editor", title: "Editor", placeholder: Quickshell.env("EDITOR") || "nvim", get: () => Settings.values.editor ?? "", set: v => Settings.set("editor", v.trim()) },
                         { type: "text", id: "fileManager", title: "File Manager", tooltip: "Flags may follow the program name.", placeholder: Settings.defaults.fileManager, get: () => Settings.values.fileManager, set: v => Settings.set("fileManager", v.trim() || Settings.defaults.fileManager) }
+                    ]
+                },
+                {
+                    title: "Right Click",
+                    text: "What a right click on a module opens. Empty hides its button in the popup.",
+                    rows: [
+                        root.helperRow("networkCommand", "Network", Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], ""),
+                        root.helperRow("bluetoothCommand", "Bluetooth", Theme.glyph.bluetooth, ""),
+                        root.helperRow("monitorCommand", "System", Theme.glyph.gauge, "Runs in the terminal.")
                     ]
                 },
                 {
@@ -467,6 +508,7 @@ OverlayWindow {
                         { type: "text", id: "cleanupCommand", title: "Clean Up Command", text: "Runs in the terminal. Empty hides the Clean Up button.", placeholder: "Not configured", get: () => Settings.cleanupCommand, set: v => Settings.set("cleanupCommand", v.trim()) },
                         { type: "toggle", id: "commandsInTerminal", title: "Run In Terminal", text: "Turn off for commands that open their own terminal.", get: () => Settings.commandsInTerminal, set: v => Settings.set("commandsInTerminal", v) },
                         { type: "text", id: "sessionSaveCommand", title: "Session Save Command", text: "Runs before logging out.", placeholder: "Not configured", get: () => Settings.sessionSaveCommand, set: v => Settings.set("sessionSaveCommand", v.trim()) },
+                        { type: "text", id: "installCommand", title: "Install Command", text: "Install runs it with Arch package names after it.", placeholder: Tools.installCommand || "Not configured", get: () => Settings.values.installCommand ?? "", set: v => Settings.set("installCommand", v.trim()) },
                         { type: "text", id: "displayBus", title: "Monitor Bus", text: "Empty uses the first monitor.", tooltip: "The DDC/CI bus from ddcutil detect. A laptop's panel does not use this.", placeholder: "Not configured", get: () => Settings.values.displayBus ?? "", set: v => Settings.set("displayBus", v.trim()) }
                     ]
                 }

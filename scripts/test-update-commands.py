@@ -87,7 +87,7 @@ def main():
         assert not result['present'] and result['trouble'] == '', result
         print('PASS: without checkupdates the module hides rather than warns')
 
-        result = shell_result(base / 'chosen', {'checkupdates': update}, {'updateCommand': 'paru'})
+        result = shell_result(base / 'chosen', {'checkupdates': update}, {'updateCommand': 'paru', 'terminal': 'kitty'})
         assert result['command'] == 'paru', result
         print('PASS: updateCommand wins over the fallback')
 

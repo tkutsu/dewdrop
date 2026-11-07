@@ -1,9 +1,14 @@
 //@ pragma Env QSG_RENDER_LOOP=threaded
 //@ pragma Env QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 //@ pragma Env QT_QPA_PLATFORMTHEME=gtk3
+//@ pragma IconTheme themis
 
 // Drive popup motion and fades at the display refresh rate. gtk3, because the
 // session's qt6ct points Qt at a different icon theme from GTK's.
+//
+// App icons are Themis's, whatever the system's theme, because the bar is drawn
+// for them; without it installed, Qt falls back to hicolor, and Settings >
+// Appearance says where to get it. Another theme's name here uses that one.
 //
 // Not Vulkan, though it rides out the wakes that hang GL in NVIDIA's EGL
 // (qs-watchdog restarts the bar after those): every popup, tag and launcher

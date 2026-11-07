@@ -6,10 +6,13 @@ import qs
 //
 // A setting is a plain object, which is all a page has to write to add one:
 //
-//   type      "toggle", "choice", "dropdown", "slider", "text", "list" or "shortcuts"
+//   type      "toggle", "choice", "dropdown", "slider", "text", "list" or
+//             "shortcuts"; "info" for words alone
 //   title     its name
 //   text      what it does, optional
 //   tooltip   extra help shown on info-icon hover, optional
+//   needs     { feature, programs }: what it is missing, with an Install
+//             link, shown under the text while one is (NeedsNote); optional
 //   icon      an icon name or path, or glyph, a Theme.glyph value; optional
 //   get, set  read and write the value, wherever it lives (Settings,
 //             DrawerPins, ...). `get` is read in a binding, so whatever it
@@ -71,7 +74,7 @@ Item {
     readonly property bool listControl: root.kind === "list" || root.kind === "shortcuts"
     readonly property bool stacked: root.listControl || control.implicitWidth > (root.width - root.lead - 24) / 2
 
-    implicitHeight: Math.max(28, words.implicitHeight + (root.note ? 12 : 8),
+    implicitHeight: Math.max(28, words.implicitHeight + (root.note || needs.visible ? 12 : 8),
         root.stacked ? words.implicitHeight + control.height + 20 : control.height + 12)
 
     Rectangle {
@@ -189,6 +192,19 @@ Item {
             color: root.trouble ? Theme.warn : Theme.label2
             font.pixelSize: Theme.captionSize
             lineHeight: 1.15
+        }
+
+        NeedsNote {
+            id: needs
+
+            width: parent.width
+            leftPadding: 0
+            rightPadding: 0
+            font.pixelSize: Theme.captionSize
+            lineHeight: 1.15
+            dismisses: false
+            feature: root.setting.needs?.feature ?? ""
+            programs: root.setting.needs?.programs ?? []
         }
     }
 

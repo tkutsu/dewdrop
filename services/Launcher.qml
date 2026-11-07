@@ -901,7 +901,7 @@ Singleton {
 
     function calcResults(expr, strict) {
         if (!Tools.has("qalc"))
-            return strict ? [] : [root.noteRow(Theme.glyph.launcherCalc, "no calculator", "needs qalc")];
+            return strict ? [] : [root.noteRow(Theme.glyph.launcherCalc, "no calculator", "needs " + Tools.label("qalc"))];
         const a = root.calcAnswer;
         if (!expr || !a || a.expr !== expr || !a.text)
             return [];

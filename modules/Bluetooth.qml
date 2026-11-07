@@ -43,11 +43,15 @@ BarItem {
         fontSize: Theme.trayGlyphSize
     }
 
-    // Left is the popup (BarItem.popupButton).
+    // Left is the popup (BarItem.popupButton); right is bluetoothCommand, or
+    // the popup again when that is missing, where it says so.
     actions: ({
             [Qt.RightButton]: () => {
+                const command = Settings.helper(Settings.bluetoothCommand, false);
+                if (command.length === 0)
+                    return root.togglePopup();
                 OpenPopup.dismiss();
-                Quickshell.execDetached(["blueman-manager"]);
+                Quickshell.execDetached(command);
             }
         })
 }

@@ -24,13 +24,15 @@ Popup {
         title: "Network"
 
         PopupButton {
-            visible: Tools.has("nm-connection-editor")
+            readonly property var command: Settings.helper(Settings.networkCommand, false)
+
+            visible: command.length > 0
             framed: true
             glyph: Theme.glyph.openApp
             name: "Network Settings"
             onTapped: {
                 OpenPopup.dismiss();
-                Quickshell.execDetached(["nm-connection-editor"]);
+                Quickshell.execDetached(command);
             }
         }
 
@@ -41,6 +43,12 @@ Popup {
             checked: Network.wifiOn
             onToggled: Network.toggleWifi()
         }
+    }
+
+    NeedsNote {
+        width: root.bodyWidth
+        feature: "Network Settings"
+        programs: Settings.networkCommand ? [Settings.program(Settings.networkCommand)] : []
     }
 
     // The cable, when one is plugged in. Not a thing to press: it is up
