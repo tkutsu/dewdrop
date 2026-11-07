@@ -22,8 +22,8 @@ Item {
 
     signal toggled
 
-    // The keys (Popup.qml); without a `keyed` the popup rings it.
-    readonly property var keyPress: root.standalone ? () => root.toggled() : null
+    // The keys (Popup.qml, SettingsMenu.qml); without a `keyed` they ring it.
+    readonly property var keyPress: root.standalone ? () => root.toggled() : () => root.setting.set(!root.setting.get())
 
     Accessible.role: Accessible.CheckBox
     Accessible.name: root.name

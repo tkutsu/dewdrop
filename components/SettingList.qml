@@ -121,6 +121,9 @@ Item {
                     spacing: 6
 
                     Rectangle {
+                        // The settings window's keys hand it the typing.
+                        readonly property var keyFocus: () => input.forceActiveFocus()
+
                         width: parent.width - removeButton.width - parent.spacing
                         height: 26
                         radius: Theme.selectionRadius + 2

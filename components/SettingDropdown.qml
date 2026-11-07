@@ -39,6 +39,14 @@ Controls.ComboBox {
     leftPadding: 10
     rightPadding: 22
 
+    // The settings window's keys (SettingsMenu.qml) open the menu and leave
+    // it the arrows, Return and Escape. A bar popup gives no keyboard focus,
+    // so it reaches only `keyPress` controls and leaves this one out.
+    function keyFocus(): void {
+        root.forceActiveFocus();
+        root.popup.open();
+    }
+
     // Every option's label laid out unseen, so the button can be as wide as
     // the widest.
     Column {
@@ -169,6 +177,9 @@ Controls.ComboBox {
         }
         onClosed: {
             root.chosenIndex = -1;
+            // Let go of the keys, or Up and Down would go on changing the
+            // pick unseen; whatever holds the button gets them back.
+            root.focus = false;
             const window = root.QsWindow.window;
             if (window?.dropdown === root)
                 window.dropdown = null;

@@ -1,3 +1,4 @@
+import "../KeyTargets.js" as KeyTargets
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Effects
@@ -44,6 +45,121 @@ OverlayWindow {
 
     property int page: 0
     property string query: ""
+
+    // --- the keys ------------------------------------------------------------
+    // The search keeps the keys while you type. With it empty, Up and Down
+    // walk the tabs and Right goes over to the page; with words in it, Left
+    // and Right are the caret's and Down goes over to what they found. On the
+    // page the arrows walk its controls the way a popup's do (Popup.qml):
+    // Return or Space presses one, a field or pop-up button keeps the keys
+    // until Return or Escape hands them back, and Left with nothing further
+    // left comes back to the tabs. Typing on the page goes to the search.
+    property Item keyItem: null
+    // A field or pop-up button chosen by Return or Space, entered on that
+    // key's release: a pop-up button would take the release as a pick.
+    property Item entering: null
+
+    function keyTargets(): var {
+        return KeyTargets.targets(list.contentItem, t => typeof t.keyPress === "function" || typeof t.keyStep === "function" || typeof t.keyFocus === "function");
+    }
+
+    function setKey(item: Item): void {
+        if (root.keyItem && root.keyItem.keyed !== undefined)
+            root.keyItem.keyed = false;
+        root.keyItem = item;
+        if (!item)
+            return;
+        if (item.keyed !== undefined)
+            item.keyed = true;
+        // Into view, clear of the faded edges; its top first if it is taller.
+        const y = item.mapToItem(list.contentItem, 0, 0).y;
+        list.cancelFlick();
+        list.contentY = Math.min(y - list.topMargin, Math.max(list.contentY, y + item.height + list.bottomMargin - list.height));
+    }
+
+    // Over to the page, onto its first control in sight.
+    function enterPage(): void {
+        const all = root.keyTargets();
+        const top = list.contentY + list.topMargin;
+        const first = all.find(t => t.mapToItem(list.contentItem, 0, 0).y >= top) ?? all[0];
+        if (!first)
+            return;
+        content.forceActiveFocus();
+        root.setKey(first);
+    }
+
+    // Every key the box's controls pass on reaches here, the search's too.
+    function pageKey(event: var): bool {
+        const k = event.key;
+        // From a field or pop-up button on the page, which is done with it.
+        const passed = !content.activeFocus && !filter.activeFocus;
+        // Escape closes the window, unless it is leaving a field the keys
+        // brought you into (one putting its text back keeps it).
+        if (k === Qt.Key_Escape && !(passed && root.keyItem)) {
+            Preferences.hide();
+            return true;
+        }
+        if (filter.activeFocus)
+            return false;
+        // The page takes the keys back from a control they brought you into,
+        // or from the list once that control went away; one clicked into
+        // keeps them. A field keeps Left and Right at either end.
+        if (passed) {
+            const focused = content.Window.activeFocusItem;
+            if (!root.keyItem && focused !== list)
+                return false;
+            if (focused?.cursorPosition !== undefined && (k === Qt.Key_Left || k === Qt.Key_Right))
+                return true;
+            content.forceActiveFocus();
+            if (k === Qt.Key_Escape || k === Qt.Key_Return || k === Qt.Key_Enter)
+                return true;
+        }
+        const t = root.keyItem;
+        switch (k) {
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            if (typeof t?.keyFocus === "function")
+                root.entering = t;
+            else if (typeof t?.keyPress === "function")
+                t.keyPress();
+            return true;
+        case Qt.Key_Left:
+        case Qt.Key_Right:
+            if (typeof t?.keyStep === "function") {
+                t.keyStep(k === Qt.Key_Right ? 1 : -1);
+                return true;
+            }
+            break;
+        case Qt.Key_Up:
+        case Qt.Key_Down:
+        case Qt.Key_Tab:
+        case Qt.Key_Backtab:
+            break;
+        default:
+            if (!/^[^\x00-\x1f\x7f]+$/.test(event.text) || event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier))
+                return false;
+            filter.forceActiveFocus();
+            filter.insert(filter.cursorPosition, event.text);
+            return true;
+        }
+        const next = KeyTargets.neighbour(root.keyTargets(), t, k, list.contentItem);
+        if (next)
+            root.setKey(next);
+        else if (k === Qt.Key_Left)
+            filter.forceActiveFocus();
+        return true;
+    }
+
+    function pageKeyReleased(event: var): bool {
+        const t = root.entering;
+        if (!t || event.isAutoRepeat || ![Qt.Key_Return, Qt.Key_Enter, Qt.Key_Space].includes(event.key))
+            return false;
+        root.entering = null;
+        if (t === root.keyItem)
+            t.keyFocus();
+        return true;
+    }
 
     // Weather Model lists each model's temperature now.
     onOpenedChanged: if (root.opened)
@@ -712,9 +828,25 @@ OverlayWindow {
             height: root.boxHeight
             opacity: root.contentAlpha
 
-            // Escape from anywhere in the box that has not used it itself
-            // (a field putting its text back does).
-            Keys.onEscapePressed: Preferences.hide()
+            // The page's keys (pageKey above), with the focus here while they
+            // walk it, and Escape from anywhere in the box.
+            Keys.onPressed: event => event.accepted = root.pageKey(event)
+            Keys.onReleased: event => event.accepted = root.pageKeyReleased(event)
+
+            // The pointer moving takes the page back from the keys, as in a
+            // popup. Moved, not merely re-reported as the page scrolls under it.
+            HoverHandler {
+                property point last
+
+                onPointChanged: {
+                    const p = point.scenePosition;
+                    if (p.x === last.x && p.y === last.y)
+                        return;
+                    last = p;
+                    if (root.keyItem)
+                        root.setKey(null);
+                }
+            }
 
             // --- the sidebar ---------------------------------------------
 
@@ -756,6 +888,8 @@ OverlayWindow {
                         font.pixelSize: Theme.popupTextSize
                         focus: true
                         onTextChanged: root.query = text
+                        onActiveFocusChanged: if (activeFocus)
+                            root.setKey(null)
                         Component.onCompleted: forceActiveFocus()
 
                         PopupText {
@@ -771,6 +905,10 @@ OverlayWindow {
                             } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
                                 filter.text = "";
                                 root.page = (root.page + (event.key === Qt.Key_Tab ? 1 : root.pages.length - 1)) % root.pages.length;
+                            } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && !filter.text) {
+                                root.page = Math.max(0, Math.min(root.pages.length - 1, root.page + (event.key === Qt.Key_Down ? 1 : -1)));
+                            } else if (event.key === Qt.Key_Right && !filter.text || event.key === Qt.Key_Down) {
+                                root.enterPage();
                             } else {
                                 return;
                             }
@@ -894,6 +1032,9 @@ OverlayWindow {
                     view: list
                 }
                 boundsBehavior: Flickable.StopAtBounds
+                // The page's keys are pageKey's, even when the focus falls back
+                // here from a control that went away.
+                keyNavigationEnabled: false
 
                 SmoothScroll { view: list }
                 Controls.ScrollBar.vertical: SettingsScrollBar {
@@ -987,6 +1128,29 @@ OverlayWindow {
                         }
                     }
                 }
+            }
+
+            // The keys' mark on a control that draws no highlight of its own,
+            // the ring a popup draws (Popup.qml), carried with the page as it
+            // scrolls and clipped to it.
+            Rectangle {
+                readonly property rect area: {
+                    const t = root.keyItem;
+                    void list.contentY;
+                    return t ? t.mapToItem(list, 0, 0, t.width, t.height) : Qt.rect(0, 0, 0, 0);
+                }
+
+                parent: list
+                visible: root.keyItem !== null && root.keyItem.keyed === undefined
+                x: area.x - 2
+                y: area.y - 2
+                width: area.width + 4
+                height: area.height + 4
+                z: 2
+                radius: Theme.selectionRadius
+                color: "transparent"
+                border.width: 1.5
+                border.color: Theme.outlineHover
             }
         }
     }
