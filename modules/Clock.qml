@@ -79,7 +79,7 @@ BarItem {
                 // timestamp is the one thing here that wants the seconds.
                 const stamp = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss");
                 Quickshell.clipboardText = stamp;
-                Quickshell.execDetached(["notify-send", "Copied timestamp", stamp]);
+                Notify.send("Copied timestamp", stamp);
             }
         })
 }

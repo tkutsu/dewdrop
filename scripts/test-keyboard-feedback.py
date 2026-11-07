@@ -52,7 +52,7 @@ ShellRoot {
         }
         function reset() {
             module.auditShow.stop(); module.auditDelay.stop(); module.auditBounce.stop();
-            Keyboard.sent = [];
+            Notify.sent = [];
         }
         function run() {
             for (const width of [507, 360]) {
@@ -75,7 +75,7 @@ ShellRoot {
             Keyboard.mainKeyboard = "main";
             Keyboard.layouts = [{name: "English (US)"}, {name: "Greek"}];
             layout("English (US)");
-            check(switches === 0 && Keyboard.sent.length === 0 && !module.forceShown,
+            check(switches === 0 && Notify.sent.length === 0 && !module.forceShown,
                 "initial layout discovery is silent");
             layout("English (US)");
             layout("Greek", "secondary");
@@ -87,12 +87,12 @@ ShellRoot {
                 reset();
                 options(!!(mask & 1), !!(mask & 2));
                 layout(Keyboard.layout === "Greek" ? "English (US)" : "Greek");
-                check(Keyboard.sent.length === (mask & 1 ? 1 : 0)
+                check(Notify.sent.length === (mask & 1 ? 1 : 0)
                     && module.auditShow.running === !!(mask & 2)
                     && (module.auditDelay.running || module.auditBounce.running) === !!(mask & 2)
                     && module.showsClosed === !!(mask & 2), "independent feedback combination " + mask);
                 if (mask & 1) {
-                    const command = Keyboard.sent[0];
+                    const command = Notify.sent[0];
                     check(command.includes("-e") && command[command.indexOf("-t") + 1] === "3000"
                         && command.includes("string:x-canonical-private-synchronous:keyboard-layout")
                         && command[command.length - 1] === Keyboard.layout,
@@ -161,9 +161,8 @@ def main():
         keyboard = target / "services/Keyboard.qml"
         source = keyboard.read_text().replace("target: Hyprland", "target: FakeHyprland")
         source = source.replace('command: ["hyprctl", "devices", "-j"]', 'command: ["/usr/bin/true"]')
-        source = source.replace('    id: root', '    id: root\n    property var sent: []\n    function notify(command) { sent = [...sent, command]; }', 1)
-        source = source.replace('Quickshell.execDetached(["notify-send",', 'root.notify(["notify-send",')
         keyboard.write_text(source)
+        (target / "Notify.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var sent: []; function send(summary, body, options) { sent = [...sent, ["notify-send", ...(options ?? []), "--", summary, body]]; } }\n')
         (target / "services/FakeHyprland.qml").write_text(
             'pragma Singleton\nimport QtQuick\nQtObject { signal rawEvent(var event) }\n')
         language = target / "modules/Language.qml"

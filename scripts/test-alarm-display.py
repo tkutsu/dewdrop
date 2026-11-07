@@ -96,8 +96,8 @@ def main():
             path.write_text(source)
         service = target / "services/Timers.qml"
         source = service.read_text().replace('["pw-play", root.alarmSound]', '["/usr/bin/true"]')
-        source = source.replace('Quickshell.execDetached(["notify-send",', 'return; Quickshell.execDetached(["notify-send",')
         service.write_text(source)
+        (target / "Notify.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var sent: []; function send(summary, body, options) { sent = [...sent, ["notify-send", ...(options ?? []), "--", summary, body]]; } }\n')
         (target / "services/PhoneAlarms.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string phoneWarning: ""; signal failed(string reason); signal acknowledged(string id, double firedAt); signal finished(); function hasLive(id, firedAt) { return false; } function notifyPhone(title, body, entry) {} function dismiss() {} }\n')
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target), capture_output=True, text=True, timeout=10)

@@ -492,7 +492,7 @@ GoogleService {
             const details = [body.title, root.lists.find(l => l.id === list)?.title ?? "",
                 day, notes, why].filter(s => s !== "").join("\n");
             const escaped = details.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            Quickshell.execDetached(["notify-send", "-a", "quickshell", "Task not added", escaped]);
+            Notify.send("Task not added", escaped);
         });
     }
 
