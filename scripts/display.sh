@@ -29,12 +29,15 @@ NIGHT_TEMP=3000
 DAY_TEMP=6000
 BACKLIGHT=/sys/class/backlight
 
-STATE_FILE="/tmp/flag-brightness"
+# Private to this user, and gone once their last session ends, which suits what
+# these say: how the panel is right now.
+RUNTIME="${XDG_RUNTIME_DIR:-$HOME/.cache}/quickshell"
+STATE_FILE="$RUNTIME/brightness"
 # Existence is the night-mode flag, and that is all it is: the way back out is
 # a full panel rather than whatever was on before, so there is nothing to stash
 # in it. The bar watches for the file, not for its contents.
-NIGHT_FILE="/tmp/flag-night-mode"
-LOCK_FILE="/tmp/flag-brightness.lock"
+NIGHT_FILE="$RUNTIME/night-mode"
+LOCK_FILE="$RUNTIME/brightness.lock"
 
 ACTION="${1:-get}"
 STEP="${2:-20}"
@@ -78,6 +81,8 @@ temperature() { hyprctl hyprsunset temperature "$1" >/dev/null & }
 apply() { write_panel "$1" && echo "$1" >"$STATE_FILE"; }
 
 night_on() { [ -e "$NIGHT_FILE" ]; }
+
+mkdir -p "$RUNTIME"
 
 # serialise concurrent scrolls and toggles
 exec 9>"$LOCK_FILE"

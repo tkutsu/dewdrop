@@ -427,8 +427,7 @@ def main():
             (target / name).mkdir(mode=0o700, exist_ok=True)
         display = target / 'scripts/display.sh'
         source = Path(__file__).with_name('display.sh').read_text()
-        for name in ('brightness', 'night-mode', 'brightness.lock'):
-            source = source.replace('/tmp/flag-' + name, str(target / name))
+        source = source.replace('"${XDG_RUNTIME_DIR:-$HOME/.cache}/quickshell"', f'"{target}"')
         display.write_text(source)
         display.chmod(0o700)
         (target / 'bin/ddcutil').write_text('''#!/bin/sh
@@ -495,8 +494,8 @@ Item {
 }
 ''')
         service = target / 'services/NightMode.qml'
-        source = service.read_text().replace('/tmp/flag-brightness', str(target / 'brightness'))
-        source = source.replace('/tmp/flag-night-mode', str(target / 'night-mode'))
+        source = service.read_text().replace('Paths.runtime("brightness")', f'"{target}/brightness"')
+        source = source.replace('Paths.runtime("night-mode")', f'"{target}/night-mode"')
         service.write_text(source)
         run_shell(target, SCENARIO, env)
         saved = json.loads((target / 'night-mode.json').read_text())

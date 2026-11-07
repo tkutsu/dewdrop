@@ -118,13 +118,12 @@ def main():
         target = Path(folder)
         copy_shell(target)
         helper = Path(__file__).with_name('display.sh').read_text()
-        for name in ('brightness', 'night-mode', 'brightness.lock'):
-            helper = helper.replace('/tmp/flag-' + name, str(target / name))
+        helper = helper.replace('"${XDG_RUNTIME_DIR:-$HOME/.cache}/quickshell"', f'"{target}"')
         (target / 'scripts/display.sh').write_text(helper)
         (target / 'scripts/display.sh').chmod(0o700)
         service = target / 'services/NightMode.qml'
-        service.write_text(service.read_text().replace('/tmp/flag-brightness', str(target / 'brightness'))
-                           .replace('/tmp/flag-night-mode', str(target / 'night-mode')))
+        service.write_text(service.read_text().replace('Paths.runtime("brightness")', f'"{target}/brightness"')
+                           .replace('Paths.runtime("night-mode")', f'"{target}/night-mode"'))
         (target / 'brightness').write_text('43\n')
         (target / 'ddc-calls').write_text('')
         (target / 'bin').mkdir()

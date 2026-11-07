@@ -299,8 +299,8 @@ esac
             if name == "Agenda":
                 source = source.replace('    service: "Calendar"', '    polling: false\n    service: "Calendar"')
             elif name == "NightMode":
-                source = source.replace('"/tmp/flag-brightness"', repr(str(level)).replace("'", '"'))
-                source = source.replace('"/tmp/flag-night-mode"', repr(str(target / "night")).replace("'", '"'))
+                source = source.replace('Paths.runtime("brightness")', f'"{level}"')
+                source = source.replace('Paths.runtime("night-mode")', f'"{target}/night"')
             elif name in ("Sys", "Library", "Keyboard", "Wallpaper"):
                 source = re.sub(r"^(\s*)command:.*$", r'\1command: ["/usr/bin/true"]', source, flags=re.M)
                 if name == "Keyboard":
