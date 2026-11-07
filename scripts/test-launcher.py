@@ -824,6 +824,19 @@ ShellRoot {
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
             check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/,.#=@!', "requested mode hint order");
+            // Wider symbols leave the hint under a pixel to spare at rest, and the
+            // open spring narrows the box by eight.
+            const defaultPrefixes = Settings.launcherPrefixes;
+            const defaultHintWidth = modes.implicitWidth;
+            Settings.launcherPrefixes = Object.assign({}, defaultPrefixes, {web: "@", mail: "%"});
+            keys.tryVerify(() => modes.implicitWidth > defaultHintWidth, 500);
+            console.log("MEASURE: hint wants " + hint.implicitWidth + " of " + hint.room);
+            for (const ratio of [1012 / 960, 948 / 960, 1.03, 1]) {
+                menu.widthRatio = ratio;
+                check(hint.visible, "the hint holds through the spring at " + ratio);
+            }
+            Settings.launcherPrefixes = defaultPrefixes;
+            keys.tryVerify(() => modes.implicitWidth === defaultHintWidth, 500);
             check(!keys.findChild(menu, "disclosure"), "chevron removed");
             const files = modes.children.find(child => child.modelData?.prefix === "/");
             check(files.children[0].font.bold && files.children[1].font.pixelSize < files.children[0].font.pixelSize, "mode symbols are bold and labels smaller");
