@@ -26,12 +26,11 @@ def fixture(root, tools, backlight=False, settings=None):
     if backlight:
         (root / 'sys/panel').mkdir()
     script = SOURCE.replace('/sys/class/backlight', str(root / 'sys'))
-    for name in ('brightness.lock', 'brightness', 'night-mode'):
-        script = script.replace('/tmp/flag-' + name, str(root / name))
+    script = script.replace('"${XDG_RUNTIME_DIR:-$HOME/.cache}/quickshell"', f'"{root}"')
     (root / 'scripts/display.sh').write_text(script)
     if settings is not None:
         (root / 'settings.json').write_text(settings)
-    for name in ('sed', 'cat', 'flock', 'dirname', 'realpath', 'rm', 'cut', 'tr', 'basename', 'sh'):
+    for name in ('sed', 'cat', 'flock', 'dirname', 'realpath', 'rm', 'mkdir', 'cut', 'tr', 'basename', 'sh'):
         (root / 'bin' / name).symlink_to(subprocess.check_output(['which', name], text=True).strip())
     for name in tools:
         (root / 'bin' / name).write_text(STUB)

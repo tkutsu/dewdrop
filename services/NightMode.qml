@@ -363,7 +363,7 @@ Singleton {
     // and loaded/loadFailed never fire again.
     FileView {
         id: nightFlag
-        path: "/tmp/flag-night-mode"
+        path: Paths.runtime("night-mode")
         watchChanges: true
         printErrors: false
         onFileChanged: nightFlag.reload()
@@ -385,7 +385,7 @@ Singleton {
 
     FileView {
         id: level
-        path: "/tmp/flag-brightness"
+        path: Paths.runtime("brightness")
         watchChanges: true
         printErrors: false
         onFileChanged: level.reload()
