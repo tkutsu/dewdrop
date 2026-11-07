@@ -8,6 +8,7 @@ import qs.services
 // settings.json's updateCommand.
 BarItem {
     name: "Updates"
+    present: Updates.present
 
     tooltip: {
         if (Updates.trouble !== "")
