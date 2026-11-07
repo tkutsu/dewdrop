@@ -63,29 +63,45 @@ Singleton {
     // Sleep, restart, shut down and the rest. The bang, which is how loud
     // turning the machine off should be; the bar's right-click opens it too.
     readonly property string powerPrefix: Settings.launcherPrefixes.power ?? ""
+    // Every symbol above with what it does, for when the query line's one word
+    // each is not enough or the settings have moved them.
+    readonly property string helpPrefix: Settings.launcherPrefixes.help ?? ""
 
     readonly property var modes: [
-        { prefix: root.clipPrefix, hint: "clipboard" },
-        { prefix: root.windowPrefix, hint: "windows" },
-        { prefix: root.pathPrefix, hint: "files" },
-        { prefix: root.taskPrefix, hint: "alarms·timers·events" },
-        { prefix: root.enginePrefix, hint: "web" },
-        { prefix: root.musicPrefix, hint: "music" },
-        { prefix: root.calcPrefix, hint: "calc" },
-        { prefix: root.mailPrefix, hint: "email" },
-        { prefix: root.powerPrefix, hint: "power" }
+        { prefix: root.clipPrefix, hint: "clipboard", about: "Clipboard history" },
+        { prefix: root.windowPrefix, hint: "windows", about: "Open windows" },
+        { prefix: root.pathPrefix, hint: "files", about: "Files, with a preview" },
+        { prefix: root.taskPrefix, hint: "plan", about: "Tasks, timers, alarms and events" },
+        { prefix: root.enginePrefix, hint: "web", about: "Web search" },
+        { prefix: root.musicPrefix, hint: "music", about: "Music library and playlists" },
+        { prefix: root.calcPrefix, hint: "calc", about: "Calculator" },
+        { prefix: root.mailPrefix, hint: "email", about: "Gmail: unread, read and search" },
+        { prefix: root.powerPrefix, hint: "power", about: "Lock, sleep, restart and shut down" },
+        { prefix: root.helpPrefix, hint: "help" }
     ]
 
-    // What the hint in the query line says. Normally the modes, assembled
-    // from the prefix characters themselves rather than typed out, so changing
-    // one of them changes what the box says it does. No entry for apps: that
-    // is what the box does when you tell it nothing, and a prefix line is a
-    // list of the things you have to ask for.
+    // What the hint in the query line says. Empty, the modes, assembled from
+    // the prefix characters themselves rather than typed out, so changing one
+    // of them changes what the box says it does. No entry for apps: that is
+    // what the box does when you tell it nothing, and a prefix line is a list
+    // of the things you have to ask for.
     //
-    // In search mode it turns into the engines, because by then the mode is
-    // not the question any more — which of them answers it is, and the
-    // letter that picks each one is the thing worth having in front of you.
-    readonly property string prefixHint: root.modes.map(mode => mode.prefix + mode.hint).join("   ")
+    // A bare plan symbol turns it into what the line will make, because the
+    // mode is settled by then and how to word it is the question. How the line
+    // starts picks the kind; see Tasks.plan().
+    readonly property var queryHints: {
+        const c = root.classification;
+        if (c.mode === "empty")
+            return root.modes;
+        if (c.mode === root.taskPrefix && !c.text.trim())
+            return [
+                { prefix: "task", hint: "call bank" },
+                { prefix: "timer", hint: "25m" },
+                { prefix: "alarm", hint: "15:00" },
+                { prefix: "event", hint: "fri 15:00 call" }
+            ];
+        return [];
+    }
 
     // How many rows are worth ranking; the box shows a dozen of them at once.
     readonly property int maxResults: 50
@@ -142,6 +158,7 @@ Singleton {
         case root.enginePrefix: return Theme.glyph.launcherWeb;
         case root.mailPrefix: return Theme.glyph.mailUnread;
         case root.powerPrefix: return Theme.glyph.launcherPower;
+        case root.helpPrefix: return Theme.glyph.launcherHelp;
         case root.taskPrefix: {
             switch (Tasks.plan(c.text).kind) {
             case "alarm": return Theme.glyph.alarm;
@@ -346,7 +363,8 @@ Singleton {
             [root.musicPrefix]: rest => LauncherMusic.results(rest),
             [root.mailPrefix]: rest => LauncherMail.results(rest),
             [root.taskPrefix]: rest => root.taskResults(rest),
-            [root.powerPrefix]: rest => root.powerResults(rest)
+            [root.powerPrefix]: rest => root.powerResults(rest),
+            [root.helpPrefix]: rest => root.helpResults(rest)
         })
 
     readonly property var results: {
@@ -620,6 +638,16 @@ Singleton {
         root.bump("power:" + a.key);
         Power.run(a.arg, true);
         root.hide();
+    }
+
+    // --- help ----------------------------------------------------------------
+
+    // A row per mode, its symbol in the row's badge. Enter goes there.
+    function helpResults(query) {
+        const terms = root.prepTerms(query);
+        return root.modes
+            .filter(m => m.prefix !== root.helpPrefix && (!terms.length || root.matchScore(terms, [[m.about, 1], [m.hint, 1]]) !== null))
+            .map(m => ({ kind: "help", badge: m.prefix, title: m.about, raw: true, prefix: m.prefix }));
     }
 
     // --- tasks and timers ----------------------------------------------------
@@ -1075,6 +1103,7 @@ Singleton {
     // would have to be reopened between them. Adding a task or a timer does
     // leave: that is a sentence finished.
     readonly property var actions: ({
+            help: r => root.openWith(r.prefix),
             desktop: (r, i) => {
                 // Powering on keeps the search visible for the device action.
                 if (r.action.key !== "bluetooth-power" || Bluetooth.on)

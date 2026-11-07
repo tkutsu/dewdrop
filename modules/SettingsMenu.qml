@@ -143,12 +143,13 @@ OverlayWindow {
         { key: "clipboard", title: "Clipboard", glyph: Theme.glyph.clipboard },
         { key: "windows", title: "Windows", glyph: Theme.glyph.launcherWindow },
         { key: "files", title: "Files", glyph: Theme.glyph.folder },
-        { key: "tasks", title: "Tasks And Timers", glyph: Theme.glyph.tasks },
+        { key: "tasks", title: "Plan", glyph: Theme.glyph.tasks },
         { key: "web", title: "Web Search", glyph: Theme.glyph.launcherWeb },
         { key: "music", title: "Music", glyph: Theme.glyph.launcherMusic },
         { key: "calc", title: "Calculator", glyph: Theme.glyph.launcherCalc },
         { key: "mail", title: "Mail", glyph: Theme.glyph.mailUnread },
-        { key: "power", title: "Power", glyph: Theme.glyph.launcherPower }
+        { key: "power", title: "Power", glyph: Theme.glyph.launcherPower },
+        { key: "help", title: "Help", glyph: Theme.glyph.launcherHelp }
     ].map(mode => {
         const fallback = Settings.defaults.launcherPrefixes?.[mode.key] ?? "";
         const symbol = v => v.trim() || fallback;

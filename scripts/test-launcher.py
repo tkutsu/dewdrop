@@ -604,8 +604,22 @@ ShellRoot {
 
             Launcher.db = ({});
             Launcher.show();
-            check(!Launcher.prefixHint.includes(":emoji"), "emoji selector is absent from mode hints");
-            check(!Launcher.prefixHint.includes(">run") && !Launcher.actions.cmd, "run mode and dispatch removed");
+            check(!Launcher.modes.some(mode => mode.prefix === ":"), "emoji selector is absent from mode hints");
+            check(!Launcher.modes.some(mode => mode.prefix === ">") && !Launcher.actions.cmd, "run mode and dispatch removed");
+            check(Launcher.queryHints === Launcher.modes, "an empty query hints the modes");
+            Launcher.query = ",";
+            check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event", "a bare plan symbol hints what a line makes");
+            Launcher.query = ", 25m";
+            check(Launcher.queryHints.length === 0, "typing takes the hint away");
+            Launcher.query = "?";
+            check(Launcher.classification.mode === "?" && Launcher.queryIcon === Theme.glyph.launcherHelp, "? is help");
+            check(Launcher.results.length === Launcher.modes.length - 1 && Launcher.results.every(r => r.kind === "help" && r.prefix !== "?"), "help lists every other mode");
+            check(Launcher.results.find(r => r.prefix === ",").title.includes("alarms"), "help spells out what the plan word covers");
+            Launcher.query = "?music";
+            check(Launcher.results.length === 1 && Launcher.results[0].badge === Launcher.musicPrefix, "help narrows by what is typed");
+            Launcher.activate(0);
+            check(Launcher.shown && Launcher.query === Launcher.musicPrefix, "Enter on a help row goes to that mode");
+            Launcher.query = "";
             Launcher.query = ">echo test";
             check(Launcher.classification.mode === "main" && !Launcher.results.some(r => r.kind === "cmd"), "former run prefix is ordinary search");
             for (const query of [":", ":lol", ":greece"]) {
@@ -823,7 +837,7 @@ ShellRoot {
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
-            check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/,.#=@!', "requested mode hint order");
+            check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/,.#=@!?', "requested mode hint order");
             // Wider symbols leave the hint under a pixel to spare at rest, and the
             // open spring narrows the box by eight.
             const defaultPrefixes = Settings.launcherPrefixes;
@@ -852,7 +866,7 @@ ShellRoot {
                 ["example.com/docs", Theme.glyph.launcherWeb], ["no-fixture-can-match-this", Theme.glyph.launcherWeb],
                 ["_zzmissingwindow", Theme.glyph.launcherWeb],
                 ["@", Theme.glyph.mailUnread], ["person@example.com", Theme.glyph.mailUnread],
-                ["!", Theme.glyph.launcherPower],
+                ["!", Theme.glyph.launcherPower], ["?", Theme.glyph.launcherHelp],
                 ["", Theme.glyph.launcher]
             ]) {
                 input.adopt(query); keys.wait(30);
@@ -1333,7 +1347,7 @@ def main():
         prefixes = json.loads(re.search(r'"launcherPrefixes": (\{.*?\n    \})', (ROOT / "settings.default.json").read_text(), re.S).group(1))
         settings.write_text(settings.read_text().replace("property var disabled:", "property var webShortcuts: " + json.dumps(defaults) + "; property var launcherPrefixes: " + json.dumps(prefixes) + "; property var disabled:"))
         (target / "Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
-        (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
+        (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
         (components / "FileQuery.qml").write_text((ROOT / "components/QueuedProcess.qml").read_text())
         (target / "shell.qml").write_text(TEST)
