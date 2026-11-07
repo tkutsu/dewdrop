@@ -23,7 +23,7 @@ PanelWindow {
     // length of that (see qs.Linger).
     required property bool shown
     // The layer namespace, after "quickshell:". Needs a matching rule in
-    // wrules.lua to be blurred.
+    // hypr/dewdrop.lua to be blurred.
     required property string name
     // The input area: the box the window draws.
     required property Item inputItem
