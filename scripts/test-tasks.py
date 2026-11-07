@@ -84,6 +84,9 @@ ShellRoot {
                 check(Tasks.plan("15:00").kind === "alarm" && Tasks.plan("15:00").event === null, "untitled alarm makes no event");
                 check(at(Tasks.plan("today 15:00 call bank"), Tasks.today, 15, 0) && Tasks.plan("today 15:00 call bank").event.reminders === null, "today and a time make an event with default reminders");
                 check(at(Tasks.plan("fri 15:00 call bank"), fri, 15, 0), "weekday and time make an event");
+                // The launcher's bare plan hint (Launcher.queryHints) shows these.
+                for (const [line, kind] of [["call bank", "task"], ["25m", "timer"], ["15:00", "alarm"], ["fri 15:00 call", "event"]])
+                    check(Tasks.plan(line).kind === kind, "the hint's " + kind + " example makes one");
                 check(at(Tasks.plan("2026-11-03 9:30 dentist"), "2026-11-03", 9, 30), "date and time make an event");
                 for (const time of ["21:30", "9:30pm"])
                     check(at(Tasks.plan(`fri ${time} x`), fri, 21, 30), `event time ${time} reads as the alarm would`);

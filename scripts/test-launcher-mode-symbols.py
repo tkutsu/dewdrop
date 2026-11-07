@@ -72,9 +72,11 @@ ShellRoot {
             check(Launcher.classifyQuery("/usr/lib").mode === "~" && Launcher.classifyQuery("/usr/lib").text === "/usr/lib", "a slash path is still inferred");
             enter("files", "/");
 
-            enter("web", "?");
-            check(Launcher.classifyQuery("?y lofi").mode === "?", "web search moves");
-            check(Launcher.engineResults(Launcher.enginePrefix, "y lofi")[0].badge === "?y", "engine badges carry the new symbol");
+            enter("web", "^");
+            check(Launcher.classifyQuery("^y lofi").mode === "^", "web search moves");
+            check(Launcher.engineResults(Launcher.enginePrefix, "y lofi")[0].badge === "^y", "engine badges carry the new symbol");
+            enter("help", "|");
+            check(Launcher.helpPrefix === "|" && Launcher.classifyQuery("|").mode === "|", "help moves too");
             check(Launcher.classifyQuery(".5*2").math, "a dot decimal is still a sum");
 
             console.log("PASS: mode symbols complete"); Qt.quit();

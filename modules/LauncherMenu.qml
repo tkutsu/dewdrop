@@ -720,7 +720,6 @@ OverlayWindow {
                     Item {
                         id: hint
 
-                        readonly property string text: Launcher.prefixHint
                         readonly property int clearance: 24
                         // Measured on the settled box, not the field's live width:
                         // the open spring must not blink a hint that fits at rest.
@@ -734,7 +733,7 @@ OverlayWindow {
                         clip: true
                         // Gone rather than squeezed to a few letters and an
                         // ellipsis: past a certain point a hint is only noise.
-                        visible: Launcher.query.length === 0 && hint.text !== "" && hint.room >= hint.implicitWidth
+                        visible: Launcher.queryHints.length > 0 && hint.room >= hint.implicitWidth
 
                         Row {
                             id: modeHints
@@ -742,10 +741,11 @@ OverlayWindow {
                             spacing: 12
 
                             Repeater {
-                                model: Launcher.modes
+                                model: Launcher.queryHints
                                 Row {
                                     required property var modelData
-                                    spacing: 2
+                                    // A symbol sits against its word; a word needs a space.
+                                    spacing: modelData.prefix.length > 1 ? 4 : 2
                                     height: root.inputHeight
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter

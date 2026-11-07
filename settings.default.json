@@ -213,7 +213,8 @@
         "music": "#",
         "calc": "=",
         "mail": "@",
-        "power": "!"
+        "power": "!",
+        "help": "?"
     },
 
     // The launcher's web shortcuts, after its web symbol. key is one character;

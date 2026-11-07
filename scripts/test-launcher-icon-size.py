@@ -17,7 +17,7 @@ from test_support import ROOT, offscreen_ink, shell_env
 NAMES = (
     "launcher", "launcherCalc", "clipboard", "launcherWindow", "folder",
     "tasks", "timer", "alarm", "event", "launcherMusic", "launcherWeb",
-    "mailUnread", "launcherPower",
+    "mailUnread", "launcherPower", "launcherHelp",
 )
 
 QML = '''import QtQuick
