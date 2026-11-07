@@ -191,7 +191,7 @@ Singleton {
         }
         if (!root.atHome || root.busy || discovery.running || !root.phoneAlerts.length) return;
         if (!root.address) {
-            if (now < root.discoverAfter) return;
+            if (now < root.discoverAfter || !Tools.has("python3")) return;
             discovery.startedGeneration = root.generation;
             discovery.result = "";
             discovery.running = true;

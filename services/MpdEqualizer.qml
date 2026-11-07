@@ -36,6 +36,10 @@ Singleton {
     function load(): void {
         if (root.busy || root.dirty)
             return;
+        if (!Tools.has("python3")) {
+            root.error = "The equalizer needs Python 3.";
+            return;
+        }
         root.error = "";
         worker.applying = false;
         worker.received = false;

@@ -46,6 +46,10 @@ ShellRoot {
     // workspaces: the wallpaper's pan reads them too.
     readonly property bool workspacesSettled: WorkspaceSync.settled
 
+    // Referenced here so the programs are looked for at startup: a singleton waits
+    // to be asked, and the first thing to ask may be choosing Shut Down.
+    readonly property var programsFound: Tools.found
+
     Variants {
         // One bar per screen, rebuilt as monitors come and go — or only on the
         // ones settings.json names.

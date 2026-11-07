@@ -27,6 +27,8 @@ Popup {
     // A list to read, as wide as Mail and Tasks; a long name gives way to its
     // versions.
     readonly property real bodyWidth: Theme.popupWideWidth
+    // The commands need the terminal they are set to run in.
+    readonly property bool canRun: !Settings.commandsInTerminal || Tools.hasTerminal
 
     PopupHeader {
         id: header
@@ -39,7 +41,7 @@ Popup {
             : `${Updates.pending} ${Updates.pending === 1 ? "Update" : "Updates"}` + (Updates.aur > 0 ? ` (${Updates.aur} AUR)` : "")
         // The upgrade itself, settings.json's updateCommand, in a terminal;
         // only while there is something to take.
-        addable: Updates.pending > 0
+        addable: Updates.pending > 0 && root.canRun
         addGlyph: Theme.glyph.download
         addLabel: "Upgrade"
         addName: "Upgrade"
@@ -63,7 +65,7 @@ Popup {
         // makes that. A button you have to open the popup to reach rather than
         // a click on the bar, because it may remove things without asking.
         PopupButton {
-            visible: Settings.cleanupCommand !== ""
+            visible: Settings.cleanupCommand !== "" && root.canRun
             framed: true
             glyph: Theme.glyph.cleanup
             label: "Clean Up"

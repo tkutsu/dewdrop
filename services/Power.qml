@@ -88,9 +88,14 @@ Singleton {
         }
     ]
 
-    // The ones that end the session or the screen, and so leave through the CRT.
+    // The ones that end the session or the screen, and so leave through the CRT,
+    // when something can end the black afterwards. Sleep needs its wake signal, or
+    // the screen would stay black after waking. The rest need jq, which power.sh
+    // uses to hold the black once the bar has gone. Without those they just run.
     function fades(arg: string): bool {
-        return ["--poweroff", "--reboot", "--logout", "--suspend"].includes(arg);
+        if (arg === "--suspend")
+            return ["setpriv", "stdbuf", "gdbus"].every(program => Tools.has(program));
+        return ["--poweroff", "--reboot", "--logout"].includes(arg) && Tools.has("jq");
     }
 
     // Ordinary actions just run; CRT exits keep black through teardown/sleep.

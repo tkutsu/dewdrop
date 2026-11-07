@@ -48,6 +48,7 @@ Popup {
         }
 
         PopupButton {
+            visible: Tools.has("blueman-manager")
             framed: true
             glyph: Theme.glyph.openApp
             name: "Bluetooth Settings"

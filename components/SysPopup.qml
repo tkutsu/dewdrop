@@ -293,6 +293,7 @@ Popup {
             title: "System"
 
             PopupButton {
+                visible: Tools.has("btop") && Tools.hasTerminal
                 framed: true
                 glyph: Theme.glyph.openApp
                 name: "Open btop"
