@@ -96,8 +96,8 @@ def main():
         base = Path(folder)
 
         result, eq = run(base / 'none', [])
-        assert result['fades'] == [], result
-        print('PASS: with nothing installed no power action goes black')
+        assert result['fades'] == ['--poweroff', '--reboot', '--logout'], result
+        print('PASS: with nothing installed only sleep skips the black')
         assert not result['terminal'], result
         print('PASS: a missing terminal is known')
         assert result['calc'] == ['note'] and result['calcAsked'] == 0, result
@@ -130,15 +130,11 @@ def main():
         assert result['network'] == ['sh', '-c', 'nm-connection-editor'] and result['monitor'] == [], result
         print('PASS: the monitor waits for a terminal as well as its program')
 
-        result, _ = run(base / 'jq', ['jq'])
-        assert result['fades'] == ['--poweroff', '--reboot', '--logout'], result
-        print('PASS: jq brings back the animation for leaving, not for sleep')
-
-        result, _ = run(base / 'wake', ['setpriv', 'stdbuf', 'gdbus'])
-        assert result['fades'] == ['--suspend'], result
+        result, _ = run(base / 'wake', ['gdbus'])
+        assert result['fades'] == ['--poweroff', '--reboot', '--logout', '--suspend'], result
         print('PASS: the wake signal brings back the animation for sleep')
 
-        result, _ = run(base / 'all', ['jq', 'setpriv', 'stdbuf', 'gdbus', 'kitty', 'qalc', 'fd'])
+        result, _ = run(base / 'all', ['gdbus', 'kitty', 'qalc', 'fd'])
         assert len(result['fades']) == 4 and result['terminal'], result
         assert result['calc'] == [] and result['files'] != ['note'], result
         print('PASS: with everything installed nothing changes')

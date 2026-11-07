@@ -4,7 +4,6 @@
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import tempfile
 
@@ -23,8 +22,11 @@ name = pathlib.Path(sys.argv[0]).name
 with open(os.environ['POWER_TEST_LOG'], 'a') as stream:
     stream.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
 if name == 'hyprctl':
-    if sys.argv[1:3] == ['-j', 'getoption']:
-        print(json.dumps({'str': os.environ['POWER_TEST_SHADER']}))
+    if sys.argv[1] == 'getoption':
+        if not os.environ['POWER_TEST_SHADER']:
+            sys.exit(1)
+        print('str: ' + os.environ['POWER_TEST_SHADER'])
+        print('set: false')
     else:
         print('ok')
 elif name == 'systemctl':
@@ -48,7 +50,7 @@ elif name == 'systemctl':
         if action == '--suspend':
             assert calls == [command], calls
         else:
-            assert calls[0] == ['hyprctl', '-j', 'getoption', 'decoration:screen_shader'], calls
+            assert calls[0] == ['hyprctl', 'getoption', 'decoration:screen_shader'], calls
             assert calls[1] == ['hyprctl', 'eval',
                 'hl.config({ decoration = { screen_shader = ' + json.dumps(SHADER) + ' } })'], calls
             assert calls[2] == command, calls
@@ -70,17 +72,13 @@ elif name == 'systemctl':
         assert calls[-1] == EXIT, calls
         print(f'PASS: logout with session save {save!r}')
 
-    # jq only holds the black: without it the action still happens, with no shader.
-    bare = target / 'bare'
-    bare.mkdir()
-    for name in ('hyprctl', 'systemctl'):
-        (bare / name).symlink_to(target / name)
-    (bare / 'python3').symlink_to(shutil.which('python3'))
+    # The shader only holds the black: when Hyprland cannot say which one is
+    # set, the action still happens, with none.
     log.write_text('')
     env['POWER_TEST_EXIT'] = '0'
-    result = subprocess.run([shutil.which('bash'), str(SCRIPT), '--poweroff'], capture_output=True, text=True,
-                            env=dict(env, PATH=str(bare)))
+    result = subprocess.run(['bash', str(SCRIPT), '--poweroff'], capture_output=True, text=True,
+                            env=dict(env, POWER_TEST_SHADER=''))
     assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in log.read_text().splitlines()]
     assert calls[-1] == ['systemctl', 'poweroff'] and not any(call[1] == 'eval' for call in calls), calls
-    print('PASS: without jq shutting down skips the shader and still happens')
+    print('PASS: when the shader cannot be read, shutting down skips it and still happens')
