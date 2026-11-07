@@ -45,7 +45,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="quickshell-sys-popup-") as folder:
         target = Path(folder)
         copy_shell(target)
-        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
+        (target / "Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var values: ({}); property string monitorCommand: ""; function program(command) { return ""; } function helper(command, inTerminal) { return []; } property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
         (target / "components/Popup.qml").write_text('import QtQuick\nColumn { property real hPadding: 6; property real vPadding: 6 }')
         (target / "components/Glyph.qml").write_text('import QtQuick\nItem { property string text: ""; property int fontSize: 16; property color color: "white"; implicitWidth: 16 }')
         (target / "services/Sys.qml").write_text('''pragma Singleton

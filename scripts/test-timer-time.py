@@ -122,7 +122,7 @@ ShellRoot {
 def main():
     with tempfile.TemporaryDirectory(prefix="qs-timer-time-") as folder:
         target = Path(folder)
-        for name in ("Settings.qml", "RightPillOrder.js", "Paths.qml", "settings.default.json", "services/Timers.qml", "services/TimersParse.js", "services/WallClock.qml"):
+        for name in ("Settings.qml", "Tools.qml", "RightPillOrder.js", "Paths.qml", "settings.default.json", "services/Timers.qml", "services/TimersParse.js", "services/WallClock.qml"):
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
