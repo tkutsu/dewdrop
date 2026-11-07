@@ -5,15 +5,16 @@
 
 The VM is the official Arch cloud image under KVM, a throwaway copy each run.
 cloud-init installs Hyprland, Quickshell and the README's base requirements and
-nothing else (plus foot, so a terminal is found, and grim for the screenshot),
+nothing else (plus foot, so a terminal is found),
 unpacks this checkout's tracked files as ~/.config/quickshell, and logs in on
 tty1 straight into Hyprland with a hyprland.lua that loads hypr/dewdrop.lua and
-starts qs. A minute later the guest sends back the bar's log, a screenshot and
-what Hyprland has open, and powers off.
+starts qs. A minute later QEMU takes a screenshot, the guest sends back the
+bar's log and what Hyprland has open, and powers off.
 
-Results land in ~/.cache/dewdrop-fresh-test/runs/<time>/: screen.png (grim in
-the guest), host-screen.png (QEMU's own view), qs.log, qs.stderr, hyprland.log,
-layers.txt, console.log. The summary at the end names the errors in the log.
+Results land in ~/.cache/dewdrop-fresh-test/runs/<time>/: screen.png, qs.log,
+qs.stderr, hyprland.log, layers.txt, install.log, console.log. The summary at
+the end lists the log's errors; it fails on the ones that stop QML loading, not
+on Quickshell saying an optional service (NetworkManager, UPower) is absent.
 
 --gl gives the guest a virgl GPU drawn through the host's EGL; without it the
 guest renders in software, which is slower but needs nothing from the host GPU.
@@ -45,8 +46,8 @@ IMAGE_URL = "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-clo
 # The README's "What it needs", by Arch package, and what the test itself uses.
 PACKAGES = [
     "hyprland", "quickshell", "pipewire", "pipewire-pulse", "wireplumber", "libpulse", "libnotify", "xdg-utils",
-    "imagemagick", "coreutils", "ttf-nerd-fonts-symbols", "inter-font", "ttf-iosevkaterm-nerd",
-    "foot", "grim",
+    "imagemagick", "coreutils", "qt6-5compat", "ttf-nerd-fonts-symbols", "inter-font", "ttf-iosevkaterm-nerd",
+    "foot",
 ]
 
 HYPRLAND = """\
@@ -56,22 +57,38 @@ hl.config({ general = { gaps_out = 8 } })
 
 hl.on("hyprland.start", function()
 \thl.exec_cmd("sh -c 'qs > /tmp/out/qs.stderr 2>&1'")
-\thl.exec_cmd("~/look")
+\thl.exec_cmd("sh -c '~/look > /tmp/out/look.log 2>&1'")
 end)
 """
 
-# Run inside the session, once the bar has had a minute to settle.
+# Run inside the session, once the bar has had a minute to settle. Each
+# thing goes back as soon as it is there, so one that hangs loses only itself.
 LOOK = """\
 #!/bin/sh
 sleep {settle}
 cd /tmp/out
-grim screen.png
-hyprctl layers > layers.txt 2>&1
-NO_COLOR=1 qs log > qs.log 2>&1
-cp ~/hyprland.log . 2>/dev/null
-for f in *; do curl -s -T "$f" "http://10.0.2.2:{port}/results/$f"; done
+curl -s -T /dev/null "http://10.0.2.2:{port}/shoot/screen"
+send() {{ curl -s -T "$1" "http://10.0.2.2:{port}/results/$1"; }}
+timeout 20 env NO_COLOR=1 qs log > qs.log 2>&1; send qs.log
+hyprctl layers > layers.txt 2>&1; send layers.txt
+cp "$XDG_RUNTIME_DIR"/hypr/*/hyprland.log . 2>/dev/null; send hyprland.log
+send qs.stderr
+send look.log
 curl -s -T /dev/null "http://10.0.2.2:{port}/results/done"
 sudo poweroff
+"""
+
+# The look's stand-in, run as root, for when the session never got that far:
+# Hyprland's own log, the boot's journal and the GPU the guest was given.
+FALLBACK = """\
+#!/bin/sh
+mkdir -p /tmp/diag && cd /tmp/diag
+cp /tmp/out/* . 2>/dev/null
+cp /run/user/1000/hypr/*/hyprland.log . 2>/dev/null || cp /home/dew/hyprland.log . 2>/dev/null
+journalctl -b --no-pager > journal.txt 2>&1
+ls -la /dev/dri > dri.txt 2>&1
+for f in *; do curl -s -T "$f" "http://10.0.2.2:{port}/results/$f"; done
+curl -s -T /dev/null "http://10.0.2.2:{port}/results/done"
 """
 
 USER_DATA = """\
@@ -91,8 +108,8 @@ write_files:
     content: |
       if [ "$(tty)" = /dev/tty1 ]; then
         mkdir -p /tmp/out
-        if command -v start-hyprland >/dev/null; then exec start-hyprland > ~/hyprland.log 2>&1; fi
-        exec Hyprland > ~/hyprland.log 2>&1
+        if command -v start-hyprland >/dev/null; then exec start-hyprland >> ~/hyprland.log 2>&1; fi
+        exec Hyprland >> ~/hyprland.log 2>&1
       fi
   - path: /home/dew/.config/hypr/hyprland.lua
     defer: true
@@ -103,12 +120,18 @@ write_files:
     permissions: "0755"
     content: |
 {look}
+  - path: /root/fallback
+    defer: true
+    permissions: "0755"
+    content: |
+{fallback}
 runcmd:
   - [sh, -c, "curl -s -T /dev/null http://10.0.2.2:{port}/status/installing"]
   - [sh, -c, "pacman -Syu --noconfirm --needed {packages} > /var/log/dewdrop-install.log 2>&1; curl -s -T /var/log/dewdrop-install.log http://10.0.2.2:{port}/results/install.log"]
   - [sh, -c, "mkdir -p /home/dew/.config/quickshell && curl -s http://10.0.2.2:{port}/dewdrop.tar.gz | tar -xz -C /home/dew/.config/quickshell"]
   - [chown, -R, "dew:dew", /home/dew]
   - [sh, -c, "curl -s -T /dev/null http://10.0.2.2:{port}/status/starting-hyprland"]
+  - [systemd-run, "--on-active={fallback_after}", /root/fallback]
   - [systemctl, restart, getty@tty1]
 """
 
@@ -132,6 +155,7 @@ def checkout_tarball() -> bytes:
 class Server(http.server.ThreadingHTTPServer):
     files: dict
     results: Path
+    sock: Path
     done: threading.Event
 
 
@@ -158,6 +182,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         name = Path(name).name
         if kind == "status":
             print(f"  guest: {name}", flush=True)
+        elif kind == "shoot":
+            # Answered once QEMU has it, so the guest waits for the picture.
+            monitor(self.server.sock, f"screendump {self.server.results / 'screen.png'} -f png")
         elif kind == "results" and name == "done":
             self.server.done.set()
         elif kind == "results" and name:
@@ -222,6 +249,7 @@ def main() -> int:
     port = server.server_address[1]
     server.results = run
     server.done = threading.Event()
+    server.sock = run / "monitor.sock"
     server.files = {
         "meta-data": b"instance-id: dewdrop-fresh\nlocal-hostname: dewdrop\n",
         "user-data": USER_DATA.format(
@@ -229,13 +257,15 @@ def main() -> int:
             packages=" ".join(PACKAGES),
             hyprland=indent(HYPRLAND, 6),
             look=indent(LOOK.format(port=port, settle=args.settle), 6),
+            fallback=indent(FALLBACK.format(port=port), 6),
+            fallback_after=args.settle + 180,
         ).encode(),
         "vendor-data": b"",
         "dewdrop.tar.gz": checkout_tarball(),
     }
     threading.Thread(target=server.serve_forever, daemon=True).start()
 
-    sock = run / "monitor.sock"
+    sock = server.sock
     qemu = [
         "qemu-system-x86_64", "-machine", "q35,accel=kvm", "-cpu", "host", "-m", "4096", "-smp", "4",
         "-drive", f"if=virtio,file={disk}",
@@ -251,7 +281,8 @@ def main() -> int:
     while vm.poll() is None and not server.done.is_set() and time.monotonic() < deadline:
         time.sleep(2)
     if vm.poll() is None:
-        monitor(sock, f"screendump -f png {run / 'host-screen.png'}")
+        if not (run / "screen.png").exists():
+            monitor(sock, f"screendump {run / 'screen.png'} -f png")
         if not server.done.is_set():
             print(f"Gave up after {args.minutes} minutes", flush=True)
         try:
@@ -265,15 +296,21 @@ def main() -> int:
 
     # The summary: what came back, and the log's errors.
     print()
-    for name in ("screen.png", "host-screen.png", "qs.log", "qs.stderr", "hyprland.log", "install.log", "console.log"):
+    for name in ("screen.png", "qs.log", "qs.stderr", "hyprland.log", "journal.txt", "install.log", "console.log"):
         path = run / name
         print(f"  {'ok  ' if path.exists() and path.stat().st_size else 'none'} {path}")
     log = "\n".join((run / name).read_text(errors="replace") for name in ("qs.log", "qs.stderr") if (run / name).exists())
-    errors = sorted({line.strip() for line in log.splitlines() if re.search(r"ERROR|ReferenceError|TypeError|is not a function|Cannot read", line)})
-    print(f"\n{len(errors)} distinct error lines in the bar's log" + (":" if errors else "."))
-    for line in errors[:40]:
+    lines = {re.sub(r"\x1b\[[0-9;]*m", "", line).strip() for line in log.splitlines()}
+    broken = sorted(line for line in lines if re.search(r"ReferenceError|TypeError|is not a function|Cannot read|unavailable|is not installed|Failed to load", line))
+    other = sorted(line for line in lines if "ERROR" in line and line not in broken)
+    print(f"\n{len(broken)} QML errors in the bar's log" + (":" if broken else "."))
+    for line in broken[:40]:
         print("  " + line[:200])
-    return 0 if server.done.is_set() and not errors else 1
+    if other:
+        print(f"{len(other)} other errors, usually an optional service that is not installed:")
+        for line in other[:20]:
+            print("  " + line[:200])
+    return 0 if server.done.is_set() and not broken else 1
 
 
 if __name__ == "__main__":
