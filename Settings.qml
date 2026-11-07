@@ -79,6 +79,7 @@ Singleton {
     readonly property var mailCategories: root.values.mailCategories ?? []
     readonly property var ephemeralNotificationApps: root.values.ephemeralNotificationApps ?? []
     readonly property var feedChannels: root.values.feedChannels ?? []
+    readonly property int feedDays: Math.max(1, Math.round(Number(root.values.feedDays ?? 30) || 30))
     readonly property var feedUrls: root.values.feedUrls ?? []
     readonly property var feedTitles: root.values.feedTitles ?? ({})
     readonly property var webApps: root.values.webApps ?? ({})

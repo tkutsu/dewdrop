@@ -523,6 +523,7 @@ OverlayWindow {
                     text: "Your YouTube subscriptions are followed already. Add extra channels or RSS and Atom feeds below.",
                     rows: [
                         { type: "list", id: "feedChannels", title: "Extra YouTube Channels", placeholder: "@handle or channel link", validate: root.channelProblem, get: () => Settings.feedChannels, set: v => Settings.set("feedChannels", v) },
+                        { type: "choice", id: "feedDays", title: "Look Back", tooltip: "How old a video can be and still be listed.", options: [{ value: 7, label: "1 Week" }, { value: 14, label: "2 Weeks" }, { value: 30, label: "1 Month" }], get: () => Settings.feedDays, set: v => Settings.set("feedDays", v) },
                         { type: "list", id: "feedUrls", title: "RSS Feeds", tooltip: "RSS or Atom feed addresses, shown under the videos. Leave a title blank to use the feed's own title.", placeholder: "https://example.com/feed.xml", validate: root.feedAddressProblem, get: () => Settings.feedUrls, set: v => Settings.set("feedUrls", v),
                             getTitle: url => Settings.feedTitles[url] ?? "", setTitle: (url, title) => Settings.setFeedTitle(url, title) }
                     ]

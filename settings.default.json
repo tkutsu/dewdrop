@@ -303,6 +303,10 @@
     // Channels to follow without subscribing, as @handles, channel ids
     // (UC…) or links to either.
     "feedChannels": [],
+    // How many days back videos are listed. A channel's public feed holds
+    // its latest fifteen, so a busy channel's older ones show only if they
+    // were read while they were among them.
+    "feedDays": 30,
 
     // RSS or Atom feeds shown under the videos. hnrss.org's points= keeps
     // Hacker News to what made the front page properly.

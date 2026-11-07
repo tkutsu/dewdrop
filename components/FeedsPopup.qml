@@ -5,8 +5,8 @@ import qs
 import qs.components
 import qs.services
 
-// What has not been seen yet, as a list to clear the way mail is: the
-// week's videos from the channels followed, then each feed's stories, each
+// What has not been seen yet, as a list to clear the way mail is: recent
+// videos (Settings.feedDays) from the channels followed, then each feed's stories, each
 // part folded under a header with its count until a click opens it. A click
 // on a row opens it in the browser, a swipe either way puts it away, and
 // both count it seen, so it leaves the list and the badge. The header takes
