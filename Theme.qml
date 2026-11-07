@@ -578,8 +578,9 @@ Singleton {
 
     readonly property color textSelection: selection
 
-    // Today is a filled disc with the numeral cut out in the surface colour.
+    // Today is a filled disc with its numeral and dot in black.
     readonly property color calToday: label
+    readonly property color calTodayText: "black"
 
     // The disc with a sender's initials at the head of a mail row, one of
     // these picked by the address so the same sender always wears the same

@@ -46,7 +46,7 @@ IMAGE_URL = "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-clo
 # The README's "What it needs", by Arch package, and what the test itself uses.
 PACKAGES = [
     "hyprland", "quickshell", "pipewire", "pipewire-pulse", "wireplumber", "libpulse", "libnotify", "xdg-utils",
-    "imagemagick", "coreutils", "qt6-5compat", "ttf-nerd-fonts-symbols", "inter-font", "ttf-iosevkaterm-nerd",
+    "imagemagick", "coreutils", "ttf-nerd-fonts-symbols", "inter-font", "ttf-iosevkaterm-nerd",
     "foot",
 ]
 
