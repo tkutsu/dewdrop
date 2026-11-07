@@ -78,11 +78,13 @@ ShellRoot {
                 if (!popup?.opened) throw Error("popup did not open");
                 const pause = popup.keyTargets().find(item => item.name === "Pause Tea");
                 if (!pause) throw Error("pause row missing");
-                mouseClick(pause, 40, pause.height / 2);wait(250);
+                mouseClick(pause, 40, pause.height / 2);
+                tryVerify(() => !Timers.timers.find(e => e.label === "Tea").running, 2000);
                 if (Timers.timers.length !== 2 || Timers.timers.find(e => e.label === "Tea").running)
                     throw Error("row tap did not pause without cancelling");
                 const resume = popup.keyTargets().find(item => item.name === "Resume Tea");
-                mouseClick(resume, 40, resume.height / 2);wait(250);
+                mouseClick(resume, 40, resume.height / 2);
+                tryVerify(() => Timers.timers.find(e => e.label === "Tea").running, 2000);
                 if (!Timers.timers.find(e => e.label === "Tea").running)
                     throw Error("row tap did not resume");
                 clear(popup, "Tea", 1);
@@ -134,8 +136,12 @@ def run_case(functions, bindings, mode):
         ok = result.returncode == 0 and "PASS: timer row clearing complete" in output
         ok = ok and not any(error in output for error in errors)
         # All frames must stay put, including intermediate resize configurations.
-        ok = ok and len({config[3] for config in configs}) == 3
         ok = ok and len({config[1] for config in configs}) == 1
+        # Clearing rows only ever shrinks the surface. An animated popup holds its
+        # tallest size and reduced motion steps down, but neither may ask for less
+        # and then more.
+        heights = [config[3] for config in configs]
+        ok = ok and len(heights) > 0 and heights == sorted(heights, reverse=True)
         print(("PASS: " if ok else "FAIL: ") + mode + " timer popup configurations: " + str(configs))
         if not ok:
             print("\n".join(line for line in output.splitlines()

@@ -59,7 +59,7 @@ PopupWindow {
     // ones not written yet.
     implicitWidth: Math.max(1, body.implicitWidth + hPadding * 2) + shadowSide * 2
     implicitHeight: root.closingHeight >= 0 ? root.closingSurfaceHeight
-        : Math.max(Math.max(chromeHeight, reserveHeight, resizeHeight) + shadowTop + shadowBottom, dropdownBottom)
+        : Math.max(Math.max(chrome.height, reserveHeight, resizeHeight) + shadowTop + shadowBottom, dropdownBottom)
     color: "transparent"
 
     // The room the window keeps round the box for its shadow to fall into.

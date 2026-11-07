@@ -30,7 +30,8 @@ ShellRoot {
                 return null;
             }
             function run() {
-                const fri = Tasks.readDay("fri");
+                // A Friday in the fixture's fixed month, not the real next one.
+                const fri = "2026-10-16";
                 Tasks.lists = [{id: "home", title: "To do"}];
                 Tasks.tasks = [
                     {id: "a", listId: "home", title: "Call bank", position: "1", due: fri + "T00:00:00.000Z", parent: "", notes: ""},
