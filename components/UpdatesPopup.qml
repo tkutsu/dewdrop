@@ -45,7 +45,7 @@ Popup {
         addName: "Upgrade"
         onAdd: {
             OpenPopup.dismiss();
-            Quickshell.execDetached(Settings.inTerminal(["sh", "-c", Settings.updateCommand], "Upgrade (floating)", true));
+            Quickshell.execDetached(Settings.commandLine(Settings.updateCommand, "Upgrade (floating)"));
         }
 
         // The same check as a right-click on the bar, where it can be found.
@@ -69,7 +69,7 @@ Popup {
             label: "Clean Up"
             onTapped: {
                 OpenPopup.dismiss();
-                Quickshell.execDetached(Settings.inTerminal(["sh", "-c", Settings.cleanupCommand], "Clean Up (floating)", true));
+                Quickshell.execDetached(Settings.commandLine(Settings.cleanupCommand, "Clean Up (floating)"));
             }
         }
     }

@@ -22,6 +22,7 @@ ShellRoot {
         running: true
         onTriggered: {
             console.log("RESULT:" + JSON.stringify({ command: Settings.updateCommand, present: Updates.present,
+                line: Settings.commandLine("yay", "Upgrade"),
                 trouble: Updates.trouble, official: Updates.official }));
             Qt.quit();
         }
@@ -89,6 +90,12 @@ def main():
         result = shell_result(base / 'chosen', {'checkupdates': update}, {'updateCommand': 'paru'})
         assert result['command'] == 'paru', result
         print('PASS: updateCommand wins over the fallback')
+
+        assert result['line'][:3] == ['kitty', '--title=Upgrade', '-e'] and result['line'][-3:] == ['sh', '-c', 'yay'], result
+        print('PASS: by default a command runs in the terminal')
+        result = shell_result(base / 'own-terminal', {'checkupdates': update}, {'commandsInTerminal': False})
+        assert result['line'] == ['sh', '-c', 'yay'], result
+        print('PASS: with commandsInTerminal off a command runs as it is')
 
 
 if __name__ == '__main__':

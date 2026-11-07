@@ -264,6 +264,10 @@
     // maintenance, whatever that is. Empty hides the button.
     "cleanupCommand": "",
 
+    // Whether those two run in the terminal above. Turn it off when your commands
+    // open a terminal of their own, like a dropdown.
+    "commandsInTerminal": true,
+
     // Run before logging out, to save your windows for next time. Empty saves
     // nothing.
     "sessionSaveCommand": "",
