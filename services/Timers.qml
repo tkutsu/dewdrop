@@ -76,7 +76,6 @@ Singleton {
     property int nextId: 1
 
     // Explicit cancellation is different from firing or dismissing a ring.
-    signal cancelled(var entry)
 
     // --- derived -------------------------------------------------------------
     readonly property var timers: root.entries.filter(e => e.kind !== "alarm")
@@ -280,12 +279,6 @@ Singleton {
         return id;
     }
 
-    // Save the Google event reference alongside the alarm for cancellation after a restart.
-    function linkEvent(id: string, event: var): void {
-        if (root.entries.some(e => e.id === id))
-            root._patch(id, { calendarEvent: event });
-    }
-
     function occurrence(hour: int, minute: int, days: var, from: real): real {
         return Parse.occurrence(hour, minute, days, from);
     }
@@ -333,9 +326,6 @@ Singleton {
         if (!e)
             return;
         root._drop(id);
-        if (e.calendarEvent)
-            Agenda.remove(e.calendarEvent);
-        root.cancelled(e);
     }
 
     // Scrolling the pill. The run gets longer rather than the clock jumping
