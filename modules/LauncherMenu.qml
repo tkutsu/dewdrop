@@ -722,7 +722,9 @@ OverlayWindow {
 
                         readonly property string text: Launcher.prefixHint
                         readonly property int clearance: 24
-                        readonly property real room: input.width - (placeholder.visible ? placeholder.implicitWidth : input.contentWidth) - input.leftPadding - hint.clearance
+                        // Measured on the settled box, not the field's live width:
+                        // the open spring must not blink a hint that fits at rest.
+                        readonly property real room: root.boxWidth - root.boxPad * 2 - input.x - (placeholder.visible ? placeholder.implicitWidth : input.contentWidth) - input.leftPadding - hint.clearance
 
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
