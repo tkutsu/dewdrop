@@ -29,3 +29,6 @@ Symbols' wifi (not a copy of it): a dot and three 1.5px arcs about it, in a
 20px box with 13px of ink, which is what Glyph fits a drawing to at the bar's
 glyph size, so nothing rescales them. 0 and 1 light only the dot; each step
 after lights one more arc. -off has every part at .25, without a slash.
+
+steam-tray.svg is panel/22/steam_tray_mono.svg from Themis Icons
+(https://github.com/tkutsu/themis-icons), licensed GPL-3.0.

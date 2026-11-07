@@ -13,7 +13,7 @@
 # holding a dead bar's last words once the watchdog has relaunched it.
 #
 # Launch through Hyprland so the bar gets Hyprland's env, not a shell's:
-#   hyprctl dispatch 'hl.dsp.exec_cmd("/home/kutsui/.config/quickshell/scripts/qs-launch")'
+#   hyprctl dispatch 'hl.dsp.exec_cmd("~/.config/quickshell/scripts/qs-launch")'
 
 import ctypes
 import os

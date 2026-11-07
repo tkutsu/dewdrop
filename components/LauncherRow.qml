@@ -84,7 +84,7 @@ Rectangle {
     //
     // Elided from the left and pushed right, because the end of
     // a path is the part that identifies it — ".../hypr/configs"
-    // says more than "/home/kutsui/.config/...".
+    // says more than "/home/you/.config/...".
     Text {
         anchors {
             left: title.right

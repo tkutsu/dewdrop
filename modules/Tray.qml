@@ -45,7 +45,7 @@ BarItem {
     function glyphFor(item) {
         // Mullvad is an Electron app and hands over a bare pixmap with no
         // name at all, a solid padlock at that. Its tooltip is where the
-        // state lives: "Connected. Athens, Greece" while the tunnel is up,
+        // state lives: "Connected. Paris, France" while the tunnel is up,
         // and something else while it is coming up or down.
         if (item.id.startsWith("Mullvad VPN"))
             return item.tooltipTitle.startsWith("Connected") ? Theme.glyph.vpn : Theme.glyph.vpnOff;
@@ -135,9 +135,9 @@ BarItem {
                 x: -inkX
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !entry.glyph
-                // Pin Steam to Themis's 22px panel SVG rather than its tray artwork.
+                // Steam gets a monochrome drawing rather than its tray artwork.
                 source: entry.glyph ? "" : entry.isSteam
-                    ? "file://" + Quickshell.env("HOME") + "/.local/share/icons/themis/panel/22/steam_tray_mono.svg"
+                    ? Theme.panel("steam-tray")
                     : entry.modelData.icon
                 opacity: Theme.barInk(entry, Qt.rgba(1, 1, 1, 1)).a
                 Behavior on opacity {

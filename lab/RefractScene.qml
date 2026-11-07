@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs
 import qs.components
 
@@ -109,7 +110,7 @@ Item {
                 clip: true
                 Image {
                     anchors.fill: parent
-                    source: "file:///home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
+                    source: "file://" + Quickshell.env("LAB_WALLPAPER")
                     sourceSize.width: 1600
                     fillMode: Image.PreserveAspectCrop
                     opacity: 0.4

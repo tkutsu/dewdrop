@@ -38,14 +38,14 @@ ShellRoot {
         FakeRequest.reply(index, {v:1,pairId:'a'.repeat(32),nonce:request.nonce,proof:Crypto.sha256('b'.repeat(64)+':'+request.nonce)});
         test.tryVerify(() => FakeRequest.requests.length > index + 1, 500);
     }
-    function pump() { PhoneAlarms.address='192.168.1.121'; PhoneAlarms.pump(); }
+    function pump() { PhoneAlarms.address='192.168.1.77'; PhoneAlarms.pump(); }
     Timer { interval: 100; running: true; onTriggered: {
         try {
             check(Crypto.sha256('') === 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'SHA-256 empty vector');
             check(Crypto.sha256('abc') === 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad', 'SHA-256 standard vector');
             check(Crypto.sha256('Αθήνα 🔔') === 'UNICODE_HASH', 'SHA-256 UTF-8 vector');
             check(PhoneAlarms.atHome, 'saved home Wi-Fi enables delivery');
-            PhoneAlarms.address='192.168.1.121';
+            PhoneAlarms.address='192.168.1.77';
             const fired = Date.now();
             PhoneAlarms.notifyPhone('Timer','test',{id:'same',firedAt:fired});
             FakeRequest.reply(0,{v:1,pairId:'a'.repeat(32),nonce:'wrong',proof:'wrong'});
@@ -64,7 +64,7 @@ ShellRoot {
             check(PhoneAlarms.phoneAlerts.length===1 && failures===2, 'failed stop remains pending and a recovered outage can report once');
             PhoneAlarms.phoneAlerts[0].due=0; pump(); prove(6); reply(7,'stopped');
             check(PhoneAlarms.phoneAlerts.length===0 && acknowledgements===0, 'remote stop retires without a phone acknowledgement');
-            PhoneAlarms.address='192.168.1.121';
+            PhoneAlarms.address='192.168.1.77';
             PhoneAlarms.notifyPhone('Timer','new',{id:'same',firedAt:fired+1});prove(8);reply(9,'ringing');
             PhoneAlarms.phoneAlerts[0].due=0;pump();prove(10);reply(11,'dismissed');
             check(acknowledgements===1 && occurrence==='same:'+(fired+1), 'phone dismissal identifies the exact occurrence');

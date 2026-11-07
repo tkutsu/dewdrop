@@ -26,11 +26,11 @@ class DiscoveryTests(unittest.TestCase):
         candidates=[]
         def probe(address, config):
             candidates.append(address)
-            return address=='192.168.1.121'
+            return address=='192.168.1.77'
         network=('wlan0',ipaddress.ip_network('192.168.1.0/24'),{'192.168.1.105'})
         with patch.object(discovery,'home_network',return_value=network),patch.object(discovery,'command',return_value='[]'),patch.object(discovery,'verify',side_effect=probe):
             result=discovery.discover(CONFIG,'203.0.113.7')
-        self.assertEqual(result['address'],'192.168.1.121')
+        self.assertEqual(result['address'],'192.168.1.77')
         self.assertTrue(all(ipaddress.ip_address(a) in network[1] for a in candidates))
         self.assertNotIn('192.168.1.105',candidates)
         self.assertEqual(candidates[0],'192.168.1.99')
@@ -65,9 +65,9 @@ class DiscoveryTests(unittest.TestCase):
                 return io.BytesIO(json.dumps(dict(v=1,pairId=CONFIG['pairId'],nonce=nonce,proof=proof if self.correct else 'wrong')).encode())
         self_outer=self;opener=Opener()
         with patch.object(discovery.urllib.request,'build_opener',return_value=opener):
-            self.assertTrue(discovery.verify('192.168.1.121',CONFIG))
+            self.assertTrue(discovery.verify('192.168.1.77',CONFIG))
             opener.correct=False
-            self.assertFalse(discovery.verify('192.168.1.121',CONFIG))
+            self.assertFalse(discovery.verify('192.168.1.77',CONFIG))
 
     def test_large_or_public_subnet_is_rejected(self):
         for cidr in ('192.168.0.0/16','8.8.8.0/24'):
