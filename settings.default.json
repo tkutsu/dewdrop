@@ -257,7 +257,7 @@
     "mpdConfig": "~/.config/mpd/mpd.conf",
 
     // The updates popup's Upgrade button: a shell command, run in the terminal
-    // above, like "yay" or "sudo pacman -Syu". Empty hides the button.
+    // above. Empty uses yay if it is installed, or else sudo pacman -Syu.
     "updateCommand": "",
 
     // The Clean Up button beside it, run the same way: your system's

@@ -37,9 +37,9 @@ Popup {
         // upgrade is pressed on.
         title: Updates.pending === 0 ? "Updates"
             : `${Updates.pending} ${Updates.pending === 1 ? "Update" : "Updates"}` + (Updates.aur > 0 ? ` (${Updates.aur} AUR)` : "")
-        // The upgrade itself, settings.json's updateCommand; only while there
-        // is something to take and something to take it with.
-        addable: Updates.pending > 0 && Settings.updateCommand !== ""
+        // The upgrade itself, settings.json's updateCommand, in a terminal;
+        // only while there is something to take.
+        addable: Updates.pending > 0
         addGlyph: Theme.glyph.download
         addLabel: "Upgrade"
         addName: "Upgrade"

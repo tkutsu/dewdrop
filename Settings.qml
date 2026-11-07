@@ -66,7 +66,7 @@ Singleton {
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? ""
     readonly property string screenshotCommand: (root.values.screenshotCommand ?? "").trim()
-    readonly property string updateCommand: (root.values.updateCommand ?? "").trim()
+    readonly property string updateCommand: (root.values.updateCommand ?? "").trim() || "if command -v yay >/dev/null; then yay; else sudo pacman -Syu; fi"
     readonly property string cleanupCommand: (root.values.cleanupCommand ?? "").trim()
     readonly property string sessionSaveCommand: (root.values.sessionSaveCommand ?? "").trim()
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")

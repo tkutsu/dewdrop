@@ -21,6 +21,9 @@ Singleton {
     property var aurList: []
 
     readonly property int pending: official + aur
+    // False once checkupdates turns out not to be installed: not an Arch machine,
+    // or one without pacman-contrib, and nothing here to report.
+    property bool present: true
     readonly property string icon: Theme.glyph.update
     // Held at 99 rather than spilling into "99+": the badge is for noticing
     // there is a pile, not for counting it.
@@ -107,8 +110,11 @@ Singleton {
             onStreamFinished: checkOfficial.err = text
         }
 
+        // timeout exits 127 when it cannot find the program it was asked to run.
         onExited: function (exitCode) {
-            if (exitCode !== 0 && exitCode !== 2) {
+            if (exitCode === 127) {
+                root.present = false;
+            } else if (exitCode !== 0 && exitCode !== 2) {
                 root.officialTrouble = root.failedCheck("Official update", exitCode, checkOfficial.err);
             } else {
                 root.officialTrouble = "";
@@ -121,7 +127,8 @@ Singleton {
     }
 
     // yay uses 1 both for no updates and a failed RPC. Its stderr distinguishes
-    // the failed call, which must preserve the previous count and retry.
+    // the failed call, which must preserve the previous count and retry. No yay
+    // at all (127) is a machine on plain pacman, with no AUR to count.
     Process {
         id: checkAur
 
@@ -137,7 +144,7 @@ Singleton {
         }
 
         onExited: function (exitCode) {
-            if (exitCode !== 0 && (exitCode !== 1 || checkAur.err.trim() !== "")) {
+            if (exitCode !== 0 && exitCode !== 127 && (exitCode !== 1 || checkAur.err.trim() !== "")) {
                 root.aurTrouble = root.failedCheck("AUR update", exitCode, checkAur.err);
             } else {
                 root.aurTrouble = "";
@@ -165,8 +172,7 @@ Singleton {
     }
 
     // A recount by hand: qs ipc call updates refresh. Upgrades need none, the
-    // pacman.log watch below catches them (taskbar-update.sh used to call this
-    // as well, which only checked twice).
+    // pacman.log watch below catches them.
     IpcHandler {
         target: "updates"
 
