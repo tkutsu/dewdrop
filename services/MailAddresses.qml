@@ -26,7 +26,7 @@ Singleton {
     // Show the saved grant's addresses first, then resume or refresh its scan.
     function ensure(): void {
         root.started = true;
-        if (root.loading || !Google.configured)
+        if (root.loading || !Google.configured || !Tools.has("python3"))
             return;
         if (!root.cached) {
             root.loading = true;
@@ -38,7 +38,7 @@ Singleton {
     }
 
     function sync(): void {
-        if (root.loading || !Google.configured)
+        if (root.loading || !Google.configured || !Tools.has("python3"))
             return;
         if (Google.needsConsent) {
             root.trouble = Google.reconnect;

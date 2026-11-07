@@ -4,6 +4,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -68,3 +69,18 @@ elif name == 'systemctl':
         calls = [json.loads(line) for line in log.read_text().splitlines()]
         assert calls[-1] == EXIT, calls
         print(f'PASS: logout with session save {save!r}')
+
+    # jq only holds the black: without it the action still happens, with no shader.
+    bare = target / 'bare'
+    bare.mkdir()
+    for name in ('hyprctl', 'systemctl'):
+        (bare / name).symlink_to(target / name)
+    (bare / 'python3').symlink_to(shutil.which('python3'))
+    log.write_text('')
+    env['POWER_TEST_EXIT'] = '0'
+    result = subprocess.run([shutil.which('bash'), str(SCRIPT), '--poweroff'], capture_output=True, text=True,
+                            env=dict(env, PATH=str(bare)))
+    assert result.returncode == 0, result.stderr
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    assert calls[-1] == ['systemctl', 'poweroff'] and not any(call[1] == 'eval' for call in calls), calls
+    print('PASS: without jq shutting down skips the shader and still happens')

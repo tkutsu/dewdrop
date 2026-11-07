@@ -302,6 +302,8 @@ GoogleService {
     // action chosen is what it prints. The buttons act at once: by then the
     // card is gone, and there is nowhere left to offer an undo.
     function tell(text: var, options: var, row: var, code: string): void {
+        if (!Tools.has("notify-send"))
+            return;
         const command = ["notify-send", "--wait", "--app-name=Gmail", "--icon=Gmail-mail.google.com"].concat(options, ["--"], text);
         card.createObject(root, { command: command, row: row, code: code }).running = true;
     }

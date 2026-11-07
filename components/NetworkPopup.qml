@@ -24,6 +24,7 @@ Popup {
         title: "Network"
 
         PopupButton {
+            visible: Tools.has("nm-connection-editor")
             framed: true
             glyph: Theme.glyph.openApp
             name: "Network Settings"

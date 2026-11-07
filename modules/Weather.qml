@@ -8,6 +8,7 @@ import qs.services as Services
 BarItem {
     id: root
     name: "Weather"
+    present: Tools.has("python3")
     settingsKey: "weather"
     quiet: true
     tooltip: Services.Weather.tooltip

@@ -202,7 +202,10 @@ Singleton {
     Timer {
         id: packageChange
         interval: 10000
-        onTriggered: root.refresh()
+        onTriggered: {
+            root.refresh();
+            Tools.refresh();
+        }
     }
 
     Timer {
