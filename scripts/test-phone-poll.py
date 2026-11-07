@@ -31,7 +31,7 @@ ShellRoot {
     }
     Timer { interval: 100; running: true; onTriggered: {
         try {
-            PhoneAlarms.address = '192.168.1.121';
+            PhoneAlarms.address = '192.168.1.77';
             PhoneAlarms.notifyPhone('Timer','poll test',{id:'poll',firedAt:Date.now()});
             prove(0);
             ringing(1);

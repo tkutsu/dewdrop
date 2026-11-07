@@ -32,7 +32,9 @@ PanelWindow {
             realmorph: Qt.size(420, 240),
             realmark: Qt.size(360, 80)
         })
-    readonly property string wallpaper: "/home/kutsui/_media/wallpapers/nature/akshaya-jayaprakash-XgY0NxAWlL0-unsplash.jpg"
+    // Run the lab with LAB_WALLPAPER set to an image. Not the Wallpaper service:
+    // that would repaint the live desktop.
+    readonly property string wallpaper: Quickshell.env("LAB_WALLPAPER") ?? ""
 
     // The bar's name for the real popup, so Hyprland blurs behind it as it does
     // behind the bar's popups (wrules.lua's blur_popups).
