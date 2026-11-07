@@ -465,6 +465,7 @@ OverlayWindow {
                     rows: [
                         { type: "text", id: "updateCommand", title: "Upgrade Command", text: "Runs in the terminal. Empty uses yay, or else pacman.", placeholder: "yay", get: () => Settings.values.updateCommand ?? "", set: v => Settings.set("updateCommand", v.trim()) },
                         { type: "text", id: "cleanupCommand", title: "Clean Up Command", text: "Runs in the terminal. Empty hides the Clean Up button.", placeholder: "Not configured", get: () => Settings.cleanupCommand, set: v => Settings.set("cleanupCommand", v.trim()) },
+                        { type: "toggle", id: "commandsInTerminal", title: "Run In Terminal", text: "Turn off for commands that open their own terminal.", get: () => Settings.commandsInTerminal, set: v => Settings.set("commandsInTerminal", v) },
                         { type: "text", id: "sessionSaveCommand", title: "Session Save Command", text: "Runs before logging out.", placeholder: "Not configured", get: () => Settings.sessionSaveCommand, set: v => Settings.set("sessionSaveCommand", v.trim()) },
                         { type: "text", id: "displayBus", title: "Monitor Bus", text: "Empty uses the first monitor.", tooltip: "The DDC/CI bus from ddcutil detect. A laptop's panel does not use this.", placeholder: "Not configured", get: () => Settings.values.displayBus ?? "", set: v => Settings.set("displayBus", v.trim()) }
                     ]

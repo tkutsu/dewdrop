@@ -68,6 +68,7 @@ Singleton {
     readonly property string screenshotCommand: (root.values.screenshotCommand ?? "").trim()
     readonly property string updateCommand: (root.values.updateCommand ?? "").trim() || "if command -v yay >/dev/null; then yay; else sudo pacman -Syu; fi"
     readonly property string cleanupCommand: (root.values.cleanupCommand ?? "").trim()
+    readonly property bool commandsInTerminal: root.values.commandsInTerminal !== false
     readonly property string sessionSaveCommand: (root.values.sessionSaveCommand ?? "").trim()
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
@@ -244,6 +245,12 @@ Singleton {
     function inTerminal(command: var, title: string, hold: bool): var {
         const run = hold ? ["sh", "-c", '"$@"; printf "\\nPress Enter to close. "; read _', "sh", ...command] : command;
         return [root.terminal, ...(title ? ["--title=" + title] : []), "-e", ...run];
+    }
+
+    // Upgrade's or Clean Up's command: in the chosen terminal, unless the
+    // commands open their own.
+    function commandLine(command: string, title: string): var {
+        return root.commandsInTerminal ? root.inTerminal(["sh", "-c", command], title, true) : ["sh", "-c", command];
     }
 
     // A folder in the chosen file manager. The setting may carry flags after
