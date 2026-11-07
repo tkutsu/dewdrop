@@ -160,6 +160,9 @@ Item {
                                 }
 
                                 Rectangle {
+                                    // The settings window's keys hand it the typing.
+                                    readonly property var keyFocus: () => input.forceActiveFocus()
+
                                     width: parent.width - 72
                                     height: 26
                                     radius: Theme.selectionRadius + 2

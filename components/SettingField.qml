@@ -20,6 +20,12 @@ Rectangle {
     border.width: Theme.pillBorder
     border.color: root.trouble ? Theme.warn : input.activeFocus ? Theme.outline : "transparent"
 
+    // The settings window's keys (SettingsMenu.qml) hand it the typing.
+    function keyFocus(): void {
+        input.forceActiveFocus();
+        input.selectAll();
+    }
+
     function problem(text: string): string {
         return root.setting.validate?.(text) ?? "";
     }
