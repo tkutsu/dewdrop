@@ -37,6 +37,8 @@ Singleton {
     readonly property var thisHour: root.allHours.find(hour => hour.at <= root.now && root.now < hour.at + 3600) ?? null
     readonly property var today: root.thisHour ? root.days.find(day => day.hours.includes(root.thisHour)) ?? null : null
     readonly property var upcoming: root.allHours.filter(hour => hour.at + 3600 > root.now && hour.at < root.now + 6 * 3600)
+    // The hourly field behind every temperature shown, following Feels Like.
+    readonly property string temperatureKey: root.feelsLike ? "feelsLike" : "temperature"
     readonly property string summary: root.summarize(root.upcoming)
     readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
@@ -172,15 +174,15 @@ Singleton {
         }
 
         function temperature() {
-            const temperatures = hours.map(hour => hour.temperature).filter(finite);
+            const temperatures = hours.map(hour => hour[root.temperatureKey]).filter(finite);
             if (!temperatures.length)
                 return "";
             const minimum = Math.min(...temperatures);
             const maximum = Math.max(...temperatures);
             const low = Math.round(minimum);
             const high = Math.round(maximum);
-            const first = hours[0].temperature;
-            const last = hours[hours.length - 1].temperature;
+            const first = hours[0][root.temperatureKey];
+            const last = hours[hours.length - 1][root.temperatureKey];
             if (maximum >= 35)
                 return `Hot, up to ${root.formatTemperature(maximum, true)}`;
             if (minimum <= 0)
@@ -242,6 +244,14 @@ Singleton {
     // Compact Celsius and Fahrenheit readouts share a degree sign; Kelvin never takes one.
     function formatTemperature(value: var, withUnit: bool): string {
         return root.measure(root.temperatureValue(value), root.temperatureSymbol === "K" ? " K" : withUnit ? root.temperatureSymbol : "°");
+    }
+
+    // A day's high and low. The forecast's daily figures are air temperatures,
+    // so Feels Like reads them off the hours; a day without any shows as unknown.
+    function highLow(day: var): string {
+        const felt = day.hours.map(hour => hour.feelsLike).filter(value => typeof value === "number");
+        const [high, low] = root.feelsLike ? [Math.max(...felt), Math.min(...felt)] : [day.high, day.low];
+        return `${root.formatTemperature(high, false)} / ${root.formatTemperature(low, false)}`;
     }
 
     function measure(value: var, suffix: string): string {

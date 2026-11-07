@@ -272,6 +272,9 @@ ShellRoot {
                     Weather.feelsLike = true;
                     wait(30);
                     check(current.text === apparent && graph.reading("feelsLike", graph.hours[0]) === apparent, "feels like uses " + unit);
+                    check(Array.from(firstDay.content).some(child => child.text === apparent + " / " + apparent), "daily high and low follow feels like in " + unit);
+                    check(Weather.summarize([Object.assign({}, graph.hours[0], {feelsLike: 35})]).includes(hot), "summary follows feels like in " + unit);
+                    check(Weather.highLow({high: 1, low: 0, hours: [{feelsLike: null}]}) === "- / -", "a day with no feels like reads as unknown in " + unit);
                     Weather.feelsLike = false;
                     wait(30);
                 }

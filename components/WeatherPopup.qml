@@ -51,7 +51,7 @@ Popup {
         PopupText {
             id: current
             anchors.verticalCenter: parent.verticalCenter
-            text: Weather.formatTemperature(Weather.thisHour?.[Weather.feelsLike ? "feelsLike" : "temperature"], false)
+            text: Weather.formatTemperature(Weather.thisHour?.[Weather.temperatureKey], false)
             font.pixelSize: Theme.figureTextSize
         }
 
@@ -243,7 +243,7 @@ Popup {
                         y: 46
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
-                        text: `${Weather.formatTemperature(daily.modelData.high, false)} / ${Weather.formatTemperature(daily.modelData.low, false)}`
+                        text: Weather.highLow(daily.modelData)
                         font.pixelSize: Theme.captionSize
                     }
                     PopupText {

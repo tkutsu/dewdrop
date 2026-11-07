@@ -17,7 +17,7 @@ BarItem {
     trimRight: root.showTemperature ? 3 : 1
 
     readonly property bool showTemperature: Settings.weatherDisplay === "temperature"
-    readonly property var temperature: Services.Weather.thisHour?.[Services.Weather.feelsLike ? "feelsLike" : "temperature"]
+    readonly property var temperature: Services.Weather.thisHour?.[Services.Weather.temperatureKey]
     readonly property var forecast: Settings.weatherDisplay === "day" ? Services.Weather.today : Services.Weather.thisHour
 
     actions: ({
