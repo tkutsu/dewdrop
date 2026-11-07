@@ -9,6 +9,7 @@ import qs.services
 BarItem {
     id: root
     name: "Display"
+    present: NightMode.present
     tooltip: NightMode.tooltip
     tooltipEnabled: !root.feedbackVisible
     popup: DisplayPopup {}

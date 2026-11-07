@@ -74,7 +74,7 @@ ShellRoot {
                 // A manual change (SUPER+Z runs display.sh directly) holds until the next boundary.
                 clock(23, 0);
                 mode(true);
-                Quickshell.execDetached([Quickshell.shellPath('display.sh'), 'toggle']);
+                Quickshell.execDetached([Quickshell.shellPath('scripts/display.sh'), 'toggle']);
                 mode(false);
                 clock(23, 30);
                 WallClock.wokeUp();
@@ -425,8 +425,8 @@ def main():
         copy_shell(target)
         for name in ('services', 'components', 'bin', 'runtime'):
             (target / name).mkdir(mode=0o700, exist_ok=True)
-        display = target / 'display.sh'
-        source = (Path.home() / '_scripts/display.sh').read_text()
+        display = target / 'scripts/display.sh'
+        source = Path(__file__).with_name('display.sh').read_text()
         for name in ('brightness', 'night-mode', 'brightness.lock'):
             source = source.replace('/tmp/flag-' + name, str(target / name))
         display.write_text(source)
@@ -479,7 +479,6 @@ import QtQuick
 import Quickshell
 QtObject {
     function state(name) { return Quickshell.shellPath(name); }
-    function script(name) { return Quickshell.shellPath(name); }
 }
 ''')
         (target / 'components/Glyph.qml').write_text('import QtQuick\nItem { property string text: ""; property int fontSize: 12; property color color: "white"; implicitWidth: 12 }\n')

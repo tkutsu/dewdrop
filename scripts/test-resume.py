@@ -282,7 +282,8 @@ def main():
         components.mkdir(exist_ok=True)
         log_path = target / "pacman.log"
         log_path.write_text("fixture initial log\n")
-        display = target / "display.sh"
+        display = target / "scripts/display.sh"
+        display.parent.mkdir(exist_ok=True)
         level = target / "brightness"
         display.write_text(f'''#!/bin/sh
 case "$1" in
@@ -335,7 +336,7 @@ QtObject {
         (target / "Fuzzy.js").write_text((ROOT / "Fuzzy.js").read_text())
         (target / "Settings.qml").write_text(f'pragma Singleton\nimport QtQuick\nQtObject {{ property var layoutNames: ({{}}); property string wallpaperDir: "{target}"; }}\n')
         (target / "Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property color tint: "black"; property color backdrop: "black"; property var glyph: ({notif: "", nightOn: "", nightOff: "", wifiOff: "", wired: "", wifiStrength: [""], folder: "", file: "", update: ""}); property int fadeMs: 1; property int previewFontSize: 12; property string monoFont: "monospace"; property color menuText: "white"; property int previewTextSize: 12; property color label2: "grey"; property color label: "white"; property int iconSize: 16; property real glyphInk: 1 }\n')
-        (target / "Paths.qml").write_text(f'pragma Singleton\nimport QtQuick\nQtObject {{ function state(name) {{ return "{target}/" + name; }} function cache(name) {{ return "{target}/" + name; }} function script(name) {{ return "{display}"; }} }}\n')
+        (target / "Paths.qml").write_text(f'pragma Singleton\nimport QtQuick\nQtObject {{ function state(name) {{ return "{target}/" + name; }} function cache(name) {{ return "{target}/" + name; }} }}\n')
         (target / "OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         for name in ("QueuedProcess", "FilePreview"):
             (components / f"{name}.qml").write_text((ROOT / f"components/{name}.qml").read_text())
