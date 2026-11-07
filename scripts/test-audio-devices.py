@@ -68,7 +68,7 @@ ShellRoot {
                 check(Audio.availableSources.length === 1, "unplugged microphone and line input are hidden");
                 check(rows(popup).join('|') === 'External USB Headset|JBL Earbuds|JBL Earbuds',
                     "connected Bluetooth and external USB devices retain their names, including a sole input");
-                const expected = ['Digital Output (S/PDIF)', 'Speakers', 'Front Headphones', 'Line In', 'Microphone'];
+                const expected = ['S/PDIF Output', 'Speakers', 'Front Headphones', 'Line Input', 'Microphone'];
                 const onboard = snapshot.sinks.slice(0, 3).concat(snapshot.sources.slice(0, 2));
                 check(onboard.every((entry, i) => Audio.deviceName(entry) === expected[i]),
                     "motherboard ports have clear names");
@@ -109,18 +109,21 @@ ShellRoot {
 
 def main():
     """Run the actual service and popup against an isolated pactl snapshot."""
-    def port(name, kind, availability="not available"):
-        return {"name": name, "description": "USB Audio " + name,
-                "properties": {"alsa.components": "USB0b05:1a5c"},
+    # A motherboard card as PipeWire splits it: one output or input per jack,
+    # each described as the card's name and then the jack's.
+    def port(name, kind, jack, availability="not available"):
+        return {"name": name, "description": "USB Audio " + jack,
+                "properties": {"device.name": "alsa_card.usb-Generic_USB_Audio-00", "device.description": "USB Audio"},
                 "ports": [{"name": name, "type": kind, "availability": availability}],
                 "active_port": name}
 
     snapshot = {
-        "sinks": [port("spdif", "SPDIF", "availability unknown"), port("speakers", "Speaker"),
-                  port("headphones", "Headphones"),
+        "sinks": [port("spdif", "SPDIF", "S/PDIF Output", "availability unknown"), port("speakers", "Speaker", "Speakers"),
+                  port("headphones", "Headphones", "Front Headphones"),
                   {"name": "earbuds", "description": "JBL Earbuds", "ports": []},
-                  {"name": "headset", "description": "External USB Headset", "ports": []}],
-        "sources": [port("line", "Line"), port("mic", "Mic"),
+                  {"name": "headset", "description": "External USB Headset", "ports": [],
+                   "properties": {"device.name": "alsa_card.usb-Headset-00", "device.description": "External USB Headset"}}],
+        "sources": [port("line", "Line", "Line Input"), port("mic", "Mic", "Microphone"),
                     {"name": "earbuds-mic", "description": "JBL Earbuds", "ports": []}],
     }
     with tempfile.TemporaryDirectory(prefix="qs-audio-devices-") as folder:

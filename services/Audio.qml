@@ -60,19 +60,25 @@ Singleton {
     readonly property var sinks: Pipewire.nodes.values.filter(n => n.type === PwNodeType.AudioSink).sort((a, b) => (a.description || a.name).localeCompare(b.description || b.name))
     readonly property var availableSinks: sinks.filter(n => deviceAvailable(n)).sort((a, b) => deviceName(a).localeCompare(deviceName(b)))
 
-    // The motherboard uses USB internally. Its ports need a detected plug;
-    // devices without jack detection (such as USB headsets) remain selectable.
+    // A card that gives each of its jacks an output or input of its own, as
+    // a motherboard's does, shows a jack only once something is plugged into
+    // it, and names it by the jack rather than by the card. A device with one
+    // of each, such as a USB headset, has no plug to wait for and keeps its
+    // own name.
     function readPorts(snapshot): void {
         const ports = {};
-        for (const entry of snapshot.sinks.concat(snapshot.sources)) {
-            const port = entry.ports?.find(p => p.name === entry.active_port);
-            const onboard = entry.properties?.["alsa.components"] === "USB0b05:1a5c";
-            const labels = {Speaker: "Speakers", Headphones: "Front Headphones", Mic: "Microphone", Line: "Line In", SPDIF: "Digital Output (S/PDIF)"};
-            ports[entry.name] = {
-                available: onboard ? port?.availability === "available" : port?.availability !== "not available",
-                plugged: port?.availability === "available",
-                label: onboard ? (labels[port?.type] || port?.description || entry.description) : entry.description
-            };
+        const card = entry => entry.properties?.["device.name"] ?? "";
+        for (const entries of [snapshot.sinks, snapshot.sources]) {
+            for (const entry of entries) {
+                const port = entry.ports?.find(p => p.name === entry.active_port);
+                const split = card(entry) !== "" && entries.filter(e => card(e) === card(entry)).length > 1;
+                const prefix = (entry.properties?.["device.description"] ?? "") + " ";
+                ports[entry.name] = {
+                    available: split ? port?.availability === "available" : port?.availability !== "not available",
+                    plugged: port?.availability === "available",
+                    label: split && prefix.length > 1 && entry.description?.startsWith(prefix) ? entry.description.slice(prefix.length) : entry.description
+                };
+            }
         }
         root.devicePorts = ports;
     }
@@ -184,7 +190,7 @@ Singleton {
         if (!root.sinkMoved || !sink?.description)
             return;
         root.sinkMoved = false;
-        Quickshell.execDetached(["notify-send", "-e", "-a", "Bar", "-u", "low", "-h", "string:x-canonical-private-synchronous:audio-output", "Sound output", sink.description]);
+        Notify.send("Sound output", sink.description, ["-e", "-u", "low", "-h", "string:x-canonical-private-synchronous:audio-output"]);
     }
 
     Process {
