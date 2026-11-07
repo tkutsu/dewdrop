@@ -329,7 +329,7 @@ def main():
     qml = qml.replace('PLACEMENT_CONNECTION', block(source, 'function onCentreKeysChanged', 'Connections {'))
     menu = (ROOT / 'modules/SettingsMenu.qml').read_text()
     metadata = menu[menu.index('    readonly property var modules:'):menu.index('    // Running now,')]
-    metadata = metadata.replace('readonly property var modules:', 'readonly property var settingsModules:').replace('root.modules', 'bar.settingsModules').replace('root.pinOptions', 'bar.pinOptions')
+    metadata = metadata.replace('readonly property var modules:', 'readonly property var settingsModules:').replace('root.modules', 'bar.settingsModules').replace('root.', 'bar.')
     qml = qml.replace('SETTINGS_METADATA', metadata)
     rows = re.search(r'rows: (RightPillOrder.keys.filter[^\n]+)', menu).group(1)
     qml = qml.replace('DRAWER_ROWS', rows.replace('root.modules', 'bar.settingsModules').replace('root.placement', 'bar.placement'))
