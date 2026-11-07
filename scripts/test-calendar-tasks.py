@@ -85,7 +85,7 @@ ShellRoot {
                 Agenda.calendars = [{id: "primary", title: "Me"}];
                 Agenda.calls = [];
                 const start = new Date(2026, 9, 23, 15, 0);
-                Agenda.insert({title: "Call bank", start: start, end: new Date(start.getTime() + 3600000), reminders: null});
+                Agenda.insert({title: "Call bank", start: start, end: new Date(start.getTime() + 3600000)});
                 const post = Agenda.calls[0];
                 const offset = -start.getTimezoneOffset();
                 const zone = (offset < 0 ? "-" : "+") + Timers.pad(Math.floor(Math.abs(offset) / 60)) + ":" + Timers.pad(Math.abs(offset) % 60);
@@ -98,7 +98,7 @@ ShellRoot {
                 post.done({});
                 check(Agenda.inflight !== before && Agenda.inflight["2026-10"] === true, "an inserted event refetches its month");
                 Agenda.calls = [];
-                Agenda.insert({title: "Dentist", start: start, end: start, reminders: null});
+                Agenda.insert({title: "Dentist", start: start, end: start});
                 Agenda.calls[0].failed(Google.reconnect, 403);
                 check(Agenda.trouble === Google.reconnect, "a failed insert is visible");
 

@@ -740,11 +740,8 @@ Singleton {
         const calendar = () => Google.needsConsent ? "calendar needs reconnect" : null;
         switch (plan.kind) {
         case "timer":
-            return Timers.brief(typed, plan.timer);
         case "alarm":
-            if (!ev)
-                return Timers.brief(typed, plan.timer);
-            return `alarm ${time(ev.start)} ${Tasks.sayDay(Tasks.dayString(ev.start))}  ·  ${calendar() ?? `event ${time(ev.start)}–${time(ev.end)}`}`;
+            return Timers.brief(typed, plan.timer);
         case "event":
             return "event  ·  " + (calendar() ?? `${Tasks.sayDay(Tasks.dayString(ev.start))} ${time(ev.start)}–${time(ev.end)}`);
         }

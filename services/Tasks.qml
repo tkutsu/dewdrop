@@ -553,9 +553,8 @@ GoogleService {
 
     // The whole `,` line, which makes one of four things: the more of a time
     // it gives, the bigger the thing. In this order:
-    //   1. a duration or a clock time first: a timer, or an alarm, which with
-    //      a title is also an hour's event on the day it rings;
-    //   2. a day, then a clock time and a title: an event, with no alarm;
+    //   1. a duration or a clock time first: a timer, or an alarm;
+    //   2. a day, then a clock time and a title: an event;
     //   3. anything else: a task, with its day and task list (parse).
     // Times come from TimersParse.js and days from readDay, so "9:30", "9pm"
     // and "21:30" mean the same here as for alarms, and a bare "9" stays a
@@ -563,16 +562,8 @@ GoogleService {
     function plan(text: string): var {
         const typed = (text ?? "").trim();
         const timer = Timers.parse(typed);
-        if (timer.ok && timer.kind === "countdown")
-            return { ok: true, kind: "timer", timer: timer };
-        if (timer.ok) {
-            // The day the alarm rings, so the two never disagree at midnight.
-            const start = new Date(Timers.occurrence(timer.hour, timer.minute, [], Date.now()));
-            // The alarm is the ring, already sent to the phone; a calendar
-            // reminder on top would ring twice.
-            return { ok: true, kind: "alarm", timer: timer,
-                event: timer.label ? root.event(timer.label, start, { useDefault: false, overrides: [] }) : null };
-        }
+        if (timer.ok)
+            return { ok: true, kind: timer.kind === "countdown" ? "timer" : "alarm", timer: timer };
         const words = typed.split(/\s+/);
         const day = words.length > 1 ? root.readDay(words[0].toLowerCase()) : "";
         const at = day !== "" ? Timers.parse(words.slice(1).join(" ")) : null;
@@ -580,27 +571,15 @@ GoogleService {
             if (!at.label)
                 return { ok: false, kind: "event", error: "No event, only a time" };
             const [y, m, d] = day.split("-").map(Number);
-            return { ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute), null) };
+            return { ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute)) };
         }
         const task = root.parse(typed);
         return { ok: task.ok, kind: "task", task: task, error: task.error };
     }
 
     // Events last an hour.
-    function event(title: string, start: var, reminders: var): var {
-        return { title: title, start: start, end: new Date(start.getTime() + 3600000), reminders: reminders };
-    }
-
-    // Remember cancellation while Google is still creating an alarm's event.
-    property var pendingAlarmEvents: ({})
-
-    Connections {
-        target: Timers
-        function onCancelled(entry: var): void {
-            const pending = root.pendingAlarmEvents[entry.id];
-            if (pending)
-                pending.cancelled = true;
-        }
+    function event(title: string, start: var): var {
+        return { title: title, start: start, end: new Date(start.getTime() + 3600000) };
     }
 
     // What the line makes, said once it is done. The one entry point the
@@ -609,27 +588,8 @@ GoogleService {
         const p = root.plan(text);
         if (!p.ok)
             return p.error;
-        if (p.kind === "timer")
+        if (p.kind === "timer" || p.kind === "alarm")
             return Timers.run(text);
-        if (p.kind === "alarm") {
-            const t = p.timer;
-            const id = Timers.addAlarm(t.hour, t.minute, t.label, []);
-            const said = `Alarm set for ${Timers.hhmm(t.hour, t.minute)}`;
-            // Without the calendar the alarm still rings; the launcher said so.
-            if (!p.event || Google.needsConsent)
-                return said;
-            const pending = { cancelled: false };
-            root.pendingAlarmEvents[id] = pending;
-            Agenda.insert(p.event, saved => {
-                delete root.pendingAlarmEvents[id];
-                const event = { id: saved.id, title: p.event.title, start: p.event.start.getTime() };
-                if (pending.cancelled)
-                    Agenda.remove(event);
-                else
-                    Timers.linkEvent(id, event);
-            }, () => { delete root.pendingAlarmEvents[id]; });
-            return `${said}, and an event`;
-        }
         if (p.kind === "event") {
             Agenda.insert(p.event);
             return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} at ${Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes())}`;

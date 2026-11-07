@@ -76,13 +76,9 @@ ShellRoot {
                 check(Tasks.plan("work call bank").task.list === "work", "task list word makes a task there");
                 check(Tasks.plan("fri call bank").task.day === fri, "day word makes a dated task");
                 check(Tasks.plan("25m tea").kind === "timer", "duration is only a timer");
-                const alarm = Tasks.plan("15:00 call bank");
-                const rings = new Date(Timers.occurrence(15, 0, [], Date.now()));
-                check(alarm.kind === "alarm" && alarm.event.title === "call bank" && day(alarm.event.start) === day(rings)
-                    && alarm.event.start.getHours() === 15 && alarm.event.reminders.useDefault === false
-                    && alarm.event.reminders.overrides.length === 0, "clock time makes an alarm and a quiet event on its day");
-                check(Tasks.plan("15:00").kind === "alarm" && Tasks.plan("15:00").event === null, "untitled alarm makes no event");
-                check(at(Tasks.plan("today 15:00 call bank"), Tasks.today, 15, 0) && Tasks.plan("today 15:00 call bank").event.reminders === null, "today and a time make an event with default reminders");
+                check(Tasks.plan("15:00 call bank").kind === "alarm" && !Tasks.plan("15:00 call bank").event, "a clock time with a title is only an alarm");
+                check(Tasks.plan("15:00").kind === "alarm" && !Tasks.plan("15:00").event, "a clock time alone is only an alarm");
+                check(at(Tasks.plan("today 15:00 call bank"), Tasks.today, 15, 0), "today and a time make an event");
                 check(at(Tasks.plan("fri 15:00 call bank"), fri, 15, 0), "weekday and time make an event");
                 // The launcher's bare plan hint (Launcher.queryHints) shows these.
                 for (const [line, kind] of [["call bank", "task"], ["25m", "timer"], ["15:00", "alarm"], ["fri 15:00 call", "event"]])
@@ -100,30 +96,28 @@ ShellRoot {
                 // What Enter will make, said before it is made.
                 const range = (a, b) => `${Timers.hhmm(a, 0)}–${Timers.hhmm(b, 0)}`;
                 const preview = line => Launcher.taskResults(" " + line)[0];
-                check(preview("15:00 call bank").subtitle === `alarm ${Timers.hhmm(15, 0)} ${Tasks.sayDay(day(rings))}  ·  event ${range(15, 16)}`, "alarm and event preview");
+                check(!preview("15:00 call bank").subtitle.includes("event"), "alarm preview promises no event");
                 check(preview("fri 15:00 call bank").subtitle === `event  ·  ${Tasks.sayDay(fri)} ${range(15, 16)}` && preview("fri 15:00 call bank").event, "event preview");
                 check(preview("fri call bank").subtitle.startsWith("add  ·  ") && !preview("fri call bank").event, "task preview");
                 Google.scopeMissing = true;
-                check(preview("15:00 call bank").subtitle.endsWith("calendar needs reconnect") && preview("15:00 call bank").ok, "alarm still sets without the calendar");
+                check(!preview("15:00 call bank").subtitle.includes("calendar") && preview("15:00 call bank").ok, "an alarm has nothing to do with the calendar");
                 check(preview("fri 15:00 call bank").subtitle === "event  ·  calendar needs reconnect" && !preview("fri 15:00 call bank").ok, "event waits for reconnect");
                 Google.scopeMissing = false;
 
-                // A time already gone today rings tomorrow, and its event is
-                // on the same day.
+                // A time already gone today rings tomorrow, with no event.
                 const gone = new Date(Date.now() - 120000);
                 if (gone.getDate() === new Date().getDate()) {
                     const line = `${Timers.pad(gone.getHours())}:${Timers.pad(gone.getMinutes())} stand up`;
                     Agenda.calls = [];
                     Tasks.run(line);
                     const entry = Timers.entries[Timers.entries.length - 1];
-                    const call = Agenda.calls[0];
-                    check(day(new Date(entry.endsAt)) === Tasks.tomorrow && call?.body.start.dateTime.startsWith(Tasks.tomorrow)
-                        && call.url.endsWith("/calendars/primary/events") && call.body.summary === "stand up", "past time goes to tomorrow for alarm and event");
+                    check(day(new Date(entry.endsAt)) === Tasks.tomorrow && entry.label === "stand up" && !Agenda.calls.length, "past time goes to tomorrow and leaves the calendar alone");
                     Timers.cancel(entry.id);
                 }
                 Agenda.calls = [];
                 check(Tasks.run("fri 15:00 call bank").startsWith("Added call bank") && Agenda.calls.length === 1
-                    && Agenda.calls[0].body.start.dateTime.startsWith(fri + "T15:00:00") && Agenda.calls[0].body.reminders === undefined, "event line inserts an event");
+                    && Agenda.calls[0].body.start.dateTime.startsWith(fri + "T15:00:00") && Agenda.calls[0].url.endsWith("/calendars/primary/events")
+                    && Agenda.calls[0].body.reminders === undefined, "event line inserts an event");
                 Agenda.calls = [];
                 Tasks.tasks = [
                     {id: "b", listId: "home", title: "Second", position: "20", due: "2026-10-01", parent: "", notes: ""},
