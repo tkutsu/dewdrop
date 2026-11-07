@@ -366,7 +366,7 @@ def check_placement(target):
     (target / 'settings.default.json').write_text('{}')
     (target / 'settings.json').write_text('{"modules":{"night":false,"audio":false}}')
     (target / 'components/DisplayPopup.qml').write_text('import QtQuick\nItem {}\n')
-    (target / 'services/NightMode.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property bool on: false; property string icon: on ? 'on' : 'off'; property string tooltip: 'Night mode'; function toggle() { on = !on; } function nudge(up) {} }\n")
+    (target / 'services/NightMode.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property bool present: true; property bool on: false; property string icon: on ? 'on' : 'off'; property string tooltip: 'Night mode'; function toggle() { on = !on; } function nudge(up) {} }\n")
     run_shell(target, r"""import QtQuick
 import QtQuick.Window
 import QtTest
