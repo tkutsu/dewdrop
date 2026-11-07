@@ -42,7 +42,7 @@ Singleton {
     readonly property int pollMs: 5 * 60000
     readonly property int retryMs: 2 * 60000
     // How far back videos look, and how many RSS stories appear at a time.
-    readonly property int days: 7
+    readonly property int days: Settings.feedDays
     readonly property int storiesShown: 20
     // Feeds fetched at once. Enough to finish a hundred channels in seconds,
     // few enough not to look like a crawler.
@@ -337,6 +337,7 @@ Singleton {
 
         function onFeedUrlsChanged(): void { root.refresh(); }
         function onFeedChannelsChanged(): void { root.refresh(); }
+        function onFeedDaysChanged(): void { root.refresh(); }
     }
 
     // --- the browser's history -----------------------------------------------
