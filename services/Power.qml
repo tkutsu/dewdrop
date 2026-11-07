@@ -7,14 +7,14 @@ import qs
 
 // What the launcher's power rows offer and what they do about it.
 //
-// The actions themselves stay in ~/_scripts/power.sh, the way rofi-power.sh
-// delegated to it: the launcher's "!" mode, the bar's launcher button and
-// anything else that wants to shut the machine down all end up in the same
-// place, and this only decides what to offer and how to leave the screen.
+// The actions themselves are in scripts/power.sh: the launcher's "!" mode, the
+// bar's launcher button and anything else that wants to shut the machine down
+// all end up in the same place, and this only decides what to offer and how to
+// leave the screen.
 Singleton {
     id: root
 
-    readonly property string script: Paths.script("power.sh")
+    readonly property string script: Quickshell.shellPath("scripts/power.sh")
 
     // The action whose CRT exit the launcher box is playing. The command
     // runs when that finishes (Launcher.leave); clearing this cancels it.
@@ -97,10 +97,10 @@ Singleton {
     function run(arg: string, keepBlack: bool): void {
         root.blackout = keepBlack && root.fades(arg);
         if (root.blackout) {
-            action.command = [root.script, arg];
+            action.command = [root.script, arg, Settings.sessionSaveCommand];
             action.running = true;
         } else {
-            Quickshell.execDetached([root.script, arg]);
+            Quickshell.execDetached([root.script, arg, Settings.sessionSaveCommand]);
         }
     }
 

@@ -5,13 +5,13 @@ import Quickshell
 import Quickshell.Io
 import qs
 
-// Night mode and monitor backlight, both over DDC/CI (VCP 0x10).
+// Night mode and screen brightness.
 //
-// SUPER+Z runs display.sh too, so the script has to stay whatever the bar does
-// — and it, not the bar, owns what a toggle means: hyprsunset temperature,
-// ddcutil, the brightness cache, and the one lock that keeps a toggle from
-// landing in the middle of a scroll. Reimplementing that here would just give
-// it a second definition to drift from.
+// A keybind can run scripts/display.sh too, so the script has to stay whatever
+// the bar does — and it, not the bar, owns what a toggle means: hyprsunset
+// temperature, ddcutil or brightnessctl, the brightness cache, and the one lock
+// that keeps a toggle from landing in the middle of a scroll. Reimplementing
+// that here would just give it a second definition to drift from.
 //
 // What does change: the old module re-ran a script every 5 seconds to find out
 // what the state was. The flag files are watched instead, so a toggle from
@@ -19,7 +19,10 @@ import qs
 Singleton {
     id: root
 
+    readonly property string script: Quickshell.shellPath("scripts/display.sh")
 
+    // False once the script says this screen has no way to change brightness.
+    property bool present: true
     property bool on: false
     property int brightness: 100
     property bool automatic: false
@@ -130,7 +133,7 @@ Singleton {
     }
 
     function choose() {
-        chooser.command = [Paths.script("display.sh"), root.asked === "on" ? "night-on" : "night-off"];
+        chooser.command = [root.script, root.asked === "on" ? "night-on" : "night-off"];
         chooser.running = true;
     }
 
@@ -199,7 +202,7 @@ Singleton {
         if (setter.running || WallClock.now < root.nextScheduleAttempt)
             return;
         root.pendingMode = due;
-        modeSetter.command = [Paths.script("display.sh"), due ? "night-on" : "night-off"];
+        modeSetter.command = [root.script, due ? "night-on" : "night-off"];
         modeSetter.running = true;
     }
 
@@ -286,7 +289,7 @@ Singleton {
     }
 
     function toggle() {
-        Quickshell.execDetached([Paths.script("display.sh"), "toggle"]);
+        Quickshell.execDetached([root.script, "toggle"]);
     }
 
     function nudge(up) {
@@ -306,11 +309,12 @@ Singleton {
     property int wanted: -1
     property int committed: 100
 
-    // The temporary cache disappears at boot; get queries DDC when it is absent.
+    // The temporary cache disappears at boot; get queries the panel when it is absent.
     Component.onCompleted: initialLevel.running = true
     Process {
         id: initialLevel
-        command: [Paths.script("display.sh"), "get"]
+        command: [root.script, "get"]
+        onExited: code => root.present = code === 0
         stdout: StdioCollector {
             onStreamFinished: {
                 const value = parseInt(text);
@@ -332,7 +336,7 @@ Singleton {
     function push() {
         if (setter.running || root.wanted < 0)
             return;
-        setter.command = [Paths.script("display.sh"), "set", String(root.wanted)];
+        setter.command = [root.script, "set", String(root.wanted)];
         root.wanted = -1;
         setter.running = true;
     }

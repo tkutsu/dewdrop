@@ -256,7 +256,16 @@
     // Applying equalizer changes backs up this file and restarts mpd.service.
     "mpdConfig": "~/.config/mpd/mpd.conf",
 
-    // External helpers for power, display, updates and cleanup.
+    // Run before logging out, to save your windows for next time. Empty saves
+    // nothing.
+    "sessionSaveCommand": "",
+
+    // The DDC/CI bus of the monitor brightness goes to; `ddcutil detect` names
+    // it. Naming it is quicker. Empty uses the first monitor. A laptop's panel
+    // does not use this.
+    "displayBus": "",
+
+    // External helpers for updates and cleanup.
     "scriptsDir": "~/_scripts",
 
     // App desktop IDs for gmail, calendar and tasks. An empty value detects

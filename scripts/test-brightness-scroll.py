@@ -117,15 +117,14 @@ def main():
     with tempfile.TemporaryDirectory(prefix='qs-brightness-scroll-') as folder:
         target = Path(folder)
         copy_shell(target)
-        helper = (Path.home() / '_scripts/display.sh').read_text()
+        helper = Path(__file__).with_name('display.sh').read_text()
         for name in ('brightness', 'night-mode', 'brightness.lock'):
             helper = helper.replace('/tmp/flag-' + name, str(target / name))
-        (target / 'display.sh').write_text(helper)
-        (target / 'display.sh').chmod(0o700)
+        (target / 'scripts/display.sh').write_text(helper)
+        (target / 'scripts/display.sh').chmod(0o700)
         service = target / 'services/NightMode.qml'
         service.write_text(service.read_text().replace('/tmp/flag-brightness', str(target / 'brightness'))
                            .replace('/tmp/flag-night-mode', str(target / 'night-mode')))
-        (target / 'settings.json').write_text(json.dumps({'scriptsDir': str(target)}))
         (target / 'brightness').write_text('43\n')
         (target / 'ddc-calls').write_text('')
         (target / 'bin').mkdir()
