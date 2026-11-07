@@ -212,7 +212,7 @@ Rectangle {
         hoverEnabled: true
         Accessible.role: Accessible.Button
         Accessible.name: row.modelData.title || row.modelData.subtitle || "Launcher result"
-        Accessible.ignored: row.modelData.kind === "note"
+        Accessible.ignored: row.modelData.kind === "note" && !row.modelData.install
         Accessible.onPressAction: if (enabled && visible)
             Launcher.activate(row.index)
 
