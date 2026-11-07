@@ -13,6 +13,7 @@ import QtQuick
 import Quickshell
 import qs
 Singleton {
+    property bool present: true
     property bool on: false
     property int brightness: 53
     property int pending: 53
