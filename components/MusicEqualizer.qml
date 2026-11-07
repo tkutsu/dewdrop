@@ -136,9 +136,14 @@ Column {
         text: "General listening curve. No measured JBL Endurance Race 2 correction was found."
         font.pixelSize: Theme.footnoteSize
     }
+    NeedsNote {
+        width: root.width
+        feature: "The equalizer"
+        programs: ["python3"]
+    }
     PopupNote {
         width: root.width
-        visible: MpdEqualizer.busy || MpdEqualizer.error !== ""
+        visible: Tools.has("python3") && (MpdEqualizer.busy || MpdEqualizer.error !== "")
         warn: MpdEqualizer.error !== ""
         text: MpdEqualizer.error || "Updating equalizer…"
     }

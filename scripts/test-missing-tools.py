@@ -32,6 +32,13 @@ ShellRoot {
                 calc: Launcher.calcResults("1+1", false).map(row => row.kind),
                 calcAsked: Launcher.calcResults("1+1", true).length,
                 files: LauncherFiles.results("x").map(row => row.kind),
+                terminalName: Tools.terminal,
+                install: Tools.installCommand,
+                weather: Tools.needs("Weather", ["python3"], "grey"),
+                upgrade: Tools.needs("Upgrade", [Tools.terminal], "grey"),
+                themis: Tools.needs("", ["themis"], "grey"),
+                network: Settings.helper(Settings.networkCommand, false),
+                monitor: Settings.helper(Settings.monitorCommand, true),
             }));
             MpdEqualizer.load();
             console.log("EQ:" + JSON.stringify({ busy: MpdEqualizer.busy, error: MpdEqualizer.error }));
@@ -63,16 +70,22 @@ def run(target, programs):
 
 def check_list_is_complete():
     """A program asked about but not probed for would always count as missing."""
-    listed = re.search(r'programs: \[(.*?)\]', (ROOT / 'Tools.qml').read_text(), re.S).group(1)
+    tools = (ROOT / 'Tools.qml').read_text()
+    listed = re.search(r'programs: \[(.*?)\]\.filter', tools, re.S).group(1)
+    terminals = re.search(r'terminals: \[(.*?)\]', tools).group(1)
+    probed = set(re.findall(r'"([\w-]+)"', listed + terminals)) | {'themis'}  # the icon theme, by its folder
+    sources = set(re.findall(r'"([\w-]+)": "', re.search(r'sources: \(\{(.*?)\}\)', tools, re.S).group(1)))
     for path in ROOT.rglob('*.qml'):
-        if path.relative_to(ROOT).parts[0] not in ('.claude', 'lab'):
-            for name in re.findall(r'Tools\.has\("([^"]+)"\)', path.read_text()):
-                assert f'"{name}"' in listed, f'{path.name} asks for {name}, which Tools.qml does not probe'
-    used = re.findall(r'"([\w-]+)"', listed)
-    text = ''.join(path.read_text() for path in ROOT.rglob('*.qml') if path.relative_to(ROOT).parts[0] not in ('.claude', 'lab', 'Tools.qml'))
-    for name in used:
-        assert f'"{name}"' in text.replace(listed, ''), f'nothing uses {name}'
-    print('PASS: Tools probes every program the shell asks about')
+        if path.relative_to(ROOT).parts[0] not in ('.claude', 'lab') and path.name != 'Tools.qml':
+            text = path.read_text()
+            asked = re.findall(r'Tools\.has\("([^"]+)"\)', text)
+            for names in re.findall(r'programs: \[([^\]]*)\]', text):
+                asked += re.findall(r'"([\w-]+)"', names)
+            for name in asked:
+                assert name in probed, f'{path.name} asks for {name}, which Tools.qml does not probe'
+    for name in probed - {'pacman'}:
+        assert name in sources, f'{name} has no package for Install'
+    print('PASS: Tools probes every program the shell asks about, and knows its package')
     assert 'Tools.found' in (ROOT / 'shell.qml').read_text(), 'a singleton waits to be asked, so shell.qml has to ask'
     print('PASS: the shell looks for the programs at startup')
 
@@ -93,6 +106,25 @@ def main():
         print('PASS: file search says what it needs')
         assert not eq['busy'] and 'Python' in eq['error'], eq
         print('PASS: the equalizer says what it needs instead of waiting for ever')
+        assert result['terminalName'] == '' and result['upgrade'] == 'Upgrade needs a terminal.', result
+        print('PASS: with no terminal, Upgrade says it needs one')
+        assert result['install'] == '' and result['weather'] == 'Weather needs python.', result
+        print('PASS: without pacman a missing package is named, with nothing to press')
+        assert 'Needs Themis Icons.' in result['themis'] and 'href="https://github.com/tkutsu/themis-icons"' in result['themis'], result
+        print('PASS: missing Themis links to where it comes from')
+        assert result['network'] == [] and result['monitor'] == [], result
+        print('PASS: a right click with its app missing has nothing to run')
+
+        result, _ = run(base / 'arch', ['pacman', 'foot'])
+        assert result['terminalName'] == 'foot' and result['upgrade'] == '', result
+        print('PASS: an empty terminal setting finds the one installed')
+        assert result['install'] == 'sudo pacman -S --needed', result
+        assert result['weather'] == 'Weather needs python. <a href="install" style="color: grey">Install</a>', result
+        print('PASS: with pacman and a terminal, Install is offered, as a grey link')
+
+        result, _ = run(base / 'helpers', ['nm-connection-editor', 'btop'])
+        assert result['network'] == ['sh', '-c', 'nm-connection-editor'] and result['monitor'] == [], result
+        print('PASS: the monitor waits for a terminal as well as its program')
 
         result, _ = run(base / 'jq', ['jq'])
         assert result['fades'] == ['--poweroff', '--reboot', '--logout'], result

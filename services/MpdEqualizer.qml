@@ -33,11 +33,23 @@ Singleton {
     readonly property bool dirty: ready && JSON.stringify(gains) !== JSON.stringify(saved)
     readonly property string preset: presets.find(p => JSON.stringify(p.gains) === JSON.stringify(root.gains))?.value ?? "Custom"
 
+    // Installed since (the popup's Install): load what could not be read.
+    readonly property string needsPython: "The equalizer needs Python 3."
+    Connections {
+        target: Tools
+        function onFoundChanged(): void {
+            if (root.error === root.needsPython && Tools.has("python3")) {
+                root.error = "";
+                root.load();
+            }
+        }
+    }
+
     function load(): void {
         if (root.busy || root.dirty)
             return;
         if (!Tools.has("python3")) {
-            root.error = "The equalizer needs Python 3.";
+            root.error = root.needsPython;
             return;
         }
         root.error = "";

@@ -76,6 +76,15 @@ Popup {
         }
     }
 
+    // A terminal is the one thing Install cannot bring, so the line only
+    // names it.
+    NeedsNote {
+        width: root.bodyWidth
+        z: 1
+        feature: "Upgrade"
+        programs: Settings.commandsInTerminal ? [Tools.terminal] : []
+    }
+
     PopupNote {
         width: root.bodyWidth
         z: 1

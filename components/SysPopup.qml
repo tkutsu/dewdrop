@@ -293,16 +293,25 @@ Popup {
             title: "System"
 
             PopupButton {
-                visible: Tools.has("btop") && Tools.hasTerminal
+                readonly property var command: Settings.helper(Settings.monitorCommand, true)
+
+                visible: command.length > 0
                 framed: true
                 glyph: Theme.glyph.openApp
-                name: "Open btop"
+                name: "Open " + Settings.program(Settings.monitorCommand).split("/").pop()
                 onTapped: {
                     OpenPopup.dismiss();
-                    Quickshell.execDetached(Settings.inTerminal(["btop"], "btop (floating)"));
+                    Quickshell.execDetached(command);
                 }
             }
         }
+    }
+
+    NeedsNote {
+        x: -Theme.popupInset
+        width: root.w + Theme.popupInset * 2
+        feature: "System Monitor"
+        programs: Settings.monitorCommand ? [Settings.program(Settings.monitorCommand), Tools.terminal] : []
     }
 
     // --- CPU -----------------------------------------------------------------

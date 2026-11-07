@@ -21,8 +21,11 @@ Singleton {
 
     readonly property string script: Quickshell.shellPath("scripts/display.sh")
 
-    // False once the script says this screen has no way to change brightness.
+    // False once the script says this screen has no way to change brightness,
+    // and `needs` the program it said it lacks (ddcutil or brightnessctl), if
+    // that was why.
     property bool present: true
+    property string needs: ""
     property bool on: false
     property int brightness: 100
     property bool automatic: false
@@ -311,10 +314,21 @@ Singleton {
 
     // The temporary cache disappears at boot; get queries the panel when it is absent.
     Component.onCompleted: initialLevel.running = true
+    // Installed since (Tools looks again after every install): ask again.
+    Connections {
+        target: Tools
+        function onFoundChanged(): void {
+            if (!root.present && root.needs !== "" && Tools.has(root.needs))
+                initialLevel.running = true;
+        }
+    }
     Process {
         id: initialLevel
         command: [root.script, "get"]
         onExited: code => root.present = code === 0
+        stderr: StdioCollector {
+            onStreamFinished: root.needs = text.match(/needs (\S+)/)?.[1] ?? ""
+        }
         stdout: StdioCollector {
             onStreamFinished: {
                 const value = parseInt(text);

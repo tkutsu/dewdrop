@@ -62,7 +62,8 @@ Singleton {
     readonly property bool layoutChangeBounce: root.values.layoutChangeBounce === true || root.user.layoutChangeShowModule === true
     readonly property string font: root.values.font ?? ""
     readonly property string monoFont: root.values.monoFont ?? ""
-    readonly property string terminal: root.values.terminal ?? ""
+    // The setting, or the first terminal installed (Tools.terminals).
+    readonly property string terminal: Tools.terminal
     readonly property string editor: root.values.editor || Quickshell.env("EDITOR") || "nvim"
     readonly property string fileManager: root.values.fileManager ?? ""
     readonly property string screenshotCommand: (root.values.screenshotCommand ?? "").trim()
@@ -70,6 +71,12 @@ Singleton {
     readonly property string cleanupCommand: (root.values.cleanupCommand ?? "").trim()
     readonly property bool commandsInTerminal: root.values.commandsInTerminal !== false
     readonly property string sessionSaveCommand: (root.values.sessionSaveCommand ?? "").trim()
+    // What a right click on Network, Bluetooth or System opens, and the
+    // button in its popup. Empty hides the button. The monitor runs in the
+    // terminal.
+    readonly property string networkCommand: (root.values.networkCommand ?? "").trim()
+    readonly property string bluetoothCommand: (root.values.bluetoothCommand ?? "").trim()
+    readonly property string monitorCommand: (root.values.monitorCommand ?? "").trim()
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
@@ -246,6 +253,20 @@ Singleton {
     function inTerminal(command: var, title: string, hold: bool): var {
         const run = hold ? ["sh", "-c", '"$@"; printf "\\nPress Enter to close. "; read _', "sh", ...command] : command;
         return [root.terminal, ...(title ? ["--title=" + title] : []), "-e", ...run];
+    }
+
+    // The program a command line starts, for Tools to look for.
+    function program(command: string): string {
+        return root.expand(command.trim().split(/\s+/)[0] ?? "");
+    }
+
+    // A right click's app (networkCommand and the rest), ready to run. Empty
+    // when it is not set or not installed, and the popup says which.
+    function helper(command: string, inTerminal: bool): var {
+        const program = root.program(command);
+        if (!program || !Tools.has(program) || (inTerminal && !Tools.hasTerminal))
+            return [];
+        return inTerminal ? root.inTerminal(["sh", "-c", command], program.split("/").pop() + " (floating)") : ["sh", "-c", command];
     }
 
     // Upgrade's or Clean Up's command: in the chosen terminal, unless the

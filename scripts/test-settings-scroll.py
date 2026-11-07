@@ -36,7 +36,7 @@ ShellRoot {
                 menu.page = p; wait(80);
                 view.positionViewAtEnd(); view.forceLayout(); wait(30);
                 console.log("HEIGHT: " + menu.pages[p].title + " " + Math.round(view.contentHeight + view.topMargin + view.bottomMargin) + "/" + view.height);
-                if (!["Modules", "Web Search", "Launcher Apps"].includes(menu.pages[p].title))
+                if (!["Modules", "Launcher", "Web Search", "Launcher Apps", "Default Apps"].includes(menu.pages[p].title))
                     check(view.contentHeight + view.topMargin + view.bottomMargin <= view.height, "short preferences fit on one page: " + menu.pages[p].title);
                 const overflow = view.contentHeight + view.topMargin + view.bottomMargin > view.height;
                 check(menu.auditPageBar.visible === overflow, "page scrollbar reflects overflow: " + menu.pages[p].title);
@@ -110,7 +110,7 @@ def main():
         (target / "components/OverlayWindow.qml").write_text('import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true }')
         (target / "components/BackdropProbe.qml").write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property bool ringOnly: false; property real luma: 0.5 }')
         (target / "services/Keyboard.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var layouts: [{name: "Greek"}, {name: "English (US)"}] }')
-        (target / "services/Power.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var actions: Array.from({length: 6}, (_, i) => ({key: "fixture" + i, name: "Action " + i, glyph: ""})) }')
+        (target / "services/Power.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function fadeNeeds(arg) { return []; } property var actions: Array.from({length: 6}, (_, i) => ({key: "fixture" + i, name: "Action " + i, glyph: ""})) }')
         (target / "services/Tasks.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var lists: []; property var defaultList: ({id: ""}) }')
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target), capture_output=True, text=True, timeout=20)

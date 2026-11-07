@@ -110,11 +110,16 @@ Singleton {
             onStreamFinished: checkOfficial.err = text
         }
 
-        // timeout exits 127 when it cannot find the program it was asked to run.
+        // timeout exits 127 when it cannot find the program it was asked to
+        // run. Installed since (Install, then pacman.log's refresh), the
+        // module is back.
         onExited: function (exitCode) {
+            root.present = exitCode !== 127;
             if (exitCode === 127) {
-                root.present = false;
-            } else if (exitCode !== 0 && exitCode !== 2) {
+                root.finishCheck();
+                return;
+            }
+            if (exitCode !== 0 && exitCode !== 2) {
                 root.officialTrouble = root.failedCheck("Official update", exitCode, checkOfficial.err);
             } else {
                 root.officialTrouble = "";

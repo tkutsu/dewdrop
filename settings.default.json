@@ -161,8 +161,15 @@
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is
     // must accept --title=<title> and -e <command> (kitty, alacritty, foot
-    // and ghostty all do).
-    "terminal": "kitty",
+    // and ghostty all do). Empty uses the first of those installed.
+    "terminal": "",
+
+    // What a right click on Network, Bluetooth and System opens, and the
+    // button in each popup. Empty hides the button. The monitor runs in the
+    // terminal.
+    "networkCommand": "nm-connection-editor",
+    "bluetoothCommand": "blueman-manager",
+    "monitorCommand": "btop",
 
     // For the launcher's files. Empty: $EDITOR, or nvim without one.
     "editor": "",
@@ -276,6 +283,12 @@
     // it. Naming it is quicker. Empty uses the first monitor. A laptop's panel
     // does not use this.
     "displayBus": "",
+
+    // How Install, beside a feature that is missing a program, installs it:
+    // run in the terminal with the package names after it. The names are
+    // Arch's. Empty uses sudo pacman -S --needed where pacman is, and
+    // otherwise shows no Install.
+    "installCommand": "",
 
     // App desktop IDs for gmail, calendar and tasks. An empty value detects
     // an installed Chromium PWA; "browser" always opens the website.

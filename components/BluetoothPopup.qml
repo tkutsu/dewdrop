@@ -48,13 +48,15 @@ Popup {
         }
 
         PopupButton {
-            visible: Tools.has("blueman-manager")
+            readonly property var command: Settings.helper(Settings.bluetoothCommand, false)
+
+            visible: command.length > 0
             framed: true
             glyph: Theme.glyph.openApp
             name: "Bluetooth Settings"
             onTapped: {
                 OpenPopup.dismiss();
-                Quickshell.execDetached(["blueman-manager"]);
+                Quickshell.execDetached(command);
             }
         }
 
@@ -64,6 +66,12 @@ Popup {
             checked: Bluetooth.on
             onToggled: Bluetooth.toggle()
         }
+    }
+
+    NeedsNote {
+        width: root.bodyWidth
+        feature: "Bluetooth Settings"
+        programs: Settings.bluetoothCommand ? [Settings.program(Settings.bluetoothCommand)] : []
     }
 
     PopupSection {
