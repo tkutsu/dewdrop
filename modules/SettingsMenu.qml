@@ -136,6 +136,28 @@ OverlayWindow {
         return rows;
     }
 
+    // The symbol that starts each launcher mode. Cleared, a field goes back to
+    // its default. Built from a fixed list rather than Launcher.modes, which
+    // changes with every symbol saved and would rebuild the field being typed in.
+    readonly property var modeRows: [
+        { key: "clipboard", title: "Clipboard", glyph: Theme.glyph.clipboard },
+        { key: "windows", title: "Windows", glyph: Theme.glyph.launcherWindow },
+        { key: "files", title: "Files", glyph: Theme.glyph.folder },
+        { key: "tasks", title: "Tasks And Timers", glyph: Theme.glyph.tasks },
+        { key: "web", title: "Web Search", glyph: Theme.glyph.launcherWeb },
+        { key: "music", title: "Music", glyph: Theme.glyph.launcherMusic },
+        { key: "calc", title: "Calculator", glyph: Theme.glyph.launcherCalc },
+        { key: "mail", title: "Mail", glyph: Theme.glyph.mailUnread },
+        { key: "power", title: "Power", glyph: Theme.glyph.launcherPower }
+    ].map(mode => {
+        const fallback = Settings.defaults.launcherPrefixes?.[mode.key] ?? "";
+        const symbol = v => v.trim() || fallback;
+        return { type: "text", id: "launcherPrefix:" + mode.key, title: mode.title, glyph: mode.glyph, fieldWidth: 36, placeholder: fallback,
+            get: () => Settings.launcherPrefixes[mode.key],
+            validate: v => Settings.launcherPrefixProblem(mode.key, symbol(v)),
+            set: v => Settings.setLauncherPrefix(mode.key, symbol(v)) };
+    })
+
     // Named for what they do rather than by Launcher's own titles, which
     // say which way they would flip right now ("Turn Wi-Fi off").
     readonly property var controlRows: [
@@ -371,6 +393,11 @@ OverlayWindow {
             title: "Launcher",
             sections: [
                 {
+                    title: "Mode Symbols",
+                    text: "The character that starts each mode.",
+                    rows: root.modeRows
+                },
+                {
                     title: "File Search",
                     rows: [
                         { type: "text", id: "fileSearchIgnore", title: "Ignore File", tooltip: "Extra patterns in fd's ignore-file format. Empty uses fd's normal rules.", placeholder: "No extra ignore file", get: () => Settings.values.fileSearchIgnore ?? "", set: v => Settings.set("fileSearchIgnore", v.trim()) }
@@ -392,7 +419,7 @@ OverlayWindow {
                 {
                     title: "Web Search",
                     rows: [
-                        { type: "shortcuts", id: "webShortcuts", title: "Web Shortcuts", text: "Type . plus a character to choose a shortcut. Use %s in the URL for your search text.",
+                        { type: "shortcuts", id: "webShortcuts", title: "Web Shortcuts", text: "Type the web search symbol plus a character to choose a shortcut. Use %s in the URL for your search text.",
                             tooltip: "Leave Character blank on one entry to make it the default search. Otherwise the first entry is used. URLs without %s open directly.",
                             get: () => Settings.webShortcuts, set: v => Settings.set("webShortcuts", v) }
                     ]

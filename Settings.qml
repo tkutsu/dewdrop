@@ -69,6 +69,7 @@ Singleton {
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
+    readonly property var launcherPrefixes: Object.assign({}, root.defaults.launcherPrefixes, root.user.launcherPrefixes)
     readonly property var webShortcuts: root.values.webShortcuts ?? []
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
     readonly property var mailCategories: root.values.mailCategories ?? []
@@ -117,6 +118,20 @@ Singleton {
         else
             delete titles[url];
         root.set("feedTitles", titles);
+    }
+
+    // Why `value` cannot start this launcher mode, or nothing if it can. A
+    // letter or a digit would take over the start of an app's name; comparing
+    // cases finds letters in any script, which QML's regexes cannot.
+    function launcherPrefixProblem(key: string, value: string): string {
+        if (value.length !== 1 || /[\s\d]/.test(value) || value.toLowerCase() !== value.toUpperCase())
+            return "Use one symbol, not a letter or number.";
+        const prefixes = root.launcherPrefixes;
+        return Object.keys(prefixes).some(k => k !== key && prefixes[k] === value) ? "Another mode uses this symbol." : "";
+    }
+
+    function setLauncherPrefix(key: string, value: string): void {
+        root.set("launcherPrefixes", Object.assign({}, root.launcherPrefixes, { [key]: value }));
     }
 
     function badgeStyle(key: string): string {

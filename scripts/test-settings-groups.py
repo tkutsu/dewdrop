@@ -39,7 +39,7 @@ ShellRoot {
             check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Date & Time|Weather|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "seventeen focused tabs appear in the agreed order");
             const ids = rows().map(r => r.id);
             check(new Set(ids).size === ids.length, "settings and generated rows appear once");
-            const covered = new Set(ids.concat(["layoutNames", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datePosition", "weatherPosition", "timePosition", "wallpaperParallaxZoom"]));
+            const covered = new Set(ids.concat(["layoutNames", "launcherPrefixes", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datePosition", "weatherPosition", "timePosition", "wallpaperParallaxZoom"]));
             const missing = Object.keys(Settings.defaults).filter(key => !covered.has(key));
             check(missing.length === 0, "every default preference is reachable (missing: " + missing.join(", ") + ")");
             function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }

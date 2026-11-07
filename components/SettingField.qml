@@ -9,15 +9,22 @@ Rectangle {
 
     property var setting: null
     property bool edited: false
+    // Why the typed text was refused. SettingRow shows it; the draft stays put
+    // to be corrected, and is never saved.
+    property string trouble: ""
 
-    implicitWidth: 160
+    implicitWidth: root.setting?.fieldWidth ?? 160
     implicitHeight: 22
     radius: Theme.selectionRadius + 2
     color: Theme.well
     border.width: Theme.pillBorder
-    border.color: input.activeFocus ? Theme.outline : "transparent"
+    border.color: root.trouble ? Theme.warn : input.activeFocus ? Theme.outline : "transparent"
 
-    Component.onDestruction: if (root.edited && root.setting && input.text !== input.stored)
+    function problem(text: string): string {
+        return root.setting.validate?.(text) ?? "";
+    }
+
+    Component.onDestruction: if (root.edited && root.setting && input.text !== input.stored && !root.problem(input.text))
         root.setting.set(input.text)
 
     TextInput {
@@ -44,16 +51,23 @@ Rectangle {
             text = stored
         Component.onCompleted: text = stored
 
-        onTextEdited: root.edited = true
+        onTextEdited: {
+            root.edited = true;
+            root.trouble = "";
+        }
         onEditingFinished: {
-            if (text !== stored)
-                root.setting.set(text);
+            if (text !== stored) {
+                root.trouble = root.problem(text);
+                if (!root.trouble)
+                    root.setting.set(text);
+            }
             root.edited = false;
         }
 
         Keys.onEscapePressed: function (event) {
             event.accepted = text !== stored;
             root.edited = false;
+            root.trouble = "";
             text = stored;
         }
 
