@@ -202,8 +202,22 @@
         "steam:BigPicture", "steam:Friends"
     ],
 
-    // The launcher's . web shortcuts. key is one character; an empty key
-    // is the default for .query. Without an empty key, the first entry wins.
+    // The symbol that starts each launcher mode: one character, not a letter or
+    // a number (those start app names), and no two modes the same.
+    "launcherPrefixes": {
+        "clipboard": "\"",
+        "windows": "_",
+        "files": "/",
+        "tasks": ",",
+        "web": ".",
+        "music": "#",
+        "calc": "=",
+        "mail": "@",
+        "power": "!"
+    },
+
+    // The launcher's web shortcuts, after its web symbol. key is one character;
+    // an empty key is the default for .query. Without an empty key, the first entry wins.
     // %s inserts the URL-encoded search text. URLs without it open directly.
     "webShortcuts": [
         { "key": "", "name": "Google", "url": "https://www.google.com/search?q=%s" },

@@ -28,38 +28,41 @@ Singleton {
     //
     // Each shortcut has a character and a URL; %s inserts the encoded query.
     // The blank character selects the default search.
-    readonly property string enginePrefix: "."
+    readonly property string enginePrefix: Settings.launcherPrefixes.web ?? ""
     readonly property var engines: Settings.webShortcuts
 
     // Modes with one destination use a prefix directly.
+    //
+    // Each character is a setting (Settings > Launcher > Mode Symbols), and
+    // the comments here say why it is the default.
     //
     // Files, from fasd and fd. A calculation. The clipboard.
     // The characters are the ones already on the keys they mean — "=" starts
     // what you would write on paper, and a quote is what you
     // put round text you are pasting.
-    readonly property string pathPrefix: "/"
-    readonly property string calcPrefix: "="
-    readonly property string clipPrefix: '"'
+    readonly property string pathPrefix: Settings.launcherPrefixes.files ?? ""
+    readonly property string calcPrefix: Settings.launcherPrefixes.calc ?? ""
+    readonly property string clipPrefix: Settings.launcherPrefixes.clipboard ?? ""
     // Open windows by workspace. An underscore tries windows first; a search
     // with no matching window falls through to ordinary query inference.
-    readonly property string windowPrefix: "_"
+    readonly property string windowPrefix: Settings.launcherPrefixes.windows ?? ""
     // The library: artists, their records, the songs on them, and the stored
     // playlists. A hash, which starts nothing else here — it is not a
     // path, a sum, a prompt, a quoted line or a window.
-    readonly property string musicPrefix: "#"
+    readonly property string musicPrefix: Settings.launcherPrefixes.music ?? ""
     // Mail: the unread on its own, a search of the whole mailbox past it. The
     // at-sign, which is what an address reads as.
-    readonly property string mailPrefix: "@"
+    readonly property string mailPrefix: Settings.launcherPrefixes.mail ?? ""
     // Writing something down, and setting something going: here rather than in
     // a quick-entry box of their own, which would be a second line of text on
     // the same screen and one more place for the keyboard grab to go wrong.
     //
     // Tasks and timers share a comma: plain text writes down a task, while a
     // leading duration or time of day sets a timer or alarm.
-    readonly property string taskPrefix: ","
+    readonly property string taskPrefix: Settings.launcherPrefixes.tasks ?? ""
     // Sleep, restart, shut down and the rest. The bang, which is how loud
     // turning the machine off should be; the bar's right-click opens it too.
-    readonly property string powerPrefix: "!"
+    readonly property string powerPrefix: Settings.launcherPrefixes.power ?? ""
 
     readonly property var modes: [
         { prefix: root.clipPrefix, hint: "clipboard" },
@@ -169,8 +172,8 @@ Singleton {
         // Dot calculations and relative paths retain their inferred modes.
         const dotIsPathOrMath = sym === "." && (root.looksLikeMath(leading.trim()) || /^(?:\.{1,2}\/|\.[^\s/]+\/)/.test(leading));
         if (!dotIsPathOrMath && (root.modeResults[sym] || sym === root.enginePrefix)) {
-            // Keep an absolute path intact; "/ query" still selects file search.
-            if (sym === root.pathPrefix && /^\/\S/.test(leading))
+            // Keep a typed path intact; "/ query" still selects file search.
+            if (sym === root.pathPrefix && /^(?:\/\S|~\/)/.test(leading))
                 return { mode: sym, text: leading.trim() };
             const rest = leading.slice(1);
             if (sym !== root.windowPrefix || !rest.trim() || root.windowResults(rest.trim()).length)

@@ -20,7 +20,8 @@ import qs
 //   choice, dropdown    options: [{ value, label }]; a choice of more than
 //             three, or with a long label, is drawn as a dropdown
 //   slider    from, to, step, and format(value) for the readout
-//   text      placeholder
+//   text      placeholder, optional fieldWidth,
+//             optional validate(value): an error message or an empty string
 //   list      placeholder, validate(value): an error message or an empty string
 //             optional getTitle(value), setTitle(value, title) for named entries
 //   shortcuts [{ key, name, url }], with one character per key or a blank default
@@ -61,12 +62,16 @@ Item {
     }
     readonly property string kind: root.setting.type === "choice" && !root.fitsCapsule(root.setting.options) ? "dropdown" : root.setting.type
 
+    // A field's refusal takes the place of the line on what it does.
+    readonly property string trouble: control.item?.trouble ?? ""
+    readonly property string note: root.trouble || (root.setting.text ?? "")
+
     readonly property bool hasMark: !!(root.setting.icon || root.setting.glyph)
     readonly property int lead: root.hasMark ? 32 : Theme.popupInset
     readonly property bool listControl: root.kind === "list" || root.kind === "shortcuts"
     readonly property bool stacked: root.listControl || control.implicitWidth > (root.width - root.lead - 24) / 2
 
-    implicitHeight: Math.max(28, words.implicitHeight + (root.setting.text ? 12 : 8),
+    implicitHeight: Math.max(28, words.implicitHeight + (root.note ? 12 : 8),
         root.stacked ? words.implicitHeight + control.height + 20 : control.height + 12)
 
     Rectangle {
@@ -178,10 +183,10 @@ Item {
 
         PopupText {
             width: parent.width
-            visible: !!root.setting.text
-            text: root.setting.text ?? ""
+            visible: !!root.note
+            text: root.note
             wrapMode: Text.Wrap
-            color: Theme.label2
+            color: root.trouble ? Theme.warn : Theme.label2
             font.pixelSize: Theme.captionSize
             lineHeight: 1.15
         }
