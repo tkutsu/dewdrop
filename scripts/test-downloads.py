@@ -52,15 +52,21 @@ def main():
         (target / "settings.json").write_text(json.dumps({"downloadsDir": str(downloads), "fileManager": f"touch {target / 'opened'}"}))
 
         # Stands in for Hyprland: keeps what it was asked and runs the command.
-        bin_dir = target / "bin"
-        bin_dir.mkdir()
-        hyprctl = bin_dir / "hyprctl"
-        hyprctl.write_text(f"""#!/usr/bin/env python3
-import json, subprocess, sys
-open({str(target / 'dispatched')!r}, "w").write(sys.argv[2])
-subprocess.run(["sh", "-c", json.loads(sys.argv[2].split("exec_cmd(")[1].split(", {{ float")[0])])
+        service = target / "services/Downloads.qml"
+        service.write_text(service.read_text().replace("import Quickshell.Hyprland\n", "")
+                           .replace("Hyprland.dispatch(", "FakeHyprland.dispatch("))
+        (target / "services/FakeHyprland.qml").write_text(f"""pragma Singleton
+import QtQuick
+import Quickshell
+import Quickshell.Io
+QtObject {{
+    property FileView log: FileView {{ path: {json.dumps(str(target / 'dispatched'))} }}
+    function dispatch(request) {{
+        log.setText(request);
+        Quickshell.execDetached(["sh", "-c", JSON.parse(request.split("exec_cmd(")[1].split(", {{ float")[0])]);
+    }}
+}}
 """)
-        hyprctl.chmod(0o755)
 
         now = time.time()
         state = target / "state/quickshell"
@@ -87,7 +93,7 @@ subprocess.run(["sh", "-c", json.loads(sys.argv[2].split("exec_cmd(")[1].split("
         os.utime(fixture("opened.bin"), (now + 30, now))
 
         result = subprocess.run(["quickshell", "-p", str(target / "shell.qml")], cwd=target,
-                                env=shell_env(target, PATH=f"{bin_dir}:{os.environ['PATH']}"), capture_output=True, text=True, timeout=30)
+                                env=shell_env(target), capture_output=True, text=True, timeout=30)
         output = result.stdout + result.stderr
         lines = [line for line in output.splitlines() if "PASS:" in line or "FAIL:" in line]
         print("\n".join(lines))
