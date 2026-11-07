@@ -29,7 +29,7 @@ PanelWindow {
     required property var modelData
     screen: modelData
 
-    // wrules.lua blurs layers by namespace; this needs a matching rule there
+    // hypr/dewdrop.lua blurs layers by namespace; this needs a matching rule there
     // for the bar to get blurred. The rule ignores anything under 0.3 alpha,
     // which is what keeps the blur to the pills instead of spreading it across
     // the transparent strip they float on.
