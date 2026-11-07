@@ -91,6 +91,8 @@ OverlayWindow {
                 actions.push({ key: "search-sender", label: "search sender", live: !!row.thread.address });
             return actions;
         }
+        if (row?.install)
+            return [{ key: "activate", label: "install", live: true }];
         if (!row || row.kind === "note")
             return [];
         if (row.kind === "path")

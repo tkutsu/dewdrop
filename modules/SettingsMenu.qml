@@ -107,10 +107,16 @@ OverlayWindow {
             email: ["notify-send"]
         })
 
+    // What a module needs that Install cannot give: a service running when
+    // the bar starts.
+    readonly property var moduleNotes: ({
+            network: Network.present ? "" : "Hidden: needs NetworkManager running when the bar starts."
+        })
+
     function placement(key: string): var {
         const m = root.modules[key];
         return { type: "choice", id: "pin:" + key, title: m.title, glyph: m.glyph, options: root.pinOptions, get: () => DrawerPins.mode(key), set: v => DrawerPins.setMode(key, v),
-            needs: { programs: root.moduleNeeds[key] ?? [] } };
+            text: root.moduleNotes[key] ?? "", needs: { programs: root.moduleNeeds[key] ?? [] } };
     }
 
     function badgeStyle(key: string): var {

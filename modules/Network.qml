@@ -14,6 +14,8 @@ BarItem {
     name: "Network"
 
     settingsKey: "network"
+    // Without NetworkManager there is nothing to show; Settings says why.
+    present: Network.present
     tooltip: {
         if (Network.wiredUp)
             return "Ethernet";

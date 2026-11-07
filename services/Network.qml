@@ -11,6 +11,9 @@ import qs
 Singleton {
     id: root
 
+    // Whether NetworkManager answered when the bar started; Quickshell picks
+    // its backend once, so starting it later takes a restart of the bar.
+    readonly property bool present: NM.Networking.backend !== NM.NetworkBackendType.None
     readonly property var devices: NM.Networking.devices.values
 
     readonly property var wifi: devices.find(d => d.type === NM.DeviceType.Wifi) ?? null

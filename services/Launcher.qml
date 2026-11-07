@@ -795,6 +795,16 @@ Singleton {
         return {kind: "note", glyph, title, subtitle, raw: true};
     }
 
+    // A mode whose program is missing: the note, and Install on Return or a
+    // click when the package can be installed (Tools.install), as the bar's
+    // popups offer it.
+    function needsRow(glyph, title, program) {
+        const source = Tools.source(program);
+        const installable = Tools.canInstall && source !== "" && !source.includes("/");
+        return Object.assign(root.noteRow(glyph, title, "needs " + Tools.label(program) + (installable ? ". Install" : "")),
+            {install: installable ? [program] : null});
+    }
+
     // --- windows -------------------------------------------------------------
 
     // Every window, grouped by the workspace it is on in the order the bar
@@ -901,7 +911,7 @@ Singleton {
 
     function calcResults(expr, strict) {
         if (!Tools.has("qalc"))
-            return strict ? [] : [root.noteRow(Theme.glyph.launcherCalc, "no calculator", "needs " + Tools.label("qalc"))];
+            return strict ? [] : [root.needsRow(Theme.glyph.launcherCalc, "no calculator", "qalc")];
         const a = root.calcAnswer;
         if (!expr || !a || a.expr !== expr || !a.text)
             return [];
@@ -1178,6 +1188,13 @@ Singleton {
         const r = root.results[i];
         // Ctrl+Enter in mail mode writes a new one with or without a row.
         const composes = root.mailMode && mode === "play";
+        // A note with Install installs, in the terminal, and the mode works
+        // once that closes.
+        if (r?.install && mode !== "play") {
+            root.hide();
+            Tools.install(r.install);
+            return;
+        }
         // A row that is only telling you something has nothing to activate,
         // and closing the launcher would take the message with it.
         if (!composes && (!r || r.kind === "note"))
