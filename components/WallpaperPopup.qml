@@ -223,6 +223,9 @@ Popup {
             height: Math.max(0, Math.min(rows, root.visibleRows) * cellHeight - 4)
             cellWidth: root.cellWidth + 4
             cellHeight: root.cellHeight + 4
+            // The last row's gap is not there to scroll to: a full grid would
+            // otherwise open 4 px under the header with no way back.
+            bottomMargin: -4
             clip: true
 
             ScrollUnder {

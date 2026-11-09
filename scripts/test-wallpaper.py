@@ -306,9 +306,16 @@ ShellRoot {
                 tryVerify(() => framing.height === framing.fullHeight, 1000);
                 const grid = controls.grid, files = Wallpaper.files.slice();
                 check(!grid.interactive, 'a short library does not scroll');
+                Wallpaper.files = Array.from({length: 12}, () => files[0]);
+                wait(50);
+                grid.positionViewAtIndex(11, GridView.Contain);
+                check(!grid.interactive && grid.contentY === 0, 'opening on the last row of a full grid keeps the top row whole');
                 Wallpaper.files = Array.from({length: 20}, () => files[0]);
                 wait(50);
                 check(grid.interactive && grid.height === 3 * grid.cellHeight - 4, 'a long library scrolls inside three rows');
+                grid.positionViewAtIndex(19, GridView.Contain);
+                check(grid.contentY === 2 * grid.cellHeight, 'the last row of a long library ends flush with the view');
+                grid.contentY = 0;
                 mouseWheel(grid, grid.width / 2, grid.height / 2, 0, -120);
                 tryVerify(() => grid.contentY > 0, 1000);
                 Wallpaper.files = files;
