@@ -6,7 +6,7 @@
 -- It returns the workspace module (workspaces.lua), for any keybinds you want on
 -- the same ring of workspaces as the bar.
 
--- Popups close when a click lands outside them (OpenPopup.qml listens for these
+-- Popups close when a click lands outside them (src/core/OpenPopup.qml listens for these
 -- as custom>>click), and the click still reaches whatever it landed on.
 hl.bind("mouse:272", hl.dsp.event("click"), { non_consuming = true })
 hl.bind("mouse:273", hl.dsp.event("click"), { non_consuming = true })

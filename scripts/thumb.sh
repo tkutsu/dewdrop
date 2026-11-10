@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # What a file looks like, for the quickshell launcher's / mode.
-# See ~/.config/quickshell/components/FilePreview.qml.
+# See ~/.config/quickshell/src/components/FilePreview.qml.
 #
 # Answers on stdout in two parts: a first line saying what kind of answer this
 # is, and everything after it being the answer.

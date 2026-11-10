@@ -1,0 +1,48 @@
+import QtQuick
+import QtQuick.Layouts
+import qs.src.core
+import qs.src.components
+import qs.src.services
+
+// custom/updater. The upgrade itself is the popup's button, which runs
+// settings.json's updateCommand.
+BarItem {
+    name: "Updates"
+    present: Updates.present
+
+    tooltip: {
+        if (Updates.trouble !== "")
+            return Updates.trouble;
+        if (!Updates.loaded || Updates.loading)
+            return "Checking for updates…";
+        const n = Updates.pending;
+        return n === 0 ? "Up to date" : n === 1 ? "1 update" : `${n} updates`;
+    }
+    popup: UpdatesPopup {}
+    quiet: Updates.pending === 0
+
+    // Dimmed until the first check has answered, and again while a refresh
+    // is out — same treatment as mail and tasks.
+    opacity: Updates.loaded && !Updates.loading ? 1 : Theme.dimOpacity
+
+    Behavior on opacity {
+        NumberAnimation {
+            duration: Theme.fadeMs
+        }
+    }
+
+    BadgedGlyph {
+        Layout.fillHeight: true
+        glyph: Updates.icon
+        glyphSize: Theme.glyphSizeLarge
+        badge: Settings.badgeStyle("updater") === "hide" ? "" : Updates.label
+        dot: Settings.badgeStyle("updater") === "dot"
+        underdot: Settings.badgeStyle("updater") === "underdot"
+    }
+
+    // Left is the popup (BarItem.popupButton). Cleaning up is the button at
+    // the foot of it, not a click.
+    actions: ({
+            [Qt.RightButton]: () => Updates.refresh()
+        })
+}

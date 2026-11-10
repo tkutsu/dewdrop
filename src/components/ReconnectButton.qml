@@ -1,0 +1,20 @@
+import QtQuick
+import qs.src.core
+import qs.src.services
+
+// The Google popups' way back in when the sign-in needs you — no credentials,
+// a dead token, or a scope the token was never granted. Runs the consent
+// script and reads the credentials again when it exits (see Google.reconsent),
+// so nothing needs restarting afterwards. Only there while it is needed.
+PopupButton {
+    visible: Google.needsConsent
+    live: !Google.consenting
+    framed: true
+    glyph: Theme.glyph.reconnect
+    label: "Reconnect"
+    warn: true
+    onTapped: {
+        OpenPopup.dismiss();
+        Google.reconsent();
+    }
+}
