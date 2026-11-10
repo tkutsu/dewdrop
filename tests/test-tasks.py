@@ -64,6 +64,13 @@ ShellRoot {
                 check(!Tasks.parse("2026-02-30 work tax").ok, "invalid leading date");
                 check(!Tasks.parse("work 2026-02-30 tax").ok, "invalid date after task list");
                 check(!Tasks.parse("tomorrow").ok, "day without title");
+                const big = "x".repeat(1030);
+                check(Tasks.parse("work " + big).error === "Title is 1030 characters, 6 over Google's 1024", "launcher names an overlong title");
+                check(Tasks.parse("x".repeat(1024)).ok, "a title at the limit is fine");
+                check(!Tasks.edit({id: "none"}, big) && Tasks.trouble.endsWith("; notes go on the lines below it"), "one long line points to notes");
+                check(!Tasks.edit({id: "none"}, "t\n" + "n".repeat(8200)) && Tasks.trouble === "Notes are 8200 characters, 8 over Google's 8192", "overlong notes are named");
+                check(!Tasks.renameList("home", "a\nb") && Tasks.trouble === "Task list name must be one line", "list name says what is wrong");
+                Tasks.trouble = "";
                 Settings.set("defaultTaskList", "missing");
                 check(Tasks.parse("call x").list === "home", "unknown default falls back");
 

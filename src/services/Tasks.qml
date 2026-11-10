@@ -292,11 +292,23 @@ GoogleService {
         root.generations.lists = (root.generations.lists ?? 0) + 1;
     }
 
+    // Google refuses anything longer, so say so before sending it.
+    readonly property int titleLimit: 1024
+    readonly property int notesLimit: 8192
+
+    function overLimit(what: string, text: string, limit: int): string {
+        return text.length > limit
+            ? `${what} ${text.length} characters, ${text.length - limit} over Google's ${limit}` : "";
+    }
+
     // Rename the Google list, keeping the selected default attached to its ID.
     function renameList(id: string, text: string): bool {
         const title = text.trim();
-        if (!title || title.length > 1024 || /[\r\n]/.test(title)) {
-            root.trouble = "Task list name must be one line of 1 to 1024 characters";
+        const why = !title ? "Task list name cannot be empty"
+            : /[\r\n]/.test(title) ? "Task list name must be one line"
+            : root.overLimit("Task list name is", title, root.titleLimit);
+        if (why) {
+            root.trouble = why;
             return false;
         }
         const current = root.lists.find(l => l.id === id);
@@ -450,8 +462,12 @@ GoogleService {
             root.trouble = "Task title cannot be empty";
             return false;
         }
-        if (title.length > 1024 || notes.length > 8192) {
-            root.trouble = "Title or notes too long";
+        // The first line is the title, so one long paragraph is all title.
+        const longTitle = root.overLimit("Title is", title, root.titleLimit);
+        const why = longTitle && !notes ? longTitle + "; notes go on the lines below it"
+            : longTitle || root.overLimit("Notes are", notes, root.notesLimit);
+        if (why) {
+            root.trouble = why;
             return false;
         }
         if (root.writing > 0) {
@@ -523,6 +539,8 @@ GoogleService {
         const title = words.join(" ");
         if (!error && title === "")
             error = list ? "No task, only a task list" : day ? "No task, only a day" : "";
+        if (!error)
+            error = root.overLimit("Title is", title, root.titleLimit);
         return { ok: title !== "" && error === "", title: title, day: day,
             list: (list ?? root.defaultList).id, error: error };
     }
