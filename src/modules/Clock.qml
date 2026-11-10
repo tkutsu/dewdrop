@@ -1,0 +1,85 @@
+import QtQuick
+import QtQuick.Layouts
+import Quickshell
+import qs.src.core
+import qs.src.components
+import qs.src.services
+
+// The date opens the calendar.
+BarItem {
+    id: root
+    name: "Calendar"
+    shows: dateText.text
+    textPress: true
+    trimLeft: 1
+    trimRight: 1
+
+    popup: Calendar {}
+
+    // Every event today gets its own line, including ones that have ended. A
+    // calendar it could not read says nothing rather than that the day is free.
+    tooltip: Agenda.todays
+        .map(ev => `${ev.allDay ? "All day" : ev.start <= WallClock.now && ev.end > WallClock.now ? "Now" : Agenda.sayTime(ev)} · ${ev.title}`)
+        .join("\n") || (Agenda.stale ? "" : "No events today")
+
+    readonly property alias date: clock.date
+
+    // Up is the next month and down the one before, the way round every
+    // wheel on the bar goes.
+    scrolls: true
+    Accessible.onScrollUpAction: scrollUp()
+    Accessible.onScrollDownAction: scrollDown()
+    onScrollUp: if (popupItem)
+        popupItem.offset++
+    onScrollDown: if (popupItem)
+        popupItem.offset--
+
+    // Singletons are lazy, and nothing reads Agenda until the popup opens —
+    // so without this the calendar would not be fetched until the first click,
+    // and would open on "Connecting…" every time the shell started.
+    Component.onCompleted: Agenda.ensure(new Date())
+
+    SystemClock {
+        id: clock
+        // By the minute unless the format shows seconds: at Seconds this
+        // re-evaluated the date and the time, on every bar, sixty times for
+        // each time it could possibly have mattered.
+        precision: (Settings.timeFormat + Settings.dateFormat).includes("s") ? SystemClock.Seconds : SystemClock.Minutes
+    }
+
+    // Its countdown stops while the machine sleeps, so after a wake it still
+    // shows the time it went down at until that runs out. Turned off and on,
+    // it reads the clock again and schedules from now.
+    Connections {
+        target: WallClock
+
+        function onWokeUp(): void {
+            clock.enabled = false;
+            clock.enabled = true;
+        }
+    }
+
+    // Date format letters use Qt's localized weekday and month names.
+    BarText {
+        id: dateText
+        Layout.fillHeight: true
+        tightWidth: true
+        text: Settings.applyCase(Qt.formatDateTime(clock.date, Settings.dateFormat), Settings.dateCase)
+    }
+
+    // Left is the calendar (BarItem.popupButton); right is the app.
+    actions: ({
+            [Qt.RightButton]: () => {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(Settings.webApp("calendar", "", "https://calendar.google.com/"));
+            },
+            [Qt.MiddleButton]: () => {
+                // was: t=$(date '+%F %T'); wl-copy; notify-send
+                // Not clock.date: that one only moves on the minute now, and a
+                // timestamp is the one thing here that wants the seconds.
+                const stamp = Qt.formatDateTime(new Date(), "yyyy-MM-dd HH:mm:ss");
+                Quickshell.clipboardText = stamp;
+                Notify.send("Copied timestamp", stamp);
+            }
+        })
+}

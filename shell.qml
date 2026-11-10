@@ -17,9 +17,10 @@
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
-import qs
-import qs.modules
-import qs.services
+import qs.src.core
+import qs.src.bar
+import qs.src.modules
+import qs.src.services
 
 ShellRoot {
     // The window list keeps itself current, but an XWayland window's class lives

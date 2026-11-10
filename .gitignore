@@ -8,3 +8,22 @@ __pycache__/
 
 # Measurements and previews made while working on the bar.
 output/
+
+# Local AI instructions, assistant state and working plans.
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+/GLOSSARY.md
+/popup-standards.md
+/calendar-events.md
+/calendar-popover.md
+/gmail-triage.md
+/tasks-refactor.md
+.agents/
+.claude/
+.codex/
+.codex-attachments/
+.cursor/
+.cursorrules
+.github/copilot-instructions.md
+/.plans/

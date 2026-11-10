@@ -1,0 +1,674 @@
+import "../lib/KeyTargets.js" as KeyTargets
+import QtQuick
+import QtQuick.Effects
+import Quickshell
+import Quickshell.Hyprland
+import qs.src.core
+
+// The bar's popup chrome. It used to copy the old GTK tooltip's near-opaque
+// grey; it is the launcher's box now, frosted glass (Theme.popupBg) with a
+// hairline round it, so everything the shell hangs below the pills reads as one
+// surface rather than as two generations of one.
+// Anchored under the item that owns it, so a module only has to supply content.
+// Content sizes the window: a Column is the body so children must not anchor to
+// fill it, or the popup has nothing to take its size from.
+PopupWindow {
+    id: root
+
+    // Not `required`: the loaders that create these set it immediately after
+    // construction, and a required property warns on every instantiation.
+    property Item anchorItem
+    // Popups with text entry can request keyboard focus.
+    property bool acceptsKeyboard: false
+    property bool probes: true
+    grabFocus: root.acceptsKeyboard && root.requestedVisible
+    property real padding: Theme.popupPadding
+    // A popover's corner by default; the menus round themselves tighter.
+    property int radius: Theme.popupRadius
+    // Separate axes let compact tooltips override the common popover inset.
+    property real hPadding: padding
+    property real vPadding: padding
+    property real bottomPadding: Theme.popupBottomPadding
+    default property alias content: body.data
+    // The air between the body's parts. A popup whose parts touch (a menu's
+    // rows, a list that runs on under its header) sets 0.
+    property alias spacing: body.spacing
+    // The shared dropdown registers its menu before opening it.
+    property Item dropdown: null
+    readonly property Item dropdownItem: dropdown?.popup.visible ? dropdown.popup.contentItem.parent : null
+    readonly property real dropdownBottom: dropdownItem
+        ? dropdown.mapToItem(root.contentItem, 0, dropdown.height + 4).y + dropdown.popup.height : 0
+
+    anchor {
+        item: root.anchorItem
+        edges: Edges.Bottom
+        gravity: Edges.Bottom
+        // Let the compositor slide a popup along the bar rather than letting it
+        // run off the edge of the screen.
+        adjustment: PopupAdjustment.SlideX
+    }
+
+    // Never zero in either direction. A popup here is a real Wayland surface,
+    // and one that asks for a zero size is a protocol error that takes the
+    // whole connection down with it — the shell dies, not just the popup.
+    //
+    // MenuPopup is the one that could get here: it has no padding to stand in
+    // for its contents, and QsMenuOpener fills its rows in over DBus some time
+    // after it has been built. It holds itself back until they are in, but the
+    // clamp stays, because this has to hold for every popup, including the
+    // ones not written yet.
+    implicitWidth: Math.max(1, body.implicitWidth + hPadding * 2) + shadowSide * 2
+    implicitHeight: root.closingHeight >= 0 ? root.closingSurfaceHeight
+        : Math.max(Math.max(chrome.height, reserveHeight, resizeHeight) + shadowTop + shadowBottom, dropdownBottom)
+    color: "transparent"
+
+    // The room the window keeps round the box for its shadow to fall into.
+    // Whoever anchors a popup by one of its edges rather than by its middle
+    // has to take these back off the anchor, or the box lands this far from
+    // where it was aimed (HoverPopup, the tray and MenuPopup's submenus all do).
+    //
+    // Next to nothing above: the box hangs popupGap under the pill, and any
+    // more room than that puts the top of the window over the pill's lower
+    // half. Hyprland hands the pointer to the popup's window there, mask or
+    // no mask, so a pointer resting low on a module opened its popup, was
+    // taken off the module by it, and closed it again a moment later — and
+    // stayed that way until it moved. The shadow's faint top edge is cut
+    // off instead; it falls on the bar, where nothing showed it anyway.
+    //
+    // The shadow itself is a popover's; a tooltip, smaller and nearer the
+    // surface, casts a smaller one.
+    property int shadowBlur: Theme.shadowBlur
+    property int shadowY: Theme.shadowY
+    readonly property int shadowSide: shadowBlur
+    readonly property int shadowTop: Theme.popupGap
+    readonly property int shadowBottom: shadowBlur + shadowY
+
+    // The box's settled height; its bottom edge can briefly bow past it.
+    readonly property real chromeHeight: Math.max(1, body.implicitHeight + vPadding + bottomPadding)
+    // Keep the largest animated size until the next showing, so shrinking cannot clip.
+    property real resizeHeight: 0
+    // An exhausted list closes through the normal fade, keeping its last size.
+    property bool dismissWhenEmpty: false
+    property real closingHeight: -1
+    property real closingSurfaceHeight: 0
+    onDismissWhenEmptyChanged: {
+        if (!root.dismissWhenEmpty)
+            root.closingHeight = -1;
+        else if (root.opened) {
+            root.closingSurfaceHeight = root.height;
+            root.closingHeight = chrome.height;
+            OpenPopup.close(root.anchorItem);
+        }
+    }
+    // The box itself, for a list that runs on under its header to draw out
+    // to the box's edges (ScrollUnder).
+    readonly property Item chromeItem: chrome
+
+    // Room to keep below the box, for a popup whose content folds open and
+    // shut. Resizing a popup is a reposition round trip with the compositor,
+    // and the frame caught in the middle of it shows as the whole popup
+    // jerking. A popup that asks for its tallest size up front grows the box
+    // inside a window that never changes, and the unused strip is transparent
+    // and let through by the mask below.
+    property real reserveHeight: 0
+    mask: Region {
+        item: reach
+        Region { item: root.dropdownItem }
+    }
+
+    // Where the compositor puts this window on screen, which Quickshell does
+    // not say, worked out from the anchor the way the compositor works it
+    // out: the anchor's window on screen, the point on the anchor's rect its
+    // edges pick, and the window hung off that point towards its gravity.
+    // The anchor's window is the bar, a strip across the top or bottom of its
+    // screen, or for a submenu the menu it came out of, which knows where it
+    // is itself. Slid back onto the screen at the end, which is near enough
+    // for a flip as well. Only asked while shown, and asked again on each
+    // show: mapToItem gives the binding nothing to re-run on.
+    readonly property point windowOnScreen: {
+        const item = root.anchor.item;
+        const win = item?.QsWindow.window;
+        if (!root.visible || !win || !root.screen)
+            return Qt.point(0, 0);
+        const base = win.windowOnScreen ?? Qt.point(0, win.anchors?.top ? 0 : root.screen.height - win.height);
+        const set = root.anchor.rect;
+        const r = set.width > 0 || set.height > 0 ? set : Qt.rect(0, 0, item.width, item.height);
+        const p = item.mapToItem(null, r.x, r.y);
+        const e = root.anchor.edges, g = root.anchor.gravity;
+        const ax = base.x + p.x + (e & Edges.Left ? 0 : e & Edges.Right ? r.width : r.width / 2);
+        const ay = base.y + p.y + (e & Edges.Top ? 0 : e & Edges.Bottom ? r.height : r.height / 2);
+        const x = ax - (g & Edges.Right ? 0 : g & Edges.Left ? root.width : root.width / 2);
+        const y = ay - (g & Edges.Bottom ? 0 : g & Edges.Top ? root.height : root.height / 2);
+        return Qt.point(Math.max(0, Math.min(root.screen.width - root.width, x)), Math.max(0, Math.min(root.screen.height - root.height, y)));
+    }
+
+    // How bright the screen is behind the box, for its frost.
+    BackdropProbe {
+        id: under
+
+        screen: root.screen
+        area: Qt.rect(root.windowOnScreen.x + root.shadowSide, root.windowOnScreen.y + root.shadowTop, root.width - root.shadowSide * 2, chrome.height)
+        active: root.visible && root.probes
+        ringOnly: true
+    }
+
+    // Whether the pointer is on the popup, which the bar counts (below).
+    // Dropdowns move into Qt's overlay, outside the body's hover tree.
+    readonly property bool hovered: pointer.hovered || (dropdownPointer?.hovered ?? false)
+
+    HoverHandler {
+        id: dropdownPointer
+        parent: root.dropdownItem
+        enabled: root.requestedVisible && root.dropdownItem !== null
+    }
+
+    // Fade the surface and compositor blur together without crossing the
+    // blur mask's alpha cutoff; keep the surface alive through its exit.
+    // Tooltips fade without moving their content.
+    property bool grows: true
+    property bool requestedVisible: true
+    readonly property bool opened: root.backingWindowVisible && root.requestedVisible
+    HyprlandWindow.opacity: root.morphRun ? root.morphShown : root.revealProgress
+    property real revealProgress: root.opened ? 1 : 0
+    // Content settles at its final size during entry; only the shared chrome moves.
+    readonly property bool animateContents: root.opened && root.revealProgress === 1
+        && (!root.morphRun || root.landed) && !Theme.reduceMotion && !root.dismissWhenEmpty
+    // A popover grows out of its item from 86% of its size on two springs,
+    // like gel: the width settles straight in, the height is looser and runs
+    // a touch past before it settles. Closing, it shrinks to nine tenths as
+    // it fades. Under Reduce motion a popup only fades: it opens where it
+    // will stand.
+    readonly property bool moves: root.grows && !Theme.reduceMotion && !OpenPopup.switched
+    property real growX: 1
+    property real growY: 1
+    property bool springs: false
+    Behavior on growX {
+        enabled: root.springs
+        SpringAnimation { spring: 5; damping: 0.6; epsilon: 0.001 }
+    }
+    Behavior on growY {
+        enabled: root.springs
+        SpringAnimation { spring: 5; damping: 0.34; epsilon: 0.001 }
+    }
+    onOpenedChanged: {
+        if (root.opened) {
+            root.closingHeight = -1;
+            root.resizeHeight = 0;
+        } else {
+            root.closingSurfaceHeight = root.height;
+            root.closingHeight = chrome.height;
+            flexRecoil.stop();
+            chrome.flex = 0;
+        }
+        shrink.stop();
+        morphOpen.stop();
+        morphClose.stop();
+        root.springs = false;
+        if (root.morphs) {
+            root.growX = root.growY = 1;
+            if (root.opened)
+                root.morphRun = root.moves && root.visible;
+            if (root.morphRun)
+                (root.opened ? morphOpen : morphClose).start();
+            else {
+                root.ink = 1;
+                if (root.opened)
+                    root.landed = true;
+            }
+        } else if (!root.moves || !root.visible) {
+            root.growX = root.growY = 1;
+        } else if (root.opened) {
+            root.growX = root.growY = 0.86;
+            root.springs = true;
+            root.growX = root.growY = 1;
+        } else {
+            shrink.start();
+        }
+    }
+    // Inside the 140 ms the exit has before the loaders let the surface go.
+    NumberAnimation {
+        id: shrink
+        target: root
+        properties: "growX,growY"
+        to: 0.9
+        duration: 140
+        easing.type: Easing.InCubic
+    }
+
+    // Or a pill whose popover is all it does turns into it, as a control does
+    // in the morph reel: the pill gathers itself into a drop and sinks into
+    // the bar (Bar.qml, Morph.qml), and here the drop comes out under it and
+    // swells into the box, foot first the way a hanging drop does, as the
+    // contents blur in. Closing runs back into the drop, which goes back up
+    // into the pill. The box is drawn by Drop then, as a Rectangle and a Rim
+    // cannot bend. Under Reduce motion, or handed over from another popup,
+    // it fades like any other.
+    property bool morphs: false
+    // Whether this showing runs the morph, settled as it opens.
+    property bool morphRun: false
+    // The drop, in the box's pixels: where it is, its corner, how much it
+    // narrows to its top; the contents' share of the way in; and the window,
+    // which goes once the drop is back in the pill.
+    readonly property real dropW: Theme.barHeight * 1.3
+    readonly property real dropH: Theme.barHeight * 0.8
+    readonly property real dropX: root.growFrom - root.shadowSide - root.dropW / 2
+    property real boxX: 0
+    property real boxW: 0
+    property real boxH: 0
+    property real boxR: root.radius
+    property real bell: 0
+    property real ink: 1
+    property real morphShown: 1
+    // Drawn as the box itself rather than the drop, once it has landed.
+    property bool landed: !root.morphs
+    onVisibleChanged: if (!root.visible && root.morphs) root.landed = false
+    // How long the window outlives a close (HoverPopup): the morph back
+    // into the drop, or the fade.
+    readonly property int exitMs: root.morphs ? Theme.morphCloseMs + 60 : 160
+
+    SequentialAnimation {
+        id: morphOpen
+        ScriptAction {
+            script: {
+                root.landed = false;
+                root.morphShown = 1;
+                root.ink = 0;
+                root.boxW = 0;
+            }
+        }
+        // While the pill gathers itself up into the drop.
+        PauseAnimation { duration: Theme.morphGatherMs }
+        ScriptAction {
+            script: {
+                root.boxX = root.dropX;
+                root.boxW = root.dropW;
+                root.boxH = root.dropH;
+                root.boxR = root.dropH / 2;
+                root.bell = 0.7;
+            }
+        }
+        ParallelAnimation {
+            NumberAnimation { target: root; property: "boxH"; to: root.chromeHeight; duration: 400; easing.type: Easing.OutBack; easing.overshoot: 1.3 }
+            NumberAnimation { target: root; property: "boxX"; to: 0; duration: 360; easing.type: Easing.OutBack; easing.overshoot: 1 }
+            NumberAnimation { target: root; property: "boxW"; to: chrome.width; duration: 360; easing.type: Easing.OutBack; easing.overshoot: 1 }
+            NumberAnimation { target: root; property: "boxR"; to: root.radius; duration: 260 }
+            NumberAnimation { target: root; property: "bell"; to: 0; duration: 300; easing.type: Easing.OutQuad }
+            SequentialAnimation {
+                PauseAnimation { duration: 160 }
+                NumberAnimation { target: root; property: "ink"; to: 1; duration: 260; easing.type: Easing.OutQuad }
+            }
+        }
+        PropertyAction { target: root; property: "landed"; value: true }
+    }
+    // Inside Theme.morphCloseMs, after which the pill takes the drop back.
+    SequentialAnimation {
+        id: morphClose
+        ScriptAction {
+            script: {
+                if (root.landed) {
+                    root.boxX = 0;
+                    root.boxW = chrome.width;
+                    root.boxH = root.chromeHeight;
+                    root.boxR = root.radius;
+                    root.bell = 0;
+                }
+                root.landed = false;
+            }
+        }
+        NumberAnimation { target: root; property: "ink"; to: 0; duration: 90 }
+        ParallelAnimation {
+            NumberAnimation { target: root; property: "boxH"; to: root.dropH; duration: 240; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "boxX"; to: root.dropX; duration: 240; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "boxW"; to: root.dropW; duration: 240; easing.type: Easing.InCubic }
+            NumberAnimation { target: root; property: "boxR"; to: root.dropH / 2; duration: 240 }
+            NumberAnimation { target: root; property: "bell"; to: 0.5; duration: 240 }
+        }
+        NumberAnimation { target: root; property: "morphShown"; to: 0; duration: 50 }
+    }
+
+    // Where the item is, across the popup's window: what it grows out of.
+    readonly property real growFrom: {
+        const item = root.anchorItem;
+        if (!root.visible || !item || !root.screen)
+            return root.width / 2;
+        const p = item.mapToItem(null, item.width / 2, 0);
+        const win = item.QsWindow.window;
+        const base = win?.windowOnScreen ?? Qt.point(0, 0);
+        return Math.max(0, Math.min(root.width, base.x + p.x - root.windowOnScreen.x));
+    }
+
+    // On from `visible`, which is set before the surface maps, not from
+    // backingWindowVisible: that flips `opened` and the guard in the same
+    // tick, and when the guard lost the race the reveal jumped to 1 on the
+    // first frame, which was every time. The exit stays inside the 160 ms
+    // the loaders keep the surface for.
+    Behavior on revealProgress {
+        enabled: root.visible
+        NumberAnimation {
+            duration: root.opened ? (root.grows ? 220 : 140) : 140
+            easing.type: root.opened ? Easing.BezierSpline : Easing.InOutQuad
+            easing.bezierCurve: [0.2, 0, 0.2, 1, 1, 1]
+        }
+    }
+
+    // Counted for the whole shell, so the right pill's drawer can tell a
+    // pointer that has gone off to a popup from one that has left the bar.
+    onHoveredChanged: PopupPointer.hovered += hovered ? 1 : -1
+    Component.onDestruction: {
+        if (hovered)
+            PopupPointer.hovered--;
+        OpenPopup.dropKeys(root);
+    }
+
+    // --- keyboard ------------------------------------------------------------
+    // The keys a Mac's menu-bar menus take: Escape puts the popup away, the
+    // arrows walk its controls and Return (or Space) presses the one they are
+    // on. Nothing is selected on opening; the first arrow picks the first
+    // control, the way a menu opened by a click waits for you.
+    //
+    // A control takes part by having a `keyPress` function (or `keyStep`, a
+    // slider's Left and Right), and draws its own highlight if it has a
+    // `keyed` property; anything without one gets the focus ring below.
+    // Up and Down go to the nearest control in the next row, keeping to the
+    // column where there is one; Left and Right stay in the row. The keys
+    // reach here from the bar or the popup's own surface when the compositor
+    // focuses it under the pointer. Neither needs a popup grab, which would
+    // eat the hover the bar browses popups by.
+    property bool takesKeys: true
+    property Item keyInput: null
+    contentItem {
+        focus: root.takesKeys
+        Keys.enabled: root.keysLive
+        Keys.forwardTo: root.keyInput ? [root.keyInput] : []
+        Keys.onPressed: event => event.accepted = OpenPopup.key(event)
+    }
+    property Item keyItem: null
+    // Escape, and Left with nothing to the left: a submenu goes back to its
+    // menu (MenuPopup) rather than closing the whole menu.
+    property var closeKey: () => OpenPopup.dismiss()
+    property var backKey: null
+    // Select the first control as soon as the popup opens, for a submenu
+    // opened from the keyboard.
+    property bool keyFromStart: false
+
+    readonly property bool keysLive: root.takesKeys && root.opened
+    onKeysLiveChanged: {
+        if (!root.keysLive) {
+            OpenPopup.dropKeys(root);
+            root.setKey(null);
+            return;
+        }
+        OpenPopup.addKeys(root);
+        if (root.keyFromStart)
+            Qt.callLater(() => root.setKey(root.keyTargets()[0] ?? null));
+    }
+
+    function setKey(item: Item): void {
+        if (root.keyItem && root.keyItem.keyed !== undefined)
+            root.keyItem.keyed = false;
+        root.keyItem = item;
+        if (!item)
+            return;
+        if (item.keyed !== undefined)
+            item.keyed = true;
+        root.showKey(item);
+    }
+
+    // Scrolled into its list if the list has it out of sight, and the ring
+    // moved onto it.
+    function showKey(item: Item): void {
+        for (let p = item.parent; p && p !== body; p = p.parent) {
+            if (p.contentY === undefined || p.contentItem === undefined)
+                continue;
+            const y = item.mapToItem(p.contentItem, 0, 0).y;
+            if (y < p.contentY)
+                p.contentY = y;
+            else if (y + item.height > p.contentY + p.height)
+                p.contentY = y + item.height - p.height;
+        }
+        const r = item.mapToItem(chrome, 0, 0);
+        ring.rect = Qt.rect(r.x, r.y, item.width, item.height);
+    }
+
+    // Every control a key can reach, in reading order (KeyTargets.js).
+    function keyTargets(): var {
+        return KeyTargets.targets(body, child => typeof child.keyPress === "function" || typeof child.keyStep === "function");
+    }
+
+    // The control a step away from the selected one, or null.
+    function neighbour(key: int): Item {
+        return KeyTargets.neighbour(root.keyTargets(), root.keyItem, key, body);
+    }
+
+    function key(event: var): bool {
+        const k = event.key;
+        const t = root.keyItem;
+        switch (k) {
+        case Qt.Key_E:
+            if (typeof t?.keyEdit !== "function") return false;
+            t.keyEdit();
+            return true;
+        case Qt.Key_Escape:
+            root.closeKey();
+            return true;
+        case Qt.Key_Return:
+        case Qt.Key_Enter:
+        case Qt.Key_Space:
+            if (typeof t?.keyPress === "function")
+                t.keyPress();
+            return true;
+        case Qt.Key_Left:
+        case Qt.Key_Right:
+            if (typeof t?.keyStep === "function") {
+                t.keyStep(k === Qt.Key_Right ? 1 : -1);
+                return true;
+            }
+            // A menu row's submenu opens on Right, the way it does on hover.
+            if (k === Qt.Key_Right && typeof t?.keyOpen === "function" && t.keyOpen())
+                return true;
+            break;
+        case Qt.Key_Up:
+        case Qt.Key_Down:
+        case Qt.Key_Tab:
+        case Qt.Key_Backtab:
+            break;
+        default:
+            return false;
+        }
+        const next = root.neighbour(k);
+        if (next)
+            root.setKey(next);
+        else if (k === Qt.Key_Left && root.backKey)
+            root.backKey();
+        else if (k === Qt.Key_Up)
+            OpenPopup.leave(root);
+        return true;
+    }
+
+    // Where the popup takes the pointer: the box, and the strip of air above
+    // it up to the window's top edge. The bar's surface ends at the pill, and
+    // that edge is where the module lets go of the pointer, so the strip is
+    // the seam between the two. Counted from the box alone, a pointer crossing
+    // it slowly belonged to neither, and a click there closed the popup it
+    // was on its way into. The box and its shadow sit inside, so the handler
+    // hears the pointer over anything a popup puts in its body.
+    Item {
+        id: reach
+        enabled: root.requestedVisible
+
+        x: root.shadowSide
+        width: parent.width - root.shadowSide * 2
+        height: root.shadowTop + chrome.height + Math.max(0, chrome.sag)
+
+        HoverHandler {
+            id: pointer
+
+            // The pointer moving takes the selection back from the keys.
+            onPointChanged: if (root.keyItem)
+                root.setKey(null)
+        }
+
+        // Animate only the drawing; keep the hit area fixed.
+        Item {
+            anchors.fill: parent
+
+            transform: Scale {
+                origin.x: root.growFrom
+                origin.y: root.shadowTop
+                xScale: root.growX
+                yScale: root.growY
+            }
+
+            // Under the box rather than round it: the fill is translucent, so
+            // the middle of the shadow shows through it too, and darkens it by
+            // about the same amount the blur behind it lightens it.
+            RectangularShadow {
+                anchors.fill: chrome
+                offset.y: root.shadowY
+                radius: chrome.radius
+                blur: root.shadowBlur
+                color: Theme.shadow
+                visible: !root.morphs || root.landed
+                // Not under a drop on its way in or out.
+                opacity: root.landed ? 1 : 0
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Theme.fadeMs
+                    }
+                }
+            }
+
+            Rectangle {
+                id: chrome
+
+                y: root.shadowTop
+                width: parent.width
+                height: root.closingHeight >= 0 ? root.closingHeight : root.chromeHeight
+                Behavior on height {
+                    enabled: root.animateContents
+                    SequentialAnimation {
+                        ScriptAction {
+                            script: {
+                                root.resizeHeight = Math.max(root.resizeHeight, chrome.height, root.chromeHeight);
+                                chrome.flexSize = Math.min(5, Math.abs(chrome.height - root.chromeHeight) * 0.08);
+                            }
+                        }
+                        NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
+                        ScriptAction {
+                            script: {
+                                if (root.animateContents && chrome.height === root.chromeHeight)
+                                    flexRecoil.restart();
+                            }
+                        }
+                    }
+                }
+                onHeightChanged: {
+                    flexRecoil.stop();
+                    chrome.flex = 0;
+                }
+                // The border flexes only after landing, with one smaller recoil.
+                property real flex: 0
+                property real flexSize: 0
+                readonly property real sag: root.animateContents
+                    && chrome.height === root.chromeHeight ? chrome.flex : 0
+                SequentialAnimation {
+                    id: flexRecoil
+                    NumberAnimation { target: chrome; property: "flex"; from: 0; to: chrome.flexSize; duration: 90; easing.type: Easing.OutSine }
+                    NumberAnimation { target: chrome; property: "flex"; to: -chrome.flexSize * 0.15; duration: 130; easing.type: Easing.InOutSine }
+                    NumberAnimation { target: chrome; property: "flex"; to: 0; duration: 160; easing.type: Easing.InOutSine }
+                }
+                readonly property bool shaped: (root.morphs && !root.landed)
+                    || (root.animateContents && Math.abs(chrome.sag) > 0.01)
+                radius: root.radius
+                // Thickened over a bright screen (BackdropProbe), and eased
+                // there: the reading lands a few frames after the box. Only
+                // ever up from popupBg, so the blur stays.
+                property color frost: Theme.frostOver(under.luma)
+                color: chrome.shaped ? "transparent" : frost
+
+                Behavior on frost {
+                    ColorAnimation {
+                        duration: Theme.revealMs
+                    }
+                }
+
+                Rim {
+                    visible: !chrome.shaped
+                    anchors.fill: parent
+                    radius: chrome.radius
+                    // Above the rows, which run edge to edge in a menu and
+                    // would otherwise paint over it where the pointer is.
+                    z: 1
+                }
+
+                // The deforming box: fill under the rows, rim over them, with
+                // room below for the opening drop or a resizing popover's bow.
+                Item {
+                    visible: chrome.shaped
+                    width: parent.width
+                    height: parent.height + 16
+                    z: 1
+
+                    Drop {
+                        box: root.landed ? Qt.vector4d(0, 0, chrome.width, chrome.height) : Qt.vector4d(root.boxX, 0, root.boxW, root.boxH)
+                        radius: root.landed ? chrome.radius : root.boxR
+                        bell: root.landed ? 0 : root.bell
+                        sag: root.animateContents ? chrome.sag : 0
+                        color: chrome.frost
+                        showRim: 1
+                    }
+                }
+                Item {
+                    visible: chrome.shaped
+                    width: parent.width
+                    height: parent.height + 16
+                    z: -1
+
+                    Drop {
+                        box: root.landed ? Qt.vector4d(0, 0, chrome.width, chrome.height) : Qt.vector4d(root.boxX, 0, root.boxW, root.boxH)
+                        radius: root.landed ? chrome.radius : root.boxR
+                        bell: root.landed ? 0 : root.bell
+                        sag: root.animateContents ? chrome.sag : 0
+                        color: chrome.frost
+                        showFill: 1
+                    }
+                }
+
+                Column {
+                    id: body
+                    x: root.hPadding
+                    y: root.vPadding
+                    spacing: Theme.popupSpacing
+                    // Blurring in as the drop swells into the box.
+                    opacity: root.ink
+                    layer.enabled: root.ink < 1
+                    layer.effect: MultiEffect {
+                        blurEnabled: true
+                        blur: 1 - root.ink
+                        blurMax: 32
+                    }
+                }
+
+                // The keys' mark on a control that draws no highlight of its
+                // own: a ring round it, which is what a Mac draws when the
+                // keyboard rather than the pointer is on a control.
+                Rectangle {
+                    id: ring
+
+                    property rect rect
+                    visible: root.keyItem !== null && root.keyItem.keyed === undefined
+                    x: rect.x - 2
+                    y: rect.y - 2
+                    width: rect.width + 4
+                    height: rect.height + 4
+                    z: 2
+                    radius: Theme.selectionRadius
+                    color: "transparent"
+                    border.width: 1.5
+                    border.color: Theme.outlineHover
+                }
+            }
+        }
+    }
+}

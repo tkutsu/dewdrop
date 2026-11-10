@@ -87,7 +87,7 @@ Open the gear in the bar to choose modules, your wallpaper folder and default ap
 
 Install [Themis Icons](https://github.com/tkutsu/themis-icons) for the monochrome app icons shown in the demos. Other themes work by changing the icon-theme pragma in `shell.qml`.
 
-Optional features need their own tools or services. File search uses `fd`, the calculator uses `libqalculate`, and clipboard history uses `cliphist` with a running watcher. Mail, Tasks, Calendar and YouTube require your own Google OAuth client. The [setup guide](docs/setup.md#optional-features) covers those dependencies, [Google sign-in](docs/setup.md#google-setup) and the [launcher shortcuts](docs/setup.md#launcher-reference). [Android phone alarms](automate-setup.md) have a separate tutorial.
+Optional features need their own tools or services. File search uses `fd`, the calculator uses `libqalculate`, and clipboard history uses `cliphist` with a running watcher. Mail, Tasks, Calendar and YouTube require your own Google OAuth client. The [setup guide](docs/setup.md#optional-features) covers those dependencies, [Google sign-in](docs/setup.md#google-setup) and the [launcher shortcuts](docs/setup.md#launcher-reference). [Android phone alarms](docs/automate-setup.md) have a separate tutorial.
 
 ## Troubleshooting
 
@@ -100,6 +100,29 @@ Optional features need their own tools or services. File search uses `fd`, the c
 | A module is missing or clipboard history is empty | Check its visibility in Settings and its [optional dependencies](docs/setup.md#optional-features). Wi-Fi needs NetworkManager running when the bar starts. Clipboard history needs `wl-paste --watch cliphist store` running in your session. |
 | Google features fail or ask to reconnect every week | Enable the relevant APIs in your Cloud project and follow [Google setup](docs/setup.md#google-setup). Google [expires these refresh tokens after 7 days in Testing](https://developers.google.com/identity/protocols/oauth2/#expiration). Run `scripts/gtasks-auth --check` from the repo to check the saved sign-in. |
 
+## Development
+
+`shell.qml` is the entry point. The editable defaults and this machine's
+`settings.json` stay beside it.
+
+| Directory | Contents |
+| --- | --- |
+| `src/core/` | Settings, theme, paths and shared shell state |
+| `src/bar/` | Bar layout and pill ordering |
+| `src/components/` | Shared controls, popups and visual effects |
+| `src/modules/` | Bar modules, launcher and settings windows |
+| `src/services/` | Desktop integrations and data services |
+| `src/lib/` | Shared JavaScript helpers |
+| `assets/` | Icons, shaders and sounds |
+| `scripts/` | Runtime helpers and maintenance tools |
+| `tests/` | Regression checks, fixtures and the fresh-install runner |
+| `docs/` | Setup guides and demo media |
+
+Run a check from the checkout with `python3 tests/test-popup-standards.py`,
+for example. `python3 tests/test-shell-load.py` compiles the real entry point
+and its imports without creating the desktop windows; it needs a Wayland
+connection for Quickshell's window types.
+
 ## License
 
-[MIT](LICENSE). Bundled icons and the alarm sound retain their own licenses; see [icon credits](icons/README.md).
+[MIT](LICENSE). Bundled icons and the alarm sound retain their own licenses; see [icon credits](assets/icons/README.md).

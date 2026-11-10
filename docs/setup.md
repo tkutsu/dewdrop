@@ -24,7 +24,7 @@ Keep the top of `gaps_out` at 8, which is `Theme.barMargin`. The bar reserves it
 
 Dewdrop does not require Themis. The SVGs used for its own controls are bundled in `icons/`; other interface glyphs use Symbols Nerd Font. Application icons in the left bar, the launcher and notifications come from an icon theme, and missing icons fall back to a generic glyph.
 
-The bar asks for [Themis Icons](https://github.com/tkutsu/themis-icons) by name, whatever your system's icon theme is, because its monochrome icons are what the bar is drawn around. Install it into `~/.local/share/icons/themis` or `/usr/share/icons/themis`. Until you do, the bar uses plain hicolor icons and Settings > Appearance links to it. To use another theme in the bar, change `//@ pragma IconTheme themis` at the top of `shell.qml` to that theme's name.
+The bar asks for [Themis Icons](https://github.com/tkutsu/themis-icons) by name, whatever your system's icon theme is, because its monochrome icons are what the bar is drawn around. Install it into `~/.local/share/assets/icons/themis` or `/usr/share/assets/icons/themis`. Until you do, the bar uses plain hicolor icons and Settings > Appearance links to it. To use another theme in the bar, change `//@ pragma IconTheme themis` at the top of `shell.qml` to that theme's name.
 
 ## Optional features
 
@@ -51,7 +51,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Weather | Python 3, no account needed. The module hides without it. |
 | Google Tasks, Calendar, Gmail | Your own Google Cloud OAuth client and one sign-in. See [Google setup](#google-setup). |
 | YouTube in Feeds | The same OAuth client and a second sign-in for the account that holds your subscriptions. See [Google setup](#google-setup). The RSS feeds need nothing. |
-| Phone alarms | Android Automate and Python 3. Direct home Wi-Fi delivery; follow the [Automate setup tutorial](../automate-setup.md). See [phone-alarms.md](../phone-alarms.md) for configuration and protocol details. |
+| Phone alarms | Android Automate and Python 3. Direct home Wi-Fi delivery; follow the [Automate setup tutorial](automate-setup.md). See [phone-alarms.md](phone-alarms.md) for configuration and protocol details. |
 
 ## Google setup
 
@@ -97,7 +97,7 @@ Gmail, Google Calendar and Google Tasks open their installed Chromium PWAs when 
 
 ## Testing on a fresh install
 
-`scripts/fresh-install-test` boots the official Arch cloud image in a throwaway KVM virtual machine. It installs Hyprland, Quickshell and the requirements above, and nothing else, then logs in to Hyprland with a `hyprland.lua` that loads `hypr/dewdrop.lua` and starts the bar from your checkout. A minute later it brings back a screenshot and the bar's log, and lists the log's errors. It needs `qemu-system-x86_64`, `qemu-img` and access to `/dev/kvm`. Results go to `~/.cache/dewdrop-fresh-test/runs/`.
+`tests/fresh-install-test` boots the official Arch cloud image in a throwaway KVM virtual machine. It installs Hyprland, Quickshell and the requirements above, and nothing else, then logs in to Hyprland with a `hyprland.lua` that loads `hypr/dewdrop.lua` and starts the bar from your checkout. A minute later it brings back a screenshot and the bar's log, and lists the log's errors. It needs `qemu-system-x86_64`, `qemu-img` and access to `/dev/kvm`. Results go to `~/.cache/dewdrop-fresh-test/runs/`.
 
 ## Launcher Reference
 
