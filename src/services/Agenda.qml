@@ -222,10 +222,12 @@ GoogleService {
     // Tasks.plan), with the calendar's default reminders. No popup is open to
     // show `trouble` when this fails, so a failure is also sent as a notification.
     function insert(event: var): void {
+        // An all-day event is a `date`, and its end is the day after.
+        const at = date => event.allDay ? { date: root.dayString(date) } : { dateTime: root.stamp(date) };
         const body = {
             summary: event.title,
-            start: { dateTime: root.stamp(event.start) },
-            end: { dateTime: root.stamp(event.end) }
+            start: at(event.start),
+            end: at(event.end)
         };
         root.send("POST", `${root.api}/calendars/primary/events`, body, () => {
             // Fetched again even if a fetch is in the air: that one began

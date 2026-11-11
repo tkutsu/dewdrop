@@ -98,7 +98,8 @@ Singleton {
                 { prefix: "task", hint: "call bank" },
                 { prefix: "timer", hint: "25m" },
                 { prefix: "alarm", hint: "15:00" },
-                { prefix: "event", hint: "fri 15:00 call" }
+                { prefix: "event", hint: "fri 15:00 call" },
+                { prefix: "event", hint: "fri all day trip" }
             ];
         return [];
     }
@@ -743,7 +744,7 @@ Singleton {
         case "alarm":
             return Timers.brief(typed, plan.timer);
         case "event":
-            return "event  ·  " + (calendar() ?? `${Tasks.sayDay(Tasks.dayString(ev.start))} ${time(ev.start)}–${time(ev.end)}`);
+            return "event  ·  " + (calendar() ?? `${Tasks.sayDay(Tasks.dayString(ev.start))} ${ev.allDay ? "all day" : `${time(ev.start)}–${time(ev.end)}`}`);
         }
         const p = plan.task;
         const list = Tasks.lists.length > 1 ? Tasks.lists.find(l => l.id === p.list) : null;

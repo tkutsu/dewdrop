@@ -96,6 +96,11 @@
     // Capitalize makes the first character of each space-separated word uppercase.
     "dateCase": "normal",
 
+    // How a date typed with slashes reads, as in the launcher's `,` line:
+    // "dmy" (20/11/2026), "mdy" (11/20/2026) or "ymd" (2026/11/20). Without a
+    // year it is the next one to come. 2026-11-20 always reads the same.
+    "dateOrder": "dmy",
+
     // The clock, as a Qt date/time format: "HH:mm" reads 14:05, "h:mm AP" reads
     // 2:05 PM. Date tokens work here too ("ddd HH:mm"). Seconds in either
     // format ("HH:mm:ss") make both displays tick every second.

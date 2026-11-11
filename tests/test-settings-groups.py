@@ -63,7 +63,7 @@ ShellRoot {
             check(hits("24h").includes("twelveHour"), "search includes choice labels");
             check(hits("gmail").includes("webApp:gmail"), "search finds the app name behind Open With");
             menu.page = menu.pages.findIndex(p => p.title === "Date & Time"); menu.query = "";
-            check(menu.entries.filter(e => e.setting).length === 6, "clearing search restores the selected page");
+            check(menu.entries.filter(e => e.setting).length === 7, "clearing search restores the selected page");
             check(JSON.stringify(row("timeCase").options) === JSON.stringify(row("dateCase").options), "time and date offer Default, UPPER and lower in the same order");
             row("timeCase").set("normal");
             check(Settings.timeCase === "normal" && row("timeCase").get() === "normal", "time Default preserves the formatter's letter case");
