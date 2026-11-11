@@ -18,6 +18,10 @@ BarItem {
     property bool collapsed: false
     property real handoffProgress: 1
     property real handoffOffset: 0
+    // The side pill is drawing its last icon back into this slot. It lands
+    // here, with the glyph it left with, before an empty slot folds away.
+    property bool landing: false
+    property string landingGlyph: ""
     signal expandRequested()
     popupButton: root.collapsed && root.pill?.side === Pill.Side.Centre && Services.Timers.loaded ? Qt.NoButton : Qt.LeftButton
     actions: ({ [Qt.LeftButton]: () => root.expandRequested() })
@@ -33,7 +37,8 @@ BarItem {
     BadgedGlyph {
         id: timerIcon
         Layout.fillHeight: true
-        glyph: Services.Timers.loaded ? Services.Timers.glyph : Theme.glyph.timer
+        glyph: Services.Timers.loaded ? Services.Timers.glyph
+            : (root.landing || root.stowed) && root.landingGlyph ? root.landingGlyph : Theme.glyph.timer
         badge: root.activeCount > 0 && Settings.badgeStyle("countdown") !== "hide" ? String(root.activeCount) : ""
         dot: Settings.badgeStyle("countdown") === "dot"
         underdot: Settings.badgeStyle("countdown") === "underdot"

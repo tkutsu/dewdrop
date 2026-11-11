@@ -31,6 +31,7 @@ QtObject {
     readonly property int count: list.length
     property bool showing: false
     property bool held: false
+    property bool withdrawn: false
     property bool urgent: false
     property int burst: 0
     readonly property int waiting: count - (showing && latest && list.includes(latest) ? 1 : 0)
@@ -43,7 +44,7 @@ QtObject {
     function pictureOf(value) { return value.appIcon || ""; }
     function url(value) { return value || ""; }
     function dismissNotice(value) { showing = false; }
-    function clearAll() { list = []; showing = false; }
+    function clearAll() { withdrawn = showing; list = []; showing = false; }
 }
 '''
 
@@ -180,7 +181,7 @@ ShellRoot {
                         for (const showing of [false, true]) {
                             for (const fromBell of [false, true]) {
                                 Notifications.latest = Object.assign({}, Notifications.latest, {
-                                    dismiss: () => { Notifications.list = Notifications.list.filter(n => n !== Notifications.latest); Notifications.showing = false; }
+                                    dismiss: () => { Notifications.list = Notifications.list.filter(n => n !== Notifications.latest); Notifications.withdrawn = Notifications.showing; Notifications.showing = false; }
                                 });
                                 Notifications.list = remaining ? [Notifications.latest, {}] : [Notifications.latest]; Notifications.showing = true;
                                 wait(Theme.dropMs + 100);
@@ -253,6 +254,17 @@ ShellRoot {
                 Notifications.showing = true; wait(Theme.dropMs + 100);
                 check(notice.reveal === 1 && !bell.visible, "interrupted merge returns the bell to the bubble");
                 Notifications.showing = false; wait(Theme.dropMs + 100);
+                DrawerPins.setMode("bell", "auto");
+                Notifications.list = []; Notifications.showing = true; wait(Theme.dropMs + 100);
+                check(notice.reveal === 1 && bell.stowed, "an ephemeral notice shows with the bell hidden");
+                Notifications.showing = false;
+                let landed = false;
+                for (let i = 0; i < 200 && notice.reveal > 0; i++) {
+                    wait(10);
+                    landed = landed || (bell.handingOff && bell.visible && bell.keyBox.children[0].opacity > 0.99);                }
+                check(landed, "an ephemeral notice lands in the empty bell before it leaves");
+                until(() => bell.stowed && !bell.visible, "the empty bell folds away once the notice is in");
+                DrawerPins.setMode("bell", "pinned");
                 for (const central of [false, true]) {
                     tail.stowed = !central;
                     bell.parent = central ? clockPill.moduleHost : rightPill.moduleHost;

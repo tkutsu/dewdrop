@@ -140,6 +140,23 @@ ShellRoot {
                 Services.Timers._commit([Object.assign({}, alarm, {running: false})]); settle();
                 check(timerModule.stowed && countdown.stowed, 'disabled alarms leave Auto quiet');
                 Services.Timers._commit([]); settle();
+                Services.Timers.countdown(600000, 'Landing'); settle();
+                Services.Timers.toggle(Services.Timers.entries[0].id); settle();
+                check(!countdown.stowed && timerModule.stowed, 'paused timer is open in its side pill');
+                Services.Timers.cancel(Services.Timers.entries[0].id);
+                let landed = false;
+                for (let i = 0; i < 200 && countdown.reveal > 0; i++) {
+                    wait(10);
+                    landed = landed || (timerModule.visible && timerModule.icon.opacity > 0.99
+                        && timerModule.icon.glyph === Theme.glyph.timerPaused);
+                }
+                // Reduce Motion retracts every side pill in one step, with no flight to land.
+                check(landed || Theme.reduceMotion, 'the last timer lands in the central slot, as it was, before leaving');
+                settle();
+                check(timerModule.stowed && !timerModule.visible, 'the empty slot folds away after landing');
+                drawer.out = true; wait(50);
+                check(timerModule.icon.glyph === Theme.glyph.timer, 'an idle icon shown again is the plain timer');
+                drawer.out = false; settle();
                 Services.Timers.countdown(600000, 'Last Timer'); settle();
                 OpenPopup.set(countdown); wait(450);
                 const cancel = countdown.popupItem.keyTargets().find(item => item.name === 'Cancel Last Timer');

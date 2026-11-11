@@ -464,7 +464,9 @@ PanelWindow {
             readonly property bool handingOff: countdown.mergedIcon === icon && !countdown.settled
             handoffProgress: handingOff ? countdown.iconHandoff.progress : 1
             handoffOffset: handingOff ? countdown.iconHandoff.targetX : 0
-            stowed: expanded || (!showsClosed && !drawer.out)
+            landing: handingOff && countdown.stowed && countdown.reveal > 0
+            landingGlyph: countdown.shownGlyph
+            stowed: expanded || (!showsClosed && !drawer.out && !landing)
             onExpandRequested: countdown.expand()
             onWantsExpansionChanged: if (!wantsExpansion && Services.Timers.loaded)
                 OpenPopup.close(countdown)
@@ -775,8 +777,11 @@ PanelWindow {
             handoffX: handingOff ? notice.iconHandoff.targetX : 0
             noticeMerging: notice.stowed && notice.reveal > 0
                 && noticePill.foldBox.x + noticePill.foldBox.z > -Theme.pillSpread
-            stowed: handingOff ? handoffProgress === 0
-                || (!showsClosed && !drawer.out && !(noticeMerging && Services.Notifications.count > 0))
+            // A notice that ran out lands in the bell even when nothing is left
+            // to keep; the empty bell then folds away once the notice is in.
+            // One that was dismissed or cleared just goes.
+            readonly property bool landing: notice.stowed && !Services.Notifications.withdrawn
+            stowed: handingOff ? handoffProgress === 0 || (!showsClosed && !drawer.out && !landing)
                 : !showsClosed && !drawer.out
             marksPin: drawer.out
         }
