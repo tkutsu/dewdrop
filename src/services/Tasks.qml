@@ -545,9 +545,9 @@ GoogleService {
             list: (list ?? root.defaultList).id, error: error };
     }
 
-    // A word written as a date, real or not: "2026-11-20", "20/11", "20/11/26",
-    // "2026/11/20". Which part is which is Settings.dateOrder's to say.
-    readonly property var datePattern: /^(\d{4}-\d{2}-\d{2}|(\d{2}|\d{4})\/\d{1,2}\/\d{1,2}|\d{1,2}\/\d{1,2}(\/(\d{2}|\d{4}))?)$/
+    // A word written as a date, real or not: "20/11", "20-11-26", "2026-11-20",
+    // one separator throughout. Which part is which is Settings.dateOrder's to say.
+    readonly property var datePattern: /^(\d{1,2}|\d{4})([\/-])\d{1,2}(\2(\d{1,2}|\d{4}))?$/
 
     // Date keywords for the first word; the task title follows them.
     function readDay(word: string): string {
@@ -555,17 +555,14 @@ GoogleService {
             return root.today;
         if (word === "tomorrow")
             return root.tomorrow;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(word)) {
-            const at = new Date(word + "T00:00:00Z");
-            return !isNaN(at.getTime()) && at.toISOString().slice(0, 10) === word ? word : "";
-        }
 
-        // Slashes, in the order Settings.dateOrder gives; Y/M/D with two parts
-        // is M/D. With no year it is the next one to come, as a weekday is:
-        // "20/11" in December is next November.
-        if (root.datePattern.test(word) && word.includes("/")) {
-            const parts = word.split("/");
-            const order = Settings.dateOrder === "ymd" && parts.length === 2 ? "md" : Settings.dateOrder;
+        // In the order Settings.dateOrder gives, but a four-digit year first is
+        // always Y/M/D, and Y/M/D with two parts is M/D. With no year it is the
+        // next one to come, as a weekday is: "20/11" in December is next November.
+        if (root.datePattern.test(word)) {
+            const parts = word.split(/[\/-]/);
+            const order = parts[0].length === 4 ? "ymd"
+                : Settings.dateOrder === "ymd" && parts.length === 2 ? "md" : Settings.dateOrder;
             const part = c => parts[order.indexOf(c)];
             const [d, m, y] = [Number(part("d")), Number(part("m")), part("y")];
             if (y !== undefined && y.length !== 2 && y.length !== 4)
