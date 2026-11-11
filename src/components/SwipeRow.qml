@@ -10,8 +10,9 @@ import qs.src.core
 //
 // The contents ride along by adding `swipe` to their x. The row's height is
 // `fullHeight`, folded down as it leaves. The gestures are taken on the top
-// `gestureHeight` of the row, and mouse drags only while `draggable`; a row
-// that routes its own presses (an open mail) calls `track` and `release`.
+// `gestureHeight` of the row while `swipeable`, and mouse drags only while
+// `draggable`; a row that routes its own presses (an open mail, a task under
+// ListReorder) calls `track` and `release`.
 PopupRow {
     id: row
 
@@ -23,6 +24,7 @@ PopupRow {
     property real fullHeight: 0
     property real gestureHeight: row.height
     property bool draggable: true
+    property bool swipeable: true
 
     property real swipe: 0
     readonly property real reach: row.width * 0.4
@@ -138,6 +140,7 @@ PopupRow {
     // sideways.
     Item {
         z: 1
+        enabled: row.swipeable
         width: row.width
         height: row.gestureHeight
 

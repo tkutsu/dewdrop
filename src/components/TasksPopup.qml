@@ -5,6 +5,7 @@ import qs.src.components
 import qs.src.services
 
 // Google task lists keep their manual order and wrap to fit.
+// A click on a task edits it; a sideways swipe completes it.
 // A click on a list's heading folds it shut under its count, remembered.
 // A hold folds the rows to one line so a drop can choose a task list or parent.
 Popup {
@@ -88,6 +89,12 @@ Popup {
             list.positionViewAtIndex(index, ListView.Contain);
             Qt.callLater(() => list.itemAtIndex(index)?.focusEditor());
         });
+    }
+
+    // Gone from the list at once, as a swiped mail is.
+    function clear(task) {
+        if (!Tasks.isCrossed(task)) Tasks.complete(task);
+        Tasks.commit();
     }
 
     function cancelEdit() {
@@ -215,11 +222,12 @@ Popup {
             rowHeight: root.rowHeight
             rightGuard: root.actionsWidth
             allowSingle: true
+            swipes: true
             enabled: !root.editing
             canLift: index => root.rows[index].kind !== "header"
             canHold: index => !Tasks.isCrossed(root.rows[index])
             onMoved: (from, to) => root.moveRow(from, to, reorder.horizontalOffset)
-            onClicked: index => Tasks.complete(rows[index])
+            onClicked: index => root.beginEdit(rows[index])
             lifted: Component {
                 Item {
                     Rectangle {
@@ -243,7 +251,7 @@ Popup {
             }
         }
 
-        delegate: PopupRow {
+        delegate: SwipeRow {
             id: row
             required property var modelData
             required property int index
@@ -265,10 +273,14 @@ Popup {
             }
             // A list name is renamed by its edit button; the heading itself
             // folds the list.
-            name: (header ? (folded ? "Show " : "Fold ") : crossed ? "Reopen " : "Complete ") + modelData.title
+            name: (header ? (folded ? "Show " : "Fold ") : "Edit ") + modelData.title
             acceptsTap: header && !editing
             width: list.width
-            readonly property real fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + root.rowPad * 2) : header ? root.rowHeight
+            // ListReorder hands a task its mouse swipe; a heading stays put.
+            swipeable: !header && !editing
+            draggable: false
+            onSwiped: root.clear(modelData)
+            fullHeight: editing ? Math.max(root.rowHeight, editor.contentHeight + root.rowPad * 2) : header ? root.rowHeight
                 : Math.max(root.rowHeight, label.implicitHeight + (modelData.notes ? notes.implicitHeight + 2 : 0) + root.rowPad * 2)
             // Folded rows close up to nothing under their heading.
             property real shown: header || !folded ? 1 : 0
@@ -279,10 +291,10 @@ Popup {
                 }
             }
             visible: shown > 0 && opacity > 0
-            height: (fullHeight + (root.rowHeight - fullHeight) * root.compact) * shown
-            clip: root.compact > 0 || shown < 1
+            height: (fullHeight + (root.rowHeight - fullHeight) * root.compact) * shown * (1 - gone)
+            clip: root.compact > 0 || shown < 1 || leaving
             opacity: reorder.showing && index === reorder.from ? 0 : crossed ? 0.4 : 1
-            onTapped: if (!editing && !reorder.showing) header ? Tasks.toggleFold(modelData.listId) : Tasks.complete(modelData)
+            onTapped: if (!editing && !reorder.showing) header ? Tasks.toggleFold(modelData.listId) : root.beginEdit(modelData)
             transform: Translate {
                 y: reorder.shift(row.index)
                 Behavior on y {
@@ -301,152 +313,161 @@ Popup {
                 root.keyInput = editor;
             }
 
-            Rectangle {
-                visible: row.threaded && !(row.editing && !row.sub)
-                x: root.gutter / 2 - 0.5
-                y: row.sub ? 0 : dot.y + dot.height / 2 + 6
-                width: 1
-                height: (row.lastChild ? root.rowPad + root.lineHeight : row.height) - y
-                color: Theme.label3
-            }
-            Rectangle {
-                id: dot
-                visible: !row.header && !row.sub && !row.editing
-                // Hang off the first line's x-height, even when the title wraps.
-                x: row.indent + (root.gutter - width) / 2
-                anchors.baseline: label.baseline
-                anchors.baselineOffset: -(metrics.xHeight + height) / 2 - 1
-                width: row.hovered ? 8 : 6
-                height: width
-                radius: width / 2
-                Behavior on width {
-                    NumberAnimation {
-                        duration: Theme.selectMs
-                        easing.type: Easing.OutCubic
-                    }
-                }
-                color: Tasks.dotColour(row.modelData)
-            }
-            PopupText {
-                visible: row.sub && !row.editing
-                x: row.indent
-                anchors.baseline: label.baseline
-                width: root.gutter - 4
-                text: row.modelData.number + "."
-                font.pixelSize: Theme.captionSize
-                horizontalAlignment: Text.AlignRight
-                color: Tasks.urgency(row.modelData) === "none" ? Theme.label2 : Tasks.dotColour(row.modelData)
-            }
-            Glyph {
-                visible: row.header && !row.editing
-                x: Theme.popupInset
-                anchors.verticalCenter: label.verticalCenter
-                text: Theme.glyph.sectionShut
-                rotation: row.folded ? 0 : 90
-                fontSize: Theme.footnoteSize
-                color: Theme.label2
+            // The contents ride the swipe together.
+            Item {
+                x: row.swipe
+                width: parent.width
+                height: parent.height
 
-                Behavior on rotation {
-                    NumberAnimation {
-                        duration: root.foldMs
-                        easing.type: Easing.InOutCubic
+                Rectangle {
+                    visible: row.threaded && !(row.editing && !row.sub)
+                    x: root.gutter / 2 - 0.5
+                    y: row.sub ? 0 : dot.y + dot.height / 2 + 6
+                    width: 1
+                    height: (row.lastChild ? root.rowPad + root.lineHeight : row.height) - y
+                    color: Theme.label3
+                }
+                Rectangle {
+                    id: dot
+                    visible: !row.header && !row.sub && !row.editing
+                    // Hang off the first line's x-height, even when the title wraps.
+                    x: row.indent + (root.gutter - width) / 2
+                    anchors.baseline: label.baseline
+                    anchors.baselineOffset: -(metrics.xHeight + height) / 2 - 1
+                    width: row.hovered ? 8 : 6
+                    height: width
+                    radius: width / 2
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: Theme.selectMs
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                    color: Tasks.dotColour(row.modelData)
+                }
+                PopupText {
+                    visible: row.sub && !row.editing
+                    x: row.indent
+                    anchors.baseline: label.baseline
+                    width: root.gutter - 4
+                    text: row.modelData.number + "."
+                    font.pixelSize: Theme.captionSize
+                    horizontalAlignment: Text.AlignRight
+                    color: Tasks.urgency(row.modelData) === "none" ? Theme.label2 : Tasks.dotColour(row.modelData)
+                }
+                Glyph {
+                    visible: row.header && !row.editing
+                    x: Theme.popupInset
+                    anchors.verticalCenter: label.verticalCenter
+                    text: Theme.glyph.sectionShut
+                    rotation: row.folded ? 0 : 90
+                    fontSize: Theme.footnoteSize
+                    color: Theme.label2
+
+                    Behavior on rotation {
+                        NumberAnimation {
+                            duration: root.foldMs
+                            easing.type: Easing.InOutCubic
+                        }
                     }
                 }
-            }
-            PopupText {
-                id: label
-                FontMetrics {
-                    id: metrics
-                    font: label.font
+                PopupText {
+                    id: label
+                    FontMetrics {
+                        id: metrics
+                        font: label.font
+                    }
+                    visible: !row.editing
+                    x: row.header ? root.headingX : row.indent + root.gutter
+                    y: root.rowPad
+                    width: parent.width - x - root.actionsWidth - (row.dayText ? root.dayWidth : 0) - Theme.popupInset
+                    text: row.modelData.title
+                    textFormat: Text.PlainText
+                    font.pixelSize: Theme.captionSize
+                    font.strikeout: row.crossed
+                    font.weight: row.header ? Font.DemiBold : Font.Normal
+                    color: row.header ? Theme.label2 : Theme.fg
+                    wrapMode: root.compact >= 1 ? Text.NoWrap : Text.WordWrap
+                    elide: root.compact >= 1 ? Text.ElideRight : Text.ElideNone
                 }
-                visible: !row.editing
-                x: row.header ? root.headingX : row.indent + root.gutter
-                y: root.rowPad
-                width: parent.width - x - root.actionsWidth - (row.dayText ? root.dayWidth : 0) - Theme.popupInset
-                text: row.modelData.title
-                textFormat: Text.PlainText
-                font.pixelSize: Theme.captionSize
-                font.strikeout: row.crossed
-                font.weight: row.header ? Font.DemiBold : Font.Normal
-                color: row.header ? Theme.label2 : Theme.fg
-                wrapMode: root.compact >= 1 ? Text.NoWrap : Text.WordWrap
-                elide: root.compact >= 1 ? Text.ElideRight : Text.ElideNone
-            }
-            PopupText {
-                id: notes
-                visible: !row.header && !row.editing && !reorder.showing && text !== ""
-                x: label.x
-                y: label.y + label.implicitHeight + 2
-                width: parent.width - x - root.actionsWidth - Theme.popupInset
-                text: row.modelData.notes ?? ""
-                textFormat: Text.PlainText
-                font.pixelSize: Theme.footnoteSize
-                font.strikeout: row.crossed
-                color: Theme.label2
-                // All of it: a note is the rest of what the task says.
-                wrapMode: Text.WordWrap
-            }
-            // Each heading's count sits at the edge, as in the feeds
-            // popup, and gives way to the rename button under the pointer.
-            PopupText {
-                anchors.right: row.header ? parent.right : actions.left
-                anchors.rightMargin: row.header ? Theme.popupInset : 2
-                anchors.baseline: label.baseline
-                width: row.dayText ? root.dayWidth : 0
-                visible: !row.editing && !(row.header && actions.visible)
-                text: row.dayText
-                font.pixelSize: Theme.footnoteSize
-                horizontalAlignment: Text.AlignRight
-                color: !row.header && Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
-                elide: Text.ElideRight
-            }
-            // One button in one place: edit under the pointer, then copy
-            // the current draft and save it to finish editing.
-            PopupButton {
-                id: actions
-                anchors.right: parent.right
-                // Centred on the first line, however far the task wraps.
-                y: Math.round(root.rowPad + (root.lineHeight - height) / 2)
-                width: root.actionsWidth
-                height: 22
-                // A list name being edited has no copy button.
-                visible: !reorder.showing && (row.editing ? !row.header : row.hovered)
-                glyph: row.editing ? Theme.glyph.copy : Theme.glyph.edit
-                name: (row.editing ? "Copy " : row.header ? "Rename task list " : "Edit ") + row.modelData.title
-                onTapped: {
-                    if (row.editing) {
-                        Launcher.copy(root.draft);
-                        root.saveEdit();
-                    } else root.beginEdit(row.modelData);
+                PopupText {
+                    id: notes
+                    visible: !row.header && !row.editing && !reorder.showing && text !== ""
+                    x: label.x
+                    y: label.y + label.implicitHeight + 2
+                    width: parent.width - x - root.actionsWidth - Theme.popupInset
+                    text: row.modelData.notes ?? ""
+                    textFormat: Text.PlainText
+                    font.pixelSize: Theme.footnoteSize
+                    font.strikeout: row.crossed
+                    color: Theme.label2
+                    // All of it: a note is the rest of what the task says.
+                    wrapMode: Text.WordWrap
                 }
-            }
-            TextEdit {
-                id: editor
-                objectName: "taskEditor"
-                Accessible.name: row.header ? "Task list name" : "Task title and notes"
-                visible: row.editing
-                x: row.header ? root.headingX : row.indent + root.gutter
-                y: root.rowPad
-                // Clear of the copy button; a list name has none.
-                width: parent.width - x - (row.header ? 0 : root.actionsWidth) - Theme.popupInset
-                height: Math.max(root.lineHeight, contentHeight)
-                text: row.editing ? root.draft : ""
-                textFormat: TextEdit.PlainText
-                color: Theme.fg
-                selectionColor: Theme.selectionStrong
-                selectedTextColor: Theme.fg
-                font.family: Theme.bodyFont
-                font.pixelSize: Theme.captionSize
-                wrapMode: TextEdit.Wrap
-                selectByMouse: true
-                onTextChanged: if (row.editing) root.draft = text
-                Keys.onPressed: event => {
-                    if (event.key === Qt.Key_Escape) {
-                        root.cancelEdit();
-                        event.accepted = true;
-                    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (row.header || !(event.modifiers & Qt.ShiftModifier))) {
-                        root.saveEdit();
-                        event.accepted = true;
+                // Each heading's count sits at the edge, as in the feeds
+                // popup, and gives way to the rename button under the pointer.
+                PopupText {
+                    anchors.right: row.header ? parent.right : actions.left
+                    anchors.rightMargin: row.header ? Theme.popupInset : 2
+                    anchors.baseline: label.baseline
+                    width: row.dayText ? root.dayWidth : 0
+                    visible: !row.editing && !(row.header && actions.visible)
+                    text: row.dayText
+                    font.pixelSize: Theme.footnoteSize
+                    horizontalAlignment: Text.AlignRight
+                    color: !row.header && Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
+                    elide: Text.ElideRight
+                }
+                // A task's text to copy under the pointer, or the draft while
+                // editing, saved as it goes; a heading's rename.
+                PopupButton {
+                    id: actions
+                    anchors.right: parent.right
+                    // Centred on the first line, however far the task wraps.
+                    y: Math.round(root.rowPad + (root.lineHeight - height) / 2)
+                    width: root.actionsWidth
+                    height: 22
+                    // A list name being edited has no copy button.
+                    visible: !reorder.showing && !row.swiping && (row.editing ? !row.header : row.hovered)
+                    glyph: row.header ? Theme.glyph.edit : Theme.glyph.copy
+                    name: (row.header ? "Rename task list " : "Copy ") + row.modelData.title
+                    onTapped: {
+                        if (row.header) {
+                            root.beginEdit(row.modelData);
+                        } else if (row.editing) {
+                            Launcher.copy(root.draft);
+                            root.saveEdit();
+                        } else Launcher.copy(root.editText(row.modelData));
+                    }
+                }
+                TextEdit {
+                    id: editor
+                    objectName: "taskEditor"
+                    Accessible.name: row.header ? "Task list name" : "Task title and notes"
+                    visible: row.editing
+                    x: row.header ? root.headingX : row.indent + root.gutter
+                    y: root.rowPad
+                    // Clear of the copy button; a list name has none.
+                    width: parent.width - x - (row.header ? 0 : root.actionsWidth) - Theme.popupInset
+                    height: Math.max(root.lineHeight, contentHeight)
+                    text: row.editing ? root.draft : ""
+                    textFormat: TextEdit.PlainText
+                    color: Theme.fg
+                    selectionColor: Theme.selectionStrong
+                    selectedTextColor: Theme.fg
+                    font.family: Theme.bodyFont
+                    font.pixelSize: Theme.captionSize
+                    wrapMode: TextEdit.Wrap
+                    selectByMouse: true
+                    onTextChanged: if (row.editing) root.draft = text
+                    Keys.onPressed: event => {
+                        if (event.key === Qt.Key_Escape) {
+                            root.cancelEdit();
+                            event.accepted = true;
+                        } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (row.header || !(event.modifiers & Qt.ShiftModifier))) {
+                            root.saveEdit();
+                            event.accepted = true;
+                        }
                     }
                 }
             }

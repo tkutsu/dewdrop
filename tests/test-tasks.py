@@ -246,7 +246,10 @@ ShellRoot {
                 wait(50);
                 check(popup.editing.id === "c", "edit begins");
                 const row = popup.auditList.itemAtIndex(Tasks.rows.findIndex(r => r.id === "c"));
-                const editor = row.children[0].children.find(child => child.objectName === "taskEditor");
+                let editor = null;
+                for (const child of row.children[0].children)
+                    for (const inner of child.children)
+                        if (inner.objectName === "taskEditor") editor = inner;
                 if (!live) anchor.Window.window.requestActivate();
                 keyRelay.forceActiveFocus();
                 wait(100);
@@ -280,9 +283,8 @@ ShellRoot {
                 const rowIndex = Tasks.rows.findIndex(r => r.id === "c");
                 const y = editRow.y - popup.auditList.contentY + 12;
                 mouseClick(popup.auditList, 25, y);
-                check(Tasks.isCrossed(c), "pointer tap crosses exactly once");
-                mouseClick(popup.auditList, 25, y);
-                check(!Tasks.isCrossed(c), "second pointer tap uncrosses");
+                check(popup.editing?.id === "c" && !Tasks.isCrossed(c), "pointer tap edits without crossing");
+                popup.cancelEdit();
                 mousePress(popup.auditList, 25, y);
                 wait(550);
                 check(popup.auditReorder.dragging, "hold lifts task");

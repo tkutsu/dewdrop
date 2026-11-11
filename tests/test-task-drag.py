@@ -62,18 +62,46 @@ CASES = r'''
 
                 reset();
                 const task = Tasks.rows.findIndex(r => r.id === "d");
-                const edit = named(list.itemAtIndex(task), "Edit Third task");
-                check(edit !== null, "task edit button found");
-                mouseMove(edit, 1, edit.height / 2);
+                const copy = named(list.itemAtIndex(task), "Copy Third task");
+                check(copy !== null, "task copy button found");
+                mouseMove(copy, 1, copy.height / 2);
                 wait(30);
-                check(edit.visible, "task edit button is visible");
-                mousePress(edit, 1, edit.height / 2);
+                check(copy.visible, "task copy button is visible");
+                mousePress(copy, 1, copy.height / 2);
                 wait(350);
-                check(!drag.showing && popup.editing === null, "holding task edit neither lifts nor edits before release");
-                mouseRelease(edit, 1, edit.height / 2);
+                check(!drag.showing && popup.editing === null, "holding task copy neither lifts nor edits");
+                mouseRelease(copy, 1, copy.height / 2);
+                check(popup.editing === null && !Tasks.isCrossed(Tasks.tasks.find(t => t.id === "d")),
+                    "task copy neither edits nor completes the task");
+
+                reset();
+                const rowY = slot(task);
+                mouseClick(list, 60, rowY);
+                wait(50);
                 check(popup.editing?.id === "d" && !Tasks.isCrossed(Tasks.tasks.find(t => t.id === "d")),
-                    "task edit edge opens the editor without completing the task");
+                    "a click on a task edits it without completing it");
                 popup.cancelEdit();
+
+                reset();
+                mousePress(list, 300, rowY);
+                for (let x = 290; x >= 300 - list.width * 0.5; x -= 20) mouseMove(list, x, rowY);
+                check(list.itemAtIndex(task).armed && !drag.showing, "a mouse swipe left arms the task row without lifting it");
+                mouseRelease(list, 300 - list.width * 0.5, rowY);
+                tryVerify(() => Tasks.calls.some(c => c.body?.status === "completed"), 2000);
+                check(Tasks.calls.length === 1 && Tasks.calls[0].url.includes("/tasks/d") && popup.editing === null,
+                    "letting go of an armed swipe completes the task at once");
+                Tasks.calls[0].done({});
+                wait(50);
+                check(!Tasks.tasks.some(t => t.id === "d"), "the swiped task leaves the list");
+
+                reset();
+                mousePress(list, 300, rowY);
+                mouseMove(list, 290, rowY);
+                mouseMove(list, 270, rowY);
+                mouseRelease(list, 270, rowY);
+                tryVerify(() => list.itemAtIndex(task).swipe === 0, 2000);
+                check(Tasks.calls.length === 0 && popup.editing === null && list.itemAtIndex(task).swipe === 0,
+                    "a short swipe springs back without editing or completing");
 
                 reset();
                 hold("d", 60);

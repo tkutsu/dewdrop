@@ -91,7 +91,7 @@ CASES = r'''
                     Tasks.edit(Tasks.tasks[0], "Saved parent");
                     const child = Tasks.tasks[1];
                     const row = popup.auditList.itemAtIndex(2);
-                    mouseClick(popup.auditList, 25, row.y - popup.auditList.contentY + 12);
+                    Tasks.complete(child);
                     popup.beginEdit(Tasks.tasks[3]);
                     check(popup.editing?.id === "d", "editing can begin during another save");
                     popup.draft = "Queued title";
@@ -142,14 +142,17 @@ CASES = r'''
                     popup.setKey(row);
                     wait(30);
                     const targets = popup.keyTargets();
-                    const edit = targets.find(t => t.name === "Edit Work task");
-                    check(edit && !targets.some(t => t.name === "Copy Work task"), "task row offers edit and no copy");
-                    const point = edit.mapToItem(popup.auditList, 2, 10);
+                    const copy = targets.find(t => t.name === "Copy Work task");
+                    check(copy && copy.visible && row.name === "Edit Work task", "task row edits and its button copies");
+                    const point = copy.mapToItem(popup.auditList, 2, 10);
                     mouseClick(popup.auditList, point.x, point.y);
                     wait(30);
-                    check(popup.editing?.id === "d" && !Tasks.isCrossed(Tasks.tasks[3]), "edit button takes pointer press without completing task");
-                    const copy = popup.keyTargets().find(t => t.name === "Copy Work task");
-                    check(copy === edit && copy.visible, "copy takes the edit button's place while editing");
+                    check(popup.editing === null && !Tasks.isCrossed(Tasks.tasks[3]), "copy button neither edits nor completes");
+                    row.keyPress();
+                    wait(30);
+                    check(popup.editing?.id === "d" && popup.keyTargets().find(t => t.name === "Copy Work task") === copy,
+                        "Return on a task edits it, and copy stays while editing");
+                    popup.cancelEdit();
                 });
                 probe("single list launcher", () => {
                     reset();
