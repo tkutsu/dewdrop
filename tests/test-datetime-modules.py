@@ -91,7 +91,14 @@ ShellRoot {
                 check(timerModule.icon.badge === '1' && JSON.stringify(Services.Timers.entries) === beforeCollapse, 'collapse retains the badge and running timer');
                 Services.Timers.tick(); settle();
                 check(countdown.dismissed && countdown.stowed, 'ticks do not undo manual collapse');
-                mouseClick(timerModule, timerModule.width / 2, timerModule.height / 2); settle();
+                mouseClick(timerModule, timerModule.width / 2, timerModule.height / 2);
+                let narrowest = timerModule.width;
+                for (let elapsed = 0; elapsed < Theme.dropMs + Theme.foldMs + 200; elapsed += 16) {
+                    wait(16);
+                    check(timerModule.width <= narrowest + 1, 'the central slot stays shut once the icon leaves it: '
+                        + timerModule.width + ' after ' + narrowest + ' at reveal ' + countdown.reveal.toFixed(2));
+                    narrowest = Math.min(narrowest, timerModule.width);
+                }
                 check(!countdown.dismissed && !countdown.stowed && timerModule.stowed && !timerModule.popupOpen, 'central icon re-expands without opening the popup');
                 mouseClick(countdown, countdown.width / 2, countdown.height / 2, Qt.RightButton); settle();
                 check(countdown.dismissed && timerModule.visible && JSON.stringify(Services.Timers.entries) === beforeCollapse, 'right click collapses and leaves timer state unchanged');
