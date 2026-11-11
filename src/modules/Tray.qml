@@ -251,6 +251,11 @@ BarItem {
                     handle: entry.modelData.menu
                     requestedVisible: menuLifetime.shown
 
+                    // Steam lists what it ran last, and it runs Proton and
+                    // its Linux Runtime under every game, so they crowd the
+                    // games out of the list.
+                    hides: entry.isSteam ? e => /^(Proton|Steam Linux Runtime)\b/.test(e.text) : null
+
                     // A menu too wide for the room to its right comes back
                     // until it ends where the pill does. The compositor's own
                     // slide would keep the whole window on screen, shadow's

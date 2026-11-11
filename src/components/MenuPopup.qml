@@ -18,6 +18,9 @@ Popup {
     property QsMenuHandle handle
     signal dismissed
 
+    // Rows the owner leaves out, as a test on each entry, or null for none.
+    property var hides: null
+
     // Up once its rows are in, not before. QsMenuOpener asks the app for them
     // over DBus each time a menu opens, so a menu shown at once was a window
     // around nothing that then had to grow to fit them. Growing a popup that
@@ -83,7 +86,8 @@ Popup {
             return w;
         }
 
-        // What the app sent, less the separators that would draw nothing:
+        // What the app sent, less the rows the owner hides and the
+        // separators that would then draw nothing:
         // one after another (blueman sends two in a row), or one at either
         // end. Each of those is an empty row the height of a gap, which reads
         // as a row that failed to load rather than as a gap.
@@ -95,6 +99,8 @@ Popup {
             const all = [...opener.children.values];
             const kept = [];
             for (const e of all) {
+                if (!e.isSeparator && root.hides?.(e))
+                    continue;
                 if (e.isSeparator && (kept.length === 0 || kept[kept.length - 1].isSeparator))
                     continue;
                 kept.push(e);
