@@ -89,7 +89,7 @@ ShellRoot {
                 check(at(Tasks.plan("today 15:00 call bank"), Tasks.today, 15, 0), "today and a time make an event");
                 check(at(Tasks.plan("fri 15:00 call bank"), fri, 15, 0), "weekday and time make an event");
                 // The launcher's bare plan hint (Launcher.queryHints) shows these.
-                for (const [line, kind] of [["call bank", "task"], ["25m", "timer"], ["15:00", "alarm"], ["fri 15:00 call", "event"]])
+                for (const [line, kind] of [["call bank", "task"], ["25m", "timer"], ["15:00", "alarm"], ["fri 15:00 call", "event"], ["fri all day trip", "event"]])
                     check(Tasks.plan(line).kind === kind, "the hint's " + kind + " example makes one");
                 check(at(Tasks.plan("2026-11-03 9:30 dentist"), "2026-11-03", 9, 30), "date and time make an event");
                 for (const time of ["21:30", "9:30pm"])
@@ -126,6 +126,36 @@ ShellRoot {
                 check(Tasks.run("fri 15:00 call bank").startsWith("Added call bank") && Agenda.calls.length === 1
                     && Agenda.calls[0].body.start.dateTime.startsWith(fri + "T15:00:00") && Agenda.calls[0].url.endsWith("/calendars/primary/events")
                     && Agenda.calls[0].body.reminders === undefined, "event line inserts an event");
+
+                // Slash dates, in the order the setting gives.
+                const ymd = (y, m, d) => day(new Date(y, m - 1, d));
+                const now = new Date(Tasks.today + "T12:00:00"), lapsed = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                check(Tasks.readDay("20/11/2030") === "2030-11-20" && Tasks.readDay("20/11/30") === "2030-11-20", "day first with a year");
+                check(Tasks.readDay(`${now.getDate()}/${now.getMonth() + 1}`) === Tasks.today, "day and month of today is today");
+                check(Tasks.readDay(`${lapsed.getDate()}/${lapsed.getMonth() + 1}`) === ymd(lapsed.getFullYear() + 1, lapsed.getMonth() + 1, lapsed.getDate()), "a day and month gone by is next year's");
+                check(Tasks.readDay("31/2/2030") === "" && !Tasks.parse("31/2/2030 x").ok, "no such day");
+                const dated = Tasks.plan("20/11/2030 epaneksetasi");
+                check(dated.kind === "task" && dated.task.day === "2030-11-20" && dated.task.title === "epaneksetasi", "slash date makes a dated task");
+                Settings.set("dateOrder", "mdy");
+                check(Tasks.readDay("11/20/2030") === "2030-11-20" && Tasks.readDay("20/11/2030") === "", "month first");
+                check(Tasks.readDay("12/31") === ymd(now.getFullYear(), 12, 31), "month and day");
+                Settings.set("dateOrder", "ymd");
+                check(Tasks.readDay("2030/11/20") === "2030-11-20" && Tasks.readDay("12/31") === ymd(now.getFullYear(), 12, 31), "year first, and month and day without it");
+                Settings.set("dateOrder", "dmy");
+                check(Tasks.readDay("2030-11-20") === "2030-11-20", "ISO dates read the same in any order");
+
+                // A day and "all day" make an all-day event.
+                const allDay = Tasks.plan("20/11/2030 all day epaneksetasi");
+                check(allDay.ok && allDay.kind === "event" && allDay.event.allDay && allDay.event.title === "epaneksetasi"
+                    && day(allDay.event.start) === "2030-11-20" && day(allDay.event.end) === "2030-11-21", "all-day event ends the day after");
+                check(Tasks.plan("fri allday trip").event?.allDay && Tasks.plan("fri All Day trip").event.title === "trip", "allday as one word, any case");
+                check(Tasks.plan("fri all day").error === "No event, only a day", "all day with no title");
+                check(Tasks.plan("all day trip").kind === "task" && Tasks.plan("fri all hands").task.title === "all hands", "all day needs a day; all alone is a word");
+                check(preview("fri all day trip").subtitle === `event  ·  ${Tasks.sayDay(fri)} all day`, "all-day preview");
+                Agenda.calls = [];
+                check(Tasks.run("20/11/2030 allday x").endsWith(" all day") && Agenda.calls.length === 1
+                    && Agenda.calls[0].body.start.date === "2030-11-20" && Agenda.calls[0].body.end.date === "2030-11-21"
+                    && Agenda.calls[0].body.start.dateTime === undefined, "all-day line inserts a dated event");
                 Agenda.calls = [];
                 Tasks.tasks = [
                     {id: "b", listId: "home", title: "Second", position: "20", due: "2026-10-01", parent: "", notes: ""},

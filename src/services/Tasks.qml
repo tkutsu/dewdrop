@@ -519,7 +519,7 @@ GoogleService {
         function takeDay() {
             if (!words.length) return false;
             const parsed = root.readDay(words[0].toLowerCase());
-            if (/^\d{4}-\d{2}-\d{2}$/.test(words[0]) && parsed === "") {
+            if (root.datePattern.test(words[0]) && parsed === "") {
                 error = "Invalid date";
                 return false;
             }
@@ -545,6 +545,10 @@ GoogleService {
             list: (list ?? root.defaultList).id, error: error };
     }
 
+    // A word written as a date, real or not: "2026-11-20", "20/11", "20/11/26",
+    // "2026/11/20". Which part is which is Settings.dateOrder's to say.
+    readonly property var datePattern: /^(\d{4}-\d{2}-\d{2}|(\d{2}|\d{4})\/\d{1,2}\/\d{1,2}|\d{1,2}\/\d{1,2}(\/(\d{2}|\d{4}))?)$/
+
     // Date keywords for the first word; the task title follows them.
     function readDay(word: string): string {
         if (word === "today")
@@ -554,6 +558,27 @@ GoogleService {
         if (/^\d{4}-\d{2}-\d{2}$/.test(word)) {
             const at = new Date(word + "T00:00:00Z");
             return !isNaN(at.getTime()) && at.toISOString().slice(0, 10) === word ? word : "";
+        }
+
+        // Slashes, in the order Settings.dateOrder gives; Y/M/D with two parts
+        // is M/D. With no year it is the next one to come, as a weekday is:
+        // "20/11" in December is next November.
+        if (root.datePattern.test(word) && word.includes("/")) {
+            const parts = word.split("/");
+            const order = Settings.dateOrder === "ymd" && parts.length === 2 ? "md" : Settings.dateOrder;
+            const part = c => parts[order.indexOf(c)];
+            const [d, m, y] = [Number(part("d")), Number(part("m")), part("y")];
+            if (y !== undefined && y.length !== 2 && y.length !== 4)
+                return "";
+            const real = y => {
+                const at = new Date(y, m - 1, d);
+                return at.getMonth() === m - 1 && at.getDate() === d ? root.dayString(at) : "";
+            };
+            if (y !== undefined)
+                return real(Number(y) + (y.length === 2 ? 2000 : 0));
+            const year = Number(root.today.slice(0, 4));
+            const found = real(year);
+            return found !== "" && found < root.today ? real(year + 1) : found;
         }
 
         // A weekday means the next one, never today: "mon" on a Monday is
@@ -572,7 +597,7 @@ GoogleService {
     // The whole `,` line, which makes one of four things: the more of a time
     // it gives, the bigger the thing. In this order:
     //   1. a duration or a clock time first: a timer, or an alarm;
-    //   2. a day, then a clock time and a title: an event;
+    //   2. a day, then a clock time or "all day" and a title: an event;
     //   3. anything else: a task, with its day and task list (parse).
     // Times come from TimersParse.js and days from readDay, so "9:30", "9pm"
     // and "21:30" mean the same here as for alarms, and a bare "9" stays a
@@ -584,11 +609,19 @@ GoogleService {
             return { ok: true, kind: timer.kind === "countdown" ? "timer" : "alarm", timer: timer };
         const words = typed.split(/\s+/);
         const day = words.length > 1 ? root.readDay(words[0].toLowerCase()) : "";
+        const [y, m, d] = day.split("-").map(Number);
+        const allDay = day === "" ? 0 : words[1].toLowerCase() === "allday" ? 1
+            : words[1].toLowerCase() === "all" && words[2]?.toLowerCase() === "day" ? 2 : 0;
+        if (allDay) {
+            const title = words.slice(1 + allDay).join(" ");
+            if (!title)
+                return { ok: false, kind: "event", error: "No event, only a day" };
+            return { ok: true, kind: "event", event: { title: title, start: new Date(y, m - 1, d), end: new Date(y, m - 1, d + 1), allDay: true } };
+        }
         const at = day !== "" ? Timers.parse(words.slice(1).join(" ")) : null;
         if (at?.ok && at.kind === "alarm") {
             if (!at.label)
                 return { ok: false, kind: "event", error: "No event, only a time" };
-            const [y, m, d] = day.split("-").map(Number);
             return { ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute)) };
         }
         const task = root.parse(typed);
@@ -610,7 +643,8 @@ GoogleService {
             return Timers.run(text);
         if (p.kind === "event") {
             Agenda.insert(p.event);
-            return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} at ${Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes())}`;
+            const when = p.event.allDay ? "all day" : "at " + Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes());
+            return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} ${when}`;
         }
         root.add(p.task.title, p.task.day, p.task.list, "");
         return p.task.day === "" ? `Adding ${p.task.title}` : `Adding ${p.task.title} for ${root.sayDay(p.task.day)}`;

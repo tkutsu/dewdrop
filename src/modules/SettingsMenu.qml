@@ -509,7 +509,8 @@ OverlayWindow {
                     title: "Date",
                     rows: [
                         { type: "text", id: "dateFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
-                        { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) }
+                        { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) },
+                        { type: "choice", id: "dateOrder", title: "Date Order", tooltip: "How a typed date reads, as in the launcher's , line.\nWithout a year it is the next one to come.\n2026-11-20 always reads the same.", options: [{ value: "dmy", label: "D/M/Y" }, { value: "mdy", label: "M/D/Y" }, { value: "ymd", label: "Y/M/D" }], get: () => Settings.dateOrder, set: v => Settings.set("dateOrder", v) }
                     ]
                 }
             ]

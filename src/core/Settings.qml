@@ -54,6 +54,7 @@ Singleton {
     readonly property string dateFormat: root.values.dateFormat ?? ""
     readonly property string timeFormat: root.values.timeFormat ?? ""
     readonly property string dateCase: root.values.dateCase ?? ""
+    readonly property string dateOrder: ["dmy", "mdy", "ymd"].includes(root.values.dateOrder) ? root.values.dateOrder : "dmy"
     readonly property string timeCase: ["normal", "uppercase", "lowercase"].includes(root.values.timeCase) ? root.values.timeCase : "uppercase"
     readonly property bool smallAmPm: root.values.smallAmPm === true
     readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))

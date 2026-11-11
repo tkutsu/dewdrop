@@ -609,7 +609,7 @@ ShellRoot {
             check(!Launcher.modes.some(mode => mode.prefix === ">") && !Launcher.actions.cmd, "run mode and dispatch removed");
             check(Launcher.queryHints === Launcher.modes, "an empty query hints the modes");
             Launcher.query = ",";
-            check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event", "a bare plan symbol hints what a line makes");
+            check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event,event", "a bare plan symbol hints what a line makes");
             Launcher.query = ", 25m";
             check(Launcher.queryHints.length === 0, "typing takes the hint away");
             Launcher.query = "?";
