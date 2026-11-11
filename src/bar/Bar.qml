@@ -459,8 +459,11 @@ PanelWindow {
             drawerOut: drawer.out
             expanded: countdown.reveal > 0 && !countdown.iconInCentre && !popupOpen && !drawer.out
             collapsed: countdown.dismissed
-            handoffProgress: countdown.mergedIcon === icon && countdown.iconInCentre ? countdown.iconHandoff.progress : 1
-            handoffOffset: countdown.mergedIcon === icon && countdown.iconInCentre ? countdown.iconHandoff.targetX : 0
+            // Follow the handoff until the side pill settles, so the slot it
+            // left stays shut instead of reopening to fold a second time.
+            readonly property bool handingOff: countdown.mergedIcon === icon && !countdown.settled
+            handoffProgress: handingOff ? countdown.iconHandoff.progress : 1
+            handoffOffset: handingOff ? countdown.iconHandoff.targetX : 0
             stowed: expanded || (!showsClosed && !drawer.out)
             onExpandRequested: countdown.expand()
             onWantsExpansionChanged: if (!wantsExpansion && Services.Timers.loaded)
