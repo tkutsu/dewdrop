@@ -101,15 +101,21 @@ Singleton {
     readonly property bool loaded: root.ringing.length > 0 || root.focus !== null || root.nextAlarm !== null
 
     readonly property real leftMs: root.focus ? root.remaining(root.focus) : 0
+    // Only the displayed alarm's final hour uses the countdown outline.
+    readonly property int alarmTrackMs: 60 * 60000
+    readonly property bool alarmTracking: !root.focus && root.nextAlarm !== null
+        && root.nextAlarm.endsAt - root.now <= root.alarmTrackMs
 
     // How far through the current run, for the pill's outline. Elapsed rather
     // than remaining, the same way round as the music pill's track: a line that
     // grows as the thing it measures proceeds. -1 for a pill with nothing
     // running behind it, which is what Pill reads as "draw your own outline".
     readonly property real progress: {
-        if (root.ringing.length > 0 || !root.focus || root.focus.total <= 0)
+        if (root.ringing.length > 0)
             return -1;
-        return Math.max(0, Math.min(1, 1 - root.leftMs / root.focus.total));
+        if (root.focus)
+            return root.focus.total > 0 ? Math.max(0, Math.min(1, 1 - root.leftMs / root.focus.total)) : -1;
+        return root.alarmTracking ? Math.max(0, Math.min(1, 1 - (root.nextAlarm.endsAt - root.now) / root.alarmTrackMs)) : -1;
     }
 
     readonly property string glyph: {
@@ -130,7 +136,7 @@ Singleton {
         return "";
     }
 
-    // Only IPC reads this list, so format it when requested rather than every tick.
+    // Format the list when the bar tooltip or IPC requests it.
     function tooltip(): string {
         if (root.ringing.length > 0)
             return root.ringing.map(e => root.ringTitle(e) + " — click to dismiss").join("\n");
@@ -481,9 +487,9 @@ Singleton {
     }
 
     // --- the clock -----------------------------------------------------------
-    // Countdown labels change every second. Alarms keep a precise deadline
-    // and share WallClock's resume and clock-correction checks.
-    readonly property bool counting: root.timers.some(e => e.running) || root.ringing.length > 0
+    // Countdown labels and an alarm's final-hour track change every second.
+    // Earlier alarms keep a precise deadline and share WallClock's checks.
+    readonly property bool counting: root.timers.some(e => e.running) || root.ringing.length > 0 || root.alarmTracking
 
     Timer {
         interval: 1000
@@ -516,7 +522,7 @@ Singleton {
 
     function arm(): void {
         wake.stop();
-        if (root.counting || !root.nextAlarm)
+        if (root.timers.some(e => e.running) || root.ringing.length > 0 || !root.nextAlarm)
             return;
         wake.interval = Math.max(50, root.nextAlarm.endsAt - Date.now());
         wake.start();

@@ -20,7 +20,7 @@ ShellRoot {
     property int phase: 0
     function check(ok, why) { if (!ok) throw Error(why); }
     function display(format, mode, small) {
-        Settings.user = { timeFormat: format, timeCase: mode, smallAmPm: small, reduceMotion: true };
+        Settings.user = { datetimeFormat: format, datetimeCase: mode, smallAmPm: small, reduceMotion: true };
         return Settings.clockDisplay(test.stamp);
     }
     FloatingWindow {
@@ -41,7 +41,7 @@ ShellRoot {
         onTriggered: {
             try {
                 if (test.phase === 0) {
-                    check(Settings.dateCase === "normal" && Settings.timeCase === "uppercase" && !Settings.smallAmPm, "default case and size");
+                    check(Settings.datetimeCase === "normal" && !Settings.smallAmPm, "default case and size");
                     for (const [mode, expected] of [
                         ["normal", "tue 13 OCT"], ["capitalize", "Tue 13 Oct"],
                         ["uppercase", "TUE 13 OCT"], ["lowercase", "tue 13 oct"]
@@ -71,13 +71,12 @@ ShellRoot {
                         check(result.text === expected, format + " / " + mode + ": " + result.text);
                         check(JSON.stringify(result.smallRanges) === JSON.stringify(ranges), "AM/PM ranges: " + format);
                     }
-                    Settings.set("dateCase", "lowercase");
-                    Settings.set("timeCase", "lowercase");
+                    Settings.set("datetimeCase", "lowercase");
                     Settings.set("smallAmPm", true);
-                    Settings.set("timeFormat", "h:mm AP");
+                    Settings.set("datetimeFormat", "h:mm AP");
                 } else if (test.phase === 1 || test.phase === 2) {
                     check(clock.text === "8:05pm", "clock binding updates");
-                    check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, Settings.dateFormat).toLowerCase(), "date binding updates");
+                    check(dateLabel.shows === Settings.clockDisplay(dateLabel.date).text, "date binding updates");
                     check(dateLabel.testPrecision === SystemClock.Minutes, "minute precision by default");
                     const columns = clock.children.find(child => typeof child.itemAt === "function");
                     const label = index => columns.itemAt(index).children.find(child => child.fontSize !== undefined);
@@ -93,16 +92,15 @@ ShellRoot {
                     else Settings.set("smallAmPm", false);
                 } else if (test.phase === 3) {
                     check(clock.text === "8:05 pm" && clock.smallRanges.length === 0, "turning option off restores original spacing and size");
-                    Settings.set("dateFormat", "yyyy-MM-dd HH:mm:ss");
+                    Settings.set("datetimeFormat", "yyyy-MM-dd HH:mm:ss");
                 } else if (test.phase === 4) {
                     check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, "yyyy-MM-dd HH:mm:ss"), "date renders time tokens");
                     check(dateLabel.testPrecision === SystemClock.Seconds, "seconds in date update every second");
-                    Settings.set("dateFormat", "ddd d MMM h:mm AP 'HH:mm'");
-                    Settings.set("timeFormat", "HH:mm:ss");
+                    Settings.set("datetimeFormat", "ddd d MMM h:mm AP 'HH:mm'");
                 } else if (test.phase === 5) {
-                    check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, Settings.dateFormat).toLowerCase(), "mixed date preserves casing and quoted literals");
-                    check(dateLabel.testPrecision === SystemClock.Seconds, "seconds in time still update every second");
-                    Settings.set("timeFormat", "HH:mm");
+                    check(dateLabel.shows === Settings.clockDisplay(dateLabel.date).text, "mixed date preserves casing and quoted literals");
+                    check(dateLabel.testPrecision === SystemClock.Minutes, "quoted format literals do not force second ticks");
+                    Settings.set("datetimeFormat", "HH:mm");
                 } else {
                     check(dateLabel.testPrecision === SystemClock.Minutes, "removing seconds restores minute precision");
                     console.log("PASS: clock casing, token ranges, two-thirds-size AM/PM and baselines");

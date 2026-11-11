@@ -3,7 +3,7 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 
-// The timers popup, off the clock's time: everything that is set, and a way to
+// The timers popup: everything that is set, and a way to
 // set something else.
 //
 // The timer pill only ever shows one timer — the one nearest its end — which

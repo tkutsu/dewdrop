@@ -7,7 +7,6 @@ import math
 import os
 import tempfile
 import time
-from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.error import HTTPError
@@ -18,8 +17,8 @@ from zoneinfo import ZoneInfo
 
 # km/h, where the six-hour summary starts saying "Strong winds".
 WINDY = 39
-# Refetch older forecasts that do not carry sunrise and sunset epochs.
-CACHE_VERSION = 7
+# Refetch forecasts with the old predominant-condition daily icons.
+CACHE_VERSION = 8
 
 
 def condition(code, daylight=True):
@@ -63,17 +62,36 @@ def visible_code(code, visibility, cloud_cover):
 
 
 def day_conditions(hours):
-    """Pair predominant daylight weather with the worst corrected hourly condition."""
+    """Summarize mixed daylight skies while retaining the worst full-day condition."""
     known = [hour for hour in hours if hour["severity"] >= 0]
     daylight = [hour for hour in known if hour["isDay"]] or known
     if not known:
         description, icon, _ = condition(-1)
         return {"description": description, "icon": icon, "severeDescription": description, "severeIcon": icon}
-    counts = Counter(hour["description"] for hour in daylight)
-    predominant = max(daylight, key=lambda hour: (counts[hour["description"]], hour["severity"]))
+    worst = max(daylight, key=lambda hour: hour["severity"])
+    wet = [hour for hour in daylight if hour["severity"] >= 4]
+    fog = [hour for hour in daylight if hour["severity"] == 3]
+    windy = [hour for hour in daylight if hour.get("wind") is not None and hour["wind"] >= WINDY]
+    mixed_snow = (worst["severity"] == 7 and any(hour["description"] == "Snow" for hour in daylight)
+                  and any(hour["severity"] in (4, 5) for hour in daylight)
+                  and not any(hour["description"] == "Freezing rain" for hour in daylight))
+    if mixed_snow:
+        description, icon = "Rain and snow", "\U000f067f"
+    elif worst["severity"] >= 6 or len(wet) >= len(daylight) / 2:
+        description, icon = worst["description"], condition(worst["code"])[1]
+    elif wet:
+        description, icon = "Showers", "\U000f0f33"
+    elif len(fog) >= len(daylight) / 2:
+        description, icon = "Fog", condition(45)[1]
+    elif len(windy) >= len(daylight) / 2:
+        description, icon = "Windy", "\U000f059d"
+    else:
+        sky = [hour for hour in daylight if hour["severity"] <= 2]
+        code = 0 if all(hour["severity"] == 0 for hour in sky) else 3 if all(hour["severity"] == 2 for hour in sky) else 2
+        description, icon, _ = condition(code)
     severe = max(known, key=lambda hour: hour["severity"])
     return {
-        "description": predominant["description"], "icon": condition(predominant["code"])[1],
+        "description": description, "icon": icon,
         "severeDescription": severe["description"], "severeIcon": condition(severe["code"])[1],
     }
 
