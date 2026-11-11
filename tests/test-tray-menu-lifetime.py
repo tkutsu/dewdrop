@@ -73,6 +73,7 @@ def main():
 Item {
     property Item anchorItem
     property var handle
+    property var hides
     property bool requestedVisible: true
     property int exitMs: 160
     property real shadowSide: 0
