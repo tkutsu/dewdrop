@@ -15,6 +15,10 @@ Item {
     property var canHold: null
     property var heldModel: null
     property bool allowSingle: false
+    // A sideways drag before the hold is the row's own swipe: rows that are
+    // SwipeRows are handed it through `track` and `release`.
+    property bool swipes: false
+    property bool swiping: false
     property var rows: []
     property bool dragging: false
     property bool settling: false
@@ -25,6 +29,7 @@ Item {
     property int to: -1
     property real grabOffset: 0
     property real grabX: 0
+    property real grabY: 0
     property real holdTop: 0
     property real holdHeight: 0
     property var pressedModel: null
@@ -80,7 +85,7 @@ Item {
         enabled: !root.settling
         acceptedButtons: Qt.LeftButton
         pressAndHoldInterval: 300
-        preventStealing: root.dragging
+        preventStealing: root.dragging || root.swiping
         cursorShape: root.dragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
         onPressed: (mouse) => {
             root.from = root.view.indexAt(mouse.x, mouse.y + root.view.contentY);
@@ -91,11 +96,13 @@ Item {
             root.rows = root.model;
             root.pressedModel = root.model;
             root.grabX = mouse.x;
+            root.grabY = mouse.y;
+            root.swiping = false;
             const item = root.view.itemAtIndex(root.from);
             root.grabOffset = mouse.y + root.view.contentY - (item ? item.y : root.from * root.rowHeight);
         }
         onPressAndHold: {
-            if (root.pressedModel !== root.model || (root.canHold && !root.canHold(root.from)) || (!root.allowSingle && root.rows.length < 2))
+            if (root.swiping || root.pressedModel !== root.model || (root.canHold && !root.canHold(root.from)) || (!root.allowSingle && root.rows.length < 2))
                 return;
 
             root.view.cancelFlick();
@@ -123,8 +130,18 @@ Item {
             }
             root.updateTarget();
         }
-        onPositionChanged: root.updateTarget()
+        onPositionChanged: (mouse) => {
+            const dx = mouse.x - root.grabX;
+            if (root.swipes && !root.dragging && !root.swiping && Math.abs(dx) >= Qt.styleHints.startDragDistance && Math.abs(dx) > Math.abs(mouse.y - root.grabY))
+                root.swiping = true;
+            if (root.swiping)
+                root.view.itemAtIndex(root.from)?.track(dx);
+            else
+                root.updateTarget();
+        }
         onReleased: {
+            if (root.swiping)
+                root.view.itemAtIndex(root.from)?.release();
             if (!root.dragging)
                 return;
 
@@ -140,9 +157,17 @@ Item {
             }
             drop.restart();
         }
-        onCanceled: root.finishDrop()
+        onCanceled: {
+            const row = root.swiping ? root.view.itemAtIndex(root.from) : null;
+            if (row) {
+                row.tracking = false;
+                row.swipe = 0;
+            }
+            root.swiping = false;
+            root.finishDrop();
+        }
         onClicked: {
-            if (!root.showing && root.pressedModel === root.model && root.from >= 0) {
+            if (!root.swiping && !root.showing && root.pressedModel === root.model && root.from >= 0) {
                 root.clicked(root.from);
             }
         }
