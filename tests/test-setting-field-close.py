@@ -49,29 +49,29 @@ ShellRoot {
             let input = open();
             type(input, 'yyyy-MM-dd');
             Preferences.hide(); closed();
-            check(Settings.dateFormat === 'yyyy-MM-dd', 'closing settings saves the focused draft');
+            check(Settings.datetimeFormat === 'yyyy-MM-dd', 'closing settings saves the focused draft');
 
             input = open(); type(input, 'dd/MM/yyyy');
             press(input, Qt.Key_Return); wait(20);
-            check(Settings.dateFormat === 'dd/MM/yyyy', 'Enter saves a field');
+            check(Settings.datetimeFormat === 'dd/MM/yyyy', 'Enter saves a field');
             Preferences.hide(); closed();
-            check(Settings.dateFormat === 'dd/MM/yyyy', 'closing an already saved field keeps its value');
+            check(Settings.datetimeFormat === 'dd/MM/yyyy', 'closing an already saved field keeps its value');
 
             input = open(); type(input, 'MM-dd');
             press(input, Qt.Key_Escape); wait(20);
             check(Preferences.shown && input.text === 'dd/MM/yyyy', 'first Escape restores the edited field');
             press(input, Qt.Key_Escape); closed();
-            check(Settings.dateFormat === 'dd/MM/yyyy', 'second Escape closes without saving the discarded draft');
+            check(Settings.datetimeFormat === 'dd/MM/yyyy', 'second Escape closes without saving the discarded draft');
 
             input = open(); type(input, 'ddd d MMM');
             menuLoader.item.auditFilter.forceActiveFocus(); wait(20);
-            check(Settings.dateFormat === 'ddd d MMM', 'leaving a field saves its draft');
+            check(Settings.datetimeFormat === 'ddd d MMM', 'leaving a field saves its draft');
             Preferences.hide(); closed();
 
             input = open();
-            Settings.set('dateFormat', 'yyyy/MM/dd'); wait(20);
+            Settings.set('datetimeFormat', 'yyyy/MM/dd'); wait(20);
             Preferences.hide(); closed();
-            check(Settings.dateFormat === 'yyyy/MM/dd', 'an untouched focused field preserves external setting changes');
+            check(Settings.datetimeFormat === 'yyyy/MM/dd', 'an untouched focused field preserves external setting changes');
         }
     }
     Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log('FAIL: ' + e + '\\n' + e.stack); } Qt.quit(); } }
@@ -86,7 +86,7 @@ def main():
         start = source.index('    // --- the pages ')
         end = source.index('    // --- the box ', start)
         data = '''    readonly property var pages: [{title: "Fixture"}]
-    readonly property var entries: [{id: "date", setting: {type: "text", title: "Date", get: () => Settings.dateFormat, set: value => Settings.set("dateFormat", value)}}]
+    readonly property var entries: [{id: "datetime", setting: {type: "text", title: "Date & Time", get: () => Settings.datetimeFormat, set: value => Settings.set("datetimeFormat", value)}}]
 '''
         source = source[:start] + data + source[end:]
         source = source.replace('id: root', 'id: root\n    property alias auditContent: content\n    property alias auditFilter: filter', 1)
@@ -101,7 +101,7 @@ def main():
         output = result.stdout + result.stderr
         print(output, end='')
         assert result.returncode == 0 and output.count('PASS:') == 12 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
-        assert '"dateFormat": "yyyy/MM/dd"' in (target / 'settings.json').read_text()
+        assert '"datetimeFormat": "yyyy/MM/dd"' in (target / 'settings.json').read_text()
 
 
 if __name__ == '__main__':

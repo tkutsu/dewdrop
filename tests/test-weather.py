@@ -305,7 +305,7 @@ class WeatherTemperatures(unittest.TestCase):
                     for hour in day["hours"]:
                         self.assertEqual(datetime.fromtimestamp(hour["at"], start.tzinfo).date().isoformat(), day["date"])
 
-    def test_daily_icons_pair_predominant_daylight_with_worst_full_day(self):
+    def test_daily_icons_pair_daylight_outlook_with_worst_full_day(self):
         self.full_days()
         # An overnight rain hour is significant, while daylight stays clear.
         self.body["hourly"]["weather_code"][23] = 61
@@ -315,7 +315,7 @@ class WeatherTemperatures(unittest.TestCase):
         self.assertEqual((day["icon"], day["severeIcon"]),
                          (weather.condition(0)[1], weather.condition(61)[1]))
 
-    def test_daily_predominance_ignores_night_and_handles_no_daylight(self):
+    def test_daily_outlook_ignores_night_and_handles_no_daylight(self):
         self.full_days()
         self.body["hourly"]["weather_code"][:24] = [3] * 7 + [0] * 12 + [3] * 5
         self.body["hourly"]["is_day"][24:48] = [0] * 24
@@ -324,6 +324,28 @@ class WeatherTemperatures(unittest.TestCase):
         self.assertEqual((days[0]["description"], days[0]["severeDescription"]), ("Clear", "Overcast"))
         self.assertEqual(days[1]["icon"], weather.condition(2)[1])
         self.assertEqual(days[1]["icon"], days[1]["severeIcon"])
+
+    def test_daily_mixed_skies_show_partly_cloudy(self):
+        for codes in ([0] * 11 + [3], [3] * 11 + [0], [0] * 11 + [2], [3] * 11 + [2]):
+            with self.subTest(codes=codes):
+                hours = [dict(zip(("description", "icon", "severity"), weather.condition(code)), code=code, isDay=True) for code in codes]
+                self.assertEqual(weather.day_conditions(hours)["description"], "Partly cloudy")
+
+    def test_daily_passing_and_sustained_weather(self):
+        for codes, expected in (([0] * 11 + [61], "Showers"), ([61] * 7 + [0] * 5, "Rain"),
+                                ([0] * 11 + [95], "Thunderstorm"), ([0] * 11 + [71], "Snow"),
+                                ([61] * 6 + [71] * 6, "Rain and snow"), ([66] + [61] * 5 + [71] * 6, "Freezing rain"),
+                                ([0] * 11 + [45], "Clear"), ([45] * 7 + [0] * 5, "Fog")):
+            with self.subTest(expected=expected):
+                hours = [dict(zip(("description", "icon", "severity"), weather.condition(code)), code=code, isDay=True) for code in codes]
+                day = weather.day_conditions(hours)
+                self.assertEqual(day["description"], expected)
+                self.assertEqual(day["severeDescription"], weather.condition(max(codes, key=lambda code: weather.condition(code)[2]))[0])
+
+    def test_daily_sustained_wind_and_unknown_conditions(self):
+        hours = [dict(zip(("description", "icon", "severity"), weather.condition(0)), code=0, isDay=True, wind=45) for _ in range(12)]
+        self.assertEqual(weather.day_conditions(hours)["description"], "Windy")
+        self.assertEqual(weather.day_conditions([])["description"], "Unavailable")
 
 
 if __name__ == "__main__":

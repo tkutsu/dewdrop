@@ -40,7 +40,14 @@ Singleton {
     // The hourly field behind every temperature shown, following Feels Like.
     readonly property string temperatureKey: root.feelsLike ? "feelsLike" : "temperature"
     readonly property string summary: root.summarize(root.upcoming)
-    readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
+    readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || root.impact(hour) > root.impact(worst) ? hour : worst, null)
+    readonly property var average: root.averageForecast(root.upcoming, root.now, root.now + 6 * 3600)
+    readonly property var dayAverage: root.averageForecast(root.today?.hours ?? [], -Infinity, Infinity)
+    readonly property var barForecast: Settings.weatherDisplay === "average" ? root.average
+        : Settings.weatherDisplay === "worst" ? root.outlook
+        : Settings.weatherDisplay === "day" && root.today
+            ? Object.assign({}, root.today, {temperature: root.dayAverage?.temperature, feelsLike: root.dayAverage?.feelsLike})
+        : root.thisHour
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
     readonly property string temperatureSymbol: Settings.weatherUnit === "fahrenheit" ? "°F" : Settings.weatherUnit === "kelvin" ? "K" : "°C"
     // Open-Meteo's global models with a full week of rain chances; the others
@@ -72,6 +79,7 @@ Singleton {
             "\u{f0590}": "#a9afba", // overcast
             "\u{f0591}": "#bfc4c9", // fog
             "\u{f0597}": "#86b8f0", // rain
+            "\u{f0f33}": "#86b8f0", // showers
             "\u{f0596}": "#5f9cf2", // pouring
             "\u{f067f}": "#a3dcf2", // freezing rain
             "\u{f0598}": "#ffffff", // snow
@@ -85,6 +93,64 @@ Singleton {
     // is a cached forecast, or why there is none yet.
     readonly property string nextSixHours: root.upcoming.length ? `${root.stale ? "Last forecast: " : ""}${root.summary}` : root.trouble || "Loading weather..."
     readonly property string tooltip: root.location ? `Next 6 hours: ${root.nextSixHours}` : "Choose a weather location"
+
+    // Strong wind can be the worst dry hour even when its sky is clear.
+    function impact(hour: var): real {
+        return Math.max(hour.severity, hour.severity >= 0 && hour.wind >= 39 ? (hour.wind >= 62 ? 6 : 3) : -1);
+    }
+
+    // Mix dry skies, distinguish passing showers, and keep hazardous weather
+    // visible. Clipped durations avoid counting seven full hours at half past.
+    function averageForecast(hours: var, start: real, end: real): var {
+        const samples = hours.map(hour => ({ hour, weight: Math.max(0, Math.min(end, hour.at + 3600) - Math.max(start, hour.at)) })).filter(sample => sample.weight > 0);
+        if (!samples.length)
+            return null;
+        const finite = value => typeof value === "number" && Number.isFinite(value);
+        const duration = list => list.reduce((sum, sample) => sum + sample.weight, 0);
+        const mean = key => {
+            const measured = samples.filter(sample => finite(sample.hour[key]));
+            return measured.length ? measured.reduce((sum, sample) => sum + sample.hour[key] * sample.weight, 0) / duration(measured) : null;
+        };
+        const known = samples.filter(sample => sample.hour.severity >= 0);
+        const result = { temperature: mean("temperature"), feelsLike: mean("feelsLike"), icon: "\u{f0590}", description: "Unavailable", severity: -1 };
+        if (!known.length)
+            return result;
+        const total = duration(known);
+        const daylight = duration(known.filter(sample => sample.hour.isDay)) >= total / 2;
+        const worst = known.reduce((top, sample) => sample.hour.severity > top.hour.severity ? sample : top).hour;
+        const wet = known.filter(sample => sample.hour.severity >= 4);
+        const fog = known.filter(sample => sample.hour.severity === 3);
+        const windy = known.filter(sample => sample.hour.wind >= 39);
+        let description, icon, severity;
+        const mixedSnow = worst.severity === 7 && known.some(sample => sample.hour.description === "Snow")
+            && known.some(sample => sample.hour.severity === 4 || sample.hour.severity === 5)
+            && !known.some(sample => sample.hour.description === "Freezing rain");
+        if (mixedSnow) {
+            description = "Rain and snow";
+            icon = "\u{f067f}";
+            severity = 7;
+        } else if (worst.severity >= 6 || wet.length && duration(wet) >= total / 2) {
+            ({description, icon, severity} = worst);
+        } else if (wet.length) {
+            description = "Showers";
+            icon = daylight ? "\u{f0f33}" : "\u{f0597}";
+            severity = 4;
+        } else if (duration(fog) >= total / 2) {
+            ({description, icon, severity} = worst);
+        } else if (duration(windy) >= total / 2) {
+            description = "Windy";
+            icon = "\u{f059d}";
+            severity = worst.severity;
+        } else {
+            const sky = known.filter(sample => sample.hour.severity <= 2);
+            const clear = sky.every(sample => sample.hour.severity === 0);
+            const overcast = sky.every(sample => sample.hour.severity === 2);
+            severity = clear ? 0 : overcast ? 2 : 1;
+            description = clear ? "Clear" : overcast ? "Overcast" : "Partly cloudy";
+            icon = clear ? (daylight ? "\u{f0599}" : "\u{f0594}") : overcast ? "\u{f0590}" : daylight ? "\u{f0595}" : "\u{f0f31}";
+        }
+        return Object.assign(result, { description, icon, severity });
+    }
 
     // Merge matching hourly forecasts without bridging missing hours or DST epochs.
     function hourRanges(hours: var, key: string): var {

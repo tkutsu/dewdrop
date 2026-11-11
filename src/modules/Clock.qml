@@ -5,22 +5,26 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 
-// The date opens the calendar.
+// One date and time readout opens the calendar.
 BarItem {
     id: root
     name: "Calendar"
-    shows: dateText.text
+    shows: datetimeText.text
+    settingsKey: "datetime"
     textPress: true
     trimLeft: 1
     trimRight: 1
 
     popup: Calendar {}
 
-    // Every event today gets its own line, including ones that have ended. A
-    // calendar it could not read says nothing rather than that the day is free.
-    tooltip: Agenda.todays
-        .map(ev => `${ev.allDay ? "All day" : ev.start <= WallClock.now && ev.end > WallClock.now ? "Now" : Agenda.sayTime(ev)} · ${ev.title}`)
-        .join("\n") || (Agenda.stale ? "" : "No events today")
+    // Keep the date visible, then give each event that has yet to start a line.
+    tooltip: {
+        const now = WallClock.now;
+        return [Qt.formatDate(new Date(now), "dddd d MMMM yyyy"), ...Agenda.todays
+            .filter(ev => ev.start > now)
+            .map(ev => `${Agenda.sayTime(ev)} · ${ev.title}`)]
+            .join("\n");
+    }
 
     readonly property alias date: clock.date
 
@@ -44,7 +48,7 @@ BarItem {
         // By the minute unless the format shows seconds: at Seconds this
         // re-evaluated the date and the time, on every bar, sixty times for
         // each time it could possibly have mattered.
-        precision: (Settings.timeFormat + Settings.dateFormat).includes("s") ? SystemClock.Seconds : SystemClock.Minutes
+        precision: /s/.test(Settings.datetimeFormat.replace(/'(?:[^']|'')*'/g, "")) ? SystemClock.Seconds : SystemClock.Minutes
     }
 
     // Its countdown stops while the machine sleeps, so after a wake it still
@@ -60,11 +64,13 @@ BarItem {
     }
 
     // Date format letters use Qt's localized weekday and month names.
-    BarText {
-        id: dateText
+    RollingText {
+        id: datetimeText
         Layout.fillHeight: true
         tightWidth: true
-        text: Settings.applyCase(Qt.formatDateTime(clock.date, Settings.dateFormat), Settings.dateCase)
+        readonly property var display: Settings.clockDisplay(clock.date)
+        text: display.text
+        smallRanges: display.smallRanges
     }
 
     // Left is the calendar (BarItem.popupButton); right is the app.
