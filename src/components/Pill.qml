@@ -46,6 +46,19 @@ Item {
     property alias dragSource: reorder.dragSource
     readonly property bool dropMoves: reorder.dropMoves
 
+    // The pointer rests on the pill, or one of its modules has its popup
+    // open: what brings out the modules that show on hover (DrawerPins).
+    // Settled after a beat either way, so a pointer passing over on its way
+    // elsewhere leaves the row alone, and crossing a gap does not fold it.
+    readonly property bool pointerIn: rested || modules.some(item => item.popupOpen)
+    property bool rested: false
+    HoverHandler { id: hover }
+    Timer {
+        interval: hover.hovered ? 150 : 300
+        running: hover.hovered !== root.rested
+        onTriggered: root.rested = hover.hovered
+    }
+
     function arrange(): void {
         if (order.length === 0)
             return;

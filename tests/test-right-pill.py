@@ -370,7 +370,7 @@ def check_placement(target):
     (target / 'settings.default.json').write_text('{}')
     (target / 'settings.json').write_text('{"src/modules":{"night":false,"audio":false}}')
     (target / 'src/components/DisplayPopup.qml').write_text('import QtQuick\nItem {}\n')
-    (target / 'src/services/NightMode.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property bool present: true; property bool on: false; property string icon: on ? 'on' : 'off'; property string tooltip: 'Night mode'; function toggle() { on = !on; } function nudge(up) {} }\n")
+    (target / 'src/services/NightMode.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property bool present: true; property bool on: false; property int brightness: on ? 70 : 100; property string icon: on ? 'on' : 'off'; property string tooltip: 'Night mode'; function toggle() { on = !on; } function nudge(up) {} }\n")
     run_shell(target, r"""import QtQuick
 import QtQuick.Window
 import QtTest
@@ -389,6 +389,14 @@ ShellRoot {
         visible: true; width: 320; height: 100
         Modules.NightMode { id: night; pinKey: 'night'; stowed: !showsClosed && !root.drawerOpen }
         BarItem { id: audio; pinKey: 'audio'; quiet: true; stowed: !showsClosed && !root.drawerOpen }
+        Item {
+            id: host; y: 40; width: 320; height: 40
+            Pill {
+                id: pill; side: Pill.Side.Right; drawsSlab: false
+                BarItem { id: mail; pinKey: 'email'; quiet: true; stowed: !showsClosed; Rectangle { implicitWidth: 20; implicitHeight: 20 } }
+                BarItem { id: rest; Rectangle { implicitWidth: 20; implicitHeight: 20 } }
+            }
+        }
     }
     Timer { interval: 200; running: true; onTriggered: {
         try {
@@ -411,7 +419,20 @@ ShellRoot {
             root.check(night.visible && !night.stowed, 'Pinned shows night mode even when off');
             night.present = false;
             root.check(!night.here && !night.visible, 'absence still overrides placement');
-            console.log('PASS: legacy settings ignored; Auto, Pinned and Drawer preserve access');
+            DrawerPins.setMode('email', 'hover');
+            test.wait(30);
+            root.check(DrawerPins.mode('email') === 'hover' && mail.stowed, 'Hover folds a quiet module while the pointer is away');
+            test.mouseMove(rest, 10, 10);
+            test.wait(60);
+            root.check(mail.stowed, 'a pointer passing over leaves Hover modules folded');
+            test.wait(200);
+            root.check(!mail.stowed, 'Hover shows a quiet module while the pointer rests on its pill');
+            test.mouseMove(host, 2, 2);
+            test.wait(150);
+            root.check(!mail.stowed, 'Hover holds the module a moment after the pointer leaves');
+            test.wait(300);
+            root.check(mail.stowed, 'Hover folds the module once the pointer has left');
+            console.log('PASS: legacy settings ignored; Auto, Hover, Pinned and Drawer preserve access');
         } catch (e) { console.log('FAIL: ' + e); }
         Qt.quit();
     } }

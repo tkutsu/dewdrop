@@ -140,10 +140,11 @@ ClickArea {
     // Brief feedback can bring a module out without changing its saved mode.
     property bool forceShown: false
     // Whether the module stands out of the drawer while it is closed: when
-    // it has something to say and is not kept in, is pinned, or owns the
-    // open popup. A quiet popup owner waits until its popup closes before
-    // folding away.
+    // it has something to say and is not kept in, is pinned, owns the open
+    // popup, or shows on hover and the pointer is on its pill. A quiet popup
+    // owner waits until its popup closes before folding away.
     readonly property bool showsClosed: forceShown || visibilityKey === "" || popupOpen || DrawerPins.pinned(visibilityKey) || (!quiet && !DrawerPins.kept(visibilityKey))
+        || (DrawerPins.hovers(visibilityKey) && (pill?.pointerIn ?? false))
 
     // Whether to mark a pinned module as pinned. Set by the drawer's owner
     // while the drawer is open, which is when pinned and unpinned stand side
