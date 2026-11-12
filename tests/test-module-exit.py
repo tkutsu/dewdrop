@@ -145,6 +145,25 @@ ShellRoot {
                         throw Error("arriving module did not come in from its edge");
                     for (let i = 0; i < 80 && (module.animating || pinned.animating); i++) wait(10);
                 }
+                // A quiet module on Hover comes and goes round a still clock:
+                // the edge closes over it at once, with no recoil to follow.
+                before.pinKey = "hovertest";
+                before.quiet = true;
+                DrawerPins.setMode("hovertest", "hover");
+                wait(30);
+                const clockAt = () => clock.keyBox.mapToItem(bar, clock.keyBox.width / 2, 0).x;
+                for (const stow of [true, false]) {
+                    const [still, edgeFrom] = [clockAt(), pinned.x];
+                    before.stowed = stow;
+                    wait(75);
+                    if (Math.abs(clockAt() - still) > 1)
+                        throw Error("clock recoiled for a Hover module (" + still + " -> " + clockAt() + ")");
+                    if (Math.abs(pinned.x - edgeFrom) < 1)
+                        throw Error("pill edge held for a Hover module instead of closing over it");
+                    for (let i = 0; i < 80 && (before.animating || pinned.animating); i++) wait(10);
+                    if (Math.abs(clockAt() - still) > 1)
+                        throw Error("clock moved after a Hover module settled " + still + " -> " + clockAt());
+                }
                 console.log("PASS: module exit folds into a drawer and comes and goes in place elsewhere, under its edge");
             }
         }
