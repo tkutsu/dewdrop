@@ -65,7 +65,7 @@ ShellRoot {
             wait(100);
             check(!box.popup.visible && Preferences.shown, "closing the dropdown keeps Settings open");
 
-            for (const [query, id] of [["group windows", "groupWindows"], ["module visibility mail", "pin:email"]]) {
+            for (const [query, id] of [["group windows", "groupWindows"], ["group indicator", "groupWindowBadgeStyle"]]) {
                 menu.query = query;
                 wait(100);
                 const setting = find(menu.contentItem, i => i.setting?.id === id && i.controls !== undefined);

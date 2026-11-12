@@ -18,8 +18,9 @@
     // --- what the bar shows ----------------------------------------------
 
     // The settings window (the gear) places right pill modules as Auto,
-    // Pinned, or Drawer. Quiet modules stay behind the chevron in Auto;
-    // a middle click pins one outside the drawer or returns it to Auto.
+    // Hover, Pinned, or Drawer. Quiet modules stay behind the chevron in Auto,
+    // and Hover also brings them out while the pointer rests on their pill.
+    // A middle click pins one outside the drawer or returns it to Auto.
 
     // One icon per app on each workspace in the left pill, opened into one
     // per window by a click. false gives every window its own icon.

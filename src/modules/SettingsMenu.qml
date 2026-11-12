@@ -201,6 +201,7 @@ OverlayWindow {
 
     readonly property var pinOptions: [
         { value: "auto", label: "Auto" },
+        { value: "hover", label: "Hover" },
         { value: "pinned", label: "Pinned" },
         { value: "drawer", label: "Drawer" }
     ]
