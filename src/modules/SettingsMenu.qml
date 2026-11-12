@@ -193,10 +193,9 @@ OverlayWindow {
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] },
             tray: { title: "Tray", glyph: Theme.glyph.tray },
             language: { title: "Keyboard Layout", glyph: Theme.glyph.keyboard },
-            date: { title: "Date", glyph: Theme.glyph.calendar },
+            datetime: { title: "Date & Time", glyph: Theme.glyph.calendar },
             weather: { title: "Weather", glyph: Theme.glyph.weather },
-            time: { title: "Time", glyph: Theme.glyph.timer },
-            countdown: { title: "Timer", glyph: Theme.glyph.timer }
+            countdown: { title: "Timers", glyph: Theme.glyph.timer }
         })
 
     readonly property var pinOptions: [
@@ -410,9 +409,8 @@ OverlayWindow {
                     title: "Centre Pill",
                     rows: [
                         { type: "choice", id: "centrePillAnchor", title: "Centre On",
-                            tooltip: "Falls back to the middle of the pill when that module isn't in it.",
-                            options: [{ value: "time", label: "Time" }, { value: "between", label: "Time & Date" },
-                                { value: "date", label: "Date" }, { value: "middle", label: "Middle" }],
+                            tooltip: "Date-Weather Gap centres the space between those modules, in either order. Falls back to the middle when a required module is absent.",
+                            options: [{ value: "datetime", label: "Date & Time" }, { value: "weatherGap", label: "Date-Weather Gap" }, { value: "middle", label: "Middle" }],
                             get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) },
                         { type: "toggle", id: "centrePillRecoil", title: "Recoil",
                             tooltip: "Move the centre pill and flex its edges when modules change or other pills merge into it.",
@@ -426,7 +424,7 @@ OverlayWindow {
             sections: [
                 {
                     title: "Module Visibility",
-                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them.",
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them. Active timers expand to the right of the centre pill, or show an icon in the right pill.",
                     rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
@@ -498,19 +496,12 @@ OverlayWindow {
             title: "Date & Time",
             sections: [
                 {
-                    title: "Time",
+                    title: "Display",
                     rows: [
                         { type: "choice", id: "twelveHour", title: "Hour Format", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "timeFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\nAlarms follow the hour format.", placeholder: Settings.defaults.timeFormat, get: () => Settings.timeFormat, set: v => Settings.set("timeFormat", v || Settings.defaults.timeFormat) },
-                        { type: "choice", id: "timeCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.timeCase, set: v => Settings.set("timeCase", v) },
-                        { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", tooltip: "For 12h bar readouts. Popup times stay full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) }
-                    ]
-                },
-                {
-                    title: "Date",
-                    rows: [
-                        { type: "text", id: "dateFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.", placeholder: Settings.defaults.dateFormat, get: () => Settings.dateFormat, set: v => Settings.set("dateFormat", v || Settings.defaults.dateFormat) },
-                        { type: "choice", id: "dateCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.dateCase, set: v => Settings.set("dateCase", v) },
+                        { type: "text", id: "datetimeFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\nAlarms follow the hour format.", placeholder: Settings.defaults.datetimeFormat, get: () => Settings.datetimeFormat, set: v => Settings.set("datetimeFormat", v || Settings.defaults.datetimeFormat) },
+                        { type: "choice", id: "datetimeCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.datetimeCase, set: v => Settings.set("datetimeCase", v) },
+                        { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", tooltip: "For 12h bar readouts. Popup times stay full size.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) },
                         { type: "choice", id: "dateOrder", title: "Date Order", tooltip: "How a typed date reads, as in the launcher's , line.\nWithout a year it is the next one to come.\n2026-11-20 always reads the same.", options: [{ value: "dmy", label: "D/M/Y" }, { value: "mdy", label: "M/D/Y" }, { value: "ymd", label: "Y/M/D" }], get: () => Settings.dateOrder, set: v => Settings.set("dateOrder", v) }
                     ]
                 }
@@ -527,9 +518,12 @@ OverlayWindow {
                 {
                     title: "Display",
                     rows: [
-                        { type: "choice", id: "weatherDisplay", title: "Bar Display", tooltip: "Current-hour icon, temperature following Feels Like, or today's predominant daylight icon.",
-                            options: [{ value: "hour", label: "Hour" }, { value: "temperature", label: "Temp" }, { value: "day", label: "Day" }],
+                        { type: "choice", id: "weatherDisplay", title: "Bar Forecast", tooltip: "Average weights the next six hours by duration. Worst shows the conditions and temperature at the worst hour. Today uses a daylight icon and the day's average temperature. Temperatures follow Feels Like.",
+                            options: [{ value: "hour", label: "Current Weather" }, { value: "average", label: "Next 6 Hours Average" }, { value: "worst", label: "Next 6 Hours Worst" }, { value: "day", label: "Today" }],
                             get: () => Settings.weatherDisplay, set: v => Settings.set("weatherDisplay", v) },
+                        { type: "text", id: "weatherFormat", title: "Custom Format", tooltip: "{icon}: weather icon. {temp}: temperature.\nUse either token on its own, or both in either order. Other text appears as typed.\nExamples: {icon} {temp} or {temp} {icon}.",
+                            placeholder: "{icon} {temp}", validate: v => /\{(?:icon|temp)\}/.test(v) ? "" : "Include {icon} or {temp}.",
+                            get: () => Settings.weatherFormat, set: v => Settings.set("weatherFormat", v) },
                         { type: "choice", id: "weatherUnit", title: "Temperature Unit",
                             options: [{ value: "celsius", label: "Celsius" }, { value: "fahrenheit", label: "Fahrenheit" }, { value: "kelvin", label: "Kelvin" }],
                             get: () => Settings.weatherUnit, set: v => Settings.set("weatherUnit", v) }

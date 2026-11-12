@@ -23,11 +23,16 @@ Singleton {
     property alias pins: stored.pins
 
     function pinned(key: string): bool {
-        return root.pins[key] === true;
+        return root.savedMode(key) === true;
     }
 
     function kept(key: string): bool {
-        return root.pins[key] === false;
+        return root.savedMode(key) === false;
+    }
+
+    // The combined clock inherits the time module's mode, then the date's.
+    function savedMode(key: string): var {
+        return key === "datetime" ? root.pins.datetime ?? root.pins.time ?? root.pins.date : root.pins[key];
     }
 
     function hovers(key: string): bool {
@@ -40,6 +45,10 @@ Singleton {
 
     function setMode(key: string, mode: string): void {
         const pins = Object.assign({}, root.pins);
+        if (key === "datetime") {
+            delete pins.date;
+            delete pins.time;
+        }
         if (mode === "pinned")
             pins[key] = true;
         else if (mode === "drawer")

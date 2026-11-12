@@ -237,11 +237,11 @@ PanelWindow {
     }
 
     // Centre the time and date content when shown, otherwise the whole pill.
-    readonly property var movableModules: [clock, weather, timeClock, audio, email, tasks, updater, feeds, downloads, bell,
+    readonly property var movableModules: [clock, weather, timerModule, audio, email, tasks, updater, feeds, downloads, bell,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
     readonly property var centreKeys: {
         const keys = Settings.centralComponents;
-        return bar.movableModules.some(item => item.here && keys.includes(item.settingsKey)) ? keys : [...keys, "time"];
+        return bar.movableModules.some(item => item.here && keys.includes(item.settingsKey)) ? keys : [...keys, "datetime"];
     }
 
     // Reparent live modules without rebuilding their controls or service state.
@@ -252,8 +252,8 @@ PanelWindow {
             item.visibilityKey = key;
             item.parent = Qt.binding(() => bar.centreKeys.includes(key) ? clockPill.moduleHost : rightPill.moduleHost);
             item.pinKey = key;
-            // The bell's visibility also follows the arriving notification's handoff.
-            if (item !== bell)
+            // Notifications and timers also coordinate visibility with their side pills.
+            if (item !== bell && item !== timerModule)
                 item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
             item.marksPin = Qt.binding(() => drawer.out);
         }
@@ -329,18 +329,17 @@ PanelWindow {
         lockedKeys: clockItems.length === 1 ? [clockItems[0].settingsKey] : []
         onModuleReceived: key => Settings.set(key + "Position", "centre")
         readonly property var clockItems: shown.filter(item => order.includes(item.settingsKey))
-        // The modules Centre On names, among those here: one is pinned, two
-        // pin the point between them, none leaves the pill's own middle.
-        readonly property var anchorKeys: ({ between: ["date", "time"], middle: [] })[Settings.centrePillAnchor] ?? [Settings.centrePillAnchor]
+        // The gap uses the facing content edges, rather than the module centres.
+        readonly property var anchorKeys: Settings.centrePillAnchor === "middle" ? []
+            : Settings.centrePillAnchor === "weatherGap" ? ["datetime", "weather"] : ["datetime"]
         readonly property var centreItems: clockItems.filter(item => anchorKeys.includes(item.settingsKey))
-        centreOn: centreItems.length === 1 ? centreItems[0].keyBox : null
+        centreOn: Settings.centrePillAnchor === "datetime" && centreItems.length === 1 ? centreItems[0].keyBox : null
         centreAt: {
             if (centreOn)
                 return centreOnX;
-            if (centreItems.length === 2) {
-                const [left, right] = centreItems;
-                return (left.x + left.keyBox.x + left.keyBox.width / 2
-                    + right.x + right.keyBox.x + right.keyBox.width / 2) / 2;
+            if (Settings.centrePillAnchor === "weatherGap" && centreItems.length === 2) {
+                const boxes = centreItems.map(item => ({ x: item.x + item.keyBox.x, width: item.keyBox.width })).sort((a, b) => a.x - b.x);
+                return (boxes[0].x + boxes[0].width + boxes[1].x) / 2;
             }
             return width / 2;
         }
@@ -449,33 +448,28 @@ PanelWindow {
 
         Clock {
             id: clock
-            settingsKey: "date"
         }
 
         Weather {
             id: weather
         }
 
-        BarItem {
-            id: timeClock
-            name: "Timers"
-            shows: timeText.text
-            settingsKey: "time"
-            textPress: true
-            trimLeft: 1
-            trimRight: 1
-            popup: TimerPopup {}
-            actions: clock.actions
-            tooltip: Qt.formatDate(clock.date, "dddd d MMMM yyyy")
-
-            RollingText {
-                id: timeText
-                Layout.fillHeight: true
-                tightWidth: true
-                readonly property var display: Settings.clockDisplay(clock.date)
-                text: display.text
-                smallRanges: display.smallRanges
-            }
+        Timers {
+            id: timerModule
+            drawerOut: drawer.out
+            expanded: countdown.reveal > 0 && !countdown.iconInCentre && !popupOpen && !drawer.out
+            collapsed: countdown.dismissed
+            // Follow the handoff until the side pill settles, so the slot it
+            // left stays shut instead of reopening to fold a second time.
+            readonly property bool handingOff: countdown.mergedIcon === icon && !countdown.settled
+            handoffProgress: handingOff ? countdown.iconHandoff.progress : 1
+            handoffOffset: handingOff ? countdown.iconHandoff.targetX : 0
+            landing: handingOff && countdown.stowed && countdown.reveal > 0
+            landingGlyph: countdown.shownGlyph
+            stowed: expanded || (!showsClosed && !drawer.out && !landing)
+            onExpandRequested: countdown.expand()
+            onWantsExpansionChanged: if (!wantsExpansion && Services.Timers.loaded)
+                OpenPopup.close(countdown)
         }
     }
 
@@ -627,11 +621,10 @@ PanelWindow {
         id: countdownPill
         control: countdown
         slidesContent: true
-        bounceBeforeCollapse: true
         morphValue: countdownMorph.value
         closeWhenEmpty: true
         empty: Services.Timers.entries.length === 0 && Services.Timers.ringing.length === 0
-        emptyPopupOwner: OpenPopup.owner === timeClock ? timeClock : countdown
+        emptyPopupOwner: OpenPopup.owner === timerModule ? timerModule : countdown
         backdrop: wallpaperImage
 
         side: Pill.Side.Left
@@ -650,6 +643,8 @@ PanelWindow {
 
         Countdown {
             id: countdown
+            stowed: (dismissed || !timerModule.wantsExpansion) && !exitHeld
+            mergedIcon: timerModule.pill === clockPill && !timerModule.popupOpen && !drawer.out ? timerModule.icon : null
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
         }
@@ -782,8 +777,11 @@ PanelWindow {
             handoffX: handingOff ? notice.iconHandoff.targetX : 0
             noticeMerging: notice.stowed && notice.reveal > 0
                 && noticePill.foldBox.x + noticePill.foldBox.z > -Theme.pillSpread
-            stowed: handingOff ? handoffProgress === 0
-                || (!showsClosed && !drawer.out && !(noticeMerging && Services.Notifications.count > 0))
+            // A notice that ran out lands in the bell even when nothing is left
+            // to keep; the empty bell then folds away once the notice is in.
+            // One that was dismissed or cleared just goes.
+            readonly property bool landing: notice.stowed && !Services.Notifications.withdrawn
+            stowed: handingOff ? handoffProgress === 0 || (!showsClosed && !drawer.out && !landing)
                 : !showsClosed && !drawer.out
             marksPin: drawer.out
         }

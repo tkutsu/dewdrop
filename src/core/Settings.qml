@@ -33,31 +33,34 @@ Singleton {
         ?? (root.user.groupWindowBadges === true ? "badge" : root.values.groupWindowBadgeStyle ?? "hide")
     readonly property var moduleKeys: ModuleOrder.normalise([])
     readonly property var centralComponents: {
-        const keys = root.moduleKeys.filter(key => (root.values[key + "Position"]
-            ?? (["date", "weather", "time"].includes(key) ? "centre" : "right")) === "centre");
-        return keys.length ? keys : ["time"];
+        const keys = root.moduleKeys.filter(key => root.savedPosition(key) === "centre");
+        return keys.length ? keys : ["datetime"];
     }
-    readonly property string datePosition: root.centralComponents.includes("date") ? "centre" : "right"
     readonly property string weatherPosition: root.centralComponents.includes("weather") ? "centre" : "right"
-    readonly property string weatherDisplay: ["hour", "temperature", "day"].includes(root.values.weatherDisplay)
+    readonly property string weatherDisplay: ["hour", "average", "worst", "day"].includes(root.values.weatherDisplay)
         ? root.values.weatherDisplay : "hour"
+    readonly property string weatherFormat: root.values.weatherFormat || "{icon} {temp}"
     readonly property string weatherUnit: ["celsius", "fahrenheit", "kelvin"].includes(root.values.weatherUnit)
         ? root.values.weatherUnit : "celsius"
     // Checked against the models the Weather service offers.
     readonly property string weatherModel: root.values.weatherModel ?? "best_match"
-    readonly property string timePosition: root.centralComponents.includes("time") ? "centre" : "right"
-    readonly property string centrePillAnchor: ["time", "date", "between", "middle"].includes(root.values.centrePillAnchor)
-        ? root.values.centrePillAnchor : "between"
+    readonly property string centrePillAnchor: ["middle", "weatherGap"].includes(root.values.centrePillAnchor) ? root.values.centrePillAnchor : "datetime"
     readonly property bool centrePillRecoil: root.values.centrePillRecoil !== false
     readonly property string caretAnimation: ["phase", "blink", "static"].includes(root.values.caretAnimation) ? root.values.caretAnimation : "phase"
     readonly property string caretShape: root.values.caretShape === "block" ? "block" : "line"
-    readonly property string dateFormat: root.values.dateFormat ?? ""
-    readonly property string timeFormat: root.values.timeFormat ?? ""
-    readonly property string dateCase: root.values.dateCase ?? ""
+    readonly property string datetimeFormat: root.user.datetimeFormat
+        ?? (root.user.dateFormat !== undefined || root.user.timeFormat !== undefined
+            ? [root.user.dateFormat ?? "ddd d MMM", root.user.timeFormat ?? "HH:mm"].filter(Boolean).join(" ")
+            : root.defaults.datetimeFormat ?? "ddd d MMM HH:mm")
+    readonly property string datetimeCase: {
+        const mode = root.user.datetimeCase ?? root.user.timeCase ?? root.user.dateCase ?? root.defaults.datetimeCase ?? "normal";
+        return ["normal", "uppercase", "lowercase"].includes(mode) ? mode : "uppercase";
+    }
+    // Alarm readouts use the same casing and hour notation as Date & Time.
+    readonly property string timeCase: root.datetimeCase
     readonly property string dateOrder: ["dmy", "mdy", "ymd"].includes(root.values.dateOrder) ? root.values.dateOrder : "dmy"
-    readonly property string timeCase: ["normal", "uppercase", "lowercase"].includes(root.values.timeCase) ? root.values.timeCase : "uppercase"
     readonly property bool smallAmPm: root.values.smallAmPm === true
-    readonly property bool twelveHour: /AP|ap/.test(root.timeFormat.replace(/'(?:[^']|'')*'/g, ""))
+    readonly property bool twelveHour: /AP|ap/.test(root.datetimeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
     readonly property bool layoutChangeNotification: root.values.layoutChangeNotification === true
     readonly property bool layoutChangeBounce: root.values.layoutChangeBounce === true || root.user.layoutChangeShowModule === true
@@ -122,6 +125,12 @@ Singleton {
         return root.centralComponents.includes(key) ? "centre" : "right";
     }
 
+    function savedPosition(key: string): string {
+        if (key === "datetime")
+            return root.user.datetimePosition ?? root.user.timePosition ?? root.user.datePosition ?? root.defaults.datetimePosition ?? "centre";
+        return root.values[key + "Position"] ?? (["weather", "countdown"].includes(key) ? "centre" : "right");
+    }
+
     // An empty override restores the title supplied by the feed.
     function setFeedTitle(url: string, title: string): void {
         const titles = Object.assign({}, root.feedTitles);
@@ -172,7 +181,7 @@ Singleton {
     }
 
     function clockDisplay(date: date): var {
-        return root.timeDisplay(date, root.timeFormat);
+        return root.timeDisplay(date, root.datetimeFormat);
     }
 
     // Mark actual AM/PM tokens, preserving quoted literals and custom token order.
@@ -213,10 +222,10 @@ Singleton {
     function setTwelveHour(enabled: bool): void {
         if (enabled === root.twelveHour)
             return;
-        const current = root.timeFormat;
+        const current = root.datetimeFormat;
         if (/^(?:HH|h):mm(?::ss)?(?: [Aa][Pp])?$/.test(current)) {
             const seconds = current.includes(":ss");
-            root.set("timeFormat", enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm"));
+            root.set("datetimeFormat", enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm"));
             return;
         }
         let format = current.replace(/'(?:[^']|'')*'|H{1,2}|h{1,2}/g,
@@ -225,7 +234,7 @@ Singleton {
             format += " AP";
         else
             format = format.replace(/'(?:[^']|'')*'|\s*(?:AP|ap)/g, token => token[0] === "'" ? token : "");
-        root.set("timeFormat", format.trim());
+        root.set("datetimeFormat", format.trim());
     }
 
     // A list setting with `item` put in or taken out.

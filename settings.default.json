@@ -39,23 +39,26 @@
     // return it to Auto or keep it behind the chevron, in either pill.
     // The last central module is locked. Positions use <module>Position:
     // centre or right.
-    "datePosition": "centre",
+    "datetimePosition": "centre",
     "weatherPosition": "centre",
-    "timePosition": "centre",
+    "countdownPosition": "centre",
 
-    // What the central pill keeps on the screen's centre line: "time",
-    // "date", "between" (midway between the two) or "middle" (the pill's
-    // own middle). "between" with one of the two moved out keeps the other;
-    // anything not in the central pill falls back to its middle.
-    "centrePillAnchor": "between",
+    // Centre on Date & Time ("datetime"), the gap between Date & Time and
+    // Weather ("weatherGap"), or the whole pill ("middle"). Missing modules
+    // fall back to the whole pill; the gap follows either module order.
+    "centrePillAnchor": "datetime",
 
     // Let the central pill recoil as modules change or neighbouring pills merge.
     // Off keeps its chosen centre point steady and stops its glass edges recoiling.
     "centrePillRecoil": true,
 
-    // Weather in the bar: "hour" for the current hour's icon, "temperature"
-    // for its temperature (following Feels Like), or "day" for today's predominant daylight icon.
+    // Weather in the bar: "hour" now, "average" for the next six hours,
+    // "worst" for their worst hour, or "day" for today's daylight outlook.
+    // Worst shows the temperature at that hour. All modes follow Feels Like.
     "weatherDisplay": "hour",
+
+    // Include {icon}, {temp}, or both in either order. Other text is literal.
+    "weatherFormat": "{icon} {temp}",
 
     // Temperature units throughout weather: "celsius", "fahrenheit", or "kelvin".
     "weatherUnit": "celsius",
@@ -88,26 +91,11 @@
     // Opening one in the notification centre keeps it for later interaction.
     "ephemeralNotificationApps": ["Herdr", "Email", "Gmail", "satty", "qBittorrent", "udiskie"],
 
-    // The date, as a Qt date/time format: "ddd d MMM" reads Tue 13 Oct,
-    // "dd/MM/yyyy HH:mm" adds the time. Names use your locale.
-    // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
-    "dateFormat": "ddd d MMM",
-
-    // Letter case for the bar date: normal, capitalize, uppercase or lowercase.
-    // Capitalize makes the first character of each space-separated word uppercase.
-    "dateCase": "normal",
-
-    // How a date typed with slashes reads, as in the launcher's `,` line:
-    // "dmy" (20/11/2026), "mdy" (11/20/2026) or "ymd" (2026/11/20). Without a
-    // year it is the next one to come. 2026-11-20 always reads the same.
-    "dateOrder": "dmy",
-
-    // The clock, as a Qt date/time format: "HH:mm" reads 14:05, "h:mm AP" reads
-    // 2:05 PM. Date tokens work here too ("ddd HH:mm"). Seconds in either
-    // format ("HH:mm:ss") make both displays tick every second.
+    // One date and time format. Names use your locale; quote literal text.
+    // Seconds ("HH:mm:ss") make the readout tick every second.
     // Alarms follow the same 12h/24h notation, always without seconds.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
-    "timeFormat": "HH:mm",
+    "datetimeFormat": "ddd d MMM HH:mm",
 
     // The text cursor in the launcher and every other field. Animation: phase
     // (a quick fade out and back), blink (hard on and off) or static. Shape: line
@@ -115,9 +103,14 @@
     "caretAnimation": "phase",
     "caretShape": "line",
 
-    // Letter case for the bar clock and alarm times: normal, uppercase or lowercase.
-    // Normal preserves the case supplied by the format. Default: uppercase.
-    "timeCase": "uppercase",
+    // Letter case for Date & Time and alarms: normal, uppercase or lowercase.
+    // Normal preserves the case supplied by the format.
+    "datetimeCase": "normal",
+
+    // How a typed date reads, with / or -, as in the launcher's `,` line:
+    // "dmy" (20/11/2026), "mdy" (11/20/2026) or "ymd" (2026/11/20). Without a
+    // year it is the next one to come. 2026-11-20 always reads the same.
+    "dateOrder": "dmy",
 
     // Draw AM/PM at two-thirds font size in bar clock and alarm readouts, on
     // the same baseline without a preceding space. Popup times keep AM/PM at
