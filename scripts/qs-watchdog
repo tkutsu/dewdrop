@@ -21,6 +21,17 @@
 # a wake skips the probes: they'd catch the bar still resuming and call it
 # frozen.
 #
+# 2026-11-10: a freeze detected at 15:02:13 recovered after 14 s; another at
+# 15:13:46 stayed stuck and was restarted at 15:14:18. The kernel logged semsurf
+# errors before both. The stacks show NVIDIA EGL blocking frame startup in
+# the first and context destruction in the second, with Qt's GUI thread waiting.
+# shell.qml now tries __NV_DISABLE_EXPLICIT_SYNC=1 for this process alone;
+# threaded rendering stays enabled. A full restart at 15:18:09 (pid 2135307)
+# applied it. The live in-process environment and IPC response were verified.
+# Status: workaround trial, awaiting normal-use and suspend/resume validation.
+# Evidence: $STATE/2026-11-10-{150213,151346,151418}.stack. The event log records
+# the trial boundary; removing the pragma and restarting rolls it back.
+#
 # A freeze can also leave the bar deaf. Hyprland drops an event-socket client
 # that falls 64 events behind, and Quickshell never reconnects (upstream issue
 # quickshell-mirror/quickshell#989), so the workspace mark and every other bit

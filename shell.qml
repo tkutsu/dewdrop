@@ -1,4 +1,5 @@
 //@ pragma Env QSG_RENDER_LOOP=threaded
+//@ pragma Env __NV_DISABLE_EXPLICIT_SYNC=1
 //@ pragma Env QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1
 //@ pragma Env QT_QPA_PLATFORMTHEME=gtk3
 //@ pragma IconTheme themis
