@@ -823,15 +823,19 @@ Popup {
                         // with it, and the undo takes back the read (the
                         // clipboard keeps it).
                         PopupButton {
+                            id: codeButton
+
                             readonly property string code: Email.codeIn(row.modelData)
 
                             visible: code !== ""
                             framed: true
+                            pressFeedback: true
                             glyph: Theme.glyph.copy
                             label: code
                             name: "Copy code " + code
                             onTapped: {
                                 Email.copy(code);
+                                codeButton.confirm();
                                 root.act("read", row.modelData, { said: "Code copied" });
                             }
                         }

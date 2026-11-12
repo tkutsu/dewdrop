@@ -21,6 +21,7 @@ Item {
     // where it is and goes faint, rather than leaving and letting its
     // neighbours slide under a pointer already on its way to them.
     property bool live: true
+    // Pressed in under the pointer, the way the bar's icons are (PressGlass).
     property bool pressFeedback: false
     // The one that asks twice: armed, it turns the bar's warning colour.
     property bool warn: false
@@ -47,6 +48,11 @@ Item {
     readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     signal tapped
+
+    // Done, for a moment: the glyph turns to a check, so a copy says it took.
+    function confirm(): void {
+        done.restart();
+    }
 
     Accessible.role: Accessible.Button
     Accessible.name: root.name
@@ -82,7 +88,7 @@ Item {
 
         Glyph {
             visible: root.glyph !== ""
-            text: root.glyph
+            text: done.running ? Theme.glyph.check : root.glyph
             fontSize: root.glyphSize
             implicitHeight: root.height
             color: root.warn ? Theme.warn : Theme.fg
@@ -94,6 +100,11 @@ Item {
             text: root.label
             font.pixelSize: root.textSize
         }
+    }
+
+    Timer {
+        id: done
+        interval: 1200
     }
 
     HoverHandler {

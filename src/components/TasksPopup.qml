@@ -427,6 +427,7 @@ Popup {
                     y: Math.round(root.rowPad + (root.lineHeight - height) / 2)
                     width: root.actionsWidth
                     height: 22
+                    pressFeedback: true
                     // A list name being edited has no copy button.
                     visible: !reorder.showing && !row.swiping && (row.editing ? !row.header : row.hovered)
                     glyph: row.header ? Theme.glyph.edit : Theme.glyph.copy
@@ -434,10 +435,12 @@ Popup {
                     onTapped: {
                         if (row.header) {
                             root.beginEdit(row.modelData);
-                        } else if (row.editing) {
-                            Launcher.copy(root.draft);
-                            root.saveEdit();
-                        } else Launcher.copy(root.editText(row.modelData));
+                        } else {
+                            Launcher.copy(row.editing ? root.draft : root.editText(row.modelData));
+                            if (row.editing)
+                                root.saveEdit();
+                            actions.confirm();
+                        }
                     }
                 }
                 TextEdit {
