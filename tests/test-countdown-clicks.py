@@ -17,12 +17,14 @@ def main():
         (target / "src/components").mkdir(parents=True, exist_ok=True)
         (target / "src/services").mkdir(parents=True, exist_ok=True)
         countdown = (ROOT / "src/modules/Countdown.qml").read_text()
-        for name in ("slot", "words", "rolling", "name", "hold"):
+        for name in ("slot", "slotTap", "words", "rolling", "name", "hold", "cancelTap", "cancelBox", "mark"):
             countdown = countdown.replace(f"id: {name}\n", f'id: {name}\n            objectName: "{name}"\n')
         (target / "Countdown.qml").write_text(countdown)
         (target / "src/components/Marquee.qml").write_text((ROOT / "src/components/Marquee.qml").read_text())
         (target / "assets/shaders").mkdir(parents=True, exist_ok=True)
         (target / "assets/shaders/query-edge.frag.qsb").write_bytes((ROOT / "assets/shaders/query-edge.frag.qsb").read_bytes())
+        (target / "src/components/MediaIconHandoff.qml").write_text((ROOT / "src/components/MediaIconHandoff.qml").read_text())
+        (target / "src/core/OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function close(owner) {} function browse(owner, hovered) {} }\n')
         (target / "src/components/ClickArea.qml").write_text((ROOT / "src/components/ClickArea.qml").read_text())
         (target / "src/components/PressGlass.qml").write_text('''import QtQuick
 QtObject { required property Item icon; required property var area; property bool down: false; property bool textPress: false; property real scale: 1 }
@@ -37,7 +39,7 @@ ClickArea {
     property bool textPress: false
     property bool contentAnimating: false; property real reveal: 1
     property Component popup: null; property int popupButton: Qt.NoButton
-    property bool popupOpen: false; function togglePopup() {}
+    property bool popupOpen: false; property int popupOpens: 0; function togglePopup() { popupOpens++; }
     property alias spacing: layout.spacing
     default property alias content: layout.data
     hoverEnabled: true; implicitWidth: layout.implicitWidth + 24; height: 36
@@ -103,36 +105,47 @@ ShellRoot {
             function run() {
                 Timers.focus = {id: "running", label: "Tea", total: 30000, running: true};
                 pill.sync(); mouseMove(pill, pill.width + 100, 60); wait(30);
-                const hold = named(pill, "hold");
-                check(hold.Accessible.ignored, "folded timer pause stays out of accessibility");
-                hold.Accessible.pressAction();
-                check(Timers.toggles === 0, "folded timer pause cannot activate");
-                pill.sync(); mouseMove(pill, 15, 15); wait(30);
-                tryVerify(() => !hold.Accessible.ignored, 500, "revealed timer pause is accessible; hover="
-                          + pill.containsMouse + ", opacity=" + hold.parent.opacity + ", width=" + hold.parent.width);
-                let name = named(pill, "name");
-                mouseClick(name, name.width / 2, 15); wait(20);
-                check(Timers.toggles === 1, "running timer name pauses exactly once");
+                check(named(pill, "hold") === null, "pill has no pause or resume button");
+                const cancel = named(pill, "cancelTap");
+                check(cancel.Accessible.ignored && !cancel.enabled, "folded cancel stays inactive and out of accessibility");
+                cancel.Accessible.pressAction();
+                check(Timers.cancellations === 0, "hidden cancel cannot activate");
+                mouseMove(pill, 15, 15); wait(30);
+                tryVerify(() => cancel.enabled && !cancel.Accessible.ignored, 500, "hover reveals cancel");
+                const mark = named(pill, "mark");
                 const rolling = named(pill, "rolling");
+                check(mark.mapToItem(pill, 0, 0).x > rolling.mapToItem(pill, rolling.width, 0).x, "cancel sits to the right of the readout");
+                const name = named(pill, "name");
+                mouseClick(name, name.width / 2, 15); wait(20);
+                check(pill.popupOpens === 1 && Timers.toggles === 0, "timer name opens its popup without pausing");
                 mouseClick(rolling, rolling.width / 2, 15); wait(20);
-                check(Timers.toggles === 1 && Timers.hushes === 0, "countdown figures do not pause or clear");
-                mouseClick(pill, 3, 15); wait(20);
-                check(Timers.toggles === 1, "running timer padding does not pause");
-                mouseClick(hold, hold.width / 2, 15); wait(20);
-                check(Timers.toggles === 2, "running timer pause button works once");
+                check(pill.popupOpens === 2 && Timers.toggles === 0, "timer figures open its popup without pausing");
+                mouseClick(cancel, cancel.width / 2, 15); wait(20);
+                check(Timers.cancellations === 1 && Timers.toggles === 0, "right cancel cancels exactly once");
+                const slot = named(pill, "slot");
+                mouseClick(slot, 5, 15); wait(20);
+                check(pill.dismissed && Timers.cancellations === 1 && Timers.toggles === 0, "timer icon collapses without changing the timer");
+                pill.expand();
+                mouseClick(rolling, rolling.width / 2, 15, Qt.RightButton); wait(20);
+                check(pill.dismissed && Timers.toggles === 0, "right click on readout collapses without pausing");
+                pill.expand();
+                mouseClick(slot, 5, 15, Qt.RightButton); wait(20);
+                check(pill.dismissed && Timers.cancellations === 1, "right click on icon also collapses");
                 done();
-                check(!hold.visible || hold.parent.width === 0, "finished timer has no play button, even with another timer running");
+                check(!pill.dismissed, "new ringing expands the pill");
+                mouseClick(slot, 5, 15); wait(20);
+                check(pill.dismissed && Timers.hushes === 0 && Timers.ringing.length === 1, "ringing icon collapses without silencing the alarm");
+                pill.expand();
                 const words = named(pill, "words");
+                mouseClick(words, words.width / 2, 15, Qt.RightButton); wait(20);
+                check(pill.dismissed && Timers.hushes === 0, "ringing right click collapses without silencing");
+                pill.expand();
                 mouseClick(words, words.width / 2, 15); wait(20);
-                check(Timers.hushes === 1 && Timers.ringing.length === 0, "finished timer text clears exactly once");
-                check(Timers.toggles === 2 && Timers.cancellations === 0, "clear leaves the other running timer alone");
-                done(); mouseClick(pill, 3, 15); wait(20);
-                check(Timers.hushes === 2, "finished timer left padding clears");
-                done(); mouseClick(pill, pill.width - 3, 15); wait(20);
-                check(Timers.hushes === 3, "finished timer right padding clears");
-                done(); const slot = named(pill, "slot");
-                mouseClick(slot, slot.width / 2, 15); wait(20);
-                check(Timers.hushes === 4, "finished timer icon clears exactly once");
+                check(Timers.hushes === 1 && Timers.ringing.length === 0, "ringing label still dismisses the ring");
+                done(); mouseMove(pill, 15, 15); wait(30);
+                tryVerify(() => cancel.enabled, 500);
+                cancel.Accessible.pressAction();
+                check(Timers.hushes === 2 && Timers.ringing.length === 0 && Timers.cancellations === 1, "right cancel dismisses ringing without cancelling another timer");
                 console.log("PASS: countdown clicks and finished timer dismissal");
             }
         }

@@ -41,6 +41,13 @@ Singleton {
     readonly property string temperatureKey: root.feelsLike ? "feelsLike" : "temperature"
     readonly property string summary: root.summarize(root.upcoming)
     readonly property var outlook: root.upcoming.reduce((worst, hour) => !worst || hour.severity > worst.severity ? hour : worst, null)
+    readonly property var average: root.averageForecast(root.upcoming, root.now, root.now + 6 * 3600)
+    readonly property var dayAverage: root.averageForecast(root.today?.hours ?? [], -Infinity, Infinity)
+    readonly property var barForecast: Settings.weatherDisplay === "average" ? root.average
+        : Settings.weatherDisplay === "worst" ? root.outlook
+        : Settings.weatherDisplay === "day" && root.today
+            ? Object.assign({}, root.today, {temperature: root.dayAverage?.temperature, feelsLike: root.dayAverage?.feelsLike})
+        : root.thisHour
     readonly property string icon: root.outlook?.icon ?? "\u{f0590}"
     readonly property string temperatureSymbol: Settings.weatherUnit === "fahrenheit" ? "°F" : Settings.weatherUnit === "kelvin" ? "K" : "°C"
     // Open-Meteo's global models with a full week of rain chances; the others
@@ -85,6 +92,31 @@ Singleton {
     // is a cached forecast, or why there is none yet.
     readonly property string nextSixHours: root.upcoming.length ? `${root.stale ? "Last forecast: " : ""}${root.summary}` : root.trouble || "Loading weather..."
     readonly property string tooltip: root.location ? `Next 6 hours: ${root.nextSixHours}` : "Choose a weather location"
+
+    // The condition that lasts longest, as the daily icon picks it, with the
+    // mean temperature. Clipped durations avoid counting seven full hours at half past.
+    function averageForecast(hours: var, start: real, end: real): var {
+        const samples = hours.map(hour => ({ hour, weight: Math.max(0, Math.min(end, hour.at + 3600) - Math.max(start, hour.at)) })).filter(sample => sample.weight > 0);
+        if (!samples.length)
+            return null;
+        const finite = value => typeof value === "number" && Number.isFinite(value);
+        const duration = list => list.reduce((sum, sample) => sum + sample.weight, 0);
+        const mean = key => {
+            const measured = samples.filter(sample => finite(sample.hour[key]));
+            return measured.length ? measured.reduce((sum, sample) => sum + sample.hour[key] * sample.weight, 0) / duration(measured) : null;
+        };
+        const known = samples.filter(sample => sample.hour.severity >= 0);
+        const result = { temperature: mean("temperature"), feelsLike: mean("feelsLike"), icon: "\u{f0590}", description: "Unavailable", severity: -1 };
+        if (!known.length)
+            return result;
+        // Ties go to the worse weather.
+        const lasting = sample => duration(known.filter(other => other.hour.description === sample.hour.description));
+        const { description, icon, severity } = known.reduce((top, sample) => {
+            const longer = lasting(sample) - lasting(top);
+            return longer > 0 || longer === 0 && sample.hour.severity > top.hour.severity ? sample : top;
+        }).hour;
+        return Object.assign(result, { description, icon, severity });
+    }
 
     // Merge matching hourly forecasts without bridging missing hours or DST epochs.
     function hourRanges(hours: var, key: string): var {

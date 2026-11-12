@@ -58,6 +58,10 @@ Singleton {
     // The pointer is on it, which holds it open: a notice that folded away
     // under the pointer that was reaching for it would be read as a misclick.
     property bool held: false
+    // The notice on show was closed (dismissed, cleared or withdrawn by its
+    // sender) rather than running out its time. Only a notice that ran out
+    // folds into the bell when nothing else waits there.
+    property bool withdrawn: false
 
     // How many more arrived while the notice was already up, for the "+3" at
     // its end: a burst, not the centre's total. The total is almost never
@@ -368,8 +372,10 @@ Singleton {
                 root.queued = root.queued.filter(q => q !== n);
                 root.burst = root.queued.length;
             }
-            if (n === root.latest && root.showing)
+            if (n === root.latest && root.showing) {
+                root.withdrawn = root.queued.length === 0;
                 root.dismissNotice();
+            }
         });
     }
 
@@ -429,6 +435,7 @@ Singleton {
             root.burst = 0;
         else if (root.showing && !replacing && root.latest !== n)
             root.burst++;
+        root.withdrawn = false;
         root.latest = n;
         root.showing = true;
         root.timeNotice();

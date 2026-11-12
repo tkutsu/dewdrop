@@ -1,12 +1,15 @@
 const defaults = ["audio", "email", "tasks", "updater", "feeds", "downloads", "bell", "satty", "idle",
-    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "date", "time"];
+    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "datetime", "countdown"];
 
 // Keep saved positions while accepting modules added since the last drop.
 function normalise(order, supported = defaults) {
     const keys = [];
-    for (const key of Array.isArray(order) ? order : [])
+    for (let key of Array.isArray(order) ? order : []) {
+        if (key === "date" || key === "time")
+            key = "datetime";
         if (supported.includes(key) && !keys.includes(key))
             keys.push(key);
+    }
     for (const key of supported)
         if (!keys.includes(key))
             keys.push(key);

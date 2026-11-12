@@ -27,7 +27,8 @@ ShellRoot {
         onTriggered: {
             try {
                 if (test.phase === 0) {
-                    check(Settings.timeFormat === "HH:mm" && !Settings.twelveHour, "24h default");
+                    check(Settings.datetimeFormat === "ddd d MMM HH:mm" && !Settings.twelveHour, "combined 24h default");
+                    Settings.set("datetimeFormat", "HH:mm");
                     for (const [input, hour, minute, label] of [
                         ["8pm dinner", 20, 0, "dinner"],
                         ["7:30AM wake up", 7, 30, "wake up"],
@@ -46,14 +47,14 @@ ShellRoot {
                     check(test.label === "20:05" && test.tooltip.includes("20:05") && test.preview.includes("20:05"), "24h alarm bindings");
                     Settings.setTwelveHour(true);
                 } else if (test.phase === 1) {
-                    check(Settings.timeFormat === "h:mm AP" && Settings.twelveHour, "12h setting");
-                    check(Qt.formatDateTime(new Date(2026, 0, 1, 20, 5), Settings.timeFormat) === "8:05 PM", "12h bar clock");
+                    check(Settings.datetimeFormat === "h:mm AP" && Settings.twelveHour, "12h setting");
+                    check(Qt.formatDateTime(new Date(2026, 0, 1, 20, 5), Settings.datetimeFormat) === "8:05 PM", "12h bar clock");
                     check(test.label === "8:05 PM" && test.tooltip.includes("8:05 PM") && test.preview.includes("8:05 PM"), "existing alarm and launcher bindings update");
                     check(Timers.ringTitle({kind: "alarm", hour: 20, minute: 5, label: ""}) === "8:05 PM", "ringing title");
                     check(Timers.hhmm(0, 0) === "12:00 AM" && Timers.hhmm(12, 0) === "12:00 PM", "midnight and noon display");
                     check(Timers.entries[0].endsAt === test.alarmAt, "notation does not reschedule alarms");
                     check(Timers.clock(90000) === "1:30" && Timers.parse("25m tea").ms === 1500000, "countdown behavior stays unchanged");
-                    Settings.set("timeCase", "lowercase");
+                    Settings.set("datetimeCase", "lowercase");
                     Settings.set("smallAmPm", true);
                 } else if (test.phase === 2) {
                     check(test.label === "8:05pm" && test.tooltip.includes("8:05pm") && test.preview.includes("8:05pm"), "alarm bindings share case and spacing");
@@ -62,32 +63,32 @@ ShellRoot {
                     check(Timers.ringTitle({kind: "alarm", hour: 20, minute: 5, label: ""}) === "8:05pm", "ringing title shares clock settings");
                     check(Timers.ringTitle({kind: "alarm", hour: 20, minute: 5, label: "Dinner"}) === "Dinner", "alarm names retain their case");
                     check(Timers.entries[0].endsAt === test.alarmAt, "display changes do not reschedule alarms");
-                    Settings.set("timeCase", "uppercase");
+                    Settings.set("datetimeCase", "uppercase");
                     Settings.set("smallAmPm", false);
-                    Settings.set("timeFormat", "h:mm:ss ap");
+                    Settings.set("datetimeFormat", "h:mm:ss ap");
                     Settings.setTwelveHour(false);
                 } else if (test.phase === 3) {
-                    check(Settings.timeFormat === "HH:mm:ss" && !Settings.twelveHour, "seconds retained switching to 24h");
+                    check(Settings.datetimeFormat === "HH:mm:ss" && !Settings.twelveHour, "seconds retained switching to 24h");
                     check(test.label === "20:05" && test.preview.includes("20:05"), "switch back updates alarms");
-                    Settings.set("timeFormat", "HH:mm 'AP'");
+                    Settings.set("datetimeFormat", "HH:mm 'AP'");
                     check(!Settings.twelveHour, "quoted AM/PM text is not a 12h format");
-                    Settings.set("timeFormat", "HH:mm:ss");
+                    Settings.set("datetimeFormat", "HH:mm:ss");
                     Settings.setTwelveHour(true);
                 } else {
-                    check(Settings.timeFormat === "h:mm:ss AP", "seconds retained switching to 12h");
+                    check(Settings.datetimeFormat === "h:mm:ss AP", "seconds retained switching to 12h");
                     for (const [custom, twelve, back] of [
                         ["HH.mm:ss.zzz 's AP' t", "hh.mm:ss.zzz 's AP' t AP", "HH.mm:ss.zzz 's AP' t"],
                         ["H:mm 'o''clock' t", "h:mm 'o''clock' t AP", "H:mm 'o''clock' t"],
                         ["'AP' HH:mm", "'AP' hh:mm AP", "'AP' HH:mm"]
                     ]) {
-                        Settings.set("timeFormat", custom);Settings.setTwelveHour(true);
-                        check(Settings.timeFormat === twelve, "custom 12h format: " + custom);
+                        Settings.set("datetimeFormat", custom);Settings.setTwelveHour(true);
+                        check(Settings.datetimeFormat === twelve, "custom 12h format: " + custom);
                         Settings.setTwelveHour(false);
-                        check(Settings.timeFormat === back, "custom 24h format: " + custom);
+                        check(Settings.datetimeFormat === back, "custom 24h format: " + custom);
                     }
-                    Settings.set("timeFormat", "AP hh.mm:ss");Settings.setTwelveHour(false);
-                    check(Settings.timeFormat === "HH.mm:ss", "leading AM/PM removal preserves other tokens");
-                    Settings.set("timeFormat", "h:mm:ss AP");
+                    Settings.set("datetimeFormat", "AP hh.mm:ss");Settings.setTwelveHour(false);
+                    check(Settings.datetimeFormat === "HH.mm:ss", "leading AM/PM removal preserves other tokens");
+                    Settings.set("datetimeFormat", "h:mm:ss AP");
                     console.log("PASS: clock/alarm notation, live bindings and 12h alarm creation");
                     Qt.quit();
                 }
@@ -110,7 +111,7 @@ ShellRoot {
     Timer {
         interval: 100; running: true
         onTriggered: {
-            if (Settings.timeFormat === "h:mm:ss AP" && Settings.twelveHour && Timers.entries.length === 1 && Timers.label === "8:05 PM")
+            if (Settings.datetimeFormat === "h:mm:ss AP" && Settings.twelveHour && Timers.entries.length === 1 && Timers.label === "8:05 PM")
                 console.log("PASS: notation and alarm survive restart");
             else console.log("FAIL: persisted settings or alarm");
             Qt.quit();

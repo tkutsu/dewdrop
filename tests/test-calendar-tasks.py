@@ -52,15 +52,30 @@ ShellRoot {
                     {title: "Holiday", allDay: true, start: now - 43200000, end: now + 43200000},
                     {title: "Breakfast", allDay: false, start: now - 7200000, end: now - 3600000},
                     {title: "Lunch", allDay: false, start: now - 60000, end: now + 60000},
-                    {title: "Dinner", allDay: false, start: now + 7200000, end: now + 10800000}
+                    {title: "Dinner", allDay: false, start: now + 7200000, end: now + 10800000},
+                    {title: "Walk", allDay: false, start: now + 14400000, end: now + 18000000}
                 ];
                 const days = ({});
                 days[Agenda.today] = events;
                 days[fri] = [{title: "Appointment", allDay: false, start: now, end: now + 3600000}];
                 Agenda.months = ({[Agenda.thisMonth]: days});
                 wait(50);
-                check(clock.tooltip === "All day · Holiday\\n10:00 · Breakfast\\nNow · Lunch\\n14:00 · Dinner", "tooltip lists all today's events on separate lines, including past events");
+                const dateLine = Qt.formatDate(new Date(now), "dddd d MMMM yyyy");
+                check(clock.tooltip === dateLine + "\\n14:00 · Dinner\\n16:00 · Walk", "tooltip shows the date, then each upcoming event on its own line without past, ongoing or all-day events");
                 check(!clock.tooltip.includes("Call bank"), "tooltip excludes tasks");
+                WallClock.now = events[3].start - 1;
+                wait(20);
+                check(clock.tooltip === dateLine + "\\n14:00 · Dinner\\n16:00 · Walk", "an event remains visible just before its start");
+                WallClock.now = events[3].start;
+                wait(20);
+                check(clock.tooltip === dateLine + "\\n16:00 · Walk", "an event leaves the tooltip when it starts, keeping later events");
+                WallClock.now = events[4].start;
+                wait(20);
+                check(clock.tooltip === dateLine, "the date stays visible after the last event starts");
+                WallClock.now = new Date(2026, 9, 15).getTime();
+                wait(20);
+                check(clock.tooltip === Qt.formatDate(new Date(WallClock.now), "dddd d MMMM yyyy"), "tooltip date updates at midnight");
+                WallClock.now = now;
                 check(cell.busy && list.events.length === 1 && find(list, i => i.text === "Appointment"), "hovered day shows its event beside no task rows");
                 // Off the day and onto the list: the list stays that day's.
                 mouseMove(list, 60, list.height - 10);
@@ -73,13 +88,13 @@ ShellRoot {
                 mouseMove(title, 5, 5);
                 wait(250);
                 check(popup.listDay === Agenda.today, "leaving the list returns to today");
-                check(list.events.length === 4, "leaving the list restores today's events");
+                check(list.events.length === 5, "leaving the list restores today's events");
                 Agenda.months = ({});
                 wait(50);
-                check(!cell.busy && list.events.length === 0 && clock.tooltip === "No events today", "empty calendar clears dots and rows, and the tooltip says so despite remaining tasks");
+                check(!cell.busy && list.events.length === 0 && clock.tooltip === dateLine, "empty calendar clears dots and rows, keeping only the tooltip date despite remaining tasks");
                 Agenda.stale = true;
                 wait(50);
-                check(clock.tooltip === "", "a calendar it could not read does not claim a free day");
+                check(clock.tooltip === dateLine, "a calendar it could not read still shows the date without claiming a free day");
                 Agenda.stale = false;
 
                 // Writing an event.

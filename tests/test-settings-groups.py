@@ -40,7 +40,7 @@ ShellRoot {
             check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Date & Time|Weather|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "seventeen focused tabs appear in the agreed order");
             const ids = rows().map(r => r.id);
             check(new Set(ids).size === ids.length, "settings and generated rows appear once");
-            const covered = new Set(ids.concat(["layoutNames", "launcherPrefixes", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datePosition", "weatherPosition", "timePosition", "wallpaperParallaxZoom"]));
+            const covered = new Set(ids.concat(["layoutNames", "launcherPrefixes", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datetimePosition", "weatherPosition", "countdownPosition", "wallpaperParallaxZoom"]));
             const missing = Object.keys(Settings.defaults).filter(key => !covered.has(key));
             check(missing.length === 0, "every default preference is reachable (missing: " + missing.join(", ") + ")");
             function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }
@@ -50,7 +50,10 @@ ShellRoot {
             row("centrePillRecoil").set(false);
             check(!Settings.centrePillRecoil, "centre pill recoil can be disabled independently");
             check(sections("Modules") === "Module Visibility|Tray Icons", "module visibility has a dedicated page");
-            check(menu.pages.find(p => p.title === "Weather").sections.find(s => s.title === "Display").rows.map(r => r.id).join("|") === "weatherDisplay|weatherUnit", "weather has a dedicated tab for display and units");
+            check(menu.pages.find(p => p.title === "Weather").sections.find(s => s.title === "Display").rows.map(r => r.id).join("|") === "weatherDisplay|weatherFormat|weatherUnit", "weather has a dedicated tab for forecast, format and units");
+            check(row("weatherDisplay").options.map(o => o.value).join("|") === "hour|average|worst|day", "weather offers current, six-hour average, worst and today forecasts");
+            check(!row("weatherFormat").validate("{temp} {icon}") && row("weatherFormat").validate("nothing"), "weather format requires an icon or temperature token");
+            check(row("centrePillAnchor").options.some(o => o.value === "weatherGap"), "centre pill can anchor between date and weather");
             check(sections("Weather") === "Location|Display|Forecast" && hits("gfs").includes("weatherModel"), "location and forecast model have their own sections");
             check(hits("sunrise").includes("weatherLocation"), "search finds the location used for Auto Night Mode");
             wait(80);
@@ -63,10 +66,10 @@ ShellRoot {
             check(hits("24h").includes("twelveHour"), "search includes choice labels");
             check(hits("gmail").includes("webApp:gmail"), "search finds the app name behind Open With");
             menu.page = menu.pages.findIndex(p => p.title === "Date & Time"); menu.query = "";
-            check(menu.entries.filter(e => e.setting).length === 7, "clearing search restores the selected page");
-            check(JSON.stringify(row("timeCase").options) === JSON.stringify(row("dateCase").options), "time and date offer Default, UPPER and lower in the same order");
-            row("timeCase").set("normal");
-            check(Settings.timeCase === "normal" && row("timeCase").get() === "normal", "time Default preserves the formatter's letter case");
+            check(menu.entries.filter(e => e.setting).length === 5, "clearing search restores the combined Date & Time settings");
+            check(!ids.includes("dateFormat") && !ids.includes("timeFormat"), "separate date and time format controls are replaced");
+            row("datetimeCase").set("normal");
+            check(Settings.datetimeCase === "normal" && row("datetimeCase").get() === "normal", "Default preserves the formatter's letter case");
 
             check(hits("ephemeral").includes("ephemeralNotificationApps"), "search finds the ephemeral app list");
             wait(80);

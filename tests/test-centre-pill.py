@@ -47,6 +47,7 @@ import qs.src.modules
 import qs.src.services as Services
 ShellRoot {
     id: bar
+    QtObject { id: countdown; property real reveal: 0; property string shownGlyph: ""; property bool stowed: true; property bool settled: false; property bool iconInCentre: false; property bool dismissed: false; property Item mergedIcon: null; property var iconHandoff: ({progress: 1, targetX: 0}); function expand() {} }
     function check(ok, why) { if (!ok) throw Error(why); }
     QtObject { id: recording; property bool iconInCentre: true; property bool stowed: true; property var iconHandoff: ({progress: 1, targetX: 0}) }
     QtObject { id: nowPlaying; property bool paused: true; property bool expanded: false; property bool iconInCentre: true; property var iconHandoff: ({progress: 1, targetX: 0}); property var player: null; property real reveal: 0; property string label: ''; property string appName: ''; property string shownApp: '' }
@@ -80,14 +81,16 @@ ShellRoot {
             function centralItems() { return clockPill.shown.filter(item => clockPill.order.includes(item.settingsKey)); }
             function checkCentre(why) {
                 const anchor = Settings.centrePillAnchor;
-                const keys = ({ between: ['date', 'time'], middle: [] })[anchor] ?? [anchor];
+                const keys = anchor === 'middle' ? [] : anchor === 'weatherGap' ? ['datetime', 'weather'] : ['datetime'];
                 const content = centralItems().filter(item => keys.includes(item.settingsKey)).map(item => item.keyBox);
-                if (content.length === 0) {
-                    bar.check(Math.abs(clockPill.x + clockPill.width / 2 - host.width / 2) <= 1, why + ': pill is centred without time or date');
+                if (content.length === 0 || anchor === 'weatherGap' && content.length < 2) {
+                    bar.check(Math.abs(clockPill.x + clockPill.width / 2 - host.width / 2) <= 1, why + ': pill is centred without Date & Time');
                     return;
                 }
-                const x = content.reduce((sum, item) => sum + item.mapToItem(host, item.width / 2, 0).x, 0) / content.length;
-                bar.check(Math.abs(x - host.width / 2) <= 1, why + ': time/date content is centred at ' + x);
+                const edges = content.map(item => ({x: item.mapToItem(host, 0, 0).x, width: item.width})).sort((a, b) => a.x - b.x);
+                const x = anchor === 'weatherGap' ? (edges[0].x + edges[0].width + edges[1].x) / 2
+                    : content[0].mapToItem(host, content[0].width / 2, 0).x;
+                bar.check(Math.abs(x - host.width / 2) <= 1, why + ': Date & Time content is centred at ' + x);
             }
             function transfer(item, destination, before) {
                 const source = item.pill;
@@ -131,10 +134,10 @@ ShellRoot {
                 checkCentre('locked ' + item.settingsKey);
             }
             function run() {
-                bar.check(centralItems().map(item => item.settingsKey).join(',') === 'date,time', 'Auto hides quiet central weather by default');
+                bar.check(centralItems().map(item => item.settingsKey).join(',') === 'datetime,countdown', 'Auto hides quiet central weather by default');
                 bar.check(weather.stowed && drawer.holding, 'quiet central module is available through the drawer');
                 drawer.open = true; settle();
-                for (const item of [clock, timeClock, weather]) {
+                for (const item of [clock, timerModule, weather]) {
                     const key = item.settingsKey;
                     mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(DrawerPins.pinned(key), 'middle click pins central ' + key);
@@ -146,38 +149,38 @@ ShellRoot {
                     bar.check(DrawerPins.mode(key) === 'auto', 'middle click unpins central ' + key);
                 }
                 drawer.open = false; settle(); waitVisibility(weather, false);
-                DrawerPins.setMode('date', 'pinned');
-                DrawerPins.setMode('time', 'pinned');
-                CentrePillOrder.move('weather', null, ['date', 'weather', 'time']);
-                settle(); checkCentre('quiet Auto beside two pinned modules');
+                DrawerPins.setMode('datetime', 'pinned');
+                DrawerPins.setMode('countdown', 'pinned');
+                CentrePillOrder.move('weather', null, ['datetime', 'weather', 'countdown']);
+                settle(); checkCentre('quiet Auto beside pinned modules');
                 weather.quiet = false; settle(); waitVisibility(weather, true);
-                checkCentre('weather does not change the time/date anchors');
-                CentrePillOrder.move('date', null, ['date', 'time', 'weather']);
-                settle(); checkCentre('reversed time/date with weather between them');
-                CentrePillOrder.move('date', 'time', ['time', 'weather', 'date']);
-                DrawerPins.setMode('date', 'drawer'); settle(); waitVisibility(clock, false);
-                checkCentre('time alone beside weather');
-                DrawerPins.setMode('date', 'pinned');
-                DrawerPins.setMode('time', 'drawer'); settle(); waitVisibility(timeClock, false);
-                checkCentre('date alone beside weather');
+                checkCentre('weather does not change the Date & Time anchor');
+                CentrePillOrder.move('datetime', null, ['datetime', 'countdown', 'weather']);
+                settle(); checkCentre('reordered Date & Time beside timers and weather');
+                CentrePillOrder.move('datetime', 'countdown', ['countdown', 'weather', 'datetime']);
+                DrawerPins.setMode('datetime', 'drawer'); settle(); waitVisibility(clock, false);
+                checkCentre('hidden Date & Time falls back to pill centre');
+                DrawerPins.setMode('datetime', 'pinned');
+                DrawerPins.setMode('countdown', 'drawer'); settle(); waitVisibility(timerModule, false);
+                checkCentre('Date & Time anchors beside weather');
                 Settings.set('centrePillAnchor', 'time'); settle();
-                checkCentre('Centre On time without time falls back to the middle');
+                checkCentre('legacy Centre On time maps to Date & Time');
                 Settings.set('centrePillAnchor', 'between'); settle();
-                DrawerPins.setMode('date', 'drawer'); settle(); waitVisibility(clock, false);
+                DrawerPins.setMode('datetime', 'drawer'); settle(); waitVisibility(clock, false);
                 checkCentre('weather alone uses screen centre');
-                DrawerPins.setMode('date', 'pinned');
-                DrawerPins.setMode('time', 'pinned'); settle();
-                DrawerPins.setMode('time', 'auto'); settle();
-                checkCentre('Auto time still anchors with date');
-                for (const anchor of ['time', 'date', 'middle', 'between']) {
+                DrawerPins.setMode('datetime', 'pinned');
+                DrawerPins.setMode('countdown', 'pinned'); settle();
+                DrawerPins.setMode('countdown', 'auto'); settle();
+                checkCentre('Auto timers retain the Date & Time anchor');
+                for (const anchor of ['datetime', 'middle', 'time', 'date', 'between']) {
                     Settings.set('centrePillAnchor', anchor); settle();
                     checkCentre('Centre On ' + anchor);
                 }
                 weather.quiet = true; settle(); waitVisibility(weather, false);
-                checkCentre('weather folding away keeps the time/date anchors');
+                checkCentre('weather folding away keeps the Date & Time anchor');
                 DrawerPins.setMode('weather', 'drawer');
                 drawer.open = true; settle(); waitVisibility(weather, true);
-                checkCentre('drawer reveal does not change the time/date anchors');
+                checkCentre('drawer reveal does not change the Date & Time anchor');
                 mousePress(weather, weather.width / 2, 20);
                 mouseMove(clockPill, 1, 20, 20); mouseMove(clockPill, 1, 20, 20);
                 settle();
@@ -191,23 +194,23 @@ ShellRoot {
                 DrawerPins.setMode('weather', 'drawer');
                 mouseClick(host, 1, 20); settle();
                 bar.check(!drawer.open && !weather.visible, 'click outside the ordered pills still closes the drawer');
-                CentrePillOrder.move('weather', null, ['date', 'weather', 'time']);
+                CentrePillOrder.move('weather', null, ['datetime', 'weather', 'countdown']);
                 drawer.open = false; settle(); waitVisibility(weather, false);
                 DrawerPins.setMode('weather', 'auto');
-                DrawerPins.setMode('date', 'auto');
-                CentrePillOrder.move('weather', 'time', ['date', 'time', 'weather']);
+                DrawerPins.setMode('datetime', 'auto');
+                CentrePillOrder.move('weather', 'countdown', ['datetime', 'countdown', 'weather']);
                 settle();
                 const middleClicks = clock.middleClicks;
                 mouseClick(clock, clock.width / 2, 20, Qt.MiddleButton);
-                bar.check(clock.middleClicks === middleClicks && DrawerPins.pinned('date'), 'central date middle click pins instead of running its module action');
+                bar.check(clock.middleClicks === middleClicks && DrawerPins.pinned('datetime'), 'central date middle click pins instead of running its module action');
                 mouseClick(clock, clock.width / 2, 20, Qt.MiddleButton);
-                bar.check(DrawerPins.mode('date') === 'auto', 'central date middle click returns to Auto');
+                bar.check(DrawerPins.mode('datetime') === 'auto', 'central date middle click returns to Auto');
                 checkCentre('default with music notes');
                 drawer.open = true; settle();
                 transfer(audio, clockPill, clock);
                 transfer(network, clockPill, null);
-                bar.check(centralItems().length === 5, 'five central modules retain time/date centring');
-                for (const item of [clock, weather, timeClock]) transfer(item, rightPill, null);
+                bar.check(centralItems().length === 5, 'five central modules retain Date & Time centring');
+                for (const item of [clock, weather, timerModule]) transfer(item, rightPill, null);
                 transfer(audio, rightPill, null);
                 checkLocked(network);
                 Settings.set('networkPosition', 'right');
@@ -240,7 +243,7 @@ ShellRoot {
                 transfer(network, rightPill, null);
                 checkLocked(email);
                 // Every original right module supports both transfer directions.
-                for (const item of bar.movableModules.filter(item => !['date', 'weather', 'time', 'email'].includes(item.settingsKey))) {
+                for (const item of bar.movableModules.filter(item => !['datetime', 'weather', 'countdown', 'email'].includes(item.settingsKey))) {
                     transfer(item, clockPill, null);
                     transfer(item, rightPill, null);
                 }
@@ -258,8 +261,8 @@ ShellRoot {
                 bar.check(drawer.holding && drawer.visible && email.pill === clockPill, 'chevron remains available for the hidden last central module');
                 drawer.open = true; settle(); waitVisibility(email, true);
                 checkLocked(email);
-                // Date, time and weather have the same right-pill modes as other modules.
-                for (const item of [clock, weather, timeClock, audio]) {
+                // Date & Time, timers and weather have the same right-pill modes as other modules.
+                for (const item of [clock, weather, timerModule, audio]) {
                     mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(!DrawerPins.pinned(item.settingsKey), 'middle click unpins ' + item.settingsKey);
                     const row = bar.drawerRows.find(row => row.id === 'pin:' + item.settingsKey);
@@ -284,10 +287,10 @@ ShellRoot {
                 for (const item of bar.movableModules.filter(item => item !== tray)) Settings.set(item.settingsKey + 'Position', 'right');
                 settle(); checkLocked(tray);
                 tray.present = false; settle();
-                bar.check(timeClock.pill === clockPill && timeClock.visible, 'time fills in for an unavailable last module');
-                checkLocked(timeClock);
+                bar.check(clock.pill === clockPill && clock.visible, 'Date & Time fills in for an unavailable last module');
+                checkLocked(clock);
                 tray.present = true; settle();
-                bar.check(tray.pill === clockPill && timeClock.pill === rightPill, 'returning module restores configured layout');
+                bar.check(tray.pill === clockPill && clock.pill === rightPill, 'returning module restores configured layout');
                 Settings.set('audioPosition', 'centre');
                 Settings.set('trayPosition', 'right'); settle();
                 checkLocked(audio);
@@ -306,7 +309,7 @@ ShellRoot {
                 Theme.reduceMotion = true;
                 Settings.set('weatherPosition', 'right'); wait(30);
                 checkCentre('reduced motion');
-                DrawerPins.setMode('date', 'drawer');
+                DrawerPins.setMode('datetime', 'drawer');
                 drawer.open = false; settle();
                 waitVisibility(clock, false);
                 bar.check(!clock.visible && clock.stowed, 'date can remain hidden in drawer');
@@ -354,7 +357,8 @@ def main():
         (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string text; property int fontSize; property color color; property real nudge: 0 }\n')
         (target / 'src/components/AppIcon.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string windowClass; property bool tightWidth: false }\n')
         (target / 'src/components/RollingText.qml').write_text('import QtQuick\nItem { implicitWidth: 48; implicitHeight: 20; property string text; property var smallRanges; property bool tightWidth: false }\n')
-        (target / 'src/modules/Clock.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { id: root; property date date: new Date(); property int middleClicks: 0; actions: ({ [Qt.MiddleButton]: () => root.middleClicks++ }); popup: Component { Item {} } Rectangle { implicitWidth: 90; implicitHeight: 20 } }\n')
+        (target / 'src/modules/Clock.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { id: root; settingsKey: "datetime"; property date date: new Date(); property int middleClicks: 0; actions: ({ [Qt.MiddleButton]: () => root.middleClicks++ }); popup: Component { Item {} } Rectangle { implicitWidth: 90; implicitHeight: 20 } }\n')
+        (target / 'src/modules/Timers.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { settingsKey: "countdown"; property bool drawerOut: false; property bool expanded: false; property bool wantsExpansion: false; property bool collapsed: false; property real handoffProgress: 1; property real handoffOffset: 0; property bool landing: false; property string landingGlyph: ""; readonly property Item icon: null; signal expandRequested(); popup: Component { Item {} } Rectangle { implicitWidth: 16; implicitHeight: 20 } }\n')
         (target / 'src/modules/Drawer.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { property bool open: false; property bool out: open; property real windup: 0; property bool moving: false; property bool holding: false; property bool pointerNear: false; present: holding; Rectangle { implicitWidth: 8; implicitHeight: 20 } }\n')
         (target / 'src/modules/LauncherButton.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { Rectangle { implicitWidth: 16; implicitHeight: 20 } }\n')
         names = ['Audio', 'Email', 'Tasks', 'Updater', 'Feeds', 'Downloads', 'NotificationBell', 'Satty', 'IdleInhibit', 'Wallpaper', 'NightMode', 'Sys', 'SettingsButton', 'Drives', 'Bluetooth', 'Network', 'Tray', 'Language']
@@ -384,11 +388,33 @@ property var centreOrder: CentrePillOrder.keys
 property var rightOrder: RightPillOrder.keys
 property var pins: DrawerPins.pins
 Timer { interval: 150; running: true; onTriggered: {
-    if (centre.join(',') !== 'audio' || !Settings.positionLocked('audio') || !DrawerPins.kept('date') || !DrawerPins.pinned('network') || JSON.stringify(centreOrder) !== 'CENTRE_ORDER' || JSON.stringify(rightOrder) !== 'RIGHT_ORDER') console.log('FAIL: saved layout or drawer mode');
+    if (centre.join(',') !== 'audio' || !Settings.positionLocked('audio') || !DrawerPins.kept('datetime') || !DrawerPins.pinned('network') || JSON.stringify(centreOrder) !== 'CENTRE_ORDER' || JSON.stringify(rightOrder) !== 'RIGHT_ORDER') console.log('FAIL: saved layout or drawer mode');
     else console.log('PASS: module positions, both orders, central lock and drawer modes survive restart');
     Qt.quit();
 } } }'''
         run_shell(target, restart.replace('CENTRE_ORDER', json.dumps(centre_order, separators=(',', ':'))).replace('RIGHT_ORDER', json.dumps(right_order, separators=(',', ':'))))
+        anchor_run = '''function run() {
+            Settings.set('datetimePosition', 'centre');
+            Settings.set('weatherPosition', 'centre');
+            DrawerPins.setMode('datetime', 'pinned');
+            DrawerPins.setMode('weather', 'pinned');
+            drawer.open = false;
+            Settings.set('centrePillAnchor', 'weatherGap'); settle();
+            CentrePillOrder.move('weather', 'datetime', ['datetime', 'weather']); settle();
+            checkCentre('weather before Date & Time centres facing edges');
+            CentrePillOrder.move('weather', null, ['weather', 'datetime']); settle();
+            checkCentre('weather after Date & Time centres facing edges');
+            DrawerPins.setMode('weather', 'drawer'); settle(); waitVisibility(weather, false);
+            checkCentre('hidden weather falls back to pill centre');
+            DrawerPins.setMode('weather', 'pinned');
+            Settings.set('weatherPosition', 'right'); settle();
+            checkCentre('weather in right pill falls back to pill centre');
+            Settings.set('weatherPosition', 'centre');
+            Settings.set('datetimePosition', 'right'); settle();
+            checkCentre('date in right pill falls back to pill centre');
+            console.log('PASS: weather gap centring in both orders and missing-module fallbacks');
+        }'''
+        run_shell(target, qml.replace(block(qml, 'bar.check(centralItems().map', 'function run() {'), anchor_run))
 
 
 if __name__ == '__main__':

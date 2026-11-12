@@ -15,19 +15,27 @@ import qs.src.services
 // running, and the fact that something has gone off when something has. Those
 // are three states of one thing, so they are one pill and not three modules.
 //
-// Pointed at, it opens out the way the music pill does. The glyph gives its
-// place to a close mark, and the timer's name and a pause or play hand fold
-// out after the label, so what can be done to the timer is on the timer. The
-// label opens the full list, the clock's timers popup, which the pill turns
-// into the way the music pill turns into its player (Popup.morphs).
+// Hover reveals the name and a cancel button on the right. The icon and a
+// right click fold it into the centre pill; the label opens the full list.
 BarItem {
     id: root
-    name: "Dismiss ringing timer"
+    name: root.ringing ? "Dismiss ringing timer" : "Timers"
+
+    property bool dismissed: false
+    function collapse() {
+        root.dismissed = true;
+        OpenPopup.close(root);
+    }
+    function expand() {
+        root.dismissed = false;
+    }
+    onRingingChanged: if (ringing)
+        root.expand()
 
     // For the pill around it, which is this module and nothing else and so
     // is drawn into the clock with it once nothing is set: the bar draws the
     // pill off `reveal` (see Bar.drop), and nothing folds.
-    stowed: !Timers.loaded && !exitHeld
+    stowed: (root.dismissed || !Timers.loaded) && !exitHeld
     folds: false
 
     popup: TimerPopup {
@@ -46,28 +54,35 @@ BarItem {
     readonly property real iconInset: sliding ? Math.min(padLeft,
         Math.max(0, (glassWidth - glyph.width) / 2)) : 0
     readonly property real titleLoss: sliding ? Math.max(0, pill.width - glassWidth) : 0
+    property Item mergedIcon: null
+    readonly property MediaIconHandoff iconHandoff: MediaIconHandoff {
+        source: glyph
+        target: root.mergedIcon
+        reveal: root.sliding && root.pill.bounceBeforeCollapse ? root.pill.dropReveal : root.reveal
+        restingX: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0
+    }
+    readonly property bool iconInCentre: root.mergedIcon !== null && iconHandoff.progress > 0
 
     readonly property real progress: Timers.progress
-    // How fast that runs while the timer does, for the pill to carry the line
-    // on between the ticks (Pill.rate). `total` is in milliseconds.
-    readonly property real rate: !ringing && Timers.focus?.running && Timers.focus.total > 0 ? 1000 / Timers.focus.total : 0
-
-    readonly property bool ringing: Timers.ringing.length > 0
-    readonly property int runningCount: Timers.entries.filter(e => e.running).length
-
-    // What the hands act on: the timer the pill shows, or the alarm it shows
-    // when no timer is set. Pausing an alarm is switching it off, the same as
-    // the popup's button always was.
-    readonly property var target: Timers.focus ?? Timers.nextAlarm
-
-    // Ringing, the hands stand down and a click anywhere hushes (`actions`).
-    function hold() {
-        if (root.target)
-            Timers.toggle(root.target.id);
+    // Carry the line between ticks, over the countdown or the alarm's last hour.
+    readonly property real rate: {
+        if (root.ringing || root.progress < 0)
+            return 0;
+        if (Timers.focus)
+            return Timers.focus.running ? 1000 / Timers.focus.total : 0;
+        return 1000 / Timers.alarmTrackMs;
     }
 
+    readonly property bool ringing: Timers.ringing.length > 0
+    readonly property int runningCount: Timers.entries.filter(e => e.running && !Timers.ringing.some(r => r.id === e.id)).length + Timers.ringing.length
+
+    // Cancel the displayed timer or alarm; ringing has its own dismissal.
+    readonly property var target: Timers.focus ?? Timers.nextAlarm
+
     function dismiss() {
-        if (root.target)
+        if (root.ringing)
+            Timers.hush();
+        else if (root.target)
             Timers.cancel(root.target.id);
     }
 
@@ -111,59 +126,49 @@ BarItem {
             Qt.callLater(root.sync);
         }
         function onLoadedChanged() {
+            if (!Timers.loaded)
+                root.dismissed = false;
             Qt.callLater(root.sync);
         }
     }
 
     Component.onCompleted: root.sync()
 
-    // Each part brings its own gap, so that the pause hand can take its gap
-    // with it as it folds.
+    // The name and cancel button take their gaps with them as they fold.
     spacing: 0
     // While ringing, the whole pill is one dismissal target.
     dips: root.ringing
     textPress: true
-    contentAnimating: nameWidth.running || holdWidth.running
+    contentAnimating: nameWidth.running || cancelWidth.running
 
     // Out only while the pill is pointed at.
     readonly property bool handsOut: root.settled && root.containsMouse
 
-    // The glyph's slot, and the close button once the hands are out: the
-    // glyph fades to what pressing it will do, as the music pill's sleeve
-    // does. Ringing, it keeps hopping and a press shuts it up. Wide enough
-    // for either, so the swap moves nothing.
+    // The icon returns the running timer to its central slot.
     Item {
         id: slot
         readonly property bool inkLit: true
-
-        readonly property bool marked: root.handsOut && !root.ringing
-
         Layout.fillHeight: true
-        implicitWidth: Math.max(glyph.implicitWidth, mark.implicitWidth) + Theme.mediaGap
+        implicitWidth: glyph.implicitWidth + Theme.mediaGap
         scale: slotPress.scale
-        transform: Translate { x: root.sliding ? root.glassLeft + root.iconInset - root.padLeft : 0 }
-        // Finish the bounce before fading into an empty joining circle.
-        opacity: root.sliding ? (root.pill.bounceBeforeCollapse ? root.pill.iconOpacity
-            : Math.min(1, labelText.width / Math.max(1, labelText.implicitWidth))) : 1
+        transform: Translate { x: root.iconHandoff.sourceX }
+        opacity: (root.mergedIcon ? 1 - root.iconHandoff.progress : 1)
+            * (root.sliding && !root.mergedIcon ? root.pill.iconOpacity : 1)
 
         PressGlass {
             id: slotPress
             icon: slot
             area: slotTap
         }
-
-        Accessible.role: Accessible.Button
-        Accessible.name: "Cancel timer"
-        Accessible.onPressAction: if (slotTap.enabled && enabled && visible)
-            root.dismiss()
-
-        TapHandler {
+        ClickArea {
             id: slotTap
-            enabled: !root.ringing
-            margin: Theme.pressDip
-            onTapped: root.dismiss()
+            anchors.fill: parent
+            enabled: root.settled && !root.stowed
+            acceptedButtons: Qt.LeftButton
+            name: "Collapse timers"
+            Accessible.ignored: !enabled
+            actions: ({ [Qt.LeftButton]: root.collapse })
         }
-
         BadgedGlyph {
             id: glyph
             scale: root.sliding ? root.pill.iconScale : 1
@@ -171,34 +176,10 @@ BarItem {
             height: parent.height
             glyph: root.shownGlyph
             glyphSize: Theme.glyphSizeLarge
-            badge: root.runningCount > 1 && !slot.marked && Settings.badgeStyle("countdown") !== "hide" ? String(root.runningCount) : ""
+            badge: root.runningCount > 0 && Settings.badgeStyle("countdown") !== "hide" ? String(root.runningCount) : ""
             dot: Settings.badgeStyle("countdown") === "dot"
             underdot: Settings.badgeStyle("countdown") === "underdot"
-            opacity: slot.marked ? 0 : 1
-
-            Behavior on opacity {
-                enabled: root.settled
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                }
-            }
-
             transform: Translate { y: bounce.offset }
-        }
-
-        Glyph {
-            id: mark
-            x: Math.round((slot.width - Theme.mediaGap - width) / 2)
-            height: parent.height
-            text: Theme.glyph.close
-            opacity: slot.marked ? 1 : 0
-
-            Behavior on opacity {
-                enabled: root.settled
-                NumberAnimation {
-                    duration: Theme.fadeMs
-                }
-            }
         }
     }
 
@@ -328,22 +309,20 @@ BarItem {
             color: Theme.label2
             maxWidth: Theme.mediaTitleWidth
 
-            // A second way to the pause beside it, so it is left out of the
-            // accessibility tree: one target there per action.
+            // The name opens the same timer list as the figures.
             TapHandler {
                 id: nameTap
                 enabled: !root.ringing && root.handsOut && root.shownName !== ""
-                onTapped: root.hold()
+                onTapped: root.togglePopup()
             }
         }
     }
 
-    // The pause hand belongs to a pending timer, never a finished one.
+    // Cancellation stays at the far right and is available only while revealed.
     Item {
-        readonly property real full: Theme.mediaGap + hold.implicitWidth
-
+        id: cancelBox
+        readonly property real full: Theme.mediaGap + mark.implicitWidth
         Layout.fillHeight: true
-        visible: !root.ringing
         implicitWidth: root.handsOut ? full : 0
         clip: width < full
         opacity: width / full
@@ -351,55 +330,40 @@ BarItem {
         Behavior on implicitWidth {
             enabled: root.settled
             NumberAnimation {
-                id: holdWidth
+                id: cancelWidth
                 duration: Theme.foldMs
                 easing.type: Easing.InOutCubic
             }
         }
-
         Glyph {
-            id: hold
+            id: mark
             readonly property bool inkLit: true
-
             x: Theme.mediaGap
             height: parent.height
-            text: root.target?.running ? Theme.glyph.paused : Theme.glyph.playing
-            scale: holdPress.scale
+            text: Theme.glyph.close
+            scale: cancelPress.scale
 
             PressGlass {
-                id: holdPress
-                icon: hold
-                area: holdTap
+                id: cancelPress
+                icon: mark
+                area: cancelTap
             }
-
-            Accessible.role: Accessible.Button
-            Accessible.name: root.target?.running ? "Pause timer" : "Resume timer"
-            Accessible.ignored: !holdTap.enabled || hold.parent.opacity <= 0
-            Accessible.onPressAction: if (holdTap.enabled && enabled && visible)
-                root.hold()
-
-            TapHandler {
-                id: holdTap
-                enabled: root.handsOut
-                margin: Theme.pressDip
-                onTapped: root.hold()
+            ClickArea {
+                id: cancelTap
+                anchors.fill: parent
+                enabled: root.handsOut && !root.stowed && (root.ringing || root.target !== null)
+                acceptedButtons: Qt.LeftButton
+                name: root.ringing ? "Dismiss ringing timer" : "Cancel timer"
+                Accessible.ignored: !enabled || cancelBox.opacity <= 0
+                actions: ({ [Qt.LeftButton]: root.dismiss })
             }
         }
     }
 
-    // Right is the thing you came to do: shut it up if it is shouting, hold it
-    // if it is running, and otherwise set one. Middle shuts it up too and
-    // otherwise throws away, the close hand without reaching for it.
+    // Right folds the pill without changing its timer. Middle retains quick cancellation.
     actions: ({
             [Qt.LeftButton]: root.ringing ? () => Timers.hush() : null,
-            [Qt.RightButton]: () => {
-                if (root.ringing)
-                    Timers.hush();
-                else if (Timers.focus)
-                    Timers.toggle(Timers.focus.id);
-                else
-                    Launcher.openWith(Launcher.taskPrefix);
-            },
+            [Qt.RightButton]: root.collapse,
             // Nothing to throw away with no timer running or ringing.
             [Qt.MiddleButton]: root.ringing || Timers.focus ? () => {
                 if (root.ringing)
