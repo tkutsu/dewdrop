@@ -1,4 +1,4 @@
-# dewdrop
+# <img src="docs/icon.svg" alt="" width="40" align="center"> dewdrop
 
 A glass bar and keyboard launcher for Hyprland, written in [Quickshell](https://quickshell.org). Pills merge around the clock, the workspace mark bounces at the edges, and the wallpaper moves behind the glass.
 
