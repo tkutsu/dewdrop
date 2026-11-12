@@ -48,7 +48,7 @@ Item {
 
     // The pointer rests on the pill, or one of its modules has its popup
     // open: what brings out the modules that show on hover (DrawerPins).
-    // Settled after a second either way, so a pointer passing over on its way
+    // Settled after half a second either way, so a pointer passing over on its way
     // elsewhere leaves the row alone, and crossing a gap does not fold it.
     readonly property bool pointerIn: rested || modules.some(item => item.popupOpen)
     property bool rested: false
@@ -58,7 +58,7 @@ Item {
     readonly property bool hoverMoving: modules.some(item => item.quiet && item.animating && DrawerPins.hovers(item.visibilityKey))
     HoverHandler { id: hover }
     Timer {
-        interval: 1000
+        interval: 500
         running: hover.hovered !== root.rested
         onTriggered: root.rested = hover.hovered
     }

@@ -423,14 +423,14 @@ ShellRoot {
             test.wait(30);
             root.check(DrawerPins.mode('email') === 'hover' && mail.stowed, 'Hover folds a quiet module while the pointer is away');
             test.mouseMove(rest, 10, 10);
-            test.wait(300);
+            test.wait(200);
             root.check(mail.stowed, 'a pointer passing over leaves Hover modules folded');
-            test.wait(900);
+            test.wait(500);
             root.check(!mail.stowed, 'Hover shows a quiet module while the pointer rests on its pill');
             test.mouseMove(host, 2, 2);
-            test.wait(500);
+            test.wait(250);
             root.check(!mail.stowed, 'Hover holds the module a moment after the pointer leaves');
-            test.wait(700);
+            test.wait(500);
             root.check(mail.stowed, 'Hover folds the module once the pointer has left');
             console.log('PASS: legacy settings ignored; Auto, Hover, Pinned and Drawer preserve access');
         } catch (e) { console.log('FAIL: ' + e); }
