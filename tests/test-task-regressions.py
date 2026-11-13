@@ -150,8 +150,8 @@ CASES = r'''
                     check(popup.editing === null && !Tasks.isCrossed(Tasks.tasks[3]), "copy button neither edits nor completes");
                     row.keyPress();
                     wait(30);
-                    check(popup.editing?.id === "d" && popup.keyTargets().find(t => t.name === "Copy Work task") === copy,
-                        "Return on a task edits it, and copy stays while editing");
+                    check(popup.editing?.id === "d" && popup.keyTargets().find(t => t.name === "Save Work task") === copy
+                        && copy.glyph === Theme.glyph.save, "Return on a task edits it, and copy turns to save while editing");
                     popup.cancelEdit();
                 });
                 probe("single list launcher", () => {

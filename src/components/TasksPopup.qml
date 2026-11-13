@@ -418,8 +418,8 @@ Popup {
                     color: !row.header && Tasks.urgency(row.modelData) === "late" ? Theme.warn : Theme.label2
                     elide: Text.ElideRight
                 }
-                // A task's text to copy under the pointer, or the draft while
-                // editing, saved as it goes; a heading's rename.
+                // A task's text to copy under the pointer, the draft's save
+                // while editing; a heading's rename.
                 PopupButton {
                     id: actions
                     anchors.right: parent.right
@@ -430,15 +430,16 @@ Popup {
                     pressFeedback: true
                     // A list name being edited has no copy button.
                     visible: !reorder.showing && !row.swiping && (row.editing ? !row.header : row.hovered)
-                    glyph: row.header ? Theme.glyph.edit : Theme.glyph.copy
-                    name: (row.header ? "Rename task list " : "Copy ") + row.modelData.title
+                    glyph: row.header ? Theme.glyph.edit : row.editing ? Theme.glyph.save : Theme.glyph.copy
+                    name: (row.header ? "Rename task list " : row.editing ? "Save " : "Copy ") + row.modelData.title
                     onTapped: {
                         if (row.header) {
                             root.beginEdit(row.modelData);
                         } else {
-                            Launcher.copy(row.editing ? root.draft : root.editText(row.modelData));
                             if (row.editing)
                                 root.saveEdit();
+                            else
+                                Launcher.copy(root.editText(row.modelData));
                             actions.confirm();
                         }
                     }
