@@ -892,6 +892,7 @@ Singleton {
         undo: "\u{f054c}",            // nf-md-undo
         edit: "\u{f03eb}",            // nf-md-pencil
         copy: "\u{f018f}",            // nf-md-content_copy
+        save: "\u{f0193}",            // nf-md-content_save
 
         // Out to the fuller app: a popup header's way to Network Settings,
         // btop or Gmail, and the open mail's thread in Gmail.
