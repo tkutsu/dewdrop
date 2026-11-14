@@ -316,6 +316,14 @@ OverlayWindow {
     readonly property var powerRows: Power.actions.map(p => Object.assign(root.shownInLauncher("power:" + p.key, p.name, { glyph: p.glyph }),
         { needs: { feature: "The black screen animation", programs: Power.fadeNeeds(p.arg ?? "") } }))
 
+    // The feed's Look Back stops, in days: one to three weeks, one to eleven
+    // months, a year.
+    readonly property var lookBacks: [7, 14, 21, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 365]
+
+    function lookBackLabel(stop: int): string {
+        return stop < 3 ? `${stop + 1} wk` : stop < 14 ? `${stop - 2} mo` : "1 yr";
+    }
+
     function feedAddressProblem(value: string): string {
         return /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/.test(value)
             ? "" : "Enter a full http:// or https:// feed address.";
@@ -692,7 +700,9 @@ OverlayWindow {
                     text: "Your YouTube subscriptions are followed already. Add extra channels or RSS and Atom feeds below.",
                     rows: [
                         { type: "list", id: "feedChannels", title: "Extra YouTube Channels", placeholder: "@handle or channel link", validate: root.channelProblem, get: () => Settings.feedChannels, set: v => Settings.set("feedChannels", v) },
-                        { type: "choice", id: "feedDays", title: "Look Back", tooltip: "How old a video can be and still be listed.", options: [{ value: 7, label: "1 Week" }, { value: 14, label: "2 Weeks" }, { value: 30, label: "1 Month" }, { value: 60, label: "2 Months" }, { value: 90, label: "3 Months" }, { value: 180, label: "6 Months" }], get: () => Settings.feedDays, set: v => Settings.set("feedDays", v) },
+                        { type: "slider", id: "feedDays", title: "Look Back", tooltip: "How old a video can be and still be listed.", from: 0, to: root.lookBacks.length - 1, step: 1, format: root.lookBackLabel,
+                            get: () => root.lookBacks.reduce((best, days, i) => Math.abs(days - Settings.feedDays) < Math.abs(root.lookBacks[best] - Settings.feedDays) ? i : best, 0),
+                            set: v => Settings.set("feedDays", root.lookBacks[v]) },
                         { type: "list", id: "feedUrls", title: "RSS Feeds", tooltip: "RSS or Atom feed addresses, shown under the videos. Leave a title blank to use the feed's own title.", placeholder: "https://example.com/feed.xml", validate: root.feedAddressProblem, get: () => Settings.feedUrls, set: v => Settings.set("feedUrls", v),
                             getTitle: url => Settings.feedTitles[url] ?? "", setTitle: (url, title) => Settings.setFeedTitle(url, title) }
                     ]
