@@ -354,7 +354,7 @@ def main():
         (target / 'src/core/Settings.qml').write_text((ROOT / 'src/core/Settings.qml').read_text())
         for name in ('WeatherPopup', 'TimerPopup'):
             (target / f'src/components/{name}.qml').write_text('import QtQuick\nItem {}\n')
-        (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string text; property int fontSize; property color color; property real nudge: 0 }\n')
+        (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string text; property var alternates: []; property int fontSize; property color color; property real nudge: 0 }\n')
         (target / 'src/components/AppIcon.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string windowClass; property bool tightWidth: false }\n')
         (target / 'src/components/RollingText.qml').write_text('import QtQuick\nItem { implicitWidth: 48; implicitHeight: 20; property string text; property var smallRanges; property bool tightWidth: false }\n')
         (target / 'src/modules/Clock.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { id: root; settingsKey: "datetime"; property date date: new Date(); property int middleClicks: 0; actions: ({ [Qt.MiddleButton]: () => root.middleClicks++ }); popup: Component { Item {} } Rectangle { implicitWidth: 90; implicitHeight: 20 } }\n')
@@ -369,7 +369,7 @@ def main():
             quiet = 'true' if name in ('Email', 'Updater', 'Feeds', 'SettingsButton') else 'false'
             if name == 'Tray': quiet = 'DrawerPins.kept("tray:fixture")'
             (target / f'src/modules/{name}.qml').write_text(f'import QtQuick\nimport qs.src.core\nimport qs.src.bar\nimport qs.src.components\nBarItem {{ {extra} quiet: {quiet}; popup: Component {{ Item {{}} }} Rectangle {{ implicitWidth: 22; implicitHeight: 20 }} }}\n')
-        (target / 'src/services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property bool outlook: true; property bool stale: false; function refresh(force) {} function formatTemperature(value, unit) { return ''; } }\n")
+        (target / 'src/services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property var tints: ({}); property bool outlook: true; property bool stale: false; function refresh(force) {} function formatTemperature(value, unit) { return ''; } }\n")
         theme = (target / 'src/core/Theme.qml').read_text().replace('property int glyphSize:', 'property int textSize: 14; property string bodyFont: "sans-serif"; property int bodyWeight: 400; property var figures: ({}); function barInk(item, color) { return color; } property int trayGlyphSize: 16; property real dimOpacity: 0.5; property int glyphSize:')
         glyphs = {key: 'icon' for key in re.findall(r'Theme.glyph\.(\w+)', metadata)}
         glyphs.update(pin='pin', track='music', micMuted='mic', vol=['volume'], wifiStrength=['wifi'])

@@ -31,6 +31,7 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
+        alternates: [Theme.glyph.idleOn, Theme.glyph.idleOff]
         fontSize: Theme.glyphSizeLarge + 1
     }
 

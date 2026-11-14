@@ -10,6 +10,8 @@ Item {
 
     property string glyph
     property int glyphSize: Theme.glyphSize
+    // Every glyph the icon can turn into, which it keeps room for (Glyph.alternates).
+    property alias alternates: icon.alternates
     property string badge: ""
     property bool dot: false
     property bool underdot: false
@@ -55,8 +57,10 @@ Item {
         // A two-digit capsule grows rightwards into the gap, so it steps back
         // 2px to keep from crowding the next icon.
         // A corner dot sits 1px above the bottom centre of a single-digit badge's box.
+        // Off the ink's right edge, which in a slot kept for a wider icon
+        // stands in from the box's.
         x: root.underdot ? (icon.implicitWidth - width) / 2
-            : Math.round(icon.implicitWidth - Theme.badgeSize / 2)
+            : Math.round(Math.floor((icon.implicitWidth + icon.inkWidth) / 2) - Theme.badgeSize / 2)
                 + (root.dot ? (Theme.badgeSize - width) / 2 : root.badge.length > 1 ? -2 : 0)
         // A fixed line rather than the icon's own top, so every badge on the
         // bar sits at the same height whatever size its icon is — measured

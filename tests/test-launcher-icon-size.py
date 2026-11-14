@@ -74,7 +74,7 @@ def main():
         target = fixture_root(folder)
         components = target / "src/components"
         components.mkdir()
-        for name in ("Glyph.qml", "BarText.qml", "FittedIcon.qml", "RollingGlyph.qml", "RollingSpring.js"):
+        for name in ("Glyph.qml", "GlyphRulers.qml", "BarText.qml", "FittedIcon.qml", "RollingGlyph.qml", "RollingSpring.js"):
             shutil.copy2(ROOT / "src/components" / name, components / name)
         # Bar scaling is outside the launcher; keep the real drawing and ink meter.
         (components / "ModuleIconScale.qml").write_text("import QtQuick\nScale { property Item icon }\n")

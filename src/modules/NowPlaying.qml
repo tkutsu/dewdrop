@@ -290,6 +290,7 @@ BarItem {
             x: Theme.mediaGap
             height: parent.height
             text: root.playing ? Theme.glyph.paused : Theme.glyph.playing
+            alternates: [Theme.glyph.playing, Theme.glyph.paused]
         }
 
         ClickArea {

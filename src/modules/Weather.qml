@@ -37,6 +37,9 @@ BarItem {
                 id: sky
                 Glyph {
                     text: root.forecast?.icon ?? "\u{f0590}"
+                    // Every sky there is a drawing for, so the weather turning
+                    // does not move the temperature.
+                    alternates: Object.keys(Services.Weather.tints)
                     fontSize: Theme.trayGlyphSize - 1
                     nudge: -1
                     opacity: root.forecast && !Services.Weather.stale ? 1 : Theme.dimOpacity

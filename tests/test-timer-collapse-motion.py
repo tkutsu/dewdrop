@@ -117,6 +117,7 @@ QtObject {
     property int beatMs: 3000
     property string label: '10:00'
     property string glyph: Theme.glyph.timer
+    property var glyphs: [Theme.glyph.timer]
 }
 ''')
         (target / 'shell.qml').write_text(qml)

@@ -118,6 +118,8 @@ Singleton {
         return root.alarmTracking ? Math.max(0, Math.min(1, 1 - (root.nextAlarm.endsAt - root.now) / root.alarmTrackMs)) : -1;
     }
 
+    // Every face `glyph` can be, for the slot that holds it (Glyph.alternates).
+    readonly property var glyphs: [Theme.glyph.timer, Theme.glyph.timerPaused, Theme.glyph.timerRing, Theme.glyph.alarm]
     readonly property string glyph: {
         if (root.ringing.length > 0)
             return Theme.glyph.timerRing;

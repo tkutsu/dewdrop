@@ -39,14 +39,17 @@ BarItem {
     // widest at its top edge and a point at the bottom, so most of its
     // height stands well in from the ink box, and at the full gap it read as
     // set apart from both neighbours. Kept from the tray, which measured it.
+    // The cable is the narrower drawing and stands in the cone's room, so it
+    // takes the same trim and the module is one width with either.
     readonly property bool cone: !Network.wiredUp
-    trimLeft: cone ? 1 : 0
-    trimRight: cone ? 1 : 0
+    trimLeft: 1
+    trimRight: 1
 
     Glyph {
         Layout.fillHeight: true
         text: Network.icon
         layoutSource: root.cone ? Theme.glyph.wifiStrength[4] : text
+        alternates: [Theme.glyph.wifiStrength[4], Theme.glyph.wired]
         fontSize: Theme.trayGlyphSize
         nudge: root.cone ? -1 : 0
     }
