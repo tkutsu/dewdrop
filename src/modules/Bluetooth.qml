@@ -40,6 +40,7 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: Bluetooth.icon
+        alternates: [Theme.glyph.bluetooth, Theme.glyph.bluetoothOff]
         fontSize: Theme.trayGlyphSize
     }
 

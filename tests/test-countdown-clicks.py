@@ -50,8 +50,8 @@ ClickArea {
 Text { property int maxWidth: 300; font.pixelSize: 16; verticalAlignment: Text.AlignVCenter }
 ''')
         (target / "src/components/RollingText.qml").write_text('import QtQuick\nText { property bool countsDown: false; property var smallRanges: []; font.pixelSize: 16 }\n')
-        (target / "src/components/Glyph.qml").write_text('import QtQuick\nText { property int fontSize: 16; font.pixelSize: fontSize }\n')
-        (target / "src/components/BadgedGlyph.qml").write_text('import QtQuick\nText { property alias glyph: icon.text; property int glyphSize: 16; property string badge: ""; property bool dot: false; property bool underdot: false; id: icon; font.pixelSize: glyphSize }\n')
+        (target / "src/components/Glyph.qml").write_text('import QtQuick\nText { property int fontSize: 16; property var alternates: []; font.pixelSize: fontSize }\n')
+        (target / "src/components/BadgedGlyph.qml").write_text('import QtQuick\nText { property alias glyph: icon.text; property var alternates: []; property int glyphSize: 16; property string badge: ""; property bool dot: false; property bool underdot: false; id: icon; font.pixelSize: glyphSize }\n')
         (target / "src/core/Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function badgeStyle(key) { return "badge"; } }\n')
         (target / "src/components/Bounce.qml").write_text('import QtQuick\nQtObject { property bool running: false; property int periodMs: 1000; property real offset: 0 }\n')
         (target / "src/core/Theme.qml").write_text('''pragma Singleton

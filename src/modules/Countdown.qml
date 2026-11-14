@@ -175,6 +175,7 @@ BarItem {
             x: Math.round((slot.width - Theme.mediaGap - width) / 2)
             height: parent.height
             glyph: root.shownGlyph
+            alternates: Timers.glyphs
             glyphSize: Theme.glyphSizeLarge
             badge: root.runningCount > 0 && Settings.badgeStyle("countdown") !== "hide" ? String(root.runningCount) : ""
             dot: Settings.badgeStyle("countdown") === "dot"

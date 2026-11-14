@@ -407,6 +407,7 @@ BarItem {
             x: Theme.mediaGap
             height: parent.height
             text: Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing
+            alternates: [Theme.glyph.playing, Theme.glyph.paused]
         }
     }
 

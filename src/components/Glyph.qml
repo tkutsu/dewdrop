@@ -28,6 +28,14 @@ Item {
     property real nudge: 0
     property bool tightWidth: true
 
+    // Every glyph this one can turn into. Each is laid out on its own ink,
+    // which need not span what the next one's does, so an icon that changed
+    // with its state changed width too and moved everything beside it. Given
+    // the list, the glyph keeps the widest one's room whichever it shows,
+    // and shows it in the middle.
+    property var alternates: []
+    readonly property bool slotted: inkSize > 0 || alternates.length > 0
+
     readonly property bool drawing: text.startsWith("file:")
     readonly property bool fontCut: shown.endsWith("#em")
     readonly property bool shownDrawing: shown.startsWith("file:")
@@ -66,9 +74,11 @@ Item {
     // than on the square box it is drawn in: the launcher's 12px magnifier
     // sat in 18px of box and stood three pixels further from its neighbours
     // than the glyphs between them stood from each other.
-    implicitWidth: !shownDrawing ? label.implicitWidth : tightWidth ? (art.item?.inkWidth ?? 0) : art.implicitWidth
+    readonly property real inkWidth: !shownDrawing ? label.implicitWidth : tightWidth ? (art.item?.inkWidth ?? 0) : art.implicitWidth
+    implicitWidth: Math.max(inkWidth, rulers.implicitWidth)
     implicitHeight: Theme.barHeight
     baselineOffset: label.baselineOffset
+
 
     TextMetrics {
         id: fontBounds
@@ -81,7 +91,7 @@ Item {
     BarText {
         id: label
         visible: !root.shownDrawing
-        x: root.inkSize > 0 ? Math.floor((root.width - width) / 2) : 0
+        x: root.slotted ? Math.floor((root.width - width) / 2) : 0
         width: implicitWidth
         height: parent.height
         text: root.shownDrawing ? "" : root.shown
@@ -106,7 +116,7 @@ Item {
     Loader {
         id: art
         active: root.shownDrawing
-        x: root.inkSize > 0
+        x: root.slotted
             ? Math.floor((root.width - (item?.inkWidth ?? 0)) / 2) - (item?.inkX ?? 0)
             : root.tightWidth ? -(item?.inkX ?? 0) : 0
         y: Math.floor((root.height - height) / 2) + root.nudge
@@ -128,6 +138,18 @@ Item {
             box: size
             ink: root.inkSize > 0 ? 0 : Theme.glyphInk
             fitsInk: !root.fontCut
+        }
+    }
+
+    // After the glyph and its drawing, which are what is on show.
+    Loader {
+        id: rulers
+        active: root.alternates.length > 0
+
+        sourceComponent: GlyphRulers {
+            glyphs: root.alternates
+            fontSize: root.fontSize
+            tightWidth: root.tightWidth
         }
     }
 }

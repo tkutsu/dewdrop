@@ -128,11 +128,22 @@ BarItem {
             // either side; blueman's drawing carries 4px, so the tray stood a
             // pixel further from its left neighbour than from its right.
             Layout.fillHeight: true
-            implicitWidth: Math.round((entry.glyph ? substitute.implicitWidth : icon.inkWidth) * entry.out)
+            implicitWidth: Math.round((entry.glyph ? substitute.implicitWidth : entry.slot) * entry.out)
+
+            // An app changes its artwork with its state too (Telegram's
+            // attention variant), and one drawing's ink need not span what
+            // the next one's does. Nobody lists what an app might send, so
+            // the icon keeps the widest ink it has shown and stands in the
+            // middle of that. Measured ink only: until then the icon reports
+            // its whole box, which would be the widest for good.
+            property int widest: 0
+            readonly property int measured: icon.span ? icon.inkWidth : 0
+            onMeasuredChanged: widest = Math.max(widest, measured)
+            readonly property int slot: Math.max(widest, measured) || icon.inkWidth
 
             FittedIcon {
                 id: icon
-                x: -inkX
+                x: Math.floor((entry.slot - inkWidth) / 2) - inkX
                 anchors.verticalCenter: parent.verticalCenter
                 visible: !entry.glyph
                 // Steam gets a monochrome drawing rather than its tray artwork.
@@ -164,6 +175,8 @@ BarItem {
                 height: parent.height
                 visible: !!entry.glyph
                 text: entry.glyph
+                // Both locks, so the tunnel coming up does not move the row.
+                alternates: entry.glyph ? [Theme.glyph.vpn, Theme.glyph.vpnOff] : []
                 fontSize: Theme.trayGlyphSize - (entry.glyph === Theme.glyph.vpn || entry.glyph === Theme.glyph.vpnOff ? 1 : 0)
                 nudge: entry.glyph === Theme.glyph.vpn || entry.glyph === Theme.glyph.vpnOff ? -1 : 0
                 scale: press.scale

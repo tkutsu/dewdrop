@@ -21,6 +21,7 @@ BarItem {
     BadgedGlyph {
         Layout.fillHeight: true
         glyph: Email.icon
+        alternates: [Theme.glyph.mailUnread, Theme.glyph.mailRead]
         glyphSize: Theme.glyphSizeLarge
         badge: Settings.badgeStyle("email") === "hide" ? "" : Email.label
         dot: Settings.badgeStyle("email") === "dot"

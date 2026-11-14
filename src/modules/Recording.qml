@@ -52,6 +52,7 @@ BarItem {
         visible: root.kept.listening || root.kept.sharing
         opacity: 1 - root.iconHandoff.progress
         text: root.kept.listening ? (root.kept.muted ? Theme.glyph.micMuted : Theme.glyph.mic) : Theme.glyph.screenShare
+        alternates: [Theme.glyph.mic, Theme.glyph.micMuted, Theme.glyph.screenShare]
         transform: Translate { x: root.iconHandoff.sourceX }
     }
 
