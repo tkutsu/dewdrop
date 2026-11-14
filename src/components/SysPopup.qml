@@ -233,7 +233,12 @@ Popup {
                 y: rank * procs.step
                 opacity: arrived && !gone ? 0.9 : 0
 
+                // Placed, not slid, until it shows: the rows are built before
+                // the probe has a height, and a step that grew from 1 under
+                // them slid the whole list down from the top as it opened.
                 Behavior on y {
+                    enabled: row.arrived
+
                     NumberAnimation {
                         duration: Theme.foldMs
                         easing.type: Easing.InOutCubic
