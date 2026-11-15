@@ -18,7 +18,7 @@ import qs.src.core
 Singleton {
     id: root
 
-    // [{ disk, name, size, used, total, volumes: [{ path, mounted, mountpoint }] }]
+    // [{ disk, name, size, used, total, volumes: [{ path, mounted, mountpoint }], unlocked: [path] }]
     property var drives: []
     // The disks being taken out, by path, for the row's spinner.
     property var ejecting: ({})
@@ -66,7 +66,10 @@ Singleton {
 
             required property var drive
 
-            command: ["sh", "-c", 'disk=$1; shift; for v; do udisksctl unmount --no-user-interaction -b "$v" || exit 1; done; udisksctl power-off --no-user-interaction -b "$disk"', "sh", drive.disk].concat(drive.volumes.filter(v => v.mounted).map(v => v.path))
+            // An open container holds its partition busy, so it is locked
+            // again once its filesystem is off: "lock:" marks those.
+            command: ["sh", "-c", 'disk=$1; shift; for v; do case $v in lock:*) udisksctl lock --no-user-interaction -b "${v#lock:}" || exit 1 ;; *) udisksctl unmount --no-user-interaction -b "$v" || exit 1 ;; esac; done; udisksctl power-off --no-user-interaction -b "$disk"', "sh", drive.disk]
+                .concat(drive.volumes.filter(v => v.mounted).map(v => v.path), (drive.unlocked ?? []).slice().reverse().map(p => "lock:" + p))
             stderr: StdioCollector {
                 id: err
             }
@@ -114,7 +117,9 @@ Singleton {
         return devices.filter(d => d.type === "disk" && d.size > 0 && (d.tran === "usb" || d.rm || d.hotplug)).map(d => {
             // A hybrid ISO stick reads as iso9660 on the disk and on its first
             // partition alike; only the partition is the one to mount.
-            const volumes = (d.children?.length ? d.children : [d]).filter(v => v.fstype && v.fstype !== "swap");
+            // A locked container is no filesystem yet (udiskie asks for its
+            // passphrase); unlocked, the filesystem is the device inside it.
+            const volumes = root.leaves(d).filter(v => v.fstype && v.fstype !== "swap" && v.fstype !== "crypto_LUKS");
             const mounted = volumes.filter(v => v.mountpoint);
             const label = volumes.map(v => v.label).find(l => l);
             const model = [d.vendor, d.model].filter(s => s).map(s => s.trim()).join(" ");
@@ -124,9 +129,24 @@ Singleton {
                 size: d.size,
                 used: mounted.reduce((sum, v) => sum + (v.fsused ?? 0), 0),
                 total: mounted.reduce((sum, v) => sum + (v.fssize ?? 0), 0),
-                volumes: volumes.map(v => ({ path: v.path, mounted: !!v.mountpoint, mountpoint: v.mountpoint ?? "" }))
+                volumes: volumes.map(v => ({ path: v.path, mounted: !!v.mountpoint, mountpoint: v.mountpoint ?? "" })),
+                unlocked: root.unlocked(d)
             };
         });
+    }
+
+    // What holds the filesystems: the device itself, or whatever is at the
+    // bottom of its partitions and the containers unlocked on them.
+    function leaves(device) {
+        const children = device.children ?? [];
+        return children.length ? children.reduce((all, child) => all.concat(root.leaves(child)), []) : [device];
+    }
+
+    // The encrypted containers on a device that are open, innermost last.
+    function unlocked(device) {
+        const children = device.children ?? [];
+        const open = device.fstype === "crypto_LUKS" && children.length ? [device.path] : [];
+        return children.reduce((all, child) => all.concat(root.unlocked(child)), open);
     }
 
     // A drive arriving or leaving is a block uevent; a beat after one, once

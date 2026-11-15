@@ -45,6 +45,16 @@ for _, rule in ipairs(layer_rules) do
 	hl.layer_rule(rule)
 end
 
+-- The terminals the bar opens for a moment (Upgrade, Install, joining a network,
+-- signing in to Google) end their title in "(floating)", and float over the work
+-- rather than tiling into it.
+hl.window_rule({
+	match = { title = ".*\\(floating\\)$" },
+	float = true,
+	center = true,
+	size = { "monitor_w*0.6", "monitor_h*0.8" },
+})
+
 -- Popups and the veil fade their blur along with the surface, which only the
 -- compositor can do. Popups arrive fast and leave faster and plainer; the veil
 -- is slow enough to be seen.

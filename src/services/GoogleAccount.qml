@@ -69,7 +69,7 @@ Singleton {
     // In a terminal, because the script talks — it prints the consent URL in
     // case the browser does not open, and asks for the client id on a machine
     // that has none saved. Held open only when it fails, so the reason can be
-    // read; "(floating)" is the window rule in hypr/configs/wrules.lua.
+    // read; "(floating)" is the window rule in hypr/dewdrop.lua.
     Process {
         id: consent
 

@@ -183,9 +183,12 @@ Singleton {
     // A binary does not change under a running pid, so this is asked once per
     // pid and remembered: the first sample of a popup looks at every process,
     // the ones after it only at whatever was started since.
-    function exeScript(pids) {
-        const where = pids.length ? pids.map(p => "/proc/" + p).join(" ") + " -maxdepth 1" : "/proc -maxdepth 2";
-        return "find " + where + " -name exe -printf '%h\\t%l\\n' 2>/dev/null";
+    //
+    // The paths go in as arguments, never as shell text: a pid is read out of
+    // /proc, and what a process calls itself is not to be trusted.
+    function exeCommand(pids) {
+        const where = pids.length ? pids.map(p => "/proc/" + p).concat(["-maxdepth", "1"]) : ["/proc", "-maxdepth", "2"];
+        return ["sh", "-c", "find \"$@\" -name exe -printf '%h\\t%l\\n' 2>/dev/null", "sh"].concat(where);
     }
 
     // The disks, which are three unrelated questions about the same hardware:
@@ -474,7 +477,9 @@ Singleton {
     function parseProcs(text) {
         const procs = [];
         for (const line of text.split("\n")) {
-            if (line === "")
+            // A name can hold a newline too, which splits one process over
+            // two lines; neither half starts with a pid and its parent.
+            if (!/^\d+ \d+ /.test(line))
                 continue;
             const f = line.split(" ");
             procs.push({
@@ -507,7 +512,7 @@ Singleton {
         }
         // Everything, or just the newcomers: a full /proc walk is one find
         // either way, and shorter to type than four hundred paths.
-        exeProbe.command = ["sh", "-c", root.exeScript(Object.keys(exe).length === 0 ? [] : missing)];
+        exeProbe.command = root.exeCommand(Object.keys(exe).length === 0 ? [] : missing);
         exeProbe.running = true;
     }
 

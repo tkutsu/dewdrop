@@ -4,12 +4,15 @@
 from pathlib import Path
 from test_support import fixture_root
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+import json
 import runpy
+import struct
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import zlib
 
 from test_support import ROOT, copy_shell, shell_env
 
@@ -22,14 +25,36 @@ class Images(BaseHTTPRequestHandler):
             self.send_error(503)
             return
         time.sleep(0.5)
+        vector = self.path.endswith('.svg')
         self.send_response(200)
-        self.send_header('Content-Type', 'image/svg+xml')
+        self.send_header('Content-Type', 'image/svg+xml' if vector else 'image/png')
         self.end_headers()
         try:
-            self.wfile.write(b'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72"><rect width="128" height="72" fill="red"/></svg>')
+            self.wfile.write(SVG if vector else PNG)
         except BrokenPipeError:
             pass
     def log_message(self, *args): pass
+
+
+def chunk(kind, data):
+    return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+
+
+# A red 128 by 72 picture, and the same thing as a drawing.
+PNG = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 128, 72, 8, 2, 0, 0, 0))
+       + chunk(b'IDAT', zlib.compress((b'\0' + b'\xff\0\0' * 128) * 72)) + chunk(b'IEND', b''))
+SVG = b'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72"><rect width="128" height="72" fill="red"/></svg>'
+
+
+def refuses_drawings(server):
+    """Only a raster image is handed to ImageMagick: a drawing stays remote."""
+    with tempfile.TemporaryDirectory(prefix='qs-feed-vector-') as folder:
+        url = f'http://127.0.0.1:{server.server_port}/thumb.svg'
+        done = subprocess.run([sys.executable, str(ROOT / 'scripts/feed-thumbnails.py'), folder, url],
+                              capture_output=True, text=True, timeout=30)
+        kept = json.loads(done.stdout)['source'] == url and not list(Path(folder).glob('*.png'))
+        print(('PASS' if kept else 'FAIL') + ': a drawing is not converted')
+        return kept
 
 QML = '''import QtQuick
 import QtTest
@@ -106,7 +131,7 @@ def run_case(server, section):
         popup = runpy.run_path(str(ROOT / 'tests/test-popup-standards.py'))['POPUP']
         (target / 'src/components/Popup.qml').write_text(popup)
         (target / 'pressure.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048"><rect width="2048" height="2048" fill="blue"/></svg>')
-        url = f'http://127.0.0.1:{server.server_port}/thumb.svg'
+        url = f'http://127.0.0.1:{server.server_port}/thumb.png'
         feed_items = ('Feeds.videos = [{id: "video", title: "Video", channel: "Channel", duration: 120, '
                       'published: Date.now(), thumb: "IMAGE_URL", url: ""}];' if section == 'videos' else
                       'Feeds.sources = [{url: "rss", title: "Stories", items: [{id: "story", title: "Story", '
@@ -143,7 +168,7 @@ def main():
     with ThreadingHTTPServer(('127.0.0.1', 0), Images) as server:
         threading.Thread(target=server.serve_forever, daemon=True).start()
         sections = sys.argv[1:] or ['videos', 'rss']
-        results = [run_case(server, section) for section in sections]
+        results = [run_case(server, section) for section in sections] + [refuses_drawings(server)]
         server.shutdown()
         return 0 if all(results) else 1
 

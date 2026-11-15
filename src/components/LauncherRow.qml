@@ -27,6 +27,9 @@ Rectangle {
     Text {
         id: title
 
+        // Rows are other people's words: a copied line, a window title, a
+        // mail's subject. None of it is markup, whatever it looks like.
+        textFormat: Text.PlainText
         anchors {
             left: parent.left
             // The box's padding and the row's own, because the
@@ -86,6 +89,7 @@ Rectangle {
     // a path is the part that identifies it — ".../hypr/configs"
     // says more than "/home/you/.config/...".
     Text {
+        textFormat: Text.PlainText
         anchors {
             left: title.right
             leftMargin: 8
@@ -168,6 +172,7 @@ Rectangle {
         // goes here instead, so "." then "y" shows you
         // landing on YouTube as you type it.
         Text {
+            textFormat: Text.PlainText
             anchors.centerIn: parent
             visible: !!row.modelData.badge
             text: row.modelData.badge ?? ""

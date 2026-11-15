@@ -6,11 +6,11 @@ Start with the [installation steps in the README](../README.md#install). Run the
 
 - Quickshell 0.3.2 or newer, built against the Qt you have installed. I run it on Qt 6.12.
 - Hyprland 0.56 or newer with a Lua config (`hyprland.lua`). The shell talks to Hyprland in Lua, so the old `hyprland.conf` format will not work.
-- PipeWire with `pactl` and `pw-play`, `notify-send`, `xdg-open`, ImageMagick (`magick`) and GNU coreutils.
+- PipeWire with `pactl` and `pw-play`, `notify-send`, `xdg-open`, ImageMagick (`magick`), `file` and GNU coreutils.
 - systemd for the power actions, and a terminal. With `terminal` empty in settings, the bar uses the first of kitty, foot, alacritty and ghostty it finds. Popups hide the buttons that need one you do not have, and say so.
 - Fonts: Symbols Nerd Font for the icons, plus Inter and IosevkaTerm Nerd Font Mono by default. You can change the last two in settings.
 
-The bar needs a few things from Hyprland: click events so popups close, layer rules and blur for the glass, popup fades, and the functions behind scrolling and dragging workspaces. They are all in `hypr/dewdrop.lua`. Load it near the top of `hyprland.lua`, so your own settings win where they overlap:
+The bar needs a few things from Hyprland: click events so popups close, layer rules and blur for the glass, popup fades, a rule that floats the terminals the bar opens, and the functions behind scrolling and dragging workspaces. They are all in `hypr/dewdrop.lua`. Load it near the top of `hyprland.lua`, so your own settings win where they overlap:
 
 ```lua
 dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")

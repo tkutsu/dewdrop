@@ -1087,8 +1087,8 @@ Singleton {
                     // The host, so it is clear where Enter goes — without the
                     // www., which is four characters carrying no information on
                     // a line that exists to be glanced at.
-                    subtitle: e.url.split("/")[2].replace(/^www\./, ""),
-                    url: e.url.replace("%s", encodeURIComponent(q))
+                    subtitle: (String(e.url ?? "").split("/")[2] ?? "").replace(/^www\./, ""),
+                    url: String(e.url ?? "").replace("%s", encodeURIComponent(q))
                 }));
     }
 

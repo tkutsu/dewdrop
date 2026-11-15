@@ -649,7 +649,10 @@ OverlayWindow {
                     rows: [
                         { type: "list", id: "ephemeralNotificationApps", title: "Ephemeral Apps", text: "Notifications from these apps disappear when their notice ends.",
                             tooltip: "Use the app name shown in a notification. Letter case is ignored. Opening a notification in the centre keeps it for later.",
-                            placeholder: "App name", get: () => Settings.ephemeralNotificationApps, set: v => Settings.set("ephemeralNotificationApps", v) }
+                            placeholder: "App name", get: () => Settings.ephemeralNotificationApps, set: v => Settings.set("ephemeralNotificationApps", v) },
+                        { type: "list", id: "ephemeralNotificationSummaries", title: "Ephemeral Titles", text: "Notifications whose title contains one of these disappear the same way.",
+                            tooltip: "For programs that speak through the terminal they run in, so the app name is the terminal's. Letter case is ignored.",
+                            placeholder: "Words in the title", get: () => Settings.ephemeralNotificationSummaries, set: v => Settings.set("ephemeralNotificationSummaries", v) }
                     ]
                 }
             ]

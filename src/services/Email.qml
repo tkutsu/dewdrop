@@ -49,6 +49,10 @@ GoogleService {
     // The rest of the inbox's unread, which the popup folds into one row.
     // Its threads are only detailed once that row is unfolded.
     property int other: 0
+    // Thread id → "total" or "other": which count each unread thread of the
+    // last poll went into. The rows are only the detailed few of them, and a
+    // search turns up mail that is in neither.
+    property var counted: ({})
     property var otherThreads: []
     property bool otherWanted: false
     onOtherWantedChanged: if (root.otherWanted && root.otherThreads.length < Math.min(root.other, root.detailed)) {
@@ -263,6 +267,12 @@ GoogleService {
         }
         root.total = unread.length;
         root.other = rest.length;
+        const counted = ({});
+        for (const t of unread)
+            counted[t.id] = "total";
+        for (const t of rest)
+            counted[t.id] = "other";
+        root.counted = counted;
         root.loaded = true;
         root.announce(rows);
     }
@@ -1195,13 +1205,20 @@ GoogleService {
         root.opened = mark;
         // Dealt with here, so its card has nothing left to ask.
         Notifications.withdraw("x-gmail-thread", thread.id);
-        if (root.otherThreads.some(t => t.id === thread.id)) {
+        // Off the count it was in, which the rows alone cannot say: an Other
+        // mail read before that row was unfolded has no row yet, and an
+        // archived one a search found was never counted at all.
+        const inOther = root.otherThreads.some(t => t.id === thread.id);
+        const inMain = root.threads.some(t => t.id === thread.id);
+        const list = root.counted[thread.id] ?? (inOther ? "other" : inMain ? "total" : "");
+        if (inOther)
             root.otherThreads = root.otherThreads.filter(t => t.id !== thread.id);
-            root.other = Math.max(0, root.other - 1);
-        } else {
+        if (inMain)
             root.threads = root.threads.filter(t => t.id !== thread.id);
+        if (list === "other")
+            root.other = Math.max(0, root.other - 1);
+        else if (list === "total")
             root.total = Math.max(0, root.total - 1);
-        }
         root.snapshot = "";
     }
 
