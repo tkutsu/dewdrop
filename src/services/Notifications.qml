@@ -313,27 +313,16 @@ Singleton {
     }
 
     // --- arrival ------------------------------------------------------------
-    // Summary rules for notices that only matter at arrival. App-name rules
-    // live in Settings.ephemeralNotificationApps so they can be edited.
-    //
-    // Claude Code names itself in the summary through whichever terminal it
-    // runs in; inside herdr it is herdr that speaks (`notify-send --app-name
-    // Herdr`), for its own agents' turns as much as for Claude's.
-    readonly property var fleeting: [
-        {
-            summary: /Claude Code/
-        },
-        {
-            summary: /hyprwhspr/
-        }
-    ]
-
+    // Notices that only matter at arrival, by the app that sent them or by
+    // words in the summary: a program that speaks through whichever terminal
+    // it runs in has only its summary to be known by.
     function isFleeting(n) {
         if (n.transient)
             return true;
         const app = (n.appName ?? "").toLowerCase();
+        const summary = (n.summary ?? "").toLowerCase();
         return Settings.ephemeralNotificationApps.some(name => name.toLowerCase() === app)
-            || root.fleeting.some(r => r.summary.test(n.summary));
+            || Settings.ephemeralNotificationSummaries.some(words => words !== "" && summary.includes(words.toLowerCase()));
     }
 
     // The ids that go as soon as their notice has been seen. Only ever read

@@ -8,7 +8,13 @@ import qs.src.core
 // Weight is deliberately left alone. The popups all asked for Font.Normal by
 // name, which is Text's own default, and a weight set here would be a second
 // opinion for `font.bold` to argue with in the few places that want one.
+//
+// Plain text, said out loud: Text's own default guesses, and a title, a file
+// name or a copied line that looks like markup would be drawn as markup, down
+// to fetching the image it names. What writes its own markup (NeedsNote, a
+// notification's body) sets the format it wrote.
 Text {
+    textFormat: Text.PlainText
     color: Theme.fg
     font.family: Theme.bodyFont
     font.pixelSize: Theme.popupTextSize

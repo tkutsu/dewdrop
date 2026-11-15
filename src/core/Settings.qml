@@ -89,6 +89,7 @@ Singleton {
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
     readonly property var mailCategories: root.values.mailCategories ?? []
     readonly property var ephemeralNotificationApps: root.values.ephemeralNotificationApps ?? []
+    readonly property var ephemeralNotificationSummaries: root.values.ephemeralNotificationSummaries ?? []
     readonly property var feedChannels: root.values.feedChannels ?? []
     readonly property int feedDays: Math.max(1, Math.round(Number(root.values.feedDays ?? 30) || 30))
     readonly property var feedUrls: root.values.feedUrls ?? []
@@ -113,6 +114,12 @@ Singleton {
     function set(key: string, value: var): void {
         if (root.moduleKeys.some(module => key === module + "Position") && value === "right" && root.positionLocked(key.replace("Position", "")))
             return;
+        // Writing now would replace the file that did not parse, and every
+        // setting in it, with the last ones that did (none, at startup).
+        if (root.userBroken) {
+            Notify.send("Setting not saved", "settings.json did not parse. Fix it first, so this change does not replace it.");
+            return;
+        }
         const user = Object.assign({}, root.user, { [key]: value });
         // The old reveal-only preference is now part of Show And Bounce.
         if (key === "layoutChangeBounce")
@@ -372,6 +379,16 @@ Singleton {
     // so where it will be seen: whoever saved it is looking at the screen.
     // Qt's JSON.parse names no line ("Parse error" and nothing else), so the
     // notice points at the edit instead.
+    // Whether settings.json, as it is on disk, is one that did not parse.
+    property bool userBroken: false
+
+    function loadUser(): void {
+        const user = root.load(userFile, "settings.json");
+        root.userBroken = user === null;
+        if (user)
+            root.user = user;
+    }
+
     function load(view: var, name: string): var {
         try {
             return root.parse(view.text());
@@ -394,7 +411,7 @@ Singleton {
         root.defaults = root.load(defaultFile, "settings.default.json") ?? root.defaults;
         userFile.text();
         if (userFile.loaded)
-            root.user = root.load(userFile, "settings.json") ?? root.user;
+            root.loadUser();
     }
 
     // After startup these keep the values current: an edit to settings.json
@@ -417,7 +434,7 @@ Singleton {
         // at startup, and `loaded` never fires again, until reload().
         watchChanges: true
         onFileChanged: userFile.reload()
-        onLoaded: root.user = root.load(userFile, "settings.json") ?? root.user
+        onLoaded: root.loadUser()
         // First run: the defaults, comments and all, as the file to edit.
         onLoadFailed: userFile.setText(defaultFile.text())
     }

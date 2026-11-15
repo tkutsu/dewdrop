@@ -488,8 +488,16 @@ GoogleService {
             root.tasks = old;
             root.writing--;
             root.fail(why, status);
+            // The editor closed when the save began, so the notice is the
+            // only place the new words are still to be had.
+            Notify.send("Task not saved", root.escaped([title, notes, why].filter(s => s !== "").join("\n")));
         });
         return true;
+    }
+
+    // Notification bodies are markup to whatever draws them.
+    function escaped(text: string): string {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
     function add(title: string, day: string, list: string, notes: string): void {
@@ -507,8 +515,7 @@ GoogleService {
             root.fail(why, status);
             const details = [body.title, root.lists.find(l => l.id === list)?.title ?? "",
                 day, notes, why].filter(s => s !== "").join("\n");
-            const escaped = details.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            Notify.send("Task not added", escaped);
+            Notify.send("Task not added", root.escaped(details));
         });
     }
 

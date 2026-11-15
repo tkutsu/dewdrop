@@ -86,6 +86,14 @@ def main():
         assert 'brightnessctl -q --min-value=1 set 0%' in calls(root), calls(root)
         print('PASS: night mode dims a laptop panel without turning it off')
 
+        root = fixture(base / 'busy-bus', ['ddcutil', 'hyprctl'])
+        assert run(root, 'night-on')[0] == 0 and (root / 'night-mode').exists()
+        (root / 'bin/ddcutil').write_text('#!/bin/sh\nexit 1\n')
+        assert run(root, 'set', '5')[0] == 1
+        assert (root / 'night-mode').exists() and (root / 'brightness').read_text().strip() == '0'
+        assert calls(root).count('hyprctl hyprsunset temperature 3000') == 2, calls(root)
+        print('PASS: a brightness write that fails leaves night mode as it was')
+
         root = fixture(base / 'no-sunset', ['ddcutil'])
         assert run(root, 'toggle')[0] == 0 and (root / 'night-mode').exists()
         print('PASS: night mode still dims without hyprctl answering for a tint')

@@ -90,6 +90,9 @@
     // Use the app name shown in the notification; letter case is ignored.
     // Opening one in the notification centre keeps it for later interaction.
     "ephemeralNotificationApps": ["Herdr", "Email", "Gmail", "satty", "qBittorrent", "udiskie"],
+    // The same for any notification whose title contains one of these, for
+    // programs that speak through the terminal they run in.
+    "ephemeralNotificationSummaries": ["Claude Code", "hyprwhspr"],
 
     // One date and time format. Names use your locale; quote literal text.
     // Seconds ("HH:mm:ss") make the readout tick every second.

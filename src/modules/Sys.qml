@@ -173,8 +173,8 @@ BarItem {
 
     // Left is the popup (BarItem.popupButton); right is monitorCommand in
     // the terminal, or the popup again when either is missing, where it says
-    // so. "(floating)" is a window rule in hypr/configs/wrules.lua, not part
-    // of the name: it centres the window at 55% of the screen.
+    // so. "(floating)" is a window rule in hypr/dewdrop.lua, not part
+    // of the name: it floats the window, centred.
     actions: ({
             [Qt.RightButton]: () => {
                 const command = Settings.helper(Settings.monitorCommand, true);

@@ -141,10 +141,16 @@ esac
 ((VALUE < 0)) && VALUE=0
 
 # Scrolling up out of a dark screen means the mode is over; leaving the flag set
-# would keep the moon icon and the 3000K tint against a lit panel.
+# would keep the moon icon and the 3000K tint against a lit panel. As in toggle,
+# the flag follows the panel: a write that fails leaves the night as it was.
 if ((VALUE > 0)) && night_on; then
-  rm -f "$NIGHT_FILE"
   temperature "$DAY_TEMP"
+  if apply "$VALUE"; then
+    rm -f "$NIGHT_FILE"
+    exit 0
+  fi
+  temperature "$NIGHT_TEMP"
+  exit 1
 fi
 
 apply "$VALUE"

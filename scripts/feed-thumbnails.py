@@ -11,6 +11,8 @@ import sys
 import tempfile
 import time
 
+RASTER = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"}
+
 
 def thumbnail(cache, url):
     """Reuse the local image or publish a complete 128 by 72 PNG atomically."""
@@ -30,6 +32,12 @@ def thumbnail(cache, url):
             "--max-time", "15", "--max-filesize", str(20 * 1024 * 1024),
             "--output", str(original), "--url", url,
         ], check=True, timeout=20, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # The far end chooses the bytes, and magick would take a script or a
+        # vector format as readily as a picture.
+        kind = subprocess.run(["file", "--brief", "--mime-type", str(original)], check=True, timeout=5,
+                              capture_output=True, text=True).stdout.strip()
+        if kind not in RASTER:
+            raise OSError("not a raster image: " + kind)
         subprocess.run([
             "magick", "-limit", "memory", "64MiB", "-limit", "map", "128MiB",
             str(original) + "[0]", "-thumbnail", "128x72^", "-gravity", "center",

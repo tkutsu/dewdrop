@@ -137,6 +137,8 @@ Item {
         x: root._x - root.inkPad
         y: root._y - root.inkPad
         padding: root.inkPad
+        // A track or window title is whatever its app says it is.
+        textFormat: Text.PlainText
         text: shown.text
         font: metrics.font
         color: root.inkColor
