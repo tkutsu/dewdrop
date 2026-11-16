@@ -606,11 +606,18 @@ GoogleService {
     // Times come from TimersParse.js and days from readDay, so "9:30", "9pm"
     // and "21:30" mean the same here as for alarms, and a bare "9" stays a
     // nine-minute timer: "fri 9 x" is a task due Friday.
+    //
+    // Only the first line is read that way. The lines under it (Shift+Return
+    // in the launcher) are the notes of a task or the description of an
+    // event, as in the popup's editor; a timer has nowhere to keep them.
     function plan(text: string): var {
-        const typed = (text ?? "").trim();
+        const lines = (text ?? "").replace(/\r/g, "").split("\n");
+        const typed = lines.shift().trim();
+        const notes = lines.join("\n").trim();
+        const said = p => Object.assign(p, { line: typed, notes: notes });
         const timer = Timers.parse(typed);
         if (timer.ok)
-            return { ok: true, kind: timer.kind === "countdown" ? "timer" : "alarm", timer: timer };
+            return said({ ok: true, kind: timer.kind === "countdown" ? "timer" : "alarm", timer: timer });
         const words = typed.split(/\s+/);
         const day = words.length > 1 ? root.readDay(words[0].toLowerCase()) : "";
         const [y, m, d] = day.split("-").map(Number);
@@ -619,22 +626,23 @@ GoogleService {
         if (allDay) {
             const title = words.slice(1 + allDay).join(" ");
             if (!title)
-                return { ok: false, kind: "event", error: "No event, only a day" };
-            return { ok: true, kind: "event", event: { title: title, start: new Date(y, m - 1, d), end: new Date(y, m - 1, d + 1), allDay: true } };
+                return said({ ok: false, kind: "event", error: "No event, only a day" });
+            return said({ ok: true, kind: "event", event: { title: title, start: new Date(y, m - 1, d), end: new Date(y, m - 1, d + 1), allDay: true, notes: notes } });
         }
         const at = day !== "" ? Timers.parse(words.slice(1).join(" ")) : null;
         if (at?.ok && at.kind === "alarm") {
             if (!at.label)
-                return { ok: false, kind: "event", error: "No event, only a time" };
-            return { ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute)) };
+                return said({ ok: false, kind: "event", error: "No event, only a time" });
+            return said({ ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute), notes) });
         }
         const task = root.parse(typed);
-        return { ok: task.ok, kind: "task", task: task, error: task.error };
+        const error = task.error || root.overLimit("Notes are", notes, root.notesLimit);
+        return said({ ok: task.ok && !error, kind: "task", task: task, error: error });
     }
 
     // Events last an hour.
-    function event(title: string, start: var): var {
-        return { title: title, start: start, end: new Date(start.getTime() + 3600000) };
+    function event(title: string, start: var, notes: string): var {
+        return { title: title, start: start, end: new Date(start.getTime() + 3600000), notes: notes };
     }
 
     // What the line makes, said once it is done. The one entry point the
@@ -644,13 +652,13 @@ GoogleService {
         if (!p.ok)
             return p.error;
         if (p.kind === "timer" || p.kind === "alarm")
-            return Timers.run(text);
+            return Timers.run(p.line);
         if (p.kind === "event") {
             Agenda.insert(p.event);
             const when = p.event.allDay ? "all day" : "at " + Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes());
             return `Added ${p.event.title} for ${root.sayDay(root.dayString(p.event.start))} ${when}`;
         }
-        root.add(p.task.title, p.task.day, p.task.list, "");
+        root.add(p.task.title, p.task.day, p.task.list, p.notes);
         return p.task.day === "" ? `Adding ${p.task.title}` : `Adding ${p.task.title} for ${root.sayDay(p.task.day)}`;
     }
 

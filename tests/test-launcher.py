@@ -606,6 +606,12 @@ ShellRoot {
             check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event,event", "a bare plan symbol hints what a line makes");
             Launcher.query = ", 25m";
             check(Launcher.queryHints.length === 0, "typing takes the hint away");
+            Launcher.query = ",call bank";
+            check(Launcher.queryHints.map(h => h.prefix + " " + h.hint).join() === "⇧↵ notes", "a task line hints at its notes");
+            Launcher.query = ",fri 15:00 call bank";
+            check(Launcher.queryHints.length === 1, "so does an event line");
+            Launcher.query = ",call bank\nbring the card";
+            check(Launcher.queryHints.length === 0, "the hint goes once notes are begun");
             Launcher.query = "?";
             check(Launcher.classification.mode === "?" && Launcher.queryIcon === Theme.glyph.launcherHelp, "? is help");
             check(Launcher.results.length === Launcher.modes.length - 1 && Launcher.results.every(r => r.kind === "help" && r.prefix !== "?"), "help lists every other mode");
@@ -968,6 +974,11 @@ ShellRoot {
             const wrappedHeight = queryRow.height;
             input.adopt("short"); keys.wait(55);
             check(queryRow.height < wrappedHeight && queryRow.height > menu.inputHeight, "shortening animates the field closed");
+            input.adopt(",call bank"); keys.wait(20);
+            keys.keyClick(Qt.Key_Return, Qt.ShiftModifier);
+            keys.keyClick(Qt.Key_B);
+            check(input.text === ",call bank\nb" && Launcher.query === input.text, "Shift+Return starts a task's notes on the line below");
+            input.adopt("short"); keys.wait(20);
             keys.wait(250);
             check(input.height === menu.inputHeight && queryRow.height === menu.inputHeight, "short query returns to one line");
             input.adopt("words with spaces ".repeat(12)); keys.wait(250);
