@@ -350,65 +350,63 @@ Popup {
             spacing: 3
 
             // The popup's controls on a line of their own, framed and named
-            // like a header's: the volume first, then the equalizer, more
-            // music, and putting mpd down. Quitting is the far end, as far
-            // from the transport on the cover as the popup goes.
+            // like a header's and gathered at the right: the volume, the
+            // equalizer, more music, and putting mpd down. Quitting is the
+            // far end, as far from the transport on the cover as the popup goes.
             Item {
                 width: root.columnWidth
                 height: root.headerButtonSize
-
-                // The volume, read off its own label. A press or a scroll
-                // puts its slider where the artist and album are, the way
-                // the sound menu's slider stands under its title; a right
-                // click mutes.
-                PopupButton {
-                    id: volumeControl
-                    HoverHandler { id: volumeReadoutHover }
-                    objectName: "musicVolumeControl"
-                    anchors.left: parent.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: Mpd.volume >= 0
-                    framed: true
-                    lit: root.adjustingVolume
-                    implicitHeight: root.headerButtonSize
-                    glyph: Mpd.volumeIcon
-                    label: Math.max(0, Mpd.volume) + "%"
-                    name: "Music volume " + label
-                    Accessible.description: "Pointer: scroll, right click mutes"
-                    onTapped: {
-                        if (!root.adjustingVolume)
-                            return root.showVolume();
-                        volumeFeedback.stop();
-                        root.adjustingVolume = false;
-                    }
-
-                    TapHandler {
-                        acceptedButtons: Qt.RightButton
-                        onTapped: Mpd.toggleMute()
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.NoButton
-                        property real wheelRemainder: 0
-
-                        onWheel: wheel => {
-                            wheelRemainder += wheel.angleDelta.y;
-                            const notches = Math.trunc(wheelRemainder / 120);
-                            if (notches === 0)
-                                return;
-                            wheelRemainder -= notches * 120;
-                            const step = notches > 0 ? Math.floor(Mpd.volume / 5) : Math.ceil(Mpd.volume / 5);
-                            Mpd.setVolume(Math.max(0, Math.min(100, (step + notches) * 5)) / 100);
-                            root.showVolume();
-                        }
-                    }
-                }
 
                 Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 4
+
+                    // The volume, read off its own label. A press or a scroll
+                    // puts its slider where the artist and album are, the way
+                    // the sound menu's slider stands under its title; a right
+                    // click mutes.
+                    PopupButton {
+                        id: volumeControl
+                        HoverHandler { id: volumeReadoutHover }
+                        objectName: "musicVolumeControl"
+                        visible: Mpd.volume >= 0
+                        framed: true
+                        lit: root.adjustingVolume
+                        implicitHeight: root.headerButtonSize
+                        glyph: Mpd.volumeIcon
+                        label: Math.max(0, Mpd.volume) + "%"
+                        name: "Music volume " + label
+                        Accessible.description: "Pointer: scroll, right click mutes"
+                        onTapped: {
+                            if (!root.adjustingVolume)
+                                return root.showVolume();
+                            volumeFeedback.stop();
+                            root.adjustingVolume = false;
+                        }
+
+                        TapHandler {
+                            acceptedButtons: Qt.RightButton
+                            onTapped: Mpd.toggleMute()
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.NoButton
+                            property real wheelRemainder: 0
+
+                            onWheel: wheel => {
+                                wheelRemainder += wheel.angleDelta.y;
+                                const notches = Math.trunc(wheelRemainder / 120);
+                                if (notches === 0)
+                                    return;
+                                wheelRemainder -= notches * 120;
+                                const step = notches > 0 ? Math.floor(Mpd.volume / 5) : Math.ceil(Mpd.volume / 5);
+                                Mpd.setVolume(Math.max(0, Math.min(100, (step + notches) * 5)) / 100);
+                                root.showVolume();
+                            }
+                        }
+                    }
 
                     PopupButton {
                         id: equalizerButton

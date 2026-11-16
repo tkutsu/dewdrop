@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import qs.src.core
 
 // The top line of a popup: what it is on the left, and the things that act on
@@ -11,9 +10,9 @@ import qs.src.core
 // PopupButton supplies the header controls.
 //
 // A popup that can make another of what it lists (a task, a timer, a mail)
-// sets `addable`. The title and plus share one button, shortened from the
-// right when there are other controls beside it. A popup whose one thing to
-// do is the title's own (Updates: upgrade) gives it another mark and name.
+// sets `addable`: a framed button like the others, first of them, with a
+// plus. A popup whose one thing to do is that button's (Updates: upgrade)
+// gives it another mark and name. The title stays words, not a target.
 Item {
     id: root
 
@@ -26,75 +25,28 @@ Item {
     property string addGlyph: Theme.glyph.plus
     property string addLabel: "New"
     property string addName: "Add " + root.title.toLowerCase()
+    // A ChoiceBlink to flash the button with, started on `addButton`.
     property var blink: null
-
-    // Hidden controls take no space; visible ones keep a gap before them.
-    readonly property real titleAreaWidth: Math.max(0, root.width - row.implicitWidth - (row.implicitWidth > 0 ? row.spacing : 0))
+    readonly property alias addButton: action
 
     signal add
 
-    implicitWidth: root.inset + name.implicitWidth + 12 + row.implicitWidth + (root.addable ? action.width + row.spacing : 0)
+    implicitWidth: root.inset + name.implicitWidth + 12 + row.implicitWidth + (root.addable ? action.implicitWidth + row.spacing : 0)
     implicitHeight: Math.max(20, name.implicitHeight, row.implicitHeight)
 
-    Item {
-        id: target
+    PopupButton {
+        id: action
 
-        Accessible.role: Accessible.Button
-        Accessible.name: root.addName
-        Accessible.onPressAction: if (root.addable && root.enabled && root.visible)
-            root.add()
-
-        // The keys (Popup.qml), lit the way the pointer lights it.
-        property bool keyed: false
-        readonly property var keyPress: () => root.add()
-        readonly property bool lit: root.blink?.item === root ? root.blink.lit : QsWindow.window?.keyItem ? target.keyed : hover.hovered
-
+        anchors.right: row.left
+        anchors.rightMargin: row.implicitWidth > 0 ? row.spacing : 0
+        anchors.verticalCenter: parent.verticalCenter
         visible: root.addable
-        width: root.titleAreaWidth
-        height: parent.height
-
-        Rectangle {
-            anchors.fill: parent
-            radius: Theme.selectionRadius
-            color: target.lit ? Theme.selection : "transparent"
-        }
-
-        Row {
-            id: action
-
-            anchors.right: parent.right
-            height: parent.height
-            spacing: 3
-            opacity: target.lit ? 1 : 0.6
-
-            PopupText {
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.addLabel
-                font.pixelSize: Theme.captionSize
-            }
-
-            // Keep the glyph on the same pitch as the row controls below.
-            Item {
-                width: 20
-                height: parent.height
-
-                Glyph {
-                    anchors.centerIn: parent
-                    implicitHeight: parent.height
-                    text: root.addGlyph
-                    fontSize: Theme.popupTextSize
-                }
-            }
-        }
-
-        HoverHandler {
-            id: hover
-        }
-
-        TapHandler {
-            gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: root.add()
-        }
+        framed: true
+        label: root.addLabel
+        glyph: root.addGlyph
+        name: root.addName
+        blink: root.blink
+        onTapped: root.add()
     }
 
     PopupText {
@@ -102,7 +54,7 @@ Item {
 
         x: root.inset
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.max(0, root.titleAreaWidth - x - (root.addable ? action.width : 0) - 8)
+        width: Math.max(0, (root.addable ? action.x : row.x) - x - 8)
         text: root.title
         font.weight: Font.DemiBold
         elide: Text.ElideRight
