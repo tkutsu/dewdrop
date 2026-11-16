@@ -70,7 +70,7 @@ Item {
 (target/'src/components/Bounce.qml').write_text((root/'src/components/Bounce.qml').read_text())
 (target/'src/components/DropLine.qml').write_text((root/'src/components/DropLine.qml').read_text())
 if '--real-icons' in sys.argv or '--app-names' in sys.argv:
-    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'BarText', 'Badge', 'RollingText', 'Rim', 'ModuleIconScale'):
+    for name in ('AppIcon', 'FittedIcon', 'Glyph', 'GlyphRulers', 'BarText', 'Badge', 'RollingText', 'ScriptMetrics', 'Rim', 'ModuleIconScale'):
         source=(root/f'src/components/{name}.qml').read_text()
         if name == 'AppIcon':
             source=source.replace('id: root', 'id: root\n    property real token: Math.random()', 1)
@@ -156,7 +156,7 @@ ShellRoot {
 
  // The bar pops the pill away while the strip has nothing to show.
  check(pill.occupied && pill.pop===1,'windows keep the pill out');
- const lastOnly=win('last',w1,'other'),ignoredWin=win('game',w1,'gamescope'),menuWin=toplevel.createObject(suite,{address:'menuwin',workspace:w1});
+ const lastOnly=win('last',w1,'other'),menuWin=toplevel.createObject(suite,{address:'menuwin',workspace:w1});
  reset([lastOnly],[w1]);
  check(pill.occupied && pill.pop===1,'one window keeps the pill out');
  const leaving=icon(button(1),'last'),leavingAt=left(leaving);
@@ -168,8 +168,8 @@ ShellRoot {
  test.tryCompare(button(1),'width',pill.emptyWidth,1500);
  let rebound=0;for(let i=0;i<20;i++){test.wait(16);rebound=Math.max(rebound,pill.pop);}
  check(rebound===0,'a pill that has gone stays gone, came back to '+rebound);
- Hyprland.toplevels.values=[ignoredWin,menuWin];test.wait(50);
- check(!pill.occupied,'windows the strip draws no icon for do not bring the pill out');
+ Hyprland.toplevels.values=[menuWin];test.wait(50);
+ check(!pill.occupied,'a window the strip draws no icon for does not bring the pill out');
  const hidden=workspace.createObject(suite,{id:-98,name:'special:dolphin'}),dolphin=win('dolphin',hidden,'org.kde.dolphin');
  Hyprland.workspaces.values=[w1,hidden];Hyprland.toplevels.values=[dolphin];test.wait(50);
  check(!pill.occupied && pill.pop===0,'a window on a special workspace does not bring the pill out');
@@ -670,6 +670,7 @@ if '--app-names' in sys.argv:
     (applications / 'obsidian.desktop').write_text('[Desktop Entry]\nType=Application\nName=Obsidian\nExec=obsidian\nIcon=obsidian\nStartupWMClass=obsidian\n')
     (applications / 'org.example.Editor.desktop').write_text('[Desktop Entry]\nType=Application\nName=Full ID Editor\nExec=editor\n')
     (applications / 'editor.desktop').write_text('[Desktop Entry]\nType=Application\nName=Short ID Editor\nExec=editor\n')
+    (applications / 'steam.desktop').write_text('[Desktop Entry]\nType=Application\nName=Steam\nExec=steam\nIcon=steam\nStartupWMClass=steam\n')
     start = shell_source.index(' const w1=ws(1)')
     end = shell_source.index(" console.log(failures.length", start)
     shell_source = shell_source[:start] + r'''
@@ -686,6 +687,12 @@ if '--app-names' in sys.argv:
  check(label(icon(button(1),'a'))==='Full ID Editor','full app ID match takes precedence over the short ID');
  a.wayland={appId:'org.example.UnknownApp'};test.wait(100);
  check(label(icon(button(1),'a'))==='org.example.UnknownApp','unmatched app IDs retain their original fallback');
+ for (const game of ['steam_app_3175395258','gamescope','P5R.exe']) {
+   a.wayland={appId:game};test.wait(100);
+   check(icon(button(1),'a').iconName===Theme.gameIcon,'a game draws the gamepad: '+game);
+ }
+ a.wayland={appId:'steam'};test.wait(100);
+ check(icon(button(1),'a').iconName==='steam','Steam itself keeps its own icon');
 ''' + shell_source[end:]
 (target/'shell.qml').write_text(shell_source)
 env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',XDG_RUNTIME_DIR=str(target/'runtime'),XDG_CACHE_HOME=str(target/'cache'))

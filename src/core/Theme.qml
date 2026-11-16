@@ -292,6 +292,8 @@ Singleton {
     // gone: iconInk measures that now rather than being told it one app at a
     // time.
     readonly property var appIconOverride: ({})
+    // Every game's window draws as a gamepad: AppIcons.isGame says which they are.
+    readonly property string gameIcon: "input-gaming"
 
     // --- fonts ---------------------------------------------------------------
     // Inter by default (settings.json): the closest freely licensed thing to
