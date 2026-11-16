@@ -93,6 +93,49 @@ ShellRoot {
                 wait(50);
                 check(popup.selected === Agenda.today && !todayButton.live, "Today goes back to today and goes faint");
                 check(list.events.length === 5 && find(popup.contentItem, i => i.text === "Today" && i.font?.weight === Font.DemiBold), "today's events are back under a Today heading");
+                // Now, over and next, on today.
+                const rowOf = title => find(popup.contentItem, i => i.ev !== undefined && i.ev.title === title && i.visible);
+                const leadOf = title => find(rowOf(title), i => i.textFormat === Text.PlainText && i.x === Theme.popupInset);
+                check(rowOf("Breakfast").opacity < 0.5 && rowOf("Holiday").opacity === 1, "a timed event that is over is faint, an all-day one never");
+                check(leadOf("Lunch")?.text === "now" && find(rowOf("Lunch"), i => i.height === 2 && i.visible), "the event under way says now and draws its progress");
+                WallClock.now = events[3].start - 25 * 60000;
+                wait(50);
+                check(leadOf("Dinner")?.text === "in 25m", "the next event inside the hour counts down");
+                WallClock.now = now;
+                wait(50);
+                // More than a page scrolls rather than growing the popup.
+                const rows = find(list, i => i.positionViewAtIndex !== undefined);
+                const many = [];
+                for (let h = 0; h < 8; h++)
+                    many.push({id: "m" + h, title: "Slot " + h, allDay: false, start: now + h * 600000, end: now + h * 600000 + 300000});
+                Agenda.months = ({[Agenda.thisMonth]: Object.assign({}, days, {[Agenda.today]: many})});
+                wait(50);
+                check(rows.count === 8 && rows.height === popup.listRows * popup.listRowHeight && rows.interactive, "eight events show five rows and scroll");
+                Agenda.months = ({[Agenda.thisMonth]: days});
+                wait(50);
+                // An empty day says what comes next, and goes there.
+                const dentist = new Date(2026, 9, 16, 15).getTime();
+                Agenda.months = ({[Agenda.thisMonth]: Object.assign({}, days, {[fri]: [{id: "d", title: "Dentist", allDay: false, start: dentist, end: dentist + 1800000}]})});
+                Agenda.loaded = true;
+                popup.picked = "2026-10-15";
+                wait(50);
+                const nextRow = find(popup.contentItem, i => i.upcoming !== undefined);
+                check(nextRow.visible && nextRow.ev.title === "Dentist" && nextRow.aside.indexOf("16") >= 0, "an empty day shows the next event");
+                mouseClick(nextRow, 120, 10);
+                wait(50);
+                check(popup.selected === fri, "tapping the next event goes to its day");
+                Agenda.months = ({[Agenda.thisMonth]: days});
+                popup.goToday();
+                wait(50);
+                // Where a call is joined from.
+                const cal = {title: "Me", colour: "#7986cb"};
+                const at = {dateTime: "2026-10-14T10:00:00+03:00"};
+                const meet = Agenda.normalise({id: "1", start: at, end: at, hangoutLink: "https://meet.google.com/abc-defg-hij", htmlLink: "https://www.google.com/calendar/event?eid=x"}, cal);
+                const zoom = Agenda.normalise({id: "2", start: at, end: at, location: "https://example.zoom.us/j/123"}, cal);
+                const pasted = Agenda.normalise({id: "3", start: at, end: at, location: "Room 4", description: "Join: https://teams.microsoft.com/l/meetup/42 thanks"}, cal);
+                const none = Agenda.normalise({id: "4", start: at, end: at, description: "see https://example.com/doc"}, cal);
+                check(meet.link === "https://meet.google.com/abc-defg-hij" && meet.url.indexOf("eid=x") > 0 && meet.colour === "#7986cb", "Meet links, the event page and the calendar colour are kept");
+                check(zoom.link === "https://example.zoom.us/j/123" && pasted.link === "https://teams.microsoft.com/l/meetup/42" && pasted.place === "Room 4" && none.link === "", "a call address in the place or description is found, other links are not");
                 // A faint day from the next month turns the grid to it.
                 const faint = find(popup.contentItem, i => i.dayKey !== undefined && !i.thisMonth && i.index > 27);
                 const faintKey = faint.dayKey;

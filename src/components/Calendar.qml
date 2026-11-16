@@ -24,7 +24,10 @@ Popup {
     // The month turned to is fetched as it comes into view, if it has not
     // been already.
     onShownChanged: Agenda.ensure(shown)
-    Component.onCompleted: Agenda.ensure(shown)
+    Component.onCompleted: {
+        Agenda.ensure(shown);
+        Qt.callLater(root.settle);
+    }
     Component.onDestruction: Agenda.lastShown = ""
 
     // The day the list is about. Nothing picked is today, so every open
@@ -63,15 +66,15 @@ Popup {
         return Qt.formatDate(day, day.getFullYear() === root.today.getFullYear() ? "dddd d MMMM" : "dddd d MMMM yyyy");
     }
 
-    // At most this many rows, and the box stops under the last one. The
-    // window keeps the height of a full list regardless, so the box grows and
-    // shrinks inside it as days are picked rather than the whole popup
-    // resizing on every click (see Popup.reserveHeight).
-    readonly property int listRows: 4
-    readonly property int listRowHeight: 20
+    // This many rows show, and the rest are a scroll away. The window keeps
+    // the height of a full list regardless, so the box grows and shrinks
+    // inside it as days are picked rather than the whole popup resizing on
+    // every click (see Popup.reserveHeight).
+    readonly property int listRows: 5
+    readonly property int listRowHeight: 22
     readonly property int dotSize: 3
-    // The time column fits the widest time, 12:30 PM or 12:30.
-    readonly property int timeWidth: Math.max(42, Math.ceil(widestTime.advanceWidth) + 2)
+    // The time column fits the widest time, 12:30 PM or 12:30, and "in 59m".
+    readonly property int timeWidth: Math.max(42, Math.ceil(Math.max(widestTime.advanceWidth, widestSoon.advanceWidth)) + 2)
 
     TextMetrics {
         id: widestTime
@@ -79,6 +82,77 @@ Popup {
         font.pixelSize: Theme.captionSize
         font.features: Theme.figures
         text: Settings.sayHourMinute(12, 30)
+    }
+
+    TextMetrics {
+        id: widestSoon
+        font: widestTime.font
+        text: "in 59m"
+    }
+
+    // --- now and next, on today ---------------------------------------------
+    // The time by the minute, so the rows reconsider once a minute rather
+    // than on every one of WallClock's five-second ticks.
+    readonly property double now: Math.floor(WallClock.now / 60000) * 60000
+    readonly property bool showingToday: root.selected === Agenda.today
+
+    function isOver(ev: var): bool {
+        return root.showingToday && !ev.allDay && ev.end <= root.now;
+    }
+
+    function isNow(ev: var): bool {
+        return root.showingToday && !ev.allDay && ev.start <= root.now && root.now < ev.end;
+    }
+
+    // The first of today's timed events still to start.
+    readonly property var upNext: root.showingToday ? list.events.find(ev => !ev.allDay && ev.start > root.now) ?? null : null
+
+    // A delegate's modelData is a copy, so the event is matched, not compared.
+    function isNext(ev: var): bool {
+        return !!root.upNext && ev.id === root.upNext.id && ev.start === root.upNext.start;
+    }
+
+    // A Join button that is always out: on the call under way, and on the
+    // next one from ten minutes before it.
+    function joinShown(ev: var): bool {
+        return !!ev.link && (root.isNow(ev) || (root.isNext(ev) && ev.start - root.now <= 10 * 60000));
+    }
+
+    // What the time column says: "now", "in 25m" inside the hour, or the time.
+    function sayWhen(ev: var): string {
+        if (root.isNow(ev))
+            return "now";
+        if (root.isNext(ev) && ev.start - root.now < 3600000)
+            return `in ${Math.max(1, Math.ceil((ev.start - root.now) / 60000))}m`;
+        return "";
+    }
+
+    // Opening the popup, or picking today again, shows the first event not yet
+    // over at the top, with the morning's a scroll up. Any other day starts at
+    // its top.
+    function settle(): void {
+        const events = list.events;
+        const live = events.findIndex(ev => !ev.allDay && ev.end > root.now);
+        const overBefore = root.showingToday && events.slice(0, live < 0 ? events.length : live).some(ev => !ev.allDay);
+        if (!overBefore)
+            rows.contentY = rows.originY;
+        else if (live < 0)
+            rows.positionViewAtEnd();
+        else
+            rows.positionViewAtIndex(live, ListView.Beginning);
+    }
+
+    onSelectedChanged: Qt.callLater(root.settle)
+
+    // Out to the event's own page in the Calendar app.
+    function openEvent(ev: var): void {
+        OpenPopup.dismiss();
+        Quickshell.execDetached(Settings.webApp("calendar", ev.url, ev.url));
+    }
+
+    function join(ev: var): void {
+        OpenPopup.dismiss();
+        Qt.openUrlExternally(ev.link);
     }
 
     reserveHeight: list.visible ? chromeHeight - list.height + list.fullHeight : 0
@@ -313,8 +387,8 @@ Popup {
         spacing: 0
 
         readonly property var events: Agenda.forDay(root.selected)
-        // The most the list can take: a full page and the "more" line.
-        readonly property real fullHeight: root.listRowHeight * (root.listRows + 1)
+        // The most the list can take: a page of rows.
+        readonly property real fullHeight: root.listRowHeight * root.listRows
 
         PopupNote {
             width: list.width
@@ -332,48 +406,159 @@ Popup {
             text: Agenda.loaded ? "No events" : "Connecting…"
         }
 
-        Repeater {
-            model: list.events.slice(0, root.listRows)
+        // An empty day from today on says what comes after it, from the
+        // months already held; a tap goes to that day.
+        EventRow {
+            id: nextUp
 
-            Item {
-                id: entry
+            readonly property var upcoming: list.events.length === 0 && Agenda.loaded && Agenda.trouble === "" && root.selected >= Agenda.today
+                ? Agenda.next(root.selected) : null
+            readonly property date upcomingDay: new Date(nextUp.upcoming?.start ?? 0)
 
+            visible: nextUp.upcoming !== null
+            ev: nextUp.upcoming ?? ({})
+            lead: "Next"
+            aside: !nextUp.upcoming ? "" : Qt.formatDate(nextUp.upcomingDay, "ddd d MMM")
+                + (nextUp.upcoming.allDay ? "" : " · " + Settings.sayTime(nextUp.upcomingDay))
+            name: nextUp.upcoming ? "Show " + root.sayDay(Agenda.dayString(nextUp.upcomingDay)) : ""
+            onTapped: root.select(nextUp.upcomingDay)
+        }
+
+        ListView {
+            id: rows
+
+            width: list.width
+            height: Math.min(contentHeight, list.fullHeight)
+            visible: count > 0
+            clip: true
+            interactive: contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
+            SmoothScroll {
+                view: rows
+            }
+            layer.enabled: contentHeight > height
+            layer.effect: ScrollEdges {
+                view: rows
+            }
+            Accessible.role: Accessible.List
+            Accessible.name: "Events"
+            Accessible.onScrollUpAction: contentY = Math.max(originY, contentY - height / 2)
+            Accessible.onScrollDownAction: contentY = Math.min(originY + Math.max(0, contentHeight - height), contentY + height / 2)
+
+            model: list.events
+            onModelChanged: Qt.callLater(root.settle)
+
+            delegate: EventRow {
                 required property var modelData
 
-                x: Theme.popupInset
-                width: list.width - Theme.popupInset * 2
-                height: root.listRowHeight
-
-                PopupText {
-                    width: root.timeWidth
-                    height: root.listRowHeight
-                    verticalAlignment: Text.AlignVCenter
-                    textFormat: entry.modelData.allDay ? Text.PlainText : Text.RichText
-                    text: entry.modelData.allDay ? Agenda.sayTime(entry.modelData)
-                        : Settings.timeMarkup(Settings.hourDisplay(new Date(entry.modelData.start)), font.pixelSize)
-                    color: entry.modelData.allDay ? Theme.label3 : Theme.label2
-                    font.pixelSize: Theme.captionSize
-                }
-
-                PopupText {
-                    x: root.timeWidth + 8
-                    width: entry.width - x
-                    height: root.listRowHeight
-                    verticalAlignment: Text.AlignVCenter
-                    text: entry.modelData.title
-                    elide: Text.ElideRight
-                }
+                ev: modelData
+                dim: root.isOver(modelData)
+                lead: modelData.allDay ? "all day" : root.sayWhen(modelData)
+                aside: modelData.place && !modelData.link ? modelData.place : ""
+                // Only an event Google gave a page for opens.
+                name: modelData.url ? "Open " + modelData.title : ""
+                onTapped: root.openEvent(modelData)
             }
         }
+    }
+
+    // One line of the list: the time (or "now", "in 25m"), the calendar's
+    // colour, the title with anything else in grey after it, and Join for an
+    // event with a call. The event on now draws how far through it is.
+    component EventRow: PopupRow {
+        id: row
+
+        property var ev: ({})
+        // In the time column instead of the time; empty shows the time.
+        property string lead: ""
+        property string aside: ""
+        // Over, today: drawn faint, the way a ticked-off task is.
+        property bool dim: false
+
+        readonly property bool live: root.isNow(row.ev)
+        readonly property int textX: Theme.popupInset + root.timeWidth + 14
+
+        width: ListView.view ? ListView.view.width : list.width
+        height: root.listRowHeight
+        opacity: row.dim ? 0.4 : 1
+        acceptsTap: row.name !== ""
 
         PopupText {
             x: Theme.popupInset
-            visible: list.events.length > root.listRows
-            height: root.listRowHeight
+            width: root.timeWidth
+            height: row.height
             verticalAlignment: Text.AlignVCenter
-            text: `+${list.events.length - root.listRows} more`
-            color: Theme.label3
+            textFormat: row.lead !== "" ? Text.PlainText : Text.RichText
+            text: row.lead !== "" ? row.lead : Settings.timeMarkup(Settings.hourDisplay(new Date(row.ev.start ?? 0)), font.pixelSize)
+            color: row.live || (row.lead !== "" && root.isNext(row.ev)) ? Theme.fg : row.lead === "all day" || row.lead === "Next" ? Theme.label3 : Theme.label2
             font.pixelSize: Theme.captionSize
+        }
+
+        // Which calendar it is on, in the colour Google gives that calendar.
+        Rectangle {
+            x: Theme.popupInset + root.timeWidth + 4
+            anchors.verticalCenter: parent.verticalCenter
+            width: 3
+            height: 14
+            radius: 1.5
+            color: row.ev.colour || Theme.label3
+        }
+
+        Row {
+            id: words
+
+            x: row.textX
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+            readonly property real room: (join.visible ? join.x - 4 : row.width - Theme.popupInset) - x
+
+            PopupText {
+                id: title
+                width: Math.min(implicitWidth, words.room)
+                text: row.ev.title ?? ""
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+            }
+
+            PopupText {
+                anchors.baseline: title.baseline
+                width: Math.max(0, words.room - title.width - words.spacing)
+                visible: row.aside !== "" && width > 20
+                text: row.aside
+                textFormat: Text.PlainText
+                color: Theme.label3
+                font.pixelSize: Theme.captionSize
+                elide: Text.ElideRight
+            }
+        }
+
+        PopupButton {
+            id: join
+
+            x: row.width - Theme.popupInset - width + 4
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !!row.ev.link && (row.hovered || root.joinShown(row.ev))
+            glyph: Theme.glyph.join
+            name: "Join " + (row.ev.title ?? "")
+            onTapped: root.join(row.ev)
+        }
+
+        // How far through the event under way it is.
+        Rectangle {
+            visible: row.live
+            x: row.textX
+            y: row.height - 3
+            width: row.width - Theme.popupInset - x
+            height: 2
+            radius: 1
+            color: Theme.selection
+
+            Rectangle {
+                width: parent.width * Math.min(1, Math.max(0, (root.now - (row.ev.start ?? 0)) / Math.max(1, (row.ev.end ?? 1) - (row.ev.start ?? 0))))
+                height: parent.height
+                radius: 1
+                color: row.ev.colour || Theme.label2
+            }
         }
     }
 }
