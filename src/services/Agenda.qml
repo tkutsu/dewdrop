@@ -110,9 +110,34 @@ GoogleService {
         root.fetchMonth(date, false);
     }
 
+    // --- colours -------------------------------------------------------------
+    // The API still hands out Google's pre-2018 pastels, while the app draws
+    // each one in its current shade: a calendar the API calls #9fe1e7 is
+    // Peacock, #039be5, on screen. A calendar's 24 colours, old to current;
+    // a custom colour comes back as itself and is left alone.
+    readonly property var calendarShades: ({
+            "#ac725e": "#795548", "#d06b64": "#e67c73", "#f83a22": "#d50000", "#fa573c": "#f4511e",
+            "#ff7537": "#ef6c00", "#ffad46": "#f09300", "#42d692": "#009688", "#16a765": "#0b8043",
+            "#7bd148": "#7cb342", "#b3dc6c": "#c0ca33", "#fbe983": "#e4c441", "#fad165": "#f6bf26",
+            "#92e1c0": "#33b679", "#9fe1e7": "#039be5", "#9fc6e7": "#4285f4", "#4986e7": "#3f51b5",
+            "#9a9cff": "#7986cb", "#b99aff": "#b39ddb", "#c2c2c2": "#616161", "#cabdbf": "#a79b8e",
+            "#cca6ac": "#ad1457", "#f691b2": "#d81b60", "#cd74e6": "#8e24aa", "#a47ae2": "#9e69af"
+        })
+    // An event's own colour, by colorId: Lavender, Sage, Grape, Flamingo,
+    // Banana, Tangerine, Peacock, Graphite, Blueberry, Basil, Tomato.
+    readonly property var eventShades: ({
+            "1": "#7986cb", "2": "#33b679", "3": "#8e24aa", "4": "#e67c73", "5": "#f6bf26", "6": "#f4511e",
+            "7": "#039be5", "8": "#616161", "9": "#3f51b5", "10": "#0b8043", "11": "#d50000"
+        })
+
+    function calendarShade(hex: string): string {
+        const key = hex.toLowerCase();
+        return root.calendarShades[key] ?? key;
+    }
+
     function fetchCalendars(): void {
         root.gather("calendars", [{url: `${root.api}/users/me/calendarList?minAccessRole=owner`}],
-            c => c.selected === true ? {id: c.id, title: c.summary ?? "", colour: c.backgroundColor ?? ""} : null, function (calendars, failed) {
+            c => c.selected === true ? {id: c.id, title: c.summary ?? "", colour: root.calendarShade(c.backgroundColor ?? "")} : null, function (calendars, failed) {
             if (failed.length) return;
             root.calendars = calendars;
             root.haveCalendars = true;
@@ -181,7 +206,8 @@ GoogleService {
             start: start.getTime(),
             end: end.getTime(),
             calendar: cal.title,
-            colour: cal.colour ?? "",
+            // Its own colour where one was picked for it, as the app shows.
+            colour: root.eventShades[item.colorId] ?? cal.colour ?? "",
             // The event's own page in Google Calendar.
             url: item.htmlLink ?? "",
             place: item.location ?? "",
