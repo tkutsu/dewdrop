@@ -152,7 +152,7 @@ Popup {
         enabled: !choice.running && !dismissal.running
         onAdd: {
             const items = Notifications.list.slice();
-            choice.start(clearAll, () => root.clear(items));
+            choice.start(clearAll.addButton, () => root.clear(items));
         }
     }
 

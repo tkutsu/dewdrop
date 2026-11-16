@@ -68,14 +68,17 @@ ShellRoot {
 
         press(Qt.Key_Down);
         const plus = targets[0];
-        check(popup.keyItem === plus && plus.keyed && plus.lit, "Down picks the header's plus first");
+        check(popup.keyItem === plus && plus.keyed && plus.hovered, "Down picks the header's plus first");
         press(Qt.Key_Return);
         check(test.adds === 1, "Return presses the header's plus");
 
-        // A header with only the plus is all press, as wide as the rows, so
-        // Down lands on the row rather than on the button at its end.
+        // The plus is a framed button at the header's right end, so Down
+        // lands on the button at the end of the row under it, and Left
+        // comes back to the row.
         press(Qt.Key_Down);
-        check(popup.keyItem === first && first.hovered, "Down from a full-width target goes to the full-width row");
+        check(popup.keyItem === inline && inline.hovered, "Down from the header's plus goes to the button under it");
+        press(Qt.Key_Left);
+        check(popup.keyItem === first && first.hovered, "Left from the row's button reaches the row");
         press(Qt.Key_Space);
         check(test.rows === 1, "Space presses the row");
         press(Qt.Key_Right);
