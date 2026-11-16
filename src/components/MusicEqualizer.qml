@@ -130,12 +130,6 @@ Column {
         text: "These bands approximate your existing EQ. Apply replaces it with a ten-band EQ."
         font.pixelSize: Theme.footnoteSize
     }
-    PopupNote {
-        width: root.width
-        visible: MpdEqualizer.preset === "Headphones"
-        text: "General listening curve. No measured JBL Endurance Race 2 correction was found."
-        font.pixelSize: Theme.footnoteSize
-    }
     NeedsNote {
         width: root.width
         feature: "The equalizer"

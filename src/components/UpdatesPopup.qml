@@ -26,7 +26,9 @@ Popup {
 
     // A list to read, as wide as Mail and Tasks; a long name gives way to its
     // versions.
-    readonly property real bodyWidth: Theme.popupWideWidth
+    // A step past the wide lists: the header carries the count, Upgrade, the
+    // refresh stamp and Clean Up, and needs the room at a glance.
+    readonly property real bodyWidth: Theme.popupWideWidth + 40
     // The commands need the terminal they are set to run in.
     readonly property bool canRun: !Settings.commandsInTerminal || Tools.hasTerminal
 
