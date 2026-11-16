@@ -229,6 +229,8 @@ GoogleService {
             start: at(event.start),
             end: at(event.end)
         };
+        if (event.notes)
+            body.description = event.notes;
         root.send("POST", `${root.api}/calendars/primary/events`, body, () => {
             // Fetched again even if a fetch is in the air: that one began
             // before the event existed.

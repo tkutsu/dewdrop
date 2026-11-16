@@ -100,6 +100,14 @@ ShellRoot {
                 check(Tasks.plan("fri 15:00").error === "No event, only a time", "time with no title");
                 check(Tasks.plan("fri 15:00 work call").event.title === "work call", "section word stays in an event title");
                 check(!Tasks.plan("2026-02-30 9:30 x").ok, "invalid event date");
+                // Lines under the first are notes, and only the first is planned.
+                const noted = Tasks.plan("fri call bank\n\n  bring the card  \n");
+                check(noted.kind === "task" && noted.task.title === "call bank" && noted.task.day === fri
+                    && noted.notes === "bring the card" && noted.line === "fri call bank", "lines under a task line are its notes");
+                check(at(Tasks.plan("fri 15:00 call bank\nask about fees"), fri, 15, 0)
+                    && Tasks.plan("fri 15:00 call bank\nask about fees").event.notes === "ask about fees", "lines under an event line are its description");
+                check(Tasks.plan("25m tea\nsteep it").kind === "timer" && Tasks.plan("fri\ncall bank").error === "No task, only a day", "notes never change what the first line makes");
+                check(Tasks.plan("x\n" + "n".repeat(8200)).error === "Notes are 8200 characters, 8 over Google's 8192", "launcher names overlong notes");
 
                 // What Enter will make, said before it is made.
                 const range = (a, b) => `${Timers.hhmm(a, 0)}–${Timers.hhmm(b, 0)}`;
@@ -107,6 +115,11 @@ ShellRoot {
                 check(!preview("15:00 call bank").subtitle.includes("event"), "alarm preview promises no event");
                 check(preview("fri 15:00 call bank").subtitle === `event  ·  ${Tasks.sayDay(fri)} ${range(15, 16)}` && preview("fri 15:00 call bank").event, "event preview");
                 check(preview("fri call bank").subtitle.startsWith("add  ·  ") && !preview("fri call bank").event, "task preview");
+                const notedRow = preview("fri call bank\nbring the card");
+                check(notedRow.title === "fri call bank" && notedRow.subtitle.startsWith("add  ·  ") && notedRow.subtitle.endsWith("  ·  with notes")
+                    && notedRow.text.endsWith("\nbring the card"), "add row shows the first line and says notes follow");
+                check(preview("fri 15:00 call bank\nfees").subtitle.endsWith(`${range(15, 16)}  ·  with notes`), "event preview says notes follow");
+                check(!preview("fri call bank").subtitle.includes("notes"), "no notes, no mention");
                 Google.scopeMissing = true;
                 check(!preview("15:00 call bank").subtitle.includes("calendar") && preview("15:00 call bank").ok, "an alarm has nothing to do with the calendar");
                 check(preview("fri 15:00 call bank").subtitle === "event  ·  calendar needs reconnect" && !preview("fri 15:00 call bank").ok, "event waits for reconnect");
@@ -125,7 +138,10 @@ ShellRoot {
                 Agenda.calls = [];
                 check(Tasks.run("fri 15:00 call bank").startsWith("Added call bank") && Agenda.calls.length === 1
                     && Agenda.calls[0].body.start.dateTime.startsWith(fri + "T15:00:00") && Agenda.calls[0].url.endsWith("/calendars/primary/events")
-                    && Agenda.calls[0].body.reminders === undefined, "event line inserts an event");
+                    && Agenda.calls[0].body.reminders === undefined && Agenda.calls[0].body.description === undefined, "event line inserts an event");
+                Agenda.calls = [];
+                Tasks.run("fri 15:00 call bank\nask about fees\nbring the card");
+                check(Agenda.calls[0].body.summary === "call bank" && Agenda.calls[0].body.description === "ask about fees\nbring the card", "an event's lines below go to its description");
 
                 // Slash and dash dates, in the order the setting gives.
                 const ymd = (y, m, d) => day(new Date(y, m - 1, d));
@@ -170,7 +186,12 @@ ShellRoot {
                 check(Tasks.count === 2, "date based count excludes children and future tasks");
                 check(Tasks.dragRows.some(r => r.kind === "header" && r.id === "empty"), "empty drag destinations");
                 Tasks.run("work tomorrow new task");
-                check(Tasks.calls[0].url.includes("/lists/work/tasks") && Tasks.calls[0].body.title === "new task", "add routed to task list");
+                check(Tasks.calls[0].url.includes("/lists/work/tasks") && Tasks.calls[0].body.title === "new task" && Tasks.calls[0].body.notes === undefined, "add routed to task list");
+                Tasks.calls = [];
+                Tasks.run("work tomorrow buy paint\nmatte white\n2L");
+                check(Tasks.calls[0].url.includes("/lists/work/tasks") && Tasks.calls[0].body.title === "buy paint"
+                    && Tasks.calls[0].body.notes === "matte white\n2L" && Tasks.calls[0].body.due.startsWith(Tasks.tomorrow), "a task's lines below go to its notes");
+                Tasks.calls = [];
                 check(popup.auditList.count === Tasks.rows.length, "popup draws flat model");
                 check(Launcher.taskResults("").filter(r => r.kind === "task").map(r => r.task.id).join(",") === "a,c,b,d", "launcher task list order");
                 check(Launcher.taskResults("work fri call x")[0].subtitle.includes("Work"), "launcher add destination");

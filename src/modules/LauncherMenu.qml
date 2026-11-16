@@ -761,6 +761,15 @@ OverlayWindow {
                             break;
                         case Qt.Key_Return:
                         case Qt.Key_Enter:
+                            // Under a task or an event, Shift+Return starts
+                            // its notes on the line below (Tasks.plan). A
+                            // timer has nowhere to keep them.
+                            if (shift && Launcher.taskMode
+                                    && ["task", "event"].includes(Tasks.plan(Launcher.classification.text).kind)) {
+                                input.remove(input.selectionStart, input.selectionEnd);
+                                input.insert(input.cursorPosition, "\n");
+                                break;
+                            }
                             root.accept(ctrl);
                             break;
                         case Qt.Key_Home:

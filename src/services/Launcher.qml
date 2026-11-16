@@ -101,6 +101,10 @@ Singleton {
                 { prefix: "event", hint: "fri 15:00 call" },
                 { prefix: "event", hint: "fri all day trip" }
             ];
+        // A task or event being written can take notes on a line below it.
+        if (c.mode === root.taskPrefix && !c.text.includes("\n")
+                && ["task", "event"].includes(Tasks.plan(c.text).kind))
+            return [{ prefix: "⇧↵", hint: "notes" }];
         return [];
     }
 
@@ -650,23 +654,25 @@ Singleton {
     function taskResults(query) {
         const typed = query.trim();
         const plan = typed.length ? Tasks.plan(typed) : null;
+        // The first line; the notes under it only ride along.
+        const line = plan?.line ?? "";
         const timerInput = plan?.kind === "timer" || plan?.kind === "alarm";
-        const rows = root.timerResults(timerInput ? typed : "", plan);
+        const rows = root.timerResults(timerInput ? line : "", plan);
 
         if (!Tasks.configured)
             return rows.concat([
                 root.noteRow(Theme.glyph.tasks, `Google Tasks not connected — run ${Google.setup}`)
             ]);
 
-        const parsedTask = typed.length ? Tasks.parse(typed) : null;
-        if (typed.length && !timerInput) {
+        const parsedTask = line.length ? Tasks.parse(line) : null;
+        if (line.length && !timerInput) {
             const event = plan.kind === "event";
             rows.unshift({
                 kind: "task-add",
                 event: event,
                 glyph: event ? Theme.glyph.event : Theme.glyph.plus,
                 // Keep the typed day and task list names in the preview.
-                title: typed,
+                title: line,
                 subtitle: root.linePreview(typed, plan),
                 // An event needs the calendar; the preview says so.
                 ok: plan.ok && !(event && Google.needsConsent),
@@ -715,10 +721,16 @@ Singleton {
 
     // What Enter makes of a `,` line (Tasks.plan), read from the parse rather
     // than the line: "alarm 15:00 today  ·  event 15:00–16:00",
-    // "event  ·  fri 15:00–16:00", or the task's day and task list.
+    // "event  ·  fri 15:00–16:00", or the task's day and task list, each
+    // followed by "with notes" when there are lines under the first.
     function linePreview(typed, plan) {
         if (!plan.ok)
             return plan.error;
+        const said = root.planPreview(typed, plan);
+        return plan.notes && (plan.kind === "task" || plan.kind === "event") ? said + "  ·  with notes" : said;
+    }
+
+    function planPreview(typed, plan) {
         const time = at => Timers.hhmm(at.getHours(), at.getMinutes());
         const ev = plan.event;
         const calendar = () => Google.needsConsent ? "calendar needs reconnect" : null;
