@@ -402,6 +402,11 @@ Singleton {
     // at a whisper rather than a grey — a grey at a tenth on a half-black
     // surface was there in the file and nowhere on the screen.
     readonly property color stroke: Qt.rgba(1, 1, 1, 0.09)
+    // A line between groups in a row of glyphs (the open drawer's kinds):
+    // shorter than the glyphs and a step brighter than `stroke`, which on the
+    // bar's glass is all but gone.
+    readonly property color divider: Qt.rgba(1, 1, 1, 0.2)
+    readonly property int dividerHeight: 12
 
     // The edge of a surface, as opposed to a line across one. A flat hairline
     // at `stroke` vanished over the wallpaper, and over a dark window a popup
@@ -481,6 +486,14 @@ Singleton {
         return Qt.rgba(from.r + (to.r - from.r) * t, from.g + (to.g - from.g) * t, from.b + (to.b - from.b) * t, from.a + (to.a - from.a) * t);
     }
 
+    // A colour's distance from its own grey scaled by `s`: under 1 towards
+    // the grey, over 1 away from it.
+    function saturate(c, s) {
+        const luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        const lift = v => Math.min(1, Math.max(0, luma + (v - luma) * s));
+        return Qt.rgba(lift(c.r), lift(c.g), lift(c.b), c.a);
+    }
+
     // Outlines round a thing you can pick — the wallpaper popup's thumbnails
     // and swatch: none, or `outline`, at rest, `outlineHover` under the
     // pointer, and `fg` once it is the one on screen.
@@ -539,16 +552,18 @@ Singleton {
                 break;
             }
         }
-        return mix(ground, Qt.rgba(1, 1, 1, 1), selectionStrong.a);
+        return mix(saturate(ground, badgeSaturation), Qt.rgba(1, 1, 1, 1), selectionStrong.a);
     }
+    // A badge over a red wallpaper went red, and red on a count reads as an
+    // alert. Taking some of the colour out keeps it the wallpaper's without
+    // letting it say more than the number does.
+    readonly property real badgeSaturation: 0.7
 
     // What the clear glass makes of a colour behind it, the way liquid.frag
     // does it: saturation raised by glassSaturation, then the tint laid over
     // at glassTint.
     function glassOver(c) {
-        const luma = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-        const lift = v => Math.min(1, Math.max(0, luma + (v - luma) * glassSaturation));
-        return mix(Qt.rgba(lift(c.r), lift(c.g), lift(c.b), 1), tint, glassTint);
+        return mix(saturate(Qt.rgba(c.r, c.g, c.b, 1), glassSaturation), tint, glassTint);
     }
     readonly property color badgeFg: "white"
 

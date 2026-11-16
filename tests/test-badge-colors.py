@@ -89,7 +89,7 @@ ShellRoot {
                 const icon = glyph.children[0];
                 const top = Math.floor((icon.height - glyph.glyphSize) / 2) + glyph.nudge;
                 const pos = icon.mapToItem(strip, 0, top);
-                return Theme.mix(Theme.glassOver(strip.averageRegion(Qt.rect(pos.x, pos.y, icon.width, glyph.glyphSize))), Qt.rgba(1, 1, 1, 1), Theme.selectionStrong.a);
+                return Theme.mix(Theme.saturate(Theme.glassOver(strip.averageRegion(Qt.rect(pos.x, pos.y, icon.width, glyph.glyphSize))), Theme.badgeSaturation), Qt.rgba(1, 1, 1, 1), Theme.selectionStrong.a);
             }
             function run() {
                 Wallpaper.registerBackdrop('badge-fixture', renderer);
@@ -153,7 +153,7 @@ ShellRoot {
                 check(badge().visible && !badge().dot && badge().height === Theme.badgeSize, 'switching back restores the count badge');
                 check(!glyph.children[0].layer.enabled, 'count mode removes the dot cutout');
                 strip.stripFor(picture).children[0].grid = {nx: 0, cells: []}; wait(30);
-                const fallback = Theme.mix(second.surface, Qt.rgba(1, 1, 1, 1), Theme.selectionStrong.a);
+                const fallback = Theme.mix(Theme.saturate(second.surface, Theme.badgeSaturation), Qt.rgba(1, 1, 1, 1), Theme.selectionStrong.a);
                 check(same(badge().fill, fallback), 'badge falls back to its pill before wallpaper samples are ready');
             }
         }

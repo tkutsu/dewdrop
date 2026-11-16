@@ -1,5 +1,23 @@
-const defaults = ["audio", "email", "tasks", "updater", "feeds", "downloads", "bell", "satty", "idle",
-    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "datetime", "countdown"];
+// Grouped by kind (kindOf) after the volume, which leads.
+const defaults = ["audio", "email", "tasks", "updater", "feeds", "downloads", "bell",
+    "satty", "wallpaper", "tray", "settings",
+    "idle", "night", "language",
+    "sys", "drives", "bluetooth", "network", "weather", "datetime", "countdown"];
+
+// What a module is for: things waiting for you, tools you open, switches you
+// flip, and readouts. The open drawer draws a hairline where one kind gives
+// way to the next (Pill.kindOf).
+const kinds = {
+    email: "inbox", tasks: "inbox", feeds: "inbox", updater: "inbox", downloads: "inbox", bell: "inbox",
+    satty: "tool", wallpaper: "tool", tray: "tool", settings: "tool",
+    idle: "toggle", night: "toggle", audio: "toggle", language: "toggle",
+    sys: "status", drives: "status", bluetooth: "status", network: "status",
+    weather: "status", datetime: "status", countdown: "status"
+};
+
+function kindOf(key) {
+    return kinds[key] ?? "";
+}
 
 // Keep saved positions while accepting modules added since the last drop.
 function normalise(order, supported = defaults) {
