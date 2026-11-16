@@ -7,9 +7,8 @@ import qs.src.services
 // The networks in range, and one click on a row to join or leave it. A tick
 // on the one in use and a spinner while one is being joined; at the right
 // edge a lock on a network that will ask for a password, then its signal in
-// the bar's cone. Wi-Fi's switch is at the end of the title, as on the Mac,
-// and NetworkManager's own editor is the row at the foot, for anything this
-// is not (a right click on the bar icon opens it too).
+// the bar's cone. Wi-Fi's switch heads the Wi-Fi part, and NetworkManager's
+// own editor is the framed button on the title, for anything this is not.
 Popup {
     id: root
 
@@ -35,14 +34,6 @@ Popup {
                 Quickshell.execDetached(command);
             }
         }
-
-        SettingSwitch {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !!Network.wifi
-            name: "Wi-Fi"
-            checked: Network.wifiOn
-            onToggled: Network.toggleWifi()
-        }
     }
 
     NeedsNote {
@@ -66,12 +57,21 @@ Popup {
         }
     }
 
+    // Wi-Fi's switch heads its own part: it leaves the cable alone, so on
+    // the popup's title it would claim the whole network.
     PopupSection {
         width: root.bodyWidth
-        visible: Network.wifiOn
+        visible: !!Network.wifi
         // Straight under the header unless the cable's row is between.
         ruled: Network.wired?.hasLink ?? false
         title: "Wi-Fi"
+
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Wi-Fi"
+            checked: Network.wifiOn
+            onToggled: Network.toggleWifi()
+        }
     }
 
     PopupNote {
