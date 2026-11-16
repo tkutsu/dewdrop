@@ -292,7 +292,8 @@ Singleton {
     // gone: iconInk measures that now rather than being told it one app at a
     // time.
     readonly property var appIconOverride: ({})
-    // Every game's window draws as a gamepad: AppIcons.isGame says which they are.
+    // A game with no drawing of its own draws as a controller: AppIcons.isGame
+    // says which windows are games.
     readonly property string gameIcon: "category-game-niagara-outline"
 
     // --- fonts ---------------------------------------------------------------

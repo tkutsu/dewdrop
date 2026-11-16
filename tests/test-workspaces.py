@@ -671,6 +671,10 @@ if '--app-names' in sys.argv:
     (applications / 'org.example.Editor.desktop').write_text('[Desktop Entry]\nType=Application\nName=Full ID Editor\nExec=editor\n')
     (applications / 'editor.desktop').write_text('[Desktop Entry]\nType=Application\nName=Short ID Editor\nExec=editor\n')
     (applications / 'steam.desktop').write_text('[Desktop Entry]\nType=Application\nName=Steam\nExec=steam\nIcon=steam\nStartupWMClass=steam\n')
+    hicolor = target / 'data/icons/hicolor'
+    (hicolor / 'scalable/apps').mkdir(parents=True)
+    (hicolor / 'index.theme').write_text('[Icon Theme]\nName=Hicolor\nDirectories=scalable/apps\n\n[scalable/apps]\nSize=16\nMinSize=8\nMaxSize=512\nType=Scalable\n')
+    (hicolor / 'scalable/apps/steam_icon_440.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16"/></svg>')
     start = shell_source.index(' const w1=ws(1)')
     end = shell_source.index(" console.log(failures.length", start)
     shell_source = shell_source[:start] + r'''
@@ -691,6 +695,8 @@ if '--app-names' in sys.argv:
    a.wayland={appId:game};test.wait(100);
    check(icon(button(1),'a').iconName===Theme.gameIcon,'a game draws the gamepad: '+game);
  }
+ a.wayland={appId:'steam_app_440'};test.wait(100);
+ check(icon(button(1),'a').iconName==='steam_icon_440','a Steam game with its own drawing draws that');
  a.wayland={appId:'steam'};test.wait(100);
  check(icon(button(1),'a').iconName==='steam','Steam itself keeps its own icon');
 ''' + shell_source[end:]
