@@ -38,30 +38,6 @@ Item {
     property var lockedKeys: []
     signal moduleReceived(string key)
     readonly property var modules: row.children.filter(item => item.settingsKey)
-
-    // A hairline where one kind of module gives way to the next (kindOf maps a
-    // settings key to its kind), up while `dividers` is: the open drawer's
-    // long row reads as groups rather than one run of equal glyphs.
-    property var kindOf: null
-    property real dividers: 0
-    Behavior on dividers {
-        NumberAnimation {
-            duration: Theme.fadeMs
-        }
-    }
-    readonly property var dividerPairs: {
-        if (!root.kindOf)
-            return [];
-        const mods = (root.shown ?? []).filter(item => item.settingsKey);
-        const pairs = [];
-        for (let i = 1; i < mods.length; i++) {
-            const before = root.kindOf(mods[i - 1].settingsKey);
-            const after = root.kindOf(mods[i].settingsKey);
-            if (before && after && before !== after)
-                pairs.push([mods[i - 1], mods[i]]);
-        }
-        return pairs;
-    }
     property alias dragging: reorder.dragging
     readonly property bool reorderPressed: reorder.pressSource !== null
     readonly property bool animating: dragging || centreMove.running || rightMove.running || row.children.some(item => item.animating === true)
@@ -454,41 +430,6 @@ Item {
             Translate { x: root.contentShiftX; y: root.contentSink }
         ]
         onChildrenChanged: root.arrange()
-    }
-
-    // The kind dividers, over the row and moved with it. Each sits in the
-    // middle of the gap its two modules share, and comes up only as far as
-    // both of them are unfolded.
-    Item {
-        anchors.fill: row
-        visible: root.dividers > 0 && (root.dividerPairs?.length ?? 0) > 0
-        opacity: root.contentOpacity
-        transform: [
-            Scale {
-                origin.x: row.width / 2
-                origin.y: row.height / 2
-                xScale: root.contentScale * root.contentZoom
-                yScale: root.contentZoom
-            },
-            Translate { x: root.contentShiftX; y: root.contentSink }
-        ]
-
-        Repeater {
-            model: root.dividerPairs
-
-            Rectangle {
-                required property var modelData
-                readonly property Item before: modelData[0]
-                readonly property Item after: modelData[1]
-
-                x: Math.round((before.x + before.width + (before.shift ?? 0) + after.x + (after.shift ?? 0)) / 2)
-                anchors.verticalCenter: parent.verticalCenter
-                width: 1
-                height: Theme.dividerHeight
-                color: Theme.divider
-                opacity: root.dividers * Math.min(before.reveal ?? 1, after.reveal ?? 1)
-            }
-        }
     }
 
     PillReorder { id: reorder; pill: root }

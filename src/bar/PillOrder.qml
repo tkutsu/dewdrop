@@ -15,11 +15,6 @@ Singleton {
     // JsonAdapter restores arrays as Qt sequences, which fail Array.isArray.
     readonly property var keys: Order.normalise(Array.from(stored.order ?? []), root.defaults)
 
-    // What a module is for, which the open drawer groups by (Pill.kindOf).
-    function kindOf(key: string): string {
-        return Order.kindOf(key);
-    }
-
     function move(key, beforeKey, visibleKeys): bool {
         const next = Order.move(root.keys, key, beforeKey, visibleKeys, root.defaults);
         if (next.every((k, index) => k === root.keys[index]))
