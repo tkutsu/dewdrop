@@ -293,7 +293,7 @@ Singleton {
     // time.
     readonly property var appIconOverride: ({})
     // Every game's window draws as a gamepad: AppIcons.isGame says which they are.
-    readonly property string gameIcon: "input-gaming"
+    readonly property string gameIcon: "category-game-niagara-outline"
 
     // --- fonts ---------------------------------------------------------------
     // Inter by default (settings.json): the closest freely licensed thing to
