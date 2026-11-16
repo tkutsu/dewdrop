@@ -39,7 +39,7 @@ Singleton {
     readonly property string weatherPosition: root.centralComponents.includes("weather") ? "centre" : "right"
     readonly property string weatherDisplay: ["hour", "average", "worst", "day"].includes(root.values.weatherDisplay)
         ? root.values.weatherDisplay : "hour"
-    readonly property string weatherFormat: root.values.weatherFormat || "{icon} {temp}"
+    readonly property string weatherFormat: root.values.weatherFormat || "{icon}{temp}°"
     // The weather format cut at its tokens and at ^[…] and _[…]: each part is
     // a token or literal text, with a shift of "sup", "sub" or "" for the
     // baseline. The icon stays on the line whatever its shift. Text typed

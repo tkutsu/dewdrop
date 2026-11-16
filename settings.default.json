@@ -58,7 +58,7 @@
     "weatherDisplay": "hour",
 
     // Include {icon}, {temp}, or both in either order. Other text is literal.
-    "weatherFormat": "{icon} {temp}",
+    "weatherFormat": "{icon}{temp}°",
 
     // Temperature units throughout weather: "celsius", "fahrenheit", or "kelvin".
     "weatherUnit": "celsius",

@@ -535,7 +535,7 @@ OverlayWindow {
                             options: [{ value: "hour", label: "Current Weather" }, { value: "average", label: "Next 6 Hours Average" }, { value: "worst", label: "Next 6 Hours Worst" }, { value: "day", label: "Today" }],
                             get: () => Settings.weatherDisplay, set: v => Settings.set("weatherDisplay", v) },
                         { type: "text", id: "weatherFormat", title: "Custom Format", tooltip: "{icon}: weather icon. {temp}: temperature.\nUse either token on its own, or both in either order. Other text appears as typed.\n{temp} is the bare number; add ° or a unit as you like.\n^[…] and _[…] draw text or {temp} small, as a small AM/PM:\n^[…] raised to the capitals' tops, _[…] on the baseline.\nExamples: {icon} {temp}°, {temp}^[°C] {icon}.",
-                            placeholder: "{icon} {temp}", validate: v => /\{(?:icon|temp)\}/.test(v) ? "" : "Include {icon} or {temp}.",
+                            placeholder: "{icon}{temp}°", validate: v => /\{(?:icon|temp)\}/.test(v) ? "" : "Include {icon} or {temp}.",
                             get: () => Settings.weatherFormat, set: v => Settings.set("weatherFormat", v) },
                         { type: "choice", id: "weatherUnit", title: "Temperature Unit",
                             options: [{ value: "celsius", label: "Celsius" }, { value: "fahrenheit", label: "Fahrenheit" }, { value: "kelvin", label: "Kelvin" }],

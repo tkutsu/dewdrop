@@ -36,7 +36,7 @@ ShellRoot {
             function run() {
                 Settings.user = {weatherDisplay: 'temperature', reduceMotion: true};
                 wait(150);
-                check(Settings.weatherDisplay === 'hour' && Settings.weatherFormat === '{icon} {temp}', 'legacy temperature mode gains icon and retains current weather');
+                check(Settings.weatherDisplay === 'hour' && Settings.weatherFormat === '{icon}{temp}°', 'legacy temperature mode gains icon and retains current weather');
                 const hours = Array.from({length: 7}, (_, index) => hour(index, index === 6 ? 2 : 0));
                 Weather.days = [{date: 'test', hours}];
                 Weather.now = 1800;
