@@ -73,14 +73,6 @@ ShellRoot {
         Backdrop {}
     }
 
-    // The black a power action leaves the screen in, from the launcher's CRT
-    // exit until the session goes or the machine wakes. See services/Power.qml.
-    LazyLoader {
-        active: Power.dark
-
-        Blackout {}
-    }
-
     // Loaded only while it is up, for two reasons: nothing holds keyboard
     // focus while the launcher is closed, and there is no screen-sized click
     // target over the desktop the rest of the time.

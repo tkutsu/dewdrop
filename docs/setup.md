@@ -28,7 +28,7 @@ The bar asks for [Themis Icons](https://github.com/tkutsu/themis-icons) by name,
 
 ## Optional features
 
-Each of these turns on when its tools are installed. Without them the rest of the shell keeps working. Where a program is missing, the popup that would use it says which package it needs, and Settings says the same under the module or power action. The launcher's calculator and file search say it in their results, where Return installs it. The Install link beside it runs `sudo pacman -S --needed` with that package in your terminal, and the feature appears once the terminal closes, with no restart. Set `installCommand` to install some other way; package names are Arch's.
+Each of these turns on when its tools are installed. Without them the rest of the shell keeps working. Where a program is missing, the popup that would use it says which package it needs, and Settings says the same under the module. The launcher's calculator and file search say it in their results, where Return installs it. The Install link beside it runs `sudo pacman -S --needed` with that package in your terminal, and the feature appears once the terminal closes, with no restart. Set `installCommand` to install some other way; package names are Arch's.
 
 | Feature | Needs |
 | --- | --- |
@@ -37,7 +37,6 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Brightness | On a monitor: `ddcutil`, the `i2c-dev` kernel module and access to `/dev/i2c-*` (usually the `i2c` group). On a laptop panel: `brightnessctl`. The Display module hides without them. |
 | Night mode tint | `hyprsunset` running in your session. Without it, night mode only dims the screen. |
 | Lock Screen | Something that answers `loginctl lock-session`, such as `hypridle` with `lock_cmd = hyprlock` |
-| Black screen animation on sleep | `gdbus` (glib2). Without it sleep runs with no animation. |
 | Drives | UDisks2 (`udisksctl`), UPower |
 | Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket` |
 | Music equalizer | Python 3, FFmpeg, and a user `mpd.service`. The config at `mpdConfig` must have one FFmpeg EQ filter attached to an output and a `state_file` to preserve the queue. Apply saves a `.quickshell-eq.bak` backup and briefly restarts MPD. |

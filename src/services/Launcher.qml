@@ -286,8 +286,6 @@ Singleton {
         Tasks.commit();
         root.shown = false;
         root.armed = "";
-        // Closing mid-CRT takes the command back with it.
-        Power.leaving = null;
         for (const id of root.heldBumps)
             root.bump(id);
         root.heldBumps = [];
@@ -627,18 +625,6 @@ Singleton {
         if (!terms.length)
             return Power.actions.filter(a => !Settings.hiddenApps.includes("power:" + a.key)).map(a => root.powerRow(a));
         return root.powerMatches(terms).sort((a, b) => b.s - a.s).map(x => x.row);
-    }
-
-    // The end of the CRT the box plays for Power.leaving: run the command
-    // under the black it left, then close. Run first, so the black never
-    // lapses between the exit and the hold.
-    function leave(): void {
-        const a = Power.leaving;
-        if (!a)
-            return;
-        root.bump("power:" + a.key);
-        Power.run(a.arg, true);
-        root.hide();
     }
 
     // --- help ----------------------------------------------------------------
@@ -1145,12 +1131,6 @@ Singleton {
                 // the second, like every destructive button on the bar.
                 if (r.action.confirm && !r.armed) {
                     root.armed = r.action.key;
-                    return;
-                }
-                // Leaving the session or the screen goes out through the
-                // box's CRT (LauncherMenu.qml), which calls leave().
-                if (Power.fades(r.action.arg)) {
-                    Power.leaving = r.action;
                     return;
                 }
                 root.hide();

@@ -312,9 +312,7 @@ OverlayWindow {
         root.shownInLauncher("desktop:bluetooth-power", "Bluetooth", { glyph: Theme.glyph.bluetooth })
     ]
 
-    // Each says what its black screen is missing (Power.fades).
-    readonly property var powerRows: Power.actions.map(p => Object.assign(root.shownInLauncher("power:" + p.key, p.name, { glyph: p.glyph }),
-        { needs: { feature: "The black screen animation", programs: Power.fadeNeeds(p.arg ?? "") } }))
+    readonly property var powerRows: Power.actions.map(p => root.shownInLauncher("power:" + p.key, p.name, { glyph: p.glyph }))
 
     // The feed's Look Back stops, in days: one to three weeks, one to eleven
     // months, a year.
