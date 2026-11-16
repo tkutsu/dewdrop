@@ -98,6 +98,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.label !== ""
             text: root.label
+            color: root.warn ? Theme.warn : Theme.fg
             font.pixelSize: root.textSize
         }
     }

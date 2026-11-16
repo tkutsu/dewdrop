@@ -32,11 +32,10 @@ Popup {
             label: "Feels Like"
             onTapped: Weather.feelsLike = !Weather.feelsLike
         }
-        PopupButton {
-            framed: true
-            glyph: Theme.glyph.refresh
-            label: "Refresh"
-            live: !!Weather.location && !Weather.loading
+        RefreshStamp {
+            live: !!Weather.location
+            at: Weather.updatedAt
+            failed: Weather.trouble !== ""
             onTapped: Weather.refresh(true)
         }
     }
@@ -87,7 +86,8 @@ Popup {
         property var incomingDay: null
         property int direction: 1
         property real progress: 0
-        readonly property var scaleHours: outgoing.plotHours.concat(incoming.plotHours)
+        // The whole week's, so stepping between days never moves an axis.
+        readonly property var scaleHours: Weather.allHours
 
         // Keep the old forecast intact until its replacement has slid into place.
         function syncDay(): void {
@@ -151,6 +151,7 @@ Popup {
             width: reel.width
             hours: reel.displayedDay?.hours ?? []
             scaleHours: reel.scaleHours
+            showRain: Weather.rainyWeek
             feelsLike: Weather.feelsLike
             readoutSource: incoming.hoveredHour !== null ? incoming : outgoing
         }
@@ -162,6 +163,7 @@ Popup {
             visible: reel.incomingDay !== null
             hours: reel.incomingDay?.hours ?? []
             scaleHours: reel.scaleHours
+            showRain: Weather.rainyWeek
             showAxes: false
             showReadout: false
             feelsLike: Weather.feelsLike
@@ -279,37 +281,5 @@ Popup {
         color: Weather.trouble ? Theme.warn : Theme.label2
         wrapMode: Text.WordWrap
         text: Weather.trouble ? `${Weather.trouble} Showing the last forecast.` : "Updating the forecast…"
-    }
-
-    Item {
-        width: root.bodyWidth
-        height: Math.max(attribution.implicitHeight, updated.implicitHeight)
-
-        PopupText {
-            id: attribution
-            anchors.left: parent.left
-            anchors.leftMargin: Theme.popupInset
-            anchors.bottom: parent.bottom
-            text: `<a href="https://open-meteo.com/" style="color: ${Theme.label2}">Open-Meteo</a>`
-            textFormat: Text.RichText
-            color: Theme.label2
-            font.pixelSize: Theme.footnoteSize
-            onLinkActivated: link => {
-                OpenPopup.dismiss();
-                Qt.openUrlExternally(link);
-            }
-        }
-        PopupText {
-            id: updated
-            anchors.right: parent.right
-            anchors.rightMargin: Theme.popupInset
-            anchors.bottom: parent.bottom
-            visible: Weather.updatedAt > 0
-            text: `Updated ${Qt.formatDateTime(new Date(Weather.updatedAt * 1000),
-                Qt.formatDate(new Date(Weather.updatedAt * 1000), "yyyy-MM-dd") === Qt.formatDate(new Date(Weather.now * 1000), "yyyy-MM-dd") ? "HH:mm" : "d MMM HH:mm")}`
-            color: Theme.label2
-            font.pixelSize: Theme.footnoteSize
-            font.italic: true
-        }
     }
 }

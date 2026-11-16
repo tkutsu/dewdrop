@@ -16,12 +16,19 @@ Item {
     property Item readoutSource: graph
     readonly property var readoutHour: graph.readoutSource.selectedHour
     property MouseArea cursor: plotHover
-    // The three measurements, in drawing order.
+    // Whether the week has any rain to draw (Weather.rainyWeek). A week
+    // without drops the graph; a dry day in a wet week keeps its place and
+    // says so, so the popup holds its height from day to day.
+    property bool showRain: true
+    readonly property bool dry: !Weather.rainy(graph.hours)
+    // The measurements, in drawing order: rain last, being the one that
+    // comes and goes. Wind and rain start at nothing; rain ends at certain.
     readonly property var series: [
-        {key: graph.feelsLike ? "feelsLike" : "temperature", label: `${graph.feelsLike ? "Feels like" : Settings.weatherUnit.charAt(0).toUpperCase() + Settings.weatherUnit.slice(1)} · ${Weather.temperatureSymbol}`, color: "#f2b36e", minimum: 0, maximum: 40, step: 10, pixels: 1.5},
-        {key: "rain", label: "Rain chance · %", color: "#86b8f0", minimum: 0, maximum: 100, step: 25, pixels: 0.6},
-        {key: "wind", label: "Wind · km/h", color: "#b4cfa0", minimum: 0, maximum: 40, step: 10, pixels: 1.5}
-    ]
+        {key: graph.feelsLike ? "feelsLike" : "temperature", label: `${graph.feelsLike ? "Feels like" : Settings.weatherUnit.charAt(0).toUpperCase() + Settings.weatherUnit.slice(1)} · ${Weather.temperatureSymbol}`, color: "#f2b36e", step: 10},
+        {key: "wind", label: "Wind · km/h", color: "#b4cfa0", floor: 0, step: 10},
+        {key: "rain", label: "Rain chance · %", color: "#86b8f0", floor: 0, ceiling: 100, step: 25}
+    ].filter(series => series.key !== "rain" || graph.showRain)
+    readonly property int plotHeight: 60
     readonly property int spacing: 5
     readonly property int plotLeft: 56
     readonly property real plotWidth: Math.max(1, graph.width - graph.plotLeft - 12)
@@ -48,6 +55,20 @@ Item {
         const fraction = graph.pointerX / graph.plotWidth;
         const at = graph.start + fraction * (graph.end - graph.start);
         return graph.plotHours.reduce((nearest, hour) => Math.abs(hour.at - at) < Math.abs(nearest.at - at) ? hour : nearest, graph.plotHours[0]);
+    }
+
+    // A series' axis, fitted to the values given (the whole week's, so it
+    // stays put from day to day) on whole steps, the step doubling until
+    // at most five ticks share the plot's fixed height.
+    function scale(series: var, values: var): var {
+        const min = values.length ? Math.min(...values) : 0;
+        const max = values.length ? Math.max(...values) : 0;
+        for (let step = series.step; ; step *= 2) {
+            const low = series.floor ?? Math.floor(min / step) * step;
+            const high = Math.min(series.ceiling ?? Infinity, Math.max(low + step, Math.ceil(max / step) * step));
+            if ((high - low) / step <= 4)
+                return {low, high, step};
+        }
     }
 
     // What a series reads at an hour, shown over its dot.
@@ -140,9 +161,11 @@ Item {
                     width: graph.width
                     height: Math.max(plot.height + 4, seriesTitle.implicitWidth + 8)
                     readonly property var values: graph.scaleHours.map(hour => hour[series.modelData.key]).filter(value => typeof value === "number" && Number.isFinite(value))
-                    readonly property real low: Math.min(modelData.minimum, values.length ? Math.floor(Math.min(...values) / modelData.step) * modelData.step : modelData.minimum)
-                    readonly property real high: Math.max(modelData.maximum, values.length ? Math.ceil(Math.max(...values) / modelData.step) * modelData.step : modelData.maximum)
-                    readonly property var ticks: Array.from({length: Math.round((high - low) / modelData.step) + 1}, (_, index) => high - index * modelData.step)
+                    readonly property var range: graph.scale(modelData, values)
+                    readonly property real low: range.low
+                    readonly property real high: range.high
+                    readonly property var ticks: Array.from({length: Math.round((high - low) / range.step) + 1}, (_, index) => high - index * range.step)
+                    readonly property bool none: modelData.key === "rain" && graph.dry
 
                     // Emphasize what the six-hour summary calls freezing, hot, rain
                     // likely and strong winds (the windy icon's limit too).
@@ -187,14 +210,24 @@ Item {
                         x: graph.plotLeft
                         y: (series.height - height) / 2
                         width: graph.plotWidth
-                        height: (series.high - series.low) * series.modelData.pixels + 4
+                        height: graph.plotHeight + 4
                         clip: true
+
+                        PopupText {
+                            x: graph.contentOffset + (parent.width - width) / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: series.none
+                            text: "No rain"
+                            color: Theme.label2
+                            font.pixelSize: Theme.footnoteSize
+                        }
 
                         Canvas {
                             id: plot
                             x: graph.contentOffset
                             width: parent.width
                             height: parent.height
+                            visible: !series.none
                             readonly property var hours: graph.plotHours
                             readonly property double now: Weather.now
                             readonly property color seriesColor: series.modelData.color
