@@ -243,8 +243,11 @@ ShellRoot {
                     .replace("<title>", '<link rel="alternate" href="https://www.youtube.com/shorts/SHORTSHORT1"/><title>'));
             const fallbackCalls = [];
             const fetched = [];
+            const progress = [];
             Feeds.feedStub = function (method, url, payload, headers, timeout, accepted, failed) {
                 fetched.push(url);
+                if (url.includes("playlist_id="))
+                    progress.push(Feeds.progress);
                 if (url.includes("UULFworking"))
                     accepted({status: 200, responseText: youtube.replace(/<entry>[\\s\\S]*?<\\/entry>/g,
                         entry => entry.includes("AAAAAAAAAAA") ? entry : "")});
@@ -264,6 +267,8 @@ ShellRoot {
             };
             Feeds.store.channels = {};
             Feeds.readChannels(["UCworking", "UCchannel", "UCrejected"]);
+            root.check(progress.join("|") === "Reading channels… 0 of 3|Reading channels… 1 of 3|Reading channels… 2 of 3"
+                && Feeds.progress === "Checking videos…", "channel reads count up: " + progress.join("|") + "|" + Feeds.progress);
             root.check(fetched.filter(url => url.includes("working")).length === 1, "an answering playlist feed is enough");
             root.check(Feeds.store.channels.UCchannel.videos.map(v => v.video).join() === "OWNFEED0001",
                 "the channel's own feed stands in, Shorts dropped");
@@ -405,6 +410,8 @@ ShellRoot {
             ? "PASS: channels and verdicts survive restart" : "FAIL: channel cache lost on restart");
         console.log(Feeds.store.subscribed.join() === "UCxxxxxxxxxxxxxxxxxxxxxx"
             ? "PASS: subscriptions survive restart" : "FAIL: subscriptions lost on restart");
+        console.log(Feeds.videos.length > 0 && Feeds.videos.every(v => Feeds.store.verdicts[v.video]?.live === false)
+            ? "PASS: cached videos listed on restart" : "FAIL: cached videos not listed on restart: " + Feeds.videos.length);
         Qt.quit();
     } }
 }
@@ -448,6 +455,7 @@ def main():
         output = restarted.stdout + restarted.stderr
         print(output)
         assert restarted.returncode == 0 and "PASS: clicked RSS survives restart" in output and "FAIL:" not in output
+        assert "PASS: cached videos listed on restart" in output, output
 
 
 if __name__ == "__main__":

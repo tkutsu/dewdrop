@@ -134,6 +134,13 @@ Singleton {
     readonly property bool stale: !root.loaded
     readonly property bool retryable: root.trouble !== "" && !YouTubeAccount.needsConsent
     readonly property bool connected: !YouTubeAccount.needsConsent
+    // How far the refresh under way has read the channels, zero total until
+    // it knows which they are.
+    property int channelsRead: 0
+    property int channelsTotal: 0
+    readonly property string progress: root.channelsTotal === 0 ? "Reading feeds…"
+        : root.channelsRead < root.channelsTotal ? `Reading channels… ${root.channelsRead} of ${root.channelsTotal}`
+        : "Checking videos…"
 
     // What the popup lists and the badge counts: every video within the
     // Look Back window, and every story still in its feed.
@@ -152,7 +159,7 @@ Singleton {
         if (root.trouble !== "")
             return root.trouble;
         if (!root.loaded)
-            return "Reading feeds…";
+            return root.progress;
         return root.count === 0 ? "Nothing new" : `${root.count} new`;
     }
 
@@ -227,6 +234,8 @@ Singleton {
             return;
         }
         root.trouble = "";
+        root.channelsRead = 0;
+        root.channelsTotal = 0;
         retry.stop();
         root.hold(() => {
             root.readSources();
@@ -498,10 +507,13 @@ Singleton {
         const started = Date.now();
         const read = {};
         const asked = new Set();
+        root.channelsRead = 0;
+        root.channelsTotal = channels.length;
         root.pool(channels.map(id => ({
                     urls: [`https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${id.slice(2)}`,
                         `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`],
                     got: text => read[id] = root.parseVideos(text),
+                    landed: () => root.channelsRead++,
                     failed: done => {
                         if (started - (store.channels[id]?.t ?? 0) < root.staleMs) {
                             done();
@@ -545,7 +557,7 @@ Singleton {
     function classify(): void {
         const now = Date.now();
         const cutoff = now - root.days * 86400000;
-        const recent = [].concat(...Object.values(store.channels).map(c => c.videos)).filter(v => v.published > cutoff);
+        const recent = root.recent(cutoff);
         const verdicts = Object.assign({}, store.verdicts);
         const unknown = recent.filter(v => !verdicts[v.video] || verdicts[v.video].retry < now);
         const batches = [];
@@ -559,10 +571,7 @@ Singleton {
                 if (verdict.t < cutoff)
                     delete verdicts[video];
             store.verdicts = verdicts;
-            root.videos = recent.filter(v => verdicts[v.video] ? verdicts[v.video].live === false : failed)
-                .map(v => Object.assign(root.video(v.video, v.title, v.channel, v.published),
-                    { duration: verdicts[v.video]?.duration ?? -1 }))
-                .sort((a, b) => b.published - a.published);
+            root.publish(recent, verdicts, failed);
             root.prune(cutoff);
             root.save();
         };
@@ -589,6 +598,20 @@ Singleton {
                     done();
             });
         }
+    }
+
+    // What the channels have said within the window.
+    function recent(cutoff: real): var {
+        return [].concat(...Object.values(store.channels).map(c => c.videos)).filter(v => v.published > cutoff);
+    }
+
+    // List those the API ruled not live, newest first, and with `unasked`
+    // those it has not ruled on too.
+    function publish(recent: var, verdicts: var, unasked: bool): void {
+        root.videos = recent.filter(v => verdicts[v.video] ? verdicts[v.video].live === false : unasked)
+            .map(v => Object.assign(root.video(v.video, v.title, v.channel, v.published),
+                { duration: verdicts[v.video]?.duration ?? -1 }))
+            .sort((a, b) => b.published - a.published);
     }
 
     function readSources(): void {
@@ -725,7 +748,7 @@ Singleton {
     // Plain GETs, a few jobs at a time, held like the API's so the module
     // stays dim until they are in. A job tries its URLs in turn and, if none
     // answers, its `failed` (the caller's fallback); one dead channel is not
-    // trouble worth a warning on the bar.
+    // trouble worth a warning on the bar. Its `landed`, if any, hears it end.
     function pool(jobs: var, done: var): void {
         let next = 0;
         let outstanding = jobs.length;
@@ -739,6 +762,8 @@ Singleton {
                 return;
             const job = jobs[next++];
             const landed = function () {
+                if (job.landed)
+                    job.landed();
                 if (--outstanding === 0)
                     finish();
                 else
@@ -999,11 +1024,13 @@ Singleton {
     }
 
     // What the channels said last is in, so a channel's age is known before
-    // its feeds are read: only now do videos refresh.
+    // its feeds are read: only now do videos refresh. Until the refresh
+    // lands, the list is what they said last.
     function restore(): void {
         if (root.restored)
             return;
         root.restored = true;
+        root.publish(root.recent(Date.now() - root.days * 86400000), store.verdicts, false);
         root.refresh();
     }
 }
