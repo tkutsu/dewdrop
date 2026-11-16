@@ -86,6 +86,20 @@ GoogleService {
 
     readonly property var todays: root.forDay(root.today)
 
+    // The first event to start on a day after `day`, from the months already
+    // held, or null. An empty day asks it; nothing is fetched for it.
+    function next(day: string): var {
+        const [y, m, d] = day.split("-").map(Number);
+        const from = new Date(y, m - 1, d + 1).getTime();
+        let best = null;
+        for (const month of Object.values(root.months))
+            for (const events of Object.values(month))
+                for (const ev of events)
+                    if (ev.start >= from && (!best || ev.start < best.start))
+                        best = ev;
+        return best;
+    }
+
     // What the grid calls when it turns to a month it has not seen. A no-op
     // for one already held, so it is safe to call on every render.
     function ensure(date: var): void {
@@ -98,7 +112,7 @@ GoogleService {
 
     function fetchCalendars(): void {
         root.gather("calendars", [{url: `${root.api}/users/me/calendarList?minAccessRole=owner`}],
-            c => c.selected === true ? {id: c.id, title: c.summary ?? ""} : null, function (calendars, failed) {
+            c => c.selected === true ? {id: c.id, title: c.summary ?? "", colour: c.backgroundColor ?? ""} : null, function (calendars, failed) {
             if (failed.length) return;
             root.calendars = calendars;
             root.haveCalendars = true;
@@ -166,8 +180,29 @@ GoogleService {
             allDay: allDay,
             start: start.getTime(),
             end: end.getTime(),
-            calendar: cal.title
+            calendar: cal.title,
+            colour: cal.colour ?? "",
+            // The event's own page in Google Calendar.
+            url: item.htmlLink ?? "",
+            place: item.location ?? "",
+            link: root.meetingLink(item)
         };
+    }
+
+    // Where to join a call: Meet's own field, a conference's video entry, a
+    // web address given as the place, or a Meet, Zoom or Teams address pasted
+    // into the description. The description itself is not kept.
+    function meetingLink(item: var): string {
+        if (item.hangoutLink)
+            return item.hangoutLink;
+        const video = (item.conferenceData?.entryPoints ?? []).find(e => e.entryPointType === "video" && e.uri);
+        if (video)
+            return video.uri;
+        const place = (item.location ?? "").match(/https?:\/\/\S+/);
+        if (place)
+            return place[0];
+        const pasted = (item.description ?? "").match(/https?:\/\/(?:meet\.google\.com|[\w.-]*zoom\.us|teams\.microsoft\.com|teams\.live\.com)\/[^\s"'<>]+/);
+        return pasted ? pasted[0] : "";
     }
 
     // The events spread over every day they touch. A stay from Friday to

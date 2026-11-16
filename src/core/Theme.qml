@@ -897,6 +897,9 @@ Singleton {
         monthBack: "\u{f0141}",       // nf-md-chevron_left
         today: "\u{f09df}",           // nf-md-circle_small
         monthOn: "\u{f0142}",         // nf-md-chevron_right
+        // Into an event's call (Meet, Zoom, Teams), from its row. Filled:
+        // no outlined camera was found in the installed set.
+        join: "\u{f0567}",            // nf-md-video
 
 
         // The popups' add button. A bare plus rather than the circled one: it
