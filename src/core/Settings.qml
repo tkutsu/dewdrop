@@ -260,6 +260,22 @@ Singleton {
         return { text, smallRanges };
     }
 
+    // A timeDisplay as rich text for a line `pixelSize` tall, its small runs
+    // at the bar's two-thirds size: on the baseline, or raised or lowered.
+    function timeMarkup(display: var, pixelSize: int): string {
+        const escape = text => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const small = Math.max(1, Math.round(pixelSize * 2 / 3));
+        let markup = "";
+        let offset = 0;
+        for (const range of display.smallRanges) {
+            const align = range.shift === "sup" ? "; vertical-align: super" : range.shift === "sub" ? "; vertical-align: sub" : "";
+            markup += escape(display.text.slice(offset, range.start))
+                + `<span style="font-size: ${small}px${align}">${escape(display.text.slice(range.start, range.end))}</span>`;
+            offset = range.end;
+        }
+        return markup + escape(display.text.slice(offset));
+    }
+
     // Switch hour notation while preserving custom separators, literals and other tokens.
     function setTwelveHour(enabled: bool): void {
         if (enabled === root.twelveHour)

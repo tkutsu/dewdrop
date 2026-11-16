@@ -18,6 +18,7 @@ import qs.src.services
 ShellRoot {
     id: test
     property int phase: 0
+    property real smallWidth: 0
     function check(ok, why) { if (!ok) throw Error(why); }
     function named(item, name) {
         if (item.objectName === name) return item;
@@ -46,24 +47,26 @@ ShellRoot {
                     check(pill.shownLabel === "8:05pm" && pill.shownSmallRanges.length === 1, "bar alarm shares formatter and size ranges");
                     check(named(pill, "rolling").visible && !named(pill, "words").visible, "bar alarm uses smaller AM/PM renderer");
                     const readout = named(popup, "readout");
-                    check(readout.text === "8:05 pm", "popup keeps readable spacing and selected case");
-                    check(readout.font.pixelSize === Theme.popupTextSize && !named(popup, "readoutAmPm"), "popup keeps the entire time at full size");
+                    const small = Math.round(Theme.popupTextSize * 2 / 3);
+                    check(readout.text === `8:05<span style="font-size: ${small}px">pm</span>`, "popup closes up a smaller AM/PM in the selected case: " + readout.text);
+                    check(readout.textFormat === Text.RichText && readout.font.pixelSize === Theme.popupTextSize, "popup draws the time as markup at popup size");
+                    test.smallWidth = readout.implicitWidth;
                     Settings.set("timeCase", "uppercase");
                     Settings.set("smallAmPm", false);
                 } else if (test.phase === 2) {
                     check(pill.shownLabel === "8:05 PM" && pill.shownSmallRanges.length === 0, "bar settings update live");
-                    check(named(popup, "readout").text === "8:05 PM", "popup case updates live");
+                    check(named(popup, "readout").text === "8:05 PM", "popup case and size update live");
+                    check(named(popup, "readout").implicitWidth > test.smallWidth, "a smaller AM/PM draws narrower: " + named(popup, "readout").implicitWidth + " vs " + test.smallWidth);
                     Settings.set("smallAmPm", true);
                     Timers.ringing = [{id: "ring", kind: "alarm", hour: 20, minute: 5, label: "", firedAt: Timers.now}];
                 } else if (test.phase === 3) {
                     const title = named(popup, "title");
-                    check(title.text === "8:05 PM", "ringing popup time keeps readable spacing");
-                    check(title.font.pixelSize === Theme.popupTextSize && !named(popup, "titleAmPm"), "ringing popup time keeps full-size AM/PM");
+                    check(title.text === `8:05<span style="font-size: ${Math.round(Theme.popupTextSize * 2 / 3)}px">PM</span>` && title.textFormat === Text.RichText, "ringing popup time takes the smaller AM/PM: " + title.text);
                     check(pill.shownSmallRanges.length === 1, "ringing bar time uses smaller AM/PM");
                     Timers.ringing = [{id: "ring", kind: "alarm", hour: 20, minute: 5, label: "Dinner PM", firedAt: Timers.now}];
                 } else {
                     check(pill.shownLabel === "Dinner PM" && pill.shownSmallRanges.length === 0, "named alarms remain normal text");
-                    check(named(popup, "title").text === "Dinner PM", "alarm name is not mistaken for AM/PM");
+                    check(named(popup, "title").text === "Dinner PM" && named(popup, "title").textFormat === Text.PlainText, "alarm name is not mistaken for AM/PM, and stays plain text");
                     Timers.ringing = [];
                     const base = Date.now();
                     Timers.now = base;
