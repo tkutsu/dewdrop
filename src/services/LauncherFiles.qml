@@ -153,7 +153,7 @@ Singleton {
 
     function results(query) {
         if (!Tools.has("fd"))
-            return [Launcher.needsRow(Theme.glyph.folder, "no file search", "fd")];
+            return [Launcher.needsRow(Theme.glyph.folder, "No file search", "fd")];
         const hits = root.fdHits;
         if (hits && hits.q === query) {
             const exact = root.absolutePath(query).replace(/\/$/, "") || "/";

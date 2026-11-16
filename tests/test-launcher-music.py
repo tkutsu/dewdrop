@@ -186,7 +186,7 @@ ShellRoot {
             Mpd.connected = true;
             Launcher.query = "#song";
             test.wait(300);
-            check(rows[0]?.title === "reading the library", "slow library reads still show their status");
+            check(rows[0]?.title === "Reading the library…", "slow library reads still show their status");
 
             closeMode();
             Mpd.connected = false;

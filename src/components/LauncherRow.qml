@@ -31,13 +31,9 @@ Rectangle {
         // mail's subject. None of it is markup, whatever it looks like.
         textFormat: Text.PlainText
         anchors {
-            left: parent.left
-            // The box's padding and the row's own, because the
-            // row itself no longer has any: a title still
-            // starts where it always did — and then however
-            // deep in the music mode's tree this row sits,
-            // which is nothing at all in every other mode.
-            leftMargin: row.menu.boxPad + Theme.popupInset + (row.modelData.indent ?? 0) * row.menu.indentStep
+            // After the icon, level with the query's text above.
+            left: slot.right
+            leftMargin: row.menu.slotGap
             verticalCenter: parent.verticalCenter
         }
         // Never more than half the row, so a long name cannot
@@ -52,20 +48,12 @@ Rectangle {
         // word — can say so and take the rest, which is what a
         // task written as a sentence to yourself needs.
         width: Math.min(implicitWidth, row.width * (row.modelData.titleShare ?? (row.modelData.subtitle ? 0.55 : 0.88)))
-        // An app name is the launcher's to style, so it is
-        // lowercased. A calculated answer, a
-        // command and a copied line are not — they are text
-        // that came from somewhere else and has to come back
-        // out the way it went in.
-        // A timer's title counts down, so it is read live
+        // Every title as it was written: an app's name, a file's, a
+        // copied line. A timer's title counts down, so it is read live
         // here rather than carried in the row: a row that
         // changed every second would rebuild the list every
         // second. See Launcher.timerResults.
-        text: {
-            const d = row.modelData;
-            const t = d.kind === "timer" ? Timers.describe(d.entry) : d.title;
-            return d.raw ? t : t.toLowerCase();
-        }
+        text: row.modelData.kind === "timer" ? Timers.describe(row.modelData.entry) : row.modelData.title
         color: row.current ? Theme.menuSelectionText : Theme.menuText
         font.family: Theme.bodyFont
         font.pixelSize: Theme.labelSize
@@ -93,8 +81,8 @@ Rectangle {
         anchors {
             left: title.right
             leftMargin: 8
-            right: slot.left
-            rightMargin: 6
+            right: parent.right
+            rightMargin: row.menu.boxPad + Theme.popupInset
             verticalCenter: parent.verticalCenter
         }
         visible: text !== ""
@@ -117,10 +105,13 @@ Rectangle {
     Item {
         id: slot
 
+        // Leading, as Spotlight has it, so the icon and the name it belongs
+        // to are read together; in the column the query's search glyph
+        // heads, and set in by however deep in the music mode's tree the
+        // row sits, which is nothing at all in every other mode.
         anchors {
-            right: parent.right
-            // Match the title's inset on the opposite edge.
-            rightMargin: row.menu.boxPad + Theme.popupInset
+            left: parent.left
+            leftMargin: row.menu.boxPad + Theme.popupInset + (row.modelData.indent ?? 0) * row.menu.indentStep
             verticalCenter: parent.verticalCenter
         }
         width: row.menu.slotWidth

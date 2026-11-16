@@ -47,9 +47,9 @@ MOCKS = {
         }''',
     "Power": '''property var ran: []
         property var actions: [
-            {key: "suspend", label: "suspend", name: "Sleep", glyph: "sleep", arg: "--suspend", confirm: false},
-            {key: "shutdown", label: "shut down", name: "Shut Down", question: "Are you sure you want to shut down your computer now?", glyph: "power", arg: "--poweroff", confirm: true},
-            {key: "lock", label: "lock", name: "Lock Screen", glyph: "lock", arg: "--lock", confirm: false}
+            {key: "suspend", name: "Sleep", glyph: "sleep", arg: "--suspend", confirm: false},
+            {key: "shutdown", name: "Shut Down", question: "Are you sure you want to shut down your computer now?", glyph: "power", arg: "--poweroff", confirm: true},
+            {key: "lock", name: "Lock Screen", glyph: "lock", arg: "--lock", confirm: false}
         ]
         function run(arg) { ran = ran.concat([arg]); }''',
     "LauncherMusic": '''property var rows: []
@@ -323,12 +323,12 @@ ShellRoot {
             LauncherMail.open = null;
             Launcher.db = ({});
             Email.found = null;
-            check(LauncherMail.results("")[0].title === "reading inbox...", "bare mail query reports pending inbox");
+            check(LauncherMail.results("")[0].title === "Reading inbox…", "bare mail query reports pending inbox");
             Email.found = {q: LauncherMail.recentMail, rows: [], trouble: "mail fetch failed"};
             check(LauncherMail.results("")[0].title === "mail fetch failed", "bare mail query reports failed inbox");
             Email.found = {q: LauncherMail.recentMail, rows: [], trouble: ""};
             Email.loading = true;
-            check(LauncherMail.results("")[0].title === "reading inbox...", "cached empty inbox stays marked while reloading");
+            check(LauncherMail.results("")[0].title === "Reading inbox…", "cached empty inbox stays marked while reloading");
             Email.loading = false;
             Email.trouble = "Google needs reconnecting";
             check(LauncherMail.results("")[0].title === Email.trouble, "cached empty inbox shows expired sign-in");
@@ -482,7 +482,7 @@ ShellRoot {
             Preferences.shown = false;
             Launcher.show();
             activateDesktop("mute");
-            check(Audio.muted && !Launcher.shown && desktop("mute").title === "Unmute sound", "mute changes state and label");
+            check(Audio.muted && !Launcher.shown && desktop("mute").title === "Unmute Sound", "mute changes state and label");
             check(Launcher.db["desktop:mute"].count === 1, "action usage recorded");
             Launcher.show();
             activateDesktop("night");
@@ -725,7 +725,7 @@ ShellRoot {
         MailAddresses.entries = [{address: "rsample@example.com", name: "Robin", at: 0,
             fields: Launcher.prepFields([["rsample@example.com", 1], ["Robin", 0.8]])}];
         input.adopt("@sampl"); keys.wait(10);
-        check(menu.rowActions[0].label === "search sender" && menu.actionIndex === 0 && !menu.rowActions[1].live,
+        check(menu.rowActions[0].label === "Search Sender" && menu.actionIndex === 0 && !menu.rowActions[1].live,
             "matching addresses select search sender and disable the inline reader");
         menu.accept(false); keys.wait(10);
         check(input.text === '@from:"rsample@example.com"' && Launcher.shown && input.activeFocus,
@@ -1027,7 +1027,7 @@ ShellRoot {
             check(Launcher.musicMode && box.width > 680, "music preview structure preserved");
             LauncherMusic.rows = [{kind: "music-track", title: "Track", subtitle: ""}];
             keys.wait(30);
-            check(actionBar.visible && actionBar.y >= input.height && menu.rowActions.map(action => action.label).join(",") === "queue,play", "music actions appear below the input");
+            check(actionBar.visible && actionBar.y >= input.height && menu.rowActions.map(action => action.label).join(",") === "Queue,Play", "music actions appear below the input");
             const musicCaret = input.cursorPosition;
             keys.keyClick(Qt.Key_End);
             check(menu.selectedAction === "play" && input.activeFocus && input.cursorPosition === musicCaret, "End selects play without moving focus or the caret");
@@ -1041,7 +1041,7 @@ ShellRoot {
             check(menu.selectedAction === "play", "Home cycles backward to play");
             keys.keyClick(Qt.Key_Return, Qt.ControlModifier);
             check(LauncherMusic.activated === "play", "Ctrl+Enter still plays");
-            const playButton = actionButtons.children.find(child => child.label === "play");
+            const playButton = actionButtons.children.find(child => child.label === "Play");
             keys.keyClick(Qt.Key_End);
             keys.mouseClick(playButton, playButton.width / 2, playButton.height / 2);
             check(LauncherMusic.activated === "play" && input.activeFocus, "clicking play runs the action and keeps typing focused");
@@ -1068,13 +1068,13 @@ ShellRoot {
             input.adopt("#artist"); keys.wait(30);
             LauncherMusic.rows = [{kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""}];
             keys.wait(30);
-            check(menu.rowActions[2].label === "expand", "music tree action is available as a button");
+            check(menu.rowActions[2].label === "Expand", "music tree action is available as a button");
             check(menu.selectedAction === "play", "typing within music preserves the chosen action");
             keys.keyClick(Qt.Key_End);
             keys.keyClick(Qt.Key_Return);
             check(LauncherMusic.folds === 1, "selected expand button dispatches to the music tree");
             input.adopt("@subject"); keys.wait(30);
-            check(menu.actionIndex === 2 && menu.rowActions[2].label === "new mail", "mail without a result selects the first available action");
+            check(menu.actionIndex === 2 && menu.rowActions[2].label === "New Mail", "mail without a result selects the first available action");
             keys.keyClick(Qt.Key_End);
             check(menu.selectedAction === "play", "action navigation skips unavailable mail actions");
             keys.keyClick(Qt.Key_Return);
@@ -1083,7 +1083,7 @@ ShellRoot {
             Email.threads = [{id: "button-mail", subject: "Mail", from: "sender", at: 0, unread: false, messages: []}];
             input.adopt("@"); keys.wait(30);
             keys.keyClick(Qt.Key_End); keys.keyClick(Qt.Key_Return);
-            check(LauncherMail.open?.id === "button-mail" && menu.rowActions[1].label === "back to list", "read button opens the inline reader");
+            check(LauncherMail.open?.id === "button-mail" && menu.rowActions[1].label === "Back to List", "read button opens the inline reader");
             keys.keyClick(Qt.Key_Return);
             check(!LauncherMail.open, "back to list button closes the inline reader");
             Email.threads = [];

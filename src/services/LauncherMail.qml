@@ -24,7 +24,7 @@ Singleton {
 
         if (!query) {
             if (!Email.loaded)
-                return note(Email.trouble || "reading mail…");
+                return note(Email.trouble || "Reading mail…");
             if (Email.threads.length)
                 return Email.threads.map(root.row);
             // Nothing unread: the inbox, newest first, which route() has
@@ -33,23 +33,23 @@ Singleton {
             if (Email.trouble)
                 return note(Email.trouble);
             if (Email.loading && !recent?.rows.length)
-                return note("reading inbox...");
+                return note("Reading inbox…");
             if (!recent || recent.q !== root.recentMail)
-                return note("reading inbox...");
+                return note("Reading inbox…");
             if (recent.trouble)
                 return note(recent.trouble);
             if (!recent.rows.length)
-                return note("no unread mail");
+                return note("No unread mail");
             return recent.rows.map(root.row);
         }
 
         const addresses = root.addressResults(query);
         const found = Email.found;
         if (!found || found.q !== query)
-            return addresses.concat(note("searching…"));
+            return addresses.concat(note("Searching…"));
         if (found.trouble)
             return addresses.concat(note(found.trouble));
-        return addresses.concat(found.rows.length ? found.rows.map(root.row) : note("no mail matches"));
+        return addresses.concat(found.rows.length ? found.rows.map(root.row) : note("No mail matches"));
     }
 
     // Plain text suggests known addresses; Gmail operators keep their own meaning.
@@ -68,12 +68,12 @@ Singleton {
         scored.sort((a, b) => b.score - a.score || b.entry.at - a.entry.at || a.entry.address.localeCompare(b.entry.address));
         const rows = scored.slice(0, 5).map(({entry}) => ({
             kind: "mail-address", address: entry.address, title: entry.address,
-            subtitle: entry.name || "Search mail from this address", glyph: Theme.glyph.mailRead, raw: true
+            subtitle: entry.name || "Search mail from this address", glyph: Theme.glyph.mailRead
         }));
         if (MailAddresses.trouble)
             rows.push(Launcher.noteRow(Theme.glyph.mailRead, MailAddresses.trouble));
         else if (MailAddresses.more)
-            rows.push(Launcher.noteRow(Theme.glyph.mailRead, "Indexing mail addresses...", `${MailAddresses.scanned} messages scanned`));
+            rows.push(Launcher.noteRow(Theme.glyph.mailRead, "Indexing mail addresses…", `${MailAddresses.scanned} messages scanned`));
         return rows;
     }
 
@@ -119,7 +119,6 @@ Singleton {
             glyph: t.starred ? Theme.glyph.mailStarred : t.unread ? Theme.glyph.mailUnread : Theme.glyph.mailRead,
             title: t.subject,
             subtitle: [t.from, Email.sayWhen(t.at)].filter(x => x).join("  ·  "),
-            raw: true,
             dim: !t.unread
         };
     }

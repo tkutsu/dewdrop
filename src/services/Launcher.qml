@@ -487,11 +487,11 @@ Singleton {
 
     // Desktop actions run directly through their existing services.
     readonly property var desktopCommands: [
-        { key: "settings", title: "dewdrop settings", aliases: "shell bar preferences configuration", glyph: Theme.glyph.settings, run: () => { Preferences.shown = true; } },
-        { key: "mute", title: Audio.muted ? "Unmute sound" : "Mute sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
-        { key: "night", title: NightMode.on ? "Turn night mode off" : "Turn night mode on", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
-        { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi off" : "Turn Wi-Fi on", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },
-        { key: "bluetooth-power", title: Bluetooth.on ? "Turn Bluetooth off" : "Turn Bluetooth on", aliases: "wireless radio" + (!Bluetooth.on ? " connect headphones headset " + Bluetooth.devices.filter(d => d.paired).map(d => d.name).join(" ") : ""), glyph: Theme.glyph.bluetooth, available: Bluetooth.present, run: () => Bluetooth.toggle() }
+        { key: "settings", title: "Dewdrop Settings", aliases: "shell bar preferences configuration", glyph: Theme.glyph.settings, run: () => { Preferences.shown = true; } },
+        { key: "mute", title: Audio.muted ? "Unmute Sound" : "Mute Sound", aliases: "audio volume speaker", glyph: Theme.glyph.vol[Theme.glyph.vol.length - 1], available: !!Audio.sink?.audio, run: () => Audio.toggleMute() },
+        { key: "night", title: NightMode.on ? "Turn Night Mode Off" : "Turn Night Mode On", aliases: "warm screen display light", glyph: Theme.glyph.nightOff, run: () => NightMode.toggle() },
+        { key: "wifi", title: Network.wifiOn ? "Turn Wi-Fi Off" : "Turn Wi-Fi On", aliases: "wifi wireless network radio", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], available: !!Network.wifi, run: () => Network.toggleWifi() },
+        { key: "bluetooth-power", title: Bluetooth.on ? "Turn Bluetooth Off" : "Turn Bluetooth On", aliases: "wireless radio" + (!Bluetooth.on ? " connect headphones headset " + Bluetooth.devices.filter(d => d.paired).map(d => d.name).join(" ") : ""), glyph: Theme.glyph.bluetooth, available: Bluetooth.present, run: () => Bluetooth.toggle() }
     ]
 
     function desktopMatches(terms) {
@@ -505,7 +505,7 @@ Singleton {
             const f = root.frecency("desktop:" + action.key);
             scored.push({
                 s: terms.length ? m + root.frecencyWeight * Math.log2(1 + f) : f,
-                row: { kind: "desktop", action, title: action.title, glyph: action.glyph, raw: true }
+                row: { kind: "desktop", action, title: action.title, glyph: action.glyph }
             });
         }
         return scored;
@@ -538,8 +538,7 @@ Singleton {
                         title,
                         sortTitle: device.name,
                         subtitle: "Bluetooth · " + status,
-                        glyph: Theme.glyph.bluetooth,
-                        raw: true
+                        glyph: Theme.glyph.bluetooth
                     }
                 });
         }
@@ -569,9 +568,9 @@ Singleton {
 
     // --- power ---------------------------------------------------------------
 
-    // The other words each command answers to. The labels alone would not
-    // find "restart", "sleep" or "power off", which are what these are called
-    // half the time.
+    // The other words each command answers to. The names alone would not
+    // find "suspend", "reboot" or "power off", which are what these are
+    // called half the time.
     readonly property var powerAliases: ({
             lock: "lock screen session",
             shutdown: "shutdown power off poweroff halt",
@@ -590,8 +589,8 @@ Singleton {
             action: a,
             armed: armed,
             glyph: armed ? Theme.glyph.powerConfirm : a.glyph,
-            title: a.label,
-            subtitle: armed ? a.question : "power"
+            title: a.name,
+            subtitle: armed ? a.question : ""
         };
     }
 
@@ -605,9 +604,9 @@ Singleton {
         for (const a of Power.actions) {
             if (Settings.hiddenApps.includes("power:" + a.key))
                 continue;
-            // Aliases score just under the label, so a command found by its
+            // Aliases score just under the name, so a command found by its
             // real name outranks one found by a nickname.
-            const m = root.matchScore(terms, [[a.label, 1]].concat((root.powerAliases[a.key] ?? "").split(" ").map(w => [w, 0.85])));
+            const m = root.matchScore(terms, [[a.name, 1]].concat((root.powerAliases[a.key] ?? "").split(" ").map(w => [w, 0.85])));
             if (m === null)
                 continue;
             scored.push({
@@ -634,7 +633,7 @@ Singleton {
         const terms = root.prepTerms(query);
         return root.modes
             .filter(m => m.prefix !== root.helpPrefix && (!terms.length || root.matchScore(terms, [[m.about, 1], [m.hint, 1]]) !== null))
-            .map(m => ({ kind: "help", badge: m.prefix, title: m.about, raw: true, prefix: m.prefix }));
+            .map(m => ({ kind: "help", badge: m.prefix, title: m.about, prefix: m.prefix }));
     }
 
     // --- tasks and timers ----------------------------------------------------
@@ -668,7 +667,6 @@ Singleton {
                 glyph: event ? Theme.glyph.event : Theme.glyph.plus,
                 // Keep the typed day and task list names in the preview.
                 title: typed,
-                raw: true,
                 subtitle: root.linePreview(typed, plan),
                 // An event needs the calendar; the preview says so.
                 ok: plan.ok && !(event && Google.needsConsent),
@@ -697,7 +695,6 @@ Singleton {
                     crossed: Tasks.isCrossed(task),
                     glyph: Theme.glyph.taskOpen,
                     title: task.title,
-                    raw: true,
                     subtitle: Tasks.sayDay(Tasks.dayOf(task)),
                     // The subtitle here is a date at most, so the title is not
                     // in a fight with it for the row.
@@ -748,7 +745,6 @@ Singleton {
                 kind: "timer-add",
                 glyph: plan.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer,
                 title: typed,
-                raw: true,
                 // Same again: "25m" is what was typed and "25 minutes" is what
                 // it was read as, so the reading is worth showing and the label
                 // beside it is not.
@@ -768,8 +764,7 @@ Singleton {
                 entry: e,
                 glyph: e.kind === "alarm" ? Theme.glyph.alarm : (e.running ? Theme.glyph.timer : Theme.glyph.timerPaused),
                 title: "",
-                raw: true,
-                subtitle: e.running ? "" : "paused",
+                subtitle: e.running ? "" : "Paused",
                 dim: !e.running
             });
 
@@ -779,7 +774,7 @@ Singleton {
     // Untyped on purpose: a typed `subtitle: string` turns a missing argument
     // into the string "undefined", and typed parameters cannot take defaults.
     function noteRow(glyph, title, subtitle = "") {
-        return {kind: "note", glyph, title, subtitle, raw: true};
+        return {kind: "note", glyph, title, subtitle};
     }
 
     // A mode whose program is missing: the note, and Install on Return or a
@@ -788,7 +783,7 @@ Singleton {
     function needsRow(glyph, title, program) {
         const source = Tools.source(program);
         const installable = Tools.canInstall && source !== "" && !source.includes("/");
-        return Object.assign(root.noteRow(glyph, title, "needs " + Tools.label(program) + (installable ? ". Install" : "")),
+        return Object.assign(root.noteRow(glyph, title, "Needs " + Tools.label(program) + (installable ? ". Install" : "")),
             {install: installable ? [program] : null});
     }
 
@@ -825,8 +820,7 @@ Singleton {
                 at: rows.length,
                 icon: AppIcons.resolve(cls, entry),
                 title: t.title || app,
-                subtitle: [app, root.workspaceLabel(ws)].filter(x => x).join("  ·  "),
-                raw: true
+                subtitle: [app, root.workspaceLabel(ws)].filter(x => x).join("  ·  ")
             });
         }
 
@@ -898,7 +892,7 @@ Singleton {
 
     function calcResults(expr, strict) {
         if (!Tools.has("qalc"))
-            return strict ? [] : [root.needsRow(Theme.glyph.launcherCalc, "no calculator", "qalc")];
+            return strict ? [] : [root.needsRow(Theme.glyph.launcherCalc, "No calculator", "qalc")];
         const a = root.calcAnswer;
         if (!expr || !a || a.expr !== expr || !a.text)
             return [];
@@ -918,8 +912,7 @@ Singleton {
                 answer: a.text,
                 badge: root.calcPrefix,
                 title: a.text,
-                subtitle: expr,
-                raw: true
+                subtitle: expr
             }
         ];
     }
@@ -967,7 +960,7 @@ Singleton {
     function emailResults(address) {
         if (!address)
             return [];
-        return [{kind: "url", glyph: Theme.glyph.mailRead, title: "search gmail for " + address, subtitle: "gmail", raw: true, url: Email.web + "#search/" + encodeURIComponent(address)}];
+        return [{kind: "url", glyph: Theme.glyph.mailRead, title: "Search Gmail for " + address, subtitle: "Gmail", url: Email.web + "#search/" + encodeURIComponent(address)}];
     }
 
     // --- urls ----------------------------------------------------------------
@@ -1024,9 +1017,8 @@ Singleton {
             {
                 kind: "url",
                 glyph: Theme.glyph.web,
-                title: "open " + q,
+                title: "Open " + q,
                 subtitle: url.host.replace(/^www\./i, ""),
-                raw: true,
                 url: url.url
             }
         ];
@@ -1049,7 +1041,7 @@ Singleton {
     function engineResults(sym, rest, keyed = true) {
         const engines = root.engines;
         if (!engines.length)
-            return [{kind: "note", title: "Add web shortcuts in Settings > Launcher.", raw: true}];
+            return [{kind: "note", title: "Add web shortcuts in Settings > Launcher."}];
         const m = rest.match(/^(\S+)(?:\s+(.*))?$/);
         let key = engines.some(e => e.key === "") ? "" : engines[0].key;
         let q = rest.trim();

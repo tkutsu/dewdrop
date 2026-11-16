@@ -101,7 +101,7 @@ def main():
         print('PASS: the calculator says what it needs, but only when asked for')
         assert result['files'] == ['note'], result
         print('PASS: file search says what it needs')
-        assert result['launcherNotes'] == [['needs libqalculate', None], ['needs fd', None]], result
+        assert result['launcherNotes'] == [['Needs libqalculate', None], ['Needs fd', None]], result
         print('PASS: with nothing to install with, the launcher only names the packages')
         assert not eq['busy'] and 'Python' in eq['error'], eq
         print('PASS: the equalizer says what it needs instead of waiting for ever')
@@ -120,7 +120,7 @@ def main():
         assert result['install'] == 'sudo pacman -S --needed', result
         assert result['weather'] == 'Weather needs python. <a href="install" style="color: grey">Install</a>', result
         print('PASS: with pacman and a terminal, Install is offered, as a grey link')
-        assert result['launcherNotes'] == [['needs libqalculate. Install', ['qalc']], ['needs fd. Install', ['fd']]], result
+        assert result['launcherNotes'] == [['Needs libqalculate. Install', ['qalc']], ['Needs fd. Install', ['fd']]], result
         print('PASS: the calculator and file search offer Install too')
 
         result, _ = run(base / 'helpers', ['nm-connection-editor', 'btop'])
