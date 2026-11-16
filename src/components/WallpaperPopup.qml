@@ -39,7 +39,30 @@ Popup {
     // and at saturation 0 every track is grey, so a neutral default would be
     // three sliders that show nothing until one is moved.
     property var hsv: [0, 100, 100]
-    readonly property string hex: root.toHex(root.hsv)
+    // A typed or pasted code is kept as written: the whole-number HSV the
+    // sliders hold cannot carry every hex, and a code that came back changed
+    // would not be the one pasted. Moving a slider lets it go.
+    property string typed: ""
+    readonly property string hex: root.typed || root.toHex(root.hsv)
+
+    // "#3a7", "3a7", "#33aa77" or "33AA77", as "#33aa77"; "" for anything else.
+    function parseHex(s) {
+        const m = String(s).trim().match(/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i);
+        if (!m)
+            return "";
+        const d = m[1].toLowerCase();
+        return "#" + (d.length === 3 ? d.split("").map(c => c + c).join("") : d);
+    }
+
+    function setHex(s) {
+        const hex = root.parseHex(s);
+        if (!hex)
+            return;
+        root.adopted = true;
+        root.hsv = root.fromHex(hex);
+        root.typed = hex;
+        Wallpaper.setColor(hex);
+    }
 
     // Reading the HSV back out of a hex means letting the colour type do the
     // conversion, which needs somewhere typed `color` to put it.
@@ -77,6 +100,8 @@ Popup {
             return;
         root.adopted = true;
         root.hsv = root.fromHex(hex);
+        // The code as saved, not as the rounded sliders would spell it.
+        root.typed = hex;
     }
 
     function setChannel(i, v) {
@@ -86,6 +111,7 @@ Popup {
         const next = root.hsv.slice();
         next[i] = v;
         root.hsv = next;
+        root.typed = "";
         Wallpaper.setColor(root.toHex(next));
     }
 
@@ -534,11 +560,17 @@ Popup {
                 }
             }
 
-            PopupText {
+            // The code itself, to copy out or paste or type a colour in.
+            SettingField {
                 width: root.swatchWidth
-                horizontalAlignment: Text.AlignHCenter
-                text: root.hex
-                font.pixelSize: Theme.captionSize
+                pad: 4
+                horizontalAlignment: TextInput.AlignHCenter
+                setting: ({
+                        title: "Wallpaper colour code",
+                        get: () => root.hex,
+                        set: text => root.setHex(text),
+                        validate: text => root.parseHex(text) ? "" : "Not a colour code"
+                    })
             }
         }
 

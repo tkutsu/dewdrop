@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.src.core
 
 // A line of text, saved on Enter, focus loss or settings closure.
@@ -12,6 +13,9 @@ Rectangle {
     // Why the typed text was refused. SettingRow shows it; the draft stays put
     // to be corrected, and is never saved.
     property string trouble: ""
+    // The text's inset from either end; a narrow field gives some of it back.
+    property int pad: 8
+    property alias horizontalAlignment: input.horizontalAlignment
 
     implicitWidth: root.setting?.fieldWidth ?? 160
     implicitHeight: 22
@@ -38,8 +42,8 @@ Rectangle {
         Accessible.name: root.setting?.title ?? ""
 
         anchors.fill: parent
-        anchors.leftMargin: 8
-        anchors.rightMargin: 8
+        anchors.leftMargin: root.pad
+        anchors.rightMargin: root.pad
         verticalAlignment: TextInput.AlignVCenter
         clip: true
         color: Theme.fg
@@ -56,6 +60,19 @@ Rectangle {
         onStoredChanged: if (!activeFocus)
             text = stored
         Component.onCompleted: text = stored
+
+        // In a bar popup the keys arrive through the bar (PopupKeyRelay), which
+        // hands them to the popup's keyInput: claim it while typing here, the
+        // way the tasks editor does. The settings window has no keyInput.
+        onActiveFocusChanged: {
+            const w = root.QsWindow.window;
+            if (w?.keyInput === undefined)
+                return;
+            if (activeFocus)
+                w.keyInput = input;
+            else if (w.keyInput === input)
+                w.keyInput = null;
+        }
 
         onTextEdited: {
             root.edited = true;
