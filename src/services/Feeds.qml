@@ -135,9 +135,9 @@ Singleton {
     readonly property bool retryable: root.trouble !== "" && !YouTubeAccount.needsConsent
     readonly property bool connected: !YouTubeAccount.needsConsent
 
-    // What the popup lists and the badge counts. Videos from before the
-    // first run are not news; every story still in its feed is.
-    readonly property var unseenVideos: root.videos.filter(v => v.published > store.since && root.unseen(v))
+    // What the popup lists and the badge counts: every video within the
+    // Look Back window, and every story still in its feed.
+    readonly property var unseenVideos: root.videos.filter(v => root.unseen(v))
     readonly property var unseenSources: root.sources
         .map(s => Object.assign({}, s, {
             title: (Settings.feedTitles[s.url] ?? "").trim() || s.title,
@@ -979,8 +979,6 @@ Singleton {
         JsonAdapter {
             id: store
 
-            // Videos start two days back; RSS has no date cutoff.
-            property real since: 0
             // Item id to its published time.
             property var seen: ({})
             // Video id to {live, duration, t}, or {t, retry} when the API
@@ -1005,10 +1003,7 @@ Singleton {
     function restore(): void {
         if (root.restored)
             return;
-        if (!store.since)
-            store.since = Date.now() - 2 * 86400000;
         root.restored = true;
-        root.save();
         root.refresh();
     }
 }
