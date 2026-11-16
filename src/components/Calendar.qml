@@ -6,21 +6,19 @@ import qs.src.services
 // The clock's month view. waybar rendered this as a <tt> block inside a Pango
 // tooltip, which is why it could only ever be text; a real grid can show the
 // months either side, take a click to step through them, and say what today is.
+//
+// A day is chosen with a click and stays chosen while the pointer goes down
+// to its list, the way a Mac's month view works; the header's buttons act on
+// that day.
 Popup {
     id: root
-
-    // Its parts touch; the air is their own.
-    spacing: 0
 
     // Months from "now", the way waybar's shift_up/shift_down worked.
     property int offset: 0
     // Agenda's day, which turns at midnight, so a popup left open across it
     // moves its ring with the list underneath. Built from its parts: parsed
     // whole, "YYYY-MM-DD" is midnight in UTC rather than here.
-    readonly property date today: {
-        const [y, m, d] = Agenda.today.split("-").map(Number);
-        return new Date(y, m - 1, d);
-    }
+    readonly property date today: root.dateOf(Agenda.today)
     readonly property date shown: new Date(today.getFullYear(), today.getMonth() + offset, 1)
 
     // The month turned to is fetched as it comes into view, if it has not
@@ -29,29 +27,46 @@ Popup {
     Component.onCompleted: Agenda.ensure(shown)
     Component.onDestruction: Agenda.lastShown = ""
 
-    // The day the list under the grid is about: the one under the pointer,
-    // or today. A dot says a day has something on it; resting on the day says
-    // what, without leaving the popup for the app.
-    property string hoverDay: ""
-    readonly property string listDay: hoverDay !== "" ? hoverDay : Agenda.today
-    // The day under the pointer or the keys right now. Moving off it to the
-    // list below keeps that day's events in view.
-    property string litDay: ""
+    // The day the list is about. Nothing picked is today, so every open
+    // starts there and a popup left open across midnight moves on with it.
+    property string picked: ""
+    readonly property string selected: root.picked !== "" ? root.picked : Agenda.today
+    readonly property date selectedDate: root.dateOf(root.selected)
 
-    Timer {
-        id: letGo
-        interval: 150
-        onTriggered: {
-            const key = QsWindow.window?.keyItem;
-            if (!listHover.hovered && key?.parent !== list)
-                root.hoverDay = root.litDay;
-        }
+    function dateOf(key: string): date {
+        const [y, m, d] = key.split("-").map(Number);
+        return new Date(y, m - 1, d);
+    }
+
+    // A faint day from the month either side turns the grid to it as well.
+    function select(day: date): void {
+        const key = Agenda.dayString(day);
+        root.picked = key === Agenda.today ? "" : key;
+        root.offset += (day.getFullYear() - root.shown.getFullYear()) * 12 + day.getMonth() - root.shown.getMonth();
+    }
+
+    function goToday(): void {
+        root.offset = 0;
+        root.picked = "";
+    }
+
+    // The list's heading: the near days by name, the rest in full.
+    function sayDay(key: string): string {
+        const away = Math.round((root.dateOf(key) - root.today) / 86400000);
+        if (away === 0)
+            return "Today";
+        if (away === 1)
+            return "Tomorrow";
+        if (away === -1)
+            return "Yesterday";
+        const day = root.dateOf(key);
+        return Qt.formatDate(day, day.getFullYear() === root.today.getFullYear() ? "dddd d MMMM" : "dddd d MMMM yyyy");
     }
 
     // At most this many rows, and the box stops under the last one. The
     // window keeps the height of a full list regardless, so the box grows and
-    // shrinks inside it as the pointer crosses the grid rather than the whole
-    // popup resizing on every cell (see Popup.reserveHeight).
+    // shrinks inside it as days are picked rather than the whole popup
+    // resizing on every click (see Popup.reserveHeight).
     readonly property int listRows: 4
     readonly property int listRowHeight: 20
     readonly property int dotSize: 3
@@ -66,72 +81,29 @@ Popup {
         text: Settings.sayHourMinute(12, 30)
     }
 
-    // The window is held at the height of a full list; the box stops under
-    // whatever the day actually has.
     reserveHeight: list.visible ? chromeHeight - list.height + list.fullHeight : 0
 
     readonly property var locale: Qt.locale()
     readonly property int firstDay: locale.firstDayOfWeek
 
-    readonly property real cell: 28
+    // The grid spans the popup: seven whole-pixel columns, the odd pixels
+    // split either side, and the discs keep their size inside wider cells.
+    readonly property int cellWidth: Math.floor(Theme.popupWidth / 7)
+    readonly property int cellHeight: 30
+    readonly property int disc: 26
 
-    function step(months) {
-        offset += months;
-    }
-
-    // One of the header's arrows: a day cell's worth of target round a
-    // chevron, lit on hover the way a day is.
-    component MonthStep: Item {
-        id: arrow
-
-        property alias text: glyph.text
-        property string name: ""
-        signal step
-
-        width: root.cell
-        height: root.cell
-
-        Rectangle {
-            anchors.centerIn: parent
-            width: root.cell - 4
-            height: width
-            radius: width / 2
-            visible: arrowHover.hovered
-            color: Theme.selection
-        }
-
-        PopupText {
-            id: glyph
-            anchors.centerIn: parent
-            // Up a pixel: the guillemet sits high in Inter's box.
-            anchors.verticalCenterOffset: -1
-            opacity: arrowHover.hovered ? 1 : 0.6
-            font.pixelSize: Theme.popupTextSize + 4
-        }
-
-        HoverHandler {
-            id: arrowHover
-        }
-
-        Accessible.role: Accessible.Button
-        Accessible.name: arrow.name
-        Accessible.onPressAction: if (enabled && visible)
-            arrow.step()
-        readonly property var keyPress: () => arrow.step()
-
-        TapHandler {
-            onTapped: arrow.step()
-        }
+    function step(months: int): void {
+        root.offset += months;
     }
 
     // A new task or event on that day, typed in the launcher: a title alone
     // is a task due then, a time and a title an event.
-    function addOn(day) {
+    function addOn(day: date): void {
         OpenPopup.dismiss();
         Launcher.openWith(Launcher.taskPrefix + " " + Agenda.dayString(day) + " ");
     }
 
-    function openDay(day) {
+    function openDay(day: date): void {
         OpenPopup.dismiss();
         const url = `https://calendar.google.com/calendar/r/day/${day.getFullYear()}/${day.getMonth() + 1}/${day.getDate()}`;
         // The same app the clock's own click opens, pointed at one day rather
@@ -143,59 +115,56 @@ Popup {
     // 1st of the month.
     readonly property int lead: (root.shown.getDay() - root.firstDay + 7) % 7
 
-    function cellDate(index) {
+    function cellDate(index: int): date {
         return new Date(root.shown.getFullYear(), root.shown.getMonth(), 1 + index - root.lead);
     }
 
-    Column {
-        spacing: 5
+    // --- header: month, New, ‹ • ›, out to the app ----------------------------
+    PopupHeader {
+        width: Theme.popupWidth
+        title: root.locale.standaloneMonthName(root.shown.getMonth(), Locale.LongFormat) + " " + root.shown.getFullYear()
+        addable: Agenda.configured
+        addName: "New task or event"
+        onAdd: root.addOn(root.selectedDate)
 
-        RetryButton {
-            anchors.right: parent.right
-            service: Agenda
-        }
+        // One stepper, its three targets touching, so it reads apart from
+        // the framed buttons either side.
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
 
-        // --- header: ‹ month year › ---------------------------------------
-        // The arrows stand over the first and last columns and are a whole
-        // day cell each, with the same hover disc a day gets: a bare chevron
-        // was a few pixels of ink to aim at.
-        Item {
-            width: root.cell * 7
-            height: root.cell
-
-            MonthStep {
-                anchors.left: parent.left
-                text: "‹"
+            PopupButton {
+                glyph: Theme.glyph.monthBack
                 name: "Previous month"
-                onStep: root.step(-1)
+                onTapped: root.step(-1)
             }
 
-            PopupText {
-                id: title
-                anchors.centerIn: parent
-                text: root.locale.standaloneMonthName(root.shown.getMonth(), Locale.LongFormat) + " " + root.shown.getFullYear()
-                font.weight: Font.DemiBold
-
-                // Clicking the title comes back to the current month, which is
-                // otherwise a lot of arrow presses away.
-                Accessible.role: Accessible.Button
-                Accessible.name: "Current month"
-                Accessible.onPressAction: if (enabled && visible)
-                    root.offset = 0
-                readonly property var keyPress: () => root.offset = 0
-
-                TapHandler {
-                    onTapped: root.offset = 0
-                }
+            // Back to this month and today. Faint while already there.
+            PopupButton {
+                glyph: Theme.glyph.today
+                name: "Today"
+                live: root.offset !== 0 || root.picked !== ""
+                onTapped: root.goToday()
             }
 
-            MonthStep {
-                anchors.right: parent.right
-                text: "›"
+            PopupButton {
+                glyph: Theme.glyph.monthOn
                 name: "Next month"
-                onStep: root.step(1)
+                onTapped: root.step(1)
             }
         }
+
+        PopupButton {
+            framed: true
+            glyph: Theme.glyph.openApp
+            name: "Open Google Calendar"
+            onTapped: root.openDay(root.selectedDate)
+        }
+    }
+
+    // --- the month --------------------------------------------------------------
+    Column {
+        x: Math.floor((Theme.popupWidth - root.cellWidth * 7) / 2)
+        spacing: 2
 
         Row {
             Repeater {
@@ -204,10 +173,11 @@ Popup {
                 PopupText {
                     required property int index
 
-                    width: root.cell
+                    width: root.cellWidth
                     horizontalAlignment: Text.AlignHCenter
                     text: root.locale.dayName((root.firstDay + index) % 7, Locale.ShortFormat).slice(0, 2)
                     color: Theme.label2
+                    font.pixelSize: Theme.captionSize
                 }
             }
         }
@@ -229,38 +199,29 @@ Popup {
                     readonly property bool thisMonth: day.getMonth() === root.shown.getMonth()
                     readonly property bool isToday: day.toDateString() === root.today.toDateString()
                     readonly property string dayKey: Agenda.dayString(day)
+                    readonly property bool isSelected: dayKey === root.selected
                     // A dot marks a day with calendar events.
                     readonly property bool busy: Agenda.has(dayKey, Agenda.monthKey(root.shown))
 
-                    width: root.cell
-                    height: root.cell
+                    width: root.cellWidth
+                    height: root.cellHeight
 
-                    // A click opens that day in the calendar, and the pointer
-                    // says so first with the same fill any other clickable
-                    // row gets under it.
+                    // The chosen day holds the strong grey; the one under the
+                    // pointer or the keys the light one. Today keeps its own.
                     Rectangle {
                         anchors.centerIn: parent
-                        width: root.cell - 4
+                        width: root.disc
                         height: width
                         radius: width / 2
-                        visible: dayCell.lit && !dayCell.isToday
-                        color: Theme.selection
+                        visible: !dayCell.isToday && (dayCell.isSelected || dayCell.lit)
+                        color: dayCell.isSelected ? Theme.selectionStrong : Theme.selection
                     }
 
-                    // The keys (Popup.qml) light a day and list its events
-                    // the way the pointer does, and Return opens it.
+                    // The keys (Popup.qml) light a day the way the pointer
+                    // does, and Return picks it.
                     property bool keyed: false
-                    readonly property var keyPress: () => root.openDay(dayCell.day)
+                    readonly property var keyPress: () => root.select(dayCell.day)
                     readonly property bool lit: QsWindow.window?.keyItem ? dayCell.keyed : dayHover.hovered
-                    onLitChanged: {
-                        if (dayCell.lit) {
-                            root.litDay = dayCell.dayKey;
-                            root.hoverDay = dayCell.dayKey;
-                        } else if (root.litDay === dayCell.dayKey) {
-                            root.litDay = "";
-                            letGo.restart();
-                        }
-                    }
 
                     HoverHandler {
                         id: dayHover
@@ -268,13 +229,19 @@ Popup {
 
                     Accessible.role: Accessible.Button
                     Accessible.name: Qt.formatDateTime(dayCell.day, "dddd d MMMM yyyy")
-                    // Resting on a day lists its agenda below (ClickArea).
-                    Accessible.description: "Pointer: hover; right-click adds a task or event"
+                    Accessible.description: "Pointer: click selects, double-click opens it in Google Calendar; right-click adds a task or event"
+                    Accessible.selected: dayCell.isSelected
                     Accessible.onPressAction: if (enabled && visible)
-                        root.openDay(dayCell.day)
+                        root.select(dayCell.day)
 
+                    // The second click of a double opens the day it picked;
+                    // a faint day has turned the month by then, so the cell
+                    // under the pointer is checked against it.
                     TapHandler {
-                        onTapped: root.openDay(dayCell.day)
+                        onTapped: if (tapCount > 1 && dayCell.isSelected)
+                            root.openDay(dayCell.day);
+                        else
+                            root.select(dayCell.day)
                     }
 
                     TapHandler {
@@ -287,7 +254,7 @@ Popup {
                     // and dot are black on it.
                     Rectangle {
                         anchors.centerIn: parent
-                        width: root.cell - 4
+                        width: root.disc
                         height: width
                         radius: width / 2
                         visible: dayCell.isToday
@@ -301,17 +268,17 @@ Popup {
                         // showing, faintly, so a month boundary reads at a glance.
                         color: dayCell.isToday ? Theme.calTodayText : (dayCell.thisMonth ? Theme.fg : Theme.label3)
                         font.pixelSize: Theme.popupTextSize
-                        font.weight: dayCell.isToday ? Font.DemiBold : Font.Normal
+                        font.weight: dayCell.isToday || dayCell.isSelected ? Font.DemiBold : Font.Normal
                     }
 
                     // Something is on that day. One dot whether it is one
                     // thing or six: the list below says how many, and a
                     // count under every numeral would be a second grid.
-                    // On today it rises to sit inside the disc.
+                    // On a disc (today, the chosen day) it rises inside it.
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
-                        anchors.bottomMargin: dayCell.isToday ? 4 : 1
+                        anchors.bottomMargin: dayCell.isToday || dayCell.isSelected ? 5 : 1
                         width: root.dotSize
                         height: width
                         radius: width / 2
@@ -321,99 +288,92 @@ Popup {
                 }
             }
         }
+    }
 
-        // --- the day's events ---------------------------------------------
-        // Under the grid, for the day under the pointer or today. Present
-        // only once Google is connected: without it the popup is the month
-        // view it always was.
-        Column {
-            id: list
+    // --- the chosen day's events ----------------------------------------------
+    // Present only once Google is connected: without it the popup is the
+    // month view it always was.
+    PopupSection {
+        width: Theme.popupWidth
+        visible: Agenda.configured
+        title: root.sayDay(root.selected)
 
-            visible: Agenda.configured
-            x: Theme.popupInset
-            width: root.cell * 7 - Theme.popupInset * 2
-            topPadding: 6
-            spacing: 0
+        RetryButton {
+            service: Agenda
+        }
 
-            readonly property var events: Agenda.forDay(root.listDay, root.hoverDay ? Agenda.monthKey(root.shown) : Agenda.thisMonth)
-            // The most the list can take: a full page and the "more" line.
-            readonly property real fullHeight: topPadding + root.listRowHeight * (root.listRows + 1)
+        ReconnectButton {}
+    }
 
-            PopupText {
-                visible: Agenda.loaded && Agenda.trouble !== ""
-                width: parent.width
-                text: Agenda.trouble
-                color: Theme.warn
-                font.pixelSize: Theme.footnoteSize
-                wrapMode: Text.WordWrap
-            }
+    Column {
+        id: list
 
-            HoverHandler {
-                id: listHover
-                onHoveredChanged: if (!hovered)
-                    letGo.restart()
-            }
+        visible: Agenda.configured
+        width: Theme.popupWidth
+        spacing: 0
 
-            // Wraps rather than elides: the one long thing that lands here
-            // is the reconnect message, which is no use cut short.
-            PopupText {
-                visible: parent.events.length === 0
-                width: parent.width
-                height: Math.max(root.listRowHeight, implicitHeight)
-                verticalAlignment: Text.AlignVCenter
-                text: !Agenda.loaded ? (Agenda.trouble !== "" ? Agenda.trouble : "Connecting…") : (root.listDay === Agenda.today ? "Nothing today" : "Nothing on")
-                color: Theme.label3
-                wrapMode: Text.WordWrap
-            }
+        readonly property var events: Agenda.forDay(root.selected)
+        // The most the list can take: a full page and the "more" line.
+        readonly property real fullHeight: root.listRowHeight * (root.listRows + 1)
 
-            Repeater {
-                model: parent.events.slice(0, root.listRows)
+        PopupNote {
+            width: list.width
+            visible: Agenda.trouble !== ""
+            text: Agenda.trouble
+            warn: true
+            font.pixelSize: Theme.footnoteSize
+        }
 
-                Item {
-                    id: entry
+        PopupNote {
+            width: list.width
+            height: Math.max(root.listRowHeight, implicitHeight)
+            verticalAlignment: Text.AlignVCenter
+            visible: Agenda.trouble === "" && list.events.length === 0
+            text: Agenda.loaded ? "No events" : "Connecting…"
+        }
 
-                    required property var modelData
+        Repeater {
+            model: list.events.slice(0, root.listRows)
 
-                    width: list.width
-                    height: root.listRowHeight
+            Item {
+                id: entry
 
-                    PopupText {
-                        width: root.timeWidth
-                        height: root.listRowHeight
-                        verticalAlignment: Text.AlignVCenter
-                        textFormat: entry.modelData.allDay ? Text.PlainText : Text.RichText
-                        text: entry.modelData.allDay ? Agenda.sayTime(entry.modelData)
-                            : Settings.timeMarkup(Settings.hourDisplay(new Date(entry.modelData.start)), font.pixelSize)
-                        color: entry.modelData.allDay ? Theme.label3 : Theme.label2
-                        font.pixelSize: Theme.captionSize
-                    }
+                required property var modelData
 
-                    PopupText {
-                        x: root.timeWidth + 8
-                        width: list.width - x
-                        height: root.listRowHeight
-                        verticalAlignment: Text.AlignVCenter
-                        text: entry.modelData.title
-                        elide: Text.ElideRight
-                    }
-                }
-            }
-
-            PopupText {
-                visible: parent.events.length > root.listRows
+                x: Theme.popupInset
+                width: list.width - Theme.popupInset * 2
                 height: root.listRowHeight
-                verticalAlignment: Text.AlignVCenter
-                text: `+${parent.events.length - root.listRows} more`
-                color: Theme.label3
-                font.pixelSize: Theme.captionSize
+
+                PopupText {
+                    width: root.timeWidth
+                    height: root.listRowHeight
+                    verticalAlignment: Text.AlignVCenter
+                    textFormat: entry.modelData.allDay ? Text.PlainText : Text.RichText
+                    text: entry.modelData.allDay ? Agenda.sayTime(entry.modelData)
+                        : Settings.timeMarkup(Settings.hourDisplay(new Date(entry.modelData.start)), font.pixelSize)
+                    color: entry.modelData.allDay ? Theme.label3 : Theme.label2
+                    font.pixelSize: Theme.captionSize
+                }
+
+                PopupText {
+                    x: root.timeWidth + 8
+                    width: entry.width - x
+                    height: root.listRowHeight
+                    verticalAlignment: Text.AlignVCenter
+                    text: entry.modelData.title
+                    elide: Text.ElideRight
+                }
             }
         }
 
-        // The way back in when the sign-in needs you. Under the list, where
-        // the reason it is empty is already written.
-        ReconnectButton {
-            height: 20
-            textSize: Theme.footnoteSize
+        PopupText {
+            x: Theme.popupInset
+            visible: list.events.length > root.listRows
+            height: root.listRowHeight
+            verticalAlignment: Text.AlignVCenter
+            text: `+${list.events.length - root.listRows} more`
+            color: Theme.label3
+            font.pixelSize: Theme.captionSize
         }
     }
 }

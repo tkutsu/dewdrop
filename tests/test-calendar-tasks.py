@@ -43,8 +43,9 @@ ShellRoot {
                 const cell = find(popup.contentItem, i => i.dayKey === fri);
                 check(cell && !cell.busy, "a day with only tasks has no dot");
                 const list = find(popup.contentItem, i => i.events !== undefined);
-                mouseMove(cell, 14, 14);
+                mouseClick(cell, 14, 14);
                 wait(50);
+                check(popup.selected === fri, "clicking a day selects it");
                 check(list.events.length === 0 && !find(list, i => i.text === "Call bank" || i.text === "Bring forms"), "dated tasks and subtasks stay off the calendar list");
                 const now = new Date(2026, 9, 14, 12).getTime();
                 WallClock.now = now;
@@ -76,19 +77,30 @@ ShellRoot {
                 wait(20);
                 check(clock.tooltip === Qt.formatDate(new Date(WallClock.now), "dddd d MMMM yyyy"), "tooltip date updates at midnight");
                 WallClock.now = now;
-                check(cell.busy && list.events.length === 1 && find(list, i => i.text === "Appointment"), "hovered day shows its event beside no task rows");
+                check(cell.busy && list.events.length === 1 && find(list, i => i.text === "Appointment"), "the selected day shows its event beside no task rows");
                 // Off the day and onto the list: the list stays that day's.
                 mouseMove(list, 60, list.height - 10);
                 wait(250);
-                check(popup.listDay === fri, "moving to the list keeps the day");
+                check(popup.selected === fri, "moving to the list keeps the day");
                 const row = find(list, i => i.modelData?.title === "Appointment");
                 mouseClick(row, 60, 10);
                 check(!Tasks.isCrossed(Tasks.tasks[0]), "event rows leave tasks unchanged");
-                const title = find(popup.contentItem, i => i.font?.weight === Font.DemiBold && /\\d{4}$/.test(i.text ?? ""));
-                mouseMove(title, 5, 5);
-                wait(250);
-                check(popup.listDay === Agenda.today, "leaving the list returns to today");
-                check(list.events.length === 5, "leaving the list restores today's events");
+                const heading = find(popup.contentItem, i => i.text === "Friday 16 October" && i.font?.weight === Font.DemiBold);
+                check(heading && heading.visible, "the list is headed by the selected day");
+                const todayButton = find(popup.contentItem, i => i.name === "Today" && i.tapped !== undefined);
+                check(todayButton && todayButton.live, "the Today button is live away from today");
+                mouseClick(todayButton, 10, 10);
+                wait(50);
+                check(popup.selected === Agenda.today && !todayButton.live, "Today goes back to today and goes faint");
+                check(list.events.length === 5 && find(popup.contentItem, i => i.text === "Today" && i.font?.weight === Font.DemiBold), "today's events are back under a Today heading");
+                // A faint day from the next month turns the grid to it.
+                const faint = find(popup.contentItem, i => i.dayKey !== undefined && !i.thisMonth && i.index > 27);
+                const faintKey = faint.dayKey;
+                mouseClick(faint, 14, 14);
+                wait(50);
+                check(popup.offset === 1 && popup.selected === faintKey, "a faint day selects it and turns the month");
+                popup.goToday();
+                wait(50);
                 Agenda.months = ({});
                 wait(50);
                 check(!cell.busy && list.events.length === 0 && clock.tooltip === dateLine, "empty calendar clears dots and rows, keeping only the tooltip date despite remaining tasks");
@@ -118,6 +130,16 @@ ShellRoot {
                 Agenda.insert({title: "Dentist", start: start, end: start});
                 Agenda.calls[0].failed(Google.reconnect, 403);
                 check(Agenda.trouble === Google.reconnect, "a failed insert is visible");
+
+                // New, in the header: the launcher on the selected day.
+                popup.visible = true;
+                popup.picked = fri;
+                const add = find(popup.contentItem, i => i.name === "New task or event" && i.tapped !== undefined);
+                check(add && add.visible && add.label === "New", "the header has a New button");
+                check(find(popup.contentItem, i => i.name === "Open Google Calendar" && i.glyph === Theme.glyph.openApp), "the header opens the app from its far right");
+                add.tapped();
+                check(Launcher.query === ", " + fri + " ", "New opens the launcher on the selected day");
+                popup.picked = "";
 
                 // Right-click a day: the launcher, with that day typed in.
                 popup.visible = true;
