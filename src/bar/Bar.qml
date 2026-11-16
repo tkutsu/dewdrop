@@ -699,6 +699,8 @@ PanelWindow {
         side: Pill.Side.Right
         backdrop: wallpaperImage
         order: RightPillOrder.keys
+        kindOf: key => RightPillOrder.kindOf(key)
+        dividers: drawer.out ? 1 : 0
         reorderPeer: clockPill
         transferableKeys: Settings.moduleKeys
         onModuleReceived: key => {
