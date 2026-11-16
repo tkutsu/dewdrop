@@ -649,7 +649,8 @@ OverlayWindow {
                         Row {
                             id: modeHints
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: 12
+                            // 10, so all ten modes fit the empty box at 13px.
+                            spacing: 10
 
                             Repeater {
                                 model: Launcher.queryHints
@@ -661,7 +662,7 @@ OverlayWindow {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: parent.modelData.prefix
-                                        color: Theme.label3
+                                        color: Theme.label2
                                         font.family: Theme.bodyFont
                                         font.pixelSize: Theme.popupTextSize
                                         font.weight: Font.Black
@@ -669,7 +670,7 @@ OverlayWindow {
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: parent.modelData.hint
-                                        color: Theme.label3
+                                        color: Theme.label2
                                         font.family: Theme.bodyFont
                                         font.pixelSize: Theme.captionSize
                                     }
@@ -1070,7 +1071,7 @@ OverlayWindow {
                     // the subject rather than out at the box's edge.
                     x: Theme.pillPad
                     width: reader.width - Theme.pillPad * 2
-                    text: LauncherMail.text || "reading…"
+                    text: LauncherMail.text || "Reading…"
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     lineHeight: 1.25

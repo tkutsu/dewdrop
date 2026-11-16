@@ -475,7 +475,7 @@ Popup {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !hover.hovered
                         text: card.n ? Notifications.ago(card.n, clock.date.getTime()) : ""
-                        color: Theme.label3
+                        color: Theme.label2
                         font.pixelSize: Theme.captionSize
                     }
 
