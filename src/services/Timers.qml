@@ -160,11 +160,6 @@ Singleton {
         return root.alarmDisplay(h, m).text;
     }
 
-    // Small-font readouts keep AM/PM at the same size and separated by a space.
-    function alarmTime(h: int, m: int): string {
-        return Settings.applyCase(Parse.hhmm(h, m, Settings.twelveHour), Settings.timeCase);
-    }
-
     // Alarm readouts share the bar clock's casing, spacing and AM/PM sizing.
     function alarmDisplay(h: int, m: int): var {
         return Settings.timeDisplay(new Date(2000, 0, 1, h, m), Settings.twelveHour ? "h:mm AP" : "HH:mm");

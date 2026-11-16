@@ -26,6 +26,11 @@ Popup {
 
     ChoiceBlink { id: choice }
 
+    // An alarm's time as the bar draws it, Smaller AM/PM and all.
+    function time(e: var): string {
+        return Settings.timeMarkup(Timers.alarmDisplay(e.hour, e.minute), Theme.popupTextSize);
+    }
+
     // Ringing first, because it is the only row here that is asking for
     // something. Then what is running, then the alarms standing by — soonest
     // first inside each group, which is the order they will matter in.
@@ -54,7 +59,8 @@ Popup {
                 glyph: Theme.glyph.timerRing,
                 warn: true,
                 dim: false,
-                title: e.kind === "alarm" && e.label === "" ? Timers.alarmTime(e.hour, e.minute) : Timers.ringTitle(e),
+                title: e.kind === "alarm" && e.label === "" ? root.time(e) : Timers.ringTitle(e),
+                titleIsTime: e.kind === "alarm" && e.label === "",
                 readout: "",
                 name: "Dismiss ringing timers",
                 act: () => Timers.hush(),
@@ -105,7 +111,8 @@ Popup {
                 // whole difference between turning one off and cancelling it.
                 dim: !e.running,
                 title: e.label !== "" ? e.label : "Alarm",
-                readout: Timers.alarmTime(e.hour, e.minute),
+                readout: root.time(e),
+                readoutIsTime: true,
                 name: (e.running ? "Turn off " : "Turn on ") + (e.label || "alarm"),
                 act: () => Timers.toggle(e.id),
                 buttons: [
@@ -190,6 +197,8 @@ Popup {
                     rightMargin: 6
                     verticalCenter: parent.verticalCenter
                 }
+                // A time is markup (Settings.timeMarkup); a name stays plain.
+                textFormat: row.modelData.titleIsTime ? Text.RichText : Text.PlainText
                 text: row.modelData.title
                 color: row.modelData.warn ? Theme.warn : row.modelData.dim ? Theme.label2 : Theme.fg
                 elide: Text.ElideRight
@@ -208,6 +217,7 @@ Popup {
                 }
                 width: root.readoutWidth
                 horizontalAlignment: Text.AlignRight
+                textFormat: row.modelData.readoutIsTime ? Text.RichText : Text.PlainText
                 // The one thing on a row that moves. A binding here rather
                 // than a value in the model is what keeps the row itself still.
                 text: row.modelData.entry ? Timers.clock(Timers.remaining(row.modelData.entry)) : row.modelData.readout
