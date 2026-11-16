@@ -33,6 +33,8 @@ Singleton {
     // for both, the way the mail and tasks modules do, so a count of zero
     // is not mistaken for an up-to-date machine.
     property bool loaded: false
+    // When both checks last came back clean, in seconds (RefreshStamp).
+    property double updatedAt: 0
     property int checksRemaining: 0
     property string officialTrouble: ""
     property string aurTrouble: ""
@@ -80,8 +82,10 @@ Singleton {
 
     function finishCheck(): void {
         root.checksRemaining--;
-        if (root.checksRemaining === 0 && root.trouble === "")
+        if (root.checksRemaining === 0 && root.trouble === "") {
+            root.updatedAt = Date.now() / 1000;
             recovery.reset();
+        }
     }
 
     function lines(text) {

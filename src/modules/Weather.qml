@@ -23,10 +23,6 @@ BarItem {
     readonly property var temperature: root.forecast?.[Services.Weather.temperatureKey]
     readonly property var parts: Settings.weatherFormat.split(/(\{icon\}|\{temp\})/).filter(part => part !== "")
 
-    actions: ({
-            [Qt.RightButton]: () => Services.Weather.refresh(true)
-        })
-
     Repeater {
         model: root.parts
         delegate: Loader {

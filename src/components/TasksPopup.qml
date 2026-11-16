@@ -154,16 +154,13 @@ Popup {
         addable: Tasks.loaded
         onAdd: Launcher.openWith(Launcher.taskPrefix)
         ReconnectButton {}
-        RetryButton { service: Tasks }
-
-        PopupButton {
-            visible: Tasks.configured && !Google.needsConsent && !Tasks.retryable
-            live: !Tasks.loading && Tasks.writing === 0 && Tasks.pending.length === 0
+        // Faint while a change is still being written or the list is in
+        // hand, so a fetch never lands under an edit.
+        RefreshStamp {
+            service: Tasks
+            visible: Tasks.configured && !Google.needsConsent
+            live: Tasks.writing === 0 && Tasks.pending.length === 0
                 && !Tasks.commitWanted && !root.editing && !reorder.showing
-            framed: true
-            glyph: Theme.glyph.refresh
-            label: "Refresh"
-            onTapped: Tasks.refresh()
         }
 
         PopupButton {

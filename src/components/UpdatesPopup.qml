@@ -50,15 +50,9 @@ Popup {
             Quickshell.execDetached(Settings.commandLine(Settings.updateCommand, "Upgrade (floating)"));
         }
 
-        // The same check as a right-click on the bar, where it can be found.
-        // Faint while one is out, rather than queueing another; the note
-        // under the header says what it is doing.
-        PopupButton {
-            framed: true
-            live: !Updates.loading
-            glyph: Theme.glyph.refresh
-            label: "Refresh"
-            onTapped: Updates.retryNow()
+        // The note under the header says what a check under way is doing.
+        RefreshStamp {
+            service: Updates
         }
 
         // The system's maintenance, whatever settings.json's cleanupCommand

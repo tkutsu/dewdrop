@@ -225,7 +225,10 @@ Popup {
             }
         }
 
-        RetryButton { service: Feeds }
+        RefreshStamp {
+            service: Feeds
+            visible: Feeds.connected
+        }
 
         // Takes back the latest swipe, or the Mark All Seen.
         PopupButton {

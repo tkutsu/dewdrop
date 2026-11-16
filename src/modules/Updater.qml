@@ -40,9 +40,6 @@ BarItem {
         underdot: Settings.badgeStyle("updater") === "underdot"
     }
 
-    // Left is the popup (BarItem.popupButton). Cleaning up is the button at
-    // the foot of it, not a click.
-    actions: ({
-            [Qt.RightButton]: () => Updates.refresh()
-        })
+    // Left is the popup (BarItem.popupButton), whose header checks again and
+    // cleans up; neither is a click on the bar.
 }

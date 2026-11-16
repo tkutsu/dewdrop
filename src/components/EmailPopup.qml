@@ -173,7 +173,10 @@ Popup {
 
         ReconnectButton {}
 
-        RetryButton { service: Email }
+        RefreshStamp {
+            service: Email
+            visible: Email.configured && !Google.needsConsent
+        }
 
         // Takes back the latest action still waiting.
         PopupButton {

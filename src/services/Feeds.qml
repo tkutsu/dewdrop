@@ -126,6 +126,8 @@ Singleton {
     // RetryButton reads `retryable`, `loading` and `retryNow`.
     property bool loaded: false
     property string trouble: ""
+    // When a refresh last landed without trouble, in seconds (RefreshStamp).
+    property double updatedAt: 0
     property int requests: 0
     // A refresh asked for while one was out: run when it lands, so a sign-in
     // that finishes mid-read is not left until the next poll.
@@ -259,6 +261,8 @@ Singleton {
             } finally {
                 if (--root.requests === 0) {
                     root.loaded = true;
+                    if (root.trouble === "")
+                        root.updatedAt = Date.now() / 1000;
                     if (root.again) {
                         root.again = false;
                         Qt.callLater(root.refresh);

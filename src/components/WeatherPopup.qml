@@ -35,8 +35,9 @@ Popup {
         RefreshStamp {
             live: !!Weather.location
             at: Weather.updatedAt
+            busy: Weather.loading
             failed: Weather.trouble !== ""
-            onTapped: Weather.refresh(true)
+            fetch: () => Weather.refresh(true)
         }
     }
 
