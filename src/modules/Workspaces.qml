@@ -40,8 +40,7 @@ BarItem {
     // pill out of view. Only windows the strip would draw an icon for count: not
     // the ones on a special workspace, which has no place on it.
     readonly property bool occupied: root.shownWorkspaces.some(w => w.urgent
-        || Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id && t.wayland
-            && !root.ignored.some(re => re.test(root.windowClass(t)))))
+        || Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id && t.wayland))
     // The pill is a bubble. `pop` is how far it has blown up: 0 gone, 1 there,
     // swinging about 1 as it lands. `burst` is how far through bursting it is,
     // 0..1, after which it is gone.
@@ -357,9 +356,6 @@ BarItem {
 
     onClicked: root.collapse()
 
-    // workspace-taskbar ignore-list
-    readonly property var ignored: [/^gamescope$/]
-
     // Which windows are shouting. Hyprland flags the workspace, but it flags
     // the window too, so the bar can point at the app that wants you rather
     // than at the room it is in. Gathered once for the whole strip instead of
@@ -644,8 +640,6 @@ BarItem {
                             // itself, so it covers the gap until the IPC object catches
                             // up.
                             const cls = root.windowClass(toplevel);
-                            if (root.ignored.some(re => re.test(cls)))
-                                continue;
                             if (!byClass[cls]) {
                                 byClass[cls] = {
                                     windowClass: cls,
@@ -799,7 +793,7 @@ BarItem {
                             implicitWidth: root.emptyWidth
                         }
 
-                        // Urgency from ignored apps still needs a visible signal.
+                        // Urgency no icon owns up to still needs a visible signal.
                         BarText {
                             visible: emptyBounce.running
                             Layout.fillHeight: true
@@ -815,8 +809,8 @@ BarItem {
                         // The fallback, and only that. Urgency belongs on the
                         // icon of the app that wants you, so the marker moves
                         // just when the workspace is shouting and no icon on it
-                        // has owned up — an ignored window, or one Hyprland
-                        // flagged by workspace without flagging the window.
+                        // has owned up — a window with no Wayland handle, or
+                        // a workspace Hyprland flagged without flagging the window.
                         // Otherwise a shouting app would move twice over.
                         Bounce {
                             id: emptyBounce
