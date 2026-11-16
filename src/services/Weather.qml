@@ -37,6 +37,9 @@ Singleton {
     readonly property var thisHour: root.allHours.find(hour => hour.at <= root.now && root.now < hour.at + 3600) ?? null
     readonly property var today: root.thisHour ? root.days.find(day => day.hours.includes(root.thisHour)) ?? null : null
     readonly property var upcoming: root.allHours.filter(hour => hour.at + 3600 > root.now && hour.at < root.now + 6 * 3600)
+    // Some hour past the line the six-hour summary calls dry (10%): the
+    // popup draws its rain graph for a week with one, a day at a time.
+    readonly property bool rainyWeek: root.rainy(root.allHours)
     // The hourly field behind every temperature shown, following Feels Like.
     readonly property string temperatureKey: root.feelsLike ? "feelsLike" : "temperature"
     readonly property string summary: root.summarize(root.upcoming)
@@ -246,6 +249,10 @@ Singleton {
         stored.location = place;
         saved.writeAdapter();
         root.query = "";
+    }
+
+    function rainy(hours: var): bool {
+        return hours.some(hour => typeof hour.rain === "number" && hour.rain > 10);
     }
 
     function refresh(force): void {

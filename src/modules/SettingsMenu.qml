@@ -515,6 +515,8 @@ OverlayWindow {
         },
         {
             title: "Weather",
+            // Open-Meteo's licence (CC BY 4.0) asks for a visible credit.
+            credit: { text: "Weather data by Open-Meteo.com", url: "https://open-meteo.com/" },
             sections: [
                 {
                     title: "Location",
@@ -1081,6 +1083,24 @@ OverlayWindow {
                 model: ScriptModel {
                     values: root.entries
                     objectProp: "id"
+                }
+
+                // Whom a page's data comes from, after its last row at the
+                // right, as a link to them (Weather's Open-Meteo).
+                footer: PopupText {
+                    readonly property var credit: root.query ? null : root.pages[root.page]?.credit ?? null
+
+                    width: list.width
+                    height: credit ? implicitHeight : 0
+                    visible: !!credit
+                    topPadding: 24
+                    rightPadding: Theme.popupInset
+                    horizontalAlignment: Text.AlignRight
+                    textFormat: Text.RichText
+                    text: credit ? `<a href="${credit.url}" style="color: ${Theme.label2}">${credit.text}</a>` : ""
+                    color: Theme.label2
+                    font.pixelSize: Theme.footnoteSize
+                    onLinkActivated: link => Qt.openUrlExternally(link)
                 }
 
                 delegate: Loader {

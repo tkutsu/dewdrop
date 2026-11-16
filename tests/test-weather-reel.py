@@ -49,7 +49,7 @@ Item {
 ''')
         (components / "PopupHeader.qml").write_text('import QtQuick\nRow { property string title: ""; height: 24 }\n')
         (components / "PopupButton.qml").write_text('''import QtQuick
-Item { property bool framed: false; property bool lit: false; property bool live: true
+Item { property bool framed: false; property bool lit: false; property bool live: true; property bool warn: false
     property string label: ""; property string name: label; property string glyph: ""; signal tapped; width: 70; height: 24 }
 ''')
         (components / "Glyph.qml").write_text('import QtQuick\nText { property int fontSize: 16; font.pixelSize: fontSize }\n')
@@ -58,7 +58,7 @@ QtObject { property string want: ""; property string arg: ""; property int inter
     property bool running: false; property var command: []; signal result(arg: string, text: string) }
 ''')
         (services / "Weather.qml").write_text((ROOT / "src/services/Weather.qml").read_text())
-        (services / "WallClock.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { signal wokeUp }\n')
+        (services / "WallClock.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property double now: Date.now(); signal wokeUp }\n')
         (services / "Network.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool online: false }\n')
         (target / "src/core/Paths.qml").write_text('''pragma Singleton
 import QtQuick
@@ -177,7 +177,7 @@ ShellRoot {
                 return {date: date, high: temperature, low: temperature - 5, rain: 0, icon: "",
                     hours: Array.from({length: 24}, (_, i) => ({at: at + i * 3600,
                         time: i + ":00", temperature: temperature, feelsLike: temperature - 2,
-                        wind: 10, windDirection: 0, rain: 0, icon: "", severity: 0, description: "Clear"}))};
+                        wind: 10, windDirection: 0, rain: 20, icon: "", severity: 0, description: "Clear"}))};
             }
             function moving(reel, direction, oldDate, newDate) {
                 const outgoing = named(reel, "outgoing"), incoming = named(reel, "incoming");
@@ -284,7 +284,7 @@ ShellRoot {
                 const secondSeries = namedAll(graph, "plot")[1].parent.parent;
                 mouseMove(plots, graph.plotLeft + graph.plotWidth / 3, secondSeries.y + secondSeries.height + graph.spacing / 2);
                 wait(30);
-                check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gap between rain and wind retains the cursor readout and vertical line");
+                check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gap between wind and rain retains the cursor readout and vertical line");
                 mouseMove(plots, graph.plotLeft + graph.plotWidth / 2, gapY);
                 wait(30);
                 check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "gaps between graphs retain the cursor readout and vertical line");
@@ -385,6 +385,26 @@ ShellRoot {
                 wait(20);
                 check(named(reel, "outgoing").currentHour.at === 82800,
                     "dots keep the last available hour when the next tick has no forecast");
+                function dryDay(date, at) {
+                    const d = day(date, at, 20);
+                    d.hours.forEach(hour => hour.rain = 0);
+                    return d;
+                }
+                Weather.now = 10000;
+                Weather.days = [day("2026-10-08", 0, 20), dryDay("2026-10-09", 86400)];
+                popup.picked = "";
+                wait(60);
+                const keys = () => namedAll(named(reel, "outgoing"), "plot").map(plot => plot.parent.parent.modelData.key).join(",");
+                check(keys() === "temperature,wind,rain", "rain is the last of the graphs");
+                const heightWet = named(reel, "outgoing").implicitHeight;
+                popup.picked = "2026-10-09";
+                wait(500);
+                const rainPlot = namedAll(named(reel, "outgoing"), "plot")[2];
+                check(!rainPlot.visible && rainPlot.parent.children.some(child => child.text === "No rain" && child.visible), "a dry day in a wet week keeps its rain band and says No rain");
+                check(named(reel, "outgoing").implicitHeight === heightWet, "a dry day keeps the wet day's height");
+                Weather.days = [dryDay("2026-10-08", 0), dryDay("2026-10-09", 86400)];
+                wait(60);
+                check(keys() === "temperature,wind", "a dry week drops the rain graph");
                 console.log("PASS: weather header, weather reel, graph and gap scrolling, fixed cursor readout, continuous curves, fixed axes, rapid clicks, refresh and midnight rollover");
             }
         }
