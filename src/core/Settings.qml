@@ -42,17 +42,30 @@ Singleton {
     readonly property string weatherFormat: root.values.weatherFormat || "{icon} {temp}"
     // The weather format cut at its tokens and at ^[…] and _[…]: each part is
     // a token or literal text, with a shift of "sup", "sub" or "" for the
-    // baseline. The icon stays on the line whatever its shift.
+    // baseline. The icon stays on the line whatever its shift. Text typed
+    // straight after {temp} at its size (the ° in {temp}°) is its `unit`, drawn
+    // in one piece with the figures so they keep the font's own spacing.
     readonly property var weatherParts: {
         const parts = [];
         let shift = "";
         for (const token of root.weatherFormat.split(/(\{icon\}|\{temp\}|\^\[|_\[|\])/)) {
-            if ((token === "^[" || token === "_[") && !shift)
+            if ((token === "^[" || token === "_[") && !shift) {
                 shift = token === "^[" ? "sup" : "sub";
-            else if (token === "]" && shift)
+                continue;
+            }
+            if (token === "]" && shift) {
                 shift = "";
-            else if (token !== "")
-                parts.push({ token, shift });
+                continue;
+            }
+            if (token === "")
+                continue;
+            const last = parts[parts.length - 1];
+            const literal = token !== "{icon}" && token !== "{temp}";
+            const unit = literal && last?.token === "{temp}" && last.shift === shift && !last.unit ? token.match(/^\S+/)?.[0] ?? "" : "";
+            if (unit)
+                last.unit = unit;
+            if (token.length > unit.length)
+                parts.push({ token: token.slice(unit.length), shift });
         }
         return parts;
     }
@@ -208,8 +221,8 @@ Singleton {
     }
 
     // The formatted time, with the ranges RollingText draws two-thirds size:
-    // ^[\u2026] raised, _[\u2026] lowered, and with Smaller AM/PM the AM/PM tokens on
-    // the baseline, closed up to the time. Quoted literals stay as typed, so
+    // ^[...] raised to the capitals' tops, _[...] on the baseline as a small
+    // AM/PM is, and with Smaller AM/PM the AM/PM tokens, closed up to the time. Quoted literals stay as typed, so
     // '^[' shows the characters. Each run is marked with a private-use
     // character before formatting and found again after it.
     function timeDisplay(date: date, timeFormat: string): var {
@@ -279,14 +292,14 @@ Singleton {
     }
 
     // A timeDisplay as rich text for a line `pixelSize` tall, its small runs
-    // at the bar's two-thirds size: on the baseline, or raised or lowered.
+    // at the bar's two-thirds size: on the baseline, or raised.
     function timeMarkup(display: var, pixelSize: int): string {
         const escape = text => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         const small = Math.max(1, Math.round(pixelSize * 2 / 3));
         let markup = "";
         let offset = 0;
         for (const range of display.smallRanges) {
-            const align = range.shift === "sup" ? "; vertical-align: super" : range.shift === "sub" ? "; vertical-align: sub" : "";
+            const align = range.shift === "sup" ? "; vertical-align: super" : "";
             markup += escape(display.text.slice(offset, range.start))
                 + `<span style="font-size: ${small}px${align}">${escape(display.text.slice(range.start, range.end))}</span>`;
             offset = range.end;

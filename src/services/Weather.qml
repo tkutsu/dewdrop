@@ -305,6 +305,11 @@ Singleton {
         return `${root.formatTemperature(high, false)} / ${root.formatTemperature(low, false)}`;
     }
 
+    // The bar's {temp}: the number alone, in the chosen unit.
+    function temperatureFigure(value: var): string {
+        return root.measure(root.temperatureValue(value), "");
+    }
+
     function measure(value: var, suffix: string): string {
         return value === null || value === undefined ? "-" : `${Math.round(value)}${suffix}`;
     }

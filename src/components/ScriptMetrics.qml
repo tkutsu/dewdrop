@@ -2,10 +2,9 @@ import QtQuick
 import qs.src.core
 
 // Where two-thirds-size text goes beside full-size text in a box `height` tall.
-// A small AM/PM stands on the full text's baseline. A superscript is that run
-// raised until its capitals' tops meet the full text's; a subscript is it
-// dropped the same distance below the baseline. Whole pixels, because
-// BarText draws on whole pixels.
+// A subscript is a small AM/PM: it stands on the full text's baseline. A
+// superscript is the same run raised until its capitals' tops meet the full
+// text's. Whole pixels, because BarText draws on whole pixels.
 QtObject {
     id: root
 
@@ -35,8 +34,8 @@ QtObject {
     readonly property int onBaseline: Math.round(root.top(root.full) + root.full.ascent - (root.top(root.small) + root.small.ascent))
     readonly property int lift: Math.round(root.full.capitalHeight - root.small.capitalHeight)
 
-    // `shift` is "sup", "sub", or anything else for the baseline.
+    // `shift` is "sup", or anything else ("sub", an AM/PM) for the baseline.
     function nudge(shift: string): int {
-        return root.onBaseline + (shift === "sup" ? -root.lift : shift === "sub" ? root.lift : 0);
+        return root.onBaseline - (shift === "sup" ? root.lift : 0);
     }
 }
