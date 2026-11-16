@@ -136,6 +136,10 @@ ShellRoot {
                 const none = Agenda.normalise({id: "4", start: at, end: at, description: "see https://example.com/doc"}, cal);
                 check(meet.link === "https://meet.google.com/abc-defg-hij" && meet.url.indexOf("eid=x") > 0 && meet.colour === "#7986cb", "Meet links, the event page and the calendar colour are kept");
                 check(zoom.link === "https://example.zoom.us/j/123" && pasted.link === "https://teams.microsoft.com/l/meetup/42" && pasted.place === "Room 4" && none.link === "", "a call address in the place or description is found, other links are not");
+                // Colours as the app draws them, not the API's old pastels.
+                const tomato = Agenda.normalise({id: "5", colorId: "11", start: at, end: at}, cal);
+                check(Agenda.calendarShade("#9FE1E7") === "#039be5" && Agenda.calendarShade("#123456") === "#123456", "a calendar's palette colour is drawn in the app's shade, a custom one as itself");
+                check(tomato.colour === "#d50000" && none.colour === "#7986cb", "an event's own colour wins over its calendar's");
                 // A faint day from the next month turns the grid to it.
                 const faint = find(popup.contentItem, i => i.dayKey !== undefined && !i.thisMonth && i.index > 27);
                 const faintKey = faint.dayKey;
