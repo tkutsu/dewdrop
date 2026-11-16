@@ -35,10 +35,10 @@ Popup {
 
         width: root.bodyWidth
         z: 1
-        // How many, and how many of those the AUR's, on the title the
-        // upgrade is pressed on.
+        // How many, on the title the upgrade is pressed on; each row marks
+        // its own AUR package.
         title: Updates.pending === 0 ? "Updates"
-            : `${Updates.pending} ${Updates.pending === 1 ? "Update" : "Updates"}` + (Updates.aur > 0 ? ` (${Updates.aur} AUR)` : "")
+            : `${Updates.pending} ${Updates.pending === 1 ? "Update" : "Updates"}`
         // The upgrade itself, settings.json's updateCommand, in a terminal;
         // only while there is something to take.
         addable: Updates.pending > 0 && root.canRun
