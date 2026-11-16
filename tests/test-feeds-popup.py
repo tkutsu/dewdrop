@@ -42,6 +42,17 @@ ShellRoot {
             function order() { return popup.sectionOrder.map(s => s.section).join(","); }
             function run() {
                 const now = Date.now();
+                Feeds.connected = true;
+                Feeds.loaded = false;
+                Feeds.channelsTotal = 42;
+                Feeds.channelsRead = 12;
+                wait(30);
+                const loading = find(popup, i => i.reading !== undefined);
+                check(loading && loading.reading && loading.text === "Reading channels… 12 of 42"
+                    && loading.leftPadding > Theme.popupInset && find(loading, i => i.stroke !== undefined),
+                    "an empty first read shows a spinner and how many channels are in: " + loading?.text);
+                Feeds.loaded = true;
+                Feeds.channelsTotal = 0;
                 Feeds.videos = [0, 1].map(i => ({id: "v" + i, title: "Video " + i,
                     channel: "Channel", published: now, duration: 120, thumb: "", url: ""}));
                 Feeds.sources = [{url: "rss", title: "Stories", items: [0, 1].map(i => ({
@@ -549,7 +560,8 @@ def main():
         feeds.write_text(feeds.read_text()
             .replace("    id: root", "    id: root\n    property var opened: []", 1)
             .replace('Quickshell.execDetached(["xdg-open", link || item.url]);',
-                     "root.opened = root.opened.concat([item.id]);"))
+                     "root.opened = root.opened.concat([item.id]);")
+            .replace("readonly property bool connected:", "property bool connected:"))
         (target / "settings.json").write_text('{"feedUrls": []}\n')
         (target / "shell.qml").write_text(WINDOW_QML)
         window = subprocess.run(["qs", "-p", str(target), "--no-color"],

@@ -253,13 +253,25 @@ Popup {
         warn: true
     }
 
+    // With nothing to list yet, a spinner and how far the first read is.
     PopupNote {
         id: emptyNote
 
+        readonly property bool reading: Feeds.connected && !Feeds.loaded
+
         width: root.bodyWidth
-        visible: !Feeds.connected || !Feeds.loaded || Feeds.count === 0
+        visible: !Feeds.connected || Feeds.count === 0
+        leftPadding: Theme.popupInset + (emptyNote.reading ? loadingSpinner.width + 8 : 0)
         text: !Feeds.connected ? (YouTubeAccount.configured ? "YouTube needs reconnecting." : "Connect the account or channel that holds your subscriptions.")
-            : !Feeds.loaded ? Feeds.tooltip : "Nothing new"
+            : emptyNote.reading ? Feeds.progress : "Nothing new"
+
+        Spinner {
+            id: loadingSpinner
+
+            x: Theme.popupInset
+            anchors.verticalCenter: parent.verticalCenter
+            visible: emptyNote.reading
+        }
     }
 
     Flickable {
