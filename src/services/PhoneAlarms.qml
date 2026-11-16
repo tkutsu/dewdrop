@@ -34,8 +34,11 @@ Singleton {
     }
     readonly property bool atHome: root.configured && !!Network.current?.known
         && root.config.homeNetworks.some(n => n.ssid === Network.current.name)
-    readonly property string phoneWarning: !root.configured
-        ? "Phone alerts unavailable: local phone configuration missing or invalid."
+    // No phone.json means phone alerts were never set up, which is nothing to
+    // warn about; only a file that is there and cannot be used is trouble.
+    readonly property bool present: configFile.text().trim() !== ""
+    readonly property string phoneWarning: !root.present ? ""
+        : !root.configured ? "Phone alerts unavailable: phone.json is invalid."
         : !root.atHome ? "Phone alerts paused outside home Wi-Fi." : ""
     property var phoneAlerts: []
     property string address: ""
@@ -74,7 +77,7 @@ Singleton {
 
     function notifyPhone(title: string, body: string, entry: var): void {
         if (!root.configured) {
-            if (!root.outage) { root.outage = true; root.failed(root.phoneWarning); }
+            if (root.present && !root.outage) { root.outage = true; root.failed(root.phoneWarning); }
             return;
         }
         if (!root.atHome) return;
