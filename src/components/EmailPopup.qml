@@ -493,7 +493,8 @@ Popup {
                     PopupText {
                         anchors.right: parent.right
                         anchors.baseline: from.baseline
-                        text: Email.sayWhen(row.modelData.at)
+                        textFormat: Text.RichText
+                        text: Email.whenMarkup(row.modelData.at, font.pixelSize)
                         font.pixelSize: Theme.footnoteSize
                         color: Theme.label2
                         opacity: row.showVerbs ? 0 : 1
@@ -702,7 +703,8 @@ Popup {
                                                     PopupText {
                                                         anchors.right: parent.right
                                                         anchors.baseline: sender.baseline
-                                                        text: Email.sayWhen(link.modelData.at)
+                                                        textFormat: Text.RichText
+                                                        text: Email.whenMarkup(link.modelData.at, font.pixelSize)
                                                         font.pixelSize: Theme.footnoteSize
                                                         color: Theme.label3
                                                     }

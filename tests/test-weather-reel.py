@@ -158,7 +158,7 @@ ShellRoot {
                     wait(20);
                     check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "cursor line follows the forecast under the pointer during the slide");
                     check(outgoing.readoutSource === graph && outgoing.readoutHour === graph.hoveredHour, "stationary readout follows the forecast under the pointer during the slide");
-                    check(named(outgoing, "readoutTime").text === graph.hoveredHour.time, "corner time updates to the cursor's hour during the slide");
+                    check(named(outgoing, "readoutTime").text === Weather.sayHour(graph.hoveredHour), "corner time updates to the cursor's hour during the slide");
                 }
                 slide.resume();
             }
@@ -294,7 +294,7 @@ ShellRoot {
                 const strip = named(graph, "strip");
                 mouseMove(strip, strip.width / 4, strip.height / 2);
                 wait(30);
-                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text === "6:00", "hovering the icon ranges picks their hour for the corner time");
+                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text === Weather.sayHour(graph.hours[6]) && Weather.sayHour(graph.hours[6]) === "06:00", "hovering the icon ranges picks their hour for the corner time");
                 check(namedAll(graph, "reading").length === 3, "every plot has a reading");
                 for (const reading of namedAll(graph, "reading")) {
                     const plot = reading.parent;

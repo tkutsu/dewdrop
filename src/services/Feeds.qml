@@ -290,7 +290,7 @@ Singleton {
                 store.quotaUntil = root.quotaReset(Date.now());
                 root.save();
             }
-            root.trouble = `YouTube quota used up until ${Qt.formatTime(new Date(store.quotaUntil), "HH:mm")}`;
+            root.trouble = `YouTube quota used up until ${Settings.sayTime(new Date(store.quotaUntil))}`;
         } else if (reason === "accessNotConfigured" || reason === "SERVICE_DISABLED") {
             root.trouble = "Enable the YouTube Data API v3 in the Google console";
         } else {
