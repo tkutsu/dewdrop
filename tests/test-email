@@ -651,12 +651,14 @@ class EmailTests(unittest.TestCase):
             'PopupButton.qml': '''import QtQuick
                 Item { id: button; property bool framed; property string glyph; property string label; property string name: label
                     property bool live: true; property int glyphSize; property int textSize; property bool keyed: false
+                    property bool pressFeedback; property bool warn; property bool lit
                     signal tapped(); width: 20; height: 20
                     Accessible.role: Accessible.Button; Accessible.name: name
                     TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: if (button.live) button.tapped() } }''',
             'Glyph.qml': 'import QtQuick\nText { property int fontSize }',
             'ReconnectButton.qml': 'import QtQuick\nItem {}',
             'RetryButton.qml': 'import QtQuick\nItem { property var service }',
+            'RefreshStamp.qml': 'import QtQuick\nItem { property var service }',
             'PressGlass.qml': 'import QtQuick\nQtObject { required property Item icon; required property var area; property bool down; property bool textPress: false; property real scale: 1 }',
         }
         directory = tempfile.mkdtemp(prefix='email-popup-test-')

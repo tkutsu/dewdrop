@@ -18,6 +18,8 @@ Singleton {
     property int requests: 0
     property bool checking: false
     property bool checkFailed: false
+    // When a check last came back whole, in seconds (RefreshStamp).
+    property double updatedAt: 0
     readonly property bool loading: requests > 0
     readonly property bool retryable: trouble !== "" && !Google.needsConsent
     readonly property bool stale: !loaded || trouble !== "" || Google.needsConsent
@@ -68,6 +70,7 @@ Singleton {
                     base.checking = false;
                     if (!base.checkFailed) {
                         base.trouble = "";
+                        base.updatedAt = Date.now() / 1000;
                         recovery.reset();
                     }
                 }
