@@ -84,18 +84,25 @@ Item {
         anchors.centerIn: parent
         layoutDirection: Qt.RightToLeft
         scale: press.scale
-        spacing: 4
+        spacing: 5
         opacity: root.chosen ? 1 : !root.live ? 0.15 : root.hovered || root.lit ? 1 : (root.framed ? 0.7 : 0.6)
 
+        // Beside a word the mark stands on its baseline, the way a letter
+        // would; on its own it is centred.
         Glyph {
             visible: root.glyph !== ""
             text: done.running ? Theme.glyph.check : root.glyph
             fontSize: root.glyphSize
             implicitHeight: root.height
             color: root.warn ? Theme.warn : Theme.fg
+            inkBase: word.visible ? word.y + word.baselineOffset : NaN
         }
 
+        // Whole pixels wide, so the mark after it lands on whole pixels too
+        // rather than smeared across two columns.
         PopupText {
+            id: word
+            width: Math.round(implicitWidth)
             anchors.verticalCenter: parent.verticalCenter
             visible: root.label !== ""
             text: root.label

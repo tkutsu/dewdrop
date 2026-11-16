@@ -481,7 +481,7 @@ QtObject {
     function state(name) { return Quickshell.shellPath(name); }
 }
 ''')
-        (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { property string text: ""; property int fontSize: 12; property color color: "white"; implicitWidth: 12 }\n')
+        (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { property real inkBase; property string text: ""; property int fontSize: 12; property color color: "white"; implicitWidth: 12 }\n')
         (target / 'src/components/Popup.qml').write_text('''import QtQuick
 Item {
     default property alias content: body.data

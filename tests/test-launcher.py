@@ -1261,7 +1261,7 @@ def check_menu(target, env):
         "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5 }',
         "FilePreview": 'import QtQuick\nItem { property string path; function scroll(dir) {} }',
         "CoverArt": 'import QtQuick\nItem { property string dir; property string title; property string subtitle; property string glyph }',
-        "Glyph": 'import QtQuick\nItem { property string text; property real fontSize: 16; property int inkSize: 0; property color color }',
+        "Glyph": 'import QtQuick\nItem { property real inkBase; property string text; property real fontSize: 16; property int inkSize: 0; property color color }',
     }
     for name, source in stubs.items():
         (components / f"{name}.qml").write_text(source)

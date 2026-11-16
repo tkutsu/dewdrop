@@ -42,7 +42,7 @@ Singleton {
     // not notify, so a binding that reads through the functions re-runs.
     property int revision: 0
 
-    // Icon source → {extent, left, right}; glyph key → {top, bottom, left, right}.
+    // Icon source → {extent, left, right, bottom}; glyph key → {top, bottom, left, right}.
     property var icons: ({})
     property var glyphs: ({})
 
@@ -52,12 +52,13 @@ Singleton {
         return root.icons[source]?.extent ?? 0;
     }
 
-    // The first and last inked column as fractions of the box, or null until
-    // measured, which callers read as "the whole box".
+    // The first and last inked column, and the edge under the last inked row,
+    // as fractions of the box, or null until measured, which callers read as
+    // "the whole box".
     function spanOf(source: string): var {
         root.revision;
         const icon = root.icons[source];
-        return icon ? {left: icon.left, right: icon.right} : null;
+        return icon ? {left: icon.left, right: icon.right, bottom: icon.bottom} : null;
     }
 
     function keyOf(family: string, weight: int, size: int, text: string): string {
@@ -81,8 +82,9 @@ Singleton {
             root._ask("glyph:" + key, {key, family, weight, size, text});
     }
 
-    function remember(source: string, extent: real, left: real, right: real): void {
-        root.icons[source] = {extent, left, right};
+    // `bottom` may be left out: the ink then reaches the box's foot.
+    function remember(source: string, extent: real, left: real, right: real, bottom): void {
+        root.icons[source] = {extent, left, right, bottom: bottom ?? 1};
         root._answered();
     }
 
@@ -216,7 +218,7 @@ Singleton {
             edgeLeft = left;
             edgeRight = right;
         }
-        root.remember(job.source, (bottom - top + 1) / height, edgeLeft / width, (edgeRight + 1) / width);
+        root.remember(job.source, (bottom - top + 1) / height, edgeLeft / width, (edgeRight + 1) / width, (bottom + 1) / height);
     }
 
     // A source is worth keeping if it names the same picture next run.
@@ -226,7 +228,7 @@ Singleton {
     }
 
     // Bump when the measuring changes, so answers from the old way are dropped.
-    readonly property int _version: 2
+    readonly property int _version: 3
 
     // A grab only fails to come back if its window stopped rendering, and one
     // lost job must not hold up every one behind it.

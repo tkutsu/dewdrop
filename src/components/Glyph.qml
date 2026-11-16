@@ -27,6 +27,11 @@ Item {
     }
     property real nudge: 0
     property bool tightWidth: true
+    // A y in this item for the ink's foot to stand on, as a word's letters
+    // stand on its baseline; NaN leaves the ink centred.
+    property real inkBase: NaN
+    readonly property int _lift: isNaN(root.inkBase) ? 0
+        : Math.round(root.inkBase - (root.shownDrawing ? art.restY + (art.item?.inkBottom ?? art.height) : label.restingInkBottom))
 
     // Every glyph this one can turn into. Each is laid out on its own ink,
     // which need not span what the next one's does, so an icon that changed
@@ -107,7 +112,7 @@ Item {
         }
         color: root.color
         inkColor: root.inkColor
-        nudge: root.nudge
+        nudge: root.nudge + root._lift
     }
 
     // Scaled with the font size it stands in for, so a popup's smaller glyphs
@@ -119,7 +124,9 @@ Item {
         x: root.slotted
             ? Math.floor((root.width - (item?.inkWidth ?? 0)) / 2) - (item?.inkX ?? 0)
             : root.tightWidth ? -(item?.inkX ?? 0) : 0
-        y: Math.floor((root.height - height) / 2) + root.nudge
+        readonly property int restY: Math.floor((root.height - height) / 2)
+
+        y: restY + root.nudge + root._lift
         opacity: root.inkColor.a
 
         sourceComponent: FittedIcon {

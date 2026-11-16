@@ -117,19 +117,25 @@ Item {
     // uses the cap height so a string does not hop about as its letters change;
     // glyphs measure their own ink, because a Material Design icon can sit
     // anywhere inside a font box sized for Latin text.
-    readonly property real _y: {
+    // Where the text's top goes before the nudge.
+    readonly property real _rest: {
         // Measured: put the ink's first row where a box of its height sits
         // centred in ours. Ceil rather than round, so an even ink in an odd
         // slab always lands the same half-pixel low rather than sometimes
         // high — one rule for the whole row, which is what makes it a row.
         if (root.opticalCentre && inked)
-            return Math.ceil((root.height - (inked.bottom - inked.top + 1)) / 2) - inked.top + inkPad + root.nudge;
-        return Math.round(root.opticalCentre && _ink.height > 0
+            return Math.ceil((root.height - (inked.bottom - inked.top + 1)) / 2) - inked.top + inkPad;
+        return root.opticalCentre && _ink.height > 0
             // tightBoundingRect is relative to the baseline, which a Text item
             // puts at `ascent` below its own top — hence the shift back out.
-            ? (root.height - _ink.height) / 2 - fm.ascent - _ink.y + root.nudge
-            : (root.height + fm.capitalHeight) / 2 - fm.ascent + root.nudge);
+            ? (root.height - _ink.height) / 2 - fm.ascent - _ink.y
+            : (root.height + fm.capitalHeight) / 2 - fm.ascent;
     }
+    readonly property real _y: root.opticalCentre && inked ? root._rest + root.nudge : Math.round(root._rest + root.nudge)
+
+    // The edge under the ink's last row, before the nudge: what a caller
+    // lining the ink up on something else nudges from.
+    readonly property real restingInkBottom: inked ? root._rest - inkPad + inked.bottom + 1 : root._rest + fm.ascent + _ink.y + _ink.height
 
     Text {
         id: drawn

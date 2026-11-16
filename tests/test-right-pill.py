@@ -226,7 +226,7 @@ QtObject {
     'src/core/Paths.qml': "pragma Singleton\nimport Quickshell\nSingleton { function state(name) { return Quickshell.shellPath('state/' + name); } }",
     'src/components/Liquid.qml': "import QtQuick\nItem { property var backdrop; property vector4d box0; property real reach; property vector4d fill; property vector4d rimTop; property real rimFrom; property real rimTo }",
     'src/components/Rim.qml': "import QtQuick\nItem { property real radius; property real lineWidth; property color topColor; property color bottomColor }",
-    'src/components/Glyph.qml': "import QtQuick\nItem { property string text; property var alternates: []; property int fontSize; property color color; property real nudge: 0 }",
+    'src/components/Glyph.qml': "import QtQuick\nItem { property real inkBase; property string text; property var alternates: []; property int fontSize; property color color; property real nudge: 0 }",
     'src/components/Badge.qml': "import QtQuick\nItem {}",
     'src/components/HoverPopup.qml': "import QtQuick\nItem { property Item anchorItem; property bool hovered; property bool pressed; property bool open; property string text; property Component popup; property var item: null }",
 }
