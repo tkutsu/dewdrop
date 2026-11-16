@@ -193,13 +193,12 @@ Popup {
         return new Date(root.shown.getFullYear(), root.shown.getMonth(), 1 + index - root.lead);
     }
 
-    // --- header: month, New, ‹ • ›, out to the app ----------------------------
+    // --- header: month, ‹ • ›, New, out to the app ----------------------------
+    // New sits beside the arrow rather than first (PopupHeader's `addable`):
+    // the two framed buttons are the ones that leave the popup.
     PopupHeader {
         width: Theme.popupWidth
         title: root.locale.standaloneMonthName(root.shown.getMonth(), Locale.LongFormat) + " " + root.shown.getFullYear()
-        addable: Agenda.configured
-        addName: "New task or event"
-        onAdd: root.addOn(root.selectedDate)
 
         // One stepper, its three targets touching, so it reads apart from
         // the framed buttons either side.
@@ -225,6 +224,15 @@ Popup {
                 name: "Next month"
                 onTapped: root.step(1)
             }
+        }
+
+        PopupButton {
+            visible: Agenda.configured
+            framed: true
+            label: "New"
+            glyph: Theme.glyph.plus
+            name: "New task or event"
+            onTapped: root.addOn(root.selectedDate)
         }
 
         PopupButton {
