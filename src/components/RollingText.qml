@@ -37,8 +37,8 @@ Row {
     // Trim only the run's outer edges; keep the internal character advances.
     property bool tightWidth: false
     // Character ranges drawn two-thirds size: on the full-size text's
-    // baseline, or raised or dropped where a range says `shift: "sup"` or
-    // `"sub"` (ScriptMetrics).
+    // baseline, or raised to its capitals' tops where a range says
+    // `shift: "sup"` (ScriptMetrics).
     property var smallRanges: []
     readonly property int smallFontSize: scripts.smallFontSize
 

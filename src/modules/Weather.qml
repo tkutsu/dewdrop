@@ -23,7 +23,7 @@ BarItem {
     readonly property var temperature: root.forecast?.[Services.Weather.temperatureKey]
     readonly property var parts: Settings.weatherParts
 
-    // Raised and lowered parts, the size and places of a small AM/PM's.
+    // ^[…] and _[…] parts: a small AM/PM's size, raised or on its baseline.
     ScriptMetrics {
         id: scripts
         height: root.height
@@ -50,7 +50,8 @@ BarItem {
             Component {
                 id: readout
                 BarText {
-                    text: modelData.token === "{temp}" ? Services.Weather.formatTemperature(root.temperature, false) : modelData.token
+                    // The bare figure: a degree sign or unit is the format's to add.
+                    text: modelData.token === "{temp}" ? Services.Weather.temperatureFigure(root.temperature) + (modelData.unit ?? "") : modelData.token
                     tightWidth: modelData.token === "{temp}"
                     fontSize: modelData.shift ? scripts.smallFontSize : scripts.fontSize
                     nudge: modelData.shift ? scripts.nudge(modelData.shift) : 0

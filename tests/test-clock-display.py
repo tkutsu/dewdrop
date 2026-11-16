@@ -108,13 +108,12 @@ ShellRoot {
                     const label = index => columns.itemAt(index).children.find(child => child.fontSize !== undefined);
                     const full = label(4);
                     const capTop = (item, metrics) => item.baselineOffset - metrics.capitalHeight;
-                    const lift = Math.round(fullMetrics.capitalHeight - smallMetrics.capitalHeight);
                     for (const index of [0, 1, 2, 3])
                         check(label(index).fontSize === Math.round(clock.fontSize * 2 / 3), "scripts take AM/PM's two-thirds size");
                     for (const index of [2, 3])
                         check(Math.abs(capTop(label(index), smallMetrics) - capTop(full, fullMetrics)) <= 1, "superscript tops meet the capitals: " + capTop(label(index), smallMetrics) + " vs " + capTop(full, fullMetrics));
                     for (const index of [0, 1])
-                        check(Math.abs(label(index).baselineOffset - full.baselineOffset - lift) <= 0.5, "subscript drops the superscript's lift: " + label(index).baselineOffset + " vs " + full.baselineOffset);
+                        check(Math.abs(label(index).baselineOffset - full.baselineOffset) <= 0.5, "subscript stands on the baseline as AM/PM does: " + label(index).baselineOffset + " vs " + full.baselineOffset);
                     Settings.set("datetimeFormat", "yyyy-MM-dd HH:mm:ss");
                 } else if (test.phase === 5) {
                     check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, "yyyy-MM-dd HH:mm:ss"), "date renders time tokens");
