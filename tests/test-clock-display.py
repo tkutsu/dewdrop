@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check clock casing, AM/PM token sizing, spacing and rendered baselines."""
+"""Check clock casing, AM/PM and ^[…]/_[…] sizing, spacing and rendered baselines."""
 
 from pathlib import Path
 from test_support import fixture_root
@@ -23,6 +23,8 @@ ShellRoot {
         Settings.user = { datetimeFormat: format, datetimeCase: mode, smallAmPm: small, reduceMotion: true };
         return Settings.clockDisplay(test.stamp);
     }
+    FontMetrics { id: fullMetrics; font.family: Theme.bodyFont; font.pixelSize: clock.fontSize; font.weight: Theme.bodyWeight }
+    FontMetrics { id: smallMetrics; font.family: Theme.bodyFont; font.pixelSize: Math.round(clock.fontSize * 2 / 3); font.weight: Theme.bodyWeight }
     FloatingWindow {
         implicitWidth: 240; implicitHeight: 60
         Clock { id: dateLabel; y: 30; height: 30 }
@@ -65,7 +67,14 @@ ShellRoot {
                         ["ddd d MMM h:mm ap 'MiXeD'", "normal", false, "Tue 13 Oct 8:05 pm MiXeD", []],
                         ["ddd d MMM h:mm ap 'MiXeD'", "normal", true, "Tue 13 Oct 8:05pm MiXeD", [{start: 15, end: 17}]],
                         ["ddd d MMM h:mm AP", "lowercase", true, "tue 13 oct 8:05pm", [{start: 15, end: 17}]],
-                        ["HH:mm", "normal", true, "20:05", []]
+                        ["HH:mm", "normal", true, "20:05", []],
+                        ["HH:mm^[ss]", "normal", false, "20:0509", [{start: 5, end: 7, shift: "sup"}]],
+                        ["HH:mm _[ss]", "normal", false, "20:05 09", [{start: 6, end: 8, shift: "sub"}]],
+                        ["h:mm^[AP]", "lowercase", true, "8:05pm", [{start: 4, end: 6, shift: "sup"}]],
+                        ["'straße' ^[h:mm] AP", "uppercase", true, "STRASSE 8:05PM", [{start: 8, end: 12, shift: "sup"}, {start: 12, end: 14}]],
+                        ["HH^[mm", "normal", false, "2005", [{start: 2, end: 4, shift: "sup"}]],
+                        ["'^[x]' HH:mm]", "normal", false, "^[x] 20:05]", []],
+                        ["^[HH^[mm]]", "normal", false, "20^[05]", [{start: 0, end: 6, shift: "sup"}]]
                     ]) {
                         const result = test.display(format, mode, small);
                         check(result.text === expected, format + " / " + mode + ": " + result.text);
@@ -92,12 +101,26 @@ ShellRoot {
                     else Settings.set("smallAmPm", false);
                 } else if (test.phase === 3) {
                     check(clock.text === "8:05 pm" && clock.smallRanges.length === 0, "turning option off restores original spacing and size");
-                    Settings.set("datetimeFormat", "yyyy-MM-dd HH:mm:ss");
+                    Settings.set("datetimeFormat", "HH:mm^[ss]_[ss]");
                 } else if (test.phase === 4) {
+                    check(clock.text === "20:050909", "raised and lowered runs: " + clock.text);
+                    const columns = clock.children.find(child => typeof child.itemAt === "function");
+                    const label = index => columns.itemAt(index).children.find(child => child.fontSize !== undefined);
+                    const full = label(4);
+                    const capTop = (item, metrics) => item.baselineOffset - metrics.capitalHeight;
+                    const lift = Math.round(fullMetrics.capitalHeight - smallMetrics.capitalHeight);
+                    for (const index of [0, 1, 2, 3])
+                        check(label(index).fontSize === Math.round(clock.fontSize * 2 / 3), "scripts take AM/PM's two-thirds size");
+                    for (const index of [2, 3])
+                        check(Math.abs(capTop(label(index), smallMetrics) - capTop(full, fullMetrics)) <= 1, "superscript tops meet the capitals: " + capTop(label(index), smallMetrics) + " vs " + capTop(full, fullMetrics));
+                    for (const index of [0, 1])
+                        check(Math.abs(label(index).baselineOffset - full.baselineOffset - lift) <= 0.5, "subscript drops the superscript's lift: " + label(index).baselineOffset + " vs " + full.baselineOffset);
+                    Settings.set("datetimeFormat", "yyyy-MM-dd HH:mm:ss");
+                } else if (test.phase === 5) {
                     check(dateLabel.shows === Qt.formatDateTime(dateLabel.date, "yyyy-MM-dd HH:mm:ss"), "date renders time tokens");
                     check(dateLabel.testPrecision === SystemClock.Seconds, "seconds in date update every second");
                     Settings.set("datetimeFormat", "ddd d MMM h:mm AP 'HH:mm'");
-                } else if (test.phase === 5) {
+                } else if (test.phase === 6) {
                     check(dateLabel.shows === Settings.clockDisplay(dateLabel.date).text, "mixed date preserves casing and quoted literals");
                     check(dateLabel.testPrecision === SystemClock.Minutes, "quoted format literals do not force second ticks");
                     Settings.set("datetimeFormat", "HH:mm");

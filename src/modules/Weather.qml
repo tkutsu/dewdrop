@@ -15,20 +15,26 @@ BarItem {
     popup: WeatherPopup {}
     textPress: root.showTemperature
     shows: root.showTemperature ? Services.Weather.formatTemperature(root.temperature, false) : ""
-    trimRight: Settings.weatherFormat.endsWith("{temp}") ? 3 : 1
+    trimRight: root.parts[root.parts.length - 1]?.token === "{temp}" ? 3 : 1
     spacing: 0
 
     readonly property bool showTemperature: Settings.weatherFormat.includes("{temp}")
     readonly property var forecast: Services.Weather.barForecast
     readonly property var temperature: root.forecast?.[Services.Weather.temperatureKey]
-    readonly property var parts: Settings.weatherFormat.split(/(\{icon\}|\{temp\})/).filter(part => part !== "")
+    readonly property var parts: Settings.weatherParts
+
+    // Raised and lowered parts, the size and places of a small AM/PM's.
+    ScriptMetrics {
+        id: scripts
+        height: root.height
+    }
 
     Repeater {
         model: root.parts
         delegate: Loader {
-            required property string modelData
+            required property var modelData
             Layout.fillHeight: true
-            sourceComponent: modelData === "{icon}" ? sky : readout
+            sourceComponent: modelData.token === "{icon}" ? sky : readout
             Component {
                 id: sky
                 Glyph {
@@ -44,8 +50,10 @@ BarItem {
             Component {
                 id: readout
                 BarText {
-                    text: modelData === "{temp}" ? Services.Weather.formatTemperature(root.temperature, false) : modelData
-                    tightWidth: modelData === "{temp}"
+                    text: modelData.token === "{temp}" ? Services.Weather.formatTemperature(root.temperature, false) : modelData.token
+                    tightWidth: modelData.token === "{temp}"
+                    fontSize: modelData.shift ? scripts.smallFontSize : scripts.fontSize
+                    nudge: modelData.shift ? scripts.nudge(modelData.shift) : 0
                     opacity: root.temperature != null && !Services.Weather.stale ? 1 : Theme.dimOpacity
                 }
             }

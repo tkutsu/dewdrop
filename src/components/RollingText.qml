@@ -36,12 +36,11 @@ Row {
     property int weight: Theme.bodyWeight
     // Trim only the run's outer edges; keep the internal character advances.
     property bool tightWidth: false
-    // Smaller character ranges share the full-size text's baseline.
+    // Character ranges drawn two-thirds size: on the full-size text's
+    // baseline, or raised or dropped where a range says `shift: "sup"` or
+    // `"sub"` (ScriptMetrics).
     property var smallRanges: []
-    readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize * 2 / 3))
-    // BarText rounds glyph positions, so the baseline shift must be whole pixels too.
-    readonly property int smallNudge: Math.round(Math.round((root.height + metrics.capitalHeight) / 2 - metrics.ascent) + metrics.ascent
-        - (Math.round((root.height + smallMetrics.capitalHeight) / 2 - smallMetrics.ascent) + smallMetrics.ascent))
+    readonly property int smallFontSize: scripts.smallFontSize
 
     // SwiftUI's transition, in line heights and in multiples of its duration
     // (Theme.rollMs).
@@ -52,20 +51,13 @@ Row {
     // settle, and so does this.
     readonly property real tail: 1.45
 
-    readonly property real line: metrics.height
+    readonly property real line: scripts.full.height
 
-    FontMetrics {
-        id: metrics
-        font.family: Theme.bodyFont
-        font.pixelSize: root.fontSize
-        font.weight: root.weight
-    }
-
-    FontMetrics {
-        id: smallMetrics
-        font.family: Theme.bodyFont
-        font.pixelSize: root.smallFontSize
-        font.weight: root.weight
+    ScriptMetrics {
+        id: scripts
+        fontSize: root.fontSize
+        weight: root.weight
+        height: root.height
     }
 
     // Counted from the right, where the figures that change are: a string
@@ -86,10 +78,12 @@ Row {
             required property int index
             // Empty past the start of the string (charAt of a negative index).
             readonly property string ch: root.text.charAt(root.text.length - 1 - index)
-            readonly property bool small: root.smallRanges.some(range => {
+            readonly property var range: root.smallRanges.find(range => {
                 const position = root.text.length - 1 - index;
                 return position >= range.start && position < range.end;
-            })
+            }) ?? null
+            readonly property bool small: range !== null
+            readonly property int nudge: small ? scripts.nudge(range.shift ?? "") : 0
             // What the column shows and what it last showed, set here rather
             // than bound: the change handler needs the old one.
             property string shown: ""
@@ -149,7 +143,7 @@ Row {
 
                 height: parent.height
                 fontSize: column.small ? root.smallFontSize : root.fontSize
-                nudge: column.small ? root.smallNudge : 0
+                nudge: column.nudge
                 weight: root.weight
                 text: column.shown
                 trimLeft: root.tightWidth && column.index === root.text.length - 1
@@ -181,7 +175,7 @@ Row {
                 height: parent.height
                 visible: column.rolling
                 fontSize: column.small ? root.smallFontSize : root.fontSize
-                nudge: column.small ? root.smallNudge : 0
+                nudge: column.nudge
                 weight: root.weight
                 text: column.was
                 trimLeft: root.tightWidth && column.index === root.text.length - 1

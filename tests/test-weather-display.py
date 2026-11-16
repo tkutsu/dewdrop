@@ -62,14 +62,23 @@ ShellRoot {
                 for (const format of ['{icon}', '{temp}', '{icon} {temp}', '{temp} {icon}', 'Now {temp} | {icon}']) {
                     Settings.set('weatherFormat', format); wait(80);
                     const delegates = parts();
-                    check(delegates.map(item => item.modelData).join('') === format && delegates.every(item => item.item && item.width > 0), 'format renders all parts: ' + format);
+                    check(delegates.map(item => item.modelData.token).join('') === format && delegates.every(item => item.item && item.width > 0), 'format renders all parts: ' + format);
                     check(delegates.every((item, index) => index === 0 || item.x >= delegates[index - 1].x + delegates[index - 1].width - 1), 'rendered order follows format: ' + format);
                     for (const item of delegates) {
-                        if (item.modelData === '{icon}') check(item.item.text === Weather.barForecast.icon, 'icon token shows selected forecast');
-                        if (item.modelData === '{temp}') check(item.item.text === Weather.formatTemperature(readout.temperature, false), 'temperature token shows selected forecast');
+                        if (item.modelData.token === '{icon}') check(item.item.text === Weather.barForecast.icon, 'icon token shows selected forecast');
+                        if (item.modelData.token === '{temp}') check(item.item.text === Weather.formatTemperature(readout.temperature, false), 'temperature token shows selected forecast');
                     }
                     check(readout.showTemperature === format.includes('{temp}'), 'format determines text interaction');
                 }
+                Settings.set('weatherFormat', '{icon} {temp}^[C]_[x'); wait(80);
+                check(JSON.stringify(Settings.weatherParts) === JSON.stringify([{token: '{icon}', shift: ''}, {token: ' ', shift: ''}, {token: '{temp}', shift: ''}, {token: 'C', shift: 'sup'}, {token: 'x', shift: 'sub'}]), 'markup cuts the format into shifted parts: ' + JSON.stringify(Settings.weatherParts));
+                const shifted = parts();
+                check(shifted[3].item.text === 'C' && shifted[3].item.fontSize === Math.round(shifted[2].item.fontSize * 2 / 3), 'a raised part is drawn at two-thirds size');
+                check(shifted[3].item.nudge < shifted[4].item.nudge, 'raised sits above lowered');
+                check(readout.trimRight === 1, 'a format ending in text keeps the narrow trim');
+                Settings.set('weatherFormat', 'x ]^[ {temp}]'); wait(80);
+                check(JSON.stringify(Settings.weatherParts) === JSON.stringify([{token: 'x ', shift: ''}, {token: ']', shift: ''}, {token: ' ', shift: 'sup'}, {token: '{temp}', shift: 'sup'}]), 'a stray ] stays text: ' + JSON.stringify(Settings.weatherParts));
+                check(readout.trimRight === 3, 'a format ending in {temp} keeps the wide trim');
                 const average = list => Weather.averageForecast(list, 0, list.length * 3600);
                 check(average([hour(0, 2), hour(1, 0)]).description === 'Overcast' && average([hour(0, 0), hour(1, 2)]).description === 'Overcast', 'an even split goes to the worse sky in either order');
                 check(average([hour(0, 4), hour(1), hour(2)]).description === 'Clear', 'brief rain gives way to the longer sky');
