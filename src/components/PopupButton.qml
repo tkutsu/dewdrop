@@ -84,7 +84,7 @@ Item {
         anchors.centerIn: parent
         layoutDirection: Qt.RightToLeft
         scale: press.scale
-        spacing: 3
+        spacing: 4
         opacity: root.chosen ? 1 : !root.live ? 0.15 : root.hovered || root.lit ? 1 : (root.framed ? 0.7 : 0.6)
 
         Glyph {
