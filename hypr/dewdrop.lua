@@ -34,7 +34,6 @@ hl.config({
 -- surface animates itself, so Hyprland's own layer animation stays out of it.
 local layer_rules = {
 	{ match = { namespace = "quickshell:launcher" }, ignore_alpha = 0.3, blur = true, animation = "none" },
-	{ match = { namespace = "quickshell:blackout" }, blur = false, animation = "none" },
 	-- The launcher's ! veil is the exception: only the compositor can fade a blur.
 	{ match = { namespace = "quickshell:veil" }, blur = true, animation = "fade" },
 	-- Tray menus and tooltips are child popups, so they need blur_popups on the bar.

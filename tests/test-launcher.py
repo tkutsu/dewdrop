@@ -45,16 +45,13 @@ MOCKS = {
             if (device.connected) device.disconnect();
             else device.connect();
         }''',
-    "Power": '''property var leaving: null
-        property bool blackout: false
-        property var ran: []
+    "Power": '''property var ran: []
         property var actions: [
             {key: "suspend", label: "suspend", name: "Sleep", glyph: "sleep", arg: "--suspend", confirm: false},
             {key: "shutdown", label: "shut down", name: "Shut Down", question: "Are you sure you want to shut down your computer now?", glyph: "power", arg: "--poweroff", confirm: true},
             {key: "lock", label: "lock", name: "Lock Screen", glyph: "lock", arg: "--lock", confirm: false}
         ]
-        function fades(arg) { return ["--poweroff", "--reboot", "--logout", "--suspend"].includes(arg); }
-        function run(arg, keepBlack) { ran = ran.concat([arg]); blackout = !!keepBlack && fades(arg); }''',
+        function run(arg) { ran = ran.concat([arg]); }''',
     "LauncherMusic": '''property var rows: []
         property var open: ({})
         property int folds: 0
@@ -567,13 +564,10 @@ ShellRoot {
             check(off >= 0, "existing power search preserved");
             Launcher.index = off;
             Launcher.activate(off);
-            check(Launcher.armed === "shutdown" && Launcher.shown && !Power.leaving && !Power.ran.length, "first press arms shut down without running it");
+            check(Launcher.armed === "shutdown" && Launcher.shown && !Power.ran.length, "first press arms shut down without running it");
             check(Launcher.results[off].armed && Launcher.results[off].glyph === Theme.glyph.powerConfirm && Launcher.results[off].subtitle.startsWith("Are you sure"), "armed row shows the tick and the question");
             Launcher.activate(off);
-            check(Power.leaving?.key === "shutdown" && Launcher.shown && !Power.ran.length, "second press starts the exit and holds the command for it");
-            Launcher.leave();
-            check(Power.ran.join() === "--poweroff" && Power.blackout && !Launcher.shown && Power.leaving === null, "the exit's end runs the command under black and closes");
-            Power.blackout = false;
+            check(Power.ran.join() === "--poweroff" && !Launcher.shown, "second press runs it and closes");
             Power.ran = [];
 
             Launcher.show();
@@ -589,14 +583,14 @@ ShellRoot {
             Launcher.activate(1);
             Launcher.query = "!s";
             check(Launcher.armed === "", "typing disarms");
-            Launcher.activate(0);
-            Launcher.hide();
-            check(Power.leaving === null && !Power.ran.length, "closing mid-exit takes the command back");
+            Launcher.activate(Launcher.results.findIndex(r => r.action.key === "suspend"));
+            check(Power.ran.join() === "--suspend" && !Launcher.shown, "sleep runs at once");
+            Power.ran = [];
             Launcher.openWith("!");
             Launcher.query = "!lo";
             check(Launcher.results[0]?.action.key === "lock", "! narrows by what is typed");
             Launcher.activate(0);
-            check(Power.ran.join() === "--lock" && !Power.blackout && !Launcher.shown && Power.leaving === null, "lock runs at once, without the exit");
+            check(Power.ran.join() === "--lock" && !Launcher.shown, "lock runs at once");
             Power.ran = [];
             Launcher.openWith("!");
             check(Launcher.shown && Launcher.query === "!", "right-click opens on the power rows");
@@ -1191,7 +1185,7 @@ ShellRoot {
             keys.wait(100);
             check(!Launcher.active && !menu.presenting && menu.contentAlpha === 0 && menu.exitBlur === 1 && Math.abs(menu.widthRatio - 1.03) < .0001, "exit finishes before the window is released");
 
-            // The CRT: the box flattens and the command waits for the end.
+            // The ! veil.
             Launcher.show(); keys.wait(400);
             const catcher = keys.findChild(menu, "veilCatch");
             check(catcher && !menu.veiled && !catcher.Window.window.visible, "searching leaves the screen alone");
@@ -1211,36 +1205,12 @@ ShellRoot {
             check(input.text === "s" && Launcher.query === "s",
                 "typing continues after Backspace out of power mode");
             input.adopt("!"); keys.wait(250);
-            const suspendRow = Launcher.results.findIndex(r => r.action?.key === "suspend");
-            Launcher.index = suspendRow;
+            Launcher.index = Launcher.results.findIndex(r => r.action?.key === "suspend");
             menu.accept(false);
-            keys.wait(150);
-            check(Power.leaving?.key === "suspend" && menu.closing && menu.vertical < 1 && menu.live === 0 && !Power.ran.length, "the box flattens before the command runs");
-            // Offscreen Qt hands the keys to the newest window; Hyprland
-            // leaves them with the launcher, the veil taking none.
-            menu.requestActivate(); keys.wait(20);
-            keys.keyClick(Qt.Key_Escape); keys.wait(150);
-            check(Power.leaving === null && Launcher.shown && menu.vertical === 1 && menu.flash === 0 && menu.live === 1, "Escape mid-exit takes it back and restores the box");
-            check(Launcher.query === "!", "Escape mid-exit leaves the query alone");
-            menu.accept(false);
-            keys.wait(800);
-            check(Power.ran.join() === "--suspend" && Power.blackout && !Launcher.shown && Power.leaving === null, "the command runs once the CRT ends");
-            check(menu.vertical === 0 && menu.horizontal === 0 && menu.afterglow === 0, "the box stays flat under the black");
-            Power.blackout = false;
+            keys.wait(20);
+            check(Power.ran.join() === "--suspend" && !Launcher.shown, "a power row runs at once and closes the launcher");
             Power.ran = [];
-            keys.wait(250);
-            Settings.reduceMotion = true;
-            Launcher.show(); keys.wait(50);
-            input.adopt("!"); keys.wait(50);
-            Launcher.index = suspendRow;
-            menu.accept(false);
-            keys.wait(60);
-            check(menu.vertical === 1 && box.opacity < 1, "reduced motion fades the box rather than collapsing it");
-            keys.wait(250);
-            check(Power.ran.join() === "--suspend" && !Launcher.shown, "reduced motion still runs after its fade");
-            Settings.reduceMotion = false;
-            Power.blackout = false;
-            Power.ran = [];
+            keys.wait(400);
             console.log("PASS: launcher menu disclosure, modes, selection reset and interrupted motion");
         } catch (error) { console.log("FAIL: " + error); }
         Qt.quit();

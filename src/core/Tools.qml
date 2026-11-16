@@ -30,7 +30,6 @@ Singleton {
             "ddcutil": "ddcutil",
             "brightnessctl": "brightnessctl",
             "fd": "fd",
-            "gdbus": "glib2",
             "hyprsunset": "hyprsunset",
             "nm-connection-editor": "network-manager-applet",
             "notify-send": "libnotify",
@@ -47,7 +46,7 @@ Singleton {
         })
 
     readonly property var programs: [
-        "blueman-manager", "brightnessctl", "btop", "checkupdates", "ddcutil", "fd", "gdbus", "hyprsunset",
+        "blueman-manager", "brightnessctl", "btop", "checkupdates", "ddcutil", "fd", "hyprsunset",
         "nm-connection-editor", "notify-send", "pacman", "python3", "qalc", ...root.terminals, Settings.values.terminal ?? "",
         Settings.program(Settings.networkCommand), Settings.program(Settings.bluetoothCommand), Settings.program(Settings.monitorCommand)
     ].filter((name, index, all) => name !== "" && all.indexOf(name) === index)
