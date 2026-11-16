@@ -4,9 +4,10 @@ import qs.src.services
 
 // When a popup's contents were last fetched, as the header button that
 // fetches them again: "Updated 10:08", or the day once that was another one.
-// A fetch that failed says so in the warning colour, still with the time of
-// the last good one, so a list that stopped updating never passes for a fresh
-// one. A check mark answers a fetch asked for here once it lands.
+// A fetch that failed says so with the warning mark and colour, still with the
+// time of the last good one, so a list that stopped updating never passes for
+// a fresh one, and the button keeps its width in a header with no room to
+// spare. A check mark answers a fetch asked for here once it lands.
 //
 // Opening the popup fetches what is older than `staleAfter`, unless the last
 // try failed: that one waits on its service's back-off, or on a press here.
@@ -35,9 +36,9 @@ PopupButton {
     }
 
     framed: true
-    glyph: Theme.glyph.refresh
+    glyph: root.failed ? Theme.glyph.warning : Theme.glyph.refresh
     warn: root.failed
-    label: root.failed ? (root.when ? `Couldn't Update · ${root.when}` : "Couldn't Update") : root.when ? `Updated ${root.when}` : "Refresh"
+    label: root.when ? `Updated ${root.when}` : root.failed ? "Couldn't Update" : "Refresh"
     name: root.when ? `Refresh, ${root.failed ? "couldn't update since" : "updated"} ${root.when}` : "Refresh"
 
     onTapped: {

@@ -62,8 +62,9 @@ Item {
 
     // A run of plain controls is laid out on a fixed pitch so the columns line
     // up down a list; a framed one is as wide as what it says, and square
-    // when that is only a glyph (the plus).
-    implicitWidth: !framed ? 20 : label === "" ? implicitHeight : content.implicitWidth + 14
+    // when that is only a glyph (the plus), with 10 px of air each side of
+    // the words.
+    implicitWidth: !framed ? 20 : label === "" ? implicitHeight : content.implicitWidth + 20
     implicitHeight: framed ? 20 : 22
 
     Rectangle {
