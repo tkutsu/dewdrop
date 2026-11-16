@@ -354,7 +354,7 @@ def main():
         (target / 'src/core/Settings.qml').write_text((ROOT / 'src/core/Settings.qml').read_text())
         for name in ('WeatherPopup', 'TimerPopup'):
             (target / f'src/components/{name}.qml').write_text('import QtQuick\nItem {}\n')
-        (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string text; property var alternates: []; property int fontSize; property color color; property real nudge: 0 }\n')
+        (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { property real inkBase; implicitWidth: 16; implicitHeight: 20; property string text; property var alternates: []; property int fontSize; property color color; property real nudge: 0 }\n')
         (target / 'src/components/AppIcon.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string windowClass; property bool tightWidth: false }\n')
         (target / 'src/components/RollingText.qml').write_text('import QtQuick\nItem { implicitWidth: 48; implicitHeight: 20; property string text; property var smallRanges; property bool tightWidth: false }\n')
         (target / 'src/modules/Clock.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { id: root; settingsKey: "datetime"; property date date: new Date(); property int middleClicks: 0; actions: ({ [Qt.MiddleButton]: () => root.middleClicks++ }); popup: Component { Item {} } Rectangle { implicitWidth: 90; implicitHeight: 20 } }\n')

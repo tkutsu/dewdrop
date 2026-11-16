@@ -341,7 +341,7 @@ QtObject {
         (target / "src/core/OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
         for name in ("QueuedProcess", "FilePreview"):
             (components / f"{name}.qml").write_text((ROOT / f"src/components/{name}.qml").read_text())
-        (components / "Glyph.qml").write_text('import QtQuick\nItem { property string text: ""; property int fontSize: 16; property color color: "white" }\n')
+        (components / "Glyph.qml").write_text('import QtQuick\nItem { property real inkBase; property string text: ""; property int fontSize: 16; property color color: "white" }\n')
         (target / "scripts").mkdir(exist_ok=True)
         thumbs = target / "scripts/wallpaper-thumbs"
         thumbs.write_text("#!/bin/sh\nexit 0\n")

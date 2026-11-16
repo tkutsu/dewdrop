@@ -48,6 +48,8 @@ Item {
     readonly property var span: root.measureKey ? Ink.spanOf(root.measureKey) : null
     readonly property int inkX: span ? artwork.x + Math.round(root.drawn * span.left) : 0
     readonly property int inkWidth: span ? artwork.x + Math.round(root.drawn * span.right) - inkX : box
+    // The edge under the ink's last row, from the item's top.
+    readonly property int inkBottom: artwork.y + Math.round(root.drawn * (span?.bottom ?? 1))
 
     // Shrink only. Ink cannot be taller than the box holding it, so the target
     // is a floor as well as a target: nothing comes out under it, and the cap

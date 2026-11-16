@@ -655,7 +655,7 @@ class EmailTests(unittest.TestCase):
                     signal tapped(); width: 20; height: 20
                     Accessible.role: Accessible.Button; Accessible.name: name
                     TapHandler { gesturePolicy: TapHandler.ReleaseWithinBounds; onTapped: if (button.live) button.tapped() } }''',
-            'Glyph.qml': 'import QtQuick\nText { property int fontSize }',
+            'Glyph.qml': 'import QtQuick\nText { property real inkBase; property int fontSize }',
             'ReconnectButton.qml': 'import QtQuick\nItem {}',
             'RetryButton.qml': 'import QtQuick\nItem { property var service }',
             'RefreshStamp.qml': 'import QtQuick\nItem { property var service }',
