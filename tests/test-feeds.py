@@ -128,12 +128,12 @@ ShellRoot {
             // Preserve ranking and all entries; pagination happens after read filtering.
             const item = hn.match(/<item>[\\s\\S]*?<\\/item>/)[0];
             const start = hn.slice(0, hn.indexOf("<item>"));
-            const entries = Array.from({ length: Feeds.storiesShown + 1 }, (_, i) => item
-                .replace("Points: 329", "Points: " + (i === Feeds.storiesShown ? 900 : 300))
+            const entries = Array.from({ length: Feeds.rowsShown + 1 }, (_, i) => item
+                .replace("Points: 329", "Points: " + (i === Feeds.rowsShown ? 900 : 300))
                 .replace(/<pubDate>[\\s\\S]*?<\\/pubDate>/, "<pubDate>" + new Date(Date.now() - i * 60000).toUTCString() + "</pubDate>")
                 .replace('item?id=1</guid>', 'item?id=' + i + '</guid>'));
             const ranked = Feeds.parseStories(start + entries.join("") + "</channel></rss>").items;
-            root.check(ranked.length === Feeds.storiesShown + 1 && ranked[0].points === 900,
+            root.check(ranked.length === Feeds.rowsShown + 1 && ranked[0].points === 900,
                 "all stories retained for pagination, highest points first");
             root.check(ranked[1].published > ranked[2].published, "equal points: newest first");
             const unscored = Feeds.parseStories(start + entries.slice().reverse().join("").replace(/Points: \\d+/g, "No score") + "</channel></rss>").items;

@@ -270,6 +270,24 @@ ShellRoot {
                 wait(30);
                 check(header("rss") && Feeds.unseenSources[0].items.length === 44, "Undo restores unread pages without clicked stories");
 
+                const savedVideos = Feeds.videos;
+                Feeds.videos = Array.from({length: 25}, (_, i) => ({id: "pagev" + i, title: "Paged video " + i,
+                    channel: "Channel", published: now - i * 60000, duration: 120, thumb: "", url: ""}));
+                wait(50);
+                header("videos").tapped();
+                wait(popup.sectionFadeMs * 3 + popup.sectionFoldMs * 2 + 100);
+                const videoPage = body(header("videos"));
+                const moreVideos = find(videoPage, i => i.name === "Load More");
+                check(find(videoPage, i => i.name === "Paged video 19")
+                    && !find(videoPage, i => i.name === "Paged video 20") && moreVideos && moreVideos.visible,
+                    "first page shows twenty videos with Load More");
+                moreVideos.tapped();
+                wait(30);
+                check(find(videoPage, i => i.name === "Paged video 24") && !moreVideos.visible, "Load More shows the remaining videos");
+                Feeds.videos = savedVideos;
+                header("rss").tapped();
+                wait(popup.sectionFadeMs * 3 + popup.sectionFoldMs * 2 + 100);
+
                 const originalSource = Feeds.sources[0];
                 const extraSources = ["second", "third"].map(key => ({url: key, title: key,
                     items: [{id: key, title: key, published: now, points: -1, replies: -1, url: ""}]}));
