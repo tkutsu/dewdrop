@@ -8,9 +8,8 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 
-// The launcher box: a wrapping query over a list of matches, one lowercase name
-// per row with its icon out at the right edge, and the selected row a rounded
-// fill.
+// The launcher box: a wrapping query over a list of matches, one name per row
+// after its icon, and the selected row a rounded fill.
 //
 // The screen-sized surface under it, the keyboard grab and the click-to-exit
 // are OverlayWindow's, which the settings window is drawn on too.
@@ -83,47 +82,47 @@ OverlayWindow {
         const row = Launcher.selected;
         if (Launcher.mailMode) {
             const actions = [
-                { key: "activate", label: row?.kind === "mail-address" ? "search sender" : "open in gmail", live: row?.kind === "mail" || row?.kind === "mail-address" },
-                { key: "mail-fold", label: LauncherMail.open ? "back to list" : "read", live: row?.kind === "mail" },
-                { key: "play", label: "new mail", live: true }
+                { key: "activate", label: row?.kind === "mail-address" ? "Search Sender" : "Open in Gmail", live: row?.kind === "mail" || row?.kind === "mail-address" },
+                { key: "mail-fold", label: LauncherMail.open ? "Back to List" : "Read", live: row?.kind === "mail" },
+                { key: "play", label: "New Mail", live: true }
             ];
             if (row?.kind === "mail")
-                actions.push({ key: "search-sender", label: "search sender", live: !!row.thread.address });
+                actions.push({ key: "search-sender", label: "Search Sender", live: !!row.thread.address });
             return actions;
         }
         if (row?.install)
-            return [{ key: "activate", label: "install", live: true }];
+            return [{ key: "activate", label: "Install", live: true }];
         if (!row || row.kind === "note")
             return [];
         if (row.kind === "path")
             return [
-                { key: "activate", label: "open", live: true },
-                { key: "play", label: "show in folder", live: true },
-                { key: "copy-path", label: "copy path", live: true },
-                { key: "complete-path", label: "complete path", live: true }
+                { key: "activate", label: "Open", live: true },
+                { key: "play", label: "Show in Folder", live: true },
+                { key: "copy-path", label: "Copy Path", live: true },
+                { key: "complete-path", label: "Complete Path", live: true }
             ];
         if (row.kind === "clip")
             return [
-                { key: "activate", label: "copy", live: true },
-                { key: "forget", label: "delete", live: true }
+                { key: "activate", label: "Copy", live: true },
+                { key: "forget", label: "Delete", live: true }
             ];
         if (row.kind === "music-start")
-            return [{ key: "activate", label: "start music", live: true }];
+            return [{ key: "activate", label: "Start Music", live: true }];
         if (row.kind === "music-queue")
             return [];
         if (row.kind.startsWith("music-")) {
             const actions = [
-                { key: "activate", label: "queue", live: true },
-                { key: "play", label: "play", live: true }
+                { key: "activate", label: "Queue", live: true },
+                { key: "play", label: "Play", live: true }
             ];
             if (row.kind === "music-artist" || row.kind === "music-album")
-                actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "collapse" : "expand", live: true });
+                actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "Collapse" : "Expand", live: true });
             else if (row.indent)
-                actions.push({ key: "music-fold", label: "collapse", live: true });
+                actions.push({ key: "music-fold", label: "Collapse", live: true });
             return actions;
         }
-        const labels = { calc: "copy answer", window: "focus", task: "complete", "task-add": row.event ? "add event" : "add task", "timer-add": "add timer", desktop: "run", power: row.action?.label, bluetooth: row.connect ? "connect" : "disconnect" };
-        const label = row.kind === "timer" ? (row.entry.running ? "pause" : "resume") : labels[row.kind] ?? "open";
+        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": "Add Timer", desktop: "Run", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
+        const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
         return [{ key: "activate", label, live: row.ok !== false }];
     }
     readonly property int actionIndex: {
@@ -266,9 +265,11 @@ OverlayWindow {
     readonly property int visibleRows: 12
     readonly property bool unreadList: Launcher.shown && Launcher.mailMode && !Launcher.classification.text && !LauncherMail.open
     readonly property int boxPad: Theme.panelPadding
-    // The right-hand slot every row ends in: an app icon, or the ".y" badge
-    // that says which engine Enter would use.
+    // The slot every row starts with: an app icon, or the ".y" badge that
+    // says which engine Enter would use. The query's search glyph heads its
+    // column, and the titles start slotGap after it, level with the query.
     readonly property int slotWidth: 24
+    readonly property int slotGap: 8
     // How far a row is set in per level of the music mode's tree. Wide enough
     // to be read as a step rather than a misalignment, narrow enough that a
     // track two levels down still has most of the line for its title.
@@ -574,7 +575,7 @@ OverlayWindow {
 
                 RollingGlyph {
                     id: searchIcon
-                    x: 2
+                    x: Theme.popupInset + (root.slotWidth - width) / 2
                     y: 0
                     height: root.inputHeight
                     width: 20
@@ -589,7 +590,7 @@ OverlayWindow {
                     id: input
                     Accessible.name: "Launcher query"
 
-                    x: 30
+                    x: Theme.popupInset + root.slotWidth + root.slotGap
                     width: parent.width - x
                     height: queryRow.targetHeight
                     color: Theme.fg

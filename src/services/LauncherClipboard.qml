@@ -42,7 +42,7 @@ Singleton {
         // than guessing which.
         if (!root.clipEntries.length)
             return [
-                Launcher.noteRow(Theme.glyph.clipboard, "no clipboard history", "needs cliphist storing")
+                Launcher.noteRow(Theme.glyph.clipboard, "No clipboard history", "Needs cliphist storing")
             ];
 
         const terms = Launcher.prepTerms(query);
@@ -77,8 +77,7 @@ Singleton {
                     // One line per row, so a copied paragraph does not arrive
                     // as a row with a newline in the middle of it.
                     title: x.e.text.replace(/\s+/g, " ").trim(),
-                    subtitle: "",
-                    raw: true
+                    subtitle: ""
                 }));
     }
 

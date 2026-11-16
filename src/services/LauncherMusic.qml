@@ -201,9 +201,8 @@ Singleton {
                 kind: "music-start",
                 key: "start",
                 glyph: Theme.glyph.playing,
-                title: Mpd.starting ? "starting mpd" : "start music",
-                subtitle: "mpd is not running",
-                raw: true
+                title: Mpd.starting ? "Starting MPD…" : "Start Music",
+                subtitle: "MPD is not running"
             }
         ] : [];
 
@@ -222,8 +221,8 @@ Singleton {
             if (!root.showStatus)
                 return [];
             if (!Mpd.connected)
-                return start.length ? start : [root.note("mpd is not running")];
-            return [root.note(Library.failed ? "could not read the library" : "reading the library")];
+                return start.length ? start : [root.note("MPD is not running")];
+            return [root.note(Library.failed ? "Could not read the library" : "Reading the library…")];
         }
 
         if (!query)
@@ -262,8 +261,7 @@ Singleton {
             track: song,
             glyph: song.pos !== Mpd.songPos ? "" : Mpd.state === "play" ? Theme.glyph.paused : Theme.glyph.playing,
             title: song.title,
-            subtitle: [song.artist, song.album].filter(x => x).join("  ·  "),
-            raw: true
+            subtitle: [song.artist, song.album].filter(x => x).join("  ·  ")
         };
     }
 
@@ -280,8 +278,7 @@ Singleton {
             name: name,
             glyph: Theme.glyph.playlist,
             title: name,
-            subtitle: "playlist",
-            raw: true
+            subtitle: "Playlist"
         };
     }
 
@@ -300,8 +297,7 @@ Singleton {
             indent: 0,
             glyph: Theme.glyph.artist,
             title: a.name,
-            subtitle: [records ? root.plural(records, "album") : "", root.plural(a.tracks, "track")].filter(x => x).join("  ·  "),
-            raw: true
+            subtitle: [records ? root.plural(records, "album") : "", root.plural(a.tracks, "track")].filter(x => x).join("  ·  ")
         });
 
         if (!root.open[key])
@@ -329,8 +325,7 @@ Singleton {
             // Under its artist, the artist is the row above and saying so
             // again is noise. On its own it is the thing that tells two
             // records of the same name apart.
-            subtitle: [indent ? "" : Library.artistName(l.artist), Library.year(l.date), root.plural(l.tracks.length, "track")].filter(x => x).join("  ·  "),
-            raw: true
+            subtitle: [indent ? "" : Library.artistName(l.artist), Library.year(l.date), root.plural(l.tracks.length, "track")].filter(x => x).join("  ·  ")
         });
 
         if (!root.open[key])
@@ -352,8 +347,7 @@ Singleton {
             title: t.title,
             // Inside a record, who plays it and what it is on are both rows
             // above; all that is left to say is how long it runs.
-            subtitle: indent ? t.time : [t.artist, Library.albumName(t.album)].filter(x => x).join("  ·  "),
-            raw: true
+            subtitle: indent ? t.time : [t.artist, Library.albumName(t.album)].filter(x => x).join("  ·  ")
         };
     }
 

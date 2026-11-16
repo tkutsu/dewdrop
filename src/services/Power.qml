@@ -16,15 +16,14 @@ Singleton {
 
     // In the Apple menu's order: sleep, restart, shut down, lock, then log
     // out. `confirm` marks the ones that ask twice — the irreversible ones —
-    // and `question` is what the Mac asks before each of them. `label` is the
-    // launcher's word for it; `name` is the settings page's.
+    // and `question` is what the Mac asks before each of them. `name` is what
+    // the launcher and the settings page both call it.
     //
     // Hibernate stays out: it cannot work on this machine (zram-only swap,
     // no resume= parameter).
     readonly property var actions: [
         {
             key: "suspend",
-            label: "suspend",
             name: "Sleep",
             glyph: Theme.glyph.powerSuspend,
             arg: "--suspend",
@@ -32,7 +31,6 @@ Singleton {
         },
         {
             key: "reboot",
-            label: "reboot",
             name: "Restart",
             question: "Are you sure you want to restart your computer now?",
             glyph: Theme.glyph.powerReboot,
@@ -41,7 +39,6 @@ Singleton {
         },
         {
             key: "shutdown",
-            label: "shut down",
             name: "Shut Down",
             question: "Are you sure you want to shut down your computer now?",
             glyph: Theme.glyph.powerShutdown,
@@ -50,7 +47,6 @@ Singleton {
         },
         {
             key: "lock",
-            label: "lock",
             name: "Lock Screen",
             glyph: Theme.glyph.powerLock,
             arg: "--lock",
@@ -58,7 +54,6 @@ Singleton {
         },
         {
             key: "logout",
-            label: "log out",
             name: "Log Out",
             question: "Are you sure you want to quit all apps and log out now?",
             glyph: Theme.glyph.powerLogout,
@@ -68,7 +63,6 @@ Singleton {
         {
             // Switch to the compositor's click-to-kill cursor.
             key: "killprocess",
-            label: "kill process",
             name: "Kill Window",
             glyph: Theme.glyph.powerKill,
             arg: "--kill",
