@@ -74,7 +74,7 @@ Singleton {
     // it under the line before the heading: a section reads as a new part
     // rather than the next row of the one before, and its heading as its own.
     readonly property int popupSectionGap: 12
-    readonly property int popupWidth: 280
+    readonly property int popupWidth: 300
     readonly property int popupWideWidth: 400
     readonly property int panelPadding: 12
     readonly property int panelRadius: panelPadding + selectionRadius
@@ -197,12 +197,12 @@ Singleton {
     readonly property int footnoteSize: captionSize - 1
     // The / mode's preview of a file's contents, in the mono face: small
     // enough to show a file's shape rather than to be read line by line.
-    readonly property int previewTextSize: 9
+    readonly property int previewTextSize: 10
     // Text that has to hold its own in a row of icons rather than stand alone
-    // (the language label, the launcher's rows). A step under textSize, so a
-    // label beside an icon doesn't outweigh the icon; kept as its own name
+    // (the launcher's rows, the cover's caption). The popups' size, so a row
+    // reads the same in the launcher as under the bar; kept as its own name
     // because it is a different question from the bar's text.
-    readonly property int labelSize: 12
+    readonly property int labelSize: popupTextSize
     // Use the icon artwork's target size for the language label's font size.
     readonly property int languageTextSize: 13
     // The workspace numbers: a step under the clock, so they read as marks
@@ -210,7 +210,7 @@ Singleton {
     // A 16px font gives roughly 13px of visible icon artwork; individual
     // shapes keep the proportions drawn into the font.
     readonly property int glyphSize: 16
-    // Glyphs inside a popup, beside its 12px text rather than the bar's.
+    // Glyphs inside a popup, beside its text rather than the bar's.
     readonly property int popupGlyphSize: 14
     readonly property int glyphSizeLarge: 16
     // Network, Bluetooth and tray stand-ins use the same icon font size.
@@ -272,11 +272,13 @@ Singleton {
     // One size for everything hung under the bar: tooltips, the popups and the
     // tray menus. style.css asked for 1rem, which came out at 14, and at that
     // size a popup read as a paragraph of the bar rather than as a note beside
-    // it — and an app's tray menu as a list of sentences.
-    readonly property int popupTextSize: 12
+    // it — and an app's tray menu as a list of sentences. 13, the bar's own
+    // size: at 12 the second lines, two steps under, came out at 10 and
+    // were squinted at rather than read.
+    readonly property int popupTextSize: 13
     // The launcher's query line: the largest line of text the shell draws. Spotlight,
     // Alfred and Raycast all make the thing being typed the biggest thing on
-    // screen; at the rows' own 12 an open launcher read as a prompt over a
+    // screen; at the rows' own 13 an open launcher read as a prompt over a
     // list rather than as a question with answers under it.
     readonly property int queryTextSize: 18
     // A lone figure read at a glance, like the weather popup's temperature,
