@@ -307,7 +307,7 @@ Popup {
                     readonly property var source: root.sections.find(s => s.section === part.modelData)
                         ?? { title: "", videos: [], stories: [] }
                     readonly property bool shown: root.shownSection === part.modelData
-                    property int storyLimit: Feeds.storiesShown
+                    property int limit: Feeds.rowsShown
 
                     width: root.bodyWidth
                     height: implicitHeight * (root.movingSection === part.modelData ? root.headerExpansion : 1)
@@ -341,12 +341,12 @@ Popup {
                             spacing: root.rowGap
 
                             Repeater {
-                                model: part.shown ? part.source.videos : []
+                                model: part.shown ? part.source.videos.slice(0, part.limit) : []
                                 delegate: videoRow
                             }
 
                             Repeater {
-                                model: part.shown ? part.source.stories.slice(0, part.storyLimit) : []
+                                model: part.shown ? part.source.stories.slice(0, part.limit) : []
                                 delegate: storyRow
                             }
 
@@ -354,9 +354,9 @@ Popup {
                                 name: "Load More"
                                 width: root.bodyWidth
                                 height: moreLabel.implicitHeight + root.rowPad * 2
-                                visible: part.shown && part.source.stories.length > part.storyLimit
+                                visible: part.shown && part.source.videos.length + part.source.stories.length > part.limit
                                 gesturePolicy: TapHandler.ReleaseWithinBounds
-                                onTapped: part.storyLimit += Feeds.storiesShown
+                                onTapped: part.limit += Feeds.rowsShown
 
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
 

@@ -41,9 +41,9 @@ Singleton {
     // Check public feeds often; paid fallbacks have their own cooldown.
     readonly property int pollMs: 5 * 60000
     readonly property int retryMs: 2 * 60000
-    // How far back videos look, and how many RSS stories appear at a time.
+    // How far back videos look, and how many rows a feed shows at a time.
     readonly property int days: Settings.feedDays
-    readonly property int storiesShown: 20
+    readonly property int rowsShown: 20
     // Feeds fetched at once. Enough to finish a hundred channels in seconds,
     // few enough not to look like a crawler.
     readonly property int parallel: 6
