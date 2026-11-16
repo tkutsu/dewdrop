@@ -369,7 +369,7 @@ def main():
             quiet = 'true' if name in ('Email', 'Updater', 'Feeds', 'SettingsButton') else 'false'
             if name == 'Tray': quiet = 'DrawerPins.kept("tray:fixture")'
             (target / f'src/modules/{name}.qml').write_text(f'import QtQuick\nimport qs.src.core\nimport qs.src.bar\nimport qs.src.components\nBarItem {{ {extra} quiet: {quiet}; popup: Component {{ Item {{}} }} Rectangle {{ implicitWidth: 22; implicitHeight: 20 }} }}\n')
-        (target / 'src/services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property var tints: ({}); property bool outlook: true; property bool stale: false; function refresh(force) {} function formatTemperature(value, unit) { return ''; } }\n")
+        (target / 'src/services/Weather.qml').write_text("pragma Singleton\nimport QtQuick\nQtObject { property string tooltip: 'Weather'; property string icon: 'sun'; property var tints: ({}); property bool outlook: true; property bool stale: false; function refresh(force) {} function formatTemperature(value, unit) { return ''; } function temperatureFigure(value) { return ''; } }\n")
         theme = (target / 'src/core/Theme.qml').read_text().replace('property int glyphSize:', 'property int textSize: 14; property string bodyFont: "sans-serif"; property int bodyWeight: 400; property var figures: ({}); function barInk(item, color) { return color; } property int trayGlyphSize: 16; property real dimOpacity: 0.5; property int glyphSize:')
         glyphs = {key: 'icon' for key in re.findall(r'Theme.glyph\.(\w+)', metadata)}
         glyphs.update(pin='pin', track='music', micMuted='mic', vol=['volume'], wifiStrength=['wifi'])
