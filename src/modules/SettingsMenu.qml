@@ -504,11 +504,16 @@ OverlayWindow {
                 {
                     title: "Display",
                     rows: [
-                        { type: "choice", id: "twelveHour", title: "Hour Format", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
-                        { type: "text", id: "datetimeFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\n^[…] raises and _[…] lowers, at AM/PM's small size.\nAlarms follow the hour format.", placeholder: Settings.defaults.datetimeFormat, get: () => Settings.datetimeFormat, set: v => Settings.set("datetimeFormat", v || Settings.defaults.datetimeFormat) },
-                        { type: "choice", id: "datetimeCase", title: "Letter Case", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.datetimeCase, set: v => Settings.set("datetimeCase", v) },
+                        { type: "choice", id: "twelveHour", title: "Hour Format", tooltip: "Every time the shell shows: the clock, alarms, the calendar, mail, weather and Night Mode.", options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.twelveHour, set: v => Settings.setTwelveHour(v) },
                         { type: "toggle", id: "smallAmPm", title: "Smaller AM/PM", tooltip: "For 12h times on the bar and in popups.", get: () => Settings.smallAmPm, set: v => Settings.set("smallAmPm", v) },
                         { type: "choice", id: "dateOrder", title: "Date Order", tooltip: "How a typed date reads, as in the launcher's , line.\nWithout a year it is the next one to come.\n2026-11-20 always reads the same.", options: [{ value: "dmy", label: "D/M/Y" }, { value: "mdy", label: "M/D/Y" }, { value: "ymd", label: "Y/M/D" }], get: () => Settings.dateOrder, set: v => Settings.set("dateOrder", v) }
+                    ]
+                },
+                {
+                    title: "Calendar Module Text",
+                    rows: [
+                        { type: "text", id: "datetimeFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\n^[…] raises and _[…] lowers, at AM/PM's small size.\nHour Format rewrites the hours here.", placeholder: Settings.defaults.datetimeFormat, get: () => Settings.datetimeFormat, set: v => Settings.set("datetimeFormat", v || Settings.defaults.datetimeFormat) },
+                        { type: "choice", id: "datetimeCase", title: "Letter Case", tooltip: "Also sets AM/PM's case wherever a time shows.", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.datetimeCase, set: v => Settings.set("datetimeCase", v) }
                     ]
                 }
             ]

@@ -386,7 +386,8 @@ Item {
         x: 8
         y: stack.y + strip.y + (strip.height - height) / 2
         visible: graph.showReadout
-        text: graph.readoutHour ? graph.readoutSource.hoveredHour ? graph.readoutHour.time : "Now" : ""
+        textFormat: Text.RichText
+        text: graph.readoutHour ? graph.readoutSource.hoveredHour ? Settings.timeMarkup(Weather.hourDisplay(graph.readoutHour), font.pixelSize) : "Now" : ""
         color: Theme.label2
         font.pixelSize: Theme.captionSize
     }

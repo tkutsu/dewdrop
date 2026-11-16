@@ -52,6 +52,7 @@ ShellRoot {
                     check(test.label === "8:05 PM" && test.tooltip.includes("8:05 PM") && test.preview.includes("8:05 PM"), "existing alarm and launcher bindings update");
                     check(Timers.ringTitle({kind: "alarm", hour: 20, minute: 5, label: ""}) === "8:05 PM", "ringing title");
                     check(Timers.hhmm(0, 0) === "12:00 AM" && Timers.hhmm(12, 0) === "12:00 PM", "midnight and noon display");
+                    check(Settings.sayTime(new Date(2026, 0, 1, 20, 5)) === "8:05 PM", "times outside the clock follow the hour format");
                     check(Timers.entries[0].endsAt === test.alarmAt, "notation does not reschedule alarms");
                     check(Timers.clock(90000) === "1:30" && Timers.parse("25m tea").ms === 1500000, "countdown behavior stays unchanged");
                     Settings.set("datetimeCase", "lowercase");
@@ -70,6 +71,7 @@ ShellRoot {
                 } else if (test.phase === 3) {
                     check(Settings.datetimeFormat === "HH:mm:ss" && !Settings.twelveHour, "seconds retained switching to 24h");
                     check(test.label === "20:05" && test.preview.includes("20:05"), "switch back updates alarms");
+                    check(Settings.sayTime(new Date(2026, 0, 1, 9, 5)) === "09:05", "24h everywhere after switching back");
                     Settings.set("datetimeFormat", "HH:mm 'AP'");
                     check(!Settings.twelveHour, "quoted AM/PM text is not a 12h format");
                     Settings.set("datetimeFormat", "HH:mm:ss");

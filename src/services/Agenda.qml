@@ -255,7 +255,7 @@ GoogleService {
     function sayTime(ev: var): string {
         if (ev.allDay)
             return "all day";
-        return Qt.formatTime(new Date(ev.start), "HH:mm");
+        return Settings.sayTime(new Date(ev.start));
     }
 
     // qs ipc call agenda …

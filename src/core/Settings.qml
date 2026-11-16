@@ -260,6 +260,24 @@ Singleton {
         return { text, smallRanges };
     }
 
+    // A time of day as everything outside the clock says it: the Hour Format,
+    // with the clock's letter case and Smaller AM/PM. Plain text gets the
+    // closed-up AM/PM; timeMarkup draws it small.
+    readonly property string hourFormat: root.twelveHour ? "h:mm AP" : "HH:mm"
+
+    function hourDisplay(date: date): var {
+        return root.timeDisplay(date, root.hourFormat);
+    }
+
+    function sayTime(date: date): string {
+        return root.hourDisplay(date).text;
+    }
+
+    // For a time kept as hours and minutes rather than a moment.
+    function sayHourMinute(hour: int, minute: int): string {
+        return root.sayTime(new Date(2000, 0, 1, hour, minute));
+    }
+
     // A timeDisplay as rich text for a line `pixelSize` tall, its small runs
     // at the bar's two-thirds size: on the baseline, or raised or lowered.
     function timeMarkup(display: var, pixelSize: int): string {

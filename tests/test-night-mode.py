@@ -472,7 +472,7 @@ fi
         # Pin the clock while pointer tests wait; samples still exercise real wake detection.
         clock = target / 'src/services/WallClock.qml'
         clock.write_text(clock.read_text().replace('running: true', 'running: false'))
-        (target / 'src/core/Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var values: ({}); function program(command) { return ""; } property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }\n')
+        (target / 'src/core/Settings.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var values: ({}); function program(command) { return ""; } function hourDisplay(date) { return { text: Qt.formatDateTime(date, "HH:mm"), smallRanges: [] }; } function sayTime(date) { return hourDisplay(date).text; } function sayHourMinute(h, m) { return sayTime(new Date(2000, 0, 1, h, m)); } function timeMarkup(display, size) { return display.text; } property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }\n')
         (target / 'src/services/Weather.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var location: null; property var days: []; property bool loading: false }\n')
         (target / 'src/core/Paths.qml').write_text('''pragma Singleton
 import QtQuick

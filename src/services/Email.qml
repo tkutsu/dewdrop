@@ -592,13 +592,21 @@ GoogleService {
         const at = new Date(ms);
         const day = root.dayString(at);
         if (day === root.today)
-            return Qt.formatTime(at, "HH:mm");
+            return Settings.sayTime(at);
         const weekAgo = root.dayString(new Date(Google.now.getFullYear(), Google.now.getMonth(), Google.now.getDate() - 6));
         if (day >= weekAgo)
             return Qt.locale().dayName(at.getDay(), Locale.ShortFormat).toLowerCase();
         // And the year once it is not this one, or last December would read
         // as coming after this July.
         return Qt.formatDate(at, at.getFullYear() === Google.now.getFullYear() ? "d MMM" : "d MMM yyyy");
+    }
+
+    // sayWhen as rich text for a popup line, a time today with the bar's AM/PM.
+    function whenMarkup(ms: real, pixelSize: int): string {
+        const at = new Date(ms);
+        if (ms > 0 && root.dayString(at) === root.today)
+            return Settings.timeMarkup(Settings.hourDisplay(at), pixelSize);
+        return root.sayWhen(ms).replace(/&/g, "&amp;").replace(/</g, "&lt;");
     }
 
     // --- searching -----------------------------------------------------------

@@ -70,6 +70,10 @@ ShellRoot {
                     }
                     check(readout.showTemperature === format.includes('{temp}'), 'format determines text interaction');
                 }
+                check(Weather.sayHour({time: '06:00'}) === '06:00' && Weather.sayHour({time: '?'}) === '?', 'weather hours in 24h');
+                Settings.setTwelveHour(true);
+                check(Weather.sayHour({time: '06:00'}) === '6:00 AM' && NightMode.sayMinute(22 * 60) === '10:00 PM' && NightMode.formatTime(22 * 60) === '22:00', 'weather and night mode follow the 12h hour format; the schedule stays stored in 24h');
+                Settings.setTwelveHour(false);
                 Settings.set('weatherFormat', '{icon} {temp}^[C]_[x'); wait(80);
                 check(JSON.stringify(Settings.weatherParts) === JSON.stringify([{token: '{icon}', shift: ''}, {token: ' ', shift: ''}, {token: '{temp}', shift: ''}, {token: 'C', shift: 'sup'}, {token: 'x', shift: 'sub'}]), 'markup cuts the format into shifted parts: ' + JSON.stringify(Settings.weatherParts));
                 const shifted = parts();

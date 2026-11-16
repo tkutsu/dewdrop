@@ -162,7 +162,7 @@ Singleton {
 
     // Alarm readouts share the bar clock's casing, spacing and AM/PM sizing.
     function alarmDisplay(h: int, m: int): var {
-        return Settings.timeDisplay(new Date(2000, 0, 1, h, m), Settings.twelveHour ? "h:mm AP" : "HH:mm");
+        return Settings.hourDisplay(new Date(2000, 0, 1, h, m));
     }
 
     // Rounded up, so a 25 minute timer reads 25:00 for its first second rather

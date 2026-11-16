@@ -55,6 +55,16 @@ Popup {
     readonly property int listRows: 4
     readonly property int listRowHeight: 20
     readonly property int dotSize: 3
+    // The time column fits the widest time, 12:30 PM or 12:30.
+    readonly property int timeWidth: Math.max(42, Math.ceil(widestTime.advanceWidth) + 2)
+
+    TextMetrics {
+        id: widestTime
+        font.family: Theme.bodyFont
+        font.pixelSize: Theme.captionSize
+        font.features: Theme.figures
+        text: Settings.sayHourMinute(12, 30)
+    }
 
     // The window is held at the height of a full list; the box stops under
     // whatever the day actually has.
@@ -368,16 +378,18 @@ Popup {
                     height: root.listRowHeight
 
                     PopupText {
-                        width: 42
+                        width: root.timeWidth
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter
-                        text: Agenda.sayTime(entry.modelData)
+                        textFormat: entry.modelData.allDay ? Text.PlainText : Text.RichText
+                        text: entry.modelData.allDay ? Agenda.sayTime(entry.modelData)
+                            : Settings.timeMarkup(Settings.hourDisplay(new Date(entry.modelData.start)), font.pixelSize)
                         color: entry.modelData.allDay ? Theme.label3 : Theme.label2
                         font.pixelSize: Theme.captionSize
                     }
 
                     PopupText {
-                        x: 50
+                        x: root.timeWidth + 8
                         width: list.width - x
                         height: root.listRowHeight
                         verticalAlignment: Text.AlignVCenter

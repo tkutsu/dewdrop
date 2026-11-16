@@ -121,6 +121,18 @@ Singleton {
         return Object.assign(result, { description, icon, severity });
     }
 
+    // An hour's time in the Hour Format. Read off its "HH:MM", which is the
+    // forecast place's own clock, not this machine's.
+    function hourDisplay(hour: var): var {
+        const [h, m] = String(hour?.time ?? "").split(":").map(Number);
+        return Number.isInteger(h) && Number.isInteger(m) ? Settings.hourDisplay(new Date(2000, 0, 1, h, m))
+            : { text: hour?.time ?? "", smallRanges: [] };
+    }
+
+    function sayHour(hour: var): string {
+        return root.hourDisplay(hour).text;
+    }
+
     // Merge matching hourly forecasts without bridging missing hours or DST epochs.
     function hourRanges(hours: var, key: string): var {
         const ranges = [];
@@ -153,10 +165,10 @@ Singleton {
             if (complete && forecast.length === hours.length)
                 return "throughout";
             if (periods.length > 1)
-                return first.at <= root.now ? "on and off" : `on and off from ${first.time}`;
+                return first.at <= root.now ? "on and off" : `on and off from ${root.sayHour(first)}`;
             if (first.at <= root.now)
                 return "this hour";
-            return `${forecast.length === 1 ? "around" : "from"} ${first.time}`;
+            return `${forecast.length === 1 ? "around" : "from"} ${root.sayHour(first)}`;
         }
 
         // What is falling or hanging about, else what the sky does.
@@ -173,7 +185,7 @@ Singleton {
                     const last = wet.length ? wet[wet.length - 1] : focus[focus.length - 1];
                     const after = hours.find(hour => hour.at === last.at + 3600);
                     if (after && known.includes(after) && !wet.includes(after))
-                        text += `, ${after.severity <= 1 ? "clearing" : "easing"} around ${after.time}`;
+                        text += `, ${after.severity <= 1 ? "clearing" : "easing"} around ${root.sayHour(after)}`;
                 }
                 return text;
             }
@@ -184,9 +196,9 @@ Singleton {
             const last = ranges[ranges.length - 1];
             const settles = ranges.length <= 3 && last.end - last.start >= 7200;
             if (settles && known[0].severity !== 0 && last.hour.severity === 0)
-                return `Cloudy at first, clearing around ${last.hour.time}`;
+                return `Cloudy at first, clearing around ${root.sayHour(last.hour)}`;
             if (settles && known[0].severity === 0 && last.hour.severity === 2)
-                return `Clear at first, cloudier from ${last.hour.time}`;
+                return `Clear at first, cloudier from ${root.sayHour(last.hour)}`;
 
             const clear = known.filter(hour => hour.severity === 0).length / known.length;
             const cloudy = known.filter(hour => hour.severity === 2).length / known.length;

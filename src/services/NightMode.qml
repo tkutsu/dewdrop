@@ -45,7 +45,7 @@ Singleton {
     // start when off.
     readonly property string tooltip: (on ? "Night mode on" : `Brightness ${brightness}%`)
         + (!automatic ? "" : scheduleKind === "auto" ? ` · ${solarInfo}`
-            : on ? ` until ${formatTime(endMinute)}` : ` · night mode off until ${formatTime(startMinute)}`)
+            : on ? ` until ${sayMinute(endMinute)}` : ` · night mode off until ${sayMinute(startMinute)}`)
 
     // Off, On, Auto or Custom, as the popup's dropdown shows it. A pick holds while
     // display.sh runs: the flag only moves once the DDC write lands, and until
@@ -56,7 +56,7 @@ Singleton {
     readonly property var solar: root.solarState(WallClock.now)
     readonly property string solarInfo: !Weather.location ? "Choose a location in Settings > Weather."
         : !root.solar ? (Weather.loading ? "Loading sunrise and sunset times…" : "Sunrise and sunset times unavailable.")
-        : root.solar.next ? `${root.solar.next.on ? "Sunset" : "Sunrise"} at ${Qt.formatDateTime(new Date(root.solar.next.at * 1000), "HH:mm")}`
+        : root.solar.next ? `${root.solar.next.on ? "Sunset" : "Sunrise"} at ${Settings.sayTime(new Date(root.solar.next.at * 1000))}`
         : "Waiting for the next sunrise or sunset."
 
     // Solar epochs belong to the selected city; compare them directly across time zones and DST.
@@ -86,8 +86,14 @@ Singleton {
         }
     }
 
+    // How the schedule is stored: always 24h.
     function formatTime(minute) {
         return ("0" + Math.floor(minute / 60)).slice(-2) + ":" + ("0" + minute % 60).slice(-2);
+    }
+
+    // How it is shown: in the Hour Format.
+    function sayMinute(minute) {
+        return Settings.sayHourMinute(Math.floor(minute / 60), minute % 60);
     }
 
     function parseTime(text) {

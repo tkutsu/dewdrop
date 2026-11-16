@@ -32,7 +32,7 @@ PopupButton {
         if (!root.at)
             return "";
         const then = new Date(root.at * 1000);
-        return then.toDateString() === new Date(WallClock.now).toDateString() ? Qt.formatTime(then, "HH:mm") : Qt.formatDate(then, "d MMM");
+        return then.toDateString() === new Date(WallClock.now).toDateString() ? Settings.sayTime(then) : Qt.formatDate(then, "d MMM");
     }
 
     framed: true

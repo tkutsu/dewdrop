@@ -83,7 +83,7 @@ Popup {
             visible: NightMode.mode === "auto"
             topPadding: Theme.popupSpacing * 2
             text: NightMode.solar
-                ? `Sunset at ${Qt.formatDateTime(new Date(NightMode.solar.sunset * 1000), "HH:mm")}\nSunrise at ${Qt.formatDateTime(new Date(NightMode.solar.sunrise * 1000), "HH:mm")}`
+                ? `Sunset at ${Settings.sayTime(new Date(NightMode.solar.sunset * 1000))}\nSunrise at ${Settings.sayTime(new Date(NightMode.solar.sunrise * 1000))}`
                 : NightMode.solarInfo
         }
 
@@ -151,9 +151,11 @@ Popup {
         property int minute: 0
         property int draftMinute: minute
         property int other: -1
+        // What is saved (always 24h); what shows follows the Hour Format.
         readonly property string value: NightMode.formatTime(draftMinute)
         signal edited
-        width: 70
+        // Wide enough for the widest time it can show, 12:30 PM or 12:30.
+        width: Math.max(70, Math.ceil(widest.advanceWidth) + arrows.width + 8)
         height: 28
         radius: Theme.selectionRadius
         color: Theme.selection
@@ -171,10 +173,18 @@ Popup {
             edited();
         }
 
+        TextMetrics {
+            id: widest
+            font: shown.font
+            text: Settings.sayHourMinute(12, 30)
+        }
+
         PopupText {
+            id: shown
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - arrows.width
-            text: dial.value
+            textFormat: Text.RichText
+            text: Settings.timeMarkup(Settings.hourDisplay(new Date(2000, 0, 1, Math.floor(dial.draftMinute / 60), dial.draftMinute % 60)), font.pixelSize)
             font.family: Theme.monoFont
             font.pixelSize: Theme.captionSize
             horizontalAlignment: Text.AlignHCenter
