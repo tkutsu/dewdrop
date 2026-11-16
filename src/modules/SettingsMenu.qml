@@ -1087,20 +1087,24 @@ OverlayWindow {
 
                 // Whom a page's data comes from, after its last row at the
                 // right, as a link to them (Weather's Open-Meteo).
-                footer: PopupText {
+                footer: Item {
                     readonly property var credit: root.query ? null : root.pages[root.page]?.credit ?? null
 
                     width: list.width
-                    height: credit ? implicitHeight : 0
+                    height: credit ? 24 + creditText.implicitHeight : 0
                     visible: !!credit
-                    topPadding: 24
-                    rightPadding: Theme.popupInset
-                    horizontalAlignment: Text.AlignRight
-                    textFormat: Text.RichText
-                    text: credit ? `<a href="${credit.url}" style="color: ${Theme.label2}">${credit.text}</a>` : ""
-                    color: Theme.label2
-                    font.pixelSize: Theme.footnoteSize
-                    onLinkActivated: link => Qt.openUrlExternally(link)
+
+                    PopupText {
+                        id: creditText
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.popupInset
+                        anchors.bottom: parent.bottom
+                        textFormat: Text.RichText
+                        text: parent.credit ? `<a href="${parent.credit.url}" style="color: ${Theme.label2}">${parent.credit.text}</a>` : ""
+                        color: Theme.label2
+                        font.pixelSize: Theme.footnoteSize
+                        onLinkActivated: link => Qt.openUrlExternally(link)
+                    }
                 }
 
                 delegate: Loader {
