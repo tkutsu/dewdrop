@@ -655,7 +655,7 @@ Singleton {
         }
 
         function phone(): string {
-            return root.phoneWarning || "Local phone alarms ready";
+            return root.phoneWarning || (PhoneAlarms.present ? "Local phone alarms ready" : "Phone alarms not set up");
         }
     }
 }
