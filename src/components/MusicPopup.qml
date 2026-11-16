@@ -15,7 +15,6 @@ Popup {
     ChoiceBlink { id: choice }
 
     readonly property int columnWidth: 290
-    readonly property int volumeIconWidth: 16
     // The pill's colour for the track, taken off the sleeve (Music.accent),
     // so the position here is the same line as the one round the pill.
     property color accent: Theme.fg
@@ -350,103 +349,142 @@ Popup {
 
             spacing: 3
 
-            // The title shares its line with the one control here that is not
-            // about the music: putting mpd itself down. Top right, as far from
-            // the transport on the cover as the popup goes — the buttons that
-            // move the music and the button that ends it have no business
-            // being neighbours.
+            // The popup's controls on a line of their own, framed and named
+            // like a header's: the volume first, then the equalizer, more
+            // music, and putting mpd down. Quitting is the far end, as far
+            // from the transport on the cover as the popup goes.
             Item {
                 width: root.columnWidth
-                height: Math.max(songTitle.implicitHeight, quit.implicitHeight)
+                height: root.headerButtonSize
 
-                Marquee {
-                    id: songTitle
-
-                    anchors {
-                        left: parent.left
-                        right: equalizerButton.left
-                        rightMargin: 6
-                        verticalCenter: parent.verticalCenter
-                    }
-                    text: MediaText.display(Mpd.title)
-                    contentWidth: songTitleText.implicitWidth
-                    implicitHeight: songTitleText.implicitHeight
-                    hovered: titleHover.hovered
-
-                    HoverHandler { id: titleHover; parent: songTitle }
-
-                    PopupText {
-                        id: songTitleText
-                        text: songTitle.text
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideNone
-                    }
-                }
-
+                // The volume, read off its own label. A press or a scroll
+                // puts its slider where the artist and album are, the way
+                // the sound menu's slider stands under its title; a right
+                // click mutes.
                 PopupButton {
-                    id: equalizerButton
-                    name: "Show equalizer"
-                    anchors.right: add.left
-                    anchors.rightMargin: 4
+                    id: volumeControl
+                    HoverHandler { id: volumeReadoutHover }
+                    objectName: "musicVolumeControl"
+                    anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: Mpd.volume >= 0
                     framed: true
+                    lit: root.adjustingVolume
                     implicitHeight: root.headerButtonSize
-                    glyph: Theme.glyph.equalizer
-                    onTapped: root.equalizerOpen = true
+                    glyph: Mpd.volumeIcon
+                    label: Math.max(0, Mpd.volume) + "%"
+                    name: "Music volume " + label
+                    Accessible.description: "Pointer: scroll, right click mutes"
+                    onTapped: {
+                        if (!root.adjustingVolume)
+                            return root.showVolume();
+                        volumeFeedback.stop();
+                        root.adjustingVolume = false;
+                    }
+
+                    TapHandler {
+                        acceptedButtons: Qt.RightButton
+                        onTapped: Mpd.toggleMute()
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.NoButton
+                        property real wheelRemainder: 0
+
+                        onWheel: wheel => {
+                            wheelRemainder += wheel.angleDelta.y;
+                            const notches = Math.trunc(wheelRemainder / 120);
+                            if (notches === 0)
+                                return;
+                            wheelRemainder -= notches * 120;
+                            const step = notches > 0 ? Math.floor(Mpd.volume / 5) : Math.ceil(Mpd.volume / 5);
+                            Mpd.setVolume(Math.max(0, Math.min(100, (step + notches) * 5)) / 100);
+                            root.showVolume();
+                        }
+                    }
                 }
 
-                // The way to put something else on: the launcher's # mode,
-                // which has the whole library. Beside the quit button, as
-                // every popup under the bar keeps its plus at the right end of
-                // its top line; the quit button asks twice, so a plus that
-                // misses does not end anything.
-                PopupButton {
-                    id: add
-                    name: "Choose music"
-
-                    anchors.right: quit.left
-                    anchors.rightMargin: 4
-                    anchors.verticalCenter: parent.verticalCenter
-                    framed: true
-                    implicitHeight: root.headerButtonSize
-                    glyph: Theme.glyph.plus
-                    onTapped: Launcher.openWith(Launcher.musicPrefix)
-                }
-
-                // Asked twice. Everything else in this popup can be undone
-                // from this popup; this cannot — mpd going down takes the
-                // pill the popup hangs from with it, so the second press is
-                // the last chance to reconsider. Arming lasts until this
-                // popup closes or the second press stops MPD.
-                PopupButton {
-                    id: quit
-                    name: root.quitArmed ? "Confirm quit music player" : "Quit music player"
-
+                Row {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    framed: true
-                    implicitHeight: root.headerButtonSize
-                    glyph: root.quitArmed ? Theme.glyph.check : Theme.glyph.close
-                    warn: root.quitArmed
-                    onTapped: {
-                        if (root.quitArmed)
-                            Mpd.stopServer();
-                        else
-                            root.quitArmed = true;
+                    spacing: 4
+
+                    PopupButton {
+                        id: equalizerButton
+                        name: "Show equalizer"
+                        framed: true
+                        implicitHeight: root.headerButtonSize
+                        glyph: Theme.glyph.equalizer
+                        label: "Equalizer"
+                        onTapped: root.equalizerOpen = true
+                    }
+
+                    // The way to put something else on: the launcher's # mode,
+                    // which has the whole library.
+                    PopupButton {
+                        id: add
+                        name: "Choose music"
+                        framed: true
+                        implicitHeight: root.headerButtonSize
+                        glyph: Theme.glyph.plus
+                        label: "Add"
+                        onTapped: Launcher.openWith(Launcher.musicPrefix)
+                    }
+
+                    // Asked twice. Everything else in this popup can be undone
+                    // from this popup; this cannot — mpd going down takes the
+                    // pill the popup hangs from with it, so the second press is
+                    // the last chance to reconsider. Arming lasts until this
+                    // popup closes or the second press stops MPD.
+                    PopupButton {
+                        id: quit
+                        name: root.quitArmed ? "Confirm quit music player" : "Quit music player"
+                        framed: true
+                        implicitHeight: root.headerButtonSize
+                        glyph: root.quitArmed ? Theme.glyph.check : Theme.glyph.close
+                        label: "Quit"
+                        warn: root.quitArmed
+                        onTapped: {
+                            if (root.quitArmed)
+                                Mpd.stopServer();
+                            else
+                                root.quitArmed = true;
+                        }
                     }
                 }
             }
 
-            // Scrolling the volume readout temporarily replaces the metadata.
+            Marquee {
+                id: songTitle
+
+                width: root.columnWidth
+                text: MediaText.display(Mpd.title)
+                contentWidth: songTitleText.implicitWidth
+                implicitHeight: songTitleText.implicitHeight
+                hovered: titleHover.hovered
+
+                HoverHandler { id: titleHover; parent: songTitle }
+
+                PopupText {
+                    id: songTitleText
+                    text: songTitle.text
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideNone
+                }
+            }
+
+            // The volume's slider stands in for the artist and album while
+            // it is in hand, as long as the track under it so the two line up.
             Item {
                 width: root.columnWidth
-                height: Math.max(metadata.implicitHeight, volumeControl.height)
+                height: Math.max(metadata.implicitHeight, volumeTrack.height)
 
                 PopupText {
                     id: metadata
                     objectName: "musicMetadata"
                     anchors.verticalCenter: parent.verticalCenter
-                    width: volumeControl.visible ? root.sliderWidth : root.columnWidth
+                    width: root.columnWidth
                     visible: !root.adjustingVolume || Mpd.volume < 0
                     rightPadding: Theme.popupInset
                     text: [Mpd.artist, Mpd.album].filter(part => part).map(MediaText.display).join("  ·  ")
@@ -470,59 +508,6 @@ Popup {
                     }
                     onPressedChanged: if (!pressed && root.adjustingVolume)
                         root.showVolume()
-                }
-
-                MouseArea {
-                    id: volumeControl
-                    HoverHandler { id: volumeReadoutHover }
-                    objectName: "musicVolumeControl"
-                    anchors.right: parent.right
-                    anchors.rightMargin: Theme.popupInset
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: root.volumeIconWidth + Theme.popupInset + volumePercent.implicitWidth
-                    height: Theme.popupTextSize + 4
-                    visible: Mpd.volume >= 0
-                    acceptedButtons: Qt.NoButton
-                    property real wheelRemainder: 0
-
-                    onWheel: wheel => {
-                        wheelRemainder += wheel.angleDelta.y;
-                        const notches = Math.trunc(wheelRemainder / 120);
-                        if (notches === 0)
-                            return;
-                        wheelRemainder -= notches * 120;
-                        const step = notches > 0 ? Math.floor(Mpd.volume / 5) : Math.ceil(Mpd.volume / 5);
-                        Mpd.setVolume(Math.max(0, Math.min(100, (step + notches) * 5)) / 100);
-                        root.showVolume();
-                    }
-
-                    PopupText {
-                        id: volumePercent
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: Math.max(0, Mpd.volume) + "%"
-                        color: Theme.label2
-                        font.pixelSize: Theme.captionSize
-                    }
-
-                    Item {
-                        anchors.right: parent.right
-                        width: root.volumeIconWidth
-                        height: parent.height
-
-                        Glyph {
-                            anchors.right: parent.right
-                            height: parent.height
-                            text: Mpd.volumeIcon
-                            fontSize: Theme.popupGlyphSize
-                        }
-                        Accessible.role: Accessible.Button
-                        Accessible.name: "Toggle music mute"
-                        readonly property var keyPress: () => Mpd.toggleMute()
-                        Accessible.onPressAction: if (enabled && visible)
-                            keyPress()
-                        TapHandler { onTapped: Mpd.toggleMute() }
-                    }
                 }
             }
 

@@ -51,8 +51,15 @@ ShellRoot {
             check(!slider.visible && metadata.visible, "music starts with artist and album instead of the slider");
             mouseMove(control, control.width / 2, control.height / 2); wait(50);
             check(!slider.visible, "hover alone does not reveal volume");
-            check(Math.abs(control.mapToItem(metadata.parent, 0, control.height / 2).y
-                - (metadata.y + metadata.height / 2)) < 1, "volume icon and percentage sit beside artist and album");
+            check(control.mapToItem(popup.contentItem, 0, 0).y + control.height <= metadata.mapToItem(popup.contentItem, 0, 0).y,
+                "the volume button leads the controls line, above the title and the artist");
+            check(/^\d+%$/.test(control.label), "the volume button reads the volume");
+            mouseClick(control, control.width / 2, control.height / 2); wait(30);
+            check(slider.visible && !metadata.visible, "pressing the volume button puts its slider in place of artist and album");
+            mouseClick(control, control.width / 2, control.height / 2); wait(30);
+            check(!slider.visible && metadata.visible, "pressing it again puts artist and album back");
+            mouseClick(control, control.width / 2, control.height / 2, Qt.RightButton); wait(30);
+            check(Mpd.muteCount === 1 && !slider.visible, "a right click on the volume button mutes");
             const playback = find(popup.contentItem, item => item.name === "Playback position");
             const time = find(playback.parent, item => item !== playback && item.keyPress && item.text);
             check(time && Math.abs(time.y + time.height / 2 - playback.y - playback.height / 2) < 1,
@@ -144,7 +151,7 @@ def main():
         copy_shell(target)
         mpd = titles.MPD.replace(
             "function toggle() {}",
-            "function setVolume(value) { volume = Math.round(value * 100); }\n    function toggle() {}",
+            "function setVolume(value) { volume = Math.round(value * 100); }\n    property int muteCount: 0\n    function toggleMute() { muteCount++; }\n    function toggle() {}",
         )
         (target / "src/services/Mpd.qml").write_text(mpd)
         (target / "src/services/Launcher.qml").write_text(
