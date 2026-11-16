@@ -40,6 +40,22 @@ Singleton {
     readonly property string weatherDisplay: ["hour", "average", "worst", "day"].includes(root.values.weatherDisplay)
         ? root.values.weatherDisplay : "hour"
     readonly property string weatherFormat: root.values.weatherFormat || "{icon} {temp}"
+    // The weather format cut at its tokens and at ^[…] and _[…]: each part is
+    // a token or literal text, with a shift of "sup", "sub" or "" for the
+    // baseline. The icon stays on the line whatever its shift.
+    readonly property var weatherParts: {
+        const parts = [];
+        let shift = "";
+        for (const token of root.weatherFormat.split(/(\{icon\}|\{temp\}|\^\[|_\[|\])/)) {
+            if ((token === "^[" || token === "_[") && !shift)
+                shift = token === "^[" ? "sup" : "sub";
+            else if (token === "]" && shift)
+                shift = "";
+            else if (token !== "")
+                parts.push({ token, shift });
+        }
+        return parts;
+    }
     readonly property string weatherUnit: ["celsius", "fahrenheit", "kelvin"].includes(root.values.weatherUnit)
         ? root.values.weatherUnit : "celsius"
     // Checked against the models the Weather service offers.
@@ -191,35 +207,54 @@ Singleton {
         return root.timeDisplay(date, root.datetimeFormat);
     }
 
-    // Mark actual AM/PM tokens, preserving quoted literals and custom token order.
+    // The formatted time, with the ranges RollingText draws two-thirds size:
+    // ^[\u2026] raised, _[\u2026] lowered, and with Smaller AM/PM the AM/PM tokens on
+    // the baseline, closed up to the time. Quoted literals stay as typed, so
+    // '^[' shows the characters. Each run is marked with a private-use
+    // character before formatting and found again after it.
     function timeDisplay(date: date, timeFormat: string): var {
-        if (!root.smallAmPm || !/AP|ap/.test(timeFormat.replace(/'(?:[^']|'')*'/g, "")))
-            return { text: root.applyCase(Qt.formatDateTime(date, timeFormat), root.timeCase), smallRanges: [] };
-
-        const format = timeFormat.replace(/'(?:[^']|'')*'|AP|ap/g,
-            token => token[0] === "'" ? token : "\uE000" + token + "\uE001");
-        const marked = Qt.formatDateTime(date, format);
-        const plain = marked.replace(/[\uE000\uE001]/g, "");
-        const cased = root.applyCase(plain, root.timeCase);
-        const spans = [];
-        const tokens = /\uE000([^\uE001]*)\uE001/g;
-        let match;
-        while ((match = tokens.exec(marked)) !== null) {
-            const before = marked.slice(0, match.index).replace(/[\uE000\uE001]/g, "");
-            const start = root.applyCase(before, root.timeCase).length;
-            const end = root.applyCase(before + match[1], root.timeCase).length;
-            spans.push({ start, end });
-        }
+        let open = "";
+        const format = timeFormat.replace(/'(?:[^']|'')*'|\^\[|_\[|\]|AP|ap/g, token => {
+            if (token[0] === "'")
+                return token;
+            if (token === "^[" || token === "_[") {
+                if (open)
+                    return token;
+                open = token;
+                return token === "^[" ? "\uE002" : "\uE003";
+            }
+            if (token === "]") {
+                if (!open)
+                    return token;
+                open = "";
+                return "\uE001";
+            }
+            return root.smallAmPm && !open ? "\uE000" + token + "\uE001" : token;
+        });
+        // An unclosed run goes to the end.
+        const marked = Qt.formatDateTime(date, format) + (open ? "\uE001" : "");
+        const markers = /[\uE000-\uE003]/g;
+        const cased = root.applyCase(marked.replace(markers, ""), root.timeCase);
 
         let text = "";
         let offset = 0;
         const smallRanges = [];
-        for (const span of spans) {
-            text += cased.slice(offset, span.start).replace(/\s+$/, "");
-            const start = text.length;
-            text += cased.slice(span.start, span.end);
-            smallRanges.push({ start, end: text.length });
-            offset = span.end;
+        const runs = /([\uE000\uE002\uE003])([^\uE001]*)\uE001/g;
+        let match;
+        while ((match = runs.exec(marked)) !== null) {
+            // Casing can change a string's length (\u00DF to SS), so a run's place
+            // is counted in the cased text.
+            const before = marked.slice(0, match.index).replace(markers, "");
+            const start = root.applyCase(before, root.timeCase).length;
+            const end = root.applyCase(before + match[2], root.timeCase).length;
+            const amPm = match[1] === "\uE000";
+            const between = cased.slice(offset, start);
+            text += amPm ? between.replace(/\s+$/, "") : between;
+            const at = text.length;
+            text += cased.slice(start, end);
+            smallRanges.push(amPm ? { start: at, end: text.length }
+                : { start: at, end: text.length, shift: match[1] === "\uE002" ? "sup" : "sub" });
+            offset = end;
         }
         text += cased.slice(offset);
         return { text, smallRanges };
