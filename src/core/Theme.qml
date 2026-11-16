@@ -892,6 +892,11 @@ Singleton {
         alarm: "\u{f0020}",           // nf-md-alarm
         // A calendar event made from the launcher's `,` line.
         event: "\u{f0b67}",           // nf-md-calendar_outline
+        // The month view's stepper in its header: back a month, back to
+        // today, on a month, the way a Mac menu-bar calendar lays them.
+        monthBack: "\u{f0141}",       // nf-md-chevron_left
+        today: "\u{f09df}",           // nf-md-circle_small
+        monthOn: "\u{f0142}",         // nf-md-chevron_right
 
 
         // The popups' add button. A bare plus rather than the circled one: it
