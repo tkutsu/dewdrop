@@ -404,11 +404,6 @@ Singleton {
     // at a whisper rather than a grey — a grey at a tenth on a half-black
     // surface was there in the file and nowhere on the screen.
     readonly property color stroke: Qt.rgba(1, 1, 1, 0.09)
-    // A line between groups in a row of glyphs (the open drawer's kinds):
-    // shorter than the glyphs and a step brighter than `stroke`, which on the
-    // bar's glass is all but gone.
-    readonly property color divider: Qt.rgba(1, 1, 1, 0.2)
-    readonly property int dividerHeight: 12
 
     // The edge of a surface, as opposed to a line across one. A flat hairline
     // at `stroke` vanished over the wallpaper, and over a dark window a popup
