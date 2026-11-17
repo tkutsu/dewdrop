@@ -42,7 +42,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Music equalizer | Python 3, FFmpeg, and a user `mpd.service`. The config at `mpdConfig` must have one FFmpeg EQ filter attached to an output and a `state_file` to preserve the queue. Apply saves a `.quickshell-eq.bak` backup and briefly restarts MPD. |
 | Launcher file search | `fd`, and `fasd` for recent files |
 | Launcher text search | `rg` (ripgrep) |
-| File previews | `file`; `pdftoppm` (poppler) for PDFs, `ffmpeg` for videos, LibreOffice (`soffice`) for office documents. ImageMagick handles additional image formats. Missing renderers leave a generic icon. |
+| File previews | `file`; `pdftoppm` (poppler) for PDFs, `ffmpeg` for videos, LibreOffice (`soffice`) for office documents. ImageMagick handles additional image formats, and `jq` indents JSON and JSON Lines. Any text file previews as text except private keys. Missing renderers leave a generic icon. |
 | Calculator | `qalc` |
 | Clipboard history | `cliphist`, `wl-clipboard`, and `wl-paste --watch cliphist store` running in your session |
 | Package updates | Arch only: `checkupdates` (pacman-contrib), and `yay` to include the AUR. The module hides without `checkupdates`. |
