@@ -35,7 +35,11 @@ line=${2:-}
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/thumbnails/x-large"
 mkdir -p "$cache" || exit 0
 
-mime=$(file -Lb --mime-type -- "$src" 2>/dev/null) || exit 0
+# One call for both: "type; charset=…", where the charset is "binary" for
+# anything that is not text.
+info=$(file -Lb --mime-type --mime-encoding -- "$src" 2>/dev/null) || exit 0
+mime=${info%%;*}
+charset=${info##*charset=}
 
 # An image is already the answer to the question, for every format Qt reads
 # without help. The rest of image/* — tiff, raw, psd, ico — goes through
@@ -47,28 +51,58 @@ case $mime in
         ;;
 esac
 
+# Keys are text as well, and a preview is on screen for anyone looking:
+# arrowing past ~/.ssh/id_rsa must not show it. They get the glyph, like a
+# binary.
+case $mime in
+    application/x-pem-file | application/*private-key*)
+        exit 0
+        ;;
+esac
+
+# Text is anything `file` does not call binary, whatever type it files it
+# under: the same test the launcher uses to choose the editor over xdg-open,
+# so what previews as text is what opens as text. A list of types missed
+# every format filed under application/ — JSON Lines, subtitles — and went on
+# missing the next one. Pictures that happen to be text (XPM) stay pictures.
+#
 # Text is read rather than looked at, so it is handed over as itself. 4000
 # bytes and 80 lines is already more than a 220px column can show; the cut is
 # here so that landing on a gigabyte of log costs one read of its first page.
 # Tabs are expanded because the panel is not a terminal and would draw them as
 # nothing at all.
-case $mime in
-    text/* | application/json | application/xml | application/javascript | application/x-shellscript | application/x-desktop | application/toml | application/x-yaml | application/x-perl | application/x-php)
-        # Around a line: eight above it for context, sixty in all, each cut
-        # at 400 bytes so one minified line cannot push the hit off the page.
-        # sed quits at the last line rather than reading to the end.
-        if [[ $line =~ ^[1-9][0-9]*$ ]]; then
-            start=$((line > 8 ? line - 8 : 1))
-            end=$((start + 59))
-            printf 'text %d\n' $((line - start + 1))
-            sed -n "${start},${end}p;${end}q" -- "$src" 2>/dev/null | cut -b -400 | expand -t 4
-            exit 0
-        fi
-        printf 'text\n'
-        head -c 4000 -- "$src" 2>/dev/null | head -n 80 | expand -t 4
+if [[ $charset != binary && $mime != image/* ]]; then
+    # Around a line: eight above it for context, sixty in all, each cut at
+    # 400 bytes so one minified line cannot push the hit off the page. sed
+    # quits at the last line rather than reading to the end.
+    if [[ $line =~ ^[1-9][0-9]*$ ]]; then
+        start=$((line > 8 ? line - 8 : 1))
+        end=$((start + 59))
+        printf 'text %d\n' $((line - start + 1))
+        sed -n "${start},${end}p;${end}q" -- "$src" 2>/dev/null | cut -b -400 | expand -t 4
         exit 0
-        ;;
-esac
+    fi
+
+    # JSON from the top, pretty-printed: a record to a line runs to
+    # thousands of characters, and the panel does not wrap, so the raw head
+    # is the start of one record and nothing else. Not around a line, whose
+    # numbers have to stay the file's own. Only a first page goes in, and jq
+    # prints every record before the one the cut ends inside; a single
+    # document longer than the page does not parse at all and falls through
+    # to the raw head, as does a missing jq.
+    printf 'text\n'
+    case $mime in
+        application/json | application/x-ndjson)
+            pretty=$(head -c 65536 -- "$src" 2>/dev/null | jq . 2>/dev/null | head -n 80)
+            if [[ -n $pretty ]]; then
+                printf '%s\n' "$pretty" | expand -t 4
+                exit 0
+            fi
+            ;;
+    esac
+    head -c 4000 -- "$src" 2>/dev/null | head -n 80 | expand -t 4
+    exit 0
+fi
 
 # mtime and size, so a file edited in place gets a new key rather than the old
 # picture. Path included because two files can be identical and still want
