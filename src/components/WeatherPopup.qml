@@ -119,13 +119,25 @@ Popup {
         // Also the graphs' place in the accessibility tree: an area to hover
         // for the hour under the pointer and to scroll through the days.
         MouseArea {
+            id: forecastScroll
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
             property real acc: 0
 
             function step(days: int): void {
+                if (!Weather.days.length)
+                    return;
                 const index = Math.max(0, Math.min(Weather.days.length - 1, root.selected + days));
                 root.picked = Weather.days[index].date;
+            }
+
+            function scroll(delta: real): void {
+                acc -= delta;
+                const steps = Math.trunc(acc / 120);
+                if (!steps)
+                    return;
+                acc -= steps * 120;
+                step(steps);
             }
 
             Accessible.role: Accessible.Chart
@@ -135,15 +147,7 @@ Popup {
             Accessible.onScrollUpAction: step(-1)
             Accessible.onScrollDownAction: step(1)
 
-            onWheel: function (wheel) {
-                acc -= wheel.angleDelta.y;
-                const steps = Math.trunc(acc / 120);
-                if (!steps)
-                    return;
-                acc -= steps * 120;
-                const index = Math.max(0, Math.min(Weather.days.length - 1, root.selected + steps));
-                root.picked = Weather.days[index].date;
-            }
+            onWheel: wheel => forecastScroll.scroll(wheel.angleDelta.y)
         }
 
         WeatherGraph {
@@ -198,6 +202,10 @@ Popup {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: Weather.days.length > 0
             spacing: 4
+
+            WheelHandler {
+                onWheel: wheel => forecastScroll.scroll(wheel.angleDelta.y)
+            }
 
             Repeater {
                 model: Weather.days

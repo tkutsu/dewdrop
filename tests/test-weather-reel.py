@@ -338,6 +338,18 @@ ShellRoot {
                 check(reel.displayedDay.date === "2026-10-10" && reel.incomingDay === null, "rapid scrolling settles on the latest selection");
                 mouseWheel(plot, plot.width / 2, plot.height / 2, 0, 240, Qt.NoButton);
                 settled(reel, "2026-10-08");
+                mouseWheel(firstDay, firstDay.width / 2, 10, 0, -60, Qt.NoButton);
+                check(popup.selected === 0, "partial wheel input on a day button waits for a full notch");
+                const lastDay = named(popup, "daily", 2);
+                mouseWheel(lastDay, lastDay.width / 2, 50, 0, -60, Qt.NoButton);
+                check(popup.selected === 1, "scrolling across day buttons advances from the selected day");
+                settled(reel, "2026-10-09");
+                mouseWheel(lastDay, lastDay.width / 2, 50, 0, -240, Qt.NoButton);
+                check(popup.selected === 2, "day button scrolling stops at the last forecast");
+                settled(reel, "2026-10-10");
+                mouseWheel(firstDay, firstDay.width / 2, 10, 0, 360, Qt.NoButton);
+                check(popup.selected === 0, "day button scrolling goes backwards and stops at the first forecast");
+                settled(reel, "2026-10-08");
                 clickDay(1);
                 moving(reel, 1, "2026-10-08", "2026-10-09");
                 settled(reel, "2026-10-09");

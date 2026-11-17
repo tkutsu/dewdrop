@@ -245,6 +245,17 @@ Popup {
                 Accessible.role: Accessible.Heading
                 Accessible.name: month.text
 
+                WheelHandler {
+                    property real acc: 0
+                    onWheel: function (wheel) {
+                        acc -= wheel.angleDelta.y;
+                        const steps = Math.trunc(acc / 120);
+                        acc -= steps * 120;
+                        if (steps)
+                            root.step(steps);
+                    }
+                }
+
                 FontMetrics {
                     id: monthMetrics
                     font: month.font
@@ -268,6 +279,19 @@ Popup {
     Column {
         x: Math.floor((Theme.popupWidth - root.cellWidth * 7) / 2)
         spacing: 2
+
+        WheelHandler {
+            property real acc: 0
+            onWheel: function (wheel) {
+                acc -= wheel.angleDelta.y;
+                const steps = Math.trunc(acc / 120);
+                acc -= steps * 120;
+                if (steps) {
+                    const day = root.selectedDate;
+                    root.select(new Date(day.getFullYear(), day.getMonth(), day.getDate() + steps));
+                }
+            }
+        }
 
         Row {
             Repeater {
