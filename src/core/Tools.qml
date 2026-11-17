@@ -35,6 +35,7 @@ Singleton {
             "notify-send": "libnotify",
             "python3": "python",
             "qalc": "libqalculate",
+            "rg": "ripgrep",
             "kitty": "kitty",
             "foot": "foot",
             "alacritty": "alacritty",
@@ -47,7 +48,7 @@ Singleton {
 
     readonly property var programs: [
         "blueman-manager", "brightnessctl", "btop", "checkupdates", "ddcutil", "fd", "hyprsunset",
-        "nm-connection-editor", "notify-send", "pacman", "python3", "qalc", ...root.terminals, Settings.values.terminal ?? "",
+        "nm-connection-editor", "notify-send", "pacman", "python3", "qalc", "rg", ...root.terminals, Settings.values.terminal ?? "",
         Settings.program(Settings.networkCommand), Settings.program(Settings.bluetoothCommand), Settings.program(Settings.monitorCommand)
     ].filter((name, index, all) => name !== "" && all.indexOf(name) === index)
     property var found: null

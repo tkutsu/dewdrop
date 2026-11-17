@@ -10,6 +10,9 @@
 #   text\n<contents>   the head of a text file, to be set as text: code and
 #                      markdown are for reading, and a picture of a paragraph
 #                      220px wide would be a picture of nothing
+#   text N\n<contents> given a line as the second argument (a text search
+#                      hit), the lines around it instead, N being which of
+#                      them is the one asked for
 #   (nothing)          no preview — a binary, a dead renderer, a format with
 #                      nothing in it to show
 #
@@ -26,6 +29,7 @@
 set -uo pipefail
 
 src=${1:-}
+line=${2:-}
 [[ -n $src && -f $src && -r $src ]] || exit 0
 
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/thumbnails/x-large"
@@ -50,6 +54,16 @@ esac
 # nothing at all.
 case $mime in
     text/* | application/json | application/xml | application/javascript | application/x-shellscript | application/x-desktop | application/toml | application/x-yaml | application/x-perl | application/x-php)
+        # Around a line: eight above it for context, sixty in all, each cut
+        # at 400 bytes so one minified line cannot push the hit off the page.
+        # sed quits at the last line rather than reading to the end.
+        if [[ $line =~ ^[1-9][0-9]*$ ]]; then
+            start=$((line > 8 ? line - 8 : 1))
+            end=$((start + 59))
+            printf 'text %d\n' $((line - start + 1))
+            sed -n "${start},${end}p;${end}q" -- "$src" 2>/dev/null | cut -b -400 | expand -t 4
+            exit 0
+        fi
         printf 'text\n'
         head -c 4000 -- "$src" 2>/dev/null | head -n 80 | expand -t 4
         exit 0

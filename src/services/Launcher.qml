@@ -43,6 +43,9 @@ Singleton {
     readonly property string pathPrefix: Settings.launcherPrefixes.files ?? ""
     readonly property string calcPrefix: Settings.launcherPrefixes.calc ?? ""
     readonly property string clipPrefix: Settings.launcherPrefixes.clipboard ?? ""
+    // The lines inside files, rather than their names. A star, which starts
+    // nothing else here and is the key that searches for a word in vim.
+    readonly property string textPrefix: Settings.launcherPrefixes.text ?? ""
     // Open windows by workspace. An underscore tries windows first; a search
     // with no matching window falls through to ordinary query inference.
     readonly property string windowPrefix: Settings.launcherPrefixes.windows ?? ""
@@ -71,6 +74,7 @@ Singleton {
         { prefix: root.clipPrefix, hint: "clipboard", about: "Clipboard history" },
         { prefix: root.windowPrefix, hint: "windows", about: "Open windows" },
         { prefix: root.pathPrefix, hint: "files", about: "Files, with a preview" },
+        { prefix: root.textPrefix, hint: "text", about: "Text inside files, opened at the line" },
         { prefix: root.taskPrefix, hint: "plan", about: "Tasks, timers, alarms and events" },
         { prefix: root.enginePrefix, hint: "web", about: "Web search" },
         { prefix: root.musicPrefix, hint: "music", about: "Music library and playlists" },
@@ -146,6 +150,7 @@ Singleton {
     readonly property var selected: root.results[root.index] ?? null
     readonly property var classification: root.classifyQuery(root.query)
     readonly property bool pathMode: root.classification.mode === root.pathPrefix
+    readonly property bool textMode: root.classification.mode === root.textPrefix
     readonly property bool musicMode: root.classification.mode === root.musicPrefix
     readonly property bool mailMode: root.classification.mode === root.mailPrefix
     readonly property bool taskMode: root.classification.mode === root.taskPrefix
@@ -159,6 +164,7 @@ Singleton {
         case root.clipPrefix: return Theme.glyph.clipboard;
         case root.windowPrefix: return Theme.glyph.launcherWindow;
         case root.pathPrefix: return Theme.glyph.folder;
+        case root.textPrefix: return Theme.glyph.launcherText;
         case root.musicPrefix: return Theme.glyph.launcherMusic;
         case root.enginePrefix: return Theme.glyph.launcherWeb;
         case root.mailPrefix: return Theme.glyph.mailUnread;
@@ -354,12 +360,14 @@ Singleton {
     readonly property var providers: ({
         [root.musicPrefix]: LauncherMusic,
         [root.pathPrefix]: LauncherFiles,
+        [root.textPrefix]: LauncherText,
         [root.mailPrefix]: LauncherMail,
         [root.clipPrefix]: LauncherClipboard
     })
 
     readonly property var modeResults: ({
             [root.pathPrefix]: rest => LauncherFiles.results(rest),
+            [root.textPrefix]: rest => LauncherText.results(rest),
             [root.calcPrefix]: rest => root.calcResults(rest, false),
             [root.clipPrefix]: rest => LauncherClipboard.results(rest),
             [root.windowPrefix]: rest => root.windowResults(rest),
