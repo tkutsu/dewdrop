@@ -193,7 +193,7 @@ Popup {
         return new Date(root.shown.getFullYear(), root.shown.getMonth(), 1 + index - root.lead);
     }
 
-    // --- header: ‹ month ›, today, New, out to the app ------------------------
+    // --- header: ‹ month ›, New, out to the app -------------------------------
     // The arrows hold the month between them. Its box is as wide as the
     // widest month of the year, so › stays put under a pointer stepping
     // through them. New sits beside the arrow out rather than first
@@ -207,15 +207,6 @@ Popup {
             id: header
 
             width: parent.width
-
-            // Back to this month and today. Faint while already there.
-            PopupButton {
-                anchors.verticalCenter: parent.verticalCenter
-                glyph: Theme.glyph.today
-                name: "Today"
-                live: root.offset !== 0 || root.picked !== ""
-                onTapped: root.goToday()
-            }
 
             PopupButton {
                 visible: Agenda.configured
