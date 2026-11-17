@@ -13,36 +13,49 @@ Item {
     // The file to draw, or "" for everything with no picture in it: a
     // directory, an empty list, a mode that is not /.
     property string path: ""
+    // A line to show the text around instead of its head, for a text search
+    // hit; 0 for the top of the file.
+    property int line: 0
+
+    // What to ask the script for: the path, and the line after a newline
+    // when there is one. One string, so the cache and the queue each key on
+    // a single thing.
+    readonly property string want: root.path && root.line > 0 ? root.path + "\n" + root.line : root.path
 
     readonly property string script: Quickshell.shellPath("scripts/thumb.sh")
 
-    // Path → { kind, payload } for the life of the window, so arrowing back
-    // up does not shell out again (the script keeps the real cache). Written
-    // in place, so nothing may bind to it; bind to `kind` and `payload`.
+    // want → { kind, payload, mark } for the life of the window, so arrowing
+    // back up does not shell out again (the script keeps the real cache).
+    // Written in place, so nothing may bind to it; bind to `kind`, `payload`
+    // and `mark`.
     property var known: ({})
 
     // The file on screen: "image" and a path, "text" and its head, or "".
     property string kind: ""
     property string payload: ""
+    // Which line of the text payload is the one asked for, from 1; 0 for none.
+    property int mark: 0
 
     // encodeURI leaves # and ?, which a URL would read as fragment and query.
     function fileUrl(p) {
         return "file://" + encodeURI(p).replace(/#/g, "%23").replace(/\?/g, "%3F");
     }
 
-    onPathChanged: {
+    onWantChanged: {
         bodyView.contentY = 0;
-        const hit = root.known[root.path];
+        const hit = root.known[root.want];
         if (hit !== undefined) {
             // An empty kind is an answer too: nothing to show.
             root.kind = hit.kind;
             root.payload = hit.payload;
+            root.mark = hit.mark;
             thumb.want = "";
             return;
         }
         root.kind = "";
         root.payload = "";
-        thumb.want = root.path;
+        root.mark = 0;
+        thumb.want = root.want;
     }
 
     // A page of the text, up or down, for a file longer than the panel.
@@ -59,22 +72,26 @@ Item {
 
         // Sits out a held arrow key (~30ms repeat) without feeling late.
         interval: 160
-        command: [root.script, thumb.arg]
+        command: [root.script, ...thumb.arg.split("\n")]
 
         onResult: function (arg, text) {
             // First line is the kind, the rest the answer: an image path
-            // trimmed, a text head kept with its newlines.
+            // trimmed, a text head kept with its newlines. Text around a
+            // line says which of its lines that is after the kind.
             const cut = text.indexOf("\n");
-            const kind = cut < 0 ? "" : text.slice(0, cut);
+            const head = cut < 0 ? [""] : text.slice(0, cut).split(" ");
+            const kind = head[0];
             const answer = ({
                     kind: kind,
-                    payload: kind === "image" ? text.slice(cut + 1).trim() : (kind === "text" ? text.slice(cut + 1) : "")
+                    payload: kind === "image" ? text.slice(cut + 1).trim() : (kind === "text" ? text.slice(cut + 1) : ""),
+                    mark: kind === "text" ? (parseInt(head[1]) || 0) : 0
                 });
             root.known[arg] = answer;
             // A slow render (soffice) can land after its row has gone by.
-            if (arg === root.path) {
+            if (arg === root.want) {
                 root.kind = answer.kind;
                 root.payload = answer.payload;
+                root.mark = answer.mark;
             }
         }
     }
@@ -184,6 +201,18 @@ Item {
                 duration: Theme.fadeMs
                 easing.type: Easing.OutCubic
             }
+        }
+
+        // The line a text search found, behind its text: the row named it,
+        // and this is where it sits among its neighbours. A line's height is
+        // the text's over its count, which holds because nothing wraps.
+        Rectangle {
+            visible: root.mark > 0 && root.mark <= body.lineCount
+            y: (root.mark - 1) * height
+            width: bodyView.width
+            height: body.lineCount > 0 ? body.contentHeight / body.lineCount : 0
+            radius: Theme.selectionRadius
+            color: Theme.selectionStrong
         }
 
         Text {

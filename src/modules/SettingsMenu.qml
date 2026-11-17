@@ -286,6 +286,7 @@ OverlayWindow {
         { key: "clipboard", title: "Clipboard", glyph: Theme.glyph.clipboard },
         { key: "windows", title: "Windows", glyph: Theme.glyph.launcherWindow },
         { key: "files", title: "Files", glyph: Theme.glyph.folder },
+        { key: "text", title: "Text in Files", glyph: Theme.glyph.launcherText },
         { key: "tasks", title: "Plan", glyph: Theme.glyph.tasks },
         { key: "web", title: "Web Search", glyph: Theme.glyph.launcherWeb },
         { key: "music", title: "Music", glyph: Theme.glyph.launcherMusic },

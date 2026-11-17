@@ -312,6 +312,26 @@ ShellRoot {
                 fileKeys.wait(400);
                 check(!Launcher.results.some(row => row.path?.endsWith("/" + name)), "file-search exclusions still apply: " + name);
             }
+            const plan = Settings.home + "/.config/quickshell/.plans/automate-phone-test.md";
+            Launcher.query = Launcher.textPrefix + "fixture plan";
+            fileKeys.wait(600);
+            const planHit = Launcher.results.find(row => row.path === plan);
+            check(Launcher.textMode && planHit?.line === 1 && planHit.title === "fixture plan" && planHit.subtitle.endsWith("automate-phone-test.md:1"), "text search finds a git-ignored plan at its line");
+            for (const text of ["excluded by search settings", "excluded by .ignore"]) {
+                Launcher.query = Launcher.textPrefix + text;
+                fileKeys.wait(600);
+                check(Launcher.results.length === 1 && Launcher.results[0].kind === "note", "text search exclusions still apply: " + text);
+            }
+            Launcher.query = Launcher.textPrefix + "fi";
+            check(Launcher.results.length === 1 && Launcher.results[0].kind === "note", "text search waits for three characters");
+            const parsed = LauncherText.parse("/h/b/deep/x\x1f4\x1fb:c\n/h/a\x1f2\x1fone\x1ftwo\n/h/a\x1f1\x1fz\n");
+            check(parsed.map(h => h.path + ":" + h.line).join(" ") === "/h/a:1 /h/a:2 /h/b/deep/x:4" && parsed[1].text === "one\x1ftwo" && parsed[2].text === "b:c", "text hits sort shallow first and keep the line whole");
+            Launcher.query = Launcher.textPrefix + "fixture plan";
+            fileKeys.wait(600);
+            Launcher.activate(Launcher.results.findIndex(row => row.path === plan));
+            fileKeys.wait(100);
+            check(!Launcher.shown, "opening a text hit closes the launcher");
+            Launcher.show();
             LauncherMusic.rows = [{kind: "music", title: "first"}, {kind: "music", title: "last"}];
             Launcher.query = "#";
             Launcher.index = 1;
@@ -797,6 +817,12 @@ ShellRoot {
         check(menu.actionIndex === 2, "files restore copy path when results return");
         LauncherFiles.pathCache = [];
 
+        input.adopt(Launcher.textPrefix + "zzfixture"); keys.wait(10);
+        LauncherText.hits = {q: "zzfixture", list: [{path: Settings.home + "/notes.txt", line: 1, text: "zzfixture", depth: 3}]}; keys.wait(10);
+        const textKeys = menu.rowActions.map(action => action.key);
+        check(textKeys.includes("copy-path") && !textKeys.includes("complete-path"), "text hits copy their path but have none to complete");
+        LauncherText.hits = null;
+
         input.adopt('"'); keys.wait(30);
         const clip = {id: "action-clip", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]};
         LauncherClipboard.clipEntries = [clip]; keys.wait(10);
@@ -838,7 +864,7 @@ ShellRoot {
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
-            check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/,.#=@!?', "requested mode hint order");
+            check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/*,.#=@!?', "requested mode hint order, text beside files");
             // Wider symbols leave the hint under a pixel to spare at rest, and the
             // open spring narrows the box by eight.
             const defaultPrefixes = Settings.launcherPrefixes;
@@ -1270,7 +1296,7 @@ def check_menu(target, env):
     stubs = {
         "OverlayWindow": 'import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true; color: "#333333" }',
         "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5 }',
-        "FilePreview": 'import QtQuick\nItem { property string path; function scroll(dir) {} }',
+        "FilePreview": 'import QtQuick\nItem { property string path; property int line; function scroll(dir) {} }',
         "CoverArt": 'import QtQuick\nItem { property string dir; property string title; property string subtitle; property string glyph }',
         "Glyph": 'import QtQuick\nItem { property real inkBase; property string text; property real fontSize: 16; property int inkSize: 0; property color color }',
     }
@@ -1307,6 +1333,9 @@ def main():
         file_source = re.sub(r'(id: fd.*?)(        command: [^\n]+)', lambda match: match.group(1) + file_command, file_source, count=1, flags=re.DOTALL)
         file_source = file_source.replace("import Quickshell.Hyprland", "import qs.src.services as TestDesktop").replace("Hyprland.", "TestDesktop.Hyprland.")
         (services / "LauncherFiles.qml").write_text(file_source)
+        # The real rg, run against the fixture home through the real queue.
+        text_source = (ROOT / "src/services/LauncherText.qml").read_text()
+        (services / "LauncherText.qml").write_text(text_source.replace("QueuedProcess {\n        id: rg", "FileQuery {\n        id: rg"))
         clip_source = (ROOT / "src/services/LauncherClipboard.qml").read_text()
         clip_source = re.sub(r"^(\s*)command:.*?(,?)$", r'\1command: ["/usr/bin/true"]\2', clip_source, flags=re.MULTILINE)
         (services / "LauncherClipboard.qml").write_text(clip_source)
@@ -1330,7 +1359,7 @@ def main():
         settings.write_text(settings.read_text().replace("property var disabled:", "property var webShortcuts: " + json.dumps(defaults) + "; property var launcherPrefixes: " + json.dumps(prefixes) + "; property var disabled:"))
         (target / "src/core/Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "src/core/Tools.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function has(name) { return true; } function label(name) { return name; } }\n')
-        (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
+        (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", launcherText: "text", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
         (components / "FileQuery.qml").write_text((ROOT / "src/components/QueuedProcess.qml").read_text())
         (target / "shell.qml").write_text(TEST)

@@ -41,6 +41,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket` |
 | Music equalizer | Python 3, FFmpeg, and a user `mpd.service`. The config at `mpdConfig` must have one FFmpeg EQ filter attached to an output and a `state_file` to preserve the queue. Apply saves a `.quickshell-eq.bak` backup and briefly restarts MPD. |
 | Launcher file search | `fd`, and `fasd` for recent files |
+| Launcher text search | `rg` (ripgrep) |
 | File previews | `file`; `pdftoppm` (poppler) for PDFs, `ffmpeg` for videos, LibreOffice (`soffice`) for office documents. ImageMagick handles additional image formats. Missing renderers leave a generic icon. |
 | Calculator | `qalc` |
 | Clipboard history | `cliphist`, `wl-clipboard`, and `wl-paste --watch cliphist store` running in your session |
@@ -90,7 +91,7 @@ Settings > Default Apps > Right Click sets what a right click on Network, Blueto
 
 Power and brightness run the bundled `scripts/power.sh` and `scripts/display.sh`. A keybind can call `scripts/display.sh` too, with `up`, `down` or `toggle`.
 
-Settings > Default Apps > Screenshots accepts a shell command. The bar adds no arguments and expects no output; the tool handles selection, editing, saving and the clipboard. An empty command hides the screenshot button. Settings > Launcher > File Search accepts an optional fd ignore file, which can also be shared with a terminal file picker.
+Settings > Default Apps > Screenshots accepts a shell command. The bar adds no arguments and expects no output; the tool handles selection, editing, saving and the clipboard. An empty command hides the screenshot button. Settings > Launcher > File Search accepts an optional fd ignore file, which can also be shared with a terminal file picker. Text search reads the same file through ripgrep.
 
 Gmail, Google Calendar and Google Tasks open their installed Chromium PWAs when available, or their websites otherwise. Settings > Mail and Settings > Tasks & Calendar let you choose another installed app or always use the website. Mail also has its attachment folder. Settings > Appearance has fonts and the wallpaper folder. Parallax zoom stays in the wallpaper popup. The music directory is read directly from MPD when it connects.
 
@@ -112,6 +113,7 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 | Prefix | Mode |
 | --- | --- |
 | `/` | Files, with preview. Ctrl+Enter shows the file in its folder, Ctrl+C copies its path |
+| `*` | Text inside files under your home folder. Enter opens the file at that line in your editor; the preview shows the lines around it |
 | `_` | Open windows; `_firefox` searches them, then falls back if none match |
 | `"` | Clipboard history |
 | `.` | Web search (`.y lofi` for YouTube, also ChatGPT, Claude, Translate, Maps) |

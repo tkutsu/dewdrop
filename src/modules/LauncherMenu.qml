@@ -94,13 +94,15 @@ OverlayWindow {
             return [{ key: "activate", label: "Install", live: true }];
         if (!row || row.kind === "note")
             return [];
+        // A line found by its text has no path to complete into the query:
+        // the query there is the text.
         if (row.kind === "path")
             return [
                 { key: "activate", label: "Open", live: true },
                 { key: "play", label: "Show in Folder", live: true },
                 { key: "copy-path", label: "Copy Path", live: true },
                 { key: "complete-path", label: "Complete Path", live: true }
-            ];
+            ].filter(action => !Launcher.textMode || action.key !== "complete-path");
         if (row.kind === "clip")
             return [
                 { key: "activate", label: "Copy", live: true },
@@ -291,7 +293,7 @@ OverlayWindow {
     // box under every arrow key. Music mode holds it open for exactly the same
     // reason — a playlist row has no sleeve, and the box must not shut by 232
     // pixels because you arrowed past one.
-    readonly property bool previewing: Launcher.pathMode || Launcher.musicMode
+    readonly property bool previewing: Launcher.pathMode || Launcher.textMode || Launcher.musicMode
 
     // The box at its tallest, with the list full. This places the box; it does
     // not size it. The top edge is pinned where a full box would have been
@@ -649,8 +651,9 @@ OverlayWindow {
                         Row {
                             id: modeHints
                             anchors.verticalCenter: parent.verticalCenter
-                            // 10, so all ten modes fit the empty box at 13px.
-                            spacing: 10
+                            // 7, so all eleven modes fit the empty box at 13px,
+                            // still three times the gap inside each one.
+                            spacing: 7
 
                             Repeater {
                                 model: Launcher.queryHints
@@ -1114,12 +1117,15 @@ OverlayWindow {
                 id: preview
 
                 anchors.fill: parent
-                active: Launcher.pathMode || (!Launcher.musicMode && box.bodyWidth > root.boxWidth)
+                active: Launcher.pathMode || Launcher.textMode || (!Launcher.musicMode && box.bodyWidth > root.boxWidth)
 
                 sourceComponent: FilePreview {
                     // Files only. A directory has no picture in it, and its
                     // row is a place to go rather than a thing to look at.
-                    path: Launcher.pathMode && Launcher.selected && Launcher.selected.kind === "path" && !Launcher.selected.dir ? Launcher.selected.path : ""
+                    // A text search hit brings its line, and the preview
+                    // shows the file around it rather than from the top.
+                    path: (Launcher.pathMode || Launcher.textMode) && Launcher.selected && Launcher.selected.kind === "path" && !Launcher.selected.dir ? Launcher.selected.path : ""
+                    line: Launcher.textMode ? (Launcher.selected?.line ?? 0) : 0
                 }
             }
 

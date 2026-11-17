@@ -79,6 +79,13 @@ ShellRoot {
             enter("help", "|");
             check(Launcher.helpPrefix === "|" && Launcher.classifyQuery("|").mode === "|", "help moves too");
             check(Launcher.classifyQuery(".5*2").math, "a dot decimal is still a sum");
+            check(input("text").text === "*" && Launcher.classifyQuery("*todo").mode === "*", "text search starts on its default");
+            enter("text", "^");
+            check(Settings.launcherPrefixes.text === "*", "text cannot take web's symbol");
+            keyClick(Qt.Key_Escape); wait(30);
+            enter("text", ".");
+            check(Launcher.textPrefix === "." && Launcher.classifyQuery(".todo").mode === "." && Launcher.classifyQuery(".todo").text === "todo", "text search can take the dot once web has left it");
+            check(Launcher.classifyQuery(".5*2").math && Launcher.classifyQuery("./notes").mode === Launcher.pathPrefix, "under a dot, sums and relative paths keep their modes");
 
             console.log("PASS: mode symbols complete"); Qt.quit();
         }

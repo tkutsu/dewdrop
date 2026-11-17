@@ -217,6 +217,7 @@
         "clipboard": "\"",
         "windows": "_",
         "files": "/",
+        "text": "*",
         "tasks": ",",
         "web": ".",
         "music": "#",
