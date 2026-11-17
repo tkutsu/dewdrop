@@ -173,7 +173,13 @@ ShellRoot {
  const hidden=workspace.createObject(suite,{id:-98,name:'special:dolphin'}),dolphin=win('dolphin',hidden,'org.kde.dolphin');
  Hyprland.workspaces.values=[w1,hidden];Hyprland.toplevels.values=[dolphin];test.wait(50);
  check(!pill.occupied && pill.pop===0,'a window on a special workspace does not bring the pill out');
- Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.wait(50);
+ // A terminal swallowed by the app it launched is hidden, and so is its workspace.
+ const swallowed=win('swallowed',w2,'kitty');swallowed.lastIpcObject={hidden:true};
+ Hyprland.workspaces.values=[w1,w2];Hyprland.toplevels.values=[swallowed];test.wait(50);
+ check(!pill.occupied && !pill.shownWorkspaces.some(w=>w.id===2),'a hidden window shows no icon and keeps no workspace');
+ swallowed.lastIpcObject={hidden:false};test.wait(50);
+ check(pill.occupied && pill.shownWorkspaces.some(w=>w.id===2),'a window given back comes back to the strip');
+ Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.tryCompare(pill,'pop',0,1500);
  w1.urgent=true;Hyprland.workspaces.values=[w1];test.wait(50);
  check(pill.occupied,'a shouting workspace keeps its marker in view');
  w1.urgent=false;Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.tryCompare(pill,'pop',0,1500);
