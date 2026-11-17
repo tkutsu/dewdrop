@@ -1,8 +1,9 @@
 #!/usr/bin/python3 -I
-# qs-launch — start quickshell so qs-watchdog can eu-stack it when it freezes.
+# qs-launch — start quickshell so qs-watchdog can eu-stack it when it freezes,
+# and stay behind to log how it exits.
 #
 # kernel.yama.ptrace_scope=1 only lets a process trace its own descendants, and
-# the bar is Hyprland's child. PR_SET_PTRACER_ANY lifts that for this process
+# the bar is this script's child. PR_SET_PTRACER_ANY lifts that for the bar
 # alone (it survives the exec below), so the rest of the system stays at 1.
 #
 # The bar's env (the gtk3 platform theme) lives in the pragmas at the
@@ -12,22 +13,41 @@
 # stderr goes to a file. The last launch's moves to stderr.old: that is the one
 # holding a dead bar's last words once the watchdog has relaunched it.
 #
+# A bar can vanish with no coredump, no log line and nothing on stderr
+# (2026-11-14, on a wake). Only a parent can learn its exit code or the signal
+# that killed it, so this script forks rather than execs, waits, and writes
+# that to the watchdog's log.
+#
 # Launch through Hyprland so the bar gets Hyprland's env, not a shell's:
 #   hyprctl dispatch 'hl.dsp.exec_cmd("~/.config/quickshell/scripts/qs-launch")'
 
 import ctypes
 import os
+import signal
+import time
 
 PR_SET_PTRACER = 0x59616D61
 PR_SET_PTRACER_ANY = ctypes.c_ulong(2**64 - 1)
 STATE = os.path.expanduser("~/.local/state/quickshell-watchdog")
 STDERR = f"{STATE}/stderr"
 
-ctypes.CDLL(None).prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0)
-
 os.makedirs(STATE, exist_ok=True)
 if os.path.exists(STDERR):
     os.replace(STDERR, f"{STDERR}.old")
-os.dup2(os.open(STDERR, os.O_WRONLY | os.O_CREAT, 0o644), 2)
 
-os.execvp("quickshell", ["quickshell"])
+pid = os.fork()
+if pid == 0:
+    ctypes.CDLL(None).prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0)
+    os.dup2(os.open(STDERR, os.O_WRONLY | os.O_CREAT, 0o644), 2)
+    os.execvp("quickshell", ["quickshell"])
+
+_, status = os.waitpid(pid, 0)
+if os.WIFSIGNALED(status):
+    how = f"killed by {signal.Signals(os.WTERMSIG(status)).name}"
+    if os.WCOREDUMP(status):
+        how += " (core dumped)"
+else:
+    how = f"exited with code {os.WEXITSTATUS(status)}"
+
+with open(f"{STATE}/log", "a") as log:
+    log.write(f"{time.strftime('%F %T')} quickshell {pid} {how}\n")
