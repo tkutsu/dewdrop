@@ -156,6 +156,32 @@ ShellRoot {
                 check(clock.tooltip === dateLine, "a calendar it could not read still shows the date without claiming a free day");
                 Agenda.stale = false;
 
+                // Title wheels turn months; the grid wheels the selected day.
+                const month = find(popup.contentItem, i => i.text === "October 2026");
+                mouseWheel(month, month.width / 2, month.height / 2, 0, -60);
+                check(popup.offset === 0, "partial title scrolling waits for a full notch");
+                mouseWheel(month, month.width / 2, month.height / 2, 0, -60);
+                check(popup.offset === 1 && popup.selected === Agenda.today, "title scroll down turns to the next month without changing the selected day");
+                mouseWheel(month, month.width / 2, month.height / 2, 0, 240);
+                check(popup.offset === -1, "title scroll up turns back by multiple months");
+                popup.goToday();
+                const wheelDay = delta => mouseWheel(cell, 14, 14, 0, delta);
+                wheelDay(-60);
+                check(popup.selected === Agenda.today, "partial grid scrolling waits for a full notch");
+                wheelDay(-60);
+                check(popup.selected === "2026-10-15", "grid scroll down selects the next day");
+                wheelDay(120);
+                check(popup.selected === Agenda.today && popup.picked === "", "grid scroll up selects the previous day");
+                for (const [from, to] of [["2026-12-31", "2027-01-01"], ["2028-02-28", "2028-02-29"], ["2026-03-29", "2026-03-30"]]) {
+                    popup.select(popup.dateOf(from));
+                    const offset = popup.offset;
+                    wheelDay(-120);
+                    check(popup.selected === to && Agenda.monthKey(popup.shown) === to.slice(0, 7), "day scrolling follows the date across year, leap day and DST boundaries: " + from);
+                    wheelDay(120);
+                    check(popup.selected === from && popup.offset === offset, "day scrolling reverses across the same boundary: " + from);
+                }
+                popup.goToday();
+
                 // Writing an event.
                 Agenda.haveCalendars = true;
                 Agenda.calendars = [{id: "primary", title: "Me"}];
