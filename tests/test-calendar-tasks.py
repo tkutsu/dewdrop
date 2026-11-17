@@ -87,11 +87,11 @@ ShellRoot {
                 check(!Tasks.isCrossed(Tasks.tasks[0]), "event rows leave tasks unchanged");
                 const heading = find(popup.contentItem, i => i.text === "Friday 16 October" && i.font?.weight === Font.DemiBold);
                 check(heading && heading.visible, "the list is headed by the selected day");
-                const todayButton = find(popup.contentItem, i => i.name === "Today" && i.tapped !== undefined);
-                check(todayButton && todayButton.live, "the Today button is live away from today");
-                mouseClick(todayButton, 10, 10);
+                check(!find(popup.contentItem, i => i.name === "Today" && i.tapped !== undefined), "the header has no today button");
+                // What every open does.
+                popup.goToday();
                 wait(50);
-                check(popup.selected === Agenda.today && !todayButton.live, "Today goes back to today and goes faint");
+                check(popup.selected === Agenda.today && popup.offset === 0, "going back to today clears the pick and the month");
                 check(list.events.length === 5 && find(popup.contentItem, i => i.text === "Today" && i.font?.weight === Font.DemiBold), "today's events are back under a Today heading");
                 // Now, over and next, on today.
                 const rowOf = title => find(popup.contentItem, i => i.ev !== undefined && i.ev.title === title && i.visible);
