@@ -38,9 +38,9 @@ BarItem {
     // With no app on the strip, and no workspace on it shouting for an app that
     // draws no icon (emptyBounce), there is nothing to say and the bar pops the
     // pill out of view. Only windows the strip would draw an icon for count: not
-    // the ones on a special workspace, which has no place on it.
+    // the ones on a special workspace, which has no place on it, nor hidden ones.
     readonly property bool occupied: root.shownWorkspaces.some(w => w.urgent
-        || Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id && t.wayland))
+        || Hyprland.toplevels.values.some(t => root.workspaceOf(t) === w.id && t.wayland && root.listed(t)))
     // The pill is a bubble. `pop` is how far it has blown up: 0 gone, 1 there,
     // swinging about 1 as it lands. `burst` is how far through bursting it is,
     // 0..1, after which it is gone.
@@ -119,11 +119,35 @@ BarItem {
         return toplevel.wayland?.appId || toplevel.lastIpcObject?.class || "";
     }
 
+    // A window Hyprland keeps out of sight, such as a terminal swallowed by
+    // the app it launched, has no place on the strip until it comes back.
+    function listed(toplevel): bool {
+        return !toplevel.lastIpcObject?.hidden;
+    }
+
+    // Hyprland swallows a terminal as the app opens and gives it back as the
+    // app closes, with no event of its own: `hidden` comes only with a fresh
+    // `hyprctl clients`, which Quickshell does not fetch for either event.
+    Timer {
+        id: hiddenRefresh
+        interval: 100
+        onTriggered: Hyprland.refreshToplevels()
+    }
+
+    Connections {
+        target: Hyprland
+
+        function onRawEvent(event: HyprlandEvent): void {
+            if (event.name === "openwindow" || event.name === "closewindow")
+                hiddenRefresh.restart();
+        }
+    }
+
     // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
     readonly property var liveWorkspaces: [...Hyprland.workspaces.values]
         .filter(w => w.id !== -1 && !w.name.startsWith("special:"))
         .filter(w => w.active || w.lastIpcObject?.ispersistent
-            || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id))
+            || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id && root.listed(t)))
         .sort((a, b) => a.id - b.id)
         .map(w => ({ id: w.id, name: w.name, urgent: w.urgent, workspace: w }))
     onLiveWorkspacesChanged: Qt.callLater(root.snapshot)
@@ -631,7 +655,7 @@ BarItem {
                                 continue;
                             // X11 menus (Steam's dropdowns) reach Hyprland's window list
                             // but never get a Wayland toplevel handle; every app window does.
-                            if (!toplevel.wayland)
+                            if (!toplevel.wayland || !root.listed(toplevel))
                                 continue;
                             // A window that opened since the last `hyprctl clients`
                             // refresh has an empty lastIpcObject, and every one of those
