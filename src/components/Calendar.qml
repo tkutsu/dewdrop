@@ -193,15 +193,47 @@ Popup {
         return new Date(root.shown.getFullYear(), root.shown.getMonth(), 1 + index - root.lead);
     }
 
-    // --- header: month, ‹ • ›, New, out to the app ----------------------------
-    // New sits beside the arrow rather than first (PopupHeader's `addable`):
-    // the two framed buttons are the ones that leave the popup.
-    PopupHeader {
+    // --- header: ‹ month ›, today, New, out to the app ------------------------
+    // The arrows hold the month between them. Its box is as wide as the
+    // widest month of the year, so › stays put under a pointer stepping
+    // through them. New sits beside the arrow out rather than first
+    // (PopupHeader's `addable`): the two framed buttons are the ones that
+    // leave the popup.
+    Item {
         width: Theme.popupWidth
-        title: root.locale.standaloneMonthName(root.shown.getMonth(), Locale.LongFormat) + " " + root.shown.getFullYear()
+        height: header.height
 
-        // One stepper, its three targets touching, so it reads apart from
-        // the framed buttons either side.
+        PopupHeader {
+            id: header
+
+            width: parent.width
+
+            // Back to this month and today. Faint while already there.
+            PopupButton {
+                anchors.verticalCenter: parent.verticalCenter
+                glyph: Theme.glyph.today
+                name: "Today"
+                live: root.offset !== 0 || root.picked !== ""
+                onTapped: root.goToday()
+            }
+
+            PopupButton {
+                visible: Agenda.configured
+                framed: true
+                label: "New"
+                glyph: Theme.glyph.plus
+                name: "New task or event"
+                onTapped: root.addOn(root.selectedDate)
+            }
+
+            PopupButton {
+                framed: true
+                glyph: Theme.glyph.openApp
+                name: "Open Google Calendar"
+                onTapped: root.openDay(root.selectedDate)
+            }
+        }
+
         Row {
             anchors.verticalCenter: parent.verticalCenter
 
@@ -211,12 +243,21 @@ Popup {
                 onTapped: root.step(-1)
             }
 
-            // Back to this month and today. Faint while already there.
-            PopupButton {
-                glyph: Theme.glyph.today
-                name: "Today"
-                live: root.offset !== 0 || root.picked !== ""
-                onTapped: root.goToday()
+            PopupText {
+                id: month
+
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.ceil(Math.max(...Array.from({length: 12}, (_, m) => monthMetrics.advanceWidth(root.locale.standaloneMonthName(m, Locale.LongFormat) + " " + root.shown.getFullYear())))) + 2
+                horizontalAlignment: Text.AlignHCenter
+                text: root.locale.standaloneMonthName(root.shown.getMonth(), Locale.LongFormat) + " " + root.shown.getFullYear()
+                font.weight: Font.DemiBold
+                Accessible.role: Accessible.Heading
+                Accessible.name: month.text
+
+                FontMetrics {
+                    id: monthMetrics
+                    font: month.font
+                }
             }
 
             PopupButton {
@@ -225,23 +266,12 @@ Popup {
                 onTapped: root.step(1)
             }
         }
-
-        PopupButton {
-            visible: Agenda.configured
-            framed: true
-            label: "New"
-            glyph: Theme.glyph.plus
-            name: "New task or event"
-            onTapped: root.addOn(root.selectedDate)
-        }
-
-        PopupButton {
-            framed: true
-            glyph: Theme.glyph.openApp
-            name: "Open Google Calendar"
-            onTapped: root.openDay(root.selectedDate)
-        }
     }
+
+    // Every open starts on this month and today. The popup is usually gone
+    // by the next open, but one reopened inside its exit is not.
+    onOpenedChanged: if (root.opened)
+        root.goToday()
 
     // --- the month --------------------------------------------------------------
     Column {
