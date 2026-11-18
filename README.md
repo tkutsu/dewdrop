@@ -1,40 +1,38 @@
 # <img src="docs/icon.svg" alt="" width="40" align="top"> dewdrop
 
-A glass bar and keyboard launcher for Hyprland, written in [Quickshell](https://quickshell.org). Pills merge around the clock, the workspace mark bounces at the edges, and the wallpaper moves behind the glass.
+A glass bar and keyboard launcher for Hyprland, built with [Quickshell](https://quickshell.org). It's the bar I use every day.
 
 ![Dewdrop's glass bar with workspaces, music, the clock and controls](docs/media/bar.webp)
 
-## A Bar That Moves
+## The Bar
 
-Switch workspaces to send the glass selection mark across your apps. The wallpaper follows with parallax. Drag a window onto another workspace or scroll across the strip to switch.
+Switch workspaces and a glass mark slides over to the new one, bouncing a little when it hits either end. The wallpaper drifts along behind it. You can also scroll over the strip to switch, or drag a window onto another workspace.
 
-[![The full bar strip with the workspace mark bouncing between both ends](docs/media/workspaces.gif)](docs/media/workspaces.webm)
+![The full bar strip with the workspace mark bouncing between both ends](docs/media/workspaces.gif)
 
-Quiet controls fold into the right drawer. Music and timers merge into the clock, expand when you need them, and shift aside for notifications. Drag modules to rearrange them and pin your favourites.
+Controls you don't reach for often fold into a drawer on the right. Music and timers merge into the clock, open up when you need them, and slide out of the way when a notification comes in. Drag modules around to reorder them, and pin the ones you want to keep in view.
 
-[![The drawer expands while music, timers and notifications merge around the clock](docs/media/pills.gif)](docs/media/pills.webm)
+![The drawer expands while music, timers and notifications merge around the clock](docs/media/pills.gif)
 
-## One Launcher For The Everyday Stuff
+## The Launcher
 
-Launch apps, preview files, switch windows and search your clipboard. Read mail in place, browse your music, do a calculation, or type a task, timer, alarm or calendar event. Type `?` to browse the modes.
+One shortcut for most of the small stuff: open apps, preview files, jump to a window, search your clipboard, read mail right there, browse your music, do some quick maths, or type in a task, timer, alarm or calendar event. Type `?` to see every mode.
 
-[![A keyboard launcher tour through every mode](docs/media/launcher-tour.gif)](docs/media/launcher-tour.webm)
+![A keyboard launcher tour through every mode](docs/media/launcher-tour.gif)
 
-## Popovers Within Reach
+## Popovers
 
-Check your calendar, clear mail, tick off tasks and catch up on feeds without opening another window. Popovers grow from the bar and support keyboard navigation.
+Calendar, mail, tasks and feeds open in popovers that grow out of the bar, so checking them doesn't mean opening another window. They all work from the keyboard.
 
-[![Calendar, task, mail, feed, notification, music and timer popovers](docs/media/popovers-productivity.gif)](docs/media/popovers-productivity.webm)
+![Calendar, task, mail, feed, notification, music and timer popovers](docs/media/popovers-productivity.gif)
 
-Weather, per-app volume, Wi-Fi, Bluetooth and system controls live in the same place. Search settings to change the layout, fonts or motion, including Reduce Motion and Reduce Transparency.
+Weather, per-app volume, Wi-Fi, Bluetooth and the system controls are there too. Settings are searchable and cover the layout, fonts and motion, with Reduce Motion and Reduce Transparency for when the bouncing and the glass get to be too much.
 
-[![Weather, audio, network, display and system-control popovers](docs/media/popovers-controls.gif)](docs/media/popovers-controls.webm)
-
-All demos use fictional content. Click a GIF for its 60 fps video. [Screenshots and videos](docs/media/README.md).
+![Weather, audio, network, display and system-control popovers](docs/media/popovers-controls.gif)
 
 ## Install
 
-Dewdrop is a personal config built on Arch Linux. It needs Quickshell 0.3.2 or newer and Hyprland 0.56 or newer with a Lua config (`hyprland.lua`).
+Dewdrop is my personal config, and I run it on Arch Linux. It needs Quickshell 0.3.2 or newer and Hyprland 0.56 or newer with a Lua config (`hyprland.lua`).
 
 ### 1. Install The Base Packages
 
@@ -85,7 +83,7 @@ qs -n
 
 Open the gear in the bar to choose modules, your wallpaper folder and default apps. The first run creates `settings.json`; edits there reload on save. [The default settings](settings.default.json) explain each option.
 
-Install [Themis Icons](https://github.com/tkutsu/themis-icons) for the monochrome app icons shown in the demos. Other themes work by changing the icon-theme pragma in `shell.qml`.
+Install [Themis Icons](https://github.com/tkutsu/themis-icons) for the monochrome app icons in the GIFs above. Other themes work by changing the icon-theme pragma in `shell.qml`.
 
 Optional features need their own tools or services. File search uses `fd`, the calculator uses `libqalculate`, and clipboard history uses `cliphist` with a running watcher. Mail, Tasks, Calendar and YouTube require your own Google OAuth client. The [setup guide](docs/setup.md#optional-features) covers those dependencies, [Google sign-in](docs/setup.md#google-setup) and the [launcher shortcuts](docs/setup.md#launcher-reference). [Android phone alarms](docs/automate-setup.md) have a separate tutorial.
 
