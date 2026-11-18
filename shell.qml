@@ -11,8 +11,12 @@
 // for them; without it installed, Qt falls back to hicolor, and Settings >
 // Appearance says where to get it. Another theme's name here uses that one.
 //
-// Not Vulkan, though it rides out the wakes that hang GL in NVIDIA's EGL
-// (qs-watchdog restarts the bar after those): every popup, tag and launcher
+// No NVIDIA explicit sync: on some wakes nvidia-drm logs "Failed to register
+// auto-value-update ... sync FD semaphore surface" and the render thread hung in
+// NVIDIA's EGL, freezing the bar for seconds or for good. None since this
+// pragma (2026-11-10). Drop it once NVIDIA fixes the driver.
+//
+// Not Vulkan, though it rode out those wakes: every popup, tag and launcher
 // window gets its own Vulkan device, and NVIDIA's vkDestroyDevice can spin
 // 6-22 s on close while ~QQuickWindow holds the whole bar waiting.
 import QtQuick
