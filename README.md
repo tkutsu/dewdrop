@@ -8,11 +8,15 @@ A glass bar and keyboard launcher for Hyprland, built with [Quickshell](https://
 
 Switch workspaces and a glass mark slides over to the new one, bouncing a little when it hits either end. The wallpaper drifts along behind it. You can also scroll over the strip to switch, or drag a window onto another workspace.
 
-![The full bar strip with the workspace mark bouncing between both ends](docs/media/workspaces.gif)
+![The workspace pill, with the glass mark moving between apps as the wallpaper slides behind it](docs/media/workspaces.gif)
 
-Controls you don't reach for often fold into a drawer on the right. Music and timers merge into the clock, open up when you need them, and slide out of the way when a notification comes in. Drag modules around to reorder them, and pin the ones you want to keep in view.
+Controls you don't reach for often fold into a drawer on the right. Drag modules around to reorder them, and pin the ones you want to keep in view.
 
-![The drawer expands while music, timers and notifications merge around the clock](docs/media/pills.gif)
+![The right drawer opening to show the rest of the controls](docs/media/drawer.gif)
+
+Music and timers merge into the clock, open up when you need them, and slide out of the way when a notification comes in.
+
+![Music, the clock and a timer merging and splitting, then a notification sliding in beside them](docs/media/pills.gif)
 
 ## The Launcher
 
