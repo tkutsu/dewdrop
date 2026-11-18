@@ -55,8 +55,10 @@ function neighbour(all, cur, key, body) {
         return { l: p.x, r: p.x + t.width, cx: p.x + t.width / 2, cy: p.y + t.height / 2, h: t.height };
     };
     const c = box(cur);
-    // In the same row: centres closer than half the shorter one's height.
-    const sameRow = b => Math.abs(b.cy - c.cy) < Math.min(b.h, c.h) / 2;
+    // In one row: the centre of the shorter inside the taller, so a button
+    // on the first line of a task that wraps is in the task's row.
+    const inRow = (a, b) => Math.abs(a.cy - b.cy) < Math.max(a.h, b.h) / 2;
+    const sameRow = b => inRow(b, c);
     const others = all.filter(t => t !== cur).map(t => ({ t: t, b: box(t) }));
 
     if (key === Qt.Key_Left || key === Qt.Key_Right) {
@@ -71,7 +73,7 @@ function neighbour(all, cur, key, body) {
     if (!ahead.length)
         return null;
     const nearest = ahead.reduce((m, o) => Math.abs(o.b.cy - c.cy) < Math.abs(m.b.cy - c.cy) ? o : m);
-    const row = ahead.filter(o => Math.abs(o.b.cy - nearest.b.cy) < Math.min(o.b.h, nearest.b.h) / 2);
+    const row = ahead.filter(o => inRow(o.b, nearest.b));
     const gap = b => Math.max(0, b.l - c.r, c.l - b.r);
     row.sort((a, b) => gap(a.b) - gap(b.b) || Math.abs(a.b.cx - c.cx) - Math.abs(b.b.cx - c.cx));
     return row[0].t;

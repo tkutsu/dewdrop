@@ -42,6 +42,12 @@ ShellRoot {
             PopupButton { id: inline; anchors.right: parent.right; glyph: "x"; name: "Remove"; onTapped: test.buttons++ }
         }
         PopupRow { id: second; name: "Second"; width: 220; height: 22; onTapped: test.rows += 10 }
+        // A task with notes: taller than the button on its first line, which
+        // shows only while the row is in use.
+        PopupRow {
+            id: tall; name: "Tall"; width: 220; height: 60
+            PopupButton { id: copy; y: 4; anchors.right: parent.right; visible: tall.hovered; glyph: "c"; name: "Copy" }
+        }
         PopupRow { id: label; width: 220; height: 22 }
         Slider { id: slider; name: "Level"; width: 220; value: test.level; onMoved: v => test.level = v }
         Item {
@@ -82,7 +88,7 @@ ShellRoot {
         press(Qt.Key_Space);
         check(test.rows === 1, "Space presses the row");
         press(Qt.Key_Right);
-        check(popup.keyItem === inline && inline.hovered && !first.hovered, "Right moves along the row to its button, lit alone");
+        check(popup.keyItem === inline && inline.hovered && !first.lit && first.hovered, "Right moves along the row to its button, lit alone, the row still in use");
         press(Qt.Key_Return);
         check(test.buttons === 1 && test.rows === 1, "Return on the button presses only the button");
         press(Qt.Key_Left);
@@ -96,6 +102,16 @@ ShellRoot {
         press(Qt.Key_Down);
         press(Qt.Key_Return);
         check(test.rows === 11, "Return presses the second row");
+        press(Qt.Key_Down);
+        check(popup.keyItem === tall && copy.visible, "Down reaches the tall row and brings out its button");
+        press(Qt.Key_Up);
+        check(popup.keyItem === second, "Up from a tall row passes the button on its first line");
+        press(Qt.Key_Down);
+        press(Qt.Key_Right);
+        check(popup.keyItem === copy && copy.visible && !tall.lit, "Right reaches the tall row's button, which stays out");
+        press(Qt.Key_Up);
+        check(popup.keyItem === second, "Up from that button goes to the row above, not the bottom");
+        press(Qt.Key_Down);
         press(Qt.Key_Down);
         check(popup.keyItem === slider, "Down passes a row with no press and reaches the slider");
         press(Qt.Key_Right);
