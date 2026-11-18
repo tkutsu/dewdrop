@@ -66,22 +66,21 @@ dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
 
 This supplies the blur, popup dismissal and workspace helpers. It also closes gaps in numbered workspaces as they empty. Keep the top outer gap at 8 pixels so windows line up below the bar; for example, `hl.config({ general = { gaps_out = 8 } })` sets all sides to 8.
 
-Add startup and a launcher shortcut to the same file. Pick another key if Super+Space is already taken; see [Hyprland's keybind syntax](https://wiki.hypr.land/configuring/core/binds/).
+To start Dewdrop with Hyprland, add an exec line to the same file. It runs once each time Hyprland starts, and `-n` makes it do nothing if Dewdrop is already running:
 
 ```lua
 hl.on("hyprland.start", function()
     hl.exec_cmd("qs -n")
 end)
+```
 
+Then add a shortcut for the launcher. Pick another key if Super+Space is already taken; see [Hyprland's keybind syntax](https://wiki.hypr.land/configuring/core/binds/).
+
+```lua
 hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
 ```
 
-Reload the Hyprland config, then start Dewdrop in a terminal:
-
-```sh
-hyprctl reload
-qs -n
-```
+Log out and back in, and the bar comes up with Hyprland.
 
 ### 4. Make It Yours
 
@@ -101,29 +100,6 @@ Optional features need their own tools or services. File search uses `fd`, the c
 | Icons are boxes or look different | Install Symbols Nerd Font for glyphs and Themis Icons for the app icons shown here. Relaunch the bar after installing fonts or an icon theme. |
 | A module is missing or clipboard history is empty | Check its visibility in Settings and its [optional dependencies](docs/setup.md#optional-features). Wi-Fi needs NetworkManager running when the bar starts. Clipboard history needs `wl-paste --watch cliphist store` running in your session. |
 | Google features fail or ask to reconnect every week | Enable the relevant APIs in your Cloud project and follow [Google setup](docs/setup.md#google-setup). Google [expires these refresh tokens after 7 days in Testing](https://developers.google.com/identity/protocols/oauth2/#expiration). Run `scripts/gtasks-auth --check` from the repo to check the saved sign-in. |
-
-## Development
-
-`shell.qml` is the entry point. The editable defaults and this machine's
-`settings.json` stay beside it.
-
-| Directory | Contents |
-| --- | --- |
-| `src/core/` | Settings, theme, paths and shared shell state |
-| `src/bar/` | Bar layout and pill ordering |
-| `src/components/` | Shared controls, popups and visual effects |
-| `src/modules/` | Bar modules, launcher and settings windows |
-| `src/services/` | Desktop integrations and data services |
-| `src/lib/` | Shared JavaScript helpers |
-| `assets/` | Icons, shaders and sounds |
-| `scripts/` | Runtime helpers and maintenance tools |
-| `tests/` | Regression checks, fixtures and the fresh-install runner |
-| `docs/` | Setup guides and demo media |
-
-Run a check from the checkout with `python3 tests/test-popup-standards.py`,
-for example. `python3 tests/test-shell-load.py` compiles the real entry point
-and its imports without creating the desktop windows; it needs a Wayland
-connection for Quickshell's window types.
 
 ## License
 
