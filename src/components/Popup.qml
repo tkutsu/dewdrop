@@ -503,9 +503,20 @@ PopupWindow {
         HoverHandler {
             id: pointer
 
+            property point last
+
             // The pointer moving takes the selection back from the keys.
-            onPointChanged: if (root.keyItem)
-                root.setKey(null)
+            // Moved, not merely re-reported: Qt sends the pointer again
+            // wherever it rests when what is under it moves, as a list
+            // scrolls to the selection or a row brings out its buttons.
+            onPointChanged: {
+                const p = point.scenePosition;
+                if (p.x === last.x && p.y === last.y)
+                    return;
+                last = p;
+                if (root.keyItem)
+                    root.setKey(null);
+            }
         }
 
         // Animate only the drawing; keep the hit area fixed.
