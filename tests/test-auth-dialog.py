@@ -79,6 +79,7 @@ ShellRoot {
 
                 keyClick(Qt.Key_S); keyClick(Qt.Key_E); keyClick(Qt.Key_C);
                 check(!dialog.capsLock, "a lower-case letter without Shift means Caps Lock is off");
+                check(field.color.a === 0 && field.children.some(c => c.cell > 0 && c.count === 3), "the field's own characters stay unseen under the drawn ones");
                 keyClick(Qt.Key_Return);
                 check(flow.answer === "sec", "Return submits what was typed: " + flow.answer);
                 check(dialog.checking, "waits on the answer");

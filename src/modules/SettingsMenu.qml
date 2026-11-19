@@ -497,6 +497,16 @@ OverlayWindow {
                     ]
                 },
                 {
+                    title: "Password Fields",
+                    text: "On the lock screen and in the password panel.",
+                    rows: [
+                        { type: "choice", id: "passwordStyle", title: "Character",
+                            options: [{ value: "dots", label: "Dot" }, { value: "asterisks", label: "Asterisk" }], get: () => Settings.passwordStyle, set: v => Settings.set("passwordStyle", v) },
+                        { type: "choice", id: "passwordMotion", title: "Typing Animation", tooltip: "Reduce Motion keeps them still.",
+                            options: [{ value: "drop", label: "Drop" }, { value: "static", label: "Static" }], get: () => Settings.passwordMotion, set: v => Settings.set("passwordMotion", v) }
+                    ]
+                },
+                {
                     title: "Wallpaper",
                     rows: [
                         { type: "text", id: "wallpaperDir", title: "Image Folder", placeholder: Settings.defaults.wallpaperDir, get: () => Settings.values.wallpaperDir, set: v => Settings.set("wallpaperDir", v.trim() || Settings.defaults.wallpaperDir) }

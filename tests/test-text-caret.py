@@ -81,6 +81,11 @@ ShellRoot {
             wait(30);
             check(caret.covered === '' && caret.width === Math.ceil(metrics.averageCharacterWidth), 'a block at the end of the text takes an average width');
             check(caretOf(edit).block && caretOf(edit).covered === 'x', 'a TextEdit takes the same cursor');
+            input.echoMode = TextInput.Password;
+            input.cursorPosition = 0;
+            wait(30);
+            check(caret.covered === '', 'a block never shows a character of a password');
+            input.echoMode = TextInput.Normal;
 
             Settings.set('caretAnimation', 'sparkle');
             Settings.set('caretShape', 'star');
@@ -100,7 +105,7 @@ def main():
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=shell_env(target), capture_output=True, text=True, timeout=30)
         output = result.stdout + result.stderr
         print(output, end='')
-        assert result.returncode == 0 and output.count('PASS:') == 14 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop', '@components/TextCaret')), output
+        assert result.returncode == 0 and output.count('PASS:') == 15 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop', '@components/TextCaret')), output
 
 
 if __name__ == '__main__':
