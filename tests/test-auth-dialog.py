@@ -68,7 +68,7 @@ ShellRoot {
                 const shown = texts(dialog.contentItem, []);
                 check(shown.includes("Authentication is required to run “/⁠usr/⁠bin/⁠true” as the super user."), "title is polkit's message as a sentence: " + shown);
                 check(shown.includes("Enter your password to allow this."), "names the user's own password: " + shown);
-                check(shown.includes("Password"), "the prompt is the placeholder: " + shown);
+                check(shown.includes("Enter Password"), "polkit's prompt is the placeholder, in the lock's words: " + shown);
                 const field = focused();
                 check(field && field.echoMode === TextInput.Password, "the field has the keys and hides them");
 

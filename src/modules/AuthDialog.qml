@@ -36,8 +36,9 @@ PanelWindow {
     readonly property bool checking: root.submitted && !root.asking
     // The last try was refused; cleared by typing again.
     property bool refused: false
-    // Whether Caps Lock is on, for the arrow in the field.
+    // Whether Caps Lock is on, or Shift held, for the arrow in the field.
     property bool capsLock: Keyboard.capsLock
+    property bool shift: false
 
     readonly property int boxWidth: Theme.popupWidth
     readonly property int pad: 20
@@ -92,6 +93,7 @@ PanelWindow {
             field.text = "";
             root.submitted = false;
             root.refused = true;
+            flushing.restart();
             if (!Theme.reduceMotion)
                 shake.restart();
         }
@@ -232,44 +234,37 @@ PanelWindow {
 
             Item { width: 1; height: picker.visible ? 8 : 0 }
 
-            // A Mac's password field: a soft rounded well, round dots with
-            // air between them, a focus ring that settles onto it as it
-            // takes the keys, and the Caps Lock arrow while Caps Lock is on.
-            // A wrong password shakes the panel; the field itself stays calm.
+            // The password field, drawn as the lock screen draws its own: a
+            // capsule, the dots rising into it, "Enter Password" just after
+            // the caret, and Caps Lock and the keyboard layout at its end.
+            // A wrong password shakes the panel and flashes the capsule's
+            // edge, as it does the lock's.
             Item {
+                id: capsule
+
+                // 0 to 1 and back on a refusal: the edge's warning.
+                property real alarm: 0
+
                 width: column.width
-                height: 28
+                height: 32
 
-                // Drawn round the well, touching it. It comes in from a
-                // wider, fainter ring and closes onto the field, as macOS's
-                // does.
-                Rectangle {
-                    property real gap: field.activeFocus || Theme.reduceMotion ? 3 : 9
+                // Under Reduce Motion this is all a refusal shows.
+                SequentialAnimation {
+                    id: flushing
 
-                    anchors.fill: well
-                    anchors.margins: -gap
-                    radius: well.radius + gap
-                    color: "transparent"
-                    border.width: 3
-                    border.color: Qt.rgba(1, 1, 1, 0.24)
-                    opacity: field.activeFocus ? 1 : 0
-
-                    Behavior on gap {
-                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
-                    }
-                    Behavior on opacity {
-                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-                    }
+                    NumberAnimation { target: capsule; property: "alarm"; to: 1; duration: 80 }
+                    PauseAnimation { duration: 400 }
+                    NumberAnimation { target: capsule; property: "alarm"; to: 0; duration: 400 }
                 }
 
                 Rectangle {
                     id: well
 
                     anchors.fill: parent
-                    radius: 7
-                    color: Qt.rgba(1, 1, 1, field.activeFocus ? 0.1 : 0.07)
-                    border.width: Theme.pillBorder
-                    border.color: Theme.stroke
+                    radius: height / 2
+                    color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * capsule.alarm)
+                    border.width: 1
+                    border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, capsule.alarm))
 
                     TextInput {
                         id: field
@@ -279,8 +274,8 @@ PanelWindow {
                         Accessible.passwordEdit: echoMode === TextInput.Password
 
                         anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: trail.width > 0 ? trail.width + 16 : 10
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: trail.width > 0 ? trail.width + 20 : 14
                         verticalAlignment: TextInput.AlignVCenter
                         clip: true
                         focus: true
@@ -303,17 +298,27 @@ PanelWindow {
                         // Caps Lock, followed from the keys once the panel has
                         // asked Hyprland: the key itself flips it, and a letter
                         // says it by coming out upper case without Shift or
-                        // lower with it.
+                        // lower with it. Shift held shows the arrow too, as on
+                        // the lock.
                         Keys.onPressed: event => {
                             if (event.key === Qt.Key_CapsLock)
                                 root.capsLock = !root.capsLock;
+                            else if (event.key === Qt.Key_Shift)
+                                root.shift = true;
                             else if (event.text && event.text.toLowerCase() !== event.text.toUpperCase())
                                 root.capsLock = (event.text === event.text.toUpperCase()) !== !!(event.modifiers & Qt.ShiftModifier);
+                            event.accepted = false;
+                        }
+                        Keys.onReleased: event => {
+                            if (event.key === Qt.Key_Shift)
+                                root.shift = false;
                             event.accepted = false;
                         }
                         Keys.onReturnPressed: root.submit()
                         Keys.onEnterPressed: root.submit()
                         Keys.onEscapePressed: root.cancel()
+                        onActiveFocusChanged: if (!activeFocus)
+                            root.shift = false
 
                         TextMenu {}
 
@@ -333,30 +338,56 @@ PanelWindow {
                             cell: step
                         }
 
-                        // polkit's prompt, "Password: ", as a field's placeholder.
+                        // polkit's prompt as the placeholder, just after the
+                        // caret: its "Password: " in the lock's words.
                         PopupText {
                             id: placeholder
+
+                            readonly property string prompt: (root.flow?.inputPrompt ?? "").replace(/[:\s]+$/, "")
+
+                            x: 4
                             anchors.verticalCenter: parent.verticalCenter
                             visible: !field.text
-                            text: (root.flow?.inputPrompt ?? "").replace(/[:\s]+$/, "") || "Password"
-                            color: Theme.label3
+                            text: !prompt || prompt === "Password" ? "Enter Password" : prompt
+                            color: Theme.label2
                         }
                     }
 
+                    // Caps Lock, the layout when there is more than one (a
+                    // click moves to the next), and the spinner while the
+                    // password is checked.
                     Row {
                         id: trail
 
                         anchors.right: parent.right
-                        anchors.rightMargin: 8
+                        anchors.rightMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
+                        spacing: 8
 
                         Glyph {
                             anchors.verticalCenter: parent.verticalCenter
-                            visible: root.capsLock && !root.checking
+                            visible: (root.capsLock || root.shift) && !root.checking
                             text: Theme.glyph.capsLock
                             fontSize: Theme.popupGlyphSize
                             color: Theme.label2
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: Keyboard.layouts.length > 1 && !root.checking
+                            text: Keyboard.short
+                            color: switcher.hovered ? Theme.fg : Theme.label2
+                            font.family: Theme.bodyFont
+                            font.pixelSize: Theme.captionSize
+                            font.weight: Font.DemiBold
+
+                            HoverHandler {
+                                id: switcher
+                                cursorShape: Qt.PointingHandCursor
+                            }
+                            TapHandler {
+                                onTapped: Keyboard.next()
+                            }
                         }
 
                         Spinner {
