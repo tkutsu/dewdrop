@@ -170,13 +170,19 @@ Item {
             }
         }
 
-        // This hour's weather in Lock Screen > Weather's format: the icon
-        // drawn as a glyph, the rest as words.
+        // This hour's weather in Lock Screen > Weather's format: the icons
+        // drawn as glyphs (this hour's, and the next six hours' average and
+        // worst, as the bar's Forecast has them), the rest as words.
         Row {
             id: weather
 
             readonly property var hour: Weather.thisHour
-            readonly property var parts: Settings.lockWeatherFormat.split(/(\{icon\})/).filter(part => part !== "")
+            readonly property var parts: Settings.lockWeatherFormat.split(/(\{(?:icon|avgicon|worsticon)\})/).filter(part => part !== "")
+            readonly property var icons: ({
+                    "{icon}": weather.hour,
+                    "{avgicon}": Weather.average,
+                    "{worsticon}": Weather.outlook
+                })
             visible: Settings.lockWeather && Weather.location !== null && weather.hour !== null
             anchors.horizontalCenter: parent.horizontalCenter
 
@@ -184,6 +190,7 @@ Item {
                 const [high, low] = Weather.today ? Weather.highAndLow(Weather.today) : [NaN, NaN];
                 const figure = value => Number.isFinite(value) ? Weather.temperatureFigure(value) : "–";
                 return part.replace(/\{temp\}/g, figure(weather.hour?.[Weather.temperatureKey]))
+                    .replace(/\{avgtemp\}/g, figure(Weather.average?.[Weather.temperatureKey]))
                     .replace(/\{desc\}/g, weather.hour?.description ?? "")
                     .replace(/\{high\}/g, figure(high))
                     .replace(/\{low\}/g, figure(low));
@@ -196,7 +203,7 @@ Item {
                     id: piece
 
                     required property string modelData
-                    readonly property bool icon: modelData === "{icon}"
+                    readonly property bool icon: modelData in weather.icons
 
                     anchors.verticalCenter: parent.verticalCenter
                     width: piece.icon ? mark.implicitWidth : words.implicitWidth
@@ -206,7 +213,7 @@ Item {
                         id: mark
                         anchors.centerIn: parent
                         visible: piece.icon
-                        text: piece.icon ? weather.hour?.icon ?? "" : ""
+                        text: piece.icon ? weather.icons[piece.modelData]?.icon ?? "" : ""
                         fontSize: Theme.glyphSize
                         color: Theme.label
                     }

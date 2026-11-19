@@ -534,8 +534,8 @@ OverlayWindow {
                     title: "Weather",
                     rows: [
                         { type: "text", id: "lockWeatherFormat", title: "Custom Format", fieldWidth: 250, enabled: Settings.lockWeather,
-                            tooltip: "{icon}: weather icon. {temp}: the temperature now.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
-                            validate: v => /\{(?:icon|temp|desc|high|low)\}/.test(v) ? "" : "Include a token, such as {temp}.",
+                            tooltip: "{icon}: this hour's weather icon. {temp}: the temperature now.\n{avgicon} and {worsticon}: the next six hours' average and worst icons.\n{avgtemp}: the next six hours' average temperature.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
+                            validate: v => /\{(?:icon|avgicon|worsticon|temp|avgtemp|desc|high|low)\}/.test(v) ? "" : "Include a token, such as {temp}.",
                             get: () => Settings.lockWeatherFormat, set: v => Settings.set("lockWeatherFormat", v) }
                     ]
                 },
