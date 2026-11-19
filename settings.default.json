@@ -165,6 +165,9 @@
     "lockNotifications": true,
     "lockPreviews": true,
     "lockParallax": true,
+    // Sleep, Restart and Shut Down at the foot of the lock screen; the last
+    // two ask for a second press.
+    "lockPower": true,
     "lockAsTyped": false,
     "lockPasswordLength": 0,
     // The lock's own date and time, in Date & Time's tokens (^[…] and _[…]

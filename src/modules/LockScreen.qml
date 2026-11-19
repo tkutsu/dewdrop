@@ -256,6 +256,17 @@ Scope {
                 presence: surface.presence
             }
 
+            // Sleep, Restart and Shut Down, at the foot as on a Mac. Only
+            // while locked: not as the glass goes.
+            LockPower {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 56
+                visible: Settings.lockPower
+                enabled: Lock.phase === "locked"
+                opacity: surface.presence
+            }
+
             // The keyboard layout, in the corner where a Mac's lock screen
             // keeps its input menu, and only with more than one to choose
             // from. A click moves to the next.
