@@ -119,11 +119,12 @@ Item {
         width: root.innerWidth
         spacing: 22
 
-        // The date over the time, the way a phone's lock screen has it.
+        // The date over the time, the way a phone's lock screen has it, and
+        // the weather on the date's line, where a phone puts it.
         Column {
             id: clock
 
-            visible: Settings.lockClock
+            visible: Settings.lockClock || weather.visible
             width: parent.width
             spacing: 0
 
@@ -132,7 +133,7 @@ Item {
             readonly property int step: /s/.test(Settings.lockTimeFormat.replace(/'(?:[^']|'')*'/g, "")) ? 1000 : 60000
 
             Timer {
-                running: clock.visible
+                running: Settings.lockClock
                 repeat: true
                 triggeredOnStart: true
                 interval: clock.step - clock.now.getTime() % clock.step + 50
@@ -145,18 +146,91 @@ Item {
                 }
             }
 
-            Text {
+            Row {
                 anchors.horizontalCenter: parent.horizontalCenter
-                textFormat: Text.RichText
-                text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize)
-                color: Theme.label
-                font.family: Theme.bodyFont
-                font.pixelSize: 18
-                font.weight: Font.DemiBold
+                spacing: 12
+
+                Text {
+                    visible: Settings.lockClock
+                    textFormat: Text.RichText
+                    text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize)
+                    color: Theme.label
+                    font.family: Theme.bodyFont
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                }
+
+                // This hour's weather in Lock Screen > Weather's format: the icons
+                // drawn as glyphs (this hour's, and the next six hours' average and
+                // worst, as the bar's Forecast has them), the rest as words.
+                Row {
+                    id: weather
+
+                    readonly property var hour: Weather.thisHour
+                    readonly property var parts: Settings.lockWeatherFormat.split(/(\{(?:icon|avgicon|worsticon)\})/).filter(part => part !== "")
+                    readonly property var icons: ({
+                            "{icon}": weather.hour,
+                            "{avgicon}": Weather.average,
+                            "{worsticon}": Weather.outlook
+                        })
+                    visible: Settings.lockWeather && Weather.location !== null && weather.hour !== null
+
+                    function words(part: string): string {
+                        const [high, low] = Weather.today ? Weather.highAndLow(Weather.today) : [NaN, NaN];
+                        const figure = value => Number.isFinite(value) ? Weather.temperatureFigure(value) : "–";
+                        return part.replace(/\{temp\}/g, figure(weather.hour?.[Weather.temperatureKey]))
+                            .replace(/\{avgtemp\}/g, figure(Weather.average?.[Weather.temperatureKey]))
+                            .replace(/\{desc\}/g, weather.hour?.description ?? "")
+                        .replace(/\{avgdesc\}/g, Weather.average?.description ?? "")
+                            .replace(/\{high\}/g, figure(high))
+                            .replace(/\{low\}/g, figure(low));
+                    }
+
+                    // Every piece is one line of the words tall, top to top, so an
+                    // icon can stand on their baseline the way a letter would
+                    // (PopupButton's mark does the same); centred on its box, a Nerd
+                    // Font icon hangs below it.
+                    Repeater {
+                        model: weather.parts
+
+                        Item {
+                            id: piece
+
+                            required property string modelData
+                            readonly property bool icon: modelData in weather.icons
+
+                            width: piece.icon ? mark.implicitWidth : words.implicitWidth
+                            height: words.implicitHeight
+
+                            Glyph {
+                                id: mark
+                                visible: piece.icon
+                                implicitHeight: piece.height
+                                text: piece.icon ? weather.icons[piece.modelData]?.icon ?? "" : ""
+                                fontSize: 18
+                                color: Theme.label
+                                inkBase: words.baselineOffset
+                            }
+
+                            // Laid out even beside an icon, for the baseline it gives.
+                            Text {
+                                id: words
+                                opacity: piece.icon ? 0 : 1
+                                text: piece.icon ? " " : weather.words(piece.modelData)
+                                color: Theme.label
+                                font.family: Theme.bodyFont
+                                font.pixelSize: 18
+                                font.weight: Font.DemiBold
+                                font.features: Theme.figures
+                            }
+                        }
+                    }
+                }
             }
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
+                visible: Settings.lockClock
                 // A small AM/PM at two-fifths: two-thirds, the bar's, is
                 // a second clock at this size.
                 textFormat: Text.RichText
@@ -167,73 +241,6 @@ Item {
                 font.weight: Font.DemiBold
                 font.letterSpacing: -2
                 font.features: Theme.figures
-            }
-        }
-
-        // This hour's weather in Lock Screen > Weather's format: the icons
-        // drawn as glyphs (this hour's, and the next six hours' average and
-        // worst, as the bar's Forecast has them), the rest as words.
-        Row {
-            id: weather
-
-            readonly property var hour: Weather.thisHour
-            readonly property var parts: Settings.lockWeatherFormat.split(/(\{(?:icon|avgicon|worsticon)\})/).filter(part => part !== "")
-            readonly property var icons: ({
-                    "{icon}": weather.hour,
-                    "{avgicon}": Weather.average,
-                    "{worsticon}": Weather.outlook
-                })
-            visible: Settings.lockWeather && Weather.location !== null && weather.hour !== null
-            anchors.horizontalCenter: parent.horizontalCenter
-
-            function words(part: string): string {
-                const [high, low] = Weather.today ? Weather.highAndLow(Weather.today) : [NaN, NaN];
-                const figure = value => Number.isFinite(value) ? Weather.temperatureFigure(value) : "–";
-                return part.replace(/\{temp\}/g, figure(weather.hour?.[Weather.temperatureKey]))
-                    .replace(/\{avgtemp\}/g, figure(Weather.average?.[Weather.temperatureKey]))
-                    .replace(/\{desc\}/g, weather.hour?.description ?? "")
-                    .replace(/\{high\}/g, figure(high))
-                    .replace(/\{low\}/g, figure(low));
-            }
-
-            // Every piece is one line of the words tall, top to top, so an
-            // icon can stand on their baseline the way a letter would
-            // (PopupButton's mark does the same); centred on its box, a Nerd
-            // Font icon hangs below it.
-            Repeater {
-                model: weather.parts
-
-                Item {
-                    id: piece
-
-                    required property string modelData
-                    readonly property bool icon: modelData in weather.icons
-
-                    width: piece.icon ? mark.implicitWidth : words.implicitWidth
-                    height: words.implicitHeight
-
-                    Glyph {
-                        id: mark
-                        visible: piece.icon
-                        implicitHeight: piece.height
-                        text: piece.icon ? weather.icons[piece.modelData]?.icon ?? "" : ""
-                        fontSize: Theme.glyphSize
-                        color: Theme.label
-                        inkBase: words.baselineOffset
-                    }
-
-                    // Laid out even beside an icon, for the baseline it gives.
-                    Text {
-                        id: words
-                        opacity: piece.icon ? 0 : 1
-                        text: piece.icon ? " " : weather.words(piece.modelData)
-                        color: Theme.label
-                        font.family: Theme.bodyFont
-                        font.pixelSize: 15
-                        font.weight: Theme.bodyWeight
-                        font.features: Theme.figures
-                    }
-                }
             }
         }
 
@@ -448,10 +455,10 @@ Item {
                         }
                     }
 
-                    // Caps Lock, and Return as a button that keeps its place: dim
-                    // with nothing to send, lit once there is, a spinner while
-                    // the password is checked. (The layout is in the screen's
-                    // corner, LockScreen.qml.)
+                    // Return as a button that keeps its place: dim with nothing
+                    // to send, lit once there is, a spinner while the password
+                    // is checked. (Caps Lock and the layout are in the card's
+                    // corner.)
                     Row {
                         id: trail
 
@@ -459,14 +466,6 @@ Item {
                         anchors.rightMargin: 6
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
-
-                        Glyph {
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: Lock.capsLock
-                            text: Theme.glyph.capsLock
-                            fontSize: Theme.popupGlyphSize
-                            color: Theme.label2
-                        }
 
                         Item {
                             anchors.verticalCenter: parent.verticalCenter
@@ -549,16 +548,6 @@ Item {
                             NumberAnimation { to: 1; duration: 450; easing.type: Easing.InOutSine }
                         }
                     }
-
-                    Glyph {
-                        anchors.left: parent.right
-                        anchors.leftMargin: 10
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: Lock.capsLock
-                        text: Theme.glyph.capsLock
-                        fontSize: Theme.popupGlyphSize
-                        color: Theme.label2
-                    }
                 }
 
                 SequentialAnimation {
@@ -600,6 +589,54 @@ Item {
                 font.family: Theme.bodyFont
                 font.pixelSize: Theme.footnoteSize
                 font.weight: Theme.bodyWeight
+            }
+        }
+    }
+
+    // Caps Lock while it is on, and the keyboard layout when there is more
+    // than one (a click moves to the next), tucked into the card's corner,
+    // clear of its curve.
+    Row {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 24
+        anchors.bottomMargin: 12
+        spacing: 12
+
+        Glyph {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Lock.capsLock
+            text: Theme.glyph.capsLock
+            fontSize: Theme.popupGlyphSize
+            color: Theme.label2
+        }
+
+        Row {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Keyboard.layouts.length > 1
+            spacing: 5
+
+            Glyph {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Theme.glyph.keyboard
+                fontSize: Theme.popupGlyphSize
+                color: switcher.hovered ? Theme.fg : Theme.label2
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: Keyboard.short
+                color: switcher.hovered ? Theme.fg : Theme.label2
+                font.family: Theme.bodyFont
+                font.pixelSize: Theme.captionSize
+                font.weight: Font.DemiBold
+            }
+
+            HoverHandler {
+                id: switcher
+            }
+            TapHandler {
+                onTapped: Keyboard.next()
             }
         }
     }

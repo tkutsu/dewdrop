@@ -520,7 +520,7 @@ OverlayWindow {
                     text: "What the glass shows over the password.",
                     rows: [
                         { type: "toggle", id: "lockClock", title: "Date and Time", get: () => Settings.lockClock, set: v => Settings.set("lockClock", v) },
-                        { type: "toggle", id: "lockWeather", title: "Weather", tooltip: "This hour's weather and the day's high and low, once a location is set.", get: () => Settings.lockWeather, set: v => Settings.set("lockWeather", v) },
+                        { type: "toggle", id: "lockWeather", title: "Weather", tooltip: "On the date's line, as a phone shows it, once a location is set. Lock Screen > Weather sets what it says.", get: () => Settings.lockWeather, set: v => Settings.set("lockWeather", v) },
                         { type: "toggle", id: "lockNotifications", title: "Notifications", tooltip: "The latest three, and how many more.", get: () => Settings.lockNotifications, set: v => Settings.set("lockNotifications", v) },
                         { type: "toggle", id: "lockPreviews", title: "Show Previews", text: "Off shows only the app and when.", enabled: Settings.lockNotifications, get: () => Settings.lockPreviews, set: v => Settings.set("lockPreviews", v) },
                         { type: "toggle", id: "lockPower", title: "Sleep, Restart and Shut Down", text: "Buttons along the foot of the screen.", tooltip: "Restart and Shut Down ask for a second press. Anyone at the computer can use them, as with its power button.", get: () => Settings.lockPower, set: v => Settings.set("lockPower", v) }
@@ -545,8 +545,8 @@ OverlayWindow {
                     title: "Weather",
                     rows: [
                         { type: "text", id: "lockWeatherFormat", title: "Custom Format", fieldWidth: 250, enabled: Settings.lockWeather,
-                            tooltip: "{icon}: this hour's weather icon. {temp}: the temperature now.\n{avgicon} and {worsticon}: the next six hours' average and worst icons.\n{avgtemp}: the next six hours' average temperature.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
-                            validate: v => root.formatProblem(v, ["icon", "temp", "avgicon", "worsticon", "avgtemp", "desc", "high", "low"]),
+                            tooltip: "{icon}: this hour's weather icon. {temp}: the temperature now.\n{avgicon} and {worsticon}: the next six hours' average and worst icons.\n{avgtemp} and {avgdesc}: the next six hours' average temperature and sky in words.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
+                            validate: v => root.formatProblem(v, ["icon", "temp", "avgicon", "worsticon", "avgtemp", "desc", "avgdesc", "high", "low"]),
                             get: () => Settings.lockWeatherFormat, set: v => Settings.set("lockWeatherFormat", v) }
                     ]
                 },
