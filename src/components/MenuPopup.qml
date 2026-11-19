@@ -58,13 +58,12 @@ Popup {
 
     // Selections keep the same inset on every side of the frame.
     radius: Theme.menuRadius
-    // The system's menu metrics: rows 22 high, the fill under the pointer
-    // inset from the box on every side, and the same inset again between the
-    // fill and the label.
+    // The system's menu metrics: rows 22 high (MenuRow), the fill under the
+    // pointer inset from the box on every side, and the same inset again
+    // between the fill and the label.
     hPadding: Theme.selectionInset
     vPadding: Theme.selectionInset
     bottomPadding: vPadding
-    readonly property int rowHeight: 22
 
     QsMenuOpener {
         id: opener
@@ -117,19 +116,29 @@ Popup {
                 values: body.entries
             }
 
-            delegate: Item {
+            delegate: MenuRow {
                 id: row
 
                 required property QsMenuEntry modelData
 
-                Accessible.role: Accessible.MenuItem
-                Accessible.name: row.modelData.text
-                Accessible.ignored: row.modelData.isSeparator
+                text: row.modelData.text
+                separator: row.modelData.isSeparator
+                enabled: !row.modelData.isSeparator && row.modelData.enabled
+                // Once a row has been chosen it alone is lit, through its
+                // blink, wherever the pointer has gone since. While the keys
+                // hold the selection, it is the row they are on.
+                hot: root.keyItem ? row.keyed : row.pointerNear
+                frozen: root.chosen !== null
+                lead: art.visible ? row.start + art.implicitSize + 4 : row.start
+                // Room for the chevron on a row that opens a submenu.
+                trailing: row.modelData.hasChildren ? 12 : 0
+                width: Math.max(implicitWidth, body.rowWidth)
+
                 Accessible.onPressAction: row.activate()
 
                 // A click and an accessibility press share the submenu and blink.
                 function activate(): void {
-                    if (row.modelData.isSeparator || !row.modelData.enabled || root.chosen !== null || !row.visible)
+                    if (!row.enabled || row.frozen || !row.visible)
                         return;
                     // A row with a submenu opens it, as it does on hover; a
                     // click is how you ask for it when the hover did not
@@ -138,16 +147,13 @@ Popup {
                         row.submenuOpen = true;
                         return;
                     }
-                    root.chosen = row;
-                    blink.start();
+                    if (row.choose())
+                        root.chosen = row;
                 }
-
-                // pad is the air on each side of a row's text, and half of it
-                // is the air above and below: a menu row is a target to point
-                // at rather than something to read around, and the tighter
-                // pair is what keeps a long app menu to a column instead of a
-                // page. A separator gets the vertical pair and no text.
-                readonly property int pad: Theme.popupInset
+                onPicked: {
+                    row.modelData.triggered();
+                    root.dismissed();
+                }
 
                 // Whether the pointer is on this row or inside the submenu it
                 // opened. A submenu is its own surface, so reaching for one
@@ -163,22 +169,15 @@ Popup {
                 // opens its submenu with the submenu's first row selected.
                 // A submenu the keys opened goes when the keys move on.
                 property bool keyed: false
-                readonly property var keyPress: row.modelData.isSeparator || !row.modelData.enabled ? null : row.activate
+                readonly property var keyPress: row.enabled ? row.activate : null
                 function keyOpen(): bool {
-                    if (!row.modelData.hasChildren || !row.modelData.enabled)
+                    if (!row.modelData.hasChildren || !row.enabled)
                         return false;
                     row.submenuOpen = true;
                     return true;
                 }
                 onKeyedChanged: if (!row.keyed && !row.pointerNear)
                     row.submenuOpen = false
-
-                // Whether the row is drawn selected. Once a row has been
-                // chosen it alone is, through its blink, wherever the pointer
-                // has gone since: the menu is saying which row it took. While
-                // the keys hold the selection, it is the row they are on.
-                property bool blinkOn: true
-                readonly property bool lit: root.chosen !== null ? root.chosen === row && row.blinkOn : root.keyItem ? row.keyed : row.pointerNear
 
                 // Held open by a handler rather than bound, so that reading
                 // the submenu's own hover to decide whether the submenu exists
@@ -207,29 +206,6 @@ Popup {
                         row.submenuOpen = false
                 }
 
-                // Everything drawn across the row, in order: the icon and its
-                // gap when there is one, the label, and room for the chevron
-                // on a row that opens a submenu. Leaving the icon out put the
-                // chevron on top of the label's last letters.
-                implicitWidth: Math.max(120, label.x + label.implicitWidth + row.pad + (row.modelData.hasChildren ? 12 : 0))
-                width: Math.max(implicitWidth, body.rowWidth)
-                height: row.modelData.isSeparator ? Theme.selectionInset * 2 : root.rowHeight
-
-                Rectangle {
-                    anchors.fill: parent
-                    visible: !row.modelData.isSeparator
-                    radius: Theme.selectionRadius
-                    color: row.lit ? Theme.selection : "transparent"
-                }
-
-                // As wide as the highlight, as the Mac has drawn them since
-                // Big Sur, and as the popups' sections are divided.
-                PopupSeparator {
-                    anchors.centerIn: parent
-                    visible: row.modelData.isSeparator
-                    width: parent.width
-                }
-
                 // The tick column: a check on a checked row, a dash on a
                 // mixed one, the way the Mac marks them.
                 PopupText {
@@ -240,8 +216,8 @@ Popup {
                     horizontalAlignment: Text.AlignHCenter
                     visible: body.checkable && !row.modelData.isSeparator
                     text: row.modelData.buttonType !== QsMenuButtonType.None && row.modelData.checkState === Qt.PartiallyChecked ? "–" : ""
-                    color: label.color
-                    opacity: label.opacity
+                    color: row.label.color
+                    opacity: row.label.opacity
                 }
 
                 Glyph {
@@ -249,31 +225,21 @@ Popup {
                     visible: mark.visible && row.modelData.buttonType !== QsMenuButtonType.None && row.modelData.checkState === Qt.Checked
                     text: Theme.glyph.check
                     fontSize: Theme.popupTextSize
-                    color: label.color
-                    opacity: label.opacity
+                    color: row.label.color
+                    opacity: row.label.opacity
                 }
 
                 // Where a row's own things start: past the tick column when
                 // the menu has one, eight of air after it as in the lists.
-                readonly property int lead: body.checkable ? row.pad + 18 + 8 : row.pad
+                readonly property int start: body.checkable ? row.pad + 18 + 8 : row.pad
 
                 IconImage {
                     id: art
                     anchors.verticalCenter: parent.verticalCenter
-                    x: row.lead
+                    x: row.start
                     implicitSize: Theme.popupGlyphSize
                     visible: row.modelData.icon !== ""
                     source: row.modelData.icon
-                }
-
-                PopupText {
-                    id: label
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: art.visible ? row.lead + art.implicitSize + 4 : row.lead
-                    visible: !row.modelData.isSeparator
-                    text: row.modelData.text
-                    color: row.lit ? Theme.menuSelectionText : Theme.menuText
-                    opacity: row.modelData.enabled ? 1 : 0.4
                 }
 
                 PopupText {
@@ -286,43 +252,11 @@ Popup {
 
                 HoverHandler {
                     id: hover
-                    enabled: !row.modelData.isSeparator && row.modelData.enabled
                 }
 
                 TapHandler {
-                    enabled: !row.modelData.isSeparator && row.modelData.enabled && root.chosen === null
+                    enabled: root.chosen === null
                     onTapped: row.activate()
-                }
-
-                // The Mac's acknowledgement of a choice: the row's highlight
-                // goes out and comes back once, and only then does the menu
-                // act and fade. Without it a menu that vanished on the click
-                // left you to work out from the result which row you hit.
-                SequentialAnimation {
-                    id: blink
-
-                    PropertyAction {
-                        target: row
-                        property: "blinkOn"
-                        value: false
-                    }
-                    PauseAnimation {
-                        duration: Theme.blinkMs
-                    }
-                    PropertyAction {
-                        target: row
-                        property: "blinkOn"
-                        value: true
-                    }
-                    PauseAnimation {
-                        duration: Theme.blinkMs
-                    }
-                    ScriptAction {
-                        script: {
-                            row.modelData.triggered();
-                            root.dismissed();
-                        }
-                    }
                 }
 
                 // Loaded by URL rather than by name: QML rejects a component

@@ -21,8 +21,39 @@ ShellRoot {
             id: popup
             visible: true; anchorItem: owner; probes: false; grows: false
             Item {
-                width: 300; height: 120
+                width: 300; height: 230
                 Item { id: elsewhere; activeFocusOnTab: true }
+                TextInput {
+                    id: other
+                    x: 200; y: 40; width: 100; height: 22
+                    font.pixelSize: 14
+                    text: "other"
+                }
+                TextInput {
+                    id: secret
+                    y: 130; width: 300; height: 22
+                    font.pixelSize: 14
+                    selectByMouse: true
+                    echoMode: TextInput.Password
+                    text: "hunter2 hunter2"
+                    TextMenu { id: secretMenu }
+                }
+                // A field in a list that scrolls on a drag, as the settings are.
+                Flickable {
+                    id: scroller
+                    y: 160; width: 300; height: 60
+                    contentHeight: 400
+                    clip: true
+                    TextEdit {
+                        id: listed
+                        width: 300; height: 50
+                        font.pixelSize: 14
+                        selectByMouse: true
+                        textFormat: TextEdit.PlainText
+                        text: "upper words\\nlower words"
+                        TextMenu { id: listedMenu }
+                    }
+                }
                 // As the tasks editor is: editable, wrapping, plain text.
                 TextEdit {
                     id: notes
@@ -115,6 +146,7 @@ ShellRoot {
                 wait(30);
                 check(PopupPointer.hovered > 0, "the menu counts as inside the popup");
 
+                check(menu.chosen === null, "a right click alone chooses nothing");
                 choose(menu, "Cut");
                 check(line.text === "one  three", "Cut takes the selection out");
 
@@ -203,6 +235,112 @@ ShellRoot {
                 check(notes.activeFocus, "the field has the focus back once the menu is gone");
                 check(!notes.persistentSelection, "the field's own persistentSelection comes back");
                 check(notes.text === "first \\nsecond line", "Cut takes a TextEdit's selection out");
+                wait(300);
+
+                // Closed by a click that went to another field, the menu
+                // leaves no selection behind there.
+                line.text = "one two three";
+                line.forceActiveFocus();
+                line.select(4, 7);
+                p = middle(line, 4, 7);
+                mouseClick(line, p.x, p.y, Qt.RightButton);
+                tryVerify(() => menuOf(lineMenu) !== null, 1000);
+                other.forceActiveFocus();
+                lineMenu.close(false);
+                check(line.selectedText === "", "a menu closed from another field leaves no stale selection");
+                wait(300);
+
+                // The keys drive the menu where they come straight to the field.
+                line.forceActiveFocus();
+                line.select(4, 7);
+                mouseClick(line, p.x, p.y, Qt.RightButton);
+                tryVerify(() => menuOf(lineMenu) !== null, 1000);
+                menu = menuOf(lineMenu);
+                keyClick(Qt.Key_X);
+                check(line.text === "one two three" && lineMenu.open, "typing goes nowhere while the menu is up");
+                keyClick(Qt.Key_Down);
+                keyClick(Qt.Key_Down);
+                check(menu.keyItem === row(menu, "Copy"), "the arrows move through the rows");
+                keyClick(Qt.Key_Escape);
+                check(!lineMenu.open && line.selectedText === "two" && line.activeFocus,
+                      "Escape puts the menu away, keeping the selection and the focus");
+                wait(300);
+                mouseClick(line, p.x, p.y, Qt.RightButton);
+                tryVerify(() => menuOf(lineMenu) !== null, 1000);
+                keyClick(Qt.Key_Down);
+                keyClick(Qt.Key_Return);
+                tryVerify(() => !lineMenu.open, 1000);
+                check(line.text === "one  three", "Return chooses the row the keys are on");
+                wait(300);
+
+                // A second right click moves the menu there.
+                line.text = "one two three";
+                mouseClick(line, 10, 10, Qt.RightButton);
+                tryVerify(() => menuOf(lineMenu) !== null, 1000);
+                menu = menuOf(lineMenu);
+                const firstX = menu.anchor.rect.x;
+                mouseClick(line, 60, 10, Qt.RightButton);
+                check(lineMenu.open && menuOf(lineMenu) === menu && lineMenu.at.x === 60 && menu.anchor.rect.x === firstX + 50,
+                      "a second right click moves the menu to it");
+                keyClick(Qt.Key_Escape);
+                wait(300);
+
+                // Press, drag onto a row, let go: that row is chosen.
+                line.deselect();
+                mousePress(line, 30, 10, Qt.RightButton);
+                tryVerify(() => menuOf(lineMenu) !== null, 1000);
+                menu = menuOf(lineMenu);
+                const target = row(menu, "Select All");
+                const g = target.mapToGlobal(target.width / 2, target.height / 2);
+                const q = line.mapFromGlobal(g.x, g.y);
+                mouseMove(line, q.x - 4, q.y, -1, Qt.RightButton);
+                mouseMove(line, q.x, q.y, -1, Qt.RightButton);
+                check(target.lit && !row(menu, "Paste").lit, "a right press dragged onto a row lights it");
+                mouseRelease(line, q.x, q.y, Qt.RightButton);
+                tryVerify(() => !lineMenu.open, 1000);
+                check(line.selectedText === "one two three", "letting go on a row chooses it");
+                wait(300);
+
+                // Let go off the menu after dragging, and the menu goes.
+                mousePress(line, 30, 10, Qt.RightButton);
+                tryVerify(() => menuOf(lineMenu) !== null, 1000);
+                mouseMove(line, 200, 4, -1, Qt.RightButton);
+                mouseMove(line, 280, 4, -1, Qt.RightButton);
+                mouseRelease(line, 280, 4, Qt.RightButton);
+                check(!lineMenu.open, "letting go off the menu after dragging puts it away");
+                wait(300);
+
+                // A password is pasted into, never read back out.
+                secret.forceActiveFocus();
+                secret.select(0, 7);
+                p = middle(secret, 0, 7);
+                mouseClick(secret, p.x, p.y, Qt.RightButton);
+                tryVerify(() => menuOf(secretMenu) !== null, 1000);
+                menu = menuOf(secretMenu);
+                check(JSON.stringify(rows(menu).map(r => r.modelData)) === JSON.stringify(["Paste", "", "Select All"]),
+                      "a password field offers only Paste and Select All");
+                keyClick(Qt.Key_Escape);
+                wait(300);
+                secret.select(0, 7);
+                mousePress(secret, p.x, p.y);
+                mouseMove(secret, p.x + 20, p.y, -1, Qt.LeftButton);
+                mouseMove(secret, p.x + 60, p.y, -1, Qt.LeftButton);
+                mouseRelease(secret, p.x + 60, p.y);
+                check(secret.text === "hunter2 hunter2" && !secretMenu.dragging, "a password's selection is not dragged");
+
+                // In a list that scrolls on a drag, a selection dragged down
+                // moves rather than scrolling the list.
+                listed.forceActiveFocus();
+                listed.select(0, 5);
+                p = middle(listed, 0, 5);
+                const low = listed.positionToRectangle(listed.length);
+                mousePress(listed, p.x, p.y);
+                for (let i = 1; i <= 4; i++)
+                    mouseMove(listed, p.x + 4 * i, p.y + 6 * i, -1, Qt.LeftButton);
+                mouseMove(listed, low.x + 2, low.y + low.height / 2, -1, Qt.LeftButton);
+                mouseRelease(listed, low.x + 2, low.y + low.height / 2);
+                check(listed.text === " words\\nlower wordsupper" && scroller.contentY === 0,
+                      "a selection dragged in a scrolling list moves, and the list stays put");
                 console.log("PASS: text menu complete");
             }
         }
