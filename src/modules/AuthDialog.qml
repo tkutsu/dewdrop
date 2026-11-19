@@ -286,10 +286,12 @@ PanelWindow {
                         focus: true
                         readOnly: !root.asking
                         echoMode: root.flow?.responseVisible ? TextInput.Normal : TextInput.Password
+                        // Never seen: it only spaces the characters drawn over it.
                         passwordCharacter: "●"
-                        color: Theme.fg
+                        readonly property bool masked: echoMode === TextInput.Password
+                        color: masked ? "transparent" : Theme.fg
                         selectionColor: Theme.textSelection
-                        selectedTextColor: Theme.fg
+                        selectedTextColor: masked ? "transparent" : Theme.fg
                         cursorDelegate: TextCaret { textInput: field }
                         font.family: Theme.bodyFont
                         font.pixelSize: Theme.popupTextSize
@@ -314,6 +316,22 @@ PanelWindow {
                         Keys.onEscapePressed: root.cancel()
 
                         TextMenu {}
+
+                        // The password as Password Fields' Character draws it, over
+                        // the field's own characters, which stay unseen so the
+                        // caret, selection and clicks still land on them. Each
+                        // takes one character's room, from where the first
+                        // one stands as the field scrolls.
+                        PasswordGlyphs {
+                            readonly property real step: field.text.length && field.passwordCharacter
+                                ? field.positionToRectangle(1).x - field.positionToRectangle(0).x : 0
+
+                            visible: field.masked
+                            x: field.cursorRectangle.x - field.cursorPosition * step
+                            anchors.verticalCenter: parent.verticalCenter
+                            count: field.text.length
+                            cell: step
+                        }
 
                         // polkit's prompt, "Password: ", as a field's placeholder.
                         PopupText {

@@ -409,23 +409,12 @@ Item {
                     height: parent.height
                     clip: true
 
-                    Row {
+                    PasswordGlyphs {
                         id: dots
 
                         x: Math.min(0, well.width - width - caret.width - 4)
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 5
-
-                        Repeater {
-                            model: Lock.password.length
-
-                            Rectangle {
-                                width: 8
-                                height: 8
-                                radius: 4
-                                color: Theme.fg
-                            }
-                        }
+                        count: Lock.password.length
                     }
                 }
 

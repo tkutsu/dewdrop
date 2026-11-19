@@ -12,8 +12,11 @@ Rectangle {
 
     readonly property bool block: Settings.caretShape === "block"
     // What a block covers and redraws inverted: nothing on a space, a line end
-    // or the end of the text, which take an average character's width.
+    // or the end of the text, which take an average character's width. Nor
+    // in a password field, whose text is the password itself.
     readonly property string covered: {
+        if (root.textInput.echoMode !== undefined && root.textInput.echoMode !== TextInput.Normal)
+            return "";
         const code = root.textInput.text.codePointAt(root.textInput.cursorPosition);
         const character = code === undefined ? "" : String.fromCodePoint(code);
         return character.trim();
