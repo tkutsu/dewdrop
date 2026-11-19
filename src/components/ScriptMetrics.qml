@@ -1,7 +1,8 @@
 import QtQuick
 import qs.src.core
 
-// Where two-thirds-size text goes beside full-size text in a box `height` tall.
+// Where small text (two-thirds size, or `smallRatio`) goes beside full-size
+// text in a box `height` tall.
 // A subscript is a small AM/PM: it stands on the full text's baseline. A
 // superscript is the same run raised until its capitals' tops meet the full
 // text's. Whole pixels, because BarText draws on whole pixels.
@@ -11,8 +12,11 @@ QtObject {
     property int fontSize: Theme.textSize
     property int weight: Theme.bodyWeight
     property real height: Theme.barHeight
+    // How big the small runs are against the full text: the bar's two-thirds,
+    // or less at a size where two-thirds reads as a second line of text.
+    property real smallRatio: 2 / 3
 
-    readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize * 2 / 3))
+    readonly property int smallFontSize: Math.max(1, Math.round(root.fontSize * root.smallRatio))
 
     readonly property FontMetrics full: FontMetrics {
         font.family: Theme.bodyFont

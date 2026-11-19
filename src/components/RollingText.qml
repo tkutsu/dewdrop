@@ -24,6 +24,11 @@ import "RollingSpring.js" as Spring
 //
 // For figures only. The colon just changes, and a string that is words is
 // better drawn by BarText, which keeps the kerning a column per letter loses.
+//
+// On the bar it centres on its capitals in a box the bar's height, as BarText
+// does. Off the bar (asText) it sits where a Text item would: its top at the
+// item's, its baseline at the font's ascent, as tall as a Text, so it can
+// replace one without the line moving.
 Row {
     id: root
 
@@ -40,7 +45,12 @@ Row {
     // baseline, or raised to its capitals' tops where a range says
     // `shift: "sup"` (ScriptMetrics).
     property var smallRanges: []
+    // Their size against the full text's.
+    property alias smallRatio: scripts.smallRatio
     readonly property int smallFontSize: scripts.smallFontSize
+    // Added after each character, as a Text item's letterSpacing is.
+    property real letterSpacing: 0
+    property bool asText: false
 
     // SwiftUI's transition, in line heights and in multiples of its duration
     // (Theme.rollMs).
@@ -52,12 +62,17 @@ Row {
     readonly property real tail: 1.45
 
     readonly property real line: scripts.full.height
+    // The box BarText centres the capitals in. As text, the one that puts the
+    // text's top at 0: BarText's top is (box + capitals) / 2 - ascent.
+    readonly property real box: root.asText ? 2 * scripts.full.ascent - scripts.full.capitalHeight : root.height
+
+    baselineOffset: scripts.top(scripts.full) + scripts.full.ascent
 
     ScriptMetrics {
         id: scripts
         fontSize: root.fontSize
         weight: root.weight
-        height: root.height
+        height: root.box
     }
 
     // Counted from the right, where the figures that change are: a string
@@ -124,8 +139,11 @@ Row {
             // only ever differs for a column coming or going: the figures are
             // tabular. The row closes up behind a figure leaving rather than
             // dropping it on its neighbour.
-            implicitWidth: rolling ? old.implicitWidth + (now.implicitWidth - old.implicitWidth) * g : now.implicitWidth
-            height: root.height
+            // The spacing goes with the figure: in as it arrives in an
+            // empty column, out as it leaves one.
+            readonly property real spaced: root.letterSpacing * (rolling ? (was ? 1 : 0) + ((shown ? 1 : 0) - (was ? 1 : 0)) * g : (shown ? 1 : 0))
+            implicitWidth: (rolling ? old.implicitWidth + (now.implicitWidth - old.implicitWidth) * g : now.implicitWidth) + spaced
+            height: root.asText ? root.line : root.height
 
             NumberAnimation {
                 id: roll
@@ -141,7 +159,7 @@ Row {
 
                 readonly property real blur: 1 - column.f
 
-                height: parent.height
+                height: root.box
                 fontSize: column.small ? root.smallFontSize : root.fontSize
                 nudge: column.nudge
                 weight: root.weight
@@ -172,7 +190,7 @@ Row {
 
                 readonly property real blur: column.o
 
-                height: parent.height
+                height: root.box
                 visible: column.rolling
                 fontSize: column.small ? root.smallFontSize : root.fontSize
                 nudge: column.nudge
