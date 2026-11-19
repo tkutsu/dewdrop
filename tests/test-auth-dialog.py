@@ -72,7 +72,13 @@ ShellRoot {
                 const field = focused();
                 check(field && field.echoMode === TextInput.Password, "the field has the keys and hides them");
 
+                const caps = dialog.capsLock;
+                keyClick(Qt.Key_CapsLock);
+                check(dialog.capsLock === !caps, "the Caps Lock key flips the arrow");
+                keyClick(Qt.Key_CapsLock);
+
                 keyClick(Qt.Key_S); keyClick(Qt.Key_E); keyClick(Qt.Key_C);
+                check(!dialog.capsLock, "a lower-case letter without Shift means Caps Lock is off");
                 keyClick(Qt.Key_Return);
                 check(flow.answer === "sec", "Return submits what was typed: " + flow.answer);
                 check(dialog.checking, "waits on the answer");

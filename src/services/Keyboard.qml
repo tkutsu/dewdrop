@@ -33,6 +33,10 @@ Singleton {
     // Which keyboard's layout the bar is showing. A different event source
     // prompts a query because Hyprland may have selected a new main keyboard.
     property string mainKeyboard: ""
+    // Whether Caps Lock was on at the last query. Hyprland sends no event for
+    // it, so a password field asks (refresh()) as it opens and follows the
+    // keys from there.
+    property bool capsLock: false
 
     // Every layout the main keyboard cycles through, in its order, as
     // { name, short }: what the popup lists.
@@ -119,6 +123,7 @@ Singleton {
                 if (!main)
                     return;
                 root.mainKeyboard = main.name;
+                root.capsLock = main.capsLock ?? false;
                 root.layout = main.active_keymap;
                 const variants = main.variant.split(",");
                 root.layouts = main.layout.split(",").map((code, i) => {
