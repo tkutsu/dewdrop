@@ -18,6 +18,11 @@ Row {
     readonly property var actions: ["suspend", "reboot", "shutdown"]
         .map(key => Power.actions.find(action => action.key === key))
         .filter(Boolean)
+    readonly property var glyphs: ({
+            suspend: Theme.glyph.lockSleep,
+            reboot: Theme.glyph.lockRestart,
+            shutdown: Theme.glyph.lockShutDown
+        })
 
     spacing: 12
 
@@ -62,8 +67,8 @@ Row {
 
                 Glyph {
                     anchors.centerIn: parent
-                    text: button.armed ? Theme.glyph.powerConfirm : button.modelData.glyph
-                    fontSize: Theme.glyphSize
+                    text: button.armed ? Theme.glyph.powerConfirm : root.glyphs[button.modelData.key] ?? button.modelData.glyph
+                    fontSize: 22
                     color: button.armed ? Theme.warn : Theme.fg
                 }
             }
