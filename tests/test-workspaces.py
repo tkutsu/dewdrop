@@ -308,7 +308,7 @@ if '--window-input' in sys.argv:
  const a=win('a',w2,'same'),b=win('b',w2,'same'),c=win('c',w1,'single');
  let closed=[];
  for (const window of [a,b,c])
-   window.wayland={appId:window.wayland.appId,fullscreen:false,close:()=>closed.push(window.address)};
+   window.wayland={appId:window.wayland.appId,close:()=>closed.push(window.address)};
  reset([a,b,c],[w1,w2]);Hyprland.commands=[];
  function click(app,which) { test.mouseClick(app,app.width/2,app.height/2,which);test.wait(300); }
  click(icon(button(1),'c'),Qt.RightButton);
@@ -340,11 +340,10 @@ if '--window-input' in sys.argv:
  WorkspaceSync.settled=true;
  Hyprland.commands=[];
  click(icon(button(1),'c'),Qt.MiddleButton);
- check(c.wayland.fullscreen && closed.join(',')==='c,b,a' && Hyprland.commands[0]==='hl.dsp.focus({ window = "address:0xc" })','middle-click focuses the window and fills the screen with it');
- click(icon(button(1),'c'),Qt.MiddleButton);
- check(!c.wayland.fullscreen,'a second middle-click gives the window back its place');
+ check(closed.join(',')==='c,b,a' && Hyprland.commands.join('|')==='hl.dsp.focus({ window = "address:0xc" })|hl.dsp.window.float({ action = "toggle", window = "address:0xc" })','middle-click focuses the window and floats or tiles it');
+ Hyprland.commands=[];
  click(icon(button(2),'a'),Qt.MiddleButton);
- check(a.wayland.fullscreen && !b.wayland.fullscreen,'middle-click on a group fills the screen with its first window');
+ check(Hyprland.commands[1]==='hl.dsp.window.float({ action = "toggle", window = "address:0xa" })','middle-click on a group floats or tiles its first window');
 """ + shell_source[end:]
 if '--lifecycle' in sys.argv:
     start = shell_source.index(' const w1=ws(1)')
