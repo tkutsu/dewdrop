@@ -595,7 +595,9 @@ Item {
 
     // One mark for capitals, while Caps Lock is on or Shift is held, and the
     // keyboard layout when there is more than one (a click moves to the
-    // next), tucked into the card's corner, clear of its curve.
+    // next), tucked into the card's corner, clear of its curve. Each mark is
+    // a line of the layout's text tall and stands on its baseline, as a
+    // letter would; centred, a Nerd Font icon sits low.
     Row {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -604,28 +606,30 @@ Item {
         spacing: 12
 
         Glyph {
-            anchors.verticalCenter: parent.verticalCenter
             visible: Lock.capsLock || Lock.shift
+            implicitHeight: layoutName.implicitHeight
+            inkBase: layoutName.baselineOffset
             text: Theme.glyph.capsLock
             fontSize: Theme.popupGlyphSize
             color: Theme.label2
         }
 
         Row {
-            anchors.verticalCenter: parent.verticalCenter
             visible: Keyboard.layouts.length > 1
             spacing: 5
 
             Glyph {
-                anchors.verticalCenter: parent.verticalCenter
+                implicitHeight: layoutName.implicitHeight
+                inkBase: layoutName.baselineOffset
                 text: Theme.glyph.keyboard
                 fontSize: Theme.popupGlyphSize
                 color: switcher.hovered ? Theme.fg : Theme.label2
             }
 
+            // Laid out with one layout too, for the line the marks stand on.
             Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: Keyboard.short
+                id: layoutName
+                text: Keyboard.short || "EN"
                 color: switcher.hovered ? Theme.fg : Theme.label2
                 font.family: Theme.bodyFont
                 font.pixelSize: Theme.captionSize
