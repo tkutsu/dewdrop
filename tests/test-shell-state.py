@@ -174,7 +174,7 @@ ShellRoot {
             FakeRequest.reply(0, {});
             check(root.accepted === 1 && root.failed === 0, "HTTP completion occurs only once");
 
-            Http.send("GET", "https://fixture.invalid/timeout", null, {}, 5,
+            Http.send("POST", "https://fixture.invalid/timeout", null, {}, 5,
                 () => root.accepted++, () => root.failed++);
             Google.accessToken = "fixture";
             Google.tokenExpiry = Date.now() + 3600000;

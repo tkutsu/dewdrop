@@ -49,7 +49,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | GPU stats | NVIDIA only: `nvidia-smi` |
 | Full system monitor | `btop` in your terminal, opened from the system popup and by a right click (`monitorCommand`) |
 | Weather | Python 3, no account needed. The module hides without it. |
-| Google Tasks, Calendar, Gmail | Your own Google Cloud OAuth client and one sign-in. See [Google setup](#google-setup). |
+| Google Tasks, Calendar, Gmail | Your own Google Cloud OAuth client and one sign-in. Install `curl` for background recovery when a read stalls. See [Google setup](#google-setup). |
 | YouTube in Feeds | The same OAuth client and a second sign-in for the account that holds your subscriptions. See [Google setup](#google-setup). The RSS feeds need nothing. |
 | Phone alarms | Android Automate and Python 3. Direct home Wi-Fi delivery; follow the [Automate setup tutorial](automate-setup.md). See [phone-alarms.md](phone-alarms.md) for configuration and protocol details. |
 

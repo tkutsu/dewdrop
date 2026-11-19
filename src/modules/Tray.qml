@@ -128,6 +128,7 @@ BarItem {
             // either side; blueman's drawing carries 4px, so the tray stood a
             // pixel further from its left neighbour than from its right.
             Layout.fillHeight: true
+            Layout.rightMargin: modelData.id.startsWith("Mullvad VPN") ? -1 : 0
             implicitWidth: Math.round((entry.glyph ? substitute.implicitWidth : entry.slot) * entry.out)
 
             // An app changes its artwork with its state too (Telegram's

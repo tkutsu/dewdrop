@@ -1300,8 +1300,10 @@ GoogleService {
         }
 
         function list(): string {
+            if (root.trouble !== "")
+                return root.trouble;
             if (!root.loaded)
-                return root.trouble !== "" ? root.trouble : root.tooltip;
+                return root.tooltip;
             const out = root.threads.map(t => `${root.sayWhen(t.at)}  ${t.from}  ·  ${t.subject}`);
             return out.length > 0 ? `${root.total} unread\n${out.join("\n")}` : "No unread mail";
         }
