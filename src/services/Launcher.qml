@@ -67,7 +67,8 @@ Singleton {
     // turning the machine off should be; the bar's right-click opens it too.
     readonly property string powerPrefix: Settings.launcherPrefixes.power ?? ""
     // Every symbol above with what it does, for when the query line's one word
-    // each is not enough or the settings have moved them.
+    // each is not enough or the settings have moved them, and Hyprland's
+    // keybinds under them (LauncherKeys).
     readonly property string helpPrefix: Settings.launcherPrefixes.help ?? ""
 
     readonly property var modes: [
@@ -640,12 +641,14 @@ Singleton {
 
     // --- help ----------------------------------------------------------------
 
-    // A row per mode, its symbol in the row's badge. Enter goes there.
+    // A row per mode, its symbol in the row's badge. Enter goes there. The
+    // keybinds follow, so one search answers both "how do I get to…" questions.
     function helpResults(query) {
         const terms = root.prepTerms(query);
         return root.modes
             .filter(m => m.prefix !== root.helpPrefix && (!terms.length || root.matchScore(terms, [[m.about, 1], [m.hint, 1]]) !== null))
-            .map(m => ({ kind: "help", badge: m.prefix, title: m.about, prefix: m.prefix }));
+            .map(m => ({ kind: "help", badge: m.prefix, title: m.about, prefix: m.prefix }))
+            .concat(LauncherKeys.results(query));
     }
 
     // --- tasks and timers ----------------------------------------------------
@@ -872,6 +875,7 @@ Singleton {
         qalc.want = c.mode === root.calcPrefix || c.math ? c.text : "";
         for (const [prefix, provider] of Object.entries(root.providers))
             provider.route(c.mode === prefix, c.text);
+        LauncherKeys.route(c.mode === root.helpPrefix);
     }
 
     // --- calculator ----------------------------------------------------------
@@ -1189,8 +1193,9 @@ Singleton {
             return;
         }
         // A row that is only telling you something has nothing to activate,
-        // and closing the launcher would take the message with it.
-        if (!composes && (!r || r.kind === "note"))
+        // and closing the launcher would take the message with it. A keybind
+        // is one of those: the cheatsheet says which keys, the keys do it.
+        if (!composes && (!r || r.kind === "note" || r.kind === "keybind"))
             return;
         const provider = root.providers[root.classification.mode];
         if (provider) {
