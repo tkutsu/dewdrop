@@ -146,13 +146,13 @@ Item {
                 }
             }
 
-            // The date and the weather centred together, a gap apart, as a
-            // phone's lock screen has them; wider than the glass together,
-            // the weather takes a line of its own under the date.
+            // The date and the weather centred together, a word space apart,
+            // as a phone's lock screen has them; wider than the glass
+            // together, the weather takes a line of its own under the date.
             Item {
                 id: dateline
 
-                readonly property int gap: 12
+                readonly property int gap: Math.round(space.advanceWidth)
                 readonly property bool both: date.visible && weather.visible
                 readonly property real dateWidth: date.visible ? date.implicitWidth : 0
                 readonly property real weatherWidth: weather.visible ? weather.implicitWidth : 0
@@ -175,6 +175,13 @@ Item {
                     font.family: Theme.bodyFont
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
+                }
+
+                TextMetrics {
+                    id: space
+
+                    font: date.font
+                    text: " "
                 }
 
                 // This hour's weather in Lock Screen > Weather's format: the icons
