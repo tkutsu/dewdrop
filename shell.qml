@@ -97,4 +97,17 @@ ShellRoot {
         SettingsMenu {}
     }
 
+    // Referenced here so the bar registers as the session's polkit agent at
+    // startup rather than when something first reads Polkit.
+    readonly property bool polkitAgent: Polkit.registered
+
+    // The password panel, up for as long as a request is.
+    LazyLoader {
+        active: Polkit.shown
+
+        AuthDialog {
+            flow: Polkit.flow
+        }
+    }
+
 }
