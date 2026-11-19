@@ -196,6 +196,10 @@ Item {
                     .replace(/\{low\}/g, figure(low));
             }
 
+            // Every piece is one line of the words tall, top to top, so an
+            // icon can stand on their baseline the way a letter would
+            // (PopupButton's mark does the same); centred on its box, a Nerd
+            // Font icon hangs below it.
             Repeater {
                 model: weather.parts
 
@@ -205,24 +209,24 @@ Item {
                     required property string modelData
                     readonly property bool icon: modelData in weather.icons
 
-                    anchors.verticalCenter: parent.verticalCenter
                     width: piece.icon ? mark.implicitWidth : words.implicitWidth
-                    height: Math.max(mark.implicitHeight, words.implicitHeight)
+                    height: words.implicitHeight
 
                     Glyph {
                         id: mark
-                        anchors.centerIn: parent
                         visible: piece.icon
+                        implicitHeight: piece.height
                         text: piece.icon ? weather.icons[piece.modelData]?.icon ?? "" : ""
                         fontSize: Theme.glyphSize
                         color: Theme.label
+                        inkBase: words.baselineOffset
                     }
 
+                    // Laid out even beside an icon, for the baseline it gives.
                     Text {
                         id: words
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !piece.icon
-                        text: piece.icon ? "" : weather.words(piece.modelData)
+                        opacity: piece.icon ? 0 : 1
+                        text: piece.icon ? " " : weather.words(piece.modelData)
                         color: Theme.label
                         font.family: Theme.bodyFont
                         font.pixelSize: 15
