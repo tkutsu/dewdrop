@@ -210,6 +210,9 @@ Item {
                                 fontSize: 18
                                 color: Theme.label
                                 inkBase: words.baselineOffset
+                                // A pixel under the baseline, where the
+                                // weather icons read as sitting on it.
+                                nudge: 1
                             }
 
                             // Laid out even beside an icon, for the baseline it gives.
