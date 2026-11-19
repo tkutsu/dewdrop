@@ -270,7 +270,7 @@ Item {
         // The latest three, newest on top; the rest as a count. One arriving
         // comes in at the top as on a phone's lock screen, faded up from a
         // touch smaller, and the others slide down to make room; one going
-        // fades and shrinks while the rest close up, and the glass follows.
+        // fades and shrinks first, then the rest close up with the glass.
         // Reduce Motion keeps the fades alone.
         Column {
             id: notices
@@ -298,9 +298,15 @@ Item {
                     values: Settings.lockNotifications ? Notifications.list.slice(0, notices.shown) : []
                 }
 
+                // Shrinking waits for a leaving card to fade first, so the
+                // glass closes up after it has gone, never over it.
                 Behavior on height {
-                    enabled: !Theme.reduceMotion
-                    NumberAnimation { duration: notices.arriveMs; easing.type: Easing.OutCubic }
+                    id: settle
+
+                    SequentialAnimation {
+                        PauseAnimation { duration: settle.targetValue < cards.height ? notices.leaveMs : 0 }
+                        NumberAnimation { duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
+                    }
                 }
 
                 // Held back while the others make room, so it fades into a
@@ -322,9 +328,18 @@ Item {
                 }
                 // Also lands an arrival cut short by the next one, which
                 // would otherwise stay part faded.
-                displaced: Transition {
+                addDisplaced: Transition {
                     NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
                     NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
+                }
+                // The rest hold their places until the leaving card has
+                // faded, then close up with the glass.
+                removeDisplaced: Transition {
+                    NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
+                    SequentialAnimation {
+                        PauseAnimation { duration: notices.leaveMs }
+                        NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
+                    }
                 }
 
                 delegate: Rectangle {
