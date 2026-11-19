@@ -59,6 +59,16 @@ OverlayWindow {
 
     // What a date and time format takes: the clock's, and the lock's.
     readonly property string dateTokens: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\n^[…] and _[…] draw small, the size of a small AM/PM:\n^[…] raised to the capitals' tops, _[…] on the baseline.\nHour Format rewrites the hours here."
+    // Why a weather format is refused: a braced word that is none of `tokens`
+    // (a typo would show as typed), or no token at all.
+    function formatProblem(text: string, tokens: var): string {
+        const named = tokens.map(t => `{${t}}`);
+        const list = named.slice(0, -1).join(", ") + " or " + named[named.length - 1];
+        const stray = (text.match(/\{[^{}\s]*\}/g) ?? []).find(t => !named.includes(t));
+        if (stray)
+            return `${stray} isn't a token. Use ${list}.`;
+        return named.some(t => text.includes(t)) ? "" : `Include ${list}.`;
+    }
     // A field or pop-up button chosen by Return or Space, entered on that
     // key's release: a pop-up button would take the release as a pick.
     property Item entering: null
@@ -535,7 +545,7 @@ OverlayWindow {
                     rows: [
                         { type: "text", id: "lockWeatherFormat", title: "Custom Format", fieldWidth: 250, enabled: Settings.lockWeather,
                             tooltip: "{icon}: this hour's weather icon. {temp}: the temperature now.\n{avgicon} and {worsticon}: the next six hours' average and worst icons.\n{avgtemp}: the next six hours' average temperature.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
-                            validate: v => /\{(?:icon|avgicon|worsticon|temp|avgtemp|desc|high|low)\}/.test(v) ? "" : "Include a token, such as {temp}.",
+                            validate: v => root.formatProblem(v, ["icon", "temp", "avgicon", "worsticon", "avgtemp", "desc", "high", "low"]),
                             get: () => Settings.lockWeatherFormat, set: v => Settings.set("lockWeatherFormat", v) }
                     ]
                 },
@@ -601,7 +611,7 @@ OverlayWindow {
                             options: [{ value: "hour", label: "Current Weather" }, { value: "average", label: "Next 6 Hours Average" }, { value: "worst", label: "Next 6 Hours Worst" }, { value: "day", label: "Today" }],
                             get: () => Settings.weatherDisplay, set: v => Settings.set("weatherDisplay", v) },
                         { type: "text", id: "weatherFormat", title: "Custom Format", tooltip: "{icon}: weather icon. {temp}: temperature.\nUse either token on its own, or both in either order. Other text appears as typed.\n{temp} is the bare number; add ° or a unit as you like.\n^[…] and _[…] draw text or {temp} small, as a small AM/PM:\n^[…] raised to the capitals' tops, _[…] on the baseline.\nExamples: {icon} {temp}°, {temp}^[°C] {icon}.",
-                            placeholder: "{icon}{temp}°", validate: v => /\{(?:icon|temp)\}/.test(v) ? "" : "Include {icon} or {temp}.",
+                            placeholder: "{icon}{temp}°", validate: v => root.formatProblem(v, ["icon", "temp"]),
                             get: () => Settings.weatherFormat, set: v => Settings.set("weatherFormat", v) },
                         { type: "choice", id: "weatherUnit", title: "Temperature Unit",
                             options: [{ value: "celsius", label: "Celsius" }, { value: "fahrenheit", label: "Fahrenheit" }, { value: "kelvin", label: "Kelvin" }],

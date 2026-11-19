@@ -53,6 +53,8 @@ ShellRoot {
             check(menu.pages.find(p => p.title === "Weather").sections.find(s => s.title === "Display").rows.map(r => r.id).join("|") === "weatherDisplay|weatherFormat|weatherUnit", "weather has a dedicated tab for forecast, format and units");
             check(row("weatherDisplay").options.map(o => o.value).join("|") === "hour|average|worst|day", "weather offers current, six-hour average, worst and today forecasts");
             check(!row("weatherFormat").validate("{temp} {icon}") && row("weatherFormat").validate("nothing"), "weather format requires an icon or temperature token");
+            check(row("weatherFormat").validate("{icon} {tmp}°") === "{tmp} isn't a token. Use {icon} or {temp}.", "weather format names a mistyped token");
+            check(row("lockWeatherFormat").validate("{icon} {hi}") && !row("lockWeatherFormat").validate("{desc} {high}/{low}"), "lock weather format refuses a mistyped token");
             check(row("centrePillAnchor").options.some(o => o.value === "weatherGap"), "centre pill can anchor between date and weather");
             check(sections("Weather") === "Location|Display|Forecast" && hits("gfs").includes("weatherModel"), "location and forecast model have their own sections");
             check(hits("sunrise").includes("weatherLocation"), "search finds the location used for Auto Night Mode");
