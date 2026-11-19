@@ -5,6 +5,7 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import qs.src.core
 import qs.src.components
+import qs.src.services
 
 // The password panel polkit asks through (services/Polkit.qml), laid out the
 // way a Mac asks for an administrator: a padlock, what wants doing as the
@@ -17,18 +18,24 @@ import qs.src.components
 // administrator's request is answered, not dismissed by a stray press.
 // Escape cancels.
 //
-// Hyprland fades the whole surface, blur and all, as it maps and unmaps
-// (dewdrop.lua's quickshell:polkit rule), so the window can come and go with
-// the request: shell.qml loads it only while one is up.
+// It comes and goes the way the launcher does (SpotlightMotion), on the
+// launcher's layer namespace for the same blur rule, and outlives the request
+// by its fold (Polkit.active), with the request's words held through it.
 PanelWindow {
     id: root
 
     // The request: Polkit.flow, or a stand-in in the tests.
     required property var flow
+    // Whether a request is up; false through the fold away.
+    required property bool shown
 
-    readonly property var identities: root.flow?.identities ?? []
-    readonly property int chosen: root.identities.indexOf(root.flow?.selectedIdentity)
-    readonly property bool mine: root.flow?.selectedIdentity?.string === Quickshell.env("USER")
+    // What the panel says, kept as it was through the fold: the flow itself
+    // is gone by then.
+    property var view: root.describe(null)
+    readonly property var live: root.flow ? root.describe(root.flow) : null
+    onLiveChanged: if (root.live)
+        root.view = root.live
+
     readonly property bool asking: root.flow?.isResponseRequired ?? false
     // Sent, and the answer not back yet.
     property bool submitted: false
@@ -38,6 +45,38 @@ PanelWindow {
 
     readonly property int boxWidth: Theme.popupWidth
     readonly property int pad: 20
+
+    // A Behavior does not run on a first value, so the reveal needs a frame
+    // at zero before it opens (see OverlayWindow).
+    property bool completed: false
+    readonly property bool opened: root.completed && root.shown
+    property alias widthRatio: motion.widthRatio
+    property alias contentAlpha: motion.contentAlpha
+    property alias exitBlur: motion.exitBlur
+    readonly property real extraWidth: root.boxWidth * (root.widthRatio - 1)
+    readonly property bool presenting: root.opened || root.contentAlpha > 0
+
+    SpotlightMotion {
+        id: motion
+        opened: root.opened
+        dismissMs: Polkit.dismissMs
+    }
+
+    function describe(flow: var): var {
+        const identities = flow?.identities ?? [];
+        const who = flow?.selectedIdentity;
+        return {
+            title: root.sentence(flow?.message ?? ""),
+            ask: identities.length > 1 ? "Enter an administrator’s password." : who?.string === Quickshell.env("USER") ? "Enter your password to allow this." : `Enter the password for ${root.nameOf(who)} to allow this.`,
+            users: identities.map((identity, at) => ({ label: root.nameOf(identity), value: at })),
+            chosen: identities.indexOf(who),
+            // polkit's prompt, "Password: ", as a field's placeholder.
+            prompt: (flow?.inputPrompt ?? "").replace(/[:\s]+$/, "") || "Password",
+            echo: flow?.responseVisible ?? false,
+            note: root.sentence(flow?.supplementaryMessage ?? ""),
+            noteIsError: flow?.supplementaryIsError ?? false
+        };
+    }
 
     function submit(): void {
         if (!root.asking)
@@ -61,10 +100,23 @@ PanelWindow {
         return identity?.displayName || identity?.string || "";
     }
 
-    Component.onCompleted: root.screen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null
+    function pickScreen(): void {
+        root.screen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null;
+    }
+
+    Component.onCompleted: {
+        root.pickScreen();
+        root.completed = true;
+    }
+
+    // Back up inside its own fold: the same window opens again.
+    onShownChanged: if (root.shown) {
+        root.pickScreen();
+        field.forceActiveFocus();
+    }
 
     // A second request queued behind this one arrives in the same window.
-    onFlowChanged: {
+    onFlowChanged: if (root.flow) {
         field.text = "";
         root.submitted = false;
         root.refused = false;
@@ -87,9 +139,11 @@ PanelWindow {
         }
     }
 
-    WlrLayershell.namespace: "quickshell:polkit"
+    WlrLayershell.namespace: "quickshell:launcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    // Let go of the keyboard and the pointer for the fold, as the launcher
+    // does, so the next window can take them at once.
+    WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
 
@@ -102,16 +156,23 @@ PanelWindow {
 
     // Only the panel, and the user menu while it is open, take the pointer;
     // the rest of the screen stays clickable.
-    mask: Region {
+    mask: root.shown ? inputRegion : blank
+
+    Region {
+        id: inputRegion
         item: box
         Region { item: picker.popup.visible ? picker.popup.contentItem.parent : null }
+    }
+
+    Region {
+        id: blank
     }
 
     BackdropProbe {
         id: under
 
         screen: root.screen
-        area: Qt.rect(box.x, box.y, box.width, box.height)
+        area: Qt.rect(Math.round((root.width - root.boxWidth) / 2), box.y, root.boxWidth, box.height)
         active: true
     }
 
@@ -120,6 +181,8 @@ PanelWindow {
         y: box.y
         width: box.width
         height: box.height
+        visible: root.presenting
+        opacity: root.contentAlpha
         offset.y: Theme.shadowY
         radius: box.radius
         blur: Theme.shadowBlur
@@ -135,10 +198,20 @@ PanelWindow {
         x: Math.round((root.width - width) / 2 + box.shift)
         // A touch above centre, where the eye already is.
         y: Math.round((root.height - height) * 0.45)
-        width: root.boxWidth
+        width: Math.round(root.boxWidth + root.extraWidth)
         height: column.implicitHeight + root.pad * 2
+        visible: root.presenting
         radius: Theme.panelRadius
         color: Theme.frostOver(under.luma)
+
+        // Keep the glass above the compositor's blur cutoff until the final fade.
+        layer.enabled: root.exitBlur > 0
+        layer.effect: MultiEffect {
+            blurEnabled: true
+            blurMax: 16
+            blur: root.exitBlur
+            opacity: 1 - Math.max(0, (root.exitBlur - 0.4) / 0.6)
+        }
 
         Accessible.role: Accessible.Dialog
         Accessible.name: title.text
@@ -160,12 +233,14 @@ PanelWindow {
             NumberAnimation { target: box; property: "shift"; to: 0; duration: 50; easing.type: Easing.InSine }
         }
 
+        // The glass widens and narrows round the words without rewrapping them.
         Column {
             id: column
 
-            x: root.pad
+            x: Math.round((box.width - width) / 2)
             y: root.pad
-            width: box.width - root.pad * 2
+            width: root.boxWidth - root.pad * 2
+            opacity: root.contentAlpha
 
             Glyph {
                 x: Math.round((column.width - width) / 2)
@@ -182,7 +257,7 @@ PanelWindow {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
                 font.weight: Font.Bold
-                text: root.sentence(root.flow?.message ?? "")
+                text: root.view.title
             }
 
             Item { width: 1; height: 4 }
@@ -193,7 +268,7 @@ PanelWindow {
                 wrapMode: Text.Wrap
                 color: Theme.label2
                 font.pixelSize: Theme.captionSize
-                text: root.identities.length > 1 ? "Enter an administrator’s password." : root.mine ? "Enter your password to allow this." : `Enter the password for ${root.nameOf(root.flow?.selectedIdentity)} to allow this.`
+                text: root.view.ask
             }
 
             Item { width: 1; height: 16 }
@@ -202,14 +277,14 @@ PanelWindow {
             SettingDropdown {
                 id: picker
 
-                visible: root.identities.length > 1
+                visible: root.view.users.length > 1
                 width: column.width
                 setting: ({
                     title: "User",
-                    options: root.identities.map((identity, at) => ({ label: root.nameOf(identity), value: at })),
-                    get: () => root.chosen,
+                    options: root.view.users,
+                    get: () => root.view.chosen,
                     set: at => {
-                        root.flow.selectedIdentity = root.identities[at];
+                        root.flow.selectedIdentity = root.flow.identities[at];
                         field.forceActiveFocus();
                     }
                 })
@@ -239,7 +314,7 @@ PanelWindow {
                     clip: true
                     focus: true
                     readOnly: !root.asking
-                    echoMode: root.flow?.responseVisible ? TextInput.Normal : TextInput.Password
+                    echoMode: root.view.echo ? TextInput.Normal : TextInput.Password
                     passwordCharacter: "•"
                     color: Theme.fg
                     selectionColor: Theme.textSelection
@@ -255,12 +330,11 @@ PanelWindow {
                     Keys.onEnterPressed: root.submit()
                     Keys.onEscapePressed: root.cancel()
 
-                    // polkit's prompt, "Password: ", as a field's placeholder.
                     PopupText {
                         id: placeholder
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !field.text
-                        text: (root.flow?.inputPrompt ?? "").replace(/[:\s]+$/, "") || "Password"
+                        text: root.view.prompt
                         color: Theme.label3
                     }
                 }
@@ -277,15 +351,13 @@ PanelWindow {
             // What PAM had to add: a fingerprint reader's prompt, an expired
             // password. Wrong passwords say so by the shake alone.
             PopupText {
-                readonly property string said: root.flow?.supplementaryMessage ?? ""
-
-                visible: said !== ""
+                visible: text !== ""
                 topPadding: 6
                 width: column.width
                 wrapMode: Text.Wrap
                 font.pixelSize: Theme.footnoteSize
-                color: root.flow?.supplementaryIsError ? Theme.warn : Theme.label2
-                text: root.sentence(said)
+                color: root.view.noteIsError ? Theme.warn : Theme.label2
+                text: root.view.note
             }
 
             Item { width: 1; height: 16 }
@@ -309,7 +381,8 @@ PanelWindow {
                     height: 24
                     framed: true
                     lit: true
-                    live: root.asking
+                    // Drawn as it was through the fold, though nothing answers.
+                    live: root.asking || !root.shown
                     label: "Allow"
                     textSize: Theme.popupTextSize
                     onTapped: root.submit()

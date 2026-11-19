@@ -101,12 +101,13 @@ ShellRoot {
     // startup rather than when something first reads Polkit.
     readonly property bool polkitAgent: Polkit.registered
 
-    // The password panel, up for as long as a request is.
+    // The password panel, on the same terms as the launcher.
     LazyLoader {
-        active: Polkit.shown
+        active: Polkit.active
 
         AuthDialog {
             flow: Polkit.flow
+            shown: Polkit.shown
         }
     }
 
