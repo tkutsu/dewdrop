@@ -171,7 +171,8 @@
     "lockAsTyped": false,
     "lockPasswordLength": 0,
     // The lock's own date and time, in Date & Time's tokens (^[…] and _[…]
-    // included in the time): blank follows Date Order and Hour Format.
+    // included in the time): a blank date is "ddd d" (Thu 19), as a phone
+    // shortens it beside the weather; a blank time follows Hour Format.
     // Smaller AM/PM and the letter case are the lock's own too.
     "lockDateFormat": "",
     "lockTimeFormat": "",

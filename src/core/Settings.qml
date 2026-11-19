@@ -139,9 +139,10 @@ Singleton {
     readonly property bool lockPower: root.values.lockPower !== false
     readonly property bool lockAsTyped: root.values.lockAsTyped === true
     readonly property int lockPasswordLength: Math.max(0, Math.floor(Number(root.values.lockPasswordLength) || 0))
-    // The lock's clock and weather, each its own: blank formats follow Date
-    // Order and Hour Format.
-    readonly property string lockDateFormat: root.values.lockDateFormat || (root.dateOrder === "mdy" ? "dddd, MMMM d" : "dddd d MMMM")
+    // The lock's clock and weather, each its own: a blank date is the short
+    // day and its number, as a phone's lock screen shortens it beside the
+    // weather; a blank time follows Hour Format.
+    readonly property string lockDateFormat: root.values.lockDateFormat || "ddd d"
     readonly property string lockTimeFormat: root.values.lockTimeFormat || root.hourFormat
     readonly property bool lockTwelveHour: /AP|ap/.test(root.lockTimeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property bool lockSmallAmPm: root.values.lockSmallAmPm !== false
