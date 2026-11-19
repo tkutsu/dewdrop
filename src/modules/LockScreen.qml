@@ -256,6 +256,51 @@ Scope {
                 presence: surface.presence
             }
 
+            // The keyboard layout, in the corner where a Mac's lock screen
+            // keeps its input menu, and only with more than one to choose
+            // from. A click moves to the next.
+            Rectangle {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 20
+                visible: Keyboard.layouts.length > 1
+                opacity: surface.presence
+                width: layout.implicitWidth + 20
+                height: 28
+                radius: height / 2
+                color: switcher.hovered ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0)
+
+                Row {
+                    id: layout
+
+                    anchors.centerIn: parent
+                    spacing: 6
+
+                    Glyph {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Theme.glyph.keyboard
+                        fontSize: Theme.popupGlyphSize
+                        color: Theme.fg
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Keyboard.short
+                        color: Theme.fg
+                        font.family: Theme.bodyFont
+                        font.pixelSize: Theme.popupTextSize
+                        font.weight: Font.DemiBold
+                    }
+                }
+
+                HoverHandler {
+                    id: switcher
+                }
+                TapHandler {
+                    onTapped: Keyboard.next()
+                }
+            }
+
             // Every key comes here, whichever screen has the keyboard: the
             // password is one, shared by every screen's field.
             Item {

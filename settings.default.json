@@ -154,16 +154,29 @@
     // Its glass shows the clock, the weather and the notifications waiting,
     // each with a switch; previews off leaves a notification its app and
     // time. Parallax lets the wallpaper drift after the pointer (Reduce Motion
-    // keeps it still). As typed checks the password the moment it reaches its
-    // length, without Return; the length is learned at each unlock with
-    // Return, and a miss asks for Return again. Every check goes through the
-    // system's login stack, faillock included.
+    // keeps it still). As typed is PIN Mode: the password is checked the
+    // moment it is lockPasswordLength characters long, without Return (0
+    // leaves it to Return). A miss asks for Return until the next unlock.
+    // Every check goes through the system's login stack, faillock included.
+    // Anyone at the lock can count the length off, so keep it to long
+    // passwords.
     "lockClock": true,
     "lockWeather": true,
     "lockNotifications": true,
     "lockPreviews": true,
     "lockParallax": true,
     "lockAsTyped": false,
+    "lockPasswordLength": 0,
+    // The lock's own date and time, in Date & Time's tokens (^[…] and _[…]
+    // included in the time): blank follows Date Order and Hour Format.
+    // Smaller AM/PM and the letter case are the lock's own too.
+    "lockDateFormat": "",
+    "lockTimeFormat": "",
+    "lockSmallAmPm": true,
+    "lockCase": "normal",
+    // The lock's weather line: {icon}, {temp}, {desc} (the sky in words),
+    // {high} and {low} (the day's), as bare figures like the bar's {temp}.
+    "lockWeatherFormat": "{icon} {temp}°  {desc}  {high}° / {low}°",
 
     // macOS's two accessibility switches. Reduce motion takes the bounce out
     // of every spring, stops the attention hop, the drawer's wind-up and the

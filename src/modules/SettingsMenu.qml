@@ -56,6 +56,9 @@ OverlayWindow {
     // until Return or Escape hands them back, and Left with nothing further
     // left comes back to the tabs. Typing on the page goes to the search.
     property Item keyItem: null
+
+    // What a date and time format takes: the clock's, and the lock's.
+    readonly property string dateTokens: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\n^[…] and _[…] draw small, the size of a small AM/PM:\n^[…] raised to the capitals' tops, _[…] on the baseline.\nHour Format rewrites the hours here."
     // A field or pop-up button chosen by Return or Space, entered on that
     // key's release: a pop-up button would take the release as a pick.
     property Item entering: null
@@ -513,6 +516,30 @@ OverlayWindow {
                     ]
                 },
                 {
+                    title: "Date and Time",
+                    rows: [
+                        { type: "choice", id: "lockTwelveHour", title: "Hour Format", tooltip: "Rewrites the hours in Time Format.", enabled: Settings.lockClock,
+                            options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.lockTwelveHour, set: v => Settings.setLockTwelveHour(v) },
+                        { type: "toggle", id: "lockSmallAmPm", title: "Smaller AM/PM", enabled: Settings.lockClock && Settings.lockTwelveHour,
+                            get: () => Settings.lockSmallAmPm, set: v => Settings.set("lockSmallAmPm", v) },
+                        { type: "text", id: "lockDateFormat", title: "Date Format", tooltip: root.dateTokens, enabled: Settings.lockClock,
+                            get: () => Settings.lockDateFormat, set: v => Settings.set("lockDateFormat", v) },
+                        { type: "text", id: "lockTimeFormat", title: "Time Format", tooltip: root.dateTokens, enabled: Settings.lockClock,
+                            get: () => Settings.lockTimeFormat, set: v => Settings.set("lockTimeFormat", v) },
+                        { type: "choice", id: "lockCase", title: "Letter Case", enabled: Settings.lockClock,
+                            options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.lockCase, set: v => Settings.set("lockCase", v) }
+                    ]
+                },
+                {
+                    title: "Weather",
+                    rows: [
+                        { type: "text", id: "lockWeatherFormat", title: "Custom Format", fieldWidth: 250, enabled: Settings.lockWeather,
+                            tooltip: "{icon}: weather icon. {temp}: the temperature now.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
+                            validate: v => /\{(?:icon|temp|desc|high|low)\}/.test(v) ? "" : "Include a token, such as {temp}.",
+                            get: () => Settings.lockWeatherFormat, set: v => Settings.set("lockWeatherFormat", v) }
+                    ]
+                },
+                {
                     title: "Motion",
                     rows: [
                         { type: "toggle", id: "lockParallax", title: "Parallax", text: "The wallpaper drifts after the pointer.", tooltip: "Reduce Motion keeps it still.", get: () => Settings.lockParallax, set: v => Settings.set("lockParallax", v) }
@@ -521,9 +548,18 @@ OverlayWindow {
                 {
                     title: "Password",
                     rows: [
-                        { type: "toggle", id: "lockAsTyped", title: "Unlock Without Return", text: "Checks the password once it is as long as yours, like a PIN.",
-                            tooltip: "The lock learns the length when you unlock with Return. A wrong try counts as one, as with Return, and the next one needs Return.",
-                            get: () => Settings.lockAsTyped, set: v => Settings.set("lockAsTyped", v) }
+                        { type: "notice", id: "lockPinRisk", title: "PIN Mode Gives Away Your Password's Length",
+                            text: "Anyone at your computer can tell how long your password is, by counting the keys until it checks. That makes a short one easier to guess."
+                                + "\n\nFine with a password of 12 characters or more on a computer that stays at home. Leave it off on a laptop you take out." },
+                        { type: "toggle", id: "lockAsTyped", title: "PIN Mode",
+                            text: Settings.lockAsTyped && !Settings.lockPasswordLength ? "Type your password's length below to start." : "Unlocks without Return, like a phone's PIN.",
+                            tooltip: "Return still works. Wrong tries count toward the system's lockout, as with Return.\nAfter one, from a typo or a length that no longer fits, the lock waits for Return until you are in.",
+                            get: () => Settings.lockAsTyped, set: v => Settings.set("lockAsTyped", v) },
+                        { type: "text", id: "lockPasswordLength", title: "Password Length", fieldWidth: 56,
+                            tooltip: "Kept in plain text in this computer's settings.json.",
+                            enabled: Settings.lockAsTyped,
+                            validate: v => v === "" || /^[0-9]+$/.test(v) && Number(v) >= 1 && Number(v) <= 256 ? "" : "A number of characters, like 12.",
+                            get: () => Settings.lockPasswordLength || "", set: v => Settings.set("lockPasswordLength", Number(v) || 0) }
                     ]
                 }
             ]
@@ -542,7 +578,7 @@ OverlayWindow {
                 {
                     title: "Calendar Module Text",
                     rows: [
-                        { type: "text", id: "datetimeFormat", title: "Custom Format", tooltip: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\n^[…] and _[…] draw small, the size of a small AM/PM:\n^[…] raised to the capitals' tops, _[…] on the baseline.\nHour Format rewrites the hours here.", placeholder: Settings.defaults.datetimeFormat, get: () => Settings.datetimeFormat, set: v => Settings.set("datetimeFormat", v || Settings.defaults.datetimeFormat) },
+                        { type: "text", id: "datetimeFormat", title: "Custom Format", tooltip: root.dateTokens, placeholder: Settings.defaults.datetimeFormat, get: () => Settings.datetimeFormat, set: v => Settings.set("datetimeFormat", v || Settings.defaults.datetimeFormat) },
                         { type: "choice", id: "datetimeCase", title: "Letter Case", tooltip: "Also sets AM/PM's case wherever a time shows.", options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.datetimeCase, set: v => Settings.set("datetimeCase", v) }
                     ]
                 }
@@ -1151,11 +1187,20 @@ OverlayWindow {
 
                     width: list.width
                     sourceComponent: modelData.heading !== undefined ? heading
-                        : modelData.setting.type === "location" ? weatherLocation : row
+                        : modelData.setting.type === "location" ? weatherLocation
+                        : modelData.setting.type === "notice" ? notice : row
 
                     Component {
                         id: weatherLocation
                         WeatherLocation { width: list.width }
+                    }
+
+                    Component {
+                        id: notice
+                        SettingNotice {
+                            width: list.width
+                            setting: entry.modelData.setting
+                        }
                     }
 
                     Component {

@@ -129,13 +129,23 @@ Singleton {
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
     readonly property bool glassWorkspaceMark: root.values.glassWorkspaceMark !== false
     // The lock screen: what the glass shows, whether the picture follows the
-    // pointer, and whether the right password unlocks without Return.
+    // pointer, and PIN Mode: whether the password is checked without Return
+    // once it is lockPasswordLength long.
     readonly property bool lockClock: root.values.lockClock !== false
     readonly property bool lockWeather: root.values.lockWeather !== false
     readonly property bool lockNotifications: root.values.lockNotifications !== false
     readonly property bool lockPreviews: root.values.lockPreviews !== false
     readonly property bool lockParallax: root.values.lockParallax !== false
     readonly property bool lockAsTyped: root.values.lockAsTyped === true
+    readonly property int lockPasswordLength: Math.max(0, Math.floor(Number(root.values.lockPasswordLength) || 0))
+    // The lock's clock and weather, each its own: blank formats follow Date
+    // Order and Hour Format.
+    readonly property string lockDateFormat: root.values.lockDateFormat || (root.dateOrder === "mdy" ? "dddd, MMMM d" : "dddd d MMMM")
+    readonly property string lockTimeFormat: root.values.lockTimeFormat || root.hourFormat
+    readonly property bool lockTwelveHour: /AP|ap/.test(root.lockTimeFormat.replace(/'(?:[^']|'')*'/g, ""))
+    readonly property bool lockSmallAmPm: root.values.lockSmallAmPm !== false
+    readonly property string lockCase: ["normal", "uppercase", "lowercase"].includes(root.values.lockCase) ? root.values.lockCase : "normal"
+    readonly property string lockWeatherFormat: root.values.lockWeatherFormat || "{icon} {temp}°  {desc}  {high}° / {low}°"
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true
@@ -233,7 +243,9 @@ Singleton {
     // AM/PM is, and with Smaller AM/PM the AM/PM tokens, closed up to the time. Quoted literals stay as typed, so
     // '^[' shows the characters. Each run is marked with a private-use
     // character before formatting and found again after it.
-    function timeDisplay(date: date, timeFormat: string): var {
+    function timeDisplay(date: date, timeFormat: string, small: var, textCase: var): var {
+        const smallAmPm = small ?? root.smallAmPm;
+        const mode = textCase ?? root.timeCase;
         let open = "";
         const format = timeFormat.replace(/'(?:[^']|'')*'|\^\[|_\[|\]|AP|ap/g, token => {
             if (token[0] === "'")
@@ -250,12 +262,12 @@ Singleton {
                 open = "";
                 return "\uE001";
             }
-            return root.smallAmPm && !open ? "\uE000" + token + "\uE001" : token;
+            return smallAmPm && !open ? "\uE000" + token + "\uE001" : token;
         });
         // An unclosed run goes to the end.
         const marked = Qt.formatDateTime(date, format) + (open ? "\uE001" : "");
         const markers = /[\uE000-\uE003]/g;
-        const cased = root.applyCase(marked.replace(markers, ""), root.timeCase);
+        const cased = root.applyCase(marked.replace(markers, ""), mode);
 
         let text = "";
         let offset = 0;
@@ -266,8 +278,8 @@ Singleton {
             // Casing can change a string's length (\u00DF to SS), so a run's place
             // is counted in the cased text.
             const before = marked.slice(0, match.index).replace(markers, "");
-            const start = root.applyCase(before, root.timeCase).length;
-            const end = root.applyCase(before + match[2], root.timeCase).length;
+            const start = root.applyCase(before, mode).length;
+            const end = root.applyCase(before + match[2], mode).length;
             const amPm = match[1] === "\uE000";
             const between = cased.slice(offset, start);
             text += amPm ? between.replace(/\s+$/, "") : between;
@@ -301,9 +313,9 @@ Singleton {
 
     // A timeDisplay as rich text for a line `pixelSize` tall, its small runs
     // at the bar's two-thirds size: on the baseline, or raised.
-    function timeMarkup(display: var, pixelSize: int): string {
+    function timeMarkup(display: var, pixelSize: int, ratio: var): string {
         const escape = text => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const small = Math.max(1, Math.round(pixelSize * 2 / 3));
+        const small = Math.max(1, Math.round(pixelSize * (ratio ?? 2 / 3)));
         let markup = "";
         let offset = 0;
         for (const range of display.smallRanges) {
@@ -317,13 +329,19 @@ Singleton {
 
     // Switch hour notation while preserving custom separators, literals and other tokens.
     function setTwelveHour(enabled: bool): void {
-        if (enabled === root.twelveHour)
-            return;
-        const current = root.datetimeFormat;
+        if (enabled !== root.twelveHour)
+            root.set("datetimeFormat", root.withTwelveHour(root.datetimeFormat, enabled));
+    }
+
+    function setLockTwelveHour(enabled: bool): void {
+        if (enabled !== root.lockTwelveHour)
+            root.set("lockTimeFormat", root.withTwelveHour(root.lockTimeFormat, enabled));
+    }
+
+    function withTwelveHour(current: string, enabled: bool): string {
         if (/^(?:HH|h):mm(?::ss)?(?: [Aa][Pp])?$/.test(current)) {
             const seconds = current.includes(":ss");
-            root.set("datetimeFormat", enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm"));
-            return;
+            return enabled ? (seconds ? "h:mm:ss AP" : "h:mm AP") : (seconds ? "HH:mm:ss" : "HH:mm");
         }
         let format = current.replace(/'(?:[^']|'')*'|H{1,2}|h{1,2}/g,
             token => token[0] === "'" ? token : enabled ? "h".repeat(token.length) : "H".repeat(token.length));
@@ -331,7 +349,7 @@ Singleton {
             format += " AP";
         else
             format = format.replace(/'(?:[^']|'')*'|\s*(?:AP|ap)/g, token => token[0] === "'" ? token : "");
-        root.set("datetimeFormat", format.trim());
+        return format.trim();
     }
 
     // A list setting with `item` put in or taken out.
