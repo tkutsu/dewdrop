@@ -805,6 +805,11 @@ Singleton {
         powerLock: panel("power-lock"),
         powerKill: panel("power-kill"),
         powerConfirm: "\u{f012c}",
+        // The lock screen's foot, bolder than the launcher's drawings and
+        // drawn from the font, which needs no measuring on a lock surface.
+        lockSleep: "\u{f0904}",       // nf-md-power_sleep (a moon)
+        lockRestart: "\u{f0709}",     // nf-md-restart
+        lockShutDown: "\u{f0425}",    // nf-md-power
         // Launcher rows that are not apps: a detected domain, a clipboard
         // entry, and secured networks.
         web: "\u{f059f}",
