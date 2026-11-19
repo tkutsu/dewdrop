@@ -105,7 +105,7 @@ def main():
         copy_shell(target)
         menu = target / "src/modules/SettingsMenu.qml"
         source = menu.read_text().replace("    id: root", "    id: root\n    property alias auditList: list\n    property alias auditPageBar: pageScroll\n    property alias auditSidebar: sidebar\n    property alias auditTabBar: tabScroll\n    property alias auditTabs: tabs\n    property alias auditFilter: filter", 1)
-        source = source.replace("readonly property int boxHeight: 560", "property int boxHeight: 560")
+        source = source.replace("readonly property int boxHeight:", "property int boxHeight:")
         source = source.replace("layer.enabled: contentHeight + topMargin + bottomMargin > height", "layer.enabled: false")
         menu.write_text(source)
         (target / "src/components/OverlayWindow.qml").write_text('import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true }')
