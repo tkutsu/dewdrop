@@ -1,0 +1,8 @@
+#%PAM-1.0
+# The lock screen's check for Unlock Without Return, which tries the password
+# after every key. It cannot use the system's stack (login), which the lock
+# screen uses otherwise: pam_faillock there locks the account after three wrong
+# tries (/etc/security/faillock.conf), and pam_unix waits two seconds after
+# each. This is the password check alone, without the lockout or the wait.
+auth       required     pam_unix.so nodelay
+account    required     pam_unix.so

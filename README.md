@@ -36,6 +36,10 @@ Weather, per-app volume, Wi-Fi, Bluetooth and the system controls are there too.
 
 Dewdrop is also your polkit agent. When `pkexec` or an app needs an administrator's password, it asks in a small glass panel, and shakes it if the password is wrong.
 
+## The Lock Screen
+
+Locking fades your windows into the wallpaper and raises a pane of glass with the time, the weather, what notified while you were away and the password field. The wallpaper drifts a little after the pointer. Settings > Lock Screen chooses what the glass shows and can unlock the moment the password is right, without Return.
+
 ## Install
 
 Dewdrop is my personal config, and I run it on Arch Linux. It needs Quickshell 0.3.2 or newer and Hyprland 0.56 or newer with a Lua config (`hyprland.lua`).
@@ -80,6 +84,17 @@ Then add a shortcut for the launcher. Pick another key if Super+Space is already
 
 ```lua
 hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
+```
+
+Dewdrop has its own lock screen. To lock with a shortcut, and when hypridle locks the session (idle or before sleep), point both at it:
+
+```lua
+hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd("qs ipc call lock lock"))
+```
+
+```ini
+# ~/.config/hypr/hypridle.conf, under general
+lock_cmd = qs ipc call lock lock
 ```
 
 Log out and back in, and the bar comes up with Hyprland.

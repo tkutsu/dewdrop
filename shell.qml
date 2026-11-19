@@ -111,4 +111,8 @@ ShellRoot {
         }
     }
 
+    // The lock screen. Not lazy: the session lock must be in the same place
+    // after a reload to carry a held lock over (LockScreen.qml).
+    LockScreen {}
+
 }

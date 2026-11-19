@@ -70,7 +70,12 @@ Singleton {
         }
     ]
 
+    // Locking is the shell's own lock screen; power.sh --lock asks logind,
+    // for whoever else answers it.
     function run(arg: string): void {
-        Quickshell.execDetached([root.script, arg, Settings.sessionSaveCommand]);
+        if (arg === "--lock")
+            Lock.lock();
+        else
+            Quickshell.execDetached([root.script, arg, Settings.sessionSaveCommand]);
     }
 }
