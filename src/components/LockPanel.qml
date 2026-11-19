@@ -409,7 +409,7 @@ Item {
                     height: parent.height
                     clip: true
 
-                    PasswordGlyphs {
+                    PasswordDots {
                         id: dots
 
                         x: Math.min(0, well.width - width - caret.width - 4)

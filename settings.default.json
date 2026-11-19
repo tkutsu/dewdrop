@@ -106,11 +106,6 @@
     "caretAnimation": "phase",
     "caretShape": "line",
 
-    // What the lock screen and the password panel show for each key typed:
-    // dots or asterisks. Motion: drop (each falls into place) or static.
-    "passwordStyle": "dots",
-    "passwordMotion": "drop",
-
     // Letter case for Date & Time and alarms: normal, uppercase or lowercase.
     // Normal preserves the case supplied by the format.
     "datetimeCase": "normal",

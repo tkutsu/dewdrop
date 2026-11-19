@@ -77,8 +77,6 @@ Singleton {
     readonly property bool centrePillRecoil: root.values.centrePillRecoil !== false
     readonly property string caretAnimation: ["phase", "blink", "static"].includes(root.values.caretAnimation) ? root.values.caretAnimation : "phase"
     readonly property string caretShape: root.values.caretShape === "block" ? "block" : "line"
-    readonly property string passwordStyle: root.values.passwordStyle === "asterisks" ? "asterisks" : "dots"
-    readonly property string passwordMotion: root.values.passwordMotion === "static" ? "static" : "drop"
     readonly property string datetimeFormat: root.user.datetimeFormat
         ?? (root.user.dateFormat !== undefined || root.user.timeFormat !== undefined
             ? [root.user.dateFormat ?? "ddd d MMM", root.user.timeFormat ?? "HH:mm"].filter(Boolean).join(" ")
