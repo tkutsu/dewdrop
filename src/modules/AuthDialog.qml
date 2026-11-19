@@ -317,12 +317,12 @@ PanelWindow {
 
                         TextMenu {}
 
-                        // The password as Password Fields' Character draws it, over
-                        // the field's own characters, which stay unseen so the
-                        // caret, selection and clicks still land on them. Each
-                        // takes one character's room, from where the first
-                        // one stands as the field scrolls.
-                        PasswordGlyphs {
+                        // The password's dots, drawn over the field's own
+                        // characters so each can fade in as it rises. Those stay
+                        // unseen, so the caret, selection and clicks still land
+                        // on them. Each dot takes one character's room, from
+                        // where the first one stands as the field scrolls.
+                        PasswordDots {
                             readonly property real step: field.text.length && field.passwordCharacter
                                 ? field.positionToRectangle(1).x - field.positionToRectangle(0).x : 0
 
