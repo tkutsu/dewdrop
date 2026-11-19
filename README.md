@@ -86,18 +86,22 @@ Then add a shortcut for the launcher. Pick another key if Super+Space is already
 hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
 ```
 
-Dewdrop has its own lock screen. To lock with a shortcut, and when hypridle locks the session (idle or before sleep), point both at it:
+Dewdrop is also your polkit agent, and only one agent can run per session. Remove the line that starts your old one, wherever your config keeps its exec lines: `hyprland.lua` itself, or a file it loads such as `exec.lua`. Common agents are `polkit-kde-authentication-agent-1`, `hyprpolkitagent`, `polkit-gnome-authentication-agent-1` and `lxpolkit`. If a package such as `hyprpolkitagent` runs as a systemd user service instead, turn it off with `systemctl --user disable --now hyprpolkitagent`.
+
+Dewdrop has its own lock screen, so it takes over from hyprlock or any other locker. Point your lock shortcut at it, replacing the bind that ran `hyprlock`:
 
 ```lua
 hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd("qs ipc call lock lock"))
 ```
+
+If you use hypridle, replace its `lock_cmd` (often `pidof hyprlock || hyprlock`) so idle locking and `loginctl lock-session`, including a `before_sleep_cmd` that calls it, use Dewdrop too:
 
 ```ini
 # ~/.config/hypr/hypridle.conf, under general
 lock_cmd = qs ipc call lock lock
 ```
 
-Log out and back in, and the bar comes up with Hyprland.
+Log out and back in, and the bar comes up with Hyprland, with no other polkit agent beside it.
 
 ### 4. Make It Yours
 
