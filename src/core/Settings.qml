@@ -136,6 +136,7 @@ Singleton {
     readonly property bool lockNotifications: root.values.lockNotifications !== false
     readonly property bool lockPreviews: root.values.lockPreviews !== false
     readonly property bool lockParallax: root.values.lockParallax !== false
+    readonly property bool lockPower: root.values.lockPower !== false
     readonly property bool lockAsTyped: root.values.lockAsTyped === true
     readonly property int lockPasswordLength: Math.max(0, Math.floor(Number(root.values.lockPasswordLength) || 0))
     // The lock's clock and weather, each its own: blank formats follow Date

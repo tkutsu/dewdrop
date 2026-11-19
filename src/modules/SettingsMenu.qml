@@ -522,7 +522,8 @@ OverlayWindow {
                         { type: "toggle", id: "lockClock", title: "Date and Time", get: () => Settings.lockClock, set: v => Settings.set("lockClock", v) },
                         { type: "toggle", id: "lockWeather", title: "Weather", tooltip: "This hour's weather and the day's high and low, once a location is set.", get: () => Settings.lockWeather, set: v => Settings.set("lockWeather", v) },
                         { type: "toggle", id: "lockNotifications", title: "Notifications", tooltip: "The latest three, and how many more.", get: () => Settings.lockNotifications, set: v => Settings.set("lockNotifications", v) },
-                        { type: "toggle", id: "lockPreviews", title: "Show Previews", text: "Off shows only the app and when.", enabled: Settings.lockNotifications, get: () => Settings.lockPreviews, set: v => Settings.set("lockPreviews", v) }
+                        { type: "toggle", id: "lockPreviews", title: "Show Previews", text: "Off shows only the app and when.", enabled: Settings.lockNotifications, get: () => Settings.lockPreviews, set: v => Settings.set("lockPreviews", v) },
+                        { type: "toggle", id: "lockPower", title: "Sleep, Restart and Shut Down", text: "Buttons along the foot of the screen.", tooltip: "Restart and Shut Down ask for a second press. Anyone at the computer can use them, as with its power button.", get: () => Settings.lockPower, set: v => Settings.set("lockPower", v) }
                     ]
                 },
                 {
