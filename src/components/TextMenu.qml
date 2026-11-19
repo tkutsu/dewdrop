@@ -4,13 +4,19 @@ import qs.src.core
 // What a Mac's text fields do with the mouse beyond typing: a right click
 // opens Cut, Copy, Paste and Select All at the pointer (EditMenu), and a
 // selection can be picked up and dropped somewhere else in its field.
-// Read-only text offers only Copy and Select All. Goes inside the field:
-// `TextMenu {}`.
+// Goes inside the field: `TextMenu {}`.
+//
+// Read-only text gets only Copy and Select All, and a password field only
+// Paste and Select All: what it holds is never read back out of it.
 Item {
     id: root
 
     readonly property Item field: parent
     readonly property bool editable: !root.field.readOnly
+    // A password field, while its text is hidden (a TextEdit has no echoMode).
+    readonly property bool secret: root.field.echoMode !== undefined && root.field.echoMode !== TextInput.Normal
+    // Whether the selection can be dragged somewhere else.
+    readonly property bool movable: root.editable && !root.secret
     readonly property bool hasSelection: root.field.selectionStart !== root.field.selectionEnd
     readonly property alias hovered: hover.hovered
 
@@ -21,41 +27,72 @@ Item {
     property point at
 
     onVisibleChanged: if (!root.visible)
-        root.open = false
+        root.close(false)
+
+    // Put the menu away. `back` gives the focus back to the field, after a
+    // choice or Escape; a click that went somewhere else leaves it there.
+    function close(back: bool): void {
+        if (!root.open)
+            return;
+        if (back && root.field.activeFocusOnPress)
+            root.field.forceActiveFocus();
+        root.open = false;
+    }
 
     // The selection stays the menu's for as long as it is up. Focus can leave
     // the field once the pointer is on the menu's window, and a field drops a
     // selection that is not persistent when it loses focus, so it is made
-    // persistent until the menu goes.
+    // persistent until the menu goes. If the focus went to something else in
+    // the window meanwhile, the selection goes then, as it would have.
     property bool persistent: false
     onOpenChanged: {
+        const f = root.field;
         if (root.open) {
-            root.persistent = root.field.persistentSelection;
-            root.field.persistentSelection = true;
-        } else {
-            root.field.persistentSelection = root.persistent;
+            root.persistent = f.persistentSelection;
+            f.persistentSelection = true;
+            root.forwardedBefore = Array.from(f.Keys.forwardTo);
+            f.Keys.forwardTo = [root];
+            return;
         }
+        f.Keys.forwardTo = root.forwardedBefore;
+        f.persistentSelection = root.persistent;
+        if (!root.persistent && !f.activeFocus && root.Window.active)
+            f.deselect();
+    }
+
+    // Keys typed while the menu is up are the menu's: the arrows, Return and
+    // Escape drive it, and the rest go nowhere. A bar popup's keys come to its
+    // menu through the bar (Popup.qml) and never reach the field; where they
+    // come straight to the field (the launcher, settings, the password panel),
+    // the field hands them over.
+    // Set in onOpenChanged: a Binding hands forwardTo a list of nulls.
+    property var forwardedBefore: []
+    Keys.onPressed: event => {
+        event.accepted = true;
+        menu.item?.key(event);
     }
 
     // The menu's rows, in order, with a hairline ("") between the groups.
-    readonly property var rows: root.editable ? ["Cut", "Copy", "Paste", "", "Select All"] : ["Copy", "", "Select All"]
+    readonly property var rows: root.secret ? ["Paste", "", "Select All"]
+        : root.editable ? ["Cut", "Copy", "Paste", "", "Select All"]
+        : ["Copy", "", "Select All"]
 
     function can(row: string): bool {
         switch (row) {
         case "Cut":
+            return root.hasSelection && root.editable;
         case "Copy":
             return root.hasSelection;
+        case "Paste":
+            return root.editable;
         case "Select All":
             return root.field.length > 0;
         default:
-            return true;
+            return false;
         }
     }
 
-    // A chosen row also hands the focus back to the field, to type on from.
     function act(row: string): void {
-        if (root.field.activeFocusOnPress)
-            root.field.forceActiveFocus();
         switch (row) {
         case "Cut":
             root.field.cut();
@@ -89,16 +126,27 @@ Item {
     }
 
     // A right click away from the selection puts the cursor there first, so
-    // Paste lands where you clicked.
+    // Paste lands where you clicked. On a menu that is already up, it moves
+    // the menu there.
     function openAt(x: real, y: real): void {
         const f = root.field;
         if (!root.onSelection(x, y))
             f.cursorPosition = f.positionAt(x, y);
         if (f.activeFocusOnPress)
             f.forceActiveFocus();
+        menu.item?.setKey(null);
         root.at = Qt.point(x, y);
         root.open = true;
     }
+
+    // --- A right press held across the menu --------------------------------
+    // As on the Mac: press, drag onto a row and let go there to choose it.
+    // Let go elsewhere after moving and the menu goes; let go where it was
+    // pressed and it stays up, as after a click. Nothing counts until the
+    // pointer has moved: the window the press just opened may not be placed
+    // yet, and its rows would answer from wherever it was made.
+    property bool tracking: false
+    property point trackedFrom
 
     // --- Dragging a selection ----------------------------------------------
     // A press on the selection holds it; moving past the drag distance picks
@@ -111,6 +159,9 @@ Item {
     // being moved, where dropping changes nothing.
     property int dropAt: -1
 
+    // The move is a remove and an insert, so whatever watches the text sees
+    // it once without the text moved; the searches it feeds wait before they
+    // run (Launcher, Weather), so only the moved text is looked up.
     function drop(): void {
         const f = root.field;
         const start = f.selectionStart, end = f.selectionEnd, to = root.dropAt;
@@ -131,31 +182,39 @@ Item {
         root.dropAt = -1;
     }
 
+    function moved(from: point, x: real, y: real): bool {
+        return Math.hypot(x - from.x, y - from.y) >= Qt.styleHints.startDragDistance;
+    }
+
     HoverHandler {
         id: hover
         // An arrow over text that can be picked up, as on the Mac.
-        cursorShape: root.dragging || root.editable && root.onSelection(hover.point.position.x, hover.point.position.y)
+        cursorShape: root.dragging || root.movable && root.onSelection(hover.point.position.x, hover.point.position.y)
             ? Qt.ArrowCursor : Qt.IBeamCursor
     }
 
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        // A list the field is in would take a drag for a scroll.
+        preventStealing: root.holding || root.tracking
 
         // Every other press is the field's own: selecting by dragging, a
-        // double click on a word, a link in read-only text.
+        // double click on a word.
         onPressed: mouse => {
-            // A press anywhere on the field puts an open menu away, and
-            // does nothing else, as a click outside a menu does.
-            if (root.open) {
-                root.open = false;
-                return;
-            }
             if (mouse.button === Qt.RightButton) {
                 root.openAt(mouse.x, mouse.y);
+                root.tracking = true;
+                root.trackedFrom = Qt.point(mouse.x, mouse.y);
                 return;
             }
-            mouse.accepted = root.editable && !(mouse.modifiers & Qt.ShiftModifier) && root.onSelection(mouse.x, mouse.y);
+            // A click on the field puts an open menu away, and does nothing
+            // else, as a click outside a menu does.
+            if (root.open) {
+                root.close(true);
+                return;
+            }
+            mouse.accepted = root.movable && !(mouse.modifiers & Qt.ShiftModifier) && root.onSelection(mouse.x, mouse.y);
             if (!mouse.accepted)
                 return;
             root.holding = true;
@@ -164,9 +223,12 @@ Item {
                 root.field.forceActiveFocus();
         }
         onPositionChanged: mouse => {
-            if (!root.holding)
+            if (root.tracking) {
+                if (root.moved(root.trackedFrom, mouse.x, mouse.y))
+                    menu.item?.track(root.mapToGlobal(mouse.x, mouse.y));
                 return;
-            if (!root.dragging && Math.hypot(mouse.x - root.pressedAt.x, mouse.y - root.pressedAt.y) < Qt.styleHints.startDragDistance)
+            }
+            if (!root.holding || !root.dragging && !root.moved(root.pressedAt, mouse.x, mouse.y))
                 return;
             root.dragging = true;
             const f = root.field;
@@ -174,13 +236,26 @@ Item {
             root.dropAt = p >= f.selectionStart && p <= f.selectionEnd ? -1 : p;
         }
         onReleased: mouse => {
+            if (root.tracking) {
+                root.tracking = false;
+                if (!root.moved(root.trackedFrom, mouse.x, mouse.y))
+                    return;
+                if (!(menu.item?.release(root.mapToGlobal(mouse.x, mouse.y)) ?? false))
+                    root.close(true);
+                return;
+            }
             if (root.dragging)
                 root.drop();
             else if (root.holding)
                 root.field.cursorPosition = root.field.positionAt(mouse.x, mouse.y);
             root.letGo();
         }
-        onCanceled: root.letGo()
+        onCanceled: {
+            root.tracking = false;
+            if (menu.item)
+                menu.item.tracked = null;
+            root.letGo();
+        }
     }
 
     // The insertion point a drop would use, while the field's own cursor

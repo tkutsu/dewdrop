@@ -3,9 +3,7 @@ import Quickshell
 import qs.src.core
 
 // The menu a right click on a text field opens (TextMenu), hung from the
-// pointer. Styled as the tray's menus are (MenuPopup): rows 22 high on the
-// frosted panel, the grey fill on the row you are on, a hairline between the
-// groups, and a blink on the row chosen before it acts.
+// pointer, in the rows every menu here has (MenuRow) on the frosted panel.
 Popup {
     id: root
 
@@ -23,10 +21,12 @@ Popup {
     hPadding: Theme.selectionInset
     vPadding: Theme.selectionInset
     bottomPadding: vPadding
-    closeKey: () => root.owner.open = false
+    // Escape: back to typing in the field.
+    closeKey: () => root.owner.close(true)
 
     // Its rows' left edge at the pointer: back by the shadow's room and the
-    // padding, so the box and not its window lands there.
+    // padding, so the box and not its window lands there. A second right
+    // click moves it.
     anchor.rect: Qt.rect(root.owner.at.x - root.shadowSide - root.hPadding, root.owner.at.y - root.shadowTop, 1, 1)
     anchor.edges: Edges.Top | Edges.Left
     anchor.gravity: Edges.Bottom | Edges.Right
@@ -36,27 +36,57 @@ Popup {
     // under the menu.
     readonly property bool hostOpen: root.owner.QsWindow.window?.opened ?? true
     onHostOpenChanged: if (!root.hostOpen)
-        root.owner.open = false
+        root.owner.close(false)
 
     // A click anywhere but the menu or its field puts the menu away; a press
     // on the field is the field's (TextMenu).
     OutsideClick {
         enabled: root.owner.open
         inside: root.hovered || root.owner.hovered
-        onReleased: root.owner.open = false
+        onReleased: root.owner.close(false)
     }
 
-    // The row that was clicked, while it blinks.
+    // The row that was chosen, while it blinks.
     property Item chosen: null
+
+    // The row under a right press dragged across the menu, which the field
+    // reports (TextMenu): the compositor keeps the pointer on the surface the
+    // press went down on, so until it is let go the menu never hears it.
+    property Item tracked: null
+
+    // The row that can be chosen under a point on the screen, or null.
+    function rowAt(global: point): Item {
+        for (let i = 0; i < list.children.length; i++) {
+            const row = list.children[i];
+            if (typeof row.choose !== "function" || !row.enabled)
+                continue;
+            const p = row.mapFromGlobal(global.x, global.y);
+            if (p.x >= 0 && p.y >= 0 && p.x < row.width && p.y < row.height)
+                return row;
+        }
+        return null;
+    }
+
+    function track(global: point): void {
+        root.tracked = root.rowAt(global);
+    }
+
+    // The right press let go: chooses the row under it. Whether there was one.
+    function release(global: point): bool {
+        const row = root.rowAt(global);
+        root.tracked = null;
+        if (row)
+            row.activate();
+        return row !== null;
+    }
 
     Column {
         id: list
 
-        // As wide as the widest label, and no narrower than the tray's
-        // menus. Read off implicitWidth, which width does not feed, or the two
-        // would chase each other.
+        // As wide as the widest row; read off implicitWidth, which width does
+        // not feed, or the two would chase each other.
         readonly property real rowWidth: {
-            let w = 120;
+            let w = 0;
             for (let i = 0; i < list.children.length; i++)
                 w = Math.max(w, list.children[i].implicitWidth);
             return w;
@@ -65,61 +95,33 @@ Popup {
         Repeater {
             model: root.owner.rows
 
-            delegate: Item {
+            delegate: MenuRow {
                 id: row
 
                 required property string modelData
-                readonly property bool rule: row.modelData === ""
 
-                enabled: !row.rule && root.owner.can(row.modelData)
-                Accessible.role: Accessible.MenuItem
-                Accessible.name: row.modelData
-                Accessible.ignored: row.rule
-                Accessible.onPressAction: row.choose()
+                text: row.modelData
+                separator: row.modelData === ""
+                enabled: !row.separator && root.owner.can(row.modelData)
+                hot: root.keyItem ? row.keyed : root.owner.tracking ? root.tracked === row : rowHover.hovered
+                frozen: root.chosen !== null
+                width: list.rowWidth
 
-                function choose(): void {
-                    if (!row.enabled || root.chosen !== null)
-                        return;
-                    root.chosen = row;
-                    blink.start();
+                Accessible.onPressAction: row.activate()
+
+                function activate(): void {
+                    if (row.choose())
+                        root.chosen = row;
+                }
+                onPicked: {
+                    root.owner.act(row.modelData);
+                    root.owner.close(true);
                 }
 
                 // Popup.qml's keys: the arrows move between rows, Return
                 // chooses one.
                 property bool keyed: false
-                readonly property var keyPress: row.enabled ? row.choose : null
-
-                property bool blinkOn: true
-                readonly property bool lit: root.chosen !== null ? root.chosen === row && row.blinkOn
-                    : root.keyItem ? row.keyed : rowHover.hovered
-
-                readonly property int pad: Theme.popupInset
-                implicitWidth: row.rule ? 0 : label.implicitWidth + row.pad * 2
-                width: list.rowWidth
-                height: row.rule ? Theme.selectionInset * 2 : 22
-
-                Rectangle {
-                    anchors.fill: parent
-                    visible: !row.rule
-                    radius: Theme.selectionRadius
-                    color: row.lit ? Theme.selection : "transparent"
-                }
-
-                PopupSeparator {
-                    anchors.centerIn: parent
-                    visible: row.rule
-                    width: parent.width
-                }
-
-                PopupText {
-                    id: label
-                    anchors.verticalCenter: parent.verticalCenter
-                    x: row.pad
-                    visible: !row.rule
-                    text: row.modelData
-                    color: row.lit ? Theme.menuSelectionText : Theme.menuText
-                    opacity: row.enabled ? 1 : 0.4
-                }
+                readonly property var keyPress: row.enabled ? row.activate : null
 
                 HoverHandler {
                     id: rowHover
@@ -127,22 +129,7 @@ Popup {
 
                 TapHandler {
                     enabled: root.chosen === null
-                    onTapped: row.choose()
-                }
-
-                SequentialAnimation {
-                    id: blink
-
-                    PropertyAction { target: row; property: "blinkOn"; value: false }
-                    PauseAnimation { duration: Theme.blinkMs }
-                    PropertyAction { target: row; property: "blinkOn"; value: true }
-                    PauseAnimation { duration: Theme.blinkMs }
-                    ScriptAction {
-                        script: {
-                            root.owner.act(row.modelData);
-                            root.owner.open = false;
-                        }
-                    }
+                    onTapped: row.activate()
                 }
             }
         }

@@ -255,6 +255,8 @@ PanelWindow {
                     Keys.onEnterPressed: root.submit()
                     Keys.onEscapePressed: root.cancel()
 
+                    TextMenu {}
+
                     // polkit's prompt, "Password: ", as a field's placeholder.
                     PopupText {
                         id: placeholder
