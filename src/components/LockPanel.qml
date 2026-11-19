@@ -392,6 +392,52 @@ Item {
                     border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
                 }
 
+                // PIN Mode's check, with no button to spin in: a line sweeping
+                // along the field's foot. Reduce Motion holds it and lets it
+                // pulse.
+                Item {
+                    id: sweep
+
+                    x: 18
+                    y: parent.height - 6
+                    width: parent.width - 36
+                    height: 2
+                    clip: true
+                    visible: Lock.checking && Lock.automaticReady
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 1
+                        color: Qt.rgba(1, 1, 1, 0.12)
+                    }
+
+                    Rectangle {
+                        id: bead
+
+                        width: Theme.reduceMotion ? sweep.width : Math.round(sweep.width * 0.35)
+                        height: sweep.height
+                        radius: 1
+                        color: Theme.fg
+
+                        NumberAnimation on x {
+                            running: sweep.visible && !Theme.reduceMotion
+                            from: -bead.width
+                            to: sweep.width
+                            duration: 900
+                            loops: Animation.Infinite
+                            easing.type: Easing.InOutQuad
+                        }
+
+                        SequentialAnimation on opacity {
+                            running: sweep.visible && Theme.reduceMotion
+                            loops: Animation.Infinite
+                            onRunningChanged: if (!running) bead.opacity = 1
+                            NumberAnimation { to: 0.3; duration: 500; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1; duration: 500; easing.type: Easing.InOutSine }
+                        }
+                    }
+                }
+
                 // Just after the caret, which waits at the start.
                 Text {
                     x: 22
@@ -460,8 +506,11 @@ Item {
                         color: Theme.label2
                     }
 
+                    // PIN Mode has nothing for Return to do until a miss, so
+                    // the button stands aside for the line along its foot.
                     Item {
                         anchors.verticalCenter: parent.verticalCenter
+                        visible: !Lock.automaticReady
                         width: 26
                         height: 26
 
