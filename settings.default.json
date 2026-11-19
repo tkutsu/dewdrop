@@ -154,10 +154,10 @@
     // Its glass shows the clock, the weather and the notifications waiting,
     // each with a switch; previews off leaves a notification its app and
     // time. Parallax lets the wallpaper drift after the pointer (Reduce Motion
-    // keeps it still). As typed unlocks the moment the password is right,
-    // without Return, through the lock's own PAM file (pam/dewdrop-lock),
-    // which skips the system's lockout after failed tries; Return uses the
-    // system's login stack.
+    // keeps it still). As typed checks the password the moment it reaches its
+    // length, without Return; the length is learned at each unlock with
+    // Return, and a miss asks for Return again. Every check goes through the
+    // system's login stack, faillock included.
     "lockClock": true,
     "lockWeather": true,
     "lockNotifications": true,
