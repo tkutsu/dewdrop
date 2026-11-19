@@ -169,8 +169,8 @@ OverlayWindow {
     onOpenedChanged: if (root.opened)
         Weather.compareModels()
 
-    readonly property int boxWidth: 700
-    readonly property int boxHeight: 560
+    readonly property int boxWidth: 780
+    readonly property int boxHeight: 620
     readonly property int boxPad: Theme.panelPadding
     readonly property int sideWidth: 168
 
