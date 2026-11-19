@@ -146,11 +146,28 @@ Item {
                 }
             }
 
-            Row {
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 12
+            // The date and the weather centred together, a gap apart, as a
+            // phone's lock screen has them; wider than the glass together,
+            // the weather takes a line of its own under the date.
+            Item {
+                id: dateline
+
+                readonly property int gap: 12
+                readonly property bool both: date.visible && weather.visible
+                readonly property real dateWidth: date.visible ? date.implicitWidth : 0
+                readonly property real weatherWidth: weather.visible ? weather.implicitWidth : 0
+                readonly property real lineWidth: dateline.dateWidth + (dateline.both ? dateline.gap : 0) + dateline.weatherWidth
+                readonly property bool stacked: dateline.both && dateline.lineWidth > dateline.width
+                readonly property real lineX: Math.round((dateline.width - dateline.lineWidth) / 2)
+
+                width: parent.width
+                height: dateline.stacked ? date.implicitHeight + 2 + weather.implicitHeight
+                    : Math.max(date.visible ? date.implicitHeight : 0, weather.visible ? weather.implicitHeight : 0)
 
                 Text {
+                    id: date
+
+                    x: dateline.stacked ? Math.round((dateline.width - dateline.dateWidth) / 2) : dateline.lineX
                     visible: Settings.lockClock
                     textFormat: Text.RichText
                     text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize)
@@ -166,6 +183,9 @@ Item {
                 Row {
                     id: weather
 
+                    x: dateline.stacked ? Math.round((dateline.width - dateline.weatherWidth) / 2)
+                        : dateline.lineX + dateline.dateWidth + (dateline.both ? dateline.gap : 0)
+                    y: dateline.stacked ? date.implicitHeight + 2 : 0
                     readonly property var hour: Weather.thisHour
                     readonly property var parts: Settings.lockWeatherFormat.split(/(\{(?:icon|avgicon|worsticon)\})/).filter(part => part !== "")
                     readonly property var icons: ({
