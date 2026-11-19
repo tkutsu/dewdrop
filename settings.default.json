@@ -175,7 +175,10 @@
     "lockSmallAmPm": true,
     "lockCase": "normal",
     // The lock's weather line: {icon}, {temp}, {desc} (the sky in words),
-    // {high} and {low} (the day's), as bare figures like the bar's {temp}.
+    // {high} and {low} (the day's), as bare figures like the bar's {temp};
+    // {avgicon} and {worsticon}, the next six hours' average and worst icons,
+    // and {avgtemp}, their average temperature, as Weather > Bar Forecast
+    // works them out.
     "lockWeatherFormat": "{icon} {temp}°  {desc}  {high}° / {low}°",
 
     // macOS's two accessibility switches. Reduce motion takes the bounce out
