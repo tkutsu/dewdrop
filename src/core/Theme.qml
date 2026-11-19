@@ -819,7 +819,6 @@ Singleton {
         // Lock on.
         unlock: "\u{f0054}",         // nf-md-arrow_right
         capsLock: "\u{f0632}",       // nf-md-apple_keyboard_caps
-        shift: "\u{f0636}",          // nf-md-apple_keyboard_shift
         // The / mode's preview panel, for the rows it has no picture to show:
         // a file that is only ever text, and the directories that never will
         // be. See components/FilePreview.qml.
