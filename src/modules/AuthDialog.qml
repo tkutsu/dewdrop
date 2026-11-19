@@ -327,15 +327,24 @@ PanelWindow {
                         // unseen, so the caret, selection and clicks still land
                         // on them. Each dot takes one character's room, from
                         // where the first one stands as the field scrolls.
-                        PasswordDots {
-                            readonly property real step: field.text.length && field.passwordCharacter
-                                ? field.positionToRectangle(1).x - field.positionToRectangle(0).x : 0
+                        //
+                        // That room is the font's measure of the character,
+                        // known before the field has laid out the key just
+                        // typed. Read off the field's own layout, the first key
+                        // measured nothing: its dot sat on the caret and jumped
+                        // back a cell when the second came.
+                        TextMetrics {
+                            id: room
+                            font: field.font
+                            text: field.passwordCharacter
+                        }
 
+                        PasswordDots {
                             visible: field.masked
-                            x: field.cursorRectangle.x - field.cursorPosition * step
+                            x: field.cursorRectangle.x - field.cursorPosition * room.advanceWidth
                             anchors.verticalCenter: parent.verticalCenter
                             count: field.text.length
-                            cell: step
+                            cell: room.advanceWidth
                         }
 
                         // polkit's prompt as the placeholder, just after the
