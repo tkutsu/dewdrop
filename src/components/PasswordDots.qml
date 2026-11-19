@@ -48,11 +48,13 @@ Row {
             Component.onCompleted: if (!Theme.reduceMotion)
                 arrival.start()
 
+            // A short rise that slows a long way out, so it settles rather
+            // than stops.
             ParallelAnimation {
                 id: arrival
 
-                NumberAnimation { target: key; property: "rise"; from: root.dot * 0.75; to: 0; duration: 220; easing.type: Easing.OutCubic }
-                NumberAnimation { target: key; property: "opacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutQuad }
+                NumberAnimation { target: key; property: "rise"; from: root.dot * 0.5; to: 0; duration: 380; easing.type: Easing.OutQuint }
+                NumberAnimation { target: key; property: "opacity"; from: 0; to: 1; duration: 260; easing.type: Easing.OutCubic }
             }
 
             Rectangle {
