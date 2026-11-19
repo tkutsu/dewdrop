@@ -36,6 +36,8 @@ Singleton {
     property string message: ""
     // Whether Caps Lock is on, as LockScreen.qml reads it off the keys.
     property bool capsLock: false
+    // Whether Shift is held, likewise.
+    property bool shift: false
     // The password was wrong: the field shakes.
     signal rejected
 
@@ -59,6 +61,7 @@ Singleton {
             OpenPopup.dismiss();
             root.password = "";
             root.message = "";
+            root.shift = false;
             kept.phase = "cover";
         } else if (kept.phase === "reveal") {
             kept.phase = "locked";
