@@ -267,36 +267,23 @@ Item {
             }
         }
 
-        // The latest three, newest on top; the rest as a count. One arriving
-        // comes in at the top as on a phone's lock screen, faded up from a
-        // touch smaller, and the others slide down to make room; one going
-        // fades and shrinks first, then the rest close up with the glass.
-        // Reduce Motion keeps the fades alone.
+        // The notifications and the password with none of the column's gap
+        // between: the notifications bring their own under them, so it opens
+        // and closes with them rather than the glass jumping by it.
         Column {
-            id: notices
-
-            readonly property int shown: 3
-            readonly property int more: Math.max(0, Notifications.count - notices.shown)
-            readonly property int arriveMs: 420
-            readonly property int leaveMs: 220
-            // Held while the last card leaves, so the glass closes up after
-            // it rather than at once.
-            visible: Settings.lockNotifications && (Notifications.count > 0 || cards.height > 0.5)
             width: parent.width
-            spacing: 6
 
-            ListView {
-                id: cards
+            // The latest three, newest on top; the rest as a count. One arriving
+            // comes in at the top as on a phone's lock screen, faded up from a
+            // touch smaller, and the others slide down to make room; one going
+            // fades and shrinks first, then the rest close up with the glass.
+            // Reduce Motion keeps the fades alone.
+            Item {
+                id: noticesBox
 
                 width: parent.width
-                height: contentHeight
-                interactive: false
-                spacing: 6
-                // Diffed rather than rebuilt, so only the cards that came or
-                // went move (NotificationsPopup does the same).
-                model: ScriptModel {
-                    values: Settings.lockNotifications ? Notifications.list.slice(0, notices.shown) : []
-                }
+                height: Settings.lockNotifications && Notifications.count > 0 ? cards.contentHeight + notices.tail + content.spacing : 0
+                visible: noticesBox.height > 0
 
                 // Shrinking waits for a leaving card to fade first, so the
                 // glass closes up after it has gone, never over it.
@@ -304,376 +291,408 @@ Item {
                     id: settle
 
                     SequentialAnimation {
-                        PauseAnimation { duration: settle.targetValue < cards.height ? notices.leaveMs : 0 }
+                        PauseAnimation { duration: settle.targetValue < noticesBox.height ? notices.leaveMs : 0 }
                         NumberAnimation { duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
                     }
                 }
 
-                // Held back while the others make room, so it fades into a
-                // gap rather than over the card still leaving its place.
-                add: Transition {
-                    SequentialAnimation {
-                        PropertyAction { properties: "opacity"; value: 0 }
-                        PropertyAction { properties: "scale"; value: Theme.reduceMotion ? 1 : 0.92 }
-                        PauseAnimation { duration: Theme.reduceMotion ? 0 : notices.arriveMs * 0.35 }
-                        ParallelAnimation {
-                            NumberAnimation { property: "opacity"; to: 1; duration: notices.arriveMs * 0.7; easing.type: Easing.OutCubic }
-                            NumberAnimation { property: "scale"; to: 1; duration: notices.arriveMs; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                Column {
+                    id: notices
+
+                    readonly property int shown: 3
+                    readonly property int more: Math.max(0, Notifications.count - notices.shown)
+                    readonly property int arriveMs: 420
+                    readonly property int leaveMs: 220
+                    // The count of the rest, under the cards.
+                    readonly property real tail: rest.visible ? notices.spacing + rest.implicitHeight : 0
+                    width: parent.width
+                    spacing: 6
+
+                    ListView {
+                        id: cards
+
+                        width: parent.width
+                        // Fills the box as it eases rather than taking its
+                        // own height at once: a list cut short stops drawing
+                        // the cards still fading out of it.
+                        height: Math.max(0, noticesBox.height - notices.tail - content.spacing)
+                        interactive: false
+                        spacing: 6
+                        // Diffed rather than rebuilt, so only the cards that came or
+                        // went move (NotificationsPopup does the same).
+                        model: ScriptModel {
+                            values: Settings.lockNotifications ? Notifications.list.slice(0, notices.shown) : []
+                        }
+
+                        // Held back while the others make room, so it fades into a
+                        // gap rather than over the card still leaving its place.
+                        add: Transition {
+                            SequentialAnimation {
+                                PropertyAction { properties: "opacity"; value: 0 }
+                                PropertyAction { properties: "scale"; value: Theme.reduceMotion ? 1 : 0.92 }
+                                PauseAnimation { duration: Theme.reduceMotion ? 0 : notices.arriveMs * 0.35 }
+                                ParallelAnimation {
+                                    NumberAnimation { property: "opacity"; to: 1; duration: notices.arriveMs * 0.7; easing.type: Easing.OutCubic }
+                                    NumberAnimation { property: "scale"; to: 1; duration: notices.arriveMs; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                                }
+                            }
+                        }
+                        remove: Transition {
+                            NumberAnimation { property: "opacity"; to: 0; duration: notices.leaveMs; easing.type: Easing.InCubic }
+                            NumberAnimation { property: "scale"; to: Theme.reduceMotion ? 1 : 0.92; duration: notices.leaveMs; easing.type: Easing.InCubic }
+                        }
+                        // Also lands an arrival cut short by the next one, which
+                        // would otherwise stay part faded.
+                        addDisplaced: Transition {
+                            NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
+                            NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
+                        }
+                        // The rest hold their places until the leaving card has
+                        // faded, then close up with the glass.
+                        removeDisplaced: Transition {
+                            NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
+                            SequentialAnimation {
+                                PauseAnimation { duration: notices.leaveMs }
+                                NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
+                            }
+                        }
+
+                        delegate: Rectangle {
+                            id: card
+
+                            required property var modelData
+                            readonly property var n: card.modelData
+                            readonly property bool preview: Settings.lockPreviews
+
+                            width: cards.width
+                            height: text.implicitHeight + 20
+                            radius: 14
+                            color: Qt.rgba(1, 1, 1, 0.07)
+
+                            // The sender's icon, or the bell the centre draws for
+                            // one without.
+                            Item {
+                                x: 12
+                                y: 10
+                                width: 20
+                                height: 20
+
+                                Image {
+                                    id: icon
+                                    anchors.fill: parent
+                                    source: Notifications.iconFor(card.n)
+                                    sourceSize: Qt.size(40, 40)
+                                    fillMode: Image.PreserveAspectFit
+                                    asynchronous: true
+                                }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    visible: icon.status !== Image.Ready
+                                    radius: 5
+                                    color: Theme.selection
+
+                                    Glyph {
+                                        anchors.centerIn: parent
+                                        text: Theme.glyph.notif
+                                        fontSize: Theme.popupGlyphSize - 2
+                                        color: Theme.label2
+                                    }
+                                }
+                            }
+
+                            Column {
+                                id: text
+
+                                x: 42
+                                y: 10
+                                width: card.width - 42 - 14
+                                spacing: 1
+
+                                Item {
+                                    width: parent.width
+                                    height: app.implicitHeight
+
+                                    Text {
+                                        id: app
+                                        width: parent.width - ago.implicitWidth - 8
+                                        text: card.n?.appName || "Notification"
+                                        elide: Text.ElideRight
+                                        color: Theme.label2
+                                        font.family: Theme.bodyFont
+                                        font.pixelSize: Theme.footnoteSize
+                                        font.weight: Theme.bodyWeight
+                                    }
+
+                                    Text {
+                                        id: ago
+                                        anchors.right: parent.right
+                                        text: card.n ? Notifications.ago(card.n, WallClock.now) : ""
+                                        color: Theme.label3
+                                        font.family: Theme.bodyFont
+                                        font.pixelSize: Theme.footnoteSize
+                                        font.weight: Theme.bodyWeight
+                                    }
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    visible: card.preview && text !== ""
+                                    text: Notifications.plain(card.n?.summary)
+                                    elide: Text.ElideRight
+                                    color: Theme.fg
+                                    font.family: Theme.bodyFont
+                                    font.pixelSize: Theme.popupTextSize
+                                    font.weight: Font.DemiBold
+                                }
+
+                                Text {
+                                    width: parent.width
+                                    visible: card.preview && text !== ""
+                                    text: Notifications.plain(card.n?.body)
+                                    wrapMode: Text.Wrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
+                                    color: Theme.label2
+                                    font.family: Theme.bodyFont
+                                    font.pixelSize: Theme.captionSize
+                                    font.weight: Theme.bodyWeight
+                                }
+                            }
                         }
                     }
-                }
-                remove: Transition {
-                    NumberAnimation { property: "opacity"; to: 0; duration: notices.leaveMs; easing.type: Easing.InCubic }
-                    NumberAnimation { property: "scale"; to: Theme.reduceMotion ? 1 : 0.92; duration: notices.leaveMs; easing.type: Easing.InCubic }
-                }
-                // Also lands an arrival cut short by the next one, which
-                // would otherwise stay part faded.
-                addDisplaced: Transition {
-                    NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
-                    NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
-                }
-                // The rest hold their places until the leaving card has
-                // faded, then close up with the glass.
-                removeDisplaced: Transition {
-                    NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
-                    SequentialAnimation {
-                        PauseAnimation { duration: notices.leaveMs }
-                        NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
+
+                    Text {
+                        id: rest
+
+                        visible: notices.more > 0
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: notices.more === 1 ? "1 more notification" : `${notices.more} more notifications`
+                        color: Theme.label2
+                        font.family: Theme.bodyFont
+                        font.pixelSize: Theme.footnoteSize
+                        font.weight: Theme.bodyWeight
                     }
                 }
+            }
 
-                delegate: Rectangle {
-                    id: card
+            // The password: dots, and what to do with them.
+            Column {
+                width: parent.width
+                spacing: 8
 
-                    required property var modelData
-                    readonly property var n: card.modelData
-                    readonly property bool preview: Settings.lockPreviews
+                Item {
+                    id: field
 
-                    width: cards.width
-                    height: text.implicitHeight + 20
-                    radius: 14
-                    color: Qt.rgba(1, 1, 1, 0.07)
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: 280
+                    height: 40
 
-                    // The sender's icon, or the bell the centre draws for
-                    // one without.
+                    property real shake: 0
+                    property real alarm: 0
+                    transform: Translate {
+                        x: field.shake
+                    }
+
+                    // The field: the capsule, its dots and its buttons, unless PIN
+                    // Mode is checking by itself.
                     Item {
-                        x: 12
-                        y: 10
-                        width: 20
-                        height: 20
+                        id: box
 
-                        Image {
-                            id: icon
-                            anchors.fill: parent
-                            source: Notifications.iconFor(card.n)
-                            sourceSize: Qt.size(40, 40)
-                            fillMode: Image.PreserveAspectFit
-                            asynchronous: true
-                        }
+                        anchors.fill: parent
+                        visible: !Lock.automaticReady
 
                         Rectangle {
                             anchors.fill: parent
-                            visible: icon.status !== Image.Ready
-                            radius: 5
-                            color: Theme.selection
-
-                            Glyph {
-                                anchors.centerIn: parent
-                                text: Theme.glyph.notif
-                                fontSize: Theme.popupGlyphSize - 2
-                                color: Theme.label2
-                            }
-                        }
-                    }
-
-                    Column {
-                        id: text
-
-                        x: 42
-                        y: 10
-                        width: card.width - 42 - 14
-                        spacing: 1
-
-                        Item {
-                            width: parent.width
-                            height: app.implicitHeight
-
-                            Text {
-                                id: app
-                                width: parent.width - ago.implicitWidth - 8
-                                text: card.n?.appName || "Notification"
-                                elide: Text.ElideRight
-                                color: Theme.label2
-                                font.family: Theme.bodyFont
-                                font.pixelSize: Theme.footnoteSize
-                                font.weight: Theme.bodyWeight
-                            }
-
-                            Text {
-                                id: ago
-                                anchors.right: parent.right
-                                text: card.n ? Notifications.ago(card.n, WallClock.now) : ""
-                                color: Theme.label3
-                                font.family: Theme.bodyFont
-                                font.pixelSize: Theme.footnoteSize
-                                font.weight: Theme.bodyWeight
-                            }
+                            radius: height / 2
+                            color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * field.alarm)
+                            border.width: 1
+                            border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
                         }
 
+                        // Just after the caret, which waits at the start.
                         Text {
-                            width: parent.width
-                            visible: card.preview && text !== ""
-                            text: Notifications.plain(card.n?.summary)
-                            elide: Text.ElideRight
-                            color: Theme.fg
-                            font.family: Theme.bodyFont
-                            font.pixelSize: Theme.popupTextSize
-                            font.weight: Font.DemiBold
-                        }
-
-                        Text {
-                            width: parent.width
-                            visible: card.preview && text !== ""
-                            text: Notifications.plain(card.n?.body)
-                            wrapMode: Text.Wrap
-                            maximumLineCount: 2
-                            elide: Text.ElideRight
+                            x: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: Lock.password === ""
+                            text: "Enter Password"
                             color: Theme.label2
                             font.family: Theme.bodyFont
-                            font.pixelSize: Theme.captionSize
+                            font.pixelSize: Theme.popupTextSize
                             font.weight: Theme.bodyWeight
                         }
-                    }
-                }
-            }
 
-            Text {
-                visible: notices.more > 0
-                anchors.horizontalCenter: parent.horizontalCenter
-                text: notices.more === 1 ? "1 more notification" : `${notices.more} more notifications`
-                color: Theme.label2
-                font.family: Theme.bodyFont
-                font.pixelSize: Theme.footnoteSize
-                font.weight: Theme.bodyWeight
-            }
-        }
-
-        // The password: dots, and what to do with them.
-        Column {
-            width: parent.width
-            spacing: 8
-
-            Item {
-                id: field
-
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: 280
-                height: 40
-
-                property real shake: 0
-                property real alarm: 0
-                transform: Translate {
-                    x: field.shake
-                }
-
-                // The field: the capsule, its dots and its buttons, unless PIN
-                // Mode is checking by itself.
-                Item {
-                    id: box
-
-                    anchors.fill: parent
-                    visible: !Lock.automaticReady
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: height / 2
-                        color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * field.alarm)
-                        border.width: 1
-                        border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
-                    }
-
-                    // Just after the caret, which waits at the start.
-                    Text {
-                        x: 22
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: Lock.password === ""
-                        text: "Enter Password"
-                        color: Theme.label2
-                        font.family: Theme.bodyFont
-                        font.pixelSize: Theme.popupTextSize
-                        font.weight: Theme.bodyWeight
-                    }
-
-                    // The dots, cut off on the left once they run out of room.
-                    Item {
-                        id: well
-
-                        x: 18
-                        width: trail.x - 8 - well.x
-                        height: parent.height
-                        clip: true
-
-                        PasswordDots {
-                            id: dots
-
-                            x: Math.min(0, well.width - width - caret.width - 4)
-                            anchors.verticalCenter: parent.verticalCenter
-                            count: Lock.password.length
-                        }
-                    }
-
-                    // The field's caret, as every field draws it (Caret Shape and
-                    // Animation), after the last dot. It has no text to cover.
-                    TextCaret {
-                        id: caret
-
-                        parent: well
-                        x: Lock.password === "" ? 0 : dots.x + dots.width + 4
-                        anchors.verticalCenter: parent.verticalCenter
-                        height: 18
-                        textInput: QtObject {
-                            readonly property string text: ""
-                            readonly property int cursorPosition: 0
-                            readonly property bool cursorVisible: !Lock.checking
-                            readonly property bool readOnly: false
-                            readonly property font font: Qt.font({ family: Theme.bodyFont, pixelSize: Theme.popupTextSize })
-                        }
-                    }
-
-                    // Return as a button that keeps its place: dim with nothing
-                    // to send, lit once there is, a spinner while the password
-                    // is checked. (Caps Lock and the layout are in the card's
-                    // corner.)
-                    Row {
-                        id: trail
-
-                        anchors.right: parent.right
-                        anchors.rightMargin: 6
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 8
-
+                        // The dots, cut off on the left once they run out of room.
                         Item {
+                            id: well
+
+                            x: 18
+                            width: trail.x - 8 - well.x
+                            height: parent.height
+                            clip: true
+
+                            PasswordDots {
+                                id: dots
+
+                                x: Math.min(0, well.width - width - caret.width - 4)
+                                anchors.verticalCenter: parent.verticalCenter
+                                count: Lock.password.length
+                            }
+                        }
+
+                        // The field's caret, as every field draws it (Caret Shape and
+                        // Animation), after the last dot. It has no text to cover.
+                        TextCaret {
+                            id: caret
+
+                            parent: well
+                            x: Lock.password === "" ? 0 : dots.x + dots.width + 4
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 26
-                            height: 26
+                            height: 18
+                            textInput: QtObject {
+                                readonly property string text: ""
+                                readonly property int cursorPosition: 0
+                                readonly property bool cursorVisible: !Lock.checking
+                                readonly property bool readOnly: false
+                                readonly property font font: Qt.font({ family: Theme.bodyFont, pixelSize: Theme.popupTextSize })
+                            }
+                        }
 
-                            Rectangle {
-                                id: go
+                        // Return as a button that keeps its place: dim with nothing
+                        // to send, lit once there is, a spinner while the password
+                        // is checked. (Caps Lock and the layout are in the card's
+                        // corner.)
+                        Row {
+                            id: trail
 
-                                readonly property bool live: Lock.password !== "" && !Lock.checking
+                            anchors.right: parent.right
+                            anchors.rightMargin: 6
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 8
 
-                                anchors.fill: parent
-                                radius: width / 2
-                                color: go.live && hover.hovered ? Theme.selectionLifted : Theme.selectionStrong
-                                opacity: Lock.checking ? 0 : go.live ? 1 : 0.4
-                                Behavior on opacity {
-                                    NumberAnimation { duration: Theme.fadeMs }
+                            Item {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 26
+                                height: 26
+
+                                Rectangle {
+                                    id: go
+
+                                    readonly property bool live: Lock.password !== "" && !Lock.checking
+
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: go.live && hover.hovered ? Theme.selectionLifted : Theme.selectionStrong
+                                    opacity: Lock.checking ? 0 : go.live ? 1 : 0.4
+                                    Behavior on opacity {
+                                        NumberAnimation { duration: Theme.fadeMs }
+                                    }
+
+                                    Glyph {
+                                        anchors.centerIn: parent
+                                        text: Theme.glyph.unlock
+                                        fontSize: Theme.popupGlyphSize
+                                        color: Theme.fg
+                                    }
+
+                                    HoverHandler {
+                                        id: hover
+                                        enabled: go.live
+                                    }
+                                    TapHandler {
+                                        enabled: go.live
+                                        onTapped: Lock.submit()
+                                    }
                                 }
 
-                                Glyph {
+                                Spinner {
                                     anchors.centerIn: parent
-                                    text: Theme.glyph.unlock
-                                    fontSize: Theme.popupGlyphSize
-                                    color: Theme.fg
-                                }
-
-                                HoverHandler {
-                                    id: hover
-                                    enabled: go.live
-                                }
-                                TapHandler {
-                                    enabled: go.live
-                                    onTapped: Lock.submit()
+                                    visible: Lock.checking
                                 }
                             }
+                        }
+                    }
 
-                            Spinner {
-                                anchors.centerIn: parent
-                                visible: Lock.checking
+                    // PIN Mode: no field, just a line that fills a step with each
+                    // key, by the length set for the password. Full, it pulses
+                    // while the password is checked; a miss shakes it, and the
+                    // field comes back for Return.
+                    Item {
+                        id: pin
+
+                        anchors.centerIn: parent
+                        width: 200
+                        height: 4
+                        visible: Lock.automaticReady
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: height / 2
+                            color: Qt.tint(Qt.rgba(1, 1, 1, 0.18), Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
+                        }
+
+                        Rectangle {
+                            id: filled
+
+                            width: pin.width * Math.min(1, Lock.password.length / Math.max(1, Settings.lockPasswordLength))
+                            height: pin.height
+                            radius: height / 2
+                            color: Theme.fg
+
+                            Behavior on width {
+                                NumberAnimation { duration: Theme.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic }
+                            }
+
+                            SequentialAnimation on opacity {
+                                running: Lock.checking && pin.visible
+                                loops: Animation.Infinite
+                                onRunningChanged: if (!running) filled.opacity = 1
+                                NumberAnimation { to: 0.35; duration: 450; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 1; duration: 450; easing.type: Easing.InOutSine }
                             }
                         }
                     }
-                }
 
-                // PIN Mode: no field, just a line that fills a step with each
-                // key, by the length set for the password. Full, it pulses
-                // while the password is checked; a miss shakes it, and the
-                // field comes back for Return.
-                Item {
-                    id: pin
+                    SequentialAnimation {
+                        id: shaking
 
-                    anchors.centerIn: parent
-                    width: 200
-                    height: 4
-                    visible: Lock.automaticReady
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: height / 2
-                        color: Qt.tint(Qt.rgba(1, 1, 1, 0.18), Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
+                        NumberAnimation { target: field; property: "shake"; to: -12; duration: 50; easing.type: Easing.OutQuad }
+                        NumberAnimation { target: field; property: "shake"; to: 10; duration: 80; easing.type: Easing.InOutQuad }
+                        NumberAnimation { target: field; property: "shake"; to: -7; duration: 70; easing.type: Easing.InOutQuad }
+                        NumberAnimation { target: field; property: "shake"; to: 4; duration: 60; easing.type: Easing.InOutQuad }
+                        NumberAnimation { target: field; property: "shake"; to: 0; duration: 60; easing.type: Easing.InQuad }
                     }
 
-                    Rectangle {
-                        id: filled
+                    // Reduce Motion keeps the field still and lets the edge say it.
+                    SequentialAnimation {
+                        id: flushing
 
-                        width: pin.width * Math.min(1, Lock.password.length / Math.max(1, Settings.lockPasswordLength))
-                        height: pin.height
-                        radius: height / 2
-                        color: Theme.fg
+                        NumberAnimation { target: field; property: "alarm"; to: 1; duration: 80 }
+                        PauseAnimation { duration: 400 }
+                        NumberAnimation { target: field; property: "alarm"; to: 0; duration: 400 }
+                    }
 
-                        Behavior on width {
-                            NumberAnimation { duration: Theme.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic }
-                        }
-
-                        SequentialAnimation on opacity {
-                            running: Lock.checking && pin.visible
-                            loops: Animation.Infinite
-                            onRunningChanged: if (!running) filled.opacity = 1
-                            NumberAnimation { to: 0.35; duration: 450; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 1; duration: 450; easing.type: Easing.InOutSine }
+                    Connections {
+                        target: Lock
+                        function onRejected() {
+                            flushing.restart();
+                            if (!Theme.reduceMotion)
+                                shaking.restart();
                         }
                     }
                 }
 
-                SequentialAnimation {
-                    id: shaking
-
-                    NumberAnimation { target: field; property: "shake"; to: -12; duration: 50; easing.type: Easing.OutQuad }
-                    NumberAnimation { target: field; property: "shake"; to: 10; duration: 80; easing.type: Easing.InOutQuad }
-                    NumberAnimation { target: field; property: "shake"; to: -7; duration: 70; easing.type: Easing.InOutQuad }
-                    NumberAnimation { target: field; property: "shake"; to: 4; duration: 60; easing.type: Easing.InOutQuad }
-                    NumberAnimation { target: field; property: "shake"; to: 0; duration: 60; easing.type: Easing.InQuad }
+                Text {
+                    width: parent.width
+                    visible: Lock.message !== ""
+                    text: Lock.message
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
+                    color: Theme.warn
+                    font.family: Theme.bodyFont
+                    font.pixelSize: Theme.footnoteSize
+                    font.weight: Theme.bodyWeight
                 }
-
-                // Reduce Motion keeps the field still and lets the edge say it.
-                SequentialAnimation {
-                    id: flushing
-
-                    NumberAnimation { target: field; property: "alarm"; to: 1; duration: 80 }
-                    PauseAnimation { duration: 400 }
-                    NumberAnimation { target: field; property: "alarm"; to: 0; duration: 400 }
-                }
-
-                Connections {
-                    target: Lock
-                    function onRejected() {
-                        flushing.restart();
-                        if (!Theme.reduceMotion)
-                            shaking.restart();
-                    }
-                }
-            }
-
-            Text {
-                width: parent.width
-                visible: Lock.message !== ""
-                text: Lock.message
-                horizontalAlignment: Text.AlignHCenter
-                wrapMode: Text.Wrap
-                color: Theme.warn
-                font.family: Theme.bodyFont
-                font.pixelSize: Theme.footnoteSize
-                font.weight: Theme.bodyWeight
             }
         }
     }
