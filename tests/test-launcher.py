@@ -641,13 +641,15 @@ ShellRoot {
             for (let i = 0; i < 40 && !bindRows().length; i++)
                 fileKeys.wait(50);
             check(Launcher.results.findIndex(r => r.kind === "keybind") === helpRows().length, "keybinds follow the modes");
-            check(JSON.stringify(bindRows().map(r => [r.title, r.subtitle])) === JSON.stringify([["Open the launcher", "Super + L"], ["Move focus left", "Super + I / ←"], ["Move window", "Super + Left Drag"], ["Resize left", "resize  ·  Shift + H"]]), "keybinds read as their description and keys: " + JSON.stringify(bindRows().map(r => [r.title, r.subtitle])));
+            check(JSON.stringify(bindRows().map(r => [r.title, r.subtitle])) === JSON.stringify([["Hyprland: Open the launcher", "Super + L"], ["Hyprland: Move focus left", "Super + I / ←"], ["Hyprland: Move window", "Super + Left Drag"], ["Hyprland: Resize left", "resize  ·  Shift + H"]]), "keybinds read as their description and keys: " + JSON.stringify(bindRows().map(r => [r.title, r.subtitle])));
             const lastHelp = Launcher.results[Launcher.results.length - 1];
             check(lastHelp.kind === "note" && lastHelp.title === "1 keybind has no description", "binds without a description are counted, and click listeners are not binds");
             Launcher.query = "?focus";
-            check(helpRows().length === 0 && bindRows().length === 1 && bindRows()[0].title === "Move focus left" && Launcher.results.length === 1, "help searches the keybinds too");
+            check(helpRows().length === 0 && bindRows().length === 1 && bindRows()[0].title === "Hyprland: Move focus left" && Launcher.results.length === 1, "help searches the keybinds too");
             Launcher.activate(0);
             check(Launcher.shown && Launcher.query === "?focus", "Enter on a keybind leaves the cheatsheet up");
+            Launcher.query = "?hypr";
+            check(helpRows().length === 0 && bindRows().length === 4, "?hypr narrows to the keybinds");
             Launcher.query = "?music";
             check(helpRows().length === 1 && Launcher.results[0].badge === Launcher.musicPrefix, "help narrows by what is typed");
             Launcher.activate(0);
