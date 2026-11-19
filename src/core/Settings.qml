@@ -146,7 +146,7 @@ Singleton {
     readonly property bool lockTwelveHour: /AP|ap/.test(root.lockTimeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property bool lockSmallAmPm: root.values.lockSmallAmPm !== false
     readonly property string lockCase: ["normal", "uppercase", "lowercase"].includes(root.values.lockCase) ? root.values.lockCase : "normal"
-    readonly property string lockWeatherFormat: root.values.lockWeatherFormat || "{icon} {temp}°  {desc}  {high}° / {low}°"
+    readonly property string lockWeatherFormat: root.values.lockWeatherFormat || "{icon} {temp}°"
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true
