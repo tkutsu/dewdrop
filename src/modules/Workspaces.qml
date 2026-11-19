@@ -992,14 +992,11 @@ BarItem {
                                         Hyprland.dispatch(`hl.dsp.focus({ window = "address:0x${address}" })`);
                                     }
 
-                                    // Brings the window forward and fills the screen with it,
-                                    // or gives it back its place when it already does.
-                                    function toggleFullscreen(address: string): void {
-                                        const handle = Hyprland.toplevels.values.find(t => t.address === address)?.wayland;
-                                        if (!handle)
-                                            return;
+                                    // Brings the window forward and lifts it out of the tiling,
+                                    // or puts it back in when it already floats.
+                                    function toggleFloating(address: string): void {
                                         tap.focusWindow(address);
-                                        handle.fullscreen = !handle.fullscreen;
+                                        Hyprland.dispatch(`hl.dsp.window.float({ action = "toggle", window = "address:0x${address}" })`);
                                     }
 
                                     // The press's half: a bunched app opens out and its
@@ -1028,7 +1025,7 @@ BarItem {
                                     onPressed: mouse => {
                                         // Right-click closes a lone window and opens a group, so each
                                         // of its windows can be closed on its own. Neither it nor
-                                        // middle-click (fullscreen) starts a drag.
+                                        // middle-click (float or tile) starts a drag.
                                         if (mouse.button === Qt.MiddleButton) {
                                             addressOnPress = "";
                                             suppressClick = false;
@@ -1083,7 +1080,7 @@ BarItem {
                                         if (mouse.button === Qt.RightButton)
                                             Hyprland.toplevels.values.find(t => t.address === app.modelData)?.wayland?.close();
                                         else if (mouse.button === Qt.MiddleButton)
-                                            tap.toggleFullscreen(app.icon.addresses[0]);
+                                            tap.toggleFloating(app.icon.addresses[0]);
                                         else
                                             tap.focusWindow(app.icon.addresses[0]);
                                     }
