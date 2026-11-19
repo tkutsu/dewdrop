@@ -38,7 +38,7 @@ ShellRoot {
             'successful refresh settles all waiting callers exactly once');
         clear();Google.authorised(go, fail);Google.authorised(go, fail);
         test.tryVerify(() => failures === 2, 1000);
-        check(FakeRequest.requests[1].aborted && reason === 'Sign-in timed out' && !Google.refreshing && Google.waiting.length === 0,
+        check(FakeRequest.requests[1].aborted && reason === 'The server is taking too long to respond.' && !Google.refreshing && Google.waiting.length === 0,
             'shared deadline aborts the request and fails every waiting caller');
         FakeRequest.reply(1, {access_token: 'too late'});
         check(successes === 2 && Google.accessToken === '', 'late refresh response cannot install a token or settle again');

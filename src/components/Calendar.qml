@@ -246,6 +246,7 @@ Popup {
                 Accessible.name: month.text
 
                 WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     property real acc: 0
                     onWheel: function (wheel) {
                         acc -= wheel.angleDelta.y;
@@ -281,6 +282,7 @@ Popup {
         spacing: 2
 
         WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             property real acc: 0
             onWheel: function (wheel) {
                 acc -= wheel.angleDelta.y;

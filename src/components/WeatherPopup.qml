@@ -204,6 +204,7 @@ Popup {
             spacing: 4
 
             WheelHandler {
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: wheel => forecastScroll.scroll(wheel.angleDelta.y)
             }
 

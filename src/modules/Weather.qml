@@ -35,7 +35,7 @@ BarItem {
             required property var modelData
             Layout.fillHeight: true
             // A little air either side of the sky, so it does not crowd the figures.
-            Layout.leftMargin: modelData.token === "{icon}" ? 2 : 0
+            Layout.leftMargin: modelData.token === "{icon}" ? 1 : 0
             Layout.rightMargin: modelData.token === "{icon}" ? 2 : 0
             sourceComponent: modelData.token === "{icon}" ? sky : readout
             Component {

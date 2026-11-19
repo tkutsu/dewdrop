@@ -159,6 +159,14 @@ class EmailTests(unittest.TestCase):
     def check(self, expression):
         self.assertTrue(self.js('return ' + expression + ';'), expression)
 
+    def test_ipc_list_does_not_hide_a_failed_refresh(self):
+        function = re.search(r'^        function list\(\): string \{.*?^        }', SERVICE, re.M | re.S).group()
+        function = function.replace('function list(): string', 'function()').replace('root.', 'sut.')
+        self.js('sut.loaded=true; sut.trouble="Could not update mail"; sut.threads=[];')
+        self.assertEqual(self.js('return (' + function + ')();'), 'Could not update mail')
+        self.js('sut.trouble="";')
+        self.assertEqual(self.js('return (' + function + ')();'), 'No unread mail')
+
     def test_search_list_failure_stays_local(self):
         self.js('sut.total=7; sut.loaded=true; sut.threads=[{id:"inbox"}]; sut.search("bad query", false); sut.reject();')
         self.check('sut.found.q === "bad query" && sut.found.trouble.includes("Trying again") && sut.found.rows.length === 0')
