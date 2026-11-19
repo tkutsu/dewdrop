@@ -36,6 +36,8 @@ local layer_rules = {
 	{ match = { namespace = "quickshell:launcher" }, ignore_alpha = 0.3, blur = true, animation = "none" },
 	-- The launcher's ! veil is the exception: only the compositor can fade a blur.
 	{ match = { namespace = "quickshell:veil" }, blur = true, animation = "fade" },
+	-- So is the password panel, which comes and goes with its window.
+	{ match = { namespace = "quickshell:polkit" }, ignore_alpha = 0.3, blur = true, animation = "fade" },
 	-- Tray menus and tooltips are child popups, so they need blur_popups on the bar.
 	{ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.3, blur = true, blur_popups = true },
 	{ match = { namespace = "quickshell:backdrop" }, animation = "none" },

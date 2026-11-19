@@ -2,8 +2,7 @@
 """Drive the polkit password panel offscreen with a stand-in request.
 
 Typing and Return answer it, a refusal empties the field and keeps the keys,
-Escape cancels, a request several users could answer offers the choice, and
-the panel opens and folds away the way the launcher does.
+Escape cancels, and a request several users could answer offers the choice.
 """
 
 from pathlib import Path
@@ -46,7 +45,6 @@ ShellRoot {
     AuthDialog {
         id: dialog
         flow: flow
-        shown: true
 
         TestCase {
             id: test
@@ -97,19 +95,10 @@ ShellRoot {
                 flow.selectedIdentity = flow.other;
                 wait(50);
                 check(texts(dialog.contentItem, []).includes("Enter the password for Ada Lovelace to allow this."), "another user's password is named");
-                check(dialog.contentAlpha === 1, "opened all the way");
-                const words = texts(dialog.contentItem, []);
-                dialog.flow = null;
-                dialog.shown = false;
-                wait(100);
-                const folding = texts(dialog.contentItem, []);
-                check(JSON.stringify(folding) === JSON.stringify(words), "says what it said through the fold: " + JSON.stringify(folding));
-                wait(200);
-                check(dialog.contentAlpha === 0 && dialog.exitBlur === 1, "folds away the way the launcher does");
-                dialog.flow = flow;
-                dialog.shown = true;
-                wait(400);
-                check(dialog.contentAlpha === 1 && focused() === field, "opens again inside the same window, with the keys");
+                flow.identities = [flow.me];
+                flow.selectedIdentity = flow.me;
+                flow.cancelled = false;
+                field.text = "";
                 console.log("PASS: auth dialog");
             }
         }
@@ -131,8 +120,9 @@ def offscreen(text):
     """A plain window in place of the layer-shell surface the platform lacks."""
     text = text.replace("PanelWindow {\n    id: root\n", "FloatingWindow {\n    id: root\n    implicitWidth: 480\n    implicitHeight: 400\n", 1)
     text = re.sub(r"\n    anchors \{.*?\n    \}\n", "\n", text, count=1, flags=re.S)
+    text = re.sub(r"\n    mask: Region \{.*?\n    \}\n", "\n", text, count=1, flags=re.S)
     return "\n".join(line for line in text.splitlines()
-                     if not line.strip().startswith(("WlrLayershell.", "exclusionMode:", "mask:"))) + "\n"
+                     if not line.strip().startswith(("WlrLayershell.", "exclusionMode:"))) + "\n"
 
 
 def main():
