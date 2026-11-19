@@ -101,9 +101,11 @@ Singleton {
             binds: rows.map(r => {
                 const combo = r.mods.concat([r.keys.join(" / ")]).join(" + ");
                 return {
-                    title: r.title,
+                    // Named for where it lives, so it reads apart from the
+                    // modes above it and "?hypr" narrows to the binds.
+                    title: "Hyprland: " + r.title,
                     combo: r.submap ? r.submap + "  ·  " + combo : combo,
-                    fields: Launcher.prepFields([[r.title, 1], [combo, 0.8], [r.submap, 0.6]])
+                    fields: Launcher.prepFields([[r.title, 1], [combo, 0.8], [r.submap, 0.6], ["Hyprland", 0.4]])
                 };
             })
         };
