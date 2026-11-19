@@ -165,6 +165,8 @@ Item {
                                 }
                             }
 
+                            TextMenu {}
+
                             PopupText {
                                 anchors.verticalCenter: parent.verticalCenter
                                 visible: !input.text

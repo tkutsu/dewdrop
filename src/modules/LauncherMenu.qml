@@ -615,6 +615,8 @@ OverlayWindow {
                         font: input.font
                     }
 
+                    TextMenu {}
+
                     Text {
                         id: placeholder
                         x: input.leftPadding + 1

@@ -470,6 +470,8 @@ Popup {
                             event.accepted = true;
                         }
                     }
+
+                    TextMenu {}
                 }
             }
         }

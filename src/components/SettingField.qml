@@ -94,6 +94,8 @@ Rectangle {
             text = stored;
         }
 
+        TextMenu {}
+
         PopupText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !input.text

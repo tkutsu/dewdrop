@@ -908,6 +908,8 @@ OverlayWindow {
                             root.setKey(null)
                         Component.onCompleted: forceActiveFocus()
 
+                        TextMenu {}
+
                         PopupText {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: !filter.text
