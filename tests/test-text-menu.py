@@ -21,7 +21,19 @@ ShellRoot {
             id: popup
             visible: true; anchorItem: owner; probes: false; grows: false
             Item {
-                width: 300; height: 70
+                width: 300; height: 120
+                Item { id: elsewhere; activeFocusOnTab: true }
+                // As the tasks editor is: editable, wrapping, plain text.
+                TextEdit {
+                    id: notes
+                    y: 80; width: 300; height: 40
+                    font.pixelSize: 14
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                    textFormat: TextEdit.PlainText
+                    text: "first line\\nsecond line"
+                    TextMenu { id: notesMenu }
+                }
                 TextInput {
                     id: line
                     width: 300; height: 22
@@ -80,7 +92,7 @@ ShellRoot {
                 const r = row(menu, name);
                 mouseMove(r, r.width / 2, r.height / 2);
                 mouseClick(r, r.width / 2, r.height / 2);
-                tryVerify(() => !lineMenu.open && !readerMenu.open, 1000);
+                tryVerify(() => !lineMenu.open && !readerMenu.open && !notesMenu.open, 1000);
                 wait(300);
             }
             function run() {
@@ -169,6 +181,28 @@ ShellRoot {
                       "read-only text offers Copy and Select All");
                 choose(menu, "Select All");
                 check(reader.selectedText === "read only words", "Select All selects the message");
+                // A TextEdit keeps its selection while the pointer moves on
+                // the field and then onto the menu.
+                notes.forceActiveFocus();
+                notes.select(6, 10);
+                p = middle(notes, 6, 10);
+                mouseClick(notes, p.x, p.y, Qt.RightButton);
+                tryVerify(() => menuOf(notesMenu) !== null, 1000);
+                menu = menuOf(notesMenu);
+                mouseMove(notes, p.x + 3, p.y + 1);
+                mouseMove(notes, p.x + 6, p.y + 3);
+                check(notes.selectedText === "line", "moving on the field keeps the selection");
+                mouseMove(row(menu, "Copy"), 4, 4);
+                mouseMove(row(menu, "Copy"), 20, 10);
+                check(notes.selectedText === "line", "moving onto the menu keeps the selection");
+                // Focus moving to another item in the window clears a
+                // TextEdit's selection unless it is persistent.
+                elsewhere.forceActiveFocus();
+                check(notes.selectedText === "line", "the selection outlives the field losing focus");
+                choose(menu, "Cut");
+                check(notes.activeFocus, "the field has the focus back once the menu is gone");
+                check(!notes.persistentSelection, "the field's own persistentSelection comes back");
+                check(notes.text === "first \\nsecond line", "Cut takes a TextEdit's selection out");
                 console.log("PASS: text menu complete");
             }
         }
