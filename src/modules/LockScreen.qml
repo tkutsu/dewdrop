@@ -273,8 +273,15 @@ Scope {
                 anchors.fill: parent
                 focus: true
 
+                // Shift as held: its own press and release, and with any
+                // other key, whatever the modifiers say, in case a release
+                // went to another window before the lock.
+                Keys.onReleased: event => {
+                    Lock.shift = event.key !== Qt.Key_Shift && !!(event.modifiers & Qt.ShiftModifier);
+                }
                 Keys.onPressed: event => {
                     event.accepted = true;
+                    Lock.shift = event.key === Qt.Key_Shift || !!(event.modifiers & Qt.ShiftModifier);
                     const command = event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier);
                     switch (event.key) {
                     case Qt.Key_Return:

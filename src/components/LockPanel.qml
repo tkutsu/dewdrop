@@ -593,9 +593,9 @@ Item {
         }
     }
 
-    // Caps Lock while it is on, and the keyboard layout when there is more
-    // than one (a click moves to the next), tucked into the card's corner,
-    // clear of its curve.
+    // Caps Lock while it is on, Shift while it is held, and the keyboard
+    // layout when there is more than one (a click moves to the next), tucked
+    // into the card's corner, clear of its curve.
     Row {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -607,6 +607,14 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: Lock.capsLock
             text: Theme.glyph.capsLock
+            fontSize: Theme.popupGlyphSize
+            color: Theme.label2
+        }
+
+        Glyph {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: Lock.shift
+            text: Theme.glyph.shift
             fontSize: Theme.popupGlyphSize
             color: Theme.label2
         }
