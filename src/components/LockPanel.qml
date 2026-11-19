@@ -164,22 +164,23 @@ Item {
                 height: dateline.stacked ? date.implicitHeight + 2 + weather.implicitHeight
                     : Math.max(date.visible ? date.implicitHeight : 0, weather.visible ? weather.implicitHeight : 0)
 
-                Text {
+                // Its figures roll to the next day's, as the bar's clock does;
+                // its words keep their kerning.
+                RollingLine {
                     id: date
 
                     x: dateline.stacked ? Math.round((dateline.width - dateline.dateWidth) / 2) : dateline.lineX
                     visible: Settings.lockClock
-                    textFormat: Text.RichText
-                    text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize)
+                    display: Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase)
                     color: Theme.label
-                    font.family: Theme.bodyFont
-                    font.pixelSize: 18
-                    font.weight: Font.DemiBold
+                    fontSize: 18
+                    weight: Font.DemiBold
                 }
 
                 // This hour's weather in Lock Screen > Weather's format: the icons
                 // drawn as glyphs (this hour's, and the next six hours' average and
-                // worst, as the bar's Forecast has them), the rest as words.
+                // worst, as the bar's Forecast has them), the temperatures as
+                // figures that roll to the next hour's, the rest as words.
                 Row {
                     id: weather
 
@@ -187,7 +188,7 @@ Item {
                         : dateline.lineX + dateline.dateWidth + (dateline.both ? dateline.gap : 0)
                     y: dateline.stacked ? date.implicitHeight + 2 : 0
                     readonly property var hour: Weather.thisHour
-                    readonly property var parts: Settings.lockWeatherFormat.split(/(\{(?:icon|avgicon|worsticon)\})/).filter(part => part !== "")
+                    readonly property var parts: Settings.lockWeatherFormat.split(/(\{(?:icon|avgicon|worsticon|temp|avgtemp|high|low)\})/).filter(part => part !== "")
                     readonly property var icons: ({
                             "{icon}": weather.hour,
                             "{avgicon}": Weather.average,
@@ -195,15 +196,20 @@ Item {
                         })
                     visible: Settings.lockWeather && Weather.location !== null && weather.hour !== null
 
-                    function words(part: string): string {
+                    readonly property var figures: {
                         const [high, low] = Weather.today ? Weather.highAndLow(Weather.today) : [NaN, NaN];
                         const figure = value => Number.isFinite(value) ? Weather.temperatureFigure(value) : "–";
-                        return part.replace(/\{temp\}/g, figure(weather.hour?.[Weather.temperatureKey]))
-                            .replace(/\{avgtemp\}/g, figure(Weather.average?.[Weather.temperatureKey]))
-                            .replace(/\{desc\}/g, weather.hour?.description ?? "")
-                        .replace(/\{avgdesc\}/g, Weather.average?.description ?? "")
-                            .replace(/\{high\}/g, figure(high))
-                            .replace(/\{low\}/g, figure(low));
+                        return {
+                            "{temp}": figure(weather.hour?.[Weather.temperatureKey]),
+                            "{avgtemp}": figure(Weather.average?.[Weather.temperatureKey]),
+                            "{high}": figure(high),
+                            "{low}": figure(low)
+                        };
+                    }
+
+                    function words(part: string): string {
+                        return part.replace(/\{desc\}/g, weather.hour?.description ?? "")
+                            .replace(/\{avgdesc\}/g, Weather.average?.description ?? "");
                     }
 
                     // Every piece is one line of the words tall, top to top, so an
@@ -218,8 +224,9 @@ Item {
 
                             required property string modelData
                             readonly property bool icon: modelData in weather.icons
+                            readonly property bool figure: modelData in weather.figures
 
-                            width: piece.icon ? mark.implicitWidth : words.implicitWidth
+                            width: piece.icon ? mark.implicitWidth : piece.figure ? degrees.implicitWidth : words.implicitWidth
                             height: words.implicitHeight
 
                             Glyph {
@@ -235,11 +242,24 @@ Item {
                                 nudge: 1
                             }
 
-                            // Laid out even beside an icon, for the baseline it gives.
+                            // On the words' baseline.
+                            RollingText {
+                                id: degrees
+                                y: words.baselineOffset - degrees.baselineOffset
+                                visible: piece.figure
+                                asText: true
+                                text: piece.figure ? weather.figures[piece.modelData] : ""
+                                color: Theme.label
+                                fontSize: 18
+                                weight: Font.DemiBold
+                            }
+
+                            // Laid out even beside an icon or a figure, for the
+                            // baseline it gives.
                             Text {
                                 id: words
-                                opacity: piece.icon ? 0 : 1
-                                text: piece.icon ? " " : weather.words(piece.modelData)
+                                opacity: piece.icon || piece.figure ? 0 : 1
+                                text: piece.icon || piece.figure ? " " : weather.words(piece.modelData)
                                 color: Theme.label
                                 font.family: Theme.bodyFont
                                 font.pixelSize: 18
@@ -251,19 +271,25 @@ Item {
                 }
             }
 
-            Text {
+            // The figures roll from one minute to the next, as the bar's
+            // clock does; only the ones that change move.
+            RollingText {
+                id: time
+
+                readonly property var display: Settings.timeDisplay(clock.now, Settings.lockTimeFormat, Settings.lockSmallAmPm, Settings.lockCase)
+
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: Settings.lockClock
+                asText: true
+                text: time.display.text
+                smallRanges: time.display.smallRanges
                 // A small AM/PM at two-fifths: two-thirds, the bar's, is
                 // a second clock at this size.
-                textFormat: Text.RichText
-                text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockTimeFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize, 0.4)
+                smallRatio: 0.4
                 color: Qt.rgba(1, 1, 1, 0.92)
-                font.family: Theme.bodyFont
-                font.pixelSize: 104
-                font.weight: Font.DemiBold
-                font.letterSpacing: -2
-                font.features: Theme.figures
+                fontSize: 104
+                weight: Font.DemiBold
+                letterSpacing: -2
             }
         }
 
