@@ -384,170 +384,180 @@ Item {
                     x: field.shake
                 }
 
-                Rectangle {
-                    anchors.fill: parent
-                    radius: height / 2
-                    color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * field.alarm)
-                    border.width: 1
-                    border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
-                }
-
-                // PIN Mode's check, with no button to spin in: a line sweeping
-                // along the field's foot. Reduce Motion holds it and lets it
-                // pulse.
+                // The field: the capsule, its dots and its buttons, unless PIN
+                // Mode is checking by itself.
                 Item {
-                    id: sweep
+                    id: box
 
-                    x: 18
-                    y: parent.height - 6
-                    width: parent.width - 36
-                    height: 2
-                    clip: true
-                    visible: Lock.checking && Lock.automaticReady
+                    anchors.fill: parent
+                    visible: !Lock.automaticReady
 
                     Rectangle {
                         anchors.fill: parent
-                        radius: 1
-                        color: Qt.rgba(1, 1, 1, 0.12)
+                        radius: height / 2
+                        color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * field.alarm)
+                        border.width: 1
+                        border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
+                    }
+
+                    // Just after the caret, which waits at the start.
+                    Text {
+                        x: 22
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: Lock.password === ""
+                        text: "Enter Password"
+                        color: Theme.label2
+                        font.family: Theme.bodyFont
+                        font.pixelSize: Theme.popupTextSize
+                        font.weight: Theme.bodyWeight
+                    }
+
+                    // The dots, cut off on the left once they run out of room.
+                    Item {
+                        id: well
+
+                        x: 18
+                        width: trail.x - 8 - well.x
+                        height: parent.height
+                        clip: true
+
+                        PasswordDots {
+                            id: dots
+
+                            x: Math.min(0, well.width - width - caret.width - 4)
+                            anchors.verticalCenter: parent.verticalCenter
+                            count: Lock.password.length
+                        }
+                    }
+
+                    // The field's caret, as every field draws it (Caret Shape and
+                    // Animation), after the last dot. It has no text to cover.
+                    TextCaret {
+                        id: caret
+
+                        parent: well
+                        x: Lock.password === "" ? 0 : dots.x + dots.width + 4
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 18
+                        textInput: QtObject {
+                            readonly property string text: ""
+                            readonly property int cursorPosition: 0
+                            readonly property bool cursorVisible: !Lock.checking
+                            readonly property bool readOnly: false
+                            readonly property font font: Qt.font({ family: Theme.bodyFont, pixelSize: Theme.popupTextSize })
+                        }
+                    }
+
+                    // Caps Lock, and Return as a button that keeps its place: dim
+                    // with nothing to send, lit once there is, a spinner while
+                    // the password is checked. (The layout is in the screen's
+                    // corner, LockScreen.qml.)
+                    Row {
+                        id: trail
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 8
+
+                        Glyph {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: Lock.capsLock
+                            text: Theme.glyph.capsLock
+                            fontSize: Theme.popupGlyphSize
+                            color: Theme.label2
+                        }
+
+                        Item {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 26
+                            height: 26
+
+                            Rectangle {
+                                id: go
+
+                                readonly property bool live: Lock.password !== "" && !Lock.checking
+
+                                anchors.fill: parent
+                                radius: width / 2
+                                color: go.live && hover.hovered ? Theme.selectionLifted : Theme.selectionStrong
+                                opacity: Lock.checking ? 0 : go.live ? 1 : 0.4
+                                Behavior on opacity {
+                                    NumberAnimation { duration: Theme.fadeMs }
+                                }
+
+                                Glyph {
+                                    anchors.centerIn: parent
+                                    text: Theme.glyph.unlock
+                                    fontSize: Theme.popupGlyphSize
+                                    color: Theme.fg
+                                }
+
+                                HoverHandler {
+                                    id: hover
+                                    enabled: go.live
+                                }
+                                TapHandler {
+                                    enabled: go.live
+                                    onTapped: Lock.submit()
+                                }
+                            }
+
+                            Spinner {
+                                anchors.centerIn: parent
+                                visible: Lock.checking
+                            }
+                        }
+                    }
+                }
+
+                // PIN Mode: no field, just a line that fills a step with each
+                // key, by the length set for the password. Full, it pulses
+                // while the password is checked; a miss shakes it, and the
+                // field comes back for Return.
+                Item {
+                    id: pin
+
+                    anchors.centerIn: parent
+                    width: 200
+                    height: 4
+                    visible: Lock.automaticReady
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: height / 2
+                        color: Qt.tint(Qt.rgba(1, 1, 1, 0.18), Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
                     }
 
                     Rectangle {
-                        id: bead
+                        id: filled
 
-                        width: Theme.reduceMotion ? sweep.width : Math.round(sweep.width * 0.35)
-                        height: sweep.height
-                        radius: 1
+                        width: pin.width * Math.min(1, Lock.password.length / Math.max(1, Settings.lockPasswordLength))
+                        height: pin.height
+                        radius: height / 2
                         color: Theme.fg
 
-                        NumberAnimation on x {
-                            running: sweep.visible && !Theme.reduceMotion
-                            from: -bead.width
-                            to: sweep.width
-                            duration: 900
-                            loops: Animation.Infinite
-                            easing.type: Easing.InOutQuad
+                        Behavior on width {
+                            NumberAnimation { duration: Theme.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic }
                         }
 
                         SequentialAnimation on opacity {
-                            running: sweep.visible && Theme.reduceMotion
+                            running: Lock.checking && pin.visible
                             loops: Animation.Infinite
-                            onRunningChanged: if (!running) bead.opacity = 1
-                            NumberAnimation { to: 0.3; duration: 500; easing.type: Easing.InOutSine }
-                            NumberAnimation { to: 1; duration: 500; easing.type: Easing.InOutSine }
+                            onRunningChanged: if (!running) filled.opacity = 1
+                            NumberAnimation { to: 0.35; duration: 450; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 1; duration: 450; easing.type: Easing.InOutSine }
                         }
                     }
-                }
-
-                // Just after the caret, which waits at the start.
-                Text {
-                    x: 22
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: Lock.password === ""
-                    text: "Enter Password"
-                    color: Theme.label2
-                    font.family: Theme.bodyFont
-                    font.pixelSize: Theme.popupTextSize
-                    font.weight: Theme.bodyWeight
-                }
-
-                // The dots, cut off on the left once they run out of room.
-                Item {
-                    id: well
-
-                    x: 18
-                    width: trail.x - 8 - well.x
-                    height: parent.height
-                    clip: true
-
-                    PasswordDots {
-                        id: dots
-
-                        x: Math.min(0, well.width - width - caret.width - 4)
-                        anchors.verticalCenter: parent.verticalCenter
-                        count: Lock.password.length
-                    }
-                }
-
-                // The field's caret, as every field draws it (Caret Shape and
-                // Animation), after the last dot. It has no text to cover.
-                TextCaret {
-                    id: caret
-
-                    parent: well
-                    x: Lock.password === "" ? 0 : dots.x + dots.width + 4
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 18
-                    textInput: QtObject {
-                        readonly property string text: ""
-                        readonly property int cursorPosition: 0
-                        readonly property bool cursorVisible: !Lock.checking
-                        readonly property bool readOnly: false
-                        readonly property font font: Qt.font({ family: Theme.bodyFont, pixelSize: Theme.popupTextSize })
-                    }
-                }
-
-                // Caps Lock, and Return as a button that keeps its place: dim
-                // with nothing to send, lit once there is, a spinner while
-                // the password is checked. (The layout is in the screen's
-                // corner, LockScreen.qml.)
-                Row {
-                    id: trail
-
-                    anchors.right: parent.right
-                    anchors.rightMargin: 6
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
 
                     Glyph {
+                        anchors.left: parent.right
+                        anchors.leftMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
                         visible: Lock.capsLock
                         text: Theme.glyph.capsLock
                         fontSize: Theme.popupGlyphSize
                         color: Theme.label2
-                    }
-
-                    // PIN Mode has nothing for Return to do until a miss, so
-                    // the button stands aside for the line along its foot.
-                    Item {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !Lock.automaticReady
-                        width: 26
-                        height: 26
-
-                        Rectangle {
-                            id: go
-
-                            readonly property bool live: Lock.password !== "" && !Lock.checking
-
-                            anchors.fill: parent
-                            radius: width / 2
-                            color: go.live && hover.hovered ? Theme.selectionLifted : Theme.selectionStrong
-                            opacity: Lock.checking ? 0 : go.live ? 1 : 0.4
-                            Behavior on opacity {
-                                NumberAnimation { duration: Theme.fadeMs }
-                            }
-
-                            Glyph {
-                                anchors.centerIn: parent
-                                text: Theme.glyph.unlock
-                                fontSize: Theme.popupGlyphSize
-                                color: Theme.fg
-                            }
-
-                            HoverHandler {
-                                id: hover
-                                enabled: go.live
-                            }
-                            TapHandler {
-                                enabled: go.live
-                                onTapped: Lock.submit()
-                            }
-                        }
-
-                        Spinner {
-                            anchors.centerIn: parent
-                            visible: Lock.checking
-                        }
                     }
                 }
 
