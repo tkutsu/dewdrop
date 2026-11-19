@@ -23,6 +23,20 @@ Item {
     onVisibleChanged: if (!root.visible)
         root.open = false
 
+    // The selection stays the menu's for as long as it is up. Focus can leave
+    // the field once the pointer is on the menu's window, and a field drops a
+    // selection that is not persistent when it loses focus, so it is made
+    // persistent until the menu goes.
+    property bool persistent: false
+    onOpenChanged: {
+        if (root.open) {
+            root.persistent = root.field.persistentSelection;
+            root.field.persistentSelection = true;
+        } else {
+            root.field.persistentSelection = root.persistent;
+        }
+    }
+
     // The menu's rows, in order, with a hairline ("") between the groups.
     readonly property var rows: root.editable ? ["Cut", "Copy", "Paste", "", "Select All"] : ["Copy", "", "Select All"]
 
@@ -38,7 +52,10 @@ Item {
         }
     }
 
+    // A chosen row also hands the focus back to the field, to type on from.
     function act(row: string): void {
+        if (root.field.activeFocusOnPress)
+            root.field.forceActiveFocus();
         switch (row) {
         case "Cut":
             root.field.cut();
