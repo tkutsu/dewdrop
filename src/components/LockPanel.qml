@@ -244,27 +244,74 @@ Item {
             }
         }
 
-        // The latest three, newest on top; the rest as a count.
+        // The latest three, newest on top; the rest as a count. One arriving
+        // comes in at the top as on a phone's lock screen, faded up from a
+        // touch smaller, and the others slide down to make room; one going
+        // fades and shrinks while the rest close up, and the glass follows.
+        // Reduce Motion keeps the fades alone.
         Column {
             id: notices
 
             readonly property int shown: 3
             readonly property int more: Math.max(0, Notifications.count - notices.shown)
-            visible: Settings.lockNotifications && Notifications.count > 0
+            readonly property int arriveMs: 420
+            readonly property int leaveMs: 220
+            // Held while the last card leaves, so the glass closes up after
+            // it rather than at once.
+            visible: Settings.lockNotifications && (Notifications.count > 0 || cards.height > 0.5)
             width: parent.width
             spacing: 6
 
-            Repeater {
-                model: notices.visible ? Notifications.list.slice(0, notices.shown) : []
+            ListView {
+                id: cards
 
-                Rectangle {
+                width: parent.width
+                height: contentHeight
+                interactive: false
+                spacing: 6
+                // Diffed rather than rebuilt, so only the cards that came or
+                // went move (NotificationsPopup does the same).
+                model: ScriptModel {
+                    values: Settings.lockNotifications ? Notifications.list.slice(0, notices.shown) : []
+                }
+
+                Behavior on height {
+                    enabled: !Theme.reduceMotion
+                    NumberAnimation { duration: notices.arriveMs; easing.type: Easing.OutCubic }
+                }
+
+                // Held back while the others make room, so it fades into a
+                // gap rather than over the card still leaving its place.
+                add: Transition {
+                    SequentialAnimation {
+                        PropertyAction { properties: "opacity"; value: 0 }
+                        PropertyAction { properties: "scale"; value: Theme.reduceMotion ? 1 : 0.92 }
+                        PauseAnimation { duration: Theme.reduceMotion ? 0 : notices.arriveMs * 0.35 }
+                        ParallelAnimation {
+                            NumberAnimation { property: "opacity"; to: 1; duration: notices.arriveMs * 0.7; easing.type: Easing.OutCubic }
+                            NumberAnimation { property: "scale"; to: 1; duration: notices.arriveMs; easing.type: Easing.OutBack; easing.overshoot: 1.2 }
+                        }
+                    }
+                }
+                remove: Transition {
+                    NumberAnimation { property: "opacity"; to: 0; duration: notices.leaveMs; easing.type: Easing.InCubic }
+                    NumberAnimation { property: "scale"; to: Theme.reduceMotion ? 1 : 0.92; duration: notices.leaveMs; easing.type: Easing.InCubic }
+                }
+                // Also lands an arrival cut short by the next one, which
+                // would otherwise stay part faded.
+                displaced: Transition {
+                    NumberAnimation { property: "y"; duration: Theme.reduceMotion ? 0 : notices.arriveMs; easing.type: Easing.OutCubic }
+                    NumberAnimation { properties: "opacity,scale"; to: 1; duration: notices.leaveMs }
+                }
+
+                delegate: Rectangle {
                     id: card
 
                     required property var modelData
                     readonly property var n: card.modelData
                     readonly property bool preview: Settings.lockPreviews
 
-                    width: notices.width
+                    width: cards.width
                     height: text.implicitHeight + 20
                     radius: 14
                     color: Qt.rgba(1, 1, 1, 0.07)
