@@ -37,7 +37,7 @@ ShellRoot {
             menu.contentAlpha = 1; menu.widthRatio = 1;
             saved.reload();
             check(saved.text().trim() === "{}", "opening settings does not write effective defaults");
-            check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Date & Time|Weather|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "seventeen focused tabs appear in the agreed order");
+            check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Lock Screen|Date & Time|Weather|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "eighteen focused tabs appear in the agreed order");
             const ids = rows().map(r => r.id);
             check(new Set(ids).size === ids.length, "settings and generated rows appear once");
             const covered = new Set(ids.concat(["layoutNames", "launcherPrefixes", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datetimePosition", "weatherPosition", "countdownPosition", "wallpaperParallaxZoom"]));

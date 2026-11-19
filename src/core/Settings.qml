@@ -128,6 +128,14 @@ Singleton {
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
     readonly property bool glassWorkspaceMark: root.values.glassWorkspaceMark !== false
+    // The lock screen: what the glass shows, whether the picture follows the
+    // pointer, and whether the right password unlocks without Return.
+    readonly property bool lockClock: root.values.lockClock !== false
+    readonly property bool lockWeather: root.values.lockWeather !== false
+    readonly property bool lockNotifications: root.values.lockNotifications !== false
+    readonly property bool lockPreviews: root.values.lockPreviews !== false
+    readonly property bool lockParallax: root.values.lockParallax !== false
+    readonly property bool lockAsTyped: root.values.lockAsTyped === true
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true

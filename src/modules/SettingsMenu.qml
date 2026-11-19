@@ -500,6 +500,35 @@ OverlayWindow {
             ]
         },
         {
+            title: "Lock Screen",
+            sections: [
+                {
+                    title: "Show",
+                    text: "What the glass shows over the password.",
+                    rows: [
+                        { type: "toggle", id: "lockClock", title: "Date and Time", get: () => Settings.lockClock, set: v => Settings.set("lockClock", v) },
+                        { type: "toggle", id: "lockWeather", title: "Weather", tooltip: "This hour's weather and the day's high and low, once a location is set.", get: () => Settings.lockWeather, set: v => Settings.set("lockWeather", v) },
+                        { type: "toggle", id: "lockNotifications", title: "Notifications", tooltip: "The latest three, and how many more.", get: () => Settings.lockNotifications, set: v => Settings.set("lockNotifications", v) },
+                        { type: "toggle", id: "lockPreviews", title: "Show Previews", text: "Off shows only the app and when.", enabled: Settings.lockNotifications, get: () => Settings.lockPreviews, set: v => Settings.set("lockPreviews", v) }
+                    ]
+                },
+                {
+                    title: "Motion",
+                    rows: [
+                        { type: "toggle", id: "lockParallax", title: "Parallax", text: "The wallpaper drifts after the pointer.", tooltip: "Reduce Motion keeps it still.", get: () => Settings.lockParallax, set: v => Settings.set("lockParallax", v) }
+                    ]
+                },
+                {
+                    title: "Password",
+                    rows: [
+                        { type: "toggle", id: "lockAsTyped", title: "Unlock Without Return", text: "Unlocks the moment the password is right, like a PIN.",
+                            tooltip: "Each key is a password check, so these skip the system's lockout after three failed tries. Return always works.",
+                            get: () => Settings.lockAsTyped, set: v => Settings.set("lockAsTyped", v) }
+                    ]
+                }
+            ]
+        },
+        {
             title: "Date & Time",
             sections: [
                 {

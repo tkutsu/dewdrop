@@ -39,6 +39,8 @@ local layer_rules = {
 	-- Tray menus and tooltips are child popups, so they need blur_popups on the bar.
 	{ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.3, blur = true, blur_popups = true },
 	{ match = { namespace = "quickshell:backdrop" }, animation = "none" },
+	-- The lock screen's curtain fades itself, in step with the lock.
+	{ match = { namespace = "quickshell:curtain" }, animation = "none" },
 }
 for _, rule in ipairs(layer_rules) do
 	hl.layer_rule(rule)
