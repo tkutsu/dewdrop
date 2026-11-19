@@ -128,13 +128,14 @@ Item {
             spacing: 0
 
             property date now: new Date()
+            // A format with seconds ticks each second; otherwise on the minute.
+            readonly property int step: /s/.test(Settings.lockTimeFormat.replace(/'(?:[^']|'')*'/g, "")) ? 1000 : 60000
 
-            // On the minute, not every few seconds behind it.
             Timer {
                 running: clock.visible
                 repeat: true
                 triggeredOnStart: true
-                interval: 60000 - clock.now.getTime() % 60000 + 50
+                interval: clock.step - clock.now.getTime() % clock.step + 50
                 onTriggered: clock.now = new Date()
             }
             Connections {
@@ -146,7 +147,8 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: clock.now.toLocaleDateString(Qt.locale(), Settings.dateOrder === "mdy" ? "dddd, MMMM d" : "dddd d MMMM")
+                textFormat: Text.RichText
+                text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize)
                 color: Theme.label
                 font.family: Theme.bodyFont
                 font.pixelSize: 18
@@ -155,7 +157,10 @@ Item {
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: clock.now.toLocaleTimeString(Qt.locale(), Settings.twelveHour ? "h:mm" : "HH:mm")
+                // A small AM/PM at two-fifths: two-thirds, the bar's, is
+                // a second clock at this size.
+                textFormat: Text.RichText
+                text: Settings.timeMarkup(Settings.timeDisplay(clock.now, Settings.lockTimeFormat, Settings.lockSmallAmPm, Settings.lockCase), font.pixelSize, 0.4)
                 color: Qt.rgba(1, 1, 1, 0.92)
                 font.family: Theme.bodyFont
                 font.pixelSize: 104
@@ -165,41 +170,59 @@ Item {
             }
         }
 
-        // This hour's weather, and the day's high and low.
+        // This hour's weather in Lock Screen > Weather's format: the icon
+        // drawn as a glyph, the rest as words.
         Row {
             id: weather
 
             readonly property var hour: Weather.thisHour
+            readonly property var parts: Settings.lockWeatherFormat.split(/(\{icon\})/).filter(part => part !== "")
             visible: Settings.lockWeather && Weather.location !== null && weather.hour !== null
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 8
 
-            Glyph {
-                anchors.verticalCenter: parent.verticalCenter
-                text: weather.hour?.icon ?? ""
-                fontSize: Theme.glyphSize
-                color: Theme.label
+            function words(part: string): string {
+                const [high, low] = Weather.today ? Weather.highAndLow(Weather.today) : [NaN, NaN];
+                const figure = value => Number.isFinite(value) ? Weather.temperatureFigure(value) : "–";
+                return part.replace(/\{temp\}/g, figure(weather.hour?.[Weather.temperatureKey]))
+                    .replace(/\{desc\}/g, weather.hour?.description ?? "")
+                    .replace(/\{high\}/g, figure(high))
+                    .replace(/\{low\}/g, figure(low));
             }
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: weather.hour ? `${Weather.formatTemperature(weather.hour[Weather.temperatureKey], false)}  ${weather.hour.description}` : ""
-                color: Theme.label
-                font.family: Theme.bodyFont
-                font.pixelSize: 15
-                font.weight: Theme.bodyWeight
-                font.features: Theme.figures
-            }
+            Repeater {
+                model: weather.parts
 
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                visible: Weather.today !== null
-                text: Weather.today ? Weather.highLow(Weather.today) : ""
-                color: Theme.label2
-                font.family: Theme.bodyFont
-                font.pixelSize: 15
-                font.weight: Theme.bodyWeight
-                font.features: Theme.figures
+                Item {
+                    id: piece
+
+                    required property string modelData
+                    readonly property bool icon: modelData === "{icon}"
+
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: piece.icon ? mark.implicitWidth : words.implicitWidth
+                    height: Math.max(mark.implicitHeight, words.implicitHeight)
+
+                    Glyph {
+                        id: mark
+                        anchors.centerIn: parent
+                        visible: piece.icon
+                        text: piece.icon ? weather.hour?.icon ?? "" : ""
+                        fontSize: Theme.glyphSize
+                        color: Theme.label
+                    }
+
+                    Text {
+                        id: words
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !piece.icon
+                        text: piece.icon ? "" : weather.words(piece.modelData)
+                        color: Theme.label
+                        font.family: Theme.bodyFont
+                        font.pixelSize: 15
+                        font.weight: Theme.bodyWeight
+                        font.features: Theme.figures
+                    }
+                }
             }
         }
 
@@ -358,8 +381,9 @@ Item {
                     border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
                 }
 
+                // Just after the caret, which waits at the start.
                 Text {
-                    x: 18
+                    x: 22
                     anchors.verticalCenter: parent.verticalCenter
                     visible: Lock.password === ""
                     text: "Enter Password"
@@ -379,7 +403,9 @@ Item {
                     clip: true
 
                     Row {
-                        x: Math.min(0, well.width - width)
+                        id: dots
+
+                        x: Math.min(0, well.width - width - caret.width - 4)
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 5
 
@@ -396,8 +422,28 @@ Item {
                     }
                 }
 
-                // Caps Lock, the layout when there is more than one (a click
-                // moves to the next), and Return as a button.
+                // The field's caret, as every field draws it (Caret Shape and
+                // Animation), after the last dot. It has no text to cover.
+                TextCaret {
+                    id: caret
+
+                    parent: well
+                    x: Lock.password === "" ? 0 : dots.x + dots.width + 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: 18
+                    textInput: QtObject {
+                        readonly property string text: ""
+                        readonly property int cursorPosition: 0
+                        readonly property bool cursorVisible: !Lock.checking
+                        readonly property bool readOnly: false
+                        readonly property font font: Qt.font({ family: Theme.bodyFont, pixelSize: Theme.popupTextSize })
+                    }
+                }
+
+                // Caps Lock, and Return as a button that keeps its place: dim
+                // with nothing to send, lit once there is, a spinner while
+                // the password is checked. (The layout is in the screen's
+                // corner, LockScreen.qml.)
                 Row {
                     id: trail
 
@@ -414,30 +460,20 @@ Item {
                         color: Theme.label2
                     }
 
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: Keyboard.layouts.length > 1
-                        text: Keyboard.short
-                        color: Theme.label2
-                        font.family: Theme.bodyFont
-                        font.pixelSize: Theme.captionSize
-                        font.weight: Font.DemiBold
-
-                        TapHandler {
-                            onTapped: Keyboard.next()
-                        }
-                    }
-
                     Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 26
                         height: 26
 
                         Rectangle {
+                            id: go
+
+                            readonly property bool live: Lock.password !== "" && !Lock.checking
+
                             anchors.fill: parent
                             radius: width / 2
-                            color: go.hovered ? Theme.selectionLifted : Theme.selectionStrong
-                            opacity: !Lock.automaticReady && Lock.password !== "" && !Lock.checking ? 1 : 0
+                            color: go.live && hover.hovered ? Theme.selectionLifted : Theme.selectionStrong
+                            opacity: Lock.checking ? 0 : go.live ? 1 : 0.4
                             Behavior on opacity {
                                 NumberAnimation { duration: Theme.fadeMs }
                             }
@@ -450,11 +486,11 @@ Item {
                             }
 
                             HoverHandler {
-                                id: go
-                                enabled: parent.opacity > 0
+                                id: hover
+                                enabled: go.live
                             }
                             TapHandler {
-                                enabled: parent.opacity > 0
+                                enabled: go.live
                                 onTapped: Lock.submit()
                             }
                         }

@@ -37,7 +37,7 @@ ShellRoot {
                 menu.page = p; wait(80);
                 view.positionViewAtEnd(); view.forceLayout(); wait(30);
                 console.log("HEIGHT: " + menu.pages[p].title + " " + Math.round(view.contentHeight + view.topMargin + view.bottomMargin) + "/" + view.height);
-                if (!["Modules", "Launcher", "Web Search", "Launcher Apps", "Default Apps"].includes(menu.pages[p].title))
+                if (!["Modules", "Lock Screen", "Launcher", "Web Search", "Launcher Apps", "Default Apps"].includes(menu.pages[p].title))
                     check(view.contentHeight + view.topMargin + view.bottomMargin <= view.height, "short preferences fit on one page: " + menu.pages[p].title);
                 const overflow = view.contentHeight + view.topMargin + view.bottomMargin > view.height;
                 check(menu.auditPageBar.visible === overflow, "page scrollbar reflects overflow: " + menu.pages[p].title);

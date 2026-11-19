@@ -7,7 +7,8 @@ import qs.src.core
 // A setting is a plain object, which is all a page has to write to add one:
 //
 //   type      "toggle", "choice", "dropdown", "slider", "text", "list" or
-//             "shortcuts"; "info" for words alone
+//             "shortcuts"; "info" for words alone. ("notice", a caution
+//             card above a setting, is SettingNotice's.)
 //   title     its name
 //   text      what it does, optional
 //   tooltip   extra help shown on info-icon hover, optional

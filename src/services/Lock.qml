@@ -45,15 +45,13 @@ Singleton {
     property bool answered: false
     property bool automatic: false
 
-    // Unlock Without Return checks the password the moment it reaches its
-    // length, once, as if Return had been pressed: so through the system's
-    // stack like any other try, faillock and all. The lock never sees the
-    // password, so it learns the length from the last unlock (lock.json,
-    // readable only by you); a miss falls back to Return until the next
-    // unlock, which also catches a password whose length has changed.
-    property int length: 0
+    // PIN Mode checks the password the moment it is as long as the length
+    // set for it, once, as if Return had been pressed: so through the
+    // system's stack like any other try, faillock and all. A miss leaves it
+    // to Return until the next unlock, so a length that no longer fits (a
+    // changed password) cannot keep the field from getting any longer.
     property bool missed: false
-    readonly property bool automaticReady: Settings.lockAsTyped && root.length > 0 && !root.missed
+    readonly property bool automaticReady: Settings.lockAsTyped && Settings.lockPasswordLength > 0 && !root.missed
 
     function lock(): void {
         if (kept.phase === "") {
@@ -89,7 +87,7 @@ Singleton {
             return;
         root.password += text;
         root.message = "";
-        if (root.automaticReady && root.password.length === root.length)
+        if (root.automaticReady && root.password.length === Settings.lockPasswordLength)
             root.check(true);
     }
 
@@ -118,10 +116,6 @@ Singleton {
 
     function finish(success: bool, trouble: string): void {
         if (success && kept.phase === "locked") {
-            if (root.attempt.length !== root.length) {
-                root.length = root.attempt.length;
-                lengthFile.setText(JSON.stringify({ length: root.length }) + "\n");
-            }
             root.missed = false;
             root.attempt = "";
             root.password = "";
@@ -135,22 +129,6 @@ Singleton {
         root.password = "";
         root.message = trouble;
         root.rejected();
-    }
-
-    FileView {
-        id: lengthFile
-        path: Paths.state("lock.json")
-        blockLoading: true
-        printErrors: false
-        // Read at construction: onLoaded comes late even when blocking.
-        Component.onCompleted: {
-            try {
-                root.length = Number(JSON.parse(lengthFile.text() || "{}").length) || 0;
-            } catch (e) {
-                root.length = 0;
-            }
-        }
-        onSaved: Quickshell.execDetached(["chmod", "600", lengthFile.path])
     }
 
     PamContext {

@@ -38,7 +38,7 @@ Dewdrop is also your polkit agent. When `pkexec` or an app needs an administrato
 
 ## The Lock Screen
 
-Locking fades your windows into the wallpaper and raises a pane of glass with the time, the weather, what notified while you were away and the password field. The wallpaper drifts a little after the pointer. Settings > Lock Screen chooses what the glass shows and can unlock the moment the password is right, without Return.
+Locking fades your windows into the wallpaper and raises a pane of glass with the time, the weather, what notified while you were away and the password field. The wallpaper drifts a little after the pointer. Settings > Lock Screen chooses what the glass shows and how its date, time and weather read, and has a PIN Mode that checks the password without Return once it is as long as the length you give it.
 
 ## Install
 

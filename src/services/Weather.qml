@@ -300,9 +300,14 @@ Singleton {
     // A day's high and low. The forecast's daily figures are air temperatures,
     // so Feels Like reads them off the hours; a day without any shows as unknown.
     function highLow(day: var): string {
-        const felt = day.hours.map(hour => hour.feelsLike).filter(value => typeof value === "number");
-        const [high, low] = root.feelsLike ? [Math.max(...felt), Math.min(...felt)] : [day.high, day.low];
+        const [high, low] = root.highAndLow(day);
         return `${root.formatTemperature(high, false)} / ${root.formatTemperature(low, false)}`;
+    }
+
+    // The day's high and low, felt ones under Feels Like.
+    function highAndLow(day: var): var {
+        const felt = day.hours.map(hour => hour.feelsLike).filter(value => typeof value === "number");
+        return root.feelsLike ? [Math.max(...felt), Math.min(...felt)] : [day.high, day.low];
     }
 
     // The bar's {temp}: the number alone, in the chosen unit.
