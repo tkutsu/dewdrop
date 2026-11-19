@@ -521,8 +521,8 @@ OverlayWindow {
                 {
                     title: "Password",
                     rows: [
-                        { type: "toggle", id: "lockAsTyped", title: "Unlock Without Return", text: "Unlocks the moment the password is right, like a PIN.",
-                            tooltip: "Each key is a password check, so these skip the system's lockout after three failed tries. Return always works.",
+                        { type: "toggle", id: "lockAsTyped", title: "Unlock Without Return", text: "Checks the password once it is as long as yours, like a PIN.",
+                            tooltip: "The lock learns the length when you unlock with Return. A wrong try counts as one, as with Return, and the next one needs Return.",
                             get: () => Settings.lockAsTyped, set: v => Settings.set("lockAsTyped", v) }
                     ]
                 }

@@ -437,7 +437,7 @@ Item {
                             anchors.fill: parent
                             radius: width / 2
                             color: go.hovered ? Theme.selectionLifted : Theme.selectionStrong
-                            opacity: !Lock.asTyped && Lock.password !== "" && !Lock.checking ? 1 : 0
+                            opacity: !Lock.automaticReady && Lock.password !== "" && !Lock.checking ? 1 : 0
                             Behavior on opacity {
                                 NumberAnimation { duration: Theme.fadeMs }
                             }

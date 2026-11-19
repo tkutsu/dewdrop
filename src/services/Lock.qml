@@ -39,18 +39,21 @@ Singleton {
     // The password was wrong: the field shakes.
     signal rejected
 
-    // A check asked for with Return, which the field shows and waits on. One
-    // run as typed is silent.
-    readonly property bool checking: pam.active && root.explicit
-    property bool explicit: false
-    property bool explicitNext: false
+    // A check under way; the field waits on it and takes no keys.
+    readonly property bool checking: pam.active
     property string attempt: ""
     property bool answered: false
+    property bool automatic: false
 
-    // Unlock Without Return checks every change, which only the lock's own
-    // PAM file can stand (pam/dewdrop-lock says why); Return uses the
-    // system's stack, faillock and all.
-    readonly property bool asTyped: Settings.lockAsTyped
+    // Unlock Without Return checks the password the moment it reaches its
+    // length, once, as if Return had been pressed: so through the system's
+    // stack like any other try, faillock and all. The lock never sees the
+    // password, so it learns the length from the last unlock (lock.json,
+    // readable only by you); a miss falls back to Return until the next
+    // unlock, which also catches a password whose length has changed.
+    property int length: 0
+    property bool missed: false
+    readonly property bool automaticReady: Settings.lockAsTyped && root.length > 0 && !root.missed
 
     function lock(): void {
         if (kept.phase === "") {
@@ -86,16 +89,13 @@ Singleton {
             return;
         root.password += text;
         root.message = "";
-        if (root.asTyped)
-            root.check(false);
+        if (root.automaticReady && root.password.length === root.length)
+            root.check(true);
     }
 
     function erase(): void {
-        if (kept.phase !== "locked" || root.checking)
-            return;
-        root.password = root.password.slice(0, -1);
-        if (root.asTyped && root.password)
-            root.check(false);
+        if (kept.phase === "locked" && !root.checking)
+            root.password = root.password.slice(0, -1);
     }
 
     function clear(): void {
@@ -104,64 +104,60 @@ Singleton {
     }
 
     function submit(): void {
-        if (kept.phase !== "locked" || !root.password)
-            return;
-        if (pam.active) {
-            // Already on its way: say how it went. A check of an older
-            // password says so once it is done, with this one.
-            if (root.attempt === root.password)
-                root.explicit = true;
-            else
-                root.explicitNext = true;
-            return;
-        }
-        root.check(true);
+        if (kept.phase === "locked" && root.password && !root.checking)
+            root.check(false);
     }
 
-    // One check at a time. Typing during one is checked once it is done, as
-    // whatever the field says by then, so a fast typist costs a check or two
-    // rather than one a key.
-    function check(explicit: bool): void {
-        if (pam.active) {
-            root.explicitNext = root.explicitNext || explicit;
-            return;
-        }
+    function check(automatic: bool): void {
         root.attempt = root.password;
         root.answered = false;
-        root.explicit = explicit;
-        root.explicitNext = false;
-        if (!pam.start()) {
+        root.automatic = automatic;
+        if (!pam.start())
             root.message = "Could not check the password.";
-            root.explicit = false;
-        }
     }
 
     function finish(success: bool, trouble: string): void {
-        const shown = root.explicit;
-        root.explicit = false;
         if (success && kept.phase === "locked") {
+            if (root.attempt.length !== root.length) {
+                root.length = root.attempt.length;
+                lengthFile.setText(JSON.stringify({ length: root.length }) + "\n");
+            }
+            root.missed = false;
+            root.attempt = "";
             root.password = "";
             root.message = "";
             kept.phase = "leave";
             return;
         }
-        if (trouble)
-            root.message = trouble;
-        if (shown) {
-            root.password = "";
-            root.rejected();
-            return;
+        if (root.automatic)
+            root.missed = true;
+        root.attempt = "";
+        root.password = "";
+        root.message = trouble;
+        root.rejected();
+    }
+
+    FileView {
+        id: lengthFile
+        path: Paths.state("lock.json")
+        blockLoading: true
+        printErrors: false
+        // Read at construction: onLoaded comes late even when blocking.
+        Component.onCompleted: {
+            try {
+                root.length = Number(JSON.parse(lengthFile.text() || "{}").length) || 0;
+            } catch (e) {
+                root.length = 0;
+            }
         }
-        // A silent check went stale while it ran: try what is there now.
-        if (root.password && (root.password !== root.attempt || root.explicitNext))
-            root.check(root.explicitNext);
+        onSaved: Quickshell.execDetached(["chmod", "600", lengthFile.path])
     }
 
     PamContext {
         id: pam
 
-        configDirectory: root.asTyped ? Quickshell.shellPath("pam") : "/etc/pam.d"
-        config: root.asTyped ? "dewdrop-lock" : "login"
+        // The system's own stack, as a login is checked.
+        config: "login"
 
         // The password once; anything asked after it (a new password, a
         // second factor) is more than a lock screen can answer.
