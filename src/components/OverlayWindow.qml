@@ -104,7 +104,8 @@ PanelWindow {
         // Qt reparents dropdown menus into its overlay, outside inputItem's
         // hover tree. Let an open menu handle its own selection and dismissal.
         enabled: root.shown && !root.inputItem.Controls.Overlay.overlay?.visible
-        inside: pointer.hovered
+        // A field's edit menu (TextMenu) is a popup window of its own.
+        inside: pointer.hovered || PopupPointer.hovered > 0
         onReleased: Qt.callLater(() => {
             if (root.shown)
                 root.dismissed();
