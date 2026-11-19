@@ -5,6 +5,7 @@ import Quickshell.Hyprland
 import Quickshell.Wayland
 import qs.src.core
 import qs.src.components
+import qs.src.services
 
 // The password panel polkit asks through (services/Polkit.qml), laid out the
 // way a Mac asks for an administrator: a padlock, what wants doing as the
@@ -35,6 +36,8 @@ PanelWindow {
     readonly property bool checking: root.submitted && !root.asking
     // The last try was refused; cleared by typing again.
     property bool refused: false
+    // Whether Caps Lock is on, for the arrow in the field.
+    property bool capsLock: Keyboard.capsLock
 
     readonly property int boxWidth: Theme.popupWidth
     readonly property int pad: 20
@@ -61,7 +64,19 @@ PanelWindow {
         return identity?.displayName || identity?.string || "";
     }
 
-    Component.onCompleted: root.screen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null
+    Component.onCompleted: {
+        root.screen = Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null;
+        Keyboard.refresh();
+    }
+
+    // Hyprland's answer, once it is in; the keys keep it from there.
+    Connections {
+        target: Keyboard
+
+        function onCapsLockChanged(): void {
+            root.capsLock = Keyboard.capsLock;
+        }
+    }
 
     // A second request queued behind this one arrives in the same window.
     onFlowChanged: {
@@ -217,62 +232,121 @@ PanelWindow {
 
             Item { width: 1; height: picker.visible ? 8 : 0 }
 
-            Rectangle {
+            // A Mac's password field: a soft rounded well, round dots with
+            // air between them, a focus ring that settles onto it as it
+            // takes the keys, and the Caps Lock arrow while Caps Lock is on.
+            // A wrong password shakes the panel; the field itself stays calm.
+            Item {
                 width: column.width
-                height: 24
-                radius: Theme.selectionRadius + 2
-                color: Theme.well
-                border.width: Theme.pillBorder
-                border.color: root.refused ? Theme.warn : field.activeFocus ? Theme.outline : Theme.stroke
+                height: 28
 
-                TextInput {
-                    id: field
+                // Drawn round the well, touching it. It comes in from a
+                // wider, fainter ring and closes onto the field, as macOS's
+                // does.
+                Rectangle {
+                    property real gap: field.activeFocus || Theme.reduceMotion ? 3 : 9
 
-                    Accessible.role: Accessible.EditableText
-                    Accessible.name: placeholder.text
-                    Accessible.passwordEdit: echoMode === TextInput.Password
+                    anchors.fill: well
+                    anchors.margins: -gap
+                    radius: well.radius + gap
+                    color: "transparent"
+                    border.width: 3
+                    border.color: Qt.rgba(1, 1, 1, 0.24)
+                    opacity: field.activeFocus ? 1 : 0
 
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: spinner.visible ? spinner.width + 12 : 8
-                    verticalAlignment: TextInput.AlignVCenter
-                    clip: true
-                    focus: true
-                    readOnly: !root.asking
-                    echoMode: root.flow?.responseVisible ? TextInput.Normal : TextInput.Password
-                    passwordCharacter: "•"
-                    color: Theme.fg
-                    selectionColor: Theme.textSelection
-                    selectedTextColor: Theme.fg
-                    cursorDelegate: TextCaret { textInput: field }
-                    font.family: Theme.bodyFont
-                    font.pixelSize: Theme.popupTextSize
-
-                    Component.onCompleted: forceActiveFocus()
-                    onTextEdited: root.refused = false
-
-                    Keys.onReturnPressed: root.submit()
-                    Keys.onEnterPressed: root.submit()
-                    Keys.onEscapePressed: root.cancel()
-
-                    TextMenu {}
-
-                    // polkit's prompt, "Password: ", as a field's placeholder.
-                    PopupText {
-                        id: placeholder
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !field.text
-                        text: (root.flow?.inputPrompt ?? "").replace(/[:\s]+$/, "") || "Password"
-                        color: Theme.label3
+                    Behavior on gap {
+                        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on opacity {
+                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
                     }
                 }
 
-                Spinner {
-                    id: spinner
-                    anchors.right: parent.right
-                    anchors.rightMargin: 6
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: root.checking
+                Rectangle {
+                    id: well
+
+                    anchors.fill: parent
+                    radius: 7
+                    color: Qt.rgba(1, 1, 1, field.activeFocus ? 0.1 : 0.07)
+                    border.width: Theme.pillBorder
+                    border.color: Theme.stroke
+
+                    TextInput {
+                        id: field
+
+                        Accessible.role: Accessible.EditableText
+                        Accessible.name: placeholder.text
+                        Accessible.passwordEdit: echoMode === TextInput.Password
+
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: trail.width > 0 ? trail.width + 16 : 10
+                        verticalAlignment: TextInput.AlignVCenter
+                        clip: true
+                        focus: true
+                        readOnly: !root.asking
+                        echoMode: root.flow?.responseVisible ? TextInput.Normal : TextInput.Password
+                        passwordCharacter: "●"
+                        color: Theme.fg
+                        selectionColor: Theme.textSelection
+                        selectedTextColor: Theme.fg
+                        cursorDelegate: TextCaret { textInput: field }
+                        font.family: Theme.bodyFont
+                        font.pixelSize: Theme.popupTextSize
+                        font.letterSpacing: echoMode === TextInput.Password ? 2 : 0
+
+                        Component.onCompleted: forceActiveFocus()
+                        onTextEdited: root.refused = false
+
+                        // Caps Lock, followed from the keys once the panel has
+                        // asked Hyprland: the key itself flips it, and a letter
+                        // says it by coming out upper case without Shift or
+                        // lower with it.
+                        Keys.onPressed: event => {
+                            if (event.key === Qt.Key_CapsLock)
+                                root.capsLock = !root.capsLock;
+                            else if (event.text && event.text.toLowerCase() !== event.text.toUpperCase())
+                                root.capsLock = (event.text === event.text.toUpperCase()) !== !!(event.modifiers & Qt.ShiftModifier);
+                            event.accepted = false;
+                        }
+                        Keys.onReturnPressed: root.submit()
+                        Keys.onEnterPressed: root.submit()
+                        Keys.onEscapePressed: root.cancel()
+
+                        TextMenu {}
+
+                        // polkit's prompt, "Password: ", as a field's placeholder.
+                        PopupText {
+                            id: placeholder
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: !field.text
+                            text: (root.flow?.inputPrompt ?? "").replace(/[:\s]+$/, "") || "Password"
+                            color: Theme.label3
+                        }
+                    }
+
+                    Row {
+                        id: trail
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
+
+                        Glyph {
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: root.capsLock && !root.checking
+                            text: Theme.glyph.capsLock
+                            fontSize: Theme.popupGlyphSize
+                            color: Theme.label2
+                        }
+
+                        Spinner {
+                            id: spinner
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: root.checking
+                        }
+                    }
                 }
             }
 
