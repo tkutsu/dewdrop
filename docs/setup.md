@@ -125,6 +125,14 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 
 Settings > Launcher > Mode Symbols changes these characters. The rest of this section uses the defaults.
 
+`?` also lists your Hyprland keybinds under the modes, and typing searches both. It reads `hyprctl binds -j` each time it opens, and lists a bind only if it has a description:
+
+```lua
+hl.bind("SUPER + L", hl.dsp.exec_cmd("qs ipc call launcher toggle"), { description = "Open the launcher" })
+```
+
+Binds that share a description and modifiers share a row (`Super + I / ←`). A note at the end counts the binds without one.
+
 In `@` mode, names and email addresses match fuzzily above message results. For example, `@sampl` can suggest `rsample@example.com`; selecting it fills a `from:` search. Gmail search operators still work as typed.
 
 The first `@` starts a background scan of sender and recipient headers across the mailbox, including Spam and Trash. Suggestions fill in as the scan progresses. Its SQLite cache under `$XDG_CACHE_HOME/quickshell/gmail-addresses.sqlite` (normally `~/.cache/quickshell/`) keeps addresses and scan progress across restarts. Later scans use Gmail's change history; an expired history cursor restarts the listing without rereading headers already indexed. Discovered addresses stay available after their messages are deleted. This uses the existing Gmail permission and does not require Google Contacts access.

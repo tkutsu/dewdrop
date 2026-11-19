@@ -634,10 +634,22 @@ ShellRoot {
             check(Launcher.queryHints.length === 0, "the hint goes once notes are begun");
             Launcher.query = "?";
             check(Launcher.classification.mode === "?" && Launcher.queryIcon === Theme.glyph.launcherHelp, "? is help");
-            check(Launcher.results.length === Launcher.modes.length - 1 && Launcher.results.every(r => r.kind === "help" && r.prefix !== "?"), "help lists every other mode");
+            const helpRows = () => Launcher.results.filter(r => r.kind === "help");
+            const bindRows = () => Launcher.results.filter(r => r.kind === "keybind");
+            check(helpRows().length === Launcher.modes.length - 1 && helpRows().every(r => r.prefix !== "?"), "help lists every other mode");
             check(Launcher.results.find(r => r.prefix === ",").title.includes("alarms"), "help spells out what the plan word covers");
+            for (let i = 0; i < 40 && !bindRows().length; i++)
+                fileKeys.wait(50);
+            check(Launcher.results.findIndex(r => r.kind === "keybind") === helpRows().length, "keybinds follow the modes");
+            check(JSON.stringify(bindRows().map(r => [r.title, r.subtitle])) === JSON.stringify([["Open the launcher", "Super + L"], ["Move focus left", "Super + I / ←"], ["Move window", "Super + Left Drag"], ["Resize left", "resize  ·  Shift + H"]]), "keybinds read as their description and keys: " + JSON.stringify(bindRows().map(r => [r.title, r.subtitle])));
+            const lastHelp = Launcher.results[Launcher.results.length - 1];
+            check(lastHelp.kind === "note" && lastHelp.title === "1 keybind has no description", "binds without a description are counted, and click listeners are not binds");
+            Launcher.query = "?focus";
+            check(helpRows().length === 0 && bindRows().length === 1 && bindRows()[0].title === "Move focus left" && Launcher.results.length === 1, "help searches the keybinds too");
+            Launcher.activate(0);
+            check(Launcher.shown && Launcher.query === "?focus", "Enter on a keybind leaves the cheatsheet up");
             Launcher.query = "?music";
-            check(Launcher.results.length === 1 && Launcher.results[0].badge === Launcher.musicPrefix, "help narrows by what is typed");
+            check(helpRows().length === 1 && Launcher.results[0].badge === Launcher.musicPrefix, "help narrows by what is typed");
             Launcher.activate(0);
             check(Launcher.shown && Launcher.query === Launcher.musicPrefix, "Enter on a help row goes to that mode");
             Launcher.query = "";
@@ -1345,6 +1357,20 @@ def main():
         source = source.replace("Hyprland.", "TestDesktop.Hyprland.")
         (services / "Launcher.qml").write_text(source)
         (services / "LauncherMail.qml").write_text((ROOT / "src/services/LauncherMail.qml").read_text())
+        # Hyprland's bind list, as hyprctl binds -j gives it on a Lua config.
+        bind = lambda key, modmask=64, description="", **extra: dict({"key": key, "modmask": modmask, "keycode": 0, "submap": "", "mouse": False, "release": False, "non_consuming": False, "catch_all": False, "has_description": bool(description), "description": description, "dispatcher": "function: 0x1", "arg": "20"}, **extra)
+        (target / "binds.json").write_text(json.dumps([
+            bind("L", description="Open the launcher"),
+            bind("I", description="Move focus left"),
+            bind("Left", description="Move focus left"),
+            bind("Q", 68),
+            bind("mouse:272", 0, non_consuming=True),
+            bind("mouse:272", description="Move window", mouse=True),
+            bind("H", 1, description="Resize left", submap="resize"),
+        ]))
+        keys_source = (ROOT / "src/services/LauncherKeys.qml").read_text()
+        assert 'command: ["hyprctl", "binds", "-j"]' in keys_source
+        (services / "LauncherKeys.qml").write_text(keys_source.replace('command: ["hyprctl", "binds", "-j"]', "command: " + json.dumps(["cat", str(target / "binds.json")])))
         for name, body in MOCKS.items():
             imports = 'import "TimersParse.js" as Parse\n' if name == "Timers" else ""
             (services / (name + ".qml")).write_text("pragma Singleton\nimport QtQuick\n" + imports + "QtObject {\n" + body + "\n}\n")
@@ -1360,7 +1386,7 @@ def main():
         settings.write_text(settings.read_text().replace("property var disabled:", "property var webShortcuts: " + json.dumps(defaults) + "; property var launcherPrefixes: " + json.dumps(prefixes) + "; property var disabled:"))
         (target / "src/core/Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "src/core/Tools.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function has(name) { return true; } function label(name) { return name; } }\n')
-        (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", launcherText: "text", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", vol: ["sound"], wifiStrength: ["network"]}) }\n')
+        (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", launcherText: "text", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", keyboard: "keys", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
         (components / "FileQuery.qml").write_text((ROOT / "src/components/QueuedProcess.qml").read_text())
         (target / "shell.qml").write_text(TEST)
