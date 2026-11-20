@@ -36,9 +36,9 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Bluetooth | BlueZ (`busctl`), and `blueman-manager` for the button and right click that open the full settings (`bluetoothCommand`) |
 | Brightness | On a monitor: `ddcutil`, the `i2c-dev` kernel module and access to `/dev/i2c-*` (usually the `i2c` group). On a laptop panel: `brightnessctl`. The Display module hides without them. |
 | Night mode tint | `hyprsunset` running in your session. Without it, night mode only dims the screen. |
-| Lock Screen | Something that answers `loginctl lock-session`, such as `hypridle` with `lock_cmd = hyprlock` |
+| Lock Screen | Nothing for the lock itself. To lock on idle and before sleep, `hypridle` with `lock_cmd = qs ipc call lock lock` and `before_sleep_cmd = loginctl lock-session` |
 | Drives | UDisks2 (`udisksctl`), UPower |
-| Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket` |
+| Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket`. Starting and stopping music from the launcher needs a user `mpd.service` with `mpd.socket` disabled, or the bar's reconnect wakes MPD straight back up. The popup's waveform needs Python 3 and FFmpeg. |
 | Music equalizer | Python 3, FFmpeg, and a user `mpd.service`. The config at `mpdConfig` must have one FFmpeg EQ filter attached to an output and a `state_file` to preserve the queue. Apply saves a `.quickshell-eq.bak` backup and briefly restarts MPD. |
 | Launcher file search | `fd`, and `fasd` for recent files |
 | Launcher text search | `rg` (ripgrep) |
