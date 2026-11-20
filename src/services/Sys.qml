@@ -207,7 +207,11 @@ Singleton {
     // field 10 is milliseconds spent with anything in flight — which over a
     // known interval is the drive's own utilisation, the same figure as the
     // card's and the CPU's beside it.
-    readonly property string diskScript: "for d in /sys/block/*; do b=${d##*/}; case $b in loop*|ram*|zram*|dm-*|md*|sr*) continue;; esac; [ -r \"$d/device/model\" ] || continue; read -r m < \"$d/device/model\"; read -r st < \"$d/stat\"; t=; for h in \"$d\"/device/hwmon*/temp1_input; do [ -r \"$h\" ] && read -r t < \"$h\" && break; done; printf '%s\\t%s\\t%s\\t%s\\n' \"$b\" \"$t\" \"$st\" \"$m\"; done"
+    //
+    // Then a "dm" line per device-mapper device (LUKS, LVM): its dm-N name,
+    // the name it has under /dev/mapper, and what it sits on (`slaves`), so a
+    // filesystem df finds on /dev/mapper/cryptroot can be put on its disk.
+    readonly property string diskScript: "for d in /sys/block/*; do b=${d##*/}; case $b in loop*|ram*|zram*|dm-*|md*|sr*) continue;; esac; [ -r \"$d/device/model\" ] || continue; read -r m < \"$d/device/model\"; read -r st < \"$d/stat\"; t=; for h in \"$d\"/device/hwmon*/temp1_input; do [ -r \"$h\" ] && read -r t < \"$h\" && break; done; printf '%s\\t%s\\t%s\\t%s\\n' \"$b\" \"$t\" \"$st\" \"$m\"; done; for d in /sys/block/dm-*; do [ -r \"$d/dm/name\" ] || continue; read -r n < \"$d/dm/name\"; s=; for x in \"$d\"/slaves/*; do [ -e \"$x\" ] && s=\"$s ${x##*/}\"; done; printf 'dm\\t%s\\t%s\\t%s\\n' \"${d##*/}\" \"$n\" \"$s\"; done"
 
     // Free space is the one part that cannot come from sysfs: a disk does not
     // know what has been written on it, only the filesystems do, and df is the
@@ -362,13 +366,22 @@ Singleton {
     // Which disk a filesystem is on. A partition's name is its disk's with a
     // suffix — "p2" where the disk's own name ends in a digit, bare digits
     // otherwise — and a filesystem mounted on the whole disk has no suffix at
-    // all, which is why the disks found above get asked first.
-    function diskOf(part, disks) {
+    // all, which is why the disks found above get asked first. A device-mapper
+    // device ("mapper/cryptroot", "dm-0") is on the disk of what it sits on,
+    // followed down as far as it goes: LUKS on LVM is two of them.
+    function diskOf(part, disks, depth) {
         if (disks[part])
             return part;
+        const under = root._mapped[part];
+        if (under && (depth ?? 0) < 8)
+            return root.diskOf(under, disks, (depth ?? 0) + 1);
         const m = part.match(/^(.*\d)p\d+$/);
         return m ? m[1] : part.replace(/\d+$/, "");
     }
+
+    // What each device-mapper device sits on, by both of its names; its
+    // first underlying device when it spans more than one.
+    property var _mapped: ({})
 
     function parseDisks(text) {
         const now = Date.now();
@@ -376,11 +389,20 @@ Singleton {
         const prev = root._drivePrev;
         const next = {};
         const list = [];
+        const mapped = {};
 
         for (const line of text.split("\n")) {
             if (line === "")
                 continue;
             const f = line.split("\t");
+            if (f[0] === "dm") {
+                const under = (f[3] ?? "").trim().split(/ +/)[0];
+                if (under) {
+                    mapped[f[1]] = under;
+                    mapped["mapper/" + f[2]] = under;
+                }
+                continue;
+            }
             const st = f[2].split(/ +/).map(Number);
             const d = {
                 name: f[0],
@@ -411,6 +433,7 @@ Singleton {
 
         root._drivePrev = next;
         root._driveAt = now;
+        root._mapped = mapped;
         root._disks = list;
         root.placeDrives();
     }
