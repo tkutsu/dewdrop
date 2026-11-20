@@ -94,11 +94,12 @@ Dewdrop has its own lock screen, so it takes over from hyprlock or any other loc
 hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd("qs ipc call lock lock"))
 ```
 
-If you use hypridle, replace its `lock_cmd` (often `pidof hyprlock || hyprlock`) so idle locking and `loginctl lock-session`, including a `before_sleep_cmd` that calls it, use Dewdrop too:
+If you use hypridle, replace its `lock_cmd` (often `pidof hyprlock || hyprlock`) so idle locking and `loginctl lock-session` use Dewdrop too, and lock before sleep so a wake never opens on the desktop:
 
 ```ini
 # ~/.config/hypr/hypridle.conf, under general
 lock_cmd = qs ipc call lock lock
+before_sleep_cmd = loginctl lock-session
 ```
 
 Log out and back in, and the bar comes up with Hyprland, with no other polkit agent beside it.
