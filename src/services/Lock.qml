@@ -29,6 +29,20 @@ Singleton {
     readonly property bool active: kept.phase !== ""
     readonly property bool held: kept.phase === "locked" || kept.phase === "leave"
 
+    // Asked to lock and not yet let go, as the runtime file `locked` keeps it
+    // for the next bar: one that crashed or was killed under a held lock comes
+    // back locked. Hyprland holds the session meanwhile behind its "lockscreen
+    // app died" screen and lets a new lock take over (hypr/dewdrop.lua turns
+    // on misc:allow_session_lock_restore). The wrapper that starts the bar
+    // there reads it too, to start a bar that died while locked again.
+    readonly property bool guarded: kept.phase !== "" && kept.phase !== "reveal"
+    onGuardedChanged: lockFlag.setText(root.guarded ? "locked\n" : "")
+
+    Component.onCompleted: {
+        if (kept.phase === "" && lockFlag.text().trim() === "locked")
+            kept.phase = "locked";
+    }
+
     // What has been typed. Never leaves this file but into PAM.
     property string password: ""
     // PAM's own words, from faillock ("The account is locked...") or a
@@ -183,6 +197,13 @@ Singleton {
         running: kept.phase === "cover"
         interval: 1000
         onTriggered: root.covered()
+    }
+
+    FileView {
+        id: lockFlag
+        path: Paths.runtime("locked")
+        blockLoading: true
+        printErrors: false
     }
 
     PersistentProperties {

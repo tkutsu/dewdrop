@@ -33,11 +33,23 @@
 -- is reported too:
 --
 --   hyprctl dispatch 'start_bar()'
+--
+-- A bar that dies while the screen is locked (the runtime file `locked` says
+-- so, src/services/Lock.qml) is started again at once and locks again, taking
+-- over from Hyprland's "lockscreen app died" screen. Three quick deaths in a
+-- row and it stops trying; the shortcut works on that screen too.
 local bar = [[
 hyprctl dismissnotify >/dev/null
-quickshell -n & pid=$!
-wait $pid
-case $? in 0 | 143) exit ;; esac
+flag=${XDG_RUNTIME_DIR:-$HOME/.cache}/quickshell/locked
+quick=0
+while :; do
+	since=$(date +%s)
+	quickshell -n & pid=$!
+	wait $pid
+	case $? in 0 | 143) exit ;; esac
+	[ $(($(date +%s) - since)) -lt 60 ] && quick=$((quick + 1)) || quick=0
+	[ -s "$flag" ] && [ $quick -lt 3 ] || break
+done
 hyprctl notify 0 3600000 0 "Dewdrop stopped. Press Super+Ctrl+Alt+V to start it, or run qs log --pid $pid to see why."
 ]]
 
@@ -48,7 +60,8 @@ end
 hl.on("hyprland.start", function()
 	hl.exec_cmd(bar)
 end)
-hl.bind("SUPER + CTRL + ALT + V", start_bar(), { description = "Start the Bar" })
+hl.bind("SUPER + CTRL + ALT + V", start_bar(), { locked = true, description = "Start the Bar" })
+hl.config({ misc = { allow_session_lock_restore = true } })
 
 -- Popups close when a click lands outside them (src/core/OpenPopup.qml listens for these
 -- as custom>>click), and the click still reaches whatever it landed on.

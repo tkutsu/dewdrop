@@ -82,7 +82,7 @@ hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
 
 Dewdrop is also your polkit agent, and only one agent can run per session. Remove the line that starts your old one, wherever your config keeps its exec lines: `hyprland.lua` itself, or a file it loads such as `exec.lua`. Common agents are `polkit-kde-authentication-agent-1`, `hyprpolkitagent`, `polkit-gnome-authentication-agent-1` and `lxpolkit`. If a package such as `hyprpolkitagent` runs as a systemd user service instead, turn it off with `systemctl --user disable --now hyprpolkitagent`.
 
-Dewdrop has its own lock screen, so it takes over from hyprlock or any other locker. Point your lock shortcut at it, replacing the bind that ran `hyprlock`:
+Dewdrop has its own lock screen, so it takes over from hyprlock or any other locker. If the bar crashes while the screen is locked, it starts again and locks again. Point your lock shortcut at it, replacing the bind that ran `hyprlock`:
 
 ```lua
 hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd("qs ipc call lock lock"))
