@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.src.core
 import "EmailEntities.js" as EmailEntities
+import "../lib/Pages.js" as Pages
 
 // Unread Gmail, as a list the popup can show and open.
 //
@@ -202,36 +203,19 @@ GoogleService {
         const url = `${root.api}/threads?labelIds=INBOX&labelIds=UNREAD${query}&maxResults=500&fields=nextPageToken,threads(id,historyId,snippet)`;
         const listed = [];
         const seen = ({});
-        const pages = ({});
-        let broken = false;
-        const page = function (token) {
-            const nextUrl = token ? `${url}&pageToken=${encodeURIComponent(token)}` : url;
-            root.send("GET", nextUrl, null, function (body) {
-                if (!current() || broken)
-                    return;
-                for (const t of body?.threads ?? []) {
-                    if (t.id && !seen[t.id]) {
-                        seen[t.id] = true;
-                        listed.push(t);
-                    }
+        Pages.walk((token, ok, fail) => root.send("GET", Pages.url(url, token), null, ok, fail), function (body) {
+            if (!current())
+                return false;
+            for (const t of body?.threads ?? []) {
+                if (t.id && !seen[t.id]) {
+                    seen[t.id] = true;
+                    listed.push(t);
                 }
-                if (body?.nextPageToken) {
-                    if (pages[body.nextPageToken]) {
-                        broken = true;
-                        root.fail("Gmail repeated a page token", 0);
-                        return;
-                    }
-                    pages[body.nextPageToken] = true;
-                    page(body.nextPageToken);
-                    return;
-                }
-                then(listed);
-            }, function (why, status) {
-                if (current())
-                    root.fail(why, status);
-            });
-        };
-        page("");
+            }
+        }, () => then(listed), function (why, status) {
+            if (current())
+                root.fail(why, status);
+        });
     }
 
     // A thread's messages with only what a row needs: who, what, when,

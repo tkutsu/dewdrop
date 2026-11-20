@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import qs.src.core
 import "../lib/ReleaseNotes.js" as ReleaseNotes
+import "../lib/Pages.js" as Pages
 
 // New videos from YouTube channels and new stories from a few RSS feeds,
 // counted on the bar until they have been opened.
@@ -435,7 +436,7 @@ Singleton {
             then();
             return;
         }
-        root.readSubscriptionPage("", [], ids => {
+        root.readSubscriptionPages(ids => {
             if (ids !== null) {
                 store.subscribed = ids;
                 root.subscribedAt = Date.now();
@@ -444,16 +445,12 @@ Singleton {
         });
     }
 
-    // Every page from `token` on, or null if one failed.
-    function readSubscriptionPage(token: string, ids: var, then: var): void {
-        const page = token === "" ? "" : `&pageToken=${encodeURIComponent(token)}`;
-        root.get(`subscriptions?part=snippet&mine=true&maxResults=50&fields=nextPageToken,items/snippet(resourceId/channelId)${page}`, function (body) {
-            const all = ids.concat((body?.items ?? []).map(item => item.snippet.resourceId.channelId));
-            if (body?.nextPageToken)
-                root.readSubscriptionPage(body.nextPageToken, all, then);
-            else
-                then(all);
-        }, function (why, status, reason) {
+    // Every page's channel ids, or null if one failed.
+    function readSubscriptionPages(then: var): void {
+        const ids = [];
+        Pages.walk((token, ok, fail) => root.get(Pages.url("subscriptions?part=snippet&mine=true&maxResults=50&fields=nextPageToken,items/snippet(resourceId/channelId)", token), ok, fail), function (body) {
+            ids.push(...(body?.items ?? []).map(item => item.snippet.resourceId.channelId));
+        }, () => then(ids), function (why, status, reason) {
             root.fail(why, status, reason);
             then(null);
         });

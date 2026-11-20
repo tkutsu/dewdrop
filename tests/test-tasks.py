@@ -12,6 +12,7 @@ from test_support import copy_shell, shell_env
 
 BASE = '''import QtQuick
 import Quickshell
+import "../lib/Pages.js" as Pages
 Singleton {
     property string service: ""; property int pollMs: 0
     property bool loaded: true; property bool configured: true

@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import "../lib/Pages.js" as Pages
 
 // Shared polling, token acquisition, retries, and parallel fetches for Google services.
 Singleton {
@@ -130,38 +131,27 @@ Singleton {
                 done(gathered, failed);
         };
 
-        // Each source is walked page by page: Google caps a reply at a few
-        // hundred items and hands back a token for the rest, and a list longer
-        // than one page is exactly the one whose tail matters.
-        const page = function (source, token) {
-            const url = token === "" ? source.url : `${source.url}&pageToken=${encodeURIComponent(token)}`;
-            base.send("GET", url, null, function (body) {
+        if (sources.length === 0) {
+            done(gathered, failed);
+            return;
+        }
+        for (const source of sources) {
+            Pages.walk((token, ok, fail) => base.send("GET", Pages.url(source.url, token), null, ok, fail), function (body) {
                 if (!current())
-                    return;
+                    return false;
                 for (const raw of body.items ?? []) {
                     const mapped = item(raw, source);
                     if (mapped !== null)
                         gathered.push(mapped);
                 }
-                if (body.nextPageToken)
-                    page(source, body.nextPageToken);
-                else
-                    landed();
-            }, function (why, status) {
+            }, landed, function (why, status) {
                 if (!current())
                     return;
                 base.fail(why, status);
                 failed.push(status);
                 landed();
             });
-        };
-
-        if (sources.length === 0) {
-            done(gathered, failed);
-            return;
         }
-        for (const source of sources)
-            page(source, "");
     }
 
     // --- lifecycle -----------------------------------------------------------
