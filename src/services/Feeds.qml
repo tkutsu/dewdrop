@@ -815,10 +815,16 @@ Singleton {
         return m ? root.text(m[1]) : "";
     }
 
+    // One character reference past Unicode's end (&#x110000;) would throw,
+    // and the whole feed with it.
+    function character(n: real): string {
+        return n <= 0x10ffff ? String.fromCodePoint(n) : String.fromCharCode(0xfffd);
+    }
+
     function text(raw: string): string {
         return raw.replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1")
-            .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-            .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+            .replace(/&#x([0-9a-f]+);/gi, (_, h) => root.character(parseInt(h, 16)))
+            .replace(/&#(\d+);/g, (_, d) => root.character(Number(d)))
             .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
             .replace(/&amp;/g, "&").trim();
     }
@@ -978,11 +984,19 @@ Singleton {
     }
 
     // --- memory --------------------------------------------------------------
+    // A video's own id, as video() makes it: "yt:" and YouTube's eleven
+    // characters. A story can start "yt:" as well (a channel's Atom feed
+    // added under RSS Feeds names its entries "yt:video:…"), and must not
+    // be expired as a video, nor kept forever as one.
+    function isVideo(id: string): bool {
+        return /^yt:[\w-]{11}$/.test(id);
+    }
+
     // Videos expire with their window; stories wait for forgetStories.
     function prune(cutoff: real): void {
         const seen = {};
         for (const [id, t] of Object.entries(store.seen))
-            if (!id.startsWith("yt:") || t >= cutoff)
+            if (!root.isVideo(id) || t >= cutoff)
                 seen[id] = t;
         store.seen = seen;
     }
@@ -994,7 +1008,7 @@ Singleton {
         const listed = new Set([].concat(...root.sources.map(s => s.items.map(i => i.id))));
         const seen = {};
         for (const [id, t] of Object.entries(store.seen))
-            if (id.startsWith("yt:") || t >= cutoff || listed.has(id))
+            if (root.isVideo(id) || t >= cutoff || listed.has(id))
                 seen[id] = t;
         store.seen = seen;
         root.save();

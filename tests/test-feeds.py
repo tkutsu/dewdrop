@@ -97,6 +97,21 @@ ShellRoot {
             root.check(smbc.thumb === "https://www.smbc-comics.com/comics/example.png", "SMBC comic image survives text cleanup");
             root.check(Feeds.summary("<p>Today's News:<br/>Actual news.</p>", 'https://www.smbc-comics.com/comic/rss').includes("Actual news."), "nonempty SMBC news is preserved");
             root.check(Feeds.summary("<p>Today's News:</p>", 'https://example.com/rss') === "Today's News:", "other feeds keep their own headings");
+            const bad = String.fromCharCode(0xfffd);
+            root.check(Feeds.text("&#x110000; &#99999999999; &#x41;") === bad + " " + bad + " A",
+                       "a reference past Unicode's end reads as one bad character, not a dropped feed");
+
+            // A story from a channel's Atom feed added under RSS Feeds is not a video.
+            const keptSeen = Feeds.store.seen;
+            Feeds.store.seen = { "yt:AAAAAAAAAAA": 0, "yt:video:AAAAAAAAAAA": 0 };
+            Feeds.prune(1);
+            root.check(!("yt:AAAAAAAAAAA" in Feeds.store.seen) && "yt:video:AAAAAAAAAAA" in Feeds.store.seen,
+                       "an old video expires and an old yt:video: story does not");
+            Feeds.store.seen = { "yt:AAAAAAAAAAA": 0, "yt:video:AAAAAAAAAAA": 0 };
+            Feeds.forgetStories(1);
+            root.check("yt:AAAAAAAAAAA" in Feeds.store.seen && !("yt:video:AAAAAAAAAAA" in Feeds.store.seen),
+                       "an unlisted yt:video: story is forgotten like any story");
+            Feeds.store.seen = keptSeen;
 
             const description = '<description>&lt;p&gt;First &lt;b&gt;paragraph&lt;/b&gt;.&lt;/p&gt;'
                 + '&lt;p&gt;Second&amp;nbsp;line &amp;copy;.&lt;/p&gt;'
@@ -326,10 +341,10 @@ ShellRoot {
             // A story seen is forgotten once gone from every feed and a month old.
             const day = 86400000;
             const seenBefore = Feeds.store.seen;
-            Feeds.store.seen = { "gone-old": now - 40 * day, "listed-old": now - 40 * day, "gone-new": now - day, "yt:old": now - 40 * day };
+            Feeds.store.seen = { "gone-old": now - 40 * day, "listed-old": now - 40 * day, "gone-new": now - day, "yt:OldVideo123": now - 40 * day };
             Feeds.sources = [{ url: "y", title: "y", items: [{ id: "listed-old", title: "Listed", published: now - 40 * day, url: "" }] }];
             Feeds.forgetStories(now - 30 * day);
-            root.check(Object.keys(Feeds.store.seen).sort().join() === "gone-new,listed-old,yt:old",
+            root.check(Object.keys(Feeds.store.seen).sort().join() === "gone-new,listed-old,yt:OldVideo123",
                 "forgotten: " + Object.keys(Feeds.store.seen));
             Feeds.store.seen = seenBefore;
             Feeds.sources = [];
