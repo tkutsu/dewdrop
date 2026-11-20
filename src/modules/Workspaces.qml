@@ -126,9 +126,22 @@ BarItem {
         return !toplevel.lastIpcObject?.hidden;
     }
 
+    // This bar's monitor: the strip shows its workspaces, and the mark sits
+    // on the one it shows. Null before the window has a screen, and then
+    // every workspace, as on a single monitor.
+    property var monitor: {
+        const screen = root.QsWindow.window?.screen;
+        return screen ? Hyprland.monitorFor(screen) : null;
+    }
+    // The workspace in focus on the focused monitor, as ever; on another
+    // monitor's bar, the one that monitor shows.
+    readonly property var activeHere: !root.monitor || root.monitor === Hyprland.focusedMonitor
+        ? Hyprland.focusedWorkspace : root.monitor.activeWorkspace
+
     // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
     readonly property var liveWorkspaces: [...Hyprland.workspaces.values]
         .filter(w => w.id !== -1 && !w.name.startsWith("special:"))
+        .filter(w => !root.monitor || !w.monitor || w.monitor === root.monitor)
         .filter(w => w.active || w.lastIpcObject?.ispersistent
             || Hyprland.toplevels.values.some(t => t.workspace?.id === w.id && root.listed(t)))
         .sort((a, b) => a.id - b.id)
@@ -169,7 +182,7 @@ BarItem {
                 placement[t.address] = t.workspace?.id;
             root.frozen = {
                 workspaces: root.liveWorkspaces,
-                focused: Hyprland.focusedWorkspace?.id ?? -1,
+                focused: root.activeHere?.id ?? -1,
                 placement: placement
             };
         }
@@ -198,7 +211,7 @@ BarItem {
         renderedWorkspaces = next.sort((a, b) => a.id - b.id);
     }
 
-    readonly property int focusedId: frozen ? frozen.focused : (Hyprland.focusedWorkspace?.id ?? -1)
+    readonly property int focusedId: frozen ? frozen.focused : (root.activeHere?.id ?? -1)
     onFocusedIdChanged: Qt.callLater(root.snapshot)
 
     function workspaceOf(toplevel) {

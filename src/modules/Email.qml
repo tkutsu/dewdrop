@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import qs.src.core
 import qs.src.components
 import qs.src.services
@@ -28,11 +29,14 @@ BarItem {
         underdot: Settings.badgeStyle("email") === "underdot"
     }
 
-    // A card about several new mails was clicked: they are all here.
+    // A card about several new mails was clicked: they are all here. One
+    // Mail per bar, so the one on the focused screen answers.
     Connections {
         target: Email
 
         function onSummoned() {
+            if (root.QsWindow.window?.screen?.name !== Hyprland.focusedMonitor?.name)
+                return;
             OpenPopup.set(root);
         }
     }

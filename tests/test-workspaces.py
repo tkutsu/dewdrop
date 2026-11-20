@@ -23,7 +23,9 @@ Singleton {
  property QtObject workspaces: QtObject { property var values: [] }
  property QtObject toplevels: QtObject { property var values: [] }
  property var focusedWorkspace: null
+ property var focusedMonitor: null
  property var activeToplevel: null
+ function monitorFor(screen) { return null; }
  signal rawEvent(var event)
  property var commands: []
  function dispatch(cmd) { commands = [...commands, cmd]; console.log("dispatch", cmd); }
@@ -112,7 +114,7 @@ import qs.src.services
 ShellRoot {
  id: suite
  property var failures: []
- Component { id: workspace; QtObject { property int id; property string name; property bool active: false; property bool urgent: false; property var lastIpcObject: ({}) } }
+ Component { id: workspace; QtObject { property int id; property string name; property bool active: false; property bool urgent: false; property var lastIpcObject: ({}); property var monitor: null } }
  Component { id: toplevel; QtObject { property string address; property var workspace; property var wayland; property var lastIpcObject: ({}); property bool urgent: false } }
  Window { id: scene; visible: true; width: 800; height: 100; Workspaces { id: pill; width: implicitWidth; height: 38 } }
  TestCase { id: test; when: false }
@@ -179,6 +181,16 @@ ShellRoot {
  check(!pill.occupied && !pill.shownWorkspaces.some(w=>w.id===2),'a hidden window shows no icon and keeps no workspace');
  swallowed.lastIpcObject={hidden:false};test.wait(50);
  check(pill.occupied && pill.shownWorkspaces.some(w=>w.id===2),'a window given back comes back to the strip');
+ // A second monitor's bar: that monitor's workspaces, and the mark on the one it shows.
+ const west={name:'west'},east={name:'east',activeWorkspace:w2};
+ w1.monitor=west;w2.monitor=east;Hyprland.focusedMonitor=west;Hyprland.focusedWorkspace=w1;
+ const keep=win('keep',w1,'kitty');keep.lastIpcObject={};swallowed.lastIpcObject={};
+ Hyprland.workspaces.values=[w1,w2];Hyprland.toplevels.values=[keep,swallowed];pill.monitor=east;test.wait(50);
+ check(pill.shownWorkspaces.map(w=>w.id).join()==='2' && pill.focusedId===2,
+       'the east monitor shows its own workspace, marked, while the west has focus: '+pill.shownWorkspaces.map(w=>w.id)+' at '+pill.focusedId);
+ pill.monitor=west;test.wait(50);
+ check(pill.shownWorkspaces.map(w=>w.id).join()==='1' && pill.focusedId===1,'the focused monitor shows its own, as ever');
+ pill.monitor=null;w1.monitor=null;w2.monitor=null;Hyprland.focusedMonitor=null;Hyprland.focusedWorkspace=null;
  Hyprland.workspaces.values=[w1];Hyprland.toplevels.values=[];test.tryCompare(pill,'pop',0,1500);
  w1.urgent=true;Hyprland.workspaces.values=[w1];test.wait(50);
  check(pill.occupied,'a shouting workspace keeps its marker in view');
