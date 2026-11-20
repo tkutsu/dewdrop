@@ -77,6 +77,7 @@ STATE = '''
     property int bodyParallel: 4
     property int headerParallel: 6
     property int bodyKeep: 200
+    readonly property int partLimit: 512 * 1024
     property string fixtureText: ""
     property var requests: []
     property int maxPending: 0
@@ -269,6 +270,19 @@ class EmailTests(unittest.TestCase):
         self.check('sut.plain(sut.untag("<a href=https://example.com>https://example.com</a>")) === "https://example.com"')
         self.check('sut.richText(sut.untag("<a href=https://example.com/x>https://example.com/x</a>")).includes(">example.com</a>")')
         self.check('sut.untag("<table><tr><td>A</td><td>B</td></tr></table>").trim() === "A B"')
+
+    def test_hostile_markup_reads_in_linear_time(self):
+        # Thousands of openings with no closing tag sent each pattern on to
+        # the end of the mail once per opening: seconds on the bar's thread.
+        for piece, count in (('<span style=\\"display:none\\">x', 8000), ('<a href=https://x.y>x', 8000),
+                             ('<!--x', 8000), ('<br x', 20000), ('<p x', 20000)):
+            expression = f'(() => {{ const t = Date.now(); const s = sut.tidy(sut.untag("{piece}".repeat({count}))); return [Date.now() - t, s.length]; }})()'
+            took, length = self.js('return ' + expression + ';').toVariant()
+            self.assertLess(took, 400, f'{piece!r} x{count} took {took} ms')
+            self.assertGreater(length, 0, f'{piece!r} x{count} read as nothing')
+        # A closed hidden element still goes, after unclosed ones before it.
+        self.check('sut.untag("<span style=\\"display:none\\">a<span style=\\"display:none\\">b</span>Seen") === "Seen"')
+        self.check('sut.untag("<!-- open <p>Kept</p>") .includes("Kept")')
 
     def test_mail_text_is_tidied(self):
         # Hidden preview padding and Outlook-only copies go; paragraphs keep a gap; lists get bullets.

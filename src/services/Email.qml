@@ -806,6 +806,11 @@ GoogleService {
         }
     }
 
+    // How much of a part is read, in base64 characters (about 384 KB): all
+    // of this runs on the bar's own thread, and the sender sets the size.
+    // Far more text than the reader shows; a newsletter's markup is the bulk.
+    readonly property int partLimit: 512 * 1024
+
     // Large inline bodies live behind Gmail's attachment endpoint too.
     function loadText(id: string, payload: var, then: var, failed: var): void {
         const types = ["text/plain", "text/html"];
@@ -820,7 +825,7 @@ GoogleService {
                 return;
             }
             const decoded = function (data) {
-                const text = root.utf8(root.unbase64(data ?? ""));
+                const text = root.utf8(root.unbase64((data ?? "").slice(0, root.partLimit)));
                 const clean = root.unquote(root.tidy(types[index] === "text/html" ? root.untag(text) : text));
                 if (clean !== "")
                     then(clean);
@@ -896,29 +901,61 @@ GoogleService {
         return out;
     }
 
+    // Each element `open` finds, through the first `close` after it, put
+    // through `swap(match, inside)`: /<open>[\s\S]*?<close>/ in one pass.
+    // The regex looks again from every opening for a closing tag, to the end
+    // of the mail when there is none, so a sender's thousand unclosed spans
+    // held the bar for seconds. Here a closing tag missing after one opening
+    // is known to be missing after all the later ones. `close(match)` gives
+    // the closing tag as a pattern.
+    function elements(html: string, open: var, close: var, swap: var): string {
+        const after = ({});
+        let out = "", from = 0, m;
+        open.lastIndex = 0;
+        while ((m = open.exec(html)) !== null) {
+            const key = close(m);
+            let end = after[key];
+            if (end === undefined || end !== null && end.index < open.lastIndex) {
+                const find = new RegExp(key, "gi");
+                find.lastIndex = open.lastIndex;
+                const found = find.exec(html);
+                end = after[key] = found ? { index: found.index, end: find.lastIndex } : null;
+            }
+            if (end === null)
+                continue;
+            out += html.slice(from, m.index) + swap(m, html.slice(open.lastIndex, end.index));
+            from = open.lastIndex = end.end;
+        }
+        return out + html.slice(from);
+    }
+
     // Keep HTML link destinations, discard layout and non-content markup.
+    // A tag's insides are [^<>]: a `<` that never closes stops at the next
+    // tag rather than sending every pattern on to the end of the mail.
     function untag(html: string): string {
+        const gone = () => "";
+        const closing = m => "<\\/" + m[1] + "\\s*>";
+        html = root.elements(html, /<!--/g, () => "-->", gone);
+        html = root.elements(html, /<(style|script|head|title|noscript|template|svg|xml|object)\b[^<>]*>/gi, closing, gone);
+        // What the sender hid: the preview line newsletters pad the inbox's
+        // snippet with, and Outlook-only copies.
+        html = root.elements(html, /<(div|span|p|td|table|a)\b[^<>]*\bstyle\s*=\s*["'][^"'<>]*(?:display\s*:\s*none|visibility\s*:\s*hidden|mso-hide\s*:\s*all|max-height\s*:\s*0(?:px)?\s*(?:;|["']))[^<>]*>/gi, closing, gone);
+        html = html.replace(/<(?:div|blockquote)\b[^<>]*(?:\bclass\s*=\s*["'][^"'<>]*\bgmail_quote\b|\btype\s*=\s*["']?cite\b)[^<>]*>[\s\S]*$/i, "");
+        html = root.elements(html, /<a\b([^<>]*)>/gi, () => "<\\/a\\s*>", function (m, label) {
+            const href = m[1].match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+            const url = href ? root.unentity(href[1] ?? href[2] ?? href[3]).trim() : "";
+            return /^https?:\/\//i.test(url) ? "\ue000" + label + "\ue001" + url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "\ue002" : label;
+        });
         return root.unentity(html
-            .replace(/<!--[\s\S]*?-->/g, "")
-            .replace(/<(style|script|head|title|noscript|template|svg|xml|object)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
-            // What the sender hid: the preview line newsletters pad the
-            // inbox's snippet with, and Outlook-only copies.
-            .replace(/<(div|span|p|td|table|a)\b[^>]*\bstyle\s*=\s*["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|mso-hide\s*:\s*all|max-height\s*:\s*0(?:px)?\s*(?:;|["']))[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
-            .replace(/<(?:div|blockquote)\b[^>]*(?:\bclass\s*=\s*["'][^"']*\bgmail_quote\b|\btype\s*=\s*["']?cite\b)[^>]*>[\s\S]*$/gi, "")
-            .replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, function (all, attrs, label) {
-                const href = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
-                const url = href ? root.unentity(href[1] ?? href[2] ?? href[3]).trim() : "";
-                return /^https?:\/\//i.test(url) ? "\ue000" + label + "\ue001" + url.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "\ue002" : label;
-            })
             .replace(/\s+/g, " ")
-            .replace(/<br\b[^>]*>/gi, "\n")
-            .replace(/<li\b[^>]*>/gi, "\n• ")
+            .replace(/<br\b[^<>]*>/gi, "\n")
+            .replace(/<li\b[^<>]*>/gi, "\n• ")
             // A paragraph's end keeps a blank line after it (\u2029 until
             // the newlines are counted); a box's edge is only a line break.
-            .replace(/<\/(?:p|h[1-6]|blockquote|table|ul|ol)\s*>|<hr\b[^>]*>/gi, "\u2029")
-            .replace(/<\/?(?:p|div|tr|li|h[1-6]|blockquote|table|ul|ol)\b[^>]*>/gi, "\n")
-            .replace(/<\/?(?:td|th)\b[^>]*>/gi, " ")
-            .replace(/<[^>]+>/g, ""))
+            .replace(/<\/(?:p|h[1-6]|blockquote|table|ul|ol)\s*>|<hr\b[^<>]*>/gi, "\u2029")
+            .replace(/<\/?(?:p|div|tr|li|h[1-6]|blockquote|table|ul|ol)\b[^<>]*>/gi, "\n")
+            .replace(/<\/?(?:td|th)\b[^<>]*>/gi, " ")
+            .replace(/<[^<>]+>/g, ""))
             .replace(/[^\S\n\u2029]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{2,}/g, "\n")
             .replace(/\s*\u2029[\s\u2029]*/g, "\n\n").trim();
     }
@@ -931,7 +968,7 @@ GoogleService {
             text = root.untag(text);
         return text
             // Tags left over or written out as entities.
-            .replace(/<\/?(?:!doctype|html|head|body|meta|link|style|script|div|span|p|br|hr|table|tbody|thead|tfoot|tr|td|th|img|a|b|i|u|s|em|strong|font|center|ul|ol|li|h[1-6]|blockquote|pre|code|sup|sub|small|big|o:p|v:[a-z]+|xml)(?=[\s\/>])[^>\n]*>/gi, "")
+            .replace(/<\/?(?:!doctype|html|head|body|meta|link|style|script|div|span|p|br|hr|table|tbody|thead|tfoot|tr|td|th|img|a|b|i|u|s|em|strong|font|center|ul|ol|li|h[1-6]|blockquote|pre|code|sup|sub|small|big|o:p|v:[a-z]+|xml)(?=[\s\/>])[^<>\n]*>/gi, "")
             // Characters that draw nothing: soft hyphens, zero-width spaces
             // and joiners (bar the emoji one), direction marks, the fillers a
             // preview line is padded with.
