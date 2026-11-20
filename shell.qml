@@ -31,9 +31,13 @@ ShellRoot {
     // The window list keeps itself current, but an XWayland window's class lives
     // in the IPC object beside it, which Quickshell only fills in on a refresh,
     // so a refresh after windows open: the workspace icons and the launcher read
-    // the class from there.
+    // the class from there. And after windows close: Hyprland swallows a
+    // terminal as the app opens and gives it back as the app closes, with no
+    // event of its own, and `hidden` (Workspaces.qml leaves such a window off
+    // the strip) comes only with a fresh `hyprctl clients`.
     //
-    // Debounced, so a burst asks once. A window that flaps (VLC opening a file
+    // Once for the whole shell, however many bars, and debounced, so a burst
+    // asks once. A window that flaps (VLC opening a file
     // mapped and unmapped a dozen times in a second) otherwise fires a request
     // per open, and each Hyprland IPC request is a chance at Quickshell 0.3.2's
     // use-after-free: makeRequest deletes its socket inside that socket's own
@@ -42,7 +46,7 @@ ShellRoot {
         target: Hyprland
 
         function onRawEvent(event) {
-            if (event.name === "openwindow")
+            if (event.name === "openwindow" || event.name === "closewindow")
                 refreshToplevels.restart();
         }
     }
