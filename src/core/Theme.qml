@@ -792,6 +792,7 @@ Singleton {
         launcherPower: "\uf1e6",      // nf-fa-plug
         launcherHelp: "\u{f0625}",    // nf-md-help_circle_outline
         launcherText: "\u{f13b8}",    // nf-md-text_search
+        launcherEmoji: "\u{f01f2}",   // nf-md-emoticon_outline
 
         // Every glyph here is Material Design, outlined wherever the set has
         // an outline — the bar and the launcher used to mix in Font Awesome

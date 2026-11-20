@@ -173,6 +173,16 @@ Rectangle {
             font.weight: Font.Bold
         }
 
+        // An emoji is its own picture, drawn at the icon's size.
+        Text {
+            textFormat: Text.PlainText
+            anchors.centerIn: parent
+            visible: !!row.modelData.emoji
+            text: row.modelData.emoji ?? ""
+            font.family: "Noto Color Emoji"
+            font.pixelSize: Theme.iconSize
+        }
+
         ClickArea {
             id: queueControl
             anchors.fill: parent
