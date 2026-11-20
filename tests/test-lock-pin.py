@@ -80,9 +80,32 @@ ShellRoot {
                 Settings.set("lockPasswordLength", 0);
                 Lock.clear(); typeAll("right");
                 check(!Lock.checking && tries().length === 4, "no length set: no check without Return");
-                console.log("DONE");
-                Qt.quit();
+                Lock.clear(); typeAll("right"); Lock.submit();
+            } else if (s === 8) {
+                check(Lock.phase === "leave", "unlocking");
+                Lock.lock();
+                check(Lock.phase === "locked" && Lock.held, "a lock asked for as the glass goes holds");
+                Lock.left(); Lock.revealed();
+                check(Lock.phase === "locked" && Lock.held, "the interrupted fade's ends do not unlock");
+                typeAll("right"); Lock.submit();
+            } else if (s === 9) {
+                Lock.left(); Lock.revealed();
+                check(Lock.phase === "", "unlocked");
+                Lock.lock();
+            } else if (s === 10) {
+                check(Lock.phase === "cover" && !Lock.held, "the cover waits on the curtain");
+                tick.stop();
+                late.start();
             }
+        }
+    }
+    // No curtain here to report its fade done: the lock takes regardless.
+    Timer {
+        id: late; interval: 1000
+        onTriggered: {
+            check(Lock.phase === "locked" && Lock.held, "a cover that never finishes still locks");
+            console.log("DONE");
+            Qt.quit();
         }
     }
 }
