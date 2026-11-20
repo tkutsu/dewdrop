@@ -39,6 +39,18 @@ Controls.ComboBox {
     leftPadding: 10
     rightPadding: 22
 
+    // The pick, set once the menu's blink has shown it. Also if the menu
+    // opens again or the button goes first (a page switched mid-blink), so
+    // a choice made is never lost with the animation.
+    function commit(): void {
+        const choice = root.pendingChoice;
+        root.pendingChoice = null;
+        if (choice !== null)
+            choice.setting.set(choice.value);
+    }
+
+    Component.onDestruction: root.commit()
+
     // The settings window's keys (SettingsMenu.qml) open the menu and leave
     // it the arrows, Return and Escape. A bar popup gives no keyboard focus,
     // so it reaches only `keyPress` controls and leaves this one out.
@@ -168,7 +180,7 @@ Controls.ComboBox {
     popup: Controls.Popup {
         // Let masked shell windows include this menu in their input region.
         onAboutToShow: {
-            root.pendingChoice = null;
+            root.commit();
             root.chosenIndex = -1;
             root.blinkOn = true;
             const window = root.QsWindow.window;
@@ -193,12 +205,7 @@ Controls.ComboBox {
                 PropertyAction { target: root; property: "blinkOn"; value: true }
                 PauseAnimation { duration: root.pendingChoice !== null ? Theme.blinkMs : 0 }
                 ScriptAction {
-                    script: {
-                        const choice = root.pendingChoice;
-                        root.pendingChoice = null;
-                        if (choice !== null)
-                            choice.setting.set(choice.value);
-                    }
+                    script: root.commit()
                 }
             }
         }

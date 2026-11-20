@@ -130,8 +130,8 @@ ShellRoot {
                 wait(30);
                 picker.popup.open();
                 wait(Theme.blinkMs * 2 + 30);
-                check(picker.popup.visible && NightMode.mode === "custom" && picker.pendingChoice === null,
-                      "reopening during the blink cancels the old choice and leaves the menu usable");
+                check(picker.popup.visible && NightMode.mode === picker.model[0].value && picker.pendingChoice === null,
+                      "reopening during the blink keeps the choice and leaves the menu usable");
                 keyClick(Qt.Key_Escape);
                 console.log("PASS: dropdown bounds complete");
             }
