@@ -28,11 +28,16 @@ function article(html) {
     return html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] ?? "";
 }
 
+// A reference past Unicode's end (&#x110000;) would throw, notes and all.
+function character(n) {
+    return n <= 0x10ffff ? String.fromCodePoint(n) : String.fromCharCode(0xfffd);
+}
+
 function plain(value) {
     return value.replace(/<!--[\s\S]*?-->/g, " ")
         .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
-        .replace(/<[^>]*>/g, " ").replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-        .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+        .replace(/<[^>]*>/g, " ").replace(/&#x([\da-f]+);/gi, (_, n) => character(parseInt(n, 16)))
+        .replace(/&#(\d+);/g, (_, n) => character(Number(n)))
         .replace(/&(?:nbsp|amp|lt|gt|quot|apos);/g, e => ({"&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'"})[e])
         .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[`*]/g, "").replace(/^#{1,6}\s+/gm, "")
         .replace(/\s+/g, " ").trim();

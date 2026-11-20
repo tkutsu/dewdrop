@@ -30,6 +30,8 @@ ShellRoot {
             check(!Notes.examine("## Breaking Changes\nNone.\n## Fixes\nA fix.", true).breaking, "negative section");
             check(!Notes.examine("## Breaking Changes\n## Fixes\nA fix.", true).breaking, "empty section");
             check(!Notes.examine("## Fixes\nFixed networking breaking.", true).breaking, "ordinary prose");
+            check(Notes.examine("<p>&#x110000; Support for configs has been dropped.</p>", false).breaking,
+                "a reference past Unicode's end does not throw the notes away");
             check(!Notes.examine("<p>No breaking changes! Configs are still supported.</p>", false).breaking,
                 "ordinary support statements stay unmarked");
             check(!Notes.examine("<h2>Fixes</h2><p>Removed an unused allocation.</p><p>Fixed support for configs.</p>", false).breaking,
