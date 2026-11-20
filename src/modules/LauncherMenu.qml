@@ -650,11 +650,49 @@ OverlayWindow {
                         // ellipsis: past a certain point a hint is only noise.
                         visible: Launcher.queryHints.length > 0 && hint.room >= hint.implicitWidth
 
+                        // The empty field's modes come a group at a time
+                        // (Launcher.hintGroups): this long on each, then a
+                        // fade through to the next. Typing stops the turn and
+                        // leaves the line whole.
+                        readonly property int turnMs: 4000
+
+                        Timer {
+                            interval: hint.turnMs
+                            repeat: true
+                            running: root.opened && hint.visible && Launcher.classification.mode === "empty"
+                            onTriggered: turn.restart()
+                            onRunningChanged: if (!running) {
+                                turn.stop();
+                                modeHints.opacity = 1;
+                            }
+                        }
+
+                        SequentialAnimation {
+                            id: turn
+                            NumberAnimation {
+                                target: modeHints
+                                property: "opacity"
+                                to: 0
+                                duration: Theme.reduceMotion ? 0 : Theme.fadeMs
+                                easing.type: Easing.InOutQuad
+                            }
+                            ScriptAction {
+                                script: Launcher.hintPage++
+                            }
+                            NumberAnimation {
+                                target: modeHints
+                                property: "opacity"
+                                to: 1
+                                duration: Theme.reduceMotion ? 0 : Theme.fadeMs
+                                easing.type: Easing.InOutQuad
+                            }
+                        }
+
                         Row {
                             id: modeHints
                             anchors.verticalCenter: parent.verticalCenter
-                            // 7, so all eleven modes fit the empty box at 13px,
-                            // still three times the gap inside each one.
+                            // 7, three times the gap inside each hint; set
+                            // when all eleven modes had to fit the box at once.
                             spacing: 7
 
                             Repeater {
