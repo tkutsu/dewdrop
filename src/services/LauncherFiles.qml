@@ -87,9 +87,12 @@ Singleton {
     // key" and "key hypr" both find keybinds.lua under hypr, the same way the
     // fasd half matches. Escaped first: a query is typed text, and an
     // unbalanced bracket in it would be a regex error rather than no match.
+    // And never an option: "-h" typed was fd's help as rows, "-l" an error.
+    // The later terms ride on `--and=`, and the first follows `--`, after
+    // which fd reads only the pattern and the folder to search.
     function fdPatterns(query) {
         const [first = "", ...rest] = root.fdTerms(query).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-        return [].concat(...rest.map(t => ["--and", t]), [first]);
+        return rest.map(t => "--and=" + t).concat(["--", first]);
     }
 
     // Resolve relative paths against the same home directory that fd searches.

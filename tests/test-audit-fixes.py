@@ -225,14 +225,21 @@ def check_fd_order(target):
     for name in ("fdTerms", "fdPatterns"):
         body = re.search(r"    function " + name + r"\(query\) \{(.*?)\n    \}", source, re.S).group(1)
         js += f"root.{name} = function(query) {{{body}\n}};\n"
-    js += 'console.log(JSON.stringify(["downloads report", "report downloads"].map(q => root.fdPatterns(q))));'
+    js += 'console.log(JSON.stringify(["downloads report", "report downloads", "-h", "-l -h"].map(q => root.fdPatterns(q))));'
     home = target / "fd-home"
     (home / "Downloads").mkdir(parents=True, exist_ok=True)
     (home / "Downloads/report.pdf").write_text("fixture")
-    for patterns in json.loads(subprocess.check_output(["node", "-e", js], text=True)):
+    (home / "-h-l notes.txt").write_text("fixture")
+    *ordered, dashed, both = json.loads(subprocess.check_output(["node", "-e", js], text=True))
+    for patterns in ordered:
         found = subprocess.check_output(["fd", "--full-path", *patterns, str(home)], text=True).splitlines()
         assert found == [str(home / "Downloads/report.pdf")], (patterns, found)
     print("PASS: file search finds a path whatever order its words are typed in")
+    # A query that starts with a minus is text to find, never fd's own option.
+    for patterns in (dashed, both):
+        found = subprocess.check_output(["fd", *patterns, str(home)], text=True).splitlines()
+        assert found == [str(home / "-h-l notes.txt")], (patterns, found)
+    print("PASS: a query starting with a minus is searched for, not read as an option")
 
 
 def check_parent_death():
