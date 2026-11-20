@@ -25,6 +25,31 @@
 -- moves to another window or workspace, or the pointer under follow_mouse,
 -- does not take it from them.
 
+-- The bar starts with Hyprland. When it stops on its own (a crash, a config that
+-- will not load), Hyprland says so itself, since the bar was what showed
+-- notifications, and Super+Ctrl+Alt+V starts it again. Quitting it on purpose
+-- (`qs kill`, SIGTERM) stays quiet, and so does the shortcut while a bar is up.
+-- A script that restarts the bar should start it the same way, so the next stop
+-- is reported too:
+--
+--   hyprctl dispatch 'start_bar()'
+local bar = [[
+hyprctl dismissnotify >/dev/null
+quickshell -n & pid=$!
+wait $pid
+case $? in 0 | 143) exit ;; esac
+hyprctl notify 0 3600000 0 "Dewdrop stopped. Press Super+Ctrl+Alt+V to start it, or run qs log --pid $pid to see why."
+]]
+
+function start_bar()
+	return hl.dsp.exec_cmd(bar)
+end
+
+hl.on("hyprland.start", function()
+	hl.exec_cmd(bar)
+end)
+hl.bind("SUPER + CTRL + ALT + V", start_bar(), { description = "Start the Bar" })
+
 -- Popups close when a click lands outside them (src/core/OpenPopup.qml listens for these
 -- as custom>>click), and the click still reaches whatever it landed on.
 hl.bind("mouse:272", hl.dsp.event("click"), { non_consuming = true })

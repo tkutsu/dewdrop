@@ -72,13 +72,7 @@ dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
 
 This supplies the blur, popup dismissal and workspace helpers. It also closes gaps in numbered workspaces as they empty. If you have your own Escape or close-window binds, see [Escape and close keybinds](docs/setup.md#escape-and-close-keybinds) so they leave the launcher and settings alone. Keep the top outer gap at 8 pixels so windows line up below the bar; for example, `hl.config({ general = { gaps_out = 8 } })` sets all sides to 8.
 
-To start Dewdrop with Hyprland, add an exec line to the same file. It runs once each time Hyprland starts, and `-n` makes it do nothing if Dewdrop is already running:
-
-```lua
-hl.on("hyprland.start", function()
-    hl.exec_cmd("qs -n")
-end)
-```
+It also starts Dewdrop with Hyprland, so remove any exec line of your own that runs `qs` or `quickshell`. If the bar stops on its own, Hyprland shows a notice, and Super+Ctrl+Alt+V starts it again.
 
 Then add a shortcut for the launcher. Pick another key if Super+Space is already taken; see [Hyprland's keybind syntax](https://wiki.hypr.land/configuring/core/binds/).
 
@@ -116,6 +110,7 @@ Optional features need their own tools or services. File search uses `fd`, the c
 
 | Symptom | What To Check |
 | --- | --- |
+| The bar is gone, and the launcher with it | Press Super+Ctrl+Alt+V to start it again. If it stops again, open a terminal with your Hyprland terminal shortcut, which works without the bar, and follow the next row. |
 | The bar does not start | Run `qs -n` from a terminal inside Hyprland and read the first error. Check `qs --version` and `hyprctl version`. For a running instance, `qs log -t 80` shows recent messages. |
 | It broke after a Qt update | [Quickshell must match the installed Qt libraries](https://github.com/quickshell-mirror/quickshell/blob/master/BUILD.md). Fully update Arch with `sudo pacman -Syu`; if you built Quickshell yourself, rebuild it against the updated Qt. |
 | Glass looks flat, or outside clicks do not close popovers | Check that `hypr/dewdrop.lua` is loaded, reload Hyprland and check for config errors. Turn off Reduce Transparency in Dewdrop's settings if you want the glass effect. |
