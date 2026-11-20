@@ -625,15 +625,21 @@ Singleton {
                     urls: [url],
                     got: text => read[url] = root.parseStories(text, url)
                 })), () => {
+            // An empty answer is not in hand either; it may be a broken page.
+            // A feed not in hand keeps what it last said.
+            const fresh = url => read[url]?.items.length > 0;
             root.sources = urls.map(url => {
-                const source = read[url] ?? root.sources.find(s => s.url === url);
+                const source = fresh(url) ? read[url] : root.sources.find(s => s.url === url);
                 return source ? Object.assign({ url: url }, source) : null;
             }).filter(s => s !== null && s.items.length > 0);
             root.enrichReleases();
+            // One dead feed among the rest is no trouble; none at all is,
+            // and the refresh does not count as a good one.
+            if (urls.length > 0 && !urls.some(fresh))
+                root.trouble = "Could not read the feeds";
             // With every feed in hand, forget stories seen that have left
-            // their feed a month ago: they will not be listed again. An
-            // empty answer is not in hand; it may be a broken page.
-            if (urls.every(url => read[url]?.items.length > 0))
+            // their feed a month ago: they will not be listed again.
+            if (urls.every(fresh))
                 root.forgetStories(Date.now() - 30 * 86400000);
         });
     }

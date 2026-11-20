@@ -334,6 +334,40 @@ ShellRoot {
             Feeds.store.seen = seenBefore;
             Feeds.sources = [];
 
+            // No feed answering is trouble, and not a good fetch; one dead
+            // feed among the rest is neither. A feed not in hand, or empty,
+            // keeps what it last said.
+            let answers = {};
+            Feeds.feedStub = function (method, url, payload, headers, timeout, accepted, failed) {
+                if (answers[url] === undefined)
+                    failed("Offline", 0);
+                else
+                    accepted({status: 200, responseText: answers[url]});
+            };
+            Settings.set("feedUrls", ["https://a.example/rss", "https://b.example/rss"]);
+            Feeds.updatedAt = 0;
+            Feeds.refresh();
+            root.check(Feeds.trouble === "Could not read the feeds" && Feeds.updatedAt === 0 && Feeds.sources.length === 0,
+                "no feed answering on the first read: " + JSON.stringify(Feeds.trouble));
+            answers = {"https://a.example/rss": hn, "https://b.example/rss": hn};
+            Feeds.refresh();
+            root.check(Feeds.trouble === "" && Feeds.updatedAt > 0 && Feeds.sources.length === 2, "the feeds back");
+            delete answers["https://b.example/rss"];
+            Feeds.updatedAt = 0;
+            Feeds.refresh();
+            root.check(Feeds.trouble === "" && Feeds.updatedAt > 0 && Feeds.sources.length === 2,
+                "one dead feed is no trouble and keeps its stories");
+            answers["https://a.example/rss"] = "<html>Bad gateway</html>";
+            Feeds.refresh();
+            root.check(Feeds.sources.length === 2, "an empty answer keeps the feed's stories");
+            answers = {};
+            Feeds.updatedAt = 0;
+            Feeds.refresh();
+            root.check(Feeds.trouble === "Could not read the feeds" && Feeds.updatedAt === 0 && Feeds.sources.length === 2,
+                "no feed answering after a good read keeps the stories and the time of that read");
+            Feeds.trouble = "";
+            Feeds.sources = [];
+
             // Sections start folded and remember being opened.
             root.check(!Feeds.unfolded("videos"), "folded at first");
             Feeds.toggle("videos");
