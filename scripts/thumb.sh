@@ -53,12 +53,16 @@ esac
 
 # Keys are text as well, and a preview is on screen for anyone looking:
 # arrowing past ~/.ssh/id_rsa must not show it. They get the glyph, like a
-# binary.
+# binary. `file` names only some of them (OpenSSH keys, PEM RSA as
+# text/x-ssl-private-key) and calls PKCS#8, EC and exported PGP keys plain
+# text, so the armour line is what decides: every one of them opens with
+# "-----BEGIN … PRIVATE KEY".
 case $mime in
-    application/x-pem-file | application/*private-key*)
+    application/x-pem-file | */*private-key*)
         exit 0
         ;;
 esac
+head -c 4096 -- "$src" 2>/dev/null | grep -aqE -- '-----BEGIN [A-Z0-9 ]*PRIVATE KEY' && exit 0
 
 # Text is anything `file` does not call binary, whatever type it files it
 # under: the same test the launcher uses to choose the editor over xdg-open,
