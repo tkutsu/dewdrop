@@ -361,7 +361,7 @@ PopupWindow {
     }
 
     // --- keyboard ------------------------------------------------------------
-    // The keys a Mac's menu-bar menus take: Escape puts the popup away, the
+    // The keys a menu-bar menu takes: Escape puts the popup away, the
     // arrows walk its controls and Return (or Space) presses the one they are
     // on. Nothing is selected on opening; the first arrow picks the first
     // control, the way a menu opened by a click waits for you.
@@ -662,7 +662,7 @@ PopupWindow {
                 }
 
                 // The keys' mark on a control that draws no highlight of its
-                // own: a ring round it, which is what a Mac draws when the
+                // own: a ring round it, the usual mark for when the
                 // keyboard rather than the pointer is on a control.
                 Rectangle {
                     id: ring

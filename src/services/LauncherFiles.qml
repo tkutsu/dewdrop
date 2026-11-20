@@ -237,7 +237,7 @@ Singleton {
         return browser ? `hl.dsp.focus({ window = "address:0x${browser.address}" })` : "";
     }
 
-    // Ctrl+Enter on a file is Spotlight's ⌘↵: its folder, opened with the
+    // Ctrl+Enter on a file opens its folder with the
     // file selected. Through the FileManager1 interface rather than a flag of
     // one file manager's own: Dolphin, Nautilus and Nemo all answer it, and
     // D-Bus starts one if none is running. Each part of the path is escaped,

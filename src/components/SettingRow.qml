@@ -60,7 +60,7 @@ Item {
         })
 
     // Up to three short options sit side by side in a capsule; more, or
-    // longer, go behind a pop-up button, the way a Mac's settings do.
+    // longer, go behind a pop-up button.
     function fitsCapsule(options: var): bool {
         return options.length <= 3 && options.every(option => String(option.label).length <= 8);
     }

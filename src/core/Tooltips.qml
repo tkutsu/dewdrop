@@ -3,8 +3,8 @@ pragma Singleton
 import QtQuick
 import Quickshell
 
-// Whether the bar's tooltips are warm. macOS makes you wait for the first
-// one, and after that hands them over as fast as the pointer moves: once a
+// Whether the bar's tooltips are warm. The first one makes you wait, and
+// after that they are handed over as fast as the pointer moves: once a
 // tag is up, the next control's shows the moment it is reached, until the
 // pointer has been off them all for a moment. Kept by components/HoverPopup.qml.
 Singleton {

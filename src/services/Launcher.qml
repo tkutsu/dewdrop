@@ -621,7 +621,7 @@ Singleton {
         })
 
     // An armed row trades its glyph for a tick and its subtitle for the
-    // question the Mac would ask.
+    // question it asks before acting.
     function powerRow(a) {
         const armed = root.armed === a.key;
         return {

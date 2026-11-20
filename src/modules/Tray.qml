@@ -282,7 +282,7 @@ BarItem {
                     }
 
                     // Flush under the icon and hung from its left edge, the
-                    // way the system drops a menu from a menu bar extra —
+                    // way a menu drops from a menu bar —
                     // rather than centred on it and a margin's worth lower.
                     // Out by the box's padding, so a row's fill rather than
                     // the box starts under the icon. Out by the shadow's room

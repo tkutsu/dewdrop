@@ -2,8 +2,7 @@ import QtQuick
 import qs.src.core
 import qs.src.services
 
-// The night mode module's popup, laid out like Control Center's display
-// module: the brightness on a track the pointer can grab, then night mode as
+// The night mode module's popup: the brightness on a track the pointer can grab, then night mode as
 // a section with a mode picker and editable hours for a custom schedule.
 Popup {
     id: root

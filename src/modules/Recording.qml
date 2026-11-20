@@ -4,7 +4,7 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 
-// The Mac's recording indicator: while an app is using a microphone or
+// The recording indicator: while an app is using a microphone or
 // sharing the screen (services/Privacy.qml), a pill of its own comes out of
 // the centre pill with a red dot breathing on it, and what is live beside the
 // dot. Click it for who, and to mute or stop them (PrivacyPopup).

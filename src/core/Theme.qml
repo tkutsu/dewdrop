@@ -49,7 +49,7 @@ Singleton {
     // — anything less and the first numeral sits in the curve — and it is what
     // separates two pills' contents on top of the gap between the pills. The
     // radius exactly, so contents start where the curve ends and the straight
-    // run begins, the way Apple insets a capsule button's label.
+    // run begins.
     readonly property int pillPad: pillRadius
 
     // A popup is a slab hung off a pill rather than a pill itself, so it gets a
@@ -93,11 +93,11 @@ Singleton {
     readonly property int selectionInset: popupPadding
     // A menu's corner runs parallel to the highlight inside it: the
     // highlight's radius plus the inset between them, so the two curves share
-    // a centre, the way Apple nests its corners.
+    // a centre.
     readonly property int menuRadius: selectionRadius + selectionInset
     // A tooltip's corner. Nothing sits inside a tag for it to run parallel
     // to, and a menu's corner on a box one line high all but makes it a
-    // capsule; this is the small corner the Mac gives its help tags.
+    // capsule; this is a small corner of its own.
     readonly property int tagRadius: 5
     // The rounded fill inside a pill that says "this one": the workspace you
     // are on. How far it keeps off the pill's top and bottom edges, and —
@@ -153,8 +153,8 @@ Singleton {
         0.64, 1.12, 0.72, 1,    1,    1
     ]
 
-    // The air between neighbouring islands. Apple's spacing between groups of
-    // capsules, two thirds of a pill's height: far enough that two pills read
+    // The air between neighbouring islands: two thirds of a
+    // pill's height: far enough that two pills read
     // as separate islands rather than as one pill with a seam in it, near
     // enough that they still read as neighbours. Content to content, with
     // `pillPad` on either side, it is still over twice `gap`.
@@ -175,8 +175,8 @@ Singleton {
     // Lit from above, like the rims: what is left of its light along the
     // pill's foot (shaders/track.frag).
     readonly property real pillTrackFoot: 0.3
-    // The part still to play, as a trace of the same line, the way Apple's
-    // scrubbers keep the rest of the bar in view.
+    // The part still to play, as a trace of the same line, so the rest
+    // of the bar stays in view.
     readonly property real pillTrackRest: 0.2
 
     // --- type and icon sizes -------------------------------------------------
@@ -185,8 +185,8 @@ Singleton {
     // land on the grid — so the 90%/110%/120% spans in config.jsonc are
     // resolved here once instead of rounding into a blurry 13 at each call site.
     //
-    // The bar's text is SF, not the symbol font, so none of that applies to
-    // it: 13 is the size macOS sets its menu bar in.
+    // The bar's text is Inter, not the symbol font, so none of that applies
+    // to it, and it stays at 13.
     readonly property int textSize: 13
     // The popups' secondary lines — a notification's app and age, the
     // launcher's right-hand hint, a list's rows — one step under their body
@@ -245,8 +245,8 @@ Singleton {
     // beneath them is.
     readonly property int badgeLine: 8
 
-    // The dot under the taskbar icon holding the focused window, the way the
-    // Dock marks a running app: small enough to read as a mark rather than a
+    // The dot under the taskbar icon holding the focused window, the way a
+    // dock marks a running app: small enough to read as a mark rather than a
     // shape, and hung on a line of its own from the top of the pill, below
     // the icons' ink and inside the workspace mark.
     readonly property int focusDotSize: 3
@@ -276,9 +276,8 @@ Singleton {
     // size: at 12 the second lines, two steps under, came out at 10 and
     // were squinted at rather than read.
     readonly property int popupTextSize: 13
-    // The launcher's query line: the largest line of text the shell draws. Spotlight,
-    // Alfred and Raycast all make the thing being typed the biggest thing on
-    // screen; at the rows' own 13 an open launcher read as a prompt over a
+    // The launcher's query line: the largest line of text the shell draws. The
+    // thing being typed is the biggest thing on screen; at the rows' own 13 an open launcher read as a prompt over a
     // list rather than as a question with answers under it.
     readonly property int queryTextSize: 18
     // A lone figure read at a glance, like the weather popup's temperature,
@@ -297,8 +296,8 @@ Singleton {
     readonly property string gameIcon: "category-game-niagara-outline"
 
     // --- fonts ---------------------------------------------------------------
-    // Inter by default (settings.json): the closest freely licensed thing to
-    // SF, and the only font on the bar. Glyphs name the symbol font outright instead of leaning on Qt's
+    // Inter by default (settings.json), and the only font on the bar.
+    // Glyphs name the symbol font outright instead of leaning on Qt's
     // fallback, which is unreliable for the private-use codepoints the
     // Material Design icons live in.
     readonly property string bodyFont: Settings.font
@@ -318,7 +317,7 @@ Singleton {
     readonly property int bodyWeight: Font.Medium // style.css font-weight: 500
 
     // --- colours -------------------------------------------------------------
-    // Text and glyphs, in three of macOS's steps of label: primary for what
+    // Text and glyphs, in three steps of label: primary for what
     // is read, secondary for what is read after it, tertiary for what is only
     // there. All
     // white at an alpha rather than greys, so they sit on any wallpaper the
@@ -438,7 +437,7 @@ Singleton {
     // again, and the rim is brightened by up to glassGlow where it bends.
     // Red bends glassDispersion less and blue as much more, so the edge
     // fringes with colour, faintly: at 0.3 the round ends wore a rainbow,
-    // where Apple's glass shows next to none. A touch of blur and a lift in colour, then
+    // where glass should show next to none. A touch of blur and a lift in colour, then
     // barBg's near-black laid over it at glassTint so labels still read.
     readonly property real glassBend: 14
     readonly property real glassBendDepth: pillRadius
@@ -468,8 +467,8 @@ Singleton {
     // The row the pointer is on, or the one the keys have reached: a rounded
     // fill inset from the edges of whatever it sits in (selectionInset,
     // selectionRadius), never edge to edge and never with a rule beside it.
-    // Lighter than the surface rather than darker, which is which way round
-    // macOS does it on a dark material.
+    // Lighter than the surface rather than darker, which is the way round
+    // that reads on a dark material.
     readonly property color selection: Qt.rgba(1, 1, 1, 0.12)
     // One step past it: a toggle that is on, or the pointer on a button that
     // already sits on a selection fill (the notification centre's).
@@ -577,7 +576,7 @@ Singleton {
     readonly property color warn: "#ff88aa"
     readonly property color releaseWarning: "#ffd60a"
     // Something is listening or watching (modules/Recording.qml): the
-    // system red macOS draws its recording dot in, rather than warn's pink,
+    // system red of a recording dot, rather than warn's pink,
     // which says "look at this" and not "this is on".
     readonly property color recording: "#ff453a"
 
@@ -623,7 +622,7 @@ Singleton {
     function moduleScale(progress: real): real {
         return reduceMotion ? 1 : 0.8 + 0.2 * progress;
     }
-    // An icon comes and goes the way Apple's do: it grows in where it will
+    // An icon comes and goes: it grows in where it will
     // stand, and leaves by fading and shrinking where it stands, quicker than
     // it came, while the gap opens or closes round it on the calm spring,
     // which never runs past (BarItem.inPlace, Workspaces' apps).
@@ -644,7 +643,7 @@ Singleton {
     readonly property int markMs: 220
     readonly property real markSpring: reduceMotion ? calmSpring : 9
     readonly property real markDamping: reduceMotion ? calmDamping : 0.45
-    // A workspace switch: SwiftUI's .snappy (0.5 s, bounce 0.15) in Qt's
+    // A workspace switch: a snappy spring (0.5 s, bounce 0.15) in Qt's
     // terms, 90% of the way at 256 ms with 0.6% overshoot.
     readonly property real switchSpring: reduceMotion ? calmSpring : 2.15
     readonly property real switchDamping: reduceMotion ? calmDamping : 0.29
@@ -709,8 +708,8 @@ Singleton {
     readonly property real calmSpring: 8
     readonly property real calmDamping: 0.6
 
-    // Figures rolling to their next value (RollingText): SwiftUI's default
-    // duration, which the roll runs 1.45 times over while its spring settles
+    // Figures rolling to their next value (RollingText): half a
+    // second, which the roll runs 1.45 times over while its spring settles
     // — 725 ms, inside the second before the timer's next figure.
     readonly property int rollMs: 500
 
@@ -784,7 +783,7 @@ Singleton {
 
     readonly property var glyph: ({
         warning: "\u{f002a}",         // nf-md-alert_outline
-        // Drawn after SF Symbols' magnifyingglass rather than nf-md-magnify:
+        // Drawn by hand rather than nf-md-magnify:
         // that glyph centred on its ink sat the lens a pixel and a half up and
         // left of centre, with the long handle pulling the box the other way.
         // This one's handle is a stub, its viewBox puts it on the pixel grid,
@@ -867,7 +866,7 @@ Singleton {
         // blob beside the outlined glyphs every other module carries). The
         // cable is in the same hand. See services/Network.qml.
         //
-        // Drawn after SF Symbols' wifi: a dot and three thin arcs about it,
+        // Drawn by hand: a dot and three thin arcs about it,
         // lit from the dot up with the rest left faint, the way the volume
         // speaker's waves fade in, so every step stands the same size. The
         // font's cone it replaces filled solid as the signal rose. Five

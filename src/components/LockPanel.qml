@@ -83,7 +83,7 @@ Item {
         // Comes up with the glass, which also keeps the blur from being set
         // once over a picture that has not landed yet.
         blur: root.presence
-        // Vivid and a shade down, as Apple's materials are: the colour
+        // Vivid and a shade down: the colour
         // behind comes through, and white on it still reads.
         saturation: 0.5
         brightness: -0.18

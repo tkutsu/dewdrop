@@ -14,9 +14,9 @@ Singleton {
 
     readonly property string script: Quickshell.shellPath("scripts/power.sh")
 
-    // In the Apple menu's order: sleep, restart, shut down, lock, then log
+    // In this order: sleep, restart, shut down, lock, then log
     // out. `confirm` marks the ones that ask twice — the irreversible ones —
-    // and `question` is what the Mac asks before each of them. `name` is what
+    // and `question` is what is asked before each of them. `name` is what
     // the launcher and the settings page both call it.
     //
     // Hibernate stays out: it cannot work on this machine (zram-only swap,

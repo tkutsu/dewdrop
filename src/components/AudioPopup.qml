@@ -6,8 +6,8 @@ import qs.src.services
 
 // What the audio module's tooltip could not be, and what pavucontrol was
 // opened for: a volume the pointer can grab, which output is playing, one for
-// each app that is making a sound, and the input. Laid out as the Mac's Sound
-// menu: the output volume and devices under the title, then apps and input.
+// each app that is making a sound, and the input. Laid out top to
+// bottom: the output volume and devices under the title, then apps and input.
 Popup {
     id: root
 

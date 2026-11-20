@@ -207,7 +207,7 @@ Popup {
                 }
 
                 // The tick column: a check on a checked row, a dash on a
-                // mixed one, the way the Mac marks them.
+                // mixed one.
                 PopupText {
                     id: mark
                     anchors.verticalCenter: parent.verticalCenter

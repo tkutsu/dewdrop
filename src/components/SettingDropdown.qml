@@ -3,7 +3,7 @@ import QtQuick.Controls as Controls
 import Quickshell
 import qs.src.core
 
-// A pop-up button, as a Mac's settings have one: the chosen option on a
+// A pop-up button: the chosen option on a
 // raised capsule with chevrons at its end, as wide as the widest option so it
 // keeps still when the pick changes. A press opens the options as a menu, the
 // chosen one ticked in the column the tray's menus tick in.

@@ -6,7 +6,7 @@ import Quickshell.Services.Pipewire
 
 // Who is listening and who is watching: the apps taking sound from a
 // microphone right now, and the ones taking a picture of the screen. The
-// bar's answer to the Mac's recording indicator (modules/Recording.qml).
+// bar's recording indicator shows it (modules/Recording.qml).
 //
 // Read off PipeWire's links rather than its nodes. An app can hold a capture
 // stream open long after it stopped listening (a call on hold, a tab that
@@ -118,8 +118,8 @@ Singleton {
             source.audio.muted = !source.audio.muted;
     }
 
-    // The share's node destroyed, which ends it for every app it went to,
-    // the way the Mac's Stop Sharing does; the app sees the stream end.
+    // The share's node destroyed, which ends it for every app it went to;
+    // the app sees the stream end.
     function stopShare(source): void {
         if (source)
             Quickshell.execDetached(["pw-cli", "destroy", String(source.id)]);

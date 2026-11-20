@@ -190,14 +190,14 @@ OverlayWindow {
             Launcher.activate(Launcher.index, ctrl ? "play" : "queue");
     }
 
-    // The sides follow the sampled Spotlight width curve; contents never scale.
+    // The sides follow LauncherMotion's width curve; contents never scale.
     property alias widthRatio: motion.widthRatio
     property alias contentAlpha: motion.contentAlpha
     property alias exitBlur: motion.exitBlur
     readonly property real extraWidth: root.boxWidth * (root.widthRatio - 1)
     readonly property bool presenting: root.opened || root.contentAlpha > 0
 
-    SpotlightMotion {
+    LauncherMotion {
         id: motion
         opened: root.opened
         dismissMs: Launcher.dismissMs
@@ -255,8 +255,7 @@ OverlayWindow {
     }
 
     // --- geometry ------------------------------------------------------------
-    // What Spotlight is: 680 of window body over a 28 row pitch, measured off
-    // Apple's Big Sur screenshot (Alfred, Raycast and Sol are all 560–750).
+    // 680 of window body over a 28 row pitch (launchers run 560–750).
     // Wide enough for the engine hint line, which wants 447. Everything below
     // is derived, so this is the only number to turn.
     readonly property int boxWidth: 680
@@ -281,8 +280,7 @@ OverlayWindow {
     readonly property int contentGap: 8
     readonly property int actionHeight: 20
     // The preview panel / mode grows on the right, and the air between it and
-    // the list. Roughly a third of the body, which is about what Spotlight
-    // gives its own preview, set in the same 12 of air as everything else in
+    // the list. Roughly a third of the body, set in the same 12 of air as everything else in
     // the box. See components/FilePreview.qml.
     readonly property int panelWidth: 220
     readonly property int panelGap: boxPad

@@ -110,8 +110,7 @@ BarItem {
     property string outgoingLabel: ""
     property real titleMix: 1
 
-    // The track's colour, taken off the sleeve the way Apple Music tints what
-    // is playing: the record's most vivid colour, lifted to read on dark
+    // The track's colour, taken off the sleeve: the record's most vivid colour, lifted to read on dark
     // glass. A grey or colourless sleeve, or none, leaves the line white.
     ColorQuantizer {
         id: palette

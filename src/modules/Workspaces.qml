@@ -508,7 +508,7 @@ BarItem {
         // the inset, so its ends sit inside the pill's ends by the same air
         // it keeps off the top and bottom.
         //
-        // The head runs on a spring, Apple's snappy one for a switch, which
+        // The head runs on a spring, a snappy one for a switch, which
         // all but lands without running past. What overshoot a long run does
         // carry would take it out through the pill's own end, so there the
         // end is a wall the head stops against.
@@ -964,7 +964,7 @@ BarItem {
 
                                 Component.onDestruction: if (root.dragSource === app) root.cancelDrag()
 
-                                // The app's name, the way the Dock labels its
+                                // The app's name, the way a dock labels its
                                 // icons.
                                 HoverPopup {
                                     id: label

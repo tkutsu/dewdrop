@@ -39,7 +39,7 @@ Singleton {
     // The panel is dimmed to 0 whenever night mode goes on, so a dark screen is
     // what the mode looks like from outside; say that rather than "Brightness 0%".
     // Scrolling to 0 by hand is not the mode, so key this off the flag, not the level.
-    // On Custom it says what comes next, as Control Center does: "Night mode on
+    // On Custom it says what comes next: "Night mode on
     // until 07:00", "Brightness 80% · night mode off until 22:00". A manual
     // change holds until the next boundary, so that is the end when on and the
     // start when off.

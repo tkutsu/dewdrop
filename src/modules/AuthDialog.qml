@@ -7,8 +7,8 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 
-// The password panel polkit asks through (services/Polkit.qml), laid out the
-// way a Mac asks for an administrator: a padlock, what wants doing as the
+// The password panel polkit asks through (services/Polkit.qml), laid out as
+// an administrator prompt: a padlock, what wants doing as the
 // title, whose password it takes, one field, and Cancel beside the default
 // button. A wrong password shakes the panel and empties the field.
 //
@@ -180,7 +180,7 @@ PanelWindow {
             z: 10
         }
 
-        // A Mac's shake: three swings, each smaller, a third of a second.
+        // A shake: three swings, each smaller, a third of a second.
         SequentialAnimation {
             id: shake
 
@@ -388,7 +388,7 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
 
-                        // The arrow over what sits beside the text, as on a Mac.
+                        // The arrow over what sits beside the text.
                         HoverHandler { cursorShape: Qt.ArrowCursor }
 
                         Glyph {
@@ -441,7 +441,7 @@ PanelWindow {
 
             Item { width: 1; height: 16 }
 
-            // The default button last, as on a Mac, and filled; both the
+            // The default button last, and filled; both the
             // same width so the pair reads as one choice.
             Row {
                 spacing: 8

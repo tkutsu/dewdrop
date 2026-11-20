@@ -186,7 +186,7 @@
     // words, as Weather > Bar Forecast works them out.
     "lockWeatherFormat": "{icon} {temp}°",
 
-    // macOS's two accessibility switches. Reduce motion takes the bounce out
+    // Two accessibility switches. Reduce motion takes the bounce out
     // of every spring, stops the attention hop, the drawer's wind-up and the
     // wallpaper's parallax, and opens popups, the launcher and the power menu
     // in place rather than sliding or wiping them in; fades stay. Reduce

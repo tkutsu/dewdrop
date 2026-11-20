@@ -2,7 +2,7 @@ import QtQuick
 import Quickshell
 import qs.src.core
 
-// A module's tooltip, drawn the way the Mac draws a help tag: a line of small
+// A module's tooltip, drawn as a tag: a line of small
 // type in a snug box, smaller than a popover in every measure — type, padding,
 // corner and shadow — so it reads as a note on the thing under the pointer
 // rather than as somewhere to go.
