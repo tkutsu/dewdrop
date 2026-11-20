@@ -4,15 +4,21 @@
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 
 from test_support import copy_shell
 
 
-ROOT = Path(__file__).resolve().parents[1]
-
-
 def main():
-    target = ROOT / ".a11y-test/controls"
+    # A scratch folder of its own each run, like every other test: one kept in
+    # the checkout gathered old copies that nothing cleared, and other tests'
+    # scans found the retired files in them.
+    with tempfile.TemporaryDirectory(prefix="qs-a11y-") as folder:
+        return run(Path(folder))
+
+
+def run(scratch):
+    target = scratch / "controls"
     target.mkdir(parents=True, exist_ok=True)
     copy_shell(target)
     (target / "shell.qml").write_text('''import QtQuick
@@ -189,7 +195,7 @@ ShellRoot {
     }
 }
 ''')
-    runtime = ROOT / ".a11y-test/r"
+    runtime = scratch / "r"
     runtime.mkdir(mode=0o700, exist_ok=True)
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software",
                XDG_RUNTIME_DIR=str(runtime), XDG_STATE_HOME=str(target / "state"),
