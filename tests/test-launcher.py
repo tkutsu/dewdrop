@@ -621,9 +621,19 @@ ShellRoot {
             Launcher.show();
             check(Launcher.modes.some(mode => mode.prefix === ":" && mode.hint === "emoji"), "the emoji mode is in the hints");
             check(!Launcher.modes.some(mode => mode.prefix === ">") && !Launcher.actions.cmd, "run mode and dispatch removed");
+            Settings.launcherHelpHint = false;
             check(Launcher.queryHints.length === 0, "the empty field hints nothing by default");
-            Settings.launcherHints = true;
-            check(Launcher.queryHints === Launcher.hintGroups[0], "with the setting on, an empty query hints the first group of modes");
+            Settings.launcherHelpHint = true;
+            check(Launcher.queryHints.map(h => h.prefix + h.hint).join() === "?help", "with help on and the rest off, help alone");
+            Settings.launcherHints = "all";
+            Settings.launcherHelpHint = false;
+            check(Launcher.queryHints.map(h => h.prefix).join("") === '.@:#_!=,\"/*', "help off leaves it out of all");
+            Settings.launcherHelpHint = true;
+            Settings.launcherHints = "off";
+            Settings.launcherHints = "all";
+            check(Launcher.queryHints.map(h => h.prefix).join("") === '.@:#_!?=,\"/*', "all hints every mode, in the groups' order");
+            Settings.launcherHints = "cycle";
+            check(Launcher.queryHints === Launcher.hintGroups[0], "cycling, an empty query hints the first group of modes");
             Launcher.query = ",";
             check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event,event", "a bare plan symbol hints what a line makes");
             Launcher.query = ", 25m";
@@ -898,10 +908,23 @@ ShellRoot {
             Launcher.hintPage = 0;
             keys.tryVerify(() => showing(0), 500);
             keys.wait(30);
-            Settings.launcherHints = false;
-            check(!hint.visible && placeholder.visible, "the setting off hides the line and leaves Search");
-            Settings.launcherHints = true;
-            keys.tryVerify(() => hint.visible && showing(0), 500);
+            Settings.launcherHints = "off";
+            keys.tryVerify(() => modes.children.filter(c => c.modelData).length === 1, 500);
+            keys.wait(30);
+            check(hint.visible && placeholder.visible && modes.children.find(c => c.modelData)?.modelData.hint === "help", "off with help on keeps ? help beside Search");
+            Settings.launcherHelpHint = false;
+            check(!hint.visible && placeholder.visible, "both off hide the line and leave Search");
+            Settings.launcherHelpHint = true;
+            Settings.launcherHints = "all";
+            keys.tryVerify(() => modes.children.filter(c => c.modelData).length === Launcher.modes.length, 500);
+            keys.wait(30);
+            check(hint.visible && hint.room >= hint.implicitWidth, "all twelve fit the empty field");
+            check(placeholder.visible === (hint.implicitWidth <= hint.bare - placeholder.implicitWidth) && !placeholder.visible, "Search gives way to the whole line");
+            input.adopt("x"); keys.wait(30);
+            check(!hint.visible && !placeholder.visible, "typing takes the line away");
+            input.adopt(""); keys.wait(30);
+            Settings.launcherHints = "cycle";
+            keys.tryVerify(() => hint.visible && showing(0) && placeholder.visible, 500);
             keys.wait(30);
             // Wider symbols leave the hint under a pixel to spare at rest, and the
             // open spring narrows the box by eight.
@@ -1316,7 +1339,7 @@ def check_menu(target, env):
     (modules / "PowerVeil.qml").write_text(offscreen(veil))
     (target / "src/core/Theme.qml").write_text((ROOT / "src/core/Theme.qml").read_text())
     settings = target / "src/core/Settings.qml"
-    settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property string caretAnimation: "phase"; property string caretShape: "line"; property var disabled:').replace("property bool launcherHints: false", "property bool launcherHints: true"))
+    settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property string caretAnimation: "phase"; property string caretShape: "line"; property var disabled:').replace('property string launcherHints: "off"', 'property string launcherHints: "cycle"'))
     components = target / "src/components"
     (components / "Rim.qml").write_text((ROOT / "src/components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "src/components/TextCaret.qml").read_text())
@@ -1406,7 +1429,7 @@ def main():
             (target / name).parent.mkdir(exist_ok=True)
             (target / name).write_text((ROOT / name).read_text())
         (target / "src/core/OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')
-        (target / "src/core/Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property bool launcherHints: false; property string home: "/tmp"; property string editor: "/usr/bin/true"; property string fileSearchIgnore: ""; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
+        (target / "src/core/Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var disabled: ({}); property var hiddenApps: ["launcher-hidden"]; property bool showDesktopActions: true; property string launcherHints: "off"; property bool launcherHelpHint: true; property string home: "/tmp"; property string editor: "/usr/bin/true"; property string fileSearchIgnore: ""; function inTerminal(command) { return command; } function screenOn(name) { return true; } function moduleOn(key) { return !disabled[key]; } function expand(path) { return path.replace(/^~(?=\\/|$)/, home); } }\n')
         defaults = json.loads(re.search(r'"webShortcuts": (\[.*?\n    \])', (ROOT / "settings.default.json").read_text(), re.S).group(1))
         settings = target / "src/core/Settings.qml"
         prefixes = json.loads(re.search(r'"launcherPrefixes": (\{.*?\n    \})', (ROOT / "settings.default.json").read_text(), re.S).group(1))

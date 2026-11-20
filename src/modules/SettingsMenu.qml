@@ -637,7 +637,11 @@ OverlayWindow {
                     title: "Mode Symbols",
                     text: "The character that starts each mode.",
                     rows: [
-                        { type: "toggle", id: "launcherHints", title: "Show in Search Field", tooltip: "A few modes at a time, while nothing is typed.", get: () => Settings.launcherHints, set: v => Settings.set("launcherHints", v) }
+                        { type: "choice", id: "launcherHints", title: "Show in Search Field", tooltip: "While nothing is typed. Cycle shows a few at a time; All shows every one, in place of Search when they need the room.",
+                            options: [{ value: "off", label: "Off" }, { value: "cycle", label: "Cycle" }, { value: "all", label: "All" }],
+                            get: () => Settings.launcherHints, set: v => Settings.set("launcherHints", v) },
+                        { type: "toggle", id: "launcherHelpHint", title: "Show Help", tooltip: "Includes ? help, which lists every mode and your keybinds. With the symbols off, it is shown on its own.",
+                            get: () => Settings.launcherHelpHint, set: v => Settings.set("launcherHelpHint", v) }
                     ].concat(root.modeRows)
                 },
                 {

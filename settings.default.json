@@ -221,9 +221,11 @@
     // exclusions still apply when this is on.
     "showDesktopActions": false,
 
-    // Show the mode symbols in the launcher's empty search field, a group at
-    // a time.
-    "launcherHints": false,
+    // The mode symbols in the launcher's empty search field: "off", "cycle"
+    // (a group at a time) or "all" (one line, in place of Search).
+    "launcherHints": "off",
+    // Include "? help" in those hints. With them off, it is shown on its own.
+    "launcherHelpHint": false,
 
     // Desktop entries the launcher leaves out, by id (the file name without
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another

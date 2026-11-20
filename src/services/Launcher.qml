@@ -99,7 +99,9 @@ Singleton {
         ["calc", "plan", "clipboard", "files", "text"]
     ].map(group => group.map(hint => root.modes.find(m => m.hint === hint)))
     // Which group the empty field shows. Every opening starts on the first.
-    // Shown at all only with Settings.launcherHints, off by default.
+    // Settings.launcherHints picks: none (the default), a group at a time,
+    // or every group on one line. Settings.launcherHelpHint adds ? help to
+    // whichever it is, and alone stands in for none.
     property int hintPage: 0
 
     // What the hint in the query line says. Empty, a group of the modes,
@@ -113,8 +115,12 @@ Singleton {
     // starts picks the kind; see Tasks.plan().
     readonly property var queryHints: {
         const c = root.classification;
-        if (c.mode === "empty")
-            return Settings.launcherHints ? root.hintGroups[root.hintPage % root.hintGroups.length] : [];
+        if (c.mode === "empty") {
+            const shown = Settings.launcherHints === "all" ? [].concat(...root.hintGroups)
+                : Settings.launcherHints === "cycle" ? root.hintGroups[root.hintPage % root.hintGroups.length]
+                : root.modes.filter(m => m.hint === "help");
+            return Settings.launcherHelpHint ? shown : shown.filter(m => m.hint !== "help");
+        }
         if (c.mode === root.taskPrefix && !c.text.trim())
             return [
                 { prefix: "task", hint: "call bank" },
