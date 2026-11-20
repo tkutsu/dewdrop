@@ -71,9 +71,13 @@ Singleton {
     property var thumbnailBatch: []
 
     // Fetch only thumbnails whose rows have been opened; reuse disk copies.
+    // Only the helper's own PNG is ever shown: the far end picks the bytes,
+    // and Qt hands whatever it sniffs to any image plugin installed (SVG,
+    // PDF, PostScript through Ghostscript), so a remote URL never reaches an
+    // Image, even when the helper fails.
     function thumbnailSource(url: string): string {
         if (!/^https?:\/\//i.test(url))
-            return url;
+            return "";
         if (root.thumbnailFiles[url] !== undefined)
             return root.thumbnailFiles[url];
         if (!root.thumbnailPending[url]) {
@@ -105,11 +109,11 @@ Singleton {
             }
         }
         onExited: {
-            // If the helper fails, preserve the direct-image fallback.
+            // Whatever the helper did not answer goes without a picture.
             const files = Object.assign({}, root.thumbnailFiles);
             for (const url of root.thumbnailBatch) {
                 if (files[url] === undefined)
-                    files[url] = url;
+                    files[url] = "";
                 delete root.thumbnailPending[url];
             }
             root.thumbnailFiles = files;
