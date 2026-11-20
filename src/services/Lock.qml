@@ -63,7 +63,9 @@ Singleton {
             root.message = "";
             root.shift = false;
             kept.phase = "cover";
-        } else if (kept.phase === "reveal") {
+        } else if (kept.phase === "leave" || kept.phase === "reveal") {
+            // Asked again on the way out: back to locked. The fade under
+            // way stops, and its end, if it comes, no longer matches.
             kept.phase = "locked";
         }
     }
@@ -158,6 +160,15 @@ Singleton {
             root.finish(result === PamResult.Success, pam.messageIsError ? pam.message : error);
         }
         onError: root.finish(false, "Could not check the password.")
+    }
+
+    // The curtain's fade normally ends the cover (up to 400 ms waiting on
+    // the picture, then 320 ms). This locks regardless, should it never
+    // finish: no screen to draw it on, or no frames drawn.
+    Timer {
+        running: kept.phase === "cover"
+        interval: 1000
+        onTriggered: root.covered()
     }
 
     PersistentProperties {

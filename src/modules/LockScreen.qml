@@ -61,7 +61,11 @@ Scope {
 
                 WlrLayershell.namespace: "quickshell:curtain"
                 WlrLayershell.layer: WlrLayer.Overlay
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+                // While it covers, before the session locks, the curtain
+                // takes the keys and the pointer, so nothing typed or
+                // clicked reaches the windows going under it. Either side
+                // of that it lets everything through.
+                WlrLayershell.keyboardFocus: Lock.phase === "cover" ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
                 exclusionMode: ExclusionMode.Ignore
                 anchors {
                     top: true
@@ -69,7 +73,9 @@ Scope {
                     left: true
                     right: true
                 }
-                mask: Region {}
+                mask: Region {
+                    item: Lock.phase === "cover" ? picture : null
+                }
                 color: "transparent"
 
                 LockWallpaper {
