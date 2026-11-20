@@ -146,7 +146,9 @@ Singleton {
     }
 
     // Up or down to the next multiple of five, unmuting on the way, for the
-    // default sink and for any one app's stream.
+    // default sink and for any one app's stream. Never up past 100%; a level
+    // already past it (boosted in pavucontrol) stays put going up rather
+    // than dropping to 100, and comes down five at a time.
     function stepNode(node, up: bool): void {
         const audio = node?.audio;
         if (!audio)
@@ -154,7 +156,7 @@ Singleton {
         const percent = Math.round(audio.volume * 100);
         const next = up ? (Math.floor(percent / 5) + 1) * 5 : Math.floor((percent - 1) / 5) * 5;
         audio.muted = false;
-        audio.volume = Math.max(0, Math.min(100, next)) / 100;
+        audio.volume = Math.max(0, Math.min(Math.max(100, percent), next)) / 100;
     }
 
     function setVolume(fraction) {
@@ -238,7 +240,17 @@ Singleton {
         id: subscription
         running: true
         command: ["setpriv", "--pdeathsig", "TERM", "--", "pactl", "subscribe"]
-        onExited: subscriptionRetry.restart()
+        // With no Pulse server answering it exits at once, and a retry a
+        // second would spawn it (and a probe) for ever: the wait doubles
+        // while it dies within moments, up to a minute, and is back to a
+        // second once it has stayed up.
+        property real startedAt: 0
+        onRunningChanged: if (running)
+            startedAt = Date.now()
+        onExited: {
+            subscriptionRetry.interval = Date.now() - startedAt > 10000 ? 1000 : Math.min(subscriptionRetry.interval * 2, 60000);
+            subscriptionRetry.restart();
+        }
         // A hot reload destroys this object but leaves the subprocess running,
         // reparented to init, and pulse only accepts so many clients before it
         // starts refusing them — at which point the bar loses the sink and
@@ -261,7 +273,7 @@ Singleton {
 
     Timer {
         id: subscriptionRetry
-        interval: 1000
+        interval: 500
         onTriggered: {
             subscription.running = true;
             probe.reload();
