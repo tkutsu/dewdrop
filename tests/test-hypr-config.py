@@ -71,8 +71,10 @@ def check_this_machine():
         return print('SKIP: no personal Hyprland config to compare with')
     assert 'quickshell/hypr/dewdrop.lua' in (hypr / 'hyprland.lua').read_text(), 'hyprland.lua does not load dewdrop.lua'
     assert not (hypr / 'configs/workspaces.lua').exists(), 'configs/workspaces.lua copies hypr/workspaces.lua'
-    for path in sorted((hypr / 'configs').glob('*.lua')):
+    starts_bar = re.compile(r'exec_cmd\("(?:qs|quickshell)(?: -\w)*"\)')
+    for path in [hypr / 'hyprland.lua', *sorted((hypr / 'configs').glob('*.lua'))]:
         text = path.read_text()
+        assert not starts_bar.search(text), f'{path.name} starts a second bar; dewdrop.lua starts it'
         for line in PUBLISHED.splitlines():
             if 'namespace = "quickshell:' in line or line.startswith('hl.bind("mouse:'):
                 assert line.strip() not in text, f'{path.name} copies dewdrop.lua: {line.strip()}'
