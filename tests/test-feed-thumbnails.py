@@ -47,14 +47,21 @@ SVG = b'<svg xmlns="http://www.w3.org/2000/svg" width="128" height="72"><rect wi
 
 
 def refuses_drawings(server):
-    """Only a raster image is handed to ImageMagick: a drawing stays remote."""
-    with tempfile.TemporaryDirectory(prefix='qs-feed-vector-') as folder:
-        url = f'http://127.0.0.1:{server.server_port}/thumb.svg'
-        done = subprocess.run([sys.executable, str(ROOT / 'scripts/feed-thumbnails.py'), folder, url],
-                              capture_output=True, text=True, timeout=30)
-        kept = json.loads(done.stdout)['source'] == url and not list(Path(folder).glob('*.png'))
-        print(('PASS' if kept else 'FAIL') + ': a drawing is not converted')
-        return kept
+    """Only a raster image is handed to ImageMagick, and what is refused or
+    fails comes back as no picture, never as the remote URL for Qt to decode."""
+    Images.offline = False
+    results = []
+    for name, offline in (('thumb.svg', False), ('gone.png', True)):
+        Images.offline = offline
+        with tempfile.TemporaryDirectory(prefix='qs-feed-vector-') as folder:
+            url = f'http://127.0.0.1:{server.server_port}/{name}'
+            done = subprocess.run([sys.executable, str(ROOT / 'scripts/feed-thumbnails.py'), folder, url],
+                                  capture_output=True, text=True, timeout=30)
+            empty = json.loads(done.stdout)['source'] == '' and not list(Path(folder).glob('*.png'))
+            print(('PASS' if empty else 'FAIL') + f': {name} comes back as no picture')
+            results.append(empty)
+    Images.offline = False
+    return all(results)
 
 QML = '''import QtQuick
 import QtTest

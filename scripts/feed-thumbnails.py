@@ -15,9 +15,13 @@ RASTER = {"image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"}
 
 
 def thumbnail(cache, url):
-    """Reuse the local image or publish a complete 128 by 72 PNG atomically."""
+    """Reuse the local image or publish a complete 128 by 72 PNG atomically.
+
+    The bar shows only what this returns, and an empty source is no picture:
+    anything that fails or is refused here must not reach Qt's decoders.
+    """
     if not re.match(r"^https?://", url, re.I):
-        return url
+        return ""
     key = hashlib.sha256(url.encode()).hexdigest()
     output = cache / (key + ".png")
     if output.is_file() and output.stat().st_size:
@@ -63,7 +67,7 @@ def main():
         prune(cache)
     except OSError:
         for url in urls:
-            print(json.dumps({"url": url, "source": url}), flush=True)
+            print(json.dumps({"url": url, "source": ""}), flush=True)
         return
     with ThreadPoolExecutor(max_workers=6) as pool:
         jobs = {pool.submit(thumbnail, cache, url): url for url in urls}
@@ -72,7 +76,7 @@ def main():
             try:
                 source = job.result()
             except (OSError, subprocess.SubprocessError):
-                source = url
+                source = ""
             print(json.dumps({"url": url, "source": source}), flush=True)
 
 
