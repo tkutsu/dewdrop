@@ -71,8 +71,23 @@ Singleton {
         return names.filter(name => !root.has(name));
     }
 
+    // The command is set here, from the list as it is now, rather than bound:
+    // started from programs' own change signal, a bound command could still
+    // hold the list from before it.
     function refresh(): void {
+        root.probedList = JSON.stringify(root.programs);
+        probe.command = probe.script.concat(root.programs);
         probe.running = true;
+    }
+
+    // The list last looked for. `programs` is built afresh on every write to
+    // the settings, whichever key changed, and only a different list (a new
+    // terminal or Right Click app) needs looking for again.
+    property string probedList: ""
+    Component.onCompleted: root.refresh()
+    onProgramsChanged: {
+        if (JSON.stringify(root.programs) !== root.probedList)
+            root.refresh();
     }
 
     function source(name: string): string {
@@ -121,20 +136,17 @@ Singleton {
         installer.running = true;
     }
 
-    onProgramsChanged: root.refresh()
-
     Process {
         id: probe
 
-        running: true
-        // The programs, and then the icon theme, found by its index file in
-        // the folders an icon theme lives in.
-        command: ["sh", "-c", 'for program; do command -v "$program" >/dev/null && echo "$program"; done
+        // The programs (after it, from refresh), and then the icon theme,
+        // found by its index file in the folders an icon theme lives in.
+        readonly property var script: ["sh", "-c", 'for program; do command -v "$program" >/dev/null && echo "$program"; done
             IFS=:
             for dir in "${XDG_DATA_HOME:-$HOME/.local/share}" ${XDG_DATA_DIRS:-/usr/local/share:/usr/share}; do
                 [ -e "$dir/icons/themis/index.theme" ] && echo themis && break
             done
-            true', "sh", ...root.programs]
+            true', "sh"]
         stdout: StdioCollector {
             onStreamFinished: root.found = text.split("\n").filter(line => line !== "")
         }
