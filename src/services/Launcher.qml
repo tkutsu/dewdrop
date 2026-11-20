@@ -99,8 +99,8 @@ Singleton {
         ["calc", "plan", "clipboard", "files", "text"]
     ].map(group => group.map(hint => root.modes.find(m => m.hint === hint)))
     // Which group the empty field shows. Every opening starts on the first.
-    // Settings.launcherHints picks: none (the default), a group at a time,
-    // or every group on one line. Settings.launcherHelpHint adds ? help to
+    // Settings.launcherHints picks: none (the default, which leaves ? help
+    // alone), a group at a time, or every group on one line. Settings.launcherHelpHint adds ? help to
     // whichever it is, and alone stands in for none.
     property int hintPage: 0
 

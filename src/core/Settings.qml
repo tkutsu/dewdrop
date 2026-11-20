@@ -116,7 +116,7 @@ Singleton {
     // The launcher's mode hints: off, a group at a time, or all at once.
     readonly property string launcherHints: ["cycle", "all"].includes(root.values.launcherHints) ? root.values.launcherHints : "off"
     // Whether ? help is among them, and on its own when they are off.
-    readonly property bool launcherHelpHint: root.values.launcherHelpHint === true
+    readonly property bool launcherHelpHint: root.values.launcherHelpHint !== false
     readonly property var launcherPrefixes: Object.assign({}, root.defaults.launcherPrefixes, root.user.launcherPrefixes)
     readonly property var webShortcuts: root.values.webShortcuts ?? []
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""

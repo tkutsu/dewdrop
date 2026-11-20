@@ -25,7 +25,9 @@ ShellRoot {
                 Launcher.query = ":";
                 check(Launcher.classifyQuery(":").mode === ":", "a colon starts emoji mode");
                 check(Launcher.queryIcon === Theme.glyph.launcherEmoji, "the query line shows the emoji glyph");
-                check(Launcher.hintGroups[0].some(m => m.prefix === ":" && m.hint === "emoji") && Launcher.queryHints.length === 0, "the hints group it with web, email and music, hidden by default");
+                Launcher.query = "";
+                check(Launcher.hintGroups[0].some(m => m.prefix === ":" && m.hint === "emoji") && Launcher.queryHints.map(m => m.prefix).join("") === "?", "the hints group it with web, email and music; by default only help shows");
+                Launcher.query = ":";
                 return;
             }
             if (!Launcher.results.length && step < 30) return;
