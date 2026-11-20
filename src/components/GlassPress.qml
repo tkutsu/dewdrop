@@ -21,6 +21,11 @@ Singleton {
     property point at: Qt.point(0, 0)
     property bool down: false
 
+    // The icon went while held (a tray app quit mid-press): its release
+    // never comes, and the glass would glow there until the next press.
+    onItemChanged: if (!root.item)
+        root.down = false
+
     // Under Reduce motion the glass still lights, but the icon does not shrink.
     readonly property bool pops: !Theme.reduceMotion
     readonly property real iconShrink: 0.08
