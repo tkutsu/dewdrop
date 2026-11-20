@@ -55,10 +55,13 @@ ShellRoot {
                 Feeds.channelsTotal = 0;
                 Feeds.videos = [0, 1].map(i => ({id: "v" + i, title: "Video " + i,
                     channel: "Channel", published: now, duration: 120, thumb: "", url: ""}));
+                // A remote thumbnail the helper has already made a local copy of:
+                // only that copy is ever shown.
+                Feeds.thumbnailFiles = {"https://example.com/preview.png": Qt.resolvedUrl("preview.svg").toString()};
                 Feeds.sources = [{url: "rss", title: "Stories", items: [0, 1].map(i => ({
                     id: "s" + i, title: "Story " + i, published: now, points: 3,
                     summary: i === 0 ? "A longer article preview with enough words to wrap across several lines. ".repeat(30) : "",
-                    thumb: i === 0 ? Qt.resolvedUrl("preview.svg").toString() : "",
+                    thumb: i === 0 ? "https://example.com/preview.png" : "",
                     replies: 1, comments: "https://example.com/comments", url: ""}))}];
                 wait(50);
                 const videos = header("videos"), stories = header("rss");

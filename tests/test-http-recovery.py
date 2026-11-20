@@ -131,6 +131,7 @@ def main():
             source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")
             source = source.replace("requestTimeoutMs: 15000", "requestTimeoutMs: 30")
             (services / f"{name}.qml").write_text(source)
+        (target / "src/lib/Pages.js").write_text((ROOT / "src/lib/Pages.js").read_text())
         (services / "FakeRequest.qml").write_text(fake)
         (services / "WallClock.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { signal wokeUp }")
         (services / "Retry.qml").write_text("import QtQuick\nQtObject { property bool active: false; property bool pending: false; signal triggered; function reset() {} function cancel() {} function schedule() {} function retryNow() {} }")
