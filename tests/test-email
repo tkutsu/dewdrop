@@ -109,7 +109,7 @@ class EmailTests(unittest.TestCase):
     def setUp(self):
         self.engine = QQmlEngine()
         self.components = []
-        self.root = self.create('import QtQuick\nimport \"src/services/EmailEntities.js\" as EmailEntities\nItem { id: root\n' + STATE + METHODS + '\n}')
+        self.root = self.create('import QtQuick\nimport \"src/services/EmailEntities.js\" as EmailEntities\nimport \"src/lib/Pages.js\" as Pages\nItem { id: root\n' + STATE + METHODS + '\n}')
         self.engine.rootContext().setContextProperty('sut', self.root)
         self.engine.rootContext().setContextProperty('Email', self.root)
         self.notices = self.create('import QtQuick\nQtObject { property var withdrawn: []; function withdraw(hint, value) { withdrawn = withdrawn.concat([hint + "=" + value]); } }')
