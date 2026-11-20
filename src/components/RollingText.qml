@@ -3,22 +3,21 @@ import QtQuick.Effects
 import qs.src.core
 import "RollingSpring.js" as Spring
 
-// Figures that roll to their next value the way SwiftUI's numericText does,
-// which is how the Dynamic Island's timer counts: one column per character,
-// and only the columns that change move, so a timer's seconds tick over and
-// its minutes stay put.
+// Figures that roll to their next value the way a stopwatch counts: one
+// column per character, and only the columns that change move, so a timer's
+// seconds tick over and its minutes stay put.
 //
 // A changing figure is not cross-faded. The one leaving travels a third of a
 // line and shrinks to 40% as it blurs out; the one arriving comes from a third
 // of a line the other way, growing from 40% as it comes into focus, and its
 // travel is a spring that runs a little past its place and comes back. Four
-// clocks, each the step response of a damped spring: the figures are SwiftUI's
-// own, fitted frame by frame to its transition at 60 fps (RollingEngine.hpp in
+// clocks, each the step response of a damped spring: the figures are fitted
+// frame by frame to a reference transition at 60 fps (RollingEngine.hpp in
 // react-native-nitro-rolling-number). Their opacity goes with their size, so
 // what reads is a figure falling away small and blurred, never two figures
 // dissolving through each other.
 //
-// The blur is half SwiftUI's. At bar sizes its full blur smeared a figure
+// The blur is half the reference's. At bar sizes its full blur smeared a figure
 // across most of its own width, and the roll read as out of focus rather than
 // as moving.
 //
@@ -52,13 +51,13 @@ Row {
     property real letterSpacing: 0
     property bool asText: false
 
-    // SwiftUI's transition, in line heights and in multiples of its duration
+    // The reference transition, in line heights and in multiples of its duration
     // (Theme.rollMs).
     readonly property real offset: 0.34
     readonly property real smallest: 0.4
     readonly property real blurLines: 0.04
-    // The travel's spring rings past 2% at one duration; SwiftUI lets it
-    // settle, and so does this.
+    // The travel's spring rings past 2% at one duration; the reference
+    // lets it settle, and so does this.
     readonly property real tail: 1.45
 
     readonly property real line: scripts.full.height

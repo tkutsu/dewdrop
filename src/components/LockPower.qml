@@ -4,8 +4,8 @@ import QtQuick
 import qs.src.core
 import qs.src.services
 
-// Sleep, Restart and Shut Down along the foot of the lock screen, the way a
-// Mac's login window has them: a round button each, its name under it. They
+// Sleep, Restart and Shut Down along the foot of the lock screen: a round button
+// each, its name under it. They
 // run what the launcher's power rows run (Power.qml). Restart and Shut Down
 // end whatever is open, so they arm on the first press and act on the second,
 // and the pointer leaving one disarms it; Sleep goes at once, and the lock is

@@ -1,8 +1,8 @@
 import QtQuick
 import qs.src.core
 
-// Where a popup's next part begins: a hairline, then its name, the way the
-// Mac's Sound menu heads Output and Input. Smaller and greyer than the
+// Where a popup's next part begins: a hairline, then its name, the way a
+// sound menu heads Output and Input. Smaller and greyer than the
 // popup's own title, so it reads as a part of the popup rather than a second
 // one. Controls that act on the section alone are its children, laid from the
 // right edge as PopupHeader lays its own: the wallpaper's Monochrome switch.

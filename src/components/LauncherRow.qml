@@ -105,7 +105,7 @@ Rectangle {
     Item {
         id: slot
 
-        // Leading, as Spotlight has it, so the icon and the name it belongs
+        // Leading, so the icon and the name it belongs
         // to are read together; in the column the query's search glyph
         // heads, and set in by however deep in the music mode's tree the
         // row sits, which is nothing at all in every other mode.

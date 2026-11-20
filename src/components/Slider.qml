@@ -14,10 +14,10 @@ Item {
     // ramp. There is no "how much" on one of those, only "which", so the grown
     // fill gives way to a marker and the track takes the full height.
     property Gradient trackGradient: null
-    // A scrubber rather than a slider, the way Apple draws a position: it is
+    // A scrubber rather than a slider, for a position: it is
     // read far more often than it is set, so it goes without a knob and only
     // says it can be taken hold of once the pointer is on it, by swelling.
-    // Flat, as Apple draws them: the fill in its colour, the rest of the track
+    // Flat: the fill in its colour, the rest of the track
     // the same grey every slider's is.
     property bool knob: true
     property color fill: Theme.label

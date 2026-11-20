@@ -262,7 +262,7 @@ Scope {
                 presence: surface.presence
             }
 
-            // Sleep, Restart and Shut Down, at the foot as on a Mac. Only
+            // Sleep, Restart and Shut Down, at the foot. Only
             // while locked: not as the glass goes.
             LockPower {
                 anchors.horizontalCenter: parent.horizontalCenter

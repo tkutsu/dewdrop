@@ -37,7 +37,7 @@ OverlayWindow {
     readonly property real extraWidth: root.boxWidth * (root.widthRatio - 1)
     readonly property bool presenting: root.opened || root.contentAlpha > 0
 
-    SpotlightMotion {
+    LauncherMotion {
         id: motion
         opened: root.opened
         dismissMs: Preferences.dismissMs

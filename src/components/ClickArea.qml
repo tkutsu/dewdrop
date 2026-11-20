@@ -37,7 +37,7 @@ MouseArea {
     // (wayhint's text mode searches labels).
     property string shows: ""
     // Buttons whose entry runs on the press rather than the click: the ones
-    // that open a popup, which like a Mac's menus is down the moment the
+    // that open a popup, which like a menu is down the moment the
     // button is, not a release later.
     property int eagerButtons: Qt.NoButton
     readonly property bool presses: !!(root.acceptedButtons & Qt.LeftButton) && !!root.pressAction

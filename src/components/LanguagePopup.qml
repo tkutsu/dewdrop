@@ -3,8 +3,7 @@ import qs.src.core
 import qs.src.services
 
 // The keyboard layouts to switch between, the one in use ticked, and what the
-// bar calls each at the right edge — the input menu the Mac hangs off its
-// menu bar.
+// bar calls each at the right edge.
 Popup {
     id: root
 

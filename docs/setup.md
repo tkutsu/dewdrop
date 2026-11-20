@@ -106,7 +106,7 @@ Apps by default, ranked by match and frecency. Sums get answered, and anything e
 
 Starts with a magnifier, Search field and mode hints. Press Down or Enter with an empty query to browse frecency. Typing hides the hints, reveals matches, and selects the first match. Email addresses offer a Gmail search. The query stays pinned while the list opens and its shadow deepens. Rows fade and move up in sequence, 32 ms apart, including when opening directly into a mode.
 
-The launcher opens with a sideways spring based on the Spotlight reference: its width settles while text, height and corners keep their size. Closing retracts the sides. Reduce motion skips the spring.
+The launcher opens with a sideways spring: its width settles while text, height and corners keep their size. Closing retracts the sides. Reduce motion skips the spring.
 
 Long queries scroll horizontally with a soft fade at the hidden edges. The search icon stays fixed, the caret stays clear, and the full query remains editable and selectable.
 

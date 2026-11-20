@@ -7,7 +7,7 @@ import qs.src.core
 // it is a separator. A menu puts its own marks in front of the label (`lead`)
 // or after it (`trailing`) and says when the row is `hot`.
 //
-// `choose()` is the Mac's acknowledgement of a choice: the fill goes out and
+// `choose()` acknowledges a choice: the fill goes out and
 // comes back once, and only then does `picked` fire for the menu to act and
 // close. Without it a menu that vanished on the click left you to work out
 // from the result which row you hit.
@@ -61,8 +61,7 @@ Item {
         color: row.lit ? Theme.selection : "transparent"
     }
 
-    // As wide as the highlight, as the Mac has drawn them since Big Sur, and
-    // as the popups' sections are divided.
+    // As wide as the highlight, as the popups' sections are divided.
     PopupSeparator {
         anchors.centerIn: parent
         visible: row.separator

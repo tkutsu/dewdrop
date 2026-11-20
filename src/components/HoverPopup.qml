@@ -5,7 +5,7 @@ import qs.src.components
 // What hangs off a bar item, for the modules and the individual tray icons:
 // its tooltip, on hover, or the popup a click opened.
 //
-// Tooltips follow the Mac's help tags. The first one waits for the pointer to
+// Tooltips are slow to start and quick after. The first one waits for the pointer to
 // rest a moment, since it is there for a hesitation rather than a pass over
 // the bar; once one is up the next shows as soon as it is reached (Tooltips).
 // Leaving closes it at once, a click puts it away until the pointer has left,
@@ -71,7 +71,7 @@ Item {
 
     Timer {
         id: delay
-        // About the Mac's wait. GTK's half second put a tag under every
+        // A whole second. GTK's half second put a tag under every
         // icon the pointer crossed on its way somewhere else.
         interval: 1000
         onTriggered: root.settled = true

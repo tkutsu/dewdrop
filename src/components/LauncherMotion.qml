@@ -1,7 +1,7 @@
 import QtQuick
 import qs.src.core
 
-// Spotlight's width, opacity and defocus curve, shared by launcher and settings.
+// The width, opacity and defocus curve the launcher and settings open and close on.
 QtObject {
     id: root
     required property bool opened

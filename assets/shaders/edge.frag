@@ -2,7 +2,7 @@
 
 // A scrolling view's soft edges (see components/ScrollEdges.qml): what runs
 // on past an edge of the view fades out over the last `fadeTop` or `fadeBottom`
-// pixels before it, the way a list in a Mac's popover softens under its
+// pixels before it, the way a list in a popover softens under its
 // header rather than being cut off by it. Either reach is zero at rest, so a
 // view sitting at its start is drawn untouched.
 //

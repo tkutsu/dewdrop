@@ -90,12 +90,12 @@ BarItem {
         }
     }
 
-    // Drawn rather than taken from the symbol font, the way SF Symbols draws
-    // it: two strokes meeting at a point, round at the ends and at the join.
+    // Drawn rather than taken from the symbol font: two
+    // strokes meeting at a point, round at the ends and at the join.
     // The font's chevron is a filled outline eight pixels tall and a pixel and
     // a third thick, and the only smaller one it has is thinner still. This
     // one is a pixel shorter and narrower and half as thick again, and opens
-    // wider than a right angle, as Apple's does.
+    // wider than a right angle.
     //
     // Symmetric about its own middle, so the half turn lands the ink on the
     // rows and columns it started on (the font's glyph, turned about its box,

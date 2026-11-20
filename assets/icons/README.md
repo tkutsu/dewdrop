@@ -19,13 +19,11 @@ Font as the bar drew it, split so each wave has its own opacity: 0 has both
 waves at .25, 1 to 3 bring the inner one to .5, .75 and full, 4 to 6 the
 outer one. audio-volume-muted is volume_off, taken out the same way.
 
-launcher.svg is our own drawing in the manner of SF Symbols' magnifyingglass
-(not a copy of it), in an 18px box so it lands on whole pixels. It is pure
+launcher.svg is our own drawing of a thin magnifying glass, in an 18px box so it lands on whole pixels. It is pure
 white rather than WhiteSur's #ececec: Glyph gives a drawing the label's alpha,
 and #ececec under that came out a step dimmer than the text beside it.
 
-network-wireless-0 to -4 and -off are our own drawings in the manner of SF
-Symbols' wifi (not a copy of it): a dot and three 1.5px arcs about it, in a
+network-wireless-0 to -4 and -off are our own drawings of the wifi fan: a dot and three 1.5px arcs about it, in a
 20px box with 13px of ink, which is what Glyph fits a drawing to at the bar's
 glyph size, so nothing rescales them. 0 and 1 light only the dot; each step
 after lights one more arc. -off has every part at .25, without a slash.

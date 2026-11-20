@@ -108,8 +108,7 @@ Singleton {
     }
 
     // --- selection mode ------------------------------------------------------
-    // The bar walked from the keyboard, the way a Mac's menu bar is from
-    // Ctrl+F2. It starts on the calendar with its popup open; Left and Right
+    // The bar walked from the keyboard. It starts on the calendar with its popup open; Left and Right
     // go from item to item, opening each one's popup the way browsing with
     // the pointer does, Down goes into the popup and Up from its top row
     // comes back out, Return presses an item with no popup, and Escape ends

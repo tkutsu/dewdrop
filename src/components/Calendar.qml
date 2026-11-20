@@ -8,7 +8,7 @@ import qs.src.services
 // months either side, take a click to step through them, and say what today is.
 //
 // A day is chosen with a click and stays chosen while the pointer goes down
-// to its list, the way a Mac's month view works; the header's buttons act on
+// to its list; the header's buttons act on
 // that day.
 Popup {
     id: root

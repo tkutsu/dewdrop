@@ -86,7 +86,7 @@ Item {
         acceptedButtons: Qt.LeftButton
         pressAndHoldInterval: 300
         preventStealing: root.dragging || root.swiping
-        // The arrow throughout, as rows dragged on a Mac keep it.
+        // The arrow throughout, as on every drag that moves something.
         cursorShape: Qt.ArrowCursor
         onPressed: (mouse) => {
             root.from = root.view.indexAt(mouse.x, mouse.y + root.view.contentY);

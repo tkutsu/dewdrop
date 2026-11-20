@@ -45,7 +45,7 @@ ShellRoot {
         function press(i) { const p = centre(i); mouseMove(win.contentItem, p.x, p.y); wait(30); mouseClick(win.contentItem, p.x, p.y); wait(30); }
         function run() {
             wait(100);
-            check(power.children.filter(c => c.modelData !== undefined).length === 3, "three buttons, in the Mac's order");
+            check(power.children.filter(c => c.modelData !== undefined).length === 3, "three buttons, in order");
             press(0);
             check(String(Power.runs) === "--suspend" && power.armed === "", "Sleep acts on one press");
             press(1);

@@ -7,7 +7,7 @@ import qs.src.services
 // The devices, and one click on a row to connect it, drop it or pair it. A
 // tick on what is connected, a spinner while something is on its way, and
 // the battery at the right edge once there is nothing else to say. The
-// adapter's switch is at the end of the title, as on the Mac, and the whole
+// adapter's switch is at the end of the title, and the whole
 // of blueman is the row at the foot, for anything this is not (a right click
 // on the bar icon opens it too).
 Popup {

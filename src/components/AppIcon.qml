@@ -93,7 +93,7 @@ Item {
     // The artwork and its stand-in, cut through by a round hole where the
     // focus or corner dot sits. The pill has no room under the icons' ink for
     // a dot of its own, so without the hole the two touched and the dot read as a drip
-    // off the icon; with it the dot stands clear, the way an SF Symbol's badge is
+    // off the icon; with it the dot stands clear, the way a badge is
     // knocked out of the glyph beneath it. The hole stays where the dot is
     // while the artwork bounces, so a shouting icon passes behind it.
     Item {

@@ -1,7 +1,7 @@
 import QtQuick
 import qs.src.core
 
-// What a Mac's text fields do with the mouse beyond typing: a right click
+// What a text field does with the mouse beyond typing: a right click
 // opens Cut, Copy, Paste and Select All at the pointer (EditMenu), and a
 // selection can be picked up and dropped somewhere else in its field.
 // Goes inside the field: `TextMenu {}`.
@@ -20,7 +20,7 @@ Item {
     readonly property bool hasSelection: root.field.selectionStart !== root.field.selectionEnd
     readonly property alias hovered: hover.hovered
     // The box drawn round the field (`TextMenu { frame: box }`). Its padding
-    // belongs to the field, as a Mac field's bezel does: the I-beam over it,
+    // belongs to the field, as a bezel does: the I-beam over it,
     // and a click there puts the caret at the nearest character.
     property Item frame: null
 
@@ -144,7 +144,7 @@ Item {
     }
 
     // --- A right press held across the menu --------------------------------
-    // As on the Mac: press, drag onto a row and let go there to choose it.
+    // Press, drag onto a row and let go there to choose it.
     // Let go elsewhere after moving and the menu goes; let go where it was
     // pressed and it stays up, as after a click. Nothing counts until the
     // pointer has moved: the window the press just opened may not be placed
@@ -192,7 +192,7 @@ Item {
 
     HoverHandler {
         id: hover
-        // An arrow over text that can be picked up, as on the Mac.
+        // An arrow over text that can be picked up.
         cursorShape: root.dragging || root.movable && root.onSelection(hover.point.position.x, hover.point.position.y)
             ? Qt.ArrowCursor : Qt.IBeamCursor
     }

@@ -1,7 +1,7 @@
 import QtQuick
 import qs.src.core
 
-// Options in a capsule, as a Mac's segmented control in the dark: the chosen
+// Options in a capsule, a segmented control in the dark: the chosen
 // one sits on a lighter capsule raised off the well and lit from above,
 // hairlines part the rest and step aside for it, and it springs across to a
 // new pick. A press stretches it towards that choice; dragging along the
