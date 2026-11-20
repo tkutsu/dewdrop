@@ -75,17 +75,20 @@ Singleton {
 
         command: Settings.inTerminal(["sh", "-c", '"$@" || { printf "\nPress Enter to close. "; read _; }', "sh", Quickshell.shellPath("scripts/gtasks-auth"), ...root.consentArgs], "Google sign-in (floating)")
 
-        // Whatever it did, the file is the truth now: forget the token in
-        // memory and read the credentials again. Their `loaded` is `ready`,
-        // which has every service fetch again under the new grant.
-        onExited: {
-            root.accessToken = "";
-            root.tokenExpiry = 0;
-            root.tokenDead = false;
-            root.scopeMissing = false;
-            root.wrongAccount = false;
-            credentials.reload();
-        }
+        // Whatever it did, the file is the truth now.
+        onExited: root.reread()
+    }
+
+    // Forget the token in memory and read the credentials again. Their
+    // `loaded` is `ready`, which has every service fetch again under the new
+    // grant.
+    function reread(): void {
+        root.accessToken = "";
+        root.tokenExpiry = 0;
+        root.tokenDead = false;
+        root.scopeMissing = false;
+        root.wrongAccount = false;
+        credentials.reload();
     }
 
     // --- requests ------------------------------------------------------------
@@ -232,13 +235,16 @@ Singleton {
     }
 
     // --- credentials ---------------------------------------------------------
-    // Written by the consent script. No watchChanges: the file only moves when
-    // that runs, and a run from the popups reloads it when it exits.
+    // Written by the consent script, from the popups' Reconnect or by hand in
+    // a terminal, as the bar's own messages say to: watched, so a sign-in
+    // made either way is taken up at once rather than at the next restart.
     FileView {
         id: credentials
 
         path: Paths.data(root.file)
         printErrors: false
+        watchChanges: true
+        onFileChanged: root.reread()
 
         onLoaded: root.ready()
 
