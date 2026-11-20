@@ -70,7 +70,7 @@ Add the integration near the top of `~/.config/hypr/hyprland.lua`, before your o
 dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
 ```
 
-This supplies the blur, popup dismissal and workspace helpers. It also closes gaps in numbered workspaces as they empty. Keep the top outer gap at 8 pixels so windows line up below the bar; for example, `hl.config({ general = { gaps_out = 8 } })` sets all sides to 8.
+This supplies the blur, popup dismissal and workspace helpers. It also closes gaps in numbered workspaces as they empty. If you have your own Escape or close-window binds, see [Escape and close keybinds](docs/setup.md#escape-and-close-keybinds) so they leave the launcher and settings alone. Keep the top outer gap at 8 pixels so windows line up below the bar; for example, `hl.config({ general = { gaps_out = 8 } })` sets all sides to 8.
 
 To start Dewdrop with Hyprland, add an exec line to the same file. It runs once each time Hyprland starts, and `-n` makes it do nothing if Dewdrop is already running:
 
