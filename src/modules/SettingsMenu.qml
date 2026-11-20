@@ -636,7 +636,9 @@ OverlayWindow {
                 {
                     title: "Mode Symbols",
                     text: "The character that starts each mode.",
-                    rows: root.modeRows
+                    rows: [
+                        { type: "toggle", id: "launcherHints", title: "Show in Search Field", tooltip: "A few modes at a time, while nothing is typed.", get: () => Settings.launcherHints, set: v => Settings.set("launcherHints", v) }
+                    ].concat(root.modeRows)
                 },
                 {
                     title: "File Search",
