@@ -621,10 +621,10 @@ ShellRoot {
             Launcher.show();
             check(Launcher.modes.some(mode => mode.prefix === ":" && mode.hint === "emoji"), "the emoji mode is in the hints");
             check(!Launcher.modes.some(mode => mode.prefix === ">") && !Launcher.actions.cmd, "run mode and dispatch removed");
+            check(Launcher.queryHints.map(h => h.prefix + h.hint).join() === "?help", "by default the empty field hints help alone");
             Settings.launcherHelpHint = false;
-            check(Launcher.queryHints.length === 0, "the empty field hints nothing by default");
+            check(Launcher.queryHints.length === 0, "help off too, it hints nothing");
             Settings.launcherHelpHint = true;
-            check(Launcher.queryHints.map(h => h.prefix + h.hint).join() === "?help", "with help on and the rest off, help alone");
             Settings.launcherHints = "all";
             Settings.launcherHelpHint = false;
             check(Launcher.queryHints.map(h => h.prefix).join("") === '.@:#_!=,\"/*', "help off leaves it out of all");

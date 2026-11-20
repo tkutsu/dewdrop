@@ -225,7 +225,7 @@
     // (a group at a time) or "all" (one line, in place of Search).
     "launcherHints": "off",
     // Include "? help" in those hints. With them off, it is shown on its own.
-    "launcherHelpHint": false,
+    "launcherHelpHint": true,
 
     // Desktop entries the launcher leaves out, by id (the file name without
     // .desktop). Quickshell ignores OnlyShowIn, so an entry meant for another
