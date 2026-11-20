@@ -270,10 +270,6 @@ Popup {
                 gesturePolicy: TapHandler.ReleaseWithinBounds
                 onTapped: root.loadMore()
 
-                HoverHandler {
-                    cursorShape: more.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                }
-
                 PopupText {
                     id: moreLabel
                     x: root.textX

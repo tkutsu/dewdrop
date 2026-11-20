@@ -77,7 +77,7 @@ Column {
                     Weather.choose(Weather.locations[0]);
                     root.choosing = false;
                 }
-                TextMenu {}
+                TextMenu { frame: search.parent }
                 PopupText {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: search.text === ""

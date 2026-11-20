@@ -373,8 +373,6 @@ Popup {
                                 gesturePolicy: TapHandler.ReleaseWithinBounds
                                 onTapped: part.limit += Feeds.rowsShown
 
-                                HoverHandler { cursorShape: Qt.PointingHandCursor }
-
                                 PopupText {
                                     id: moreLabel
                                     x: root.inset

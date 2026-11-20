@@ -22,8 +22,4 @@ PopupNote {
             OpenPopup.dismiss();
         Tools.follow(link, root.programs);
     }
-
-    HoverHandler {
-        cursorShape: root.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
-    }
 }

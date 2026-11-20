@@ -165,7 +165,7 @@ Item {
                                 }
                             }
 
-                            TextMenu {}
+                            TextMenu { frame: input.parent }
 
                             PopupText {
                                 anchors.verticalCenter: parent.verticalCenter
