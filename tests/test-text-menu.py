@@ -21,8 +21,37 @@ ShellRoot {
             id: popup
             visible: true; anchorItem: owner; probes: false; grows: false
             Item {
-                width: 300; height: 230
+                width: 300; height: 260
                 Item { id: elsewhere; activeFocusOnTab: true }
+                // A field inset in its box, with a button beside it there,
+                // as the settings' fields and the password capsule are.
+                Rectangle {
+                    id: box
+                    y: 230; width: 200; height: 26
+                    TextInput {
+                        id: boxed
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 40
+                        font.pixelSize: 14
+                        selectByMouse: true
+                        clip: true
+                        text: "boxed words"
+                        TextMenu { frame: box }
+                    }
+                    Rectangle {
+                        id: beside
+                        property int taps: 0
+                        anchors.right: parent.right
+                        width: 30; height: parent.height
+                        TapHandler { onTapped: beside.taps++ }
+                    }
+                }
+                PopupText {
+                    x: 210; y: 230
+                    textFormat: Text.StyledText
+                    text: '<a href="https://example.org">link</a>'
+                }
                 TextInput {
                     id: other
                     x: 200; y: 40; width: 100; height: 22
@@ -341,6 +370,20 @@ ShellRoot {
                 mouseRelease(listed, low.x + 2, low.y + low.height / 2);
                 check(listed.text === " words\\nlower wordsupper" && scroller.contentY === 0,
                       "a selection dragged in a scrolling list moves, and the list stays put");
+
+                // The box round a field is the field's: a click in its
+                // padding puts the caret at the nearest end.
+                elsewhere.forceActiveFocus();
+                mouseClick(box, 3, 13);
+                check(boxed.activeFocus && boxed.cursorPosition === 0,
+                      "a click in the box's left padding focuses the field at its start");
+                mouseClick(box, 165, 13);
+                check(boxed.cursorPosition === boxed.length,
+                      "a click in the box's right padding puts the caret at the end");
+                boxed.cursorPosition = 3;
+                mouseClick(box, 185, 13);
+                check(beside.taps === 1 && boxed.cursorPosition === 3,
+                      "a button in the box keeps its own click");
                 console.log("PASS: text menu complete");
             }
         }

@@ -14,6 +14,8 @@ import qs.src.core
 // to fetching the image it names. What writes its own markup (NeedsNote, a
 // notification's body) sets the format it wrote.
 Text {
+    id: root
+
     textFormat: Text.PlainText
     color: Theme.fg
     font.family: Theme.bodyFont
@@ -21,4 +23,11 @@ Text {
     // Tabular figures, so a readout keeps its width as it counts — which is
     // what the monospace face used to be here for.
     font.features: Theme.figures
+
+    // The pointing hand over a link, the only place it shows; elsewhere
+    // whatever lies under the text keeps its own cursor.
+    HoverHandler {
+        enabled: root.textFormat !== Text.PlainText
+        cursorShape: root.hoveredLink ? Qt.PointingHandCursor : undefined
+    }
 }

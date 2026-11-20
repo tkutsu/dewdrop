@@ -178,7 +178,6 @@ Rectangle {
             anchors.fill: parent
             visible: row.modelData.kind === "music-queue" && !!row.modelData.glyph
             enabled: Mpd.connected
-            cursorShape: Qt.PointingHandCursor
             name: (row.modelData.glyph === Theme.glyph.paused ? "Pause " : "Play ") + row.modelData.title
             actions: ({ [Qt.LeftButton]: () => Launcher.activate(row.index) })
         }

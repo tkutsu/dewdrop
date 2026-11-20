@@ -335,7 +335,7 @@ PanelWindow {
                         onActiveFocusChanged: if (!activeFocus)
                             root.shift = false
 
-                        TextMenu {}
+                        TextMenu { frame: well }
 
                         // The password's dots, drawn over the field's own
                         // characters so each can fade in as it rises. Those stay
@@ -388,6 +388,9 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
 
+                        // The arrow over what sits beside the text, as on a Mac.
+                        HoverHandler { cursorShape: Qt.ArrowCursor }
+
                         Glyph {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: (root.capsLock || root.shift) && !root.checking
@@ -407,7 +410,6 @@ PanelWindow {
 
                             HoverHandler {
                                 id: switcher
-                                cursorShape: Qt.PointingHandCursor
                             }
                             TapHandler {
                                 onTapped: Keyboard.next()

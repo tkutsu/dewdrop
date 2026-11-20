@@ -19,6 +19,10 @@ Item {
     readonly property bool movable: root.editable && !root.secret
     readonly property bool hasSelection: root.field.selectionStart !== root.field.selectionEnd
     readonly property alias hovered: hover.hovered
+    // The box drawn round the field (`TextMenu { frame: box }`). Its padding
+    // belongs to the field, as a Mac field's bezel does: the I-beam over it,
+    // and a click there puts the caret at the nearest character.
+    property Item frame: null
 
     anchors.fill: parent
 
@@ -191,6 +195,28 @@ Item {
         // An arrow over text that can be picked up, as on the Mac.
         cursorShape: root.dragging || root.movable && root.onSelection(hover.point.position.x, hover.point.position.y)
             ? Qt.ArrowCursor : Qt.IBeamCursor
+    }
+
+    HoverHandler {
+        parent: root.frame ?? root
+        enabled: root.frame !== null
+        cursorShape: Qt.IBeamCursor
+    }
+
+    TapHandler {
+        parent: root.frame ?? root
+        enabled: root.frame !== null && root.field.activeFocusOnPress
+        onTapped: point => {
+            const f = root.field;
+            const at = point.position;
+            // Whatever else sits in the box (a switcher) keeps its own clicks.
+            const hit = root.frame.childAt(at.x, at.y);
+            if (hit && hit !== f)
+                return;
+            const p = f.mapFromItem(root.frame, at.x, at.y);
+            f.forceActiveFocus();
+            f.cursorPosition = f.positionAt(p.x, p.y);
+        }
     }
 
     MouseArea {
