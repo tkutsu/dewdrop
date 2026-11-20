@@ -16,10 +16,17 @@ UNSTYLED = {'ink'}
 
 
 def namespaces_in_shell():
-    """Every layer namespace a QML file asks for, including OverlayWindow's names."""
+    """Every layer namespace a QML file asks for, including OverlayWindow's names.
+
+    The shell's own files only, as copy_shell picks them: tracked or new, never
+    ignored, so a scratch folder of old copies (.a11y-test/) names no surface.
+    """
     found = set()
-    for path in ROOT.rglob('*.qml'):
-        if path.relative_to(ROOT).parts[0] in ('lab', '.claude', '.plans', '.git'):
+    names = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '-z', '--cached', '--others',
+                                      '--exclude-standard', '--', '*.qml']).decode().split('\0')
+    for name in filter(None, names):
+        path = ROOT / name
+        if path.parts[len(ROOT.parts)] == 'lab' or not path.is_file():
             continue
         text = path.read_text()
         found.update(re.findall(r'namespace: "quickshell:(\w+)"', text))
