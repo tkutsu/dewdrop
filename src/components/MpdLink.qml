@@ -61,13 +61,33 @@ Item {
     function redial(): void {
         root.tries++;
         root.lastTry = Date.now();
+        presence.reload();
+    }
+
+    function dial(): void {
         loader.active = false;
         loader.active = Qt.binding(() => root.active);
     }
 
+    // Only dial what is there. A Socket dialled where there is nothing logs
+    // "ServerNotFoundError" every time, and a stopped mpd, dialled every
+    // five minutes on both links, was some 350 lines a day. A FileView says
+    // so without a word: a socket is "not a file", nothing "does not exist".
+    // It also looks once of its own accord, as the shell starts.
+    FileView {
+        id: presence
+        path: root.path
+        printErrors: false
+        onLoaded: root.dial()
+        onLoadFailed: error => {
+            if (error !== FileViewError.FileNotFound)
+                root.dial();
+        }
+    }
+
     Loader {
         id: loader
-        active: root.active
+        active: false
 
         sourceComponent: Component {
             Socket {
