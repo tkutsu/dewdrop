@@ -619,9 +619,9 @@ ShellRoot {
 
             Launcher.db = ({});
             Launcher.show();
-            check(!Launcher.modes.some(mode => mode.prefix === ":"), "emoji selector is absent from mode hints");
+            check(Launcher.modes.some(mode => mode.prefix === ":" && mode.hint === "emoji"), "the emoji mode is in the hints");
             check(!Launcher.modes.some(mode => mode.prefix === ">") && !Launcher.actions.cmd, "run mode and dispatch removed");
-            check(Launcher.queryHints === Launcher.modes, "an empty query hints the modes");
+            check(Launcher.queryHints.map(h => h.prefix).join("") === Launcher.modes.map(m => m.prefix).filter(p => p !== ":").join(""), "an empty query hints the modes but emoji, which help lists");
             Launcher.query = ",";
             check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event,event", "a bare plan symbol hints what a line makes");
             Launcher.query = ", 25m";
@@ -657,11 +657,12 @@ ShellRoot {
             Launcher.query = "";
             Launcher.query = ">echo test";
             check(Launcher.classification.mode === "main" && !Launcher.results.some(r => r.kind === "cmd"), "former run prefix is ordinary search");
-            for (const query of [":", ":lol", ":greece"]) {
+            for (const query of ["lol", "greece"]) {
                 Launcher.query = query;
-                check(Launcher.classification.mode === "main", "former emoji prefix uses main search for " + query);
-                check(!Launcher.results.some(r => r.kind === "emoji"), "main search has no emoji rows for " + query);
+                check(Launcher.classification.mode === "main" && !Launcher.results.some(r => r.kind === "emoji"), "emoji stay in their own mode for " + query);
             }
+            Launcher.query = ":lol";
+            check(Launcher.classification.mode === ":" && Launcher.classification.text === "lol", "a colon asks for emoji");
             Launcher.query = "/";
 
 
@@ -878,7 +879,7 @@ ShellRoot {
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
-            check(Launcher.modes.map(mode => mode.prefix).join("") === '\"_/*,.#=@!?', "requested mode hint order, text beside files");
+            check(Launcher.queryHints.map(mode => mode.prefix).join("") === '\"_/*,.#=@!?' && Launcher.modes.map(mode => mode.prefix).join("") === '\"_/*,.#=@:!?', "requested mode hint order, text beside files");
             // Wider symbols leave the hint under a pixel to spare at rest, and the
             // open spring narrows the box by eight.
             const defaultPrefixes = Settings.launcherPrefixes;
@@ -907,7 +908,7 @@ ShellRoot {
                 ["example.com/docs", Theme.glyph.launcherWeb], ["no-fixture-can-match-this", Theme.glyph.launcherWeb],
                 ["_zzmissingwindow", Theme.glyph.launcherWeb],
                 ["@", Theme.glyph.mailUnread], ["person@example.com", Theme.glyph.mailUnread],
-                ["!", Theme.glyph.launcherPower], ["?", Theme.glyph.launcherHelp],
+                ["!", Theme.glyph.launcherPower], ["?", Theme.glyph.launcherHelp], [":", Theme.glyph.launcherEmoji],
                 ["", Theme.glyph.launcher]
             ]) {
                 input.adopt(query); keys.wait(30);
@@ -1359,6 +1360,7 @@ def main():
         source = source.replace("Hyprland.", "TestDesktop.Hyprland.")
         (services / "Launcher.qml").write_text(source)
         (services / "LauncherMail.qml").write_text((ROOT / "src/services/LauncherMail.qml").read_text())
+        (services / "LauncherEmoji.qml").write_text((ROOT / "src/services/LauncherEmoji.qml").read_text())
         # Hyprland's bind list, as hyprctl binds -j gives it on a Lua config.
         bind = lambda key, modmask=64, description="", **extra: dict({"key": key, "modmask": modmask, "keycode": 0, "submap": "", "mouse": False, "release": False, "non_consuming": False, "catch_all": False, "has_description": bool(description), "description": description, "dispatcher": "function: 0x1", "arg": "20"}, **extra)
         (target / "binds.json").write_text(json.dumps([
@@ -1388,7 +1390,7 @@ def main():
         settings.write_text(settings.read_text().replace("property var disabled:", "property var webShortcuts: " + json.dumps(defaults) + "; property var launcherPrefixes: " + json.dumps(prefixes) + "; property var disabled:"))
         (target / "src/core/Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath("state/" + name); } function script(name) { return "/tmp/unused/" + name; } }\n')
         (target / "src/core/Tools.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function has(name) { return true; } function label(name) { return name; } }\n')
-        (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", launcherText: "text", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", keyboard: "keys", vol: ["sound"], wifiStrength: ["network"]}) }\n')
+        (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property int revealMs: 10; property var glyph: ({lock: "", alarm: "alarm", timer: "timer", tasks: "tasks", launcher: "apps", launcherCalc: "calc", clipboard: "clip", launcherWindow: "windows", folder: "files", launcherMusic: "music", launcherWeb: "web", launcherPower: "power-mode", launcherHelp: "help", launcherEmoji: "emoji", launcherText: "text", mailUnread: "mail", powerShutdown: "power", powerConfirm: "tick", keyboard: "keys", vol: ["sound"], wifiStrength: ["network"]}) }\n')
         (components / "QueuedProcess.qml").write_text('import QtQuick\nQtObject { property string want: ""; property string arg: ""; property int interval: 60; property var command: []; signal result(arg: string, text: string); function cancel() { want = ""; } }\n')
         (components / "FileQuery.qml").write_text((ROOT / "src/components/QueuedProcess.qml").read_text())
         (target / "shell.qml").write_text(TEST)

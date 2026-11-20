@@ -121,6 +121,7 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 | `,` | Google task, timer, alarm or calendar event (see below) |
 | `#` | MPD library and playlists |
 | `=` | Calculator |
+| `:` | Emoji, by name or keyword (`:lol`, `:puppy`, `:thumbs`); Enter copies it |
 | `?` | These modes; Enter goes to the selected one |
 
 Settings > Launcher > Mode Symbols changes these characters. The rest of this section uses the defaults.

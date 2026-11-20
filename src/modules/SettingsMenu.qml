@@ -305,6 +305,7 @@ OverlayWindow {
         { key: "music", title: "Music", glyph: Theme.glyph.launcherMusic },
         { key: "calc", title: "Calculator", glyph: Theme.glyph.launcherCalc },
         { key: "mail", title: "Mail", glyph: Theme.glyph.mailUnread },
+        { key: "emoji", title: "Emoji", glyph: Theme.glyph.launcherEmoji },
         { key: "power", title: "Power", glyph: Theme.glyph.launcherPower },
         { key: "help", title: "Help", glyph: Theme.glyph.launcherHelp }
     ].map(mode => {
