@@ -92,6 +92,20 @@ ShellRoot {
                 keyClick(Qt.Key_X);
                 check(!dialog.refused, "typing again clears the refusal");
 
+                keyClick(Qt.Key_Return);
+                flow.responseVisible = true;
+                check(field.echoMode === TextInput.Password, "an answer sent stays dots while it is checked");
+                flow.inputPrompt = "One-time code: ";
+                flow.isResponseRequired = true;
+                wait(20);
+                check(field.text === "" && field.echoMode === TextInput.Normal, "the next prompt starts empty, shown as it asks: " + field.text);
+                flow.responseVisible = false;
+                flow.inputPrompt = "Password: ";
+                keyClick(Qt.Key_Y);
+                flow.selectedIdentity = flow.other;
+                check(field.text === "", "another user starts with an empty field");
+                flow.selectedIdentity = flow.me;
+
                 keyClick(Qt.Key_Escape);
                 check(flow.cancelled, "Escape cancels");
 

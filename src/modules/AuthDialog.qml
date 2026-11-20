@@ -79,28 +79,42 @@ PanelWindow {
         }
     }
 
-    // A second request queued behind this one arrives in the same window.
-    onFlowChanged: {
+    // An empty field for a fresh question: an answer sent stays in it, as
+    // dots, only until polkit replies, so it is never shown in the clear to
+    // the next prompt or offered to another user.
+    function reset(): void {
         field.text = "";
         root.submitted = false;
         root.refused = false;
     }
 
+    // A second request queued behind this one arrives in the same window.
+    onFlowChanged: root.reset()
+
     Connections {
         target: root.flow
 
         function onAuthenticationFailed(): void {
-            field.text = "";
-            root.submitted = false;
+            root.reset();
             root.refused = true;
             flushing.restart();
             if (!Theme.reduceMotion)
                 shake.restart();
         }
 
+        // Another prompt in the same conversation (a one-time code after
+        // the password): the last answer was taken.
         function onIsResponseRequiredChanged(): void {
-            if (root.asking)
-                field.forceActiveFocus();
+            if (!root.asking)
+                return;
+            if (root.submitted)
+                root.reset();
+            field.forceActiveFocus();
+        }
+
+        // Another user starts a new conversation.
+        function onSelectedIdentityChanged(): void {
+            root.reset();
         }
     }
 
@@ -280,7 +294,8 @@ PanelWindow {
                         clip: true
                         focus: true
                         readOnly: !root.asking
-                        echoMode: root.flow?.responseVisible ? TextInput.Normal : TextInput.Password
+                        // An answer sent stays dots whatever the next prompt asks.
+                        echoMode: root.flow?.responseVisible && !root.submitted ? TextInput.Normal : TextInput.Password
                         // Never seen: it only spaces the characters drawn over it.
                         passwordCharacter: "●"
                         readonly property bool masked: echoMode === TextInput.Password
