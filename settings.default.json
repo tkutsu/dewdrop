@@ -163,7 +163,9 @@
     "lockClock": true,
     "lockWeather": true,
     "lockNotifications": true,
-    "lockPreviews": true,
+    // A notice's words over the password, not only its app and time. Off by
+    // default: anyone at the locked screen reads them, codes and chats too.
+    "lockPreviews": false,
     "lockParallax": true,
     // Sleep, Restart and Shut Down at the foot of the lock screen; the last
     // two ask for a second press.
