@@ -66,6 +66,9 @@ Singleton {
     // Sleep, restart, shut down and the rest. The bang, which is how loud
     // turning the machine off should be; the bar's right-click opens it too.
     readonly property string powerPrefix: Settings.launcherPrefixes.power ?? ""
+    // Emoji by name or by what people call them. The colon that starts a
+    // :shortcode: in chat apps.
+    readonly property string emojiPrefix: Settings.launcherPrefixes.emoji ?? ""
     // Every symbol above with what it does, for when the query line's one word
     // each is not enough or the settings have moved them, and Hyprland's
     // keybinds under them (LauncherKeys).
@@ -81,6 +84,7 @@ Singleton {
         { prefix: root.musicPrefix, hint: "music", about: "Music library and playlists" },
         { prefix: root.calcPrefix, hint: "calc", about: "Calculator" },
         { prefix: root.mailPrefix, hint: "email", about: "Gmail: unread, read and search" },
+        { prefix: root.emojiPrefix, hint: "emoji", about: "Emoji, copied", inField: false },
         { prefix: root.powerPrefix, hint: "power", about: "Lock, sleep, restart and shut down" },
         { prefix: root.helpPrefix, hint: "help" }
     ]
@@ -89,7 +93,8 @@ Singleton {
     // the prefix characters themselves rather than typed out, so changing one
     // of them changes what the box says it does. No entry for apps: that is
     // what the box does when you tell it nothing, and a prefix line is a list
-    // of the things you have to ask for.
+    // of the things you have to ask for. Eleven fill the empty field, so the
+    // twelfth, emoji, is listed only under help.
     //
     // A bare plan symbol turns it into what the line will make, because the
     // mode is settled by then and how to word it is the question. How the line
@@ -97,7 +102,7 @@ Singleton {
     readonly property var queryHints: {
         const c = root.classification;
         if (c.mode === "empty")
-            return root.modes;
+            return root.modes.filter(m => m.inField !== false);
         if (c.mode === root.taskPrefix && !c.text.trim())
             return [
                 { prefix: "task", hint: "call bank" },
@@ -170,6 +175,7 @@ Singleton {
         case root.enginePrefix: return Theme.glyph.launcherWeb;
         case root.mailPrefix: return Theme.glyph.mailUnread;
         case root.powerPrefix: return Theme.glyph.launcherPower;
+        case root.emojiPrefix: return Theme.glyph.launcherEmoji;
         case root.helpPrefix: return Theme.glyph.launcherHelp;
         case root.taskPrefix: {
             switch (Tasks.plan(c.text).kind) {
@@ -363,7 +369,8 @@ Singleton {
         [root.pathPrefix]: LauncherFiles,
         [root.textPrefix]: LauncherText,
         [root.mailPrefix]: LauncherMail,
-        [root.clipPrefix]: LauncherClipboard
+        [root.clipPrefix]: LauncherClipboard,
+        [root.emojiPrefix]: LauncherEmoji
     })
 
     readonly property var modeResults: ({
@@ -376,6 +383,7 @@ Singleton {
             [root.mailPrefix]: rest => LauncherMail.results(rest),
             [root.taskPrefix]: rest => root.taskResults(rest),
             [root.powerPrefix]: rest => root.powerResults(rest),
+            [root.emojiPrefix]: rest => LauncherEmoji.results(rest),
             [root.helpPrefix]: rest => root.helpResults(rest)
         })
 

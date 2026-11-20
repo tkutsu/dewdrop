@@ -123,7 +123,7 @@ OverlayWindow {
                 actions.push({ key: "music-fold", label: "Collapse", live: true });
             return actions;
         }
-        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": "Add Timer", desktop: "Run", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
+        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": "Add Timer", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
         const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
         return [{ key: "activate", label, live: row.ok !== false }];
     }
