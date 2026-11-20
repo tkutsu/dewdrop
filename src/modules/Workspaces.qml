@@ -121,26 +121,9 @@ BarItem {
 
     // A window Hyprland keeps out of sight, such as a terminal swallowed by
     // the app it launched, has no place on the strip until it comes back.
+    // shell.qml refreshes the window list for `hidden` as windows come and go.
     function listed(toplevel): bool {
         return !toplevel.lastIpcObject?.hidden;
-    }
-
-    // Hyprland swallows a terminal as the app opens and gives it back as the
-    // app closes, with no event of its own: `hidden` comes only with a fresh
-    // `hyprctl clients`, which Quickshell does not fetch for either event.
-    Timer {
-        id: hiddenRefresh
-        interval: 100
-        onTriggered: Hyprland.refreshToplevels()
-    }
-
-    Connections {
-        target: Hyprland
-
-        function onRawEvent(event: HyprlandEvent): void {
-            if (event.name === "openwindow" || event.name === "closewindow")
-                hiddenRefresh.restart();
-        }
     }
 
     // Quickshell can retain old IDs after compaction; stale IPC window counts are unreliable.
