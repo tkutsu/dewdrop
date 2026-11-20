@@ -60,6 +60,19 @@ def main():
         kind, body = preview(key)
         check(kind == "" and body == "", "a private key shows nothing")
 
+        # Every armoured private key, whatever `file` files it under.
+        filler = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7\n" * 3
+        for name, label in (("pkcs8.pem", "PRIVATE KEY"), ("rsa.pem", "RSA PRIVATE KEY"),
+                            ("ec.key", "EC PRIVATE KEY"), ("locked.pem", "ENCRYPTED PRIVATE KEY"),
+                            ("secret.asc", "PGP PRIVATE KEY BLOCK")):
+            other = root / name
+            other.write_text(f"-----BEGIN {label}-----\n{filler}-----END {label}-----\n")
+            check(preview(other) == ("", ""), f"a {label.lower()} shows nothing")
+
+        prose = root / "keys.md"
+        prose.write_text("Never paste your private key anywhere.\n")
+        check(preview(prose)[0] == "text", "text that only mentions a private key still previews")
+
         blob = root / "blob.bin"
         blob.write_bytes(bytes(range(256)) * 4)
         check(preview(blob) == ("", ""), "a binary shows nothing")
