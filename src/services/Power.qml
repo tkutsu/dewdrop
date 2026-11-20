@@ -70,8 +70,7 @@ Singleton {
         }
     ]
 
-    // Locking is the shell's own lock screen; power.sh --lock asks logind,
-    // for whoever else answers it.
+    // Locking is the shell's own lock screen, not the script's.
     function run(arg: string): void {
         if (arg === "--lock")
             Lock.lock();

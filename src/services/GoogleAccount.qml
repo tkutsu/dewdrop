@@ -126,7 +126,7 @@ Singleton {
                     }
                     // Google's own name for it (quotaExceeded, accessNotConfigured)
                     // goes along for a service that tells them apart.
-                    fail(xhr.status === 0 ? "No network" : `Google said ${xhr.status}`, xhr.status, root.reasonOf(xhr.responseText));
+                    fail(`Google said ${xhr.status}`, xhr.status, root.reasonOf(xhr.responseText));
                     return;
                 }
                 let parsed = null;
@@ -205,7 +205,7 @@ Singleton {
                 // retrying every two minutes forever.
                 const dead = xhr.status === 400 || xhr.status === 401;
                 root.tokenDead = dead;
-                settle(dead ? root.reconnect : (xhr.status === 0 ? "No network" : `Sign-in failed (${xhr.status})`), xhr.status);
+                settle(dead ? root.reconnect : `Sign-in failed (${xhr.status})`, xhr.status);
                 return;
             }
             let parsed;
@@ -227,7 +227,7 @@ Singleton {
             root.tokenExpiry = Date.now() + (parsed.expires_in ?? 3600) * 1000;
             settle("");
         }, function (why, status) {
-            settle(why === "Request timed out" ? "Sign-in timed out" : why, status);
+            settle(why, status);
         });
     }
 
