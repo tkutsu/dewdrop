@@ -830,7 +830,7 @@ OverlayWindow {
                 {
                     title: "Transparency",
                     rows: [
-                        { type: "toggle", id: "reduceTransparency", title: "Reduce Transparency", text: "Use solid surfaces instead of glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
+                        { type: "toggle", id: "reduceTransparency", title: "Reduce Transparency", text: "Use thick frosted glass instead of clear glass.", get: () => Settings.reduceTransparency, set: v => Settings.set("reduceTransparency", v) }
                     ]
                 }
             ]

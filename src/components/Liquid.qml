@@ -37,7 +37,8 @@ ShaderEffect {
     property vector4d overflow: Qt.vector4d(0, 0, 0, 0)
     property real lineWidth: Theme.pillBorder
     // Direction, quiet-region cutoff and strength of the two diagonal lobes.
-    property vector4d sheen: backdrop ? Theme.pillSheen : Qt.vector4d(0, -1, 0, 0)
+    // None under Reduce transparency: the frost keeps only its top-lit rim.
+    property vector4d sheen: backdrop && !Theme.reduceTransparency ? Theme.pillSheen : Qt.vector4d(0, -1, 0, 0)
 
     // The colours a Pill's own slab and Rim would have used, straight alpha.
     // Settable for glass that is not a pill: the workspace mark is a lighter

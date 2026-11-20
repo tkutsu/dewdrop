@@ -354,7 +354,7 @@ Singleton {
     // compositor stops blurring what is behind it — that threshold is also
     // what keeps the gaps between the pills unblurred, so this is the one
     // number both ends depend on.
-    readonly property color barBg: reduceTransparency ? solid : Qt.rgba(tint.r, tint.g, tint.b, 0.35)
+    readonly property color barBg: reduceTransparency ? frost : Qt.rgba(tint.r, tint.g, tint.b, 0.35)
     // What hangs off the bar — tooltips, popups, menus and the launcher — is
     // frosted glass rather than the bar's clear glass: a thin
     // fill at little more than the 0.3 the blur rule ignores, so most of what
@@ -366,12 +366,16 @@ Singleton {
     // anything bright down, so the white labels on it keep their contrast
     // whatever it opens over. Half the tint's saturation, so it reads as frost
     // with a cast of the wallpaper rather than as a coloured sheet.
-    readonly property color popupBg: reduceTransparency ? solid : Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
+    readonly property color popupBg: reduceTransparency ? frost : Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.36)
 
-    // Reduce transparency (Settings): the frost's own colour made opaque, for
-    // the pills and the popups alike, so nothing behind a surface shows
-    // through it. Liquid.qml stops drawing the wallpaper into the glass too.
+    // Reduce transparency (Settings): thick frost for the pills and the popups
+    // alike. The frost's own colour at 0.58 over Hyprland's blur, so what is
+    // behind a surface comes through as soft colour and never as shapes.
+    // Liquid.qml stops drawing the wallpaper into the glass and drops the
+    // sheen, leaving only the rim lit along the top edge. `solid` is the same
+    // colour made opaque, for what must not let anything through at all.
     readonly property bool reduceTransparency: Settings.reduceTransparency
+    readonly property color frost: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 0.58)
     readonly property color solid: Qt.hsla(Math.max(0, tint.hslHue), tint.hslSaturation / 2, 0.12, 1)
 
     // popupBg over something bright, for a box that knows what it is opening
@@ -561,8 +565,11 @@ Singleton {
 
     // What the clear glass makes of a colour behind it, the way liquid.frag
     // does it: saturation raised by glassSaturation, then the tint laid over
-    // at glassTint.
+    // at glassTint. Under Reduce transparency it is the frost instead: the
+    // colour laid under frost's own at frost's alpha.
     function glassOver(c) {
+        if (reduceTransparency)
+            return mix(Qt.rgba(c.r, c.g, c.b, 1), Qt.rgba(frost.r, frost.g, frost.b, 1), frost.a);
         return mix(saturate(Qt.rgba(c.r, c.g, c.b, 1), glassSaturation), tint, glassTint);
     }
     readonly property color badgeFg: "white"
