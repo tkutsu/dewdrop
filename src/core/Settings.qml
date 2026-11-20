@@ -113,6 +113,7 @@ Singleton {
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
     readonly property bool showDesktopActions: root.values.showDesktopActions === true
+    readonly property bool launcherHints: root.values.launcherHints === true
     readonly property var launcherPrefixes: Object.assign({}, root.defaults.launcherPrefixes, root.user.launcherPrefixes)
     readonly property var webShortcuts: root.values.webShortcuts ?? []
     readonly property string defaultTaskList: root.values.defaultTaskList ?? ""
