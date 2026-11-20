@@ -16,7 +16,22 @@ The bar needs a few things from Hyprland: click events so popups close, layer ru
 dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
 ```
 
-That file also renumbers numbered workspaces to close gaps as they empty, and names workspace 10 "0". It returns the workspace module, for keybinds you want on the same ring of workspaces as the bar.
+That file also renumbers numbered workspaces to close gaps as they empty, and names workspace 10 "0". It returns the workspace module, for keybinds you want on the same ring of workspaces as the bar. Load it only once, because it hooks Hyprland's events. To use the module from another file, store it where `require` finds it:
+
+```lua
+package.loaded.dewdrop = dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
+-- then, in keybinds.lua:
+local workspaces = require("dewdrop")
+```
+
+### Escape and close keybinds
+
+The launcher and the settings window keep the keyboard while they are open, even when a shortcut moves focus to another window or workspace, or the pointer moves with `follow_mouse = 1`. A click outside closes them and focuses the window you clicked (`focus_under_cursor` in `dewdrop.lua`). They are drawn above other overlays, such as kitty's quick access terminal.
+
+They are layers, not windows, so while one is open `hl.get_active_window()` still returns the window behind it. Hyprland binds run before the launcher sees a key, so a bind that acts on the active window will act on that window instead:
+
+- If you bind Escape for an app, return `{ ok = false }` from the bind while a layer named `quickshell:launcher` is mapped (check with `hl.get_layers()`). The launcher and settings then receive every Escape.
+- In a close shortcut, run `qs ipc call launcher dismiss`, then `qs ipc call settings dismiss`, before closing a window. Each command closes its window if it is open and prints `true`, or prints `false` if there was nothing to close. Stop at the first `true`.
 
 Keep the top of `gaps_out` at 8, which is `Theme.barMargin`. The bar reserves its strip counting on that gap, so another value changes the space under the bar.
 

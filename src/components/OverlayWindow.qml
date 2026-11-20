@@ -1,7 +1,9 @@
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Window
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Wayland
 import qs.src.core
 
@@ -45,8 +47,10 @@ PanelWindow {
     }
     onShownChanged: {
         outside.reset();
-        if (root.shown)
+        if (root.shown) {
+            root.clickedOut = false;
             root.pickScreen();
+        }
     }
 
     // Keep an open overlay on the screen selected when it was requested.
@@ -56,9 +60,12 @@ PanelWindow {
 
     WlrLayershell.namespace: "quickshell:" + root.name
     WlrLayershell.layer: WlrLayer.Overlay
-    // Take keyboard input without blocking focus on an outside mouse press.
-    // Release it during the fold-away so the next window can accept typing.
-    WlrLayershell.keyboardFocus: root.shown ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    // Keep the keyboard while up. On demand, a shortcut moving to a window or
+    // a workspace took it, and so did the pointer under follow_mouse = 1, and
+    // Escape went there. Release it during the fold-away so the next window can
+    // accept typing.
+    WlrLayershell.keyboardFocus: !root.shown ? WlrKeyboardFocus.None
+        : root.renewing ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive
 
     anchors {
         top: true
@@ -107,8 +114,67 @@ PanelWindow {
         // A field's edit menu (TextMenu) is a popup window of its own.
         inside: pointer.hovered || PopupPointer.hovered > 0
         onReleased: Qt.callLater(() => {
-            if (root.shown)
-                root.dismissed();
+            if (!root.shown)
+                return;
+            root.clickedOut = true;
+            root.dismissed();
         })
+    }
+
+    // An exclusive layer has the click outside reach its window but hands the
+    // keyboard back to the window before. So once the keyboard has gone, focus
+    // what was clicked (dewdrop.lua's focus_under_cursor).
+    property bool clickedOut: false
+
+    // Hyprland still takes the keyboard from an exclusive layer when another
+    // layer under the pointer unmaps (the launcher's ! veil), handing it to the
+    // window there. Asking again wins it back, but only a request that changes
+    // for a frame is acted on. A layer that wants the keyboard to itself (the
+    // password panel, a hint overlay) keeps it until it closes.
+    property bool renewing: false
+
+    function reclaim(): void {
+        if (root.shown && !root.inputItem.Window.window?.active && !claimed.running)
+            claimed.running = true;
+    }
+
+    Connections {
+        target: root.inputItem.Window.window
+        function onActiveChanged() {
+            if (root.inputItem.Window.window.active)
+                return;
+            if (root.clickedOut) {
+                root.clickedOut = false;
+                Hyprland.dispatch("focus_under_cursor()");
+            }
+            root.reclaim();
+        }
+    }
+
+    Connections {
+        target: Hyprland
+        enabled: root.shown
+        function onRawEvent(event: HyprlandEvent): void {
+            if (event.name === "closelayer")
+                root.reclaim();
+        }
+    }
+
+    Process {
+        id: claimed
+        command: ["hyprctl", "repl", `for _, l in ipairs(hl.get_layers()) do if l.mapped and l.keyboard_interactivity == 1 and l.namespace ~= "quickshell:${root.name}" then print("claimed") end end`]
+        stdout: StdioCollector {
+            id: claimedBy
+        }
+        onExited: if (root.shown && !claimedBy.text.includes("claimed")) {
+            root.renewing = true;
+            renew.restart();
+        }
+    }
+
+    Timer {
+        id: renew
+        interval: 16
+        onTriggered: root.renewing = false
     }
 }

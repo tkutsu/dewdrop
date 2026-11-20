@@ -65,20 +65,18 @@ def check_hyprland():
 
 
 def check_this_machine():
-    """A copy goes stale quietly, so compare it with the config it was taken from."""
-    configs = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') / 'hypr/configs'
-    if not (configs / 'workspaces.lua').exists():
+    """This machine loads the published file rather than keeping copies, which go stale quietly."""
+    hypr = Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') / 'hypr'
+    if not (hypr / 'hyprland.lua').exists():
         return print('SKIP: no personal Hyprland config to compare with')
-    assert (configs / 'workspaces.lua').read_text() == (HYPR / 'workspaces.lua').read_text(), \
-        'hypr/workspaces.lua has drifted from ~/.config/hypr/configs/workspaces.lua'
-    rules = (configs / 'wrules.lua').read_text()
-    binds = (configs / 'keybinds.lua').read_text()
-    for line in PUBLISHED.splitlines():
-        if 'namespace = "quickshell:' in line:
-            assert line in rules, f'not in wrules.lua: {line.strip()}'
-        if line.startswith('hl.bind("mouse:'):
-            assert line in binds, f'not in keybinds.lua: {line}'
-    print('PASS: the published copy matches the personal config')
+    assert 'quickshell/hypr/dewdrop.lua' in (hypr / 'hyprland.lua').read_text(), 'hyprland.lua does not load dewdrop.lua'
+    assert not (hypr / 'configs/workspaces.lua').exists(), 'configs/workspaces.lua copies hypr/workspaces.lua'
+    for path in sorted((hypr / 'configs').glob('*.lua')):
+        text = path.read_text()
+        for line in PUBLISHED.splitlines():
+            if 'namespace = "quickshell:' in line or line.startswith('hl.bind("mouse:'):
+                assert line.strip() not in text, f'{path.name} copies dewdrop.lua: {line.strip()}'
+    print('PASS: the personal config loads dewdrop.lua and copies none of it')
 
 
 if __name__ == '__main__':

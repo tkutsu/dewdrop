@@ -4,7 +4,26 @@
 --   dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
 --
 -- It returns the workspace module (workspaces.lua), for any keybinds you want on
--- the same ring of workspaces as the bar.
+-- the same ring of workspaces as the bar. Load it once, since it hooks Hyprland's
+-- events. To reach it from other files, keep it where `require` finds it:
+--
+--   package.loaded.dewdrop = dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
+--   local workspaces = require("dewdrop")   -- in keybinds.lua
+--
+-- The launcher and the settings window are layers, not windows, so while one is
+-- up `hl.get_active_window()` still names the window behind it. A bind of yours
+-- that acts on the active window has to step aside for them:
+--
+--   - Escape: a bind that takes Escape for an app passes it on with
+--     `return { ok = false }` while a "quickshell:launcher" layer is mapped
+--     (hl.get_layers()). They take every Escape from there.
+--   - Closing: a close shortcut runs `qs ipc call launcher dismiss`, then
+--     `qs ipc call settings dismiss`, and stops at the first that prints true.
+--     Each closes its window if it was up and says whether it was.
+--
+-- Both hold the keyboard exclusively while they are up, so a shortcut that
+-- moves to another window or workspace, or the pointer under follow_mouse,
+-- does not take it from them.
 
 -- Popups close when a click lands outside them (src/core/OpenPopup.qml listens for these
 -- as custom>>click), and the click still reaches whatever it landed on.
@@ -12,6 +31,49 @@ hl.bind("mouse:272", hl.dsp.event("click"), { non_consuming = true })
 hl.bind("mouse:273", hl.dsp.event("click"), { non_consuming = true })
 hl.bind("mouse:272", hl.dsp.event("click-release"), { release = true, non_consuming = true })
 hl.bind("mouse:273", hl.dsp.event("click-release"), { release = true, non_consuming = true })
+
+-- A click outside the launcher or the settings window reaches the window under
+-- it but cannot focus it, since they hold the keyboard. They call this once
+-- they let go, to focus the window the click landed on. Topmost first: a shown
+-- special workspace, then a fullscreen window, then floating, then tiled, and
+-- among those the one focused last.
+local function above(a, b)
+	for i = 1, #a do
+		if a[i] ~= b[i] then
+			return a[i] > b[i]
+		end
+	end
+	return false
+end
+
+function focus_under_cursor()
+	return function()
+		local cursor = hl.get_cursor_pos()
+		if not cursor then
+			return
+		end
+		local best, best_rank
+		for _, w in ipairs(hl.get_windows({ mapped = true })) do
+			local ws = w.workspace
+			if ws and ws.visible and w.visible and not w.hidden
+				and cursor.x >= w.at.x and cursor.x < w.at.x + w.size.x
+				and cursor.y >= w.at.y and cursor.y < w.at.y + w.size.y then
+				local rank = {
+					ws.special and 1 or 0,
+					(w.fullscreen or 0) > 0 and 1 or 0,
+					(w.floating or w.pinned) and 1 or 0,
+					-w.focus_history_id,
+				}
+				if not best or above(rank, best_rank) then
+					best, best_rank = w, rank
+				end
+			end
+		end
+		if best then
+			hl.dispatch(hl.dsp.focus({ window = best }))
+		end
+	end
+end
 
 -- The glass: the launcher and popups are thin fills over this blur, so it decides
 -- whether a bright patch behind them reads as a soft glow or as a shape.
@@ -32,12 +94,16 @@ hl.config({
 
 -- The alpha floor keeps blur to the panels on transparent surfaces, and each
 -- surface animates itself, so Hyprland's own layer animation stays out of it.
+-- `order` stacks surfaces that share the overlay layer: the launcher and the
+-- settings window over other apps' overlays (kitty's quick access terminal
+-- would otherwise draw over them when it opens later), and the password panel
+-- over everything, since a password can be asked for at any time.
 local layer_rules = {
-	{ match = { namespace = "quickshell:launcher" }, ignore_alpha = 0.3, blur = true, animation = "none" },
+	{ match = { namespace = "quickshell:launcher" }, ignore_alpha = 0.3, blur = true, animation = "none", order = 1 },
 	-- The launcher's ! veil is the exception: only the compositor can fade a blur.
 	{ match = { namespace = "quickshell:veil" }, blur = true, animation = "fade" },
 	-- So is the password panel, which comes and goes with its window.
-	{ match = { namespace = "quickshell:polkit" }, ignore_alpha = 0.3, blur = true, animation = "fade" },
+	{ match = { namespace = "quickshell:polkit" }, ignore_alpha = 0.3, blur = true, animation = "fade", order = 2 },
 	-- Tray menus and tooltips are child popups, so they need blur_popups on the bar.
 	{ match = { namespace = "quickshell:bar" }, ignore_alpha = 0.3, blur = true, blur_popups = true },
 	{ match = { namespace = "quickshell:backdrop" }, animation = "none" },

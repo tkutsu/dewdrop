@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Window
 import Quickshell
-import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.src.core
 import qs.src.components
@@ -206,30 +205,9 @@ OverlayWindow {
     // --- power veil ----------------------------------------------------------
     // In the ! mode the screen behind the box dims and blurs, and a click off
     // the box closes the launcher instead of reaching whatever is under it.
-    // A window of its own so Hyprland can fade the blur (PowerVeil.qml).
+    // A window of its own so Hyprland can fade the blur (PowerVeil.qml). The
+    // keyboard it takes as it unmaps, OverlayWindow wins back.
     readonly property bool veiled: root.opened && Launcher.powerMode
-
-    // Hyprland can deactivate the launcher when its separate veil unmaps.
-    // Renew the keyboard request after that event, then return to OnDemand.
-    property bool restoreAfterVeil: false
-    property bool reclaimingFocus: false
-    onVeiledChanged: root.restoreAfterVeil = root.opened
-    WlrLayershell.keyboardFocus: !root.shown ? WlrKeyboardFocus.None
-        : root.reclaimingFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
-
-    Connections {
-        target: input.Window.window
-        function onActiveChanged() {
-            if (input.Window.window.active) {
-                root.reclaimingFocus = false;
-                if (!root.veiled)
-                    root.restoreAfterVeil = false;
-            } else if (root.restoreAfterVeil && root.opened && !root.veiled) {
-                root.restoreAfterVeil = false;
-                root.reclaimingFocus = true;
-            }
-        }
-    }
 
     PowerVeil {
         screen: root.screen
