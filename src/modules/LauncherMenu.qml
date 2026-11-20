@@ -621,7 +621,9 @@ OverlayWindow {
                         id: placeholder
                         x: input.leftPadding + 1
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: input.text.length === 0
+                        // Gives way to the whole line of mode hints when both
+                        // will not fit; the magnifier still says what this is.
+                        visible: input.text.length === 0 && !(Settings.launcherHints === "all" && hint.implicitWidth > hint.bare - placeholder.implicitWidth)
                         text: "Search"
                         color: Theme.label2
                         font: input.font
@@ -638,7 +640,8 @@ OverlayWindow {
                         readonly property int clearance: 24
                         // Measured on the settled box, not the field's live width:
                         // the open spring must not blink a hint that fits at rest.
-                        readonly property real room: root.boxWidth - root.boxPad * 2 - input.x - (placeholder.visible ? placeholder.implicitWidth : input.contentWidth) - input.leftPadding - hint.clearance
+                        readonly property real bare: root.boxWidth - root.boxPad * 2 - input.x - input.leftPadding - hint.clearance
+                        readonly property real room: hint.bare - (placeholder.visible ? placeholder.implicitWidth : input.contentWidth)
 
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
@@ -659,7 +662,7 @@ OverlayWindow {
                         Timer {
                             interval: hint.turnMs
                             repeat: true
-                            running: root.opened && hint.visible && Launcher.classification.mode === "empty"
+                            running: root.opened && hint.visible && Launcher.classification.mode === "empty" && Settings.launcherHints === "cycle"
                             onTriggered: turn.restart()
                             onRunningChanged: if (!running) {
                                 turn.stop();
