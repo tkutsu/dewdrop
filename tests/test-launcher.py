@@ -621,7 +621,7 @@ ShellRoot {
             Launcher.show();
             check(Launcher.modes.some(mode => mode.prefix === ":" && mode.hint === "emoji"), "the emoji mode is in the hints");
             check(!Launcher.modes.some(mode => mode.prefix === ">") && !Launcher.actions.cmd, "run mode and dispatch removed");
-            check(Launcher.queryHints.map(h => h.prefix).join("") === Launcher.modes.map(m => m.prefix).filter(p => p !== ":").join(""), "an empty query hints the modes but emoji, which help lists");
+            check(Launcher.queryHints === Launcher.hintGroups[0], "an empty query hints the first group of modes");
             Launcher.query = ",";
             check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event,event", "a bare plan symbol hints what a line makes");
             Launcher.query = ", 25m";
@@ -879,7 +879,23 @@ ShellRoot {
             check(sawWide && sawNarrow && !geometryChanged && box.width === 680, "lateral spring settles without scaling text, height or corners");
             check(box.height === 54 && box.radius === Theme.panelRadius && !list.enabled, "starts with field only and existing radius");
             check(divider.opacity === 0 && hint.visible && placeholder.visible && searchIcon.visible, "compact field shows Search, magnifier and mode hints without divider");
-            check(Launcher.queryHints.map(mode => mode.prefix).join("") === '\"_/*,.#=@!?' && Launcher.modes.map(mode => mode.prefix).join("") === '\"_/*,.#=@:!?', "requested mode hint order, text beside files");
+            check(Launcher.hintGroups.map(group => group.map(mode => mode.prefix).join("")).join(" ") === '.@:# _!? =,\"/*', "requested hint groups: look up, the session, your own things");
+            check([].concat(...Launcher.hintGroups).length === Launcher.modes.length && Launcher.modes.every(mode => [].concat(...Launcher.hintGroups).includes(mode)), "every mode is in one group");
+            check(Launcher.hintPage === 0 && Launcher.queryHints === Launcher.hintGroups[0], "an opening starts on the first group");
+            keys.tryVerify(() => Launcher.hintPage === 1, hint.turnMs + 1000);
+            keys.tryVerify(() => modes.opacity === 1, 1000);
+            check(Launcher.queryHints === Launcher.hintGroups[1] && hint.visible, "the field turns to the next group and fades back in");
+            // The row lays a new group out a frame later; measure once it has.
+            const showing = page => modes.children.filter(c => c.modelData).map(c => c.modelData.prefix).join("") === Launcher.hintGroups[page].map(m => m.prefix).join("");
+            Launcher.hintPage = 2;
+            keys.tryVerify(() => showing(2), 500);
+            keys.wait(30);
+            check(Launcher.queryHints === Launcher.hintGroups[2] && hint.room >= hint.implicitWidth && hint.visible, "the longest group fits");
+            Launcher.hintPage = 3;
+            check(Launcher.queryHints === Launcher.hintGroups[0], "and after the last, the first again");
+            Launcher.hintPage = 0;
+            keys.tryVerify(() => showing(0), 500);
+            keys.wait(30);
             // Wider symbols leave the hint under a pixel to spare at rest, and the
             // open spring narrows the box by eight.
             const defaultPrefixes = Settings.launcherPrefixes;
@@ -894,7 +910,7 @@ ShellRoot {
             Settings.launcherPrefixes = defaultPrefixes;
             keys.tryVerify(() => modes.implicitWidth === defaultHintWidth, 500);
             check(!keys.findChild(menu, "disclosure"), "chevron removed");
-            const files = modes.children.find(child => child.modelData?.prefix === "/");
+            const files = modes.children.find(child => child.modelData?.prefix === ".");
             check(files.children[0].font.bold && files.children[1].font.pixelSize < files.children[0].font.pixelSize, "mode symbols are bold and labels smaller");
             checkActionSelection(input);
             for (const [query, icon] of [

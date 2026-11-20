@@ -84,17 +84,28 @@ Singleton {
         { prefix: root.musicPrefix, hint: "music", about: "Music library and playlists" },
         { prefix: root.calcPrefix, hint: "calc", about: "Calculator" },
         { prefix: root.mailPrefix, hint: "email", about: "Gmail: unread, read and search" },
-        { prefix: root.emojiPrefix, hint: "emoji", about: "Emoji, copied", inField: false },
+        { prefix: root.emojiPrefix, hint: "emoji", about: "Emoji, copied" },
         { prefix: root.powerPrefix, hint: "power", about: "Lock, sleep, restart and shut down" },
         { prefix: root.helpPrefix, hint: "help" }
     ]
 
-    // What the hint in the query line says. Empty, the modes, assembled from
-    // the prefix characters themselves rather than typed out, so changing one
-    // of them changes what the box says it does. No entry for apps: that is
-    // what the box does when you tell it nothing, and a prefix line is a list
-    // of the things you have to ask for. Eleven fill the empty field, so the
-    // twelfth, emoji, is listed only under help.
+    // The modes no longer fit the empty field all at once, so it shows them a
+    // group at a time, turning to the next every few seconds (LauncherMenu).
+    // Grouped by what they are for: what you look up, what you do to the
+    // session, and what you make or fetch from your own things.
+    readonly property var hintGroups: [
+        ["web", "email", "emoji", "music"],
+        ["windows", "power", "help"],
+        ["calc", "plan", "clipboard", "files", "text"]
+    ].map(group => group.map(hint => root.modes.find(m => m.hint === hint)))
+    // Which group the empty field shows. Every opening starts on the first.
+    property int hintPage: 0
+
+    // What the hint in the query line says. Empty, a group of the modes,
+    // assembled from the prefix characters themselves rather than typed out,
+    // so changing one of them changes what the box says it does. No entry for
+    // apps: that is what the box does when you tell it nothing, and a prefix
+    // line is a list of the things you have to ask for.
     //
     // A bare plan symbol turns it into what the line will make, because the
     // mode is settled by then and how to word it is the question. How the line
@@ -102,7 +113,7 @@ Singleton {
     readonly property var queryHints: {
         const c = root.classification;
         if (c.mode === "empty")
-            return root.modes.filter(m => m.inField !== false);
+            return root.hintGroups[root.hintPage % root.hintGroups.length];
         if (c.mode === root.taskPrefix && !c.text.trim())
             return [
                 { prefix: "task", hint: "call bank" },
@@ -293,6 +304,7 @@ Singleton {
         root.query = "";
         root.index = 0;
         root.armed = "";
+        root.hintPage = 0;
         // File and clipboard results are refreshed for each opening.
         for (const provider of Object.values(root.providers))
             provider.cancel();
