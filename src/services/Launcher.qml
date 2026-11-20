@@ -1125,11 +1125,11 @@ Singleton {
 
     // Select a tabbed Chromium window so a last-active PWA cannot cause a new one.
 
-    // Text to the clipboard. Through sh rather than as a wl-copy argument
-    // because an answer can start with a minus — "-40 °C" would be read as
-    // flags — and because it is typed text that nothing should have to quote.
+    // Text to the clipboard, as the clock and the mail copy theirs: the
+    // shell's own clipboard, with nothing to spawn or quote, and no
+    // wl-clipboard needed outside clipboard history.
     function copy(text): void {
-        Quickshell.execDetached(["sh", "-c", "printf %s \"$1\" | wl-copy", "sh", text]);
+        Quickshell.clipboardText = String(text);
     }
 
     // What Enter does to a row, by kind. Each one decides whether the box
