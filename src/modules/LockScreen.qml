@@ -156,13 +156,31 @@ Scope {
         }
     }
 
+    // The lock that never started (see the WlSessionLock below).
+    Timer {
+        running: Lock.held && !session.locked
+        interval: 1000
+        onTriggered: Lock.refused()
+    }
+
     // Always here, never in a loader: a reload hands a held lock over to the
     // new WlSessionLock in the same place, by its id. One built afresh
     // instead leaves the old lock dead and the session locked behind
     // Hyprland's "lockscreen app died" screen.
     WlSessionLock {
+        id: session
+
         reloadableId: "session-lock"
         locked: Lock.held
+
+        // The compositor can refuse the lock or end it, and `locked` then
+        // goes false under a held Lock; or the lock never starts, and it
+        // never goes true. A moment's grace for the second, so a reload's
+        // handover is never taken for a refusal.
+        onLockedChanged: {
+            if (!session.locked && Lock.held)
+                Lock.refused();
+        }
 
         WlSessionLockSurface {
             id: surface

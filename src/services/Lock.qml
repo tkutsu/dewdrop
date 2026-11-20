@@ -86,6 +86,20 @@ Singleton {
             kept.phase = "";
     }
 
+    // LockScreen.qml reports the compositor would not lock the session, or
+    // ended the lock itself: another lock screen holds it, or there is no
+    // session lock at all. Nothing is locked then, so nothing may look it:
+    // the curtain would stand over the windows while every key went to
+    // them, a password typed at it into whatever had the focus.
+    function refused(): void {
+        if (!root.held)
+            return;
+        root.password = "";
+        root.attempt = "";
+        kept.phase = "";
+        Notify.send("Could not lock the screen", "The compositor refused the lock. Another lock screen may be up.", ["-u", "critical"]);
+    }
+
     // --- typing --------------------------------------------------------------
     function type(text: string): void {
         if (kept.phase !== "locked" || root.checking || !text)
