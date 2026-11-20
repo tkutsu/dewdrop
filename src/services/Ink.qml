@@ -221,10 +221,14 @@ Singleton {
         root.remember(job.source, (bottom - top + 1) / height, edgeLeft / width, (edgeRight + 1) / width, (bottom + 1) / height);
     }
 
-    // A source is worth keeping if it names the same picture next run.
+    // A source is worth keeping if it names the same picture next run: not
+    // the shell's own files, nor one in a folder made for this run alone
+    // (Chromium puts each launch's tray icons in a fresh /tmp folder, and
+    // they piled up here by the dozen). Ones saved before go at the next save.
     function _lasting(source: string): bool {
         return source.startsWith("image://icon/")
-            || (source.startsWith("file:") && !source.startsWith("file://" + Quickshell.shellDir));
+            || (source.startsWith("file:") && !source.startsWith("file://" + Quickshell.shellDir)
+                && !/^file:\/\/\/(?:tmp|run|dev\/shm)\//.test(source));
     }
 
     // Bump when the measuring changes, so answers from the old way are dropped.
