@@ -40,6 +40,13 @@
 -- row and it stops trying; the shortcut works on that screen too.
 local bar = [[
 hyprctl dismissnotify >/dev/null
+# A bar just told to quit (a restart's `qs kill`) holds its place while it
+# shuts down, and -n would take it for a live one and quietly do nothing.
+# Give it a few seconds to go; one still there is live.
+for _ in $(seq 25); do
+	quickshell list | grep -q '^Instance' || break
+	sleep 0.2
+done
 flag=${XDG_RUNTIME_DIR:-$HOME/.cache}/quickshell/locked
 quick=0
 while :; do

@@ -100,7 +100,8 @@ Popup {
 
     // A verb on a row. Acting on the open mail opens the one below it, or
     // the one above when it was the last, so a run of mail is read and
-    // cleared without reaching for the next row. A list left empty closes.
+    // cleared without reaching for the next row. A list left empty stays
+    // open, so Undo can still bring back everything cleared from it.
     function act(kind: string, thread: var, options: var): void {
         const wasOpen = root.expanded === thread.id;
         const leaves = kind !== "star" && kind !== "unstar";
@@ -115,8 +116,6 @@ Popup {
             if (next)
                 Email.read(next);
         }
-        if (leaves && Email.total === 0 && (Email.other === 0 || !root.otherOpen))
-            OpenPopup.close(root.anchorItem);
     }
 
     // Kept for the launcher's habit and the tests: reading is a verb.

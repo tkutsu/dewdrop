@@ -830,7 +830,7 @@ class EmailTests(unittest.TestCase):
             sut.threads=[last]; sut.total=1;
             popup.markRead(last);
         ''')
-        self.check('!OpenPopup.shown && sut.total === 0')
+        self.check('OpenPopup.shown && sut.total === 0')
 
     def test_monogram_letters_and_tone(self):
         self.check('sut.initials("Ann Example") === "AE"')
@@ -924,11 +924,13 @@ class EmailTests(unittest.TestCase):
         self.js('popup.visible = false;')
         self.check('sut.pending.length === 0 && sut.requests.length === 2')
 
-    def test_last_mail_gone_closes_the_popup(self):
+    def test_last_mail_gone_keeps_the_popup_for_undo(self):
         self.mail_rows(['a'], other=['x'])
         popup, window = self.build_popup(fold_ms=0)
         self.js('popup.act("archive", sut.threads[0]);')
-        self.check('!OpenPopup.shown')
+        self.check('OpenPopup.shown && sut.total === 0 && popup.testUndo.visible')
+        self.js('sut.undo();')
+        self.check('sut.total === 1 && popup.testList.count === 1')
 
     def test_other_row_unfolds_into_rows_with_the_same_verbs(self):
         self.mail_rows(['a'], other=['x', 'y'])
