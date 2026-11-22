@@ -112,20 +112,17 @@ ShellRoot {
                 check(timerModule.activeCount === 2 && countdown.runningCount === 2, 'timers and enabled alarms share the badge');
                 OpenPopup.set(countdown); wait(450);
                 check(countdown.popupOpen && countdown.popupItem?.opened, 'expanded pill opens timer controls');
-                Settings.set('countdownPosition', 'right'); settle();
-                check(!countdown.popupOpen, 'moving timers closes their outgoing side popup');
-                check(timerModule.pill === rightPill && !timerModule.stowed && countdown.stowed && countdown.reveal === 0, 'right placement shows an icon and retracts the side pill');
+                OpenPopup.dismiss(); settle();
+                check(timerModule.pill === clockPill && timerModule.trailingControl && timerModule.settingsKey === '', 'timers are fused to the centre pill');
                 for (const style of ['badge', 'dot', 'underdot', 'hide']) {
                     Settings.set('countdownBadgeStyle', style); wait(20);
                     check(timerModule.icon.badge === (style === 'hide' ? '' : '2'), 'badge visibility: ' + style);
                     check(timerModule.icon.dot === (style === 'dot') && timerModule.icon.underdot === (style === 'underdot'), 'badge shape: ' + style);
                 }
                 DrawerPins.setMode('countdown', 'drawer'); settle();
-                check(timerModule.stowed && countdown.stowed, 'Drawer override hides active right timers');
+                check(timerModule.stowed && countdown.stowed, 'Drawer override hides active timers');
                 drawer.out = true; settle();
-                check(timerModule.visible && !timerModule.stowed, 'drawer reveals the timer icon');
-                Settings.set('countdownPosition', 'centre'); settle();
-                check(timerModule.visible && !countdown.stowed, 'open drawer keeps expanded timer module movable');
+                check(timerModule.visible && !countdown.stowed, 'open drawer brings the timers back');
                 drawer.out = false; settle();
                 check(timerModule.stowed && countdown.stowed, 'Drawer override hides central expansion');
                 DrawerPins.setMode('countdown', 'auto'); settle();
@@ -169,8 +166,6 @@ ShellRoot {
             }
         }
         Timer { interval: 200; running: true; onTriggered: {
-            timerModule.parent = Qt.binding(() => Settings.modulePosition('countdown') === 'centre' ? clockPill.moduleHost : rightPill.moduleHost);
-            timerModule.pinKey = 'countdown';
             try { test.run(); } catch (error) { console.log('FAIL: ' + error + '\\n' + error.stack); }
             Qt.quit();
         } }

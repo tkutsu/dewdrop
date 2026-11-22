@@ -1,5 +1,7 @@
-const defaults = ["audio", "email", "tasks", "updater", "feeds", "downloads", "bell", "satty", "idle",
-    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "datetime", "countdown"];
+// The modules the pills order. The bell and timers are not among them: they
+// are fused to the centre pill's right end (Bar.qml).
+const defaults = ["audio", "email", "tasks", "updater", "feeds", "downloads", "satty", "idle",
+    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "datetime"];
 
 // Keep saved positions while accepting modules added since the last drop.
 function normalise(order, supported = defaults) {

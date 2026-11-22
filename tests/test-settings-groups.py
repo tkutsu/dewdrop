@@ -40,7 +40,7 @@ ShellRoot {
             check(menu.pages.map(p => p.title).join("|") === "Bar|Modules|Indicators|Keyboard|Appearance|Lock Screen|Date & Time|Weather|Launcher|Web Search|Launcher Apps|Default Apps|Notifications|Music|Tasks & Calendar|Feeds|Mail|Accessibility", "eighteen focused tabs appear in the agreed order");
             const ids = rows().map(r => r.id);
             check(new Set(ids).size === ids.length, "settings and generated rows appear once");
-            const covered = new Set(ids.concat(["layoutNames", "launcherPrefixes", "hiddenApps", "webApps", "mailCategories", "feedTitles", "datetimePosition", "weatherPosition", "countdownPosition", "wallpaperParallaxZoom"]));
+            const covered = new Set(ids.concat(["layoutNames", "launcherPrefixes", "hiddenApps", "webApps", "mailCategories", "feedTitles", "wallpaperParallaxZoom"]));
             const missing = Object.keys(Settings.defaults).filter(key => !covered.has(key));
             check(missing.length === 0, "every default preference is reachable (missing: " + missing.join(", ") + ")");
             function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }
@@ -55,7 +55,8 @@ ShellRoot {
             check(!row("weatherFormat").validate("{temp} {icon}") && row("weatherFormat").validate("nothing"), "weather format requires an icon or temperature token");
             check(row("weatherFormat").validate("{icon} {tmp}°") === "{tmp} isn't a token. Use {icon} or {temp}.", "weather format names a mistyped token");
             check(row("lockWeatherFormat").validate("{icon} {hi}") && !row("lockWeatherFormat").validate("{desc} {high}/{low}"), "lock weather format refuses a mistyped token");
-            check(row("centrePillAnchor").options.some(o => o.value === "weatherGap"), "centre pill can anchor between date and weather");
+            check(rows().every(r => r.id !== "centrePillAnchor"), "the centre pill centres its pinned modules, with no anchor setting");
+            check(row("pin:bell") && row("pin:countdown"), "the fused bell and timers keep their visibility modes");
             check(sections("Weather") === "Location|Display|Forecast" && hits("gfs").includes("weatherModel"), "location and forecast model have their own sections");
             check(hits("sunrise").includes("weatherLocation"), "search finds the location used for Auto Night Mode");
             wait(80);

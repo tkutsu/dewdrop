@@ -7,5 +7,5 @@ import "../lib/RightPillOrder.js" as Order
 // in the right pill.
 PillOrder {
     file: "centre-pill.json"
-    defaults: ["datetime", "weather", "countdown", ...Order.normalise([]).filter(key => !["datetime", "weather", "countdown"].includes(key))]
+    defaults: ["datetime", "weather", ...Order.normalise([]).filter(key => !["datetime", "weather"].includes(key))]
 }

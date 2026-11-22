@@ -32,11 +32,11 @@ Singleton {
     readonly property string groupWindowBadgeStyle: root.user.groupWindowBadgeStyle
         ?? (root.user.groupWindowBadges === true ? "badge" : root.values.groupWindowBadgeStyle ?? "hide")
     readonly property var moduleKeys: ModuleOrder.normalise([])
-    readonly property var centralComponents: {
-        const keys = root.moduleKeys.filter(key => root.savedPosition(key) === "centre");
-        return keys.length ? keys : ["datetime"];
-    }
-    readonly property string weatherPosition: root.centralComponents.includes("weather") ? "centre" : "right"
+    // Date & Time and Weather belong to the centre pill; the rest can be
+    // dragged between the two pills.
+    readonly property var fixedCentreKeys: ["datetime", "weather"]
+    readonly property var movableKeys: root.moduleKeys.filter(key => !root.fixedCentreKeys.includes(key))
+    readonly property var centralComponents: root.moduleKeys.filter(key => root.savedPosition(key) === "centre")
     readonly property string weatherDisplay: ["hour", "average", "worst", "day"].includes(root.values.weatherDisplay)
         ? root.values.weatherDisplay : "hour"
     readonly property string weatherFormat: root.values.weatherFormat || "{icon}{temp}°"
@@ -73,7 +73,6 @@ Singleton {
         ? root.values.weatherUnit : "celsius"
     // Checked against the models the Weather service offers.
     readonly property string weatherModel: root.values.weatherModel ?? "best_match"
-    readonly property string centrePillAnchor: ["middle", "weatherGap"].includes(root.values.centrePillAnchor) ? root.values.centrePillAnchor : "datetime"
     readonly property bool centrePillRecoil: root.values.centrePillRecoil !== false
     readonly property string caretAnimation: ["phase", "blink", "static"].includes(root.values.caretAnimation) ? root.values.caretAnimation : "phase"
     readonly property string caretShape: root.values.caretShape === "block" ? "block" : "line"
@@ -165,8 +164,6 @@ Singleton {
     // the file already said wins over the defaults as before, and the watcher
     // below reads the new file back like any other edit.
     function set(key: string, value: var): void {
-        if (root.moduleKeys.some(module => key === module + "Position") && value === "right" && root.positionLocked(key.replace("Position", "")))
-            return;
         // Writing now would replace the file that did not parse, and every
         // setting in it, with the last ones that did (none, at startup).
         if (root.userBroken) {
@@ -186,9 +183,7 @@ Singleton {
     }
 
     function savedPosition(key: string): string {
-        if (key === "datetime")
-            return root.user.datetimePosition ?? root.user.timePosition ?? root.user.datePosition ?? root.defaults.datetimePosition ?? "centre";
-        return root.values[key + "Position"] ?? (["weather", "countdown"].includes(key) ? "centre" : "right");
+        return root.fixedCentreKeys.includes(key) ? "centre" : root.values[key + "Position"] ?? "right";
     }
 
     // An empty override restores the title supplied by the feed.
@@ -218,11 +213,6 @@ Singleton {
     function badgeStyle(key: string): string {
         const style = root.values[key + "BadgeStyle"];
         return ["dot", "underdot", "hide"].includes(style) ? style : "badge";
-    }
-
-    // The last module stays central until another one returns.
-    function positionLocked(key: string): bool {
-        return root.centralComponents.length === 1 && root.centralComponents[0] === key;
     }
 
     // Apply casing to the complete label before it is drawn in character columns.

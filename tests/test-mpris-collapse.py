@@ -59,7 +59,8 @@ import qs.src.modules
 import qs.src.services as Services
 ShellRoot {
     id: bar
-    property bool mprisInside: false
+    property var openedFromClock: null
+    function openFromClock(item) { openedFromClock = item; }
     TestPlayer { id: first }
     TestPlayer { id: second; identity: "Second app"; desktopEntry: "second-app"; playbackState: MprisPlaybackState.Paused }
     FloatingWindow {

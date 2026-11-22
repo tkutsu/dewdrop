@@ -53,7 +53,7 @@ import qs.src.services
 import qs.src.services as Services
 ShellRoot {
     id: bar
-    property bool mprisInside: false
+    function openFromClock(item) {}
     FloatingWindow {
         id: window; implicitWidth: 1500; implicitHeight: 100
         SidePill {

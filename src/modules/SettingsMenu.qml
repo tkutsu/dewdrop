@@ -428,11 +428,8 @@ OverlayWindow {
                 },
                 {
                     title: "Centre Pill",
+                    text: "Centres the span of its pinned modules on the screen, or itself when none is pinned.",
                     rows: [
-                        { type: "choice", id: "centrePillAnchor", title: "Centre On",
-                            tooltip: "Date-Weather Gap centres the space between those modules, in either order. Falls back to the middle when a required module is absent.",
-                            options: [{ value: "datetime", label: "Date & Time" }, { value: "weatherGap", label: "Date-Weather Gap" }, { value: "middle", label: "Middle" }],
-                            get: () => Settings.centrePillAnchor, set: v => Settings.set("centrePillAnchor", v) },
                         { type: "toggle", id: "centrePillRecoil", title: "Recoil",
                             tooltip: "Move the centre pill and flex its edges when modules change or other pills merge into it.",
                             get: () => Settings.centrePillRecoil, set: v => Settings.set("centrePillRecoil", v) }
@@ -445,8 +442,8 @@ OverlayWindow {
             sections: [
                 {
                     title: "Module Visibility",
-                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them. Active timers expand to the right of the centre pill, or show an icon in the right pill.",
-                    rows: RightPillOrder.keys.filter(k => root.modules[k]).map(k => root.placement(k))
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them; Date & Time and Weather stay in the centre pill. Notifications and Timers are fused to its right end.",
+                    rows: [...RightPillOrder.keys, "bell", "countdown"].filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
                     title: "Tray Icons",

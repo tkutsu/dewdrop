@@ -120,6 +120,7 @@ ClickArea {
     // The module's key in its pill's saved order.
     property string settingsKey: pinKey
     property bool leadingControl: false
+    property bool trailingControl: false
     readonly property bool here: present
 
     // Nothing to say right now: no unread mail, no updates, a tool rather than

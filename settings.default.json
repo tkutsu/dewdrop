@@ -37,16 +37,10 @@
     // Drag modules between the central and right pills, or within a pill to
     // reorder them. Moving to the right pins the module; Drawer settings can
     // return it to Auto or keep it behind the chevron, in either pill.
-    // The last central module is locked. Positions use <module>Position:
-    // centre or right.
-    "datetimePosition": "centre",
-    "weatherPosition": "centre",
-    "countdownPosition": "centre",
-
-    // Centre on Date & Time ("datetime"), the gap between Date & Time and
-    // Weather ("weatherGap"), or the whole pill ("middle"). Missing modules
-    // fall back to the whole pill; the gap follows either module order.
-    "centrePillAnchor": "datetime",
+    // Positions use <module>Position: centre or right. Date & Time and
+    // Weather always stay in the centre pill, and the bell and timers are
+    // fused to its right end; the centre pill centres the span of its pinned
+    // modules on the screen, or itself when none is pinned.
 
     // Let the central pill recoil as modules change or neighbouring pills merge.
     // Off keeps its chosen centre point steady and stops its glass edges recoiling.

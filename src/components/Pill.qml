@@ -29,13 +29,15 @@ Item {
     // The glass alone, for the workspace mark to bend (GlassMark).
     readonly property Item slabItem: slab
 
-    // Ordered pills keep unkeyed controls at their ends.
+    // Ordered pills keep unkeyed controls at their ends: leading ones before
+    // the ordered modules, trailing ones after. Each end's order puts its
+    // first item on the outer edge (putOutside).
     property var order: []
     property var leadingOrder: []
+    property var trailingOrder: []
     property var orderController: RightPillOrder
     property Item reorderPeer: null
     property var transferableKeys: []
-    property var lockedKeys: []
     signal moduleReceived(string key)
     readonly property var modules: row.children.filter(item => item.settingsKey)
     property alias dragging: reorder.dragging
@@ -66,23 +68,39 @@ Item {
     function arrange(): void {
         if (order.length === 0)
             return;
-        const leading = row.children.filter(item => !item.settingsKey && (item.leadingControl || item === row.children[0]));
-        leading.sort((a, b) => {
-            const first = leadingOrder.indexOf(a);
-            const second = leadingOrder.indexOf(b);
-            return (first < 0 ? leadingOrder.length : first) - (second < 0 ? leadingOrder.length : second);
+        // Listed items first, the rest in declaration order.
+        const ranked = (items, ranking) => items.sort((a, b) => {
+            const first = ranking.indexOf(a);
+            const second = ranking.indexOf(b);
+            return (first < 0 ? ranking.length : first) - (second < 0 ? ranking.length : second);
         });
+        const trailing = ranked(row.children.filter(item => !item.settingsKey && item.trailingControl), trailingOrder);
+        const leading = ranked(row.children.filter(item => !item.settingsKey && !item.trailingControl
+            && (item.leadingControl || item === row.children[0])), leadingOrder);
+        const after = leading.length + order.length;
         for (let i = 0; i < row.children.length; i++) {
             const item = row.children[i];
             const index = order.indexOf(item.settingsKey);
             item.Layout.row = 0;
             item.Layout.column = index >= 0 ? leading.length + index
-                : leading.includes(item) ? leading.indexOf(item) : leading.length + order.length + i;
+                : leading.includes(item) ? leading.indexOf(item)
+                : trailing.includes(item) ? after + trailing.length - 1 - trailing.indexOf(item)
+                : after + trailing.length + i;
         }
+    }
+
+    // The control merged last takes the outer edge of its end, beside the
+    // side pill it came from; the others keep their order behind it.
+    function putOutside(item: Item): void {
+        if (item.trailingControl)
+            trailingOrder = [item, ...trailingOrder.filter(other => other !== item)];
+        else
+            leadingOrder = [item, ...leadingOrder.filter(other => other !== item)];
     }
 
     onOrderChanged: arrange()
     onLeadingOrderChanged: arrange()
+    onTrailingOrderChanged: arrange()
     Component.onCompleted: {
         arrange();
         Tooltips.setMoving(root, animating);

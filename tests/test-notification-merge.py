@@ -61,8 +61,9 @@ import "src/lib/Drops.js" as Drops
 ShellRoot {
     id: bar
     readonly property var drops: Drops.geometry(Theme)
-    readonly property var movableModules: [bell]
-    readonly property var centreKeys: ["bell"]
+    // The bell is fused to the centre pill, not one of the movable modules.
+    readonly property var movableModules: []
+    readonly property var centreKeys: []
     PLACE_MODULES
     property real noticeEdge: clockPill.x + clockPill.width
     QtObject { id: drawer; property bool out: false }
@@ -75,12 +76,13 @@ ShellRoot {
         id: window; implicitWidth: 1000; implicitHeight: 100
         Pill {
             id: clockPill; side: Pill.Side.Centre; centreOn: clock.keyBox
-            order: ["clock", "bell", "tail"]
+            order: ["clock", "tail"]
             CENTRE_MOTION
             BarItem { id: clock; settingsKey: "clock"; BarText { text: "Clock" } }
             BarItem { id: tail; settingsKey: "tail"; stowed: true; Glyph { text: "X" } }
+            BELL
         }
-        Pill { id: rightPill; side: Pill.Side.Right; BELL }
+        Pill { id: rightPill; side: Pill.Side.Right; BarItem { Glyph { text: "R" } } }
         NOTICE
         TestCase {
             id: test; when: false
@@ -172,7 +174,8 @@ ShellRoot {
                 }
             }
             function run() {
-                bell.settingsKey = "bell"; bell.visibilityKey = "bell";
+                bell.visibilityKey = "bell";
+                check(bell.trailingControl && bell.settingsKey === "" && bell.pill === clockPill, "the bell is fused to the centre pill");
                 wait(Theme.startMs + 50);
                 bar.placeModules();
                 DrawerPins.setMode("bell", "auto");
@@ -244,7 +247,6 @@ ShellRoot {
                     console.log("PASS: media bell handoff after real module placement in Auto mode");
                     return;
                 }
-                bell.parent = clockPill.moduleHost;
                 DrawerPins.setMode("bell", "pinned");
                 Notifications.list = [Notifications.latest];
                 wait(700);
@@ -264,62 +266,19 @@ ShellRoot {
                     landed = landed || (bell.handingOff && bell.visible && bell.keyBox.children[0].opacity > 0.99);                }
                 check(landed, "an ephemeral notice lands in the empty bell before it leaves");
                 until(() => bell.stowed && !bell.visible, "the empty bell folds away once the notice is in");
-                DrawerPins.setMode("bell", "pinned");
-                for (const central of [false, true]) {
-                    tail.stowed = !central;
-                    bell.parent = central ? clockPill.moduleHost : rightPill.moduleHost;
-                    bell.pinKey = central ? "" : "bell";
-                    wait(700);
+                // With an ordered module out beside it, the fused bell still
+                // takes the notice: it sits after the ordered modules.
+                tail.stowed = false;
+                wait(700);
+                check(bell.Layout.column > tail.Layout.column, "the fused bell stays after the ordered modules");
+                {
                     reset();
-                    check(!bell.handingOff, "bells outside the centre pill's right edge keep normal motion");
-                    Notifications.showing = false;
-                    let frames = 0;
-                    while (notice.reveal > 0 && noticePill.foldBox.x + noticePill.foldBox.z > -Theme.pillSpread) {
-                        check(bell.stowed && !bell.visible, "bell appeared before the notice merged (central=" + central + ")");
-                        wait(10); frames++;
-                    }
-                    check(frames > 10, "sampled the animated contraction");
-                    until(() => !bell.stowed && bell.reveal > 0 && bell.reveal < 1, "bell eases in after the merge");
-                    const glyph = bell.keyBox.children[0];
-                    let framesIn = 0, fading = false, scaled = false;
-                    while (framesIn++ < 30) {
-                        check(bell.reveal >= 0 && bell.reveal <= 1, "slot stays bounded while the glass can bounce");
-                        check(!bell.clip, "bell grows in place, unclipped");
-                        const rect = glyph.mapToItem(bell, 0, 0, glyph.width, glyph.height);
-                        fading = fading || (bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1);
-                        scaled = scaled || (rect.width > glyph.width * 0.8 && rect.width < glyph.width * 0.899);
-                        check(rect.width <= glyph.width + 0.01, "icon never grows beyond its resting size");
-                        const fullRecoil = clockPill._centreLeft + clockPill.centreShift + clockPill._rightHold - clockPill._centreRest;
-                        check(Math.abs(clockPill.x - clockPill._centreRest - fullRecoil * clockPill.recoilStrength) < 0.01, "central pill follows its position animation at reduced strength");
-                        wait(10);
-                    }
-                    check(fading && scaled && bell.reveal === 1, "bell fades and scales into its full-size slot: fade=" + fading + ", scale=" + scaled + ", reveal=" + bell.reveal + ", transforms=" + glyph.transform.length + ", width=" + glyph.width);
-                    check(Math.abs(glyph.mapToItem(bell, 0, 0).x - bell.padLeft - bell._leftGap) < 0.01,
-                          "bell settles at its normal inset");
-                    Notifications.list = [];
-                    const fullWidth = bell.width;
-                    wait(75);
-                    check(!bell.clip && bell.keyBox.opacity > 0 && bell.keyBox.opacity < 1 && bell.appearanceScale < 1,
-                          "exit fades and shrinks the icon in place");
-                    wait(Theme.moduleRetireMs);
-                    check(bell.keyBox.opacity === 0 && bell.width < fullWidth, "slot closes after the quick fade");
-                    wait(Theme.moduleCloseMs + 30);
-                    check(!bell.visible, "exit finishes cleanly");
-                    Notifications.list = [Notifications.latest]; wait(Theme.moduleOpenMs + 30);
-                    check(Notifications.waiting === 1, "handoff preserves the notification count");
-
-                    reset();
-                    Notifications.showing = false; wait(80);
-                    Notifications.list = [Notifications.latest, {}]; wait(30);
-                    check(!bell.stowed, "another notification shows the bell during contraction");
-
-                    reset();
-                    drawer.out = true; wait(100);
-                    check(!bell.stowed, "drawer can reveal the bell before merge");
-
-                    reset();
-                    DrawerPins.setMode("bell", "pinned"); wait(100);
-                    check(!bell.stowed, "pinned bell stays available before merge");
+                    check(bell.handingOff, "the notice is headed for the fused bell");
+                    // The notice carries the bell while it is out, so the
+                    // slot here stays shut whatever the bell's mode.
+                    drawer.out = true; DrawerPins.setMode("bell", "pinned"); wait(100);
+                    check(bell.stowed && !bell.visible, "the notice carries the bell while it is out");
+                    drawer.out = false; DrawerPins.setMode("bell", "auto");
 
                     reset();
                     Notifications.showing = false; wait(80);
@@ -333,7 +292,6 @@ ShellRoot {
                 }
                 Settings.set("reduceMotion", true);
                 tail.stowed = true;
-                bell.parent = clockPill.moduleHost; bell.pinKey = "";
                 reset();
                 Notifications.showing = false;
                 until(() => bell.reveal === 1 && notice.reveal === 0, "reduced motion completes the handoff");

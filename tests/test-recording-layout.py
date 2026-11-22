@@ -12,8 +12,10 @@ from test_support import ROOT, copy_shell, shell_env
 
 def main():
     source = (ROOT / "src/bar/Bar.qml").read_text()
-    names = ("clockLeft", "recordingBase", "recordingDrop", "mediaEdge", "musicEdge", "musicBase", "musicDrop", "nowPlayingEdge", "nowPlayingDrop")
-    bindings = "\n".join(re.search(r"^    readonly property [^\n]+ " + name + r": [^\n]+", source, re.M).group(0) for name in names)
+    clock_left = re.search(r"^    readonly property real clockLeft: [^\n]+", source, re.M).group(0)
+    start = source.index("    property var leftOrder:")
+    end = source.index("\n", source.index("    readonly property vector4d nowPlayingBulge:"))
+    bindings = clock_left + "\n" + source[start:end]
     pills = []
     for name, width in (("recording", 44), ("music", 120), ("nowPlaying", 150)):
         block = source.split(f"id: {name}Pill", 1)[1].split(f"id: {name}\n", 1)[0]
@@ -39,7 +41,6 @@ ShellRoot {
         Item { id: clockPill; x: 500; width: 180 }
         Item { id: recordingMorph; property real value: 0 }
         Item { id: musicMorph; property real value: 0 }
-        property bool mprisInside: false
         BINDINGS
         PILLS
         function check(ok, message) { if (!ok) throw Error(message); }
@@ -77,15 +78,22 @@ ShellRoot {
                         bar.check([bar.musicEdge, bar.musicDrop.x, bar.musicDrop.z, bar.recordingDrop.x, bar.recordingDrop.z].every(isFinite), "arrival geometry stays finite");
                     }
                     music.implicitWidth = 120;
-                    bar.mprisInside = true;
-                    bar.check(nowPlayingPill.x + nowPlayingPill.width + Theme.pillSpread === recordingPill.x, "now playing opened from the clock sits beside recording");
-                    bar.check(musicPill.x + musicPill.width + Theme.pillSpread === nowPlayingPill.x, "music moves out beyond now playing");
+                    bar.openFromClock(nowPlaying);
+                    bar.check(nowPlayingPill.x + nowPlayingPill.width + Theme.pillSpread === bar.clockLeft, "now playing opened from the clock sits against it");
+                    bar.check(recordingPill.x + recordingPill.width + Theme.pillSpread === nowPlayingPill.x, "recording moves out beyond now playing");
+                    bar.check(musicPill.x + musicPill.width + Theme.pillSpread === recordingPill.x, "music keeps its place behind recording");
                     nowPlaying.stowed = true; nowPlaying.reveal = 0;
-                    bar.check(musicPill.x + musicPill.width + Theme.pillSpread === recordingPill.x, "music closes back up when now playing goes");
+                    bar.check(recordingPill.x + recordingPill.width + Theme.pillSpread === bar.clockLeft, "recording closes back up when now playing goes");
                     for (let step = 0; step <= 20; step++) {
                         nowPlaying.reveal = step / 20;
-                        bar.check([bar.musicEdge, bar.musicDrop.x, bar.musicDrop.z].every(isFinite), "now playing arrival keeps music finite");
+                        bar.check([bar.musicEdge, bar.musicDrop.x, bar.musicDrop.z, bar.recordingDrop.x].every(isFinite), "now playing arrival keeps the others finite");
                     }
+                    bar.openFromClock(music);
+                    bar.check(bar.leftOrder.indexOf(music) === 0 && bar.leftOrder.indexOf(nowPlaying) === 1 && bar.leftOrder.indexOf(recording) === 2,
+                        "the pills keep the order they were last opened in");
+                    bar.check(musicPill.x + musicPill.width + Theme.pillSpread === bar.clockLeft
+                        && nowPlayingPill.x + nowPlayingPill.width + Theme.pillSpread === musicPill.x
+                        && recordingPill.x + recordingPill.width + Theme.pillSpread === nowPlayingPill.x, "music, now playing, then recording");
                     console.log("PASS: recording/music/now playing layout");
                 } catch (error) { console.log("FAIL: " + error); }
                 Qt.quit();

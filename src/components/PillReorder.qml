@@ -11,14 +11,13 @@ Item {
     property Item dragSource: null
     property point dragPoint: Qt.point(0, 0)
 
-    readonly property var _movable: root.pill.shown.filter(item => root.pill.order.includes(item.settingsKey) && !root.pill.lockedKeys.includes(item.settingsKey))
+    readonly property var _movable: root.pill.shown.filter(item => root.pill.order.includes(item.settingsKey))
     readonly property Item dropPill: dragging ? targetAt(dragPoint) : root.pill
     // Keep a destination line in its pill while it fades after release.
     property Item indicatorPill: root.pill
     onDropPillChanged: if (dragging) indicatorPill = dropPill
     onDraggingChanged: if (dragging) indicatorPill = dropPill
     readonly property bool dragValid: root.pill.visible && dragSource !== null && dragSource.here && dragSource.visible
-        && !root.pill.lockedKeys.includes(dragSource.settingsKey)
     // Later, not here: clearing dragSource now re-evaluates dragValid inside its own change.
     onDragValidChanged: if (dragging && !dragValid) Qt.callLater(root.cancelInvalidDrag)
 

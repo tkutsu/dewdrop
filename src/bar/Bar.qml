@@ -236,13 +236,14 @@ PanelWindow {
         visible: false
     }
 
-    // Centre the time and date content when shown, otherwise the whole pill.
-    readonly property var movableModules: [clock, weather, timerModule, audio, email, tasks, updater, feeds, downloads, bell,
+    // The modules the two pills order. Date & Time and Weather never leave
+    // the centre pill (Settings.fixedCentreKeys); the bell and timers are
+    // fused to its right end instead, where they trade places the way the
+    // media notes do on its left (fusedModules).
+    readonly property var movableModules: [clock, weather, audio, email, tasks, updater, feeds, downloads,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
-    readonly property var centreKeys: {
-        const keys = Settings.centralComponents;
-        return bar.movableModules.some(item => item.here && keys.includes(item.settingsKey)) ? keys : [...keys, "datetime"];
-    }
+    readonly property var fusedModules: [bell, timerModule]
+    readonly property var centreKeys: Settings.centralComponents
 
     // Reparent live modules without rebuilding their controls or service state.
     function placeModules(): void {
@@ -252,9 +253,7 @@ PanelWindow {
             item.visibilityKey = key;
             item.parent = Qt.binding(() => bar.centreKeys.includes(key) ? clockPill.moduleHost : rightPill.moduleHost);
             item.pinKey = key;
-            // Notifications and timers also coordinate visibility with their side pills.
-            if (item !== bell && item !== timerModule)
-                item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
+            item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
             item.marksPin = Qt.binding(() => drawer.out);
         }
     }
@@ -264,7 +263,7 @@ PanelWindow {
     // while this group can contain the clock and four independent side pills.
     readonly property real glassSplit: Math.round(clockPill.x + clockPill.width / 2)
     // Whichever pill is against the clock's left end, whose drop pushes it out.
-    readonly property Item clockNeighbour: recording.reveal > 0 ? recording : bar.innerMedia.reveal > 0 ? bar.innerMedia : bar.outerMedia
+    readonly property Item clockNeighbour: bar.leftOrder.find(item => item.reveal > 0) ?? bar.leftOrder[bar.leftOrder.length - 1]
     readonly property real clockNeighbourReveal: bar.clockNeighbour === music ? musicPill.dropReveal : bar.clockNeighbour.reveal
     readonly property real leftLip: Settings.centrePillRecoil ? bar.drops.lip(bar.clockNeighbourReveal, bar.clockNeighbour.stowed) * clockPill.recoilStrength : 0
     readonly property real rightLip: Settings.centrePillRecoil ? (bar.drops.lip(countdownPill.dropReveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(noticePill.dropReveal, notice.stowed))) * clockPill.recoilStrength : 0
@@ -289,7 +288,8 @@ PanelWindow {
             // for a drop going into another pill, which two would only want
             // at once if both left together.
             bulge0: bar.drops.bulge(bar.clockLeft - bar.leftLip, -1, bar.clockNeighbourReveal, bar.clockNeighbour.stowed)
-            bulge1: recording.reveal > 0 && bar.innerBulge.z > 0 ? bar.innerBulge : bar.clockNeighbour !== bar.outerMedia ? bar.outerBulge : Qt.vector4d(0, 0, 0, 0)
+            bulge1: bar.leftOrder.slice(bar.leftOrder.indexOf(bar.clockNeighbour) + 1).map(bar.leftBulge).find(bulge => bulge.z > 0)
+                ?? Qt.vector4d(0, 0, 0, 0)
             reaches: Qt.vector4d(0, bar.drops.dropReach(recording.reveal, recording.stowed), bar.drops.dropReach(musicPill.dropReveal, music.stowed), bar.drops.dropReach(nowPlaying.reveal, nowPlaying.stowed))
         }
     }
@@ -325,30 +325,31 @@ PanelWindow {
         order: CentrePillOrder.keys
         orderController: CentrePillOrder
         reorderPeer: rightPill
-        transferableKeys: Settings.moduleKeys
-        lockedKeys: clockItems.length === 1 ? [clockItems[0].settingsKey] : []
+        transferableKeys: Settings.movableKeys
         onModuleReceived: key => Settings.set(key + "Position", "centre")
         readonly property var clockItems: shown.filter(item => order.includes(item.settingsKey))
-        // The gap uses the facing content edges, rather than the module centres.
-        readonly property var anchorKeys: Settings.centrePillAnchor === "middle" ? []
-            : Settings.centrePillAnchor === "weatherGap" ? ["datetime", "weather"] : ["datetime"]
-        readonly property var centreItems: clockItems.filter(item => anchorKeys.includes(item.settingsKey))
-        centreOn: Settings.centrePillAnchor === "datetime" && centreItems.length === 1 ? centreItems[0].keyBox : null
+        // What the screen's centre line goes through: the middle of the
+        // pinned modules, from the far content edge of the first to that of
+        // the last. The fused notes either end and anything that only comes
+        // out when needed grow the pill round that span without moving it.
+        readonly property var pinnedItems: clockItems.filter(item => DrawerPins.pinned(item.visibilityKey))
         centreAt: {
-            if (centreOn)
-                return centreOnX;
-            if (Settings.centrePillAnchor === "weatherGap" && centreItems.length === 2) {
-                const boxes = centreItems.map(item => ({ x: item.x + item.keyBox.x, width: item.keyBox.width })).sort((a, b) => a.x - b.x);
-                return (boxes[0].x + boxes[0].width + boxes[1].x) / 2;
+            if (pinnedItems.length === 0)
+                return width / 2;
+            let left = Infinity;
+            let right = -Infinity;
+            for (const item of pinnedItems) {
+                left = Math.min(left, item.x + item.keyBox.x);
+                right = Math.max(right, item.x + item.keyBox.x + item.keyBox.width);
             }
-            return width / 2;
+            return (left + right) / 2;
         }
         // Clearing folds the bell without turning its width change into a recoil.
         animatePosition: Settings.centrePillRecoil && (Services.Notifications.list.includes(Services.Notifications.latest)
             || (!bell.animating && !notice.animating))
         recoilStrength: 0.35
         // Mirror a leading media slot's displacement through Pill's existing centring motion.
-        centreShift: Settings.centrePillRecoil && !Theme.reduceMotion && bell.pill === clockPill
+        centreShift: Settings.centrePillRecoil && !Theme.reduceMotion
             && notice.mergedIcon === bell.keyBox.children[0]
             ? -(bell.width + (bell.visible ? Math.floor(moduleGap / 2) - Theme.pillPad : 0)) : 0
 
@@ -363,7 +364,7 @@ PanelWindow {
                 if (stowed)
                     OpenPopup.close(recordingNote);
                 else if (recording.stowed && pill)
-                    pill.leadingOrder = [recordingNote];
+                    pill.putOutside(recordingNote);
             }
             handedOver: recording.iconHandoff.progress < 1
             implicitWidth: Math.round(_fullWidth * _fold * recording.iconHandoff.progress)
@@ -390,7 +391,7 @@ PanelWindow {
             stowed: !Settings.showMpris || nowPlaying.player === null || !nowPlaying.iconInCentre
             // The last absorbed icon occupies the outside edge of the pair.
             onStowedChanged: if (!stowed && nowPlaying.stowed && pill)
-                pill.leadingOrder = [nowPlayingNote]
+                pill.putOutside(nowPlayingNote)
             handedOver: nowPlaying.iconHandoff.progress < 1
             implicitWidth: Math.round(_fullWidth * _fold * nowPlaying.iconHandoff.progress)
 
@@ -408,7 +409,7 @@ PanelWindow {
 
             actions: ({
                     [Qt.LeftButton]: () => {
-                        bar.mprisInside = true;
+                        bar.openFromClock(nowPlaying);
                         nowPlaying.expand();
                     },
                     [Qt.RightButton]: nowPlaying.player?.canQuit ? () => nowPlaying.closePlayer() : null
@@ -422,7 +423,7 @@ PanelWindow {
             tooltip: Services.Mpd.label
             stowed: !Services.Mpd.connected || !music.iconInCentre
             onStowedChanged: if (!stowed && music.stowed && pill)
-                pill.leadingOrder = [musicNote]
+                pill.putOutside(musicNote)
             handedOver: music.iconHandoff.progress < 1
             implicitWidth: Math.round(_fullWidth * _fold * music.iconHandoff.progress)
 
@@ -439,7 +440,7 @@ PanelWindow {
 
             actions: ({
                     [Qt.LeftButton]: () => {
-                        bar.mprisInside = false;
+                        bar.openFromClock(music);
                         music.expand();
                     },
                     [Qt.RightButton]: () => Services.Mpd.stopServer()
@@ -454,8 +455,41 @@ PanelWindow {
             id: weather
         }
 
+        // The bell and timers are fused to the pill's right end, outside its
+        // order, the way the media notes are fused to its left: whichever
+        // took its side pill back in last sits on the outer edge, beside
+        // where that pill comes out. The bell starts outermost.
+        NotificationBell {
+            id: bell
+            settingsKey: ""
+            pinKey: "bell"
+            trailingControl: true
+            handingOff: notice.mergedIcon === keyBox.children[0] && (!notice.stowed || notice.reveal > 0)
+            handoffProgress: handingOff ? notice.iconHandoff.progress : 1
+            handoffX: handingOff ? notice.iconHandoff.targetX : 0
+            noticeMerging: notice.stowed && notice.reveal > 0
+                && noticePill.foldBox.x + noticePill.foldBox.z > -Theme.pillSpread
+            // A notice that ran out lands in the bell even when nothing is left
+            // to keep; the empty bell then folds away once the notice is in.
+            // One that was dismissed or cleared just goes.
+            readonly property bool landing: notice.stowed && !Services.Notifications.withdrawn
+            stowed: handingOff ? handoffProgress === 0 || (!showsClosed && !drawer.out && !landing)
+                : !showsClosed && !drawer.out
+            marksPin: drawer.out
+            // The notice going back in, while its slot here is still shut.
+            readonly property bool takingBack: handingOff && notice.stowed
+            onTakingBackChanged: if (takingBack)
+                clockPill.putOutside(bell)
+        }
+
         Timers {
             id: timerModule
+            settingsKey: ""
+            pinKey: "countdown"
+            trailingControl: true
+            marksPin: drawer.out
+            onLandingChanged: if (landing)
+                clockPill.putOutside(timerModule)
             drawerOut: drawer.out
             expanded: countdown.reveal > 0 && !countdown.iconInCentre && !popupOpen && !drawer.out
             collapsed: countdown.dismissed
@@ -504,25 +538,49 @@ PanelWindow {
     readonly property real clockLeft: clockPill.x
     readonly property real clockRight: clockPill.x + clockPill.width
 
-    readonly property vector4d recordingBase: bar.drops.drop(bar.clockLeft, -1, recordingPill.width, recording.reveal, recording.stowed)
+    // Privacy, music and whatever else plays sit left of the clock, nearest
+    // first. The one opened last from its note in the clock sits against it
+    // and pushes the others out; one that comes out by itself (a recording
+    // starting, a song playing) keeps its place. Each rests off the far end
+    // of the one before it while that one is out, or else off the same edge.
+    property var leftOrder: [recording, music, nowPlaying]
+    function openFromClock(item: Item): void {
+        bar.leftOrder = [item, ...bar.leftOrder.filter(other => other !== item)];
+    }
+    // A left pill's glass at rest off `edge`: not as it morphs, so music's
+    // popover opening does not pull the pills beyond it in after it.
+    function restingGlass(item: Item, edge: real): vector4d {
+        return item === recording ? bar.drops.drop(edge, -1, recordingPill.width, recording.reveal, recording.stowed)
+            : item === music ? bar.drops.drop(edge, -1, musicPill.width, musicPill.dropReveal, music.stowed)
+            : bar.drops.drop(edge, -1, nowPlayingPill.width, nowPlaying.reveal, nowPlaying.stowed);
+    }
+    // Worked out in one pass, nearest first: edges reading each other's
+    // properties made a binding loop whenever the order changed.
+    readonly property var leftEdges: {
+        const edges = [];
+        let edge = bar.clockLeft;
+        for (const item of bar.leftOrder) {
+            edges.push(edge);
+            if (item.reveal > 0)
+                edge = Math.min(edge, bar.restingGlass(item, edge).x);
+        }
+        return edges;
+    }
+    function leftBulge(item: Item): vector4d {
+        return item === recording ? bar.recordingBulge : item === music ? bar.musicBulge : bar.nowPlayingBulge;
+    }
+
+    readonly property real recordingEdge: bar.leftEdges[bar.leftOrder.indexOf(recording)]
+    readonly property vector4d recordingBase: bar.restingGlass(recording, bar.recordingEdge)
     readonly property vector4d recordingDrop: bar.drops.morph(bar.recordingBase, recordingMorph.value)
-    // The media pill opened last from the clock sits against it and pushes
-    // the other out; music comes first until MPRIS is opened that way.
-    property bool mprisInside: false
-    readonly property Item innerMedia: bar.mprisInside ? nowPlaying : music
-    readonly property Item outerMedia: bar.mprisInside ? music : nowPlaying
-    readonly property real mediaEdge: recording.reveal > 0 ? Math.min(bar.clockLeft, bar.recordingBase.x) : bar.clockLeft
-    readonly property real musicEdge: !bar.mprisInside ? bar.mediaEdge : nowPlaying.reveal > 0 ? Math.min(bar.nowPlayingEdge, bar.nowPlayingDrop.x) : bar.nowPlayingEdge
-    readonly property vector4d musicBase: bar.drops.drop(bar.musicEdge, -1, musicPill.width, musicPill.dropReveal, music.stowed)
+    readonly property vector4d recordingBulge: bar.drops.bulge(bar.recordingEdge, -1, recording.reveal, recording.stowed)
+    readonly property real musicEdge: bar.leftEdges[bar.leftOrder.indexOf(music)]
+    readonly property vector4d musicBase: bar.restingGlass(music, bar.musicEdge)
     readonly property vector4d musicDrop: bar.drops.morph(bar.musicBase, musicMorph.value)
     readonly property vector4d musicBulge: bar.drops.bulge(bar.musicEdge, -1, musicPill.dropReveal, music.stowed)
-    // Off music's glass at rest rather than as it morphs, so its popover
-    // opening does not pull this pill in after it.
-    readonly property real nowPlayingEdge: bar.mprisInside ? bar.mediaEdge : music.reveal > 0 ? Math.min(bar.musicEdge, bar.musicBase.x) : bar.musicEdge
-    readonly property vector4d nowPlayingDrop: bar.drops.drop(bar.nowPlayingEdge, -1, nowPlayingPill.width, nowPlaying.reveal, nowPlaying.stowed)
+    readonly property real nowPlayingEdge: bar.leftEdges[bar.leftOrder.indexOf(nowPlaying)]
+    readonly property vector4d nowPlayingDrop: bar.restingGlass(nowPlaying, bar.nowPlayingEdge)
     readonly property vector4d nowPlayingBulge: bar.drops.bulge(bar.nowPlayingEdge, -1, nowPlaying.reveal, nowPlaying.stowed)
-    readonly property vector4d innerBulge: bar.mprisInside ? bar.nowPlayingBulge : bar.musicBulge
-    readonly property vector4d outerBulge: bar.mprisInside ? bar.musicBulge : bar.nowPlayingBulge
     readonly property vector4d countdownDrop: bar.drops.morph(bar.drops.drop(bar.clockRight, 1, countdownPill.width, countdownPill.dropReveal, countdown.stowed), countdownMorph.value)
 
     // The music and timer pills turn into their popovers rather than opening
@@ -543,7 +601,7 @@ PanelWindow {
     readonly property real noticeEdge: countdown.reveal > 0 ? Math.max(bar.clockRight, countdownDrop.x + countdownDrop.z) : bar.clockRight
     readonly property vector4d noticeDrop: bar.drops.drop(bar.noticeEdge, 1, noticePill.width, noticePill.dropReveal, notice.stowed)
 
-    // The player, left of recording and the clock. What it carries is a song title —
+    // The player, in its place left of the clock (leftOrder). What it carries is a song title —
     // text from somewhere else, as long as whoever named the track made it —
     // and nothing else should have to move along every time a new one starts:
     // it is anchored by its right edge, so a longer title only grows it
@@ -582,9 +640,8 @@ PanelWindow {
         }
     }
 
-    // Whatever else is playing, beside music: beyond it, or between it and
-    // the clock once opened from there (mprisInside). Anchored by its right
-    // edge, as music is.
+    // Whatever else is playing, in its place left of the clock (leftOrder).
+    // Anchored by its right edge, as music is.
     SidePill {
         id: nowPlayingPill
         control: nowPlaying
@@ -644,13 +701,13 @@ PanelWindow {
         Countdown {
             id: countdown
             stowed: (dismissed || !timerModule.wantsExpansion) && !exitHeld
-            mergedIcon: timerModule.pill === clockPill && !timerModule.popupOpen && !drawer.out ? timerModule.icon : null
+            mergedIcon: !timerModule.popupOpen && !drawer.out ? timerModule.icon : null
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
         }
     }
 
-    // Recording sits immediately left of the centre pill, with music beyond it.
+    // Recording, in its place among the pills left of the clock (leftOrder).
     Morph {
         id: recordingMorph
         open: recording.popupOpen
@@ -663,7 +720,7 @@ PanelWindow {
         morphValue: recordingMorph.value
 
         side: Pill.Side.Right
-        edgeOffset: bar.width - bar.clockLeft + Theme.pillSpread
+        edgeOffset: bar.width - bar.recordingEdge + Theme.pillSpread
 
         Recording {
             id: recording
@@ -685,8 +742,7 @@ PanelWindow {
 
         Notice {
             id: notice
-            mergeCandidate: bell.pill === clockPill && clockPill.shown.every(item =>
-                item === bell || item.Layout.column < bell.Layout.column) ? bell.keyBox.children[0] : null
+            mergeCandidate: bell.keyBox.children[0]
             foldDuration: Theme.dropMs
             foldEasing: Easing.Linear
             room: rightPill.x - Theme.pillSpread - (bar.noticeEdge + Theme.pillSpread)
@@ -700,7 +756,7 @@ PanelWindow {
         backdrop: wallpaperImage
         order: RightPillOrder.keys
         reorderPeer: clockPill
-        transferableKeys: Settings.moduleKeys
+        transferableKeys: Settings.movableKeys
         onModuleReceived: key => {
             DrawerPins.setMode(key, "pinned");
             Settings.set(key + "Position", "right");
@@ -723,7 +779,7 @@ PanelWindow {
             id: drawer
             leadingControl: true
             // A tray icon kept in counts, though the tray itself is out.
-            holding: bar.movableModules.some(m => m.here && !m.showsClosed && !DrawerPins.hovers(m.visibilityKey)) || (tray.here && tray.tucks)
+            holding: [...bar.movableModules, ...bar.fusedModules].some(m => m.here && !m.showsClosed && !DrawerPins.hovers(m.visibilityKey)) || (tray.here && tray.tucks)
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null || OpenPopup.selected !== null
@@ -767,22 +823,6 @@ PanelWindow {
             id: downloads
             pinKey: "downloads"
             stowed: !showsClosed && !drawer.out
-            marksPin: drawer.out
-        }
-        NotificationBell {
-            id: bell
-            pinKey: "bell"
-            handingOff: notice.mergedIcon === keyBox.children[0] && (!notice.stowed || notice.reveal > 0)
-            handoffProgress: handingOff ? notice.iconHandoff.progress : 1
-            handoffX: handingOff ? notice.iconHandoff.targetX : 0
-            noticeMerging: notice.stowed && notice.reveal > 0
-                && noticePill.foldBox.x + noticePill.foldBox.z > -Theme.pillSpread
-            // A notice that ran out lands in the bell even when nothing is left
-            // to keep; the empty bell then folds away once the notice is in.
-            // One that was dismissed or cleared just goes.
-            readonly property bool landing: notice.stowed && !Services.Notifications.withdrawn
-            stowed: handingOff ? handoffProgress === 0 || (!showsClosed && !drawer.out && !landing)
-                : !showsClosed && !drawer.out
             marksPin: drawer.out
         }
         Satty {
@@ -890,7 +930,7 @@ PanelWindow {
             if (bar.modelData.name !== screenName)
                 return;
             const moduleKey = {sound: "audio", display: "night", notifications: "bell"}[key] ?? key;
-            const item = bar.movableModules.find(item => item.settingsKey === moduleKey);
+            const item = [...bar.movableModules, ...bar.fusedModules].find(item => item.pinKey === moduleKey);
             if (!item?.here)
                 return;
             controlOpen.interval = item.stowed && !Theme.reduceMotion ? Theme.windupMs + Theme.foldLandMs : 1;
