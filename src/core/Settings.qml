@@ -138,7 +138,6 @@ Singleton {
     readonly property bool lockWeather: root.values.lockWeather !== false
     readonly property bool lockNotifications: root.values.lockNotifications !== false
     readonly property bool lockPreviews: root.values.lockPreviews === true
-    readonly property bool lockParallax: root.values.lockParallax !== false
     readonly property bool lockPower: root.values.lockPower !== false
     readonly property bool lockAsTyped: root.values.lockAsTyped === true
     readonly property int lockPasswordLength: Math.max(0, Math.floor(Number(root.values.lockPasswordLength) || 0))

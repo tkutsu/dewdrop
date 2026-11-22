@@ -147,10 +147,9 @@
     // The lock screen (the launcher's Lock Screen, or `qs ipc call lock lock`).
     // Its glass shows the clock, the weather and the notifications waiting,
     // each with a switch; previews off leaves a notification its app and
-    // time. Parallax lets the wallpaper drift after the pointer (Reduce Motion
-    // keeps it still). As typed is PIN Mode: the password is checked the
-    // moment it is lockPasswordLength characters long, without Return (0
-    // leaves it to Return). A miss asks for Return until the next unlock.
+    // time. As typed is PIN Mode: the password is checked the moment it is
+    // lockPasswordLength characters long, without Return (0 leaves it to
+    // Return). A miss asks for Return until the next unlock.
     // Every check goes through the system's login stack, faillock included.
     // Anyone at the lock can count the length off, so keep it to long
     // passwords.
@@ -160,7 +159,6 @@
     // A notice's words over the password, not only its app and time. Off by
     // default: anyone at the locked screen reads them, codes and chats too.
     "lockPreviews": false,
-    "lockParallax": true,
     // Sleep, Restart and Shut Down at the foot of the lock screen; the last
     // two ask for a second press.
     "lockPower": true,

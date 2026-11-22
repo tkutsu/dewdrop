@@ -12,14 +12,11 @@ import qs.src.services
 //
 // The curtain is the wallpaper as the desktop frames it, faded in over the
 // windows before the session locks and out after it unlocks. The lock's own
-// surfaces start from that same framing, so the lock comes in as the glass
-// alone, while the picture zooms a touch and drifts to follow the pointer;
-// leaving, it drifts back first, and the curtain under it is the same picture.
+// surfaces keep that same framing, so the lock comes and goes as the glass
+// alone, and the curtain under it is the same picture.
 Scope {
     id: root
 
-    // Lock Screen > Parallax, which Reduce Motion overrides.
-    readonly property bool parallax: Settings.lockParallax && !Theme.reduceMotion
     readonly property int coverMs: 320
     readonly property int arriveMs: 700
     readonly property int departMs: 420
@@ -35,14 +32,6 @@ Scope {
             x: backdrop?.pan.fraction ?? 0.5,
             y: Wallpaper.parallaxY
         };
-    }
-
-    // The zoom the lock settles at: room to drift, the wallpaper's own
-    // parallax zoom if it has one.
-    function lockZoom(view: var): real {
-        if (!root.parallax || !view.path)
-            return view.zoom;
-        return Math.max(view.zoom, Settings.wallpaperParallaxZoom > 1 ? Settings.wallpaperParallaxZoom : 1.08);
     }
 
     // Only while a lock is coming, held or going.
@@ -86,7 +75,7 @@ Scope {
                     path: curtain.view.path
                     swatch: curtain.view.swatch
                     zoom: curtain.view.zoom
-                    decodeZoom: root.lockZoom(curtain.view)
+                    decodeZoom: curtain.view.zoom
                     panX: curtain.view.x
                     panY: curtain.view.y
                     onReadyChanged: curtain.follow()
@@ -187,18 +176,9 @@ Scope {
 
             color: "black"
             readonly property var view: root.desktop(surface.screen?.name ?? "")
-            readonly property real lockZoom: root.lockZoom(surface.view)
 
-            // 0 is the desktop's framing without the glass, 1 the lock.
+            // 0 is the desktop without the glass, 1 the lock.
             property real presence: 0
-
-            // Where the pointer points, from 0 to 1 across the screen, and
-            // the crop easing after it.
-            property real aimX: 0.5
-            property real aimY: 0.5
-            property real panX: 0.5
-            property real panY: 0.5
-            property bool aimed: false
 
             function follow(): void {
                 if (Lock.phase === "leave") {
@@ -210,12 +190,7 @@ Scope {
                 }
             }
 
-            // Until the pointer moves, the crop stays where the desktop had it.
-            Component.onCompleted: {
-                surface.aimX = surface.panX = surface.view.x;
-                surface.aimY = surface.panY = surface.view.y;
-                surface.follow();
-            }
+            Component.onCompleted: surface.follow()
 
             Connections {
                 target: Lock
@@ -243,35 +218,16 @@ Scope {
                 onFinished: Lock.left()
             }
 
-            // Ease towards the aim, only while there is somewhere to go.
-            FrameAnimation {
-                running: Math.abs(surface.panX - surface.aimX) > 0.0005 || Math.abs(surface.panY - surface.aimY) > 0.0005
-                onTriggered: {
-                    const k = 1 - Math.exp(-frameTime * 3.5);
-                    surface.panX += (surface.aimX - surface.panX) * k;
-                    surface.panY += (surface.aimY - surface.panY) * k;
-                }
-            }
-
             LockWallpaper {
                 id: scene
 
                 anchors.fill: parent
                 path: surface.view.path
                 swatch: surface.view.swatch
-                decodeZoom: surface.lockZoom
-                zoom: surface.view.zoom + (surface.lockZoom - surface.view.zoom) * surface.presence
-                panX: surface.view.x + ((root.parallax ? surface.panX : surface.view.x) - surface.view.x) * surface.presence
-                panY: surface.view.y + ((root.parallax ? surface.panY : surface.view.y) - surface.view.y) * surface.presence
-            }
-
-            HoverHandler {
-                onPointChanged: {
-                    if (!root.parallax || !point.position)
-                        return;
-                    surface.aimX = Math.max(0, Math.min(1, point.position.x / surface.width));
-                    surface.aimY = Math.max(0, Math.min(1, point.position.y / surface.height));
-                }
+                zoom: surface.view.zoom
+                decodeZoom: surface.view.zoom
+                panX: surface.view.x
+                panY: surface.view.y
             }
 
             LockPanel {

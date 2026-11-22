@@ -550,12 +550,6 @@ OverlayWindow {
                     ]
                 },
                 {
-                    title: "Motion",
-                    rows: [
-                        { type: "toggle", id: "lockParallax", title: "Parallax", text: "The wallpaper drifts after the pointer.", tooltip: "Reduce Motion keeps it still.", get: () => Settings.lockParallax, set: v => Settings.set("lockParallax", v) }
-                    ]
-                },
-                {
                     title: "Password",
                     rows: [
                         { type: "notice", id: "lockPinRisk", title: "PIN Mode Gives Away Your Password's Length",
