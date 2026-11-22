@@ -25,6 +25,9 @@ const defaults = Array.from(normalise([]));
 const equal = (actual, expected) => assert.equal(JSON.stringify(actual), JSON.stringify(expected));
 equal(normalise(['network', 'audio', 'audio', 'obsolete', null]), ['network', 'audio', ...defaults.filter(k => !['network', 'audio'].includes(k))]);
 for (const bad of [null, {}, 'audio', 42]) equal(normalise(bad), defaults);
+// A module listed in `front` that an older saved order lacks starts at the front.
+equal(normalise(['weather', 'datetime'], ['datetime', 'weather', 'privacy', 'audio'], ['privacy']), ['privacy', 'weather', 'datetime', 'audio']);
+equal(normalise(['datetime', 'privacy'], ['datetime', 'privacy', 'audio'], ['privacy']), ['datetime', 'privacy', 'audio']);
 const visible = ['audio', 'tasks', 'network'];
 const moved = Array.from(move(defaults, 'audio', null, visible));
 const expected = [...defaults];
@@ -457,7 +460,7 @@ import Quickshell
 import qs.src.core
 import qs.src.bar
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 19 || RightPillOrder.keys.includes('bell') || RightPillOrder.keys.includes('countdown')) console.log('FAIL: defaults');
+    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 20 || RightPillOrder.keys.includes('bell') || RightPillOrder.keys.includes('countdown')) console.log('FAIL: defaults');
     else if (RightPillOrder.move('audio', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();

@@ -107,7 +107,7 @@ ShellRoot {
                 bar.check(destination.children.some(child => child._at !== undefined && !isNaN(child.target)), 'destination shows insertion line');
                 mouseRelease(destination, x, 20); settle();
                 bar.check(item.pill === destination && !source.dragging, key + ': same live module arrives');
-                bar.check(bar.movableModules.length === 19 && clockPill.modules.length + rightPill.modules.length === 19, 'every module has exactly one instance');
+                bar.check(bar.movableModules.length === 19 && clockPill.modules.length + rightPill.modules.length === 20, 'every module has exactly one instance');
                 bar.check(item.pinKey === key, 'pin controls remain available in either pill');
                 if (destination === rightPill) bar.check(DrawerPins.pinned(key), key + ': transfer automatically pins');
                 else bar.check(!item.stowed && item.visible, key + ': open drawer reveals central modules');
@@ -142,11 +142,14 @@ ShellRoot {
                 bar.check(bell.pill === clockPill && timerModule.pill === clockPill && bell.trailingControl && timerModule.trailingControl
                     && bell.settingsKey === '' && timerModule.settingsKey === '', 'the bell and timers are fused to the centre pill');
                 bar.check(!Settings.moduleKeys.includes('bell') && !Settings.moduleKeys.includes('countdown'), 'fused modules are not ordered');
-                bar.check(centralItems().map(item => item.settingsKey).join(',') === 'datetime', 'Auto hides quiet central weather by default');
-                bar.check(weather.stowed && drawer.holding, 'quiet central module is available through the drawer');
+                bar.check(recordingNote.pill === clockPill && recordingNote.settingsKey === 'privacy' && !recordingNote.leadingControl,
+                    'Privacy is one of the centre pill\'s own modules');
+                bar.check(centralItems().map(item => item.settingsKey).join(',') === 'datetime', 'Auto hides quiet central weather and idle privacy by default');
+                bar.check(weather.stowed && recordingNote.stowed && drawer.holding, 'quiet central modules are available through the drawer');
                 checkCentre('nothing pinned');
                 drawer.open = true; settle();
-                for (const item of [clock, weather, timerModule, bell]) {
+                bar.check(centralItems()[0] === recordingNote, 'Privacy starts left of Date & Time');
+                for (const item of [clock, weather, recordingNote, timerModule, bell]) {
                     const key = item.pinKey;
                     mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(DrawerPins.pinned(key), 'middle click pins central ' + key);
@@ -157,8 +160,13 @@ ShellRoot {
                     mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(DrawerPins.mode(key) === 'auto', 'middle click unpins central ' + key);
                 }
-                for (const item of [clock, weather]) checkFixed(item);
-                drawer.open = false; settle(); waitVisibility(weather, false);
+                for (const item of [clock, weather, recordingNote]) checkFixed(item);
+                // Privacy moves freely inside the centre pill.
+                CentrePillOrder.move('privacy', null, centralItems().map(item => item.settingsKey)); settle();
+                bar.check(centralItems()[centralItems().length - 1] === recordingNote, 'Privacy can move to the right of the other central modules');
+                CentrePillOrder.move('privacy', 'datetime', centralItems().map(item => item.settingsKey)); settle();
+                bar.check(centralItems().indexOf(recordingNote) === centralItems().indexOf(clock) - 1, 'and back just before Date & Time');
+                drawer.open = false; settle(); waitVisibility(weather, false); waitVisibility(recordingNote, false);
 
                 // Centring on the pinned span.
                 DrawerPins.setMode('datetime', 'pinned'); settle();
@@ -185,17 +193,16 @@ ShellRoot {
                 clockPill.putOutside(bell); settle();
                 bar.check(bell.Layout.column > timerModule.Layout.column, 'the bell taking its notice back takes the outer edge');
                 checkCentre('trading the fused notes keeps the centre');
-                // The leading notes keep the order they merged in, newest outside.
+                // The media notes keep the order they merged in, newest outside.
                 clockPill.putOutside(musicNote);
-                clockPill.putOutside(recordingNote);
                 clockPill.putOutside(nowPlayingNote);
-                bar.check(clockPill.leadingOrder[0] === nowPlayingNote && clockPill.leadingOrder[1] === recordingNote && clockPill.leadingOrder[2] === musicNote,
-                    'leading notes stack newest first');
-                bar.check(nowPlayingNote.Layout.column < recordingNote.Layout.column && recordingNote.Layout.column < musicNote.Layout.column
-                    && musicNote.Layout.column < Math.min(...centralItems().map(item => item.Layout.column)), 'leading notes come before the ordered modules, newest outermost');
+                bar.check(clockPill.leadingOrder[0] === nowPlayingNote && clockPill.leadingOrder[1] === musicNote,
+                    'media notes stack newest first');
+                bar.check(nowPlayingNote.Layout.column < musicNote.Layout.column
+                    && musicNote.Layout.column < recordingNote.Layout.column, 'media notes come before the ordered modules, Privacy included, newest outermost');
                 clockPill.putOutside(musicNote);
-                bar.check(clockPill.leadingOrder.map(note => [nowPlayingNote, recordingNote, musicNote].indexOf(note)).join(',') === '2,0,1',
-                    'a note merging again moves out and the others keep their order');
+                bar.check(clockPill.leadingOrder[0] === musicNote && clockPill.leadingOrder[1] === nowPlayingNote,
+                    'a note merging again moves out');
                 DrawerPins.setMode('bell', 'auto'); DrawerPins.setMode('countdown', 'auto');
 
                 // Other modules move both ways, and none is locked in.
@@ -203,10 +210,10 @@ ShellRoot {
                 transfer(audio, clockPill, clock);
                 checkCentre('an Auto module moved between the pinned ones');
                 transfer(network, clockPill, null);
-                bar.check(centralItems().length === 4, 'central modules gather round Date & Time and Weather');
+                bar.check(centralItems().length === 5, 'central modules gather round Date & Time, Weather and Privacy');
                 transfer(audio, rightPill, null);
                 transfer(network, rightPill, null);
-                bar.check(Settings.centralComponents.join(',') === 'weather,datetime' || Settings.centralComponents.join(',') === 'datetime,weather', 'the last movable module can leave the centre');
+                bar.check(Settings.centralComponents.slice().sort().join(',') === 'datetime,privacy,weather', 'the last movable module can leave the centre');
                 DrawerPins.setMode('email', 'drawer');
                 transfer(email, clockPill, null);
                 bar.check(email.quiet && !email.stowed && email.pinKey === 'email', 'open drawer reveals pinnable quiet central module');
@@ -236,7 +243,7 @@ ShellRoot {
                 transfer(tray, rightPill, null);
 
                 // Date & Time, Weather, the fused modules and a right module share the drawer modes.
-                for (const item of [clock, weather, timerModule, bell, audio]) {
+                for (const item of [clock, weather, recordingNote, timerModule, bell, audio]) {
                     const key = item.pinKey;
                     if (DrawerPins.pinned(key)) mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(!DrawerPins.pinned(key), 'middle click unpins ' + key);
@@ -358,7 +365,7 @@ property var centreOrder: CentrePillOrder.keys
 property var rightOrder: RightPillOrder.keys
 property var pins: DrawerPins.pins
 Timer { interval: 150; running: true; onTriggered: {
-    if (centre.slice().sort().join(',') !== 'audio,datetime,weather' || !DrawerPins.kept('datetime') || !DrawerPins.pinned('bell') || JSON.stringify(centreOrder) !== 'CENTRE_ORDER' || JSON.stringify(rightOrder) !== 'RIGHT_ORDER') console.log('FAIL: saved layout or drawer mode: ' + centre.join(','));
+    if (centre.slice().sort().join(',') !== 'audio,datetime,privacy,weather' || !DrawerPins.kept('datetime') || !DrawerPins.pinned('bell') || JSON.stringify(centreOrder) !== 'CENTRE_ORDER' || JSON.stringify(rightOrder) !== 'RIGHT_ORDER') console.log('FAIL: saved layout or drawer mode: ' + centre.join(','));
     else console.log('PASS: module positions, both orders and drawer modes survive restart');
     Qt.quit();
 } } }'''

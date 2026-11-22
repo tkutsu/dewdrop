@@ -37,8 +37,8 @@
     // Drag modules between the central and right pills, or within a pill to
     // reorder them. Moving to the right pins the module; Drawer settings can
     // return it to Auto or keep it behind the chevron, in either pill.
-    // Positions use <module>Position: centre or right. Date & Time and
-    // Weather always stay in the centre pill, and the bell and timers are
+    // Positions use <module>Position: centre or right. Date & Time, Weather
+    // and Privacy always stay in the centre pill, and the bell and timers are
     // fused to its right end; the centre pill centres the span of its pinned
     // modules on the screen, or itself when none is pinned.
 

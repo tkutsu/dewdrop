@@ -7,5 +7,8 @@ import "../lib/RightPillOrder.js" as Order
 // in the right pill.
 PillOrder {
     file: "centre-pill.json"
-    defaults: ["datetime", "weather", ...Order.normalise([]).filter(key => !["datetime", "weather"].includes(key))]
+    defaults: ["privacy", "datetime", "weather", ...Order.normalise([]).filter(key => !["privacy", "datetime", "weather"].includes(key))]
+    // A saved order from before Privacy was a module puts it at the left
+    // end, where its icon used to sit.
+    front: ["privacy"]
 }

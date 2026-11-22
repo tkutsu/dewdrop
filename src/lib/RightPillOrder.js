@@ -1,10 +1,11 @@
 // The modules the pills order. The bell and timers are not among them: they
 // are fused to the centre pill's right end (Bar.qml).
 const defaults = ["audio", "email", "tasks", "updater", "feeds", "downloads", "satty", "idle",
-    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "datetime"];
+    "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language", "weather", "datetime", "privacy"];
 
-// Keep saved positions while accepting modules added since the last drop.
-function normalise(order, supported = defaults) {
+// Keep saved positions while accepting modules added since the last drop:
+// at the end, or at the front for those listed in `front`.
+function normalise(order, supported = defaults, front = []) {
     const keys = [];
     for (let key of Array.isArray(order) ? order : []) {
         if (key === "date" || key === "time")
@@ -12,10 +13,8 @@ function normalise(order, supported = defaults) {
         if (supported.includes(key) && !keys.includes(key))
             keys.push(key);
     }
-    for (const key of supported)
-        if (!keys.includes(key))
-            keys.push(key);
-    return keys;
+    const added = supported.filter(key => !keys.includes(key));
+    return [...added.filter(key => front.includes(key)), ...keys, ...added.filter(key => !front.includes(key))];
 }
 
 // Refill only visible slots, leaving every hidden module in its saved position.

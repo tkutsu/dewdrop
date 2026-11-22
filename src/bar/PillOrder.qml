@@ -11,9 +11,11 @@ Singleton {
 
     required property string file
     property var defaults: Order.normalise([])
+    // Modules that start at the front, not the end, when a saved order lacks them.
+    property var front: []
 
     // JsonAdapter restores arrays as Qt sequences, which fail Array.isArray.
-    readonly property var keys: Order.normalise(Array.from(stored.order ?? []), root.defaults)
+    readonly property var keys: Order.normalise(Array.from(stored.order ?? []), root.defaults, root.front)
 
     function move(key, beforeKey, visibleKeys): bool {
         const next = Order.move(root.keys, key, beforeKey, visibleKeys, root.defaults);

@@ -53,7 +53,7 @@ ShellRoot {
             function run() {
                 Settings.user = {dateFormat: 'd MMM', timeFormat: 'h:mm AP', timeCase: 'lowercase', datePosition: 'right', timePosition: 'centre', reduceMotion: REDUCED};
                 check(Settings.datetimeFormat === 'd MMM h:mm AP' && Settings.datetimeCase === 'lowercase', 'legacy formats combine and preserve casing');
-                check(CentrePillOrder.keys.slice(0, 3).join(',') === 'datetime,weather,email', 'saved central order combines clock slots without duplicates');
+                check(CentrePillOrder.keys.slice(0, 4).join(',') === 'privacy,datetime,weather,email', 'saved central order combines clock slots without duplicates, and Privacy joins it at the front');
                 check(RightPillOrder.keys.slice(0, 2).join(',') === 'datetime,network', 'saved right order retains its clock slot');
                 check(Settings.modulePosition('datetime') === 'centre', 'combined clock inherits time placement');
                 DrawerPins.pins = {time: true, date: false};

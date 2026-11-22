@@ -236,13 +236,16 @@ PanelWindow {
         visible: false
     }
 
-    // The modules the two pills order. Date & Time and Weather never leave
-    // the centre pill (Settings.fixedCentreKeys); the bell and timers are
-    // fused to its right end instead, where they trade places the way the
-    // media notes do on its left (fusedModules).
+    // The modules the two pills order. Date & Time, Weather and Privacy
+    // never leave the centre pill (Settings.fixedCentreKeys; Privacy is
+    // declared there, recordingNote); the bell and timers are fused to its
+    // right end instead, where they trade places the way the media notes do
+    // on its left (fusedModules).
     readonly property var movableModules: [clock, weather, audio, email, tasks, updater, feeds, downloads,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
     readonly property var fusedModules: [bell, timerModule]
+    // Everything with a drawer mode, in either pill.
+    readonly property var drawerModules: [...bar.movableModules, recordingNote, ...bar.fusedModules]
     readonly property var centreKeys: Settings.centralComponents
 
     // Reparent live modules without rebuilding their controls or service state.
@@ -353,19 +356,24 @@ PanelWindow {
             && notice.mergedIcon === bell.keyBox.children[0]
             ? -(bell.width + (bell.visible ? Math.floor(moduleGap / 2) - Theme.pillPad : 0)) : 0
 
-        // Quiet capture controls rest here after their pill has merged.
+        // Privacy: one of the centre pill's own modules, ordered, pinned and
+        // kept in the drawer like Date & Time and Weather, and never moved to
+        // the right pill. Quiet captures rest here once the recording pill
+        // has merged into it; while that pill is out, it carries the icon.
         BarItem {
             id: recordingNote
             name: "Recording"
-            leadingControl: true
+            settingsKey: "privacy"
+            pinKey: "privacy"
+            quiet: !Services.Privacy.active
+            marksPin: drawer.out
             tooltip: Services.Privacy.summary || "No active captures"
-            stowed: !Services.Privacy.active || !recording.iconInCentre
-            onStowedChanged: {
-                if (stowed)
-                    OpenPopup.close(recordingNote);
-                else if (recording.stowed && pill)
-                    pill.putOutside(recordingNote);
-            }
+            stowed: !recording.iconInCentre || (!showsClosed && !drawer.out)
+            onStowedChanged: if (stowed)
+                OpenPopup.close(recordingNote)
+            // The last capture ending closes its controls, pinned or not.
+            onQuietChanged: if (quiet)
+                OpenPopup.close(recordingNote)
             handedOver: recording.iconHandoff.progress < 1
             implicitWidth: Math.round(_fullWidth * _fold * recording.iconHandoff.progress)
             popup: PrivacyPopup {}
@@ -779,7 +787,7 @@ PanelWindow {
             id: drawer
             leadingControl: true
             // A tray icon kept in counts, though the tray itself is out.
-            holding: [...bar.movableModules, ...bar.fusedModules].some(m => m.here && !m.showsClosed && !DrawerPins.hovers(m.visibilityKey)) || (tray.here && tray.tucks)
+            holding: bar.drawerModules.some(m => m.here && !m.showsClosed && !DrawerPins.hovers(m.visibilityKey)) || (tray.here && tray.tucks)
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null || OpenPopup.selected !== null
@@ -930,7 +938,7 @@ PanelWindow {
             if (bar.modelData.name !== screenName)
                 return;
             const moduleKey = {sound: "audio", display: "night", notifications: "bell"}[key] ?? key;
-            const item = [...bar.movableModules, ...bar.fusedModules].find(item => item.pinKey === moduleKey);
+            const item = bar.drawerModules.find(item => item.pinKey === moduleKey);
             if (!item?.here)
                 return;
             controlOpen.interval = item.stowed && !Theme.reduceMotion ? Theme.windupMs + Theme.foldLandMs : 1;

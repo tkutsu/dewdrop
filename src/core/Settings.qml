@@ -32,9 +32,9 @@ Singleton {
     readonly property string groupWindowBadgeStyle: root.user.groupWindowBadgeStyle
         ?? (root.user.groupWindowBadges === true ? "badge" : root.values.groupWindowBadgeStyle ?? "hide")
     readonly property var moduleKeys: ModuleOrder.normalise([])
-    // Date & Time and Weather belong to the centre pill; the rest can be
-    // dragged between the two pills.
-    readonly property var fixedCentreKeys: ["datetime", "weather"]
+    // Date & Time, Weather and Privacy belong to the centre pill; the rest
+    // can be dragged between the two pills.
+    readonly property var fixedCentreKeys: ["datetime", "weather", "privacy"]
     readonly property var movableKeys: root.moduleKeys.filter(key => !root.fixedCentreKeys.includes(key))
     readonly property var centralComponents: root.moduleKeys.filter(key => root.savedPosition(key) === "centre")
     readonly property string weatherDisplay: ["hour", "average", "worst", "day"].includes(root.values.weatherDisplay)

@@ -321,7 +321,7 @@ def main():
     qml = qml.replace("BELL", block(bar, "id: bell", "NotificationBell {"))
     qml = qml.replace("NOTICE", block(bar, "id: noticePill", "SidePill {"))
     motion_start = bar.index("        animatePosition:")
-    motion_end = bar.index("        // Quiet capture controls", motion_start)
+    motion_end = bar.index("        // Privacy: one of the centre pill", motion_start)
     qml = qml.replace("CENTRE_MOTION", bar[motion_start:motion_end])
     for placeholder, name in (("RIGHT_LIP", "rightLip"), ("CLOCK_GLASS", "clockGlass")):
         declaration = re.search(r"^    readonly property [^\n]+ " + name + r": .+$", bar, re.M)

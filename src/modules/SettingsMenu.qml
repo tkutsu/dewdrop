@@ -208,6 +208,7 @@ OverlayWindow {
             language: { title: "Keyboard Layout", glyph: Theme.glyph.keyboard },
             datetime: { title: "Date & Time", glyph: Theme.glyph.calendar },
             weather: { title: "Weather", glyph: Theme.glyph.weather },
+            privacy: { title: "Privacy", glyph: Theme.glyph.mic },
             countdown: { title: "Timers", glyph: Theme.glyph.timer }
         })
 
@@ -442,7 +443,7 @@ OverlayWindow {
             sections: [
                 {
                     title: "Module Visibility",
-                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them; Date & Time and Weather stay in the centre pill. Notifications and Timers are fused to its right end.",
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end.",
                     rows: [...RightPillOrder.keys, "bell", "countdown"].filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {

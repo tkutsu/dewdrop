@@ -99,8 +99,9 @@ ShellRoot {
         Pill {
             id: centrePill
             side: Pill.Side.Centre
-            order: ["clock"]
+            order: ["privacy", "clock"]
             centreOn: clock.keyBox
+            QtObject { id: drawer; property bool out: false }
             RECORDING_NOTE
             BarItem { id: clock; settingsKey: "clock"; BarText { text: "Clock" } }
         }
