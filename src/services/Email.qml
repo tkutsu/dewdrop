@@ -63,12 +63,11 @@ GoogleService {
     property string snapshot: ""
 
     // What the popup did that has not reached Gmail yet, oldest first, each
-    // {kind, row, list, wasOpen, said, also, at}. Every action from
-    // the popup waits undoMs, so a slip is one click to take back; the row
-    // has left the list already, so the wait costs nothing. Closing the
-    // popup sends whatever is still waiting.
+    // {kind, row, list, wasOpen, said, also}. Every action from the popup
+    // waits for it to close, so Undo takes them back one by one for as long
+    // as it is open; the row has left the list already, so the wait costs
+    // nothing. Closing the popup sends whatever is still waiting.
     property var pending: []
-    readonly property int undoMs: 4000
     // An undone row back in its list, for the popup to reopen it.
     signal restored(var row, bool wasOpen)
 
@@ -1083,7 +1082,7 @@ GoogleService {
             unstar: "Unstarred"
         })
 
-    // A verb from the popup: done here at once, sent to Gmail undoMs later.
+    // A verb from the popup: done here at once, sent to Gmail as it closes.
     // Archive and read take the row out of its list; a star stays and only
     // turns. `options` may carry wasOpen (the row was the open one, so an
     // undo opens it again), said (the undo button's words, for a compound action)
@@ -1098,15 +1097,13 @@ GoogleService {
             list: list,
             wasOpen: !!o.wasOpen,
             said: o.said ?? root.said[kind],
-            also: o.also ?? null,
-            at: Date.now()
+            also: o.also ?? null
         };
         if (kind === "star" || kind === "unstar")
             root.restar(row.id, kind === "star");
         else
             root.drop(row);
         root.pending = root.pending.concat([entry]);
-        root.arm();
     }
 
     // Take back the latest action that has not gone yet.
@@ -1119,36 +1116,14 @@ GoogleService {
             root.restar(entry.row.id, entry.kind !== "star");
         else
             root.restore(entry);
-        root.arm();
     }
 
     // Everything still waiting, now: the popup closing.
     function flush(): void {
         const all = root.pending;
         root.pending = [];
-        root.arm();
         for (const entry of all)
             root.commit(entry);
-    }
-
-    // Send what has waited its undoMs, and wait for the next one.
-    function commitDue(): void {
-        const now = Date.now();
-        const due = root.pending.filter(p => now - p.at >= root.undoMs);
-        root.pending = root.pending.filter(p => now - p.at < root.undoMs);
-        root.arm();
-        for (const entry of due)
-            root.commit(entry);
-    }
-
-    function arm(): void {
-        const first = root.pending[0];
-        if (!first) {
-            dueTimer.stop();
-            return;
-        }
-        dueTimer.interval = Math.max(1, first.at + root.undoMs - Date.now());
-        dueTimer.restart();
     }
 
     function commit(entry: var): void {
@@ -1260,11 +1235,6 @@ GoogleService {
     function compose(subject: string): void {
         const su = subject ? `&su=${encodeURIComponent(subject)}` : "";
         Quickshell.execDetached(Settings.webApp("gmail", `${root.web}?view=cm&fs=1${su}`, root.web));
-    }
-
-    Timer {
-        id: dueTimer
-        onTriggered: root.commitDue()
     }
 
     Component {

@@ -57,12 +57,10 @@ STATE = '''
     property bool otherWanted: false
     property var categories: ["primary"]
     property var pending: []
-    property int undoMs: 4000
     property var said: ({archive: "Archived", read: "Marked read", star: "Starred", unstar: "Unstarred"})
     signal restored(var row, bool wasOpen)
     property var restoredWith: null
     onRestored: (row, wasOpen) => restoredWith = {id: row.id, wasOpen: wasOpen}
-    Timer { id: dueTimer; onTriggered: root.commitDue() }
     property bool loaded: false
     property string snapshot: ""
     property string trouble: ""
@@ -501,11 +499,16 @@ class EmailTests(unittest.TestCase):
         others = ','.join('sut.rowOf({id:"%s"},{messages:[{id:"m%s",internalDate:%d,labelIds:["UNREAD"]}]})' % (i, i, 50 - n) for n, i in enumerate(other))
         self.js('sut.threads=[%s]; sut.total=%d; sut.otherThreads=[%s]; sut.other=%d; sut.loaded=true;' % (rows, len(ids), others, len(other)))
 
-    def test_action_waits_then_commits(self):
-        self.seed(['a', 'b'])
-        self.js('sut.undoMs = 60; sut.act("archive", sut.threads[0]);')
-        self.check('sut.threads.map(t=>t.id).join() === "b" && sut.total === 1 && sut.pending.length === 1 && sut.requests.length === 0')
-        QTest.qWait(120)
+    def test_actions_wait_for_the_popup_to_close(self):
+        self.seed(['a', 'b', 'c'])
+        self.js('sut.act("archive", sut.threads[0]); sut.act("archive", sut.threads[0]);')
+        self.check('sut.threads.map(t=>t.id).join() === "c" && sut.total === 1 && sut.pending.length === 2 && sut.requests.length === 0')
+        QTest.qWait(150)
+        self.check('sut.pending.length === 2 && sut.requests.length === 0')
+        # Every one can still be taken back, latest first.
+        self.js('sut.undo();')
+        self.check('sut.threads.map(t=>t.id).join() === "b,c" && sut.pending.length === 1')
+        self.js('sut.flush();')
         self.check('sut.pending.length === 0 && sut.requests.length === 1')
         self.check('sut.requests[0].url.endsWith("threads/a/modify") && JSON.stringify(sut.requests[0].body.removeLabelIds) === \'["INBOX","UNREAD"]\'')
 
@@ -877,7 +880,7 @@ class EmailTests(unittest.TestCase):
         self.check('!popup.testList.itemAt(0).showVerbs')
         self.js('popup.expanded = "a";')
         self.check('popup.testList.itemAt(0).showVerbs')
-        self.js('sut.act("star", sut.threads[1]); sut.undoMs = 60000;')
+        self.js('sut.act("star", sut.threads[1]);')
         row = self.js('return popup.testList.itemAt(1);')
         self.button(row, 'Unstar')
 
