@@ -181,11 +181,12 @@
     // and ghostty all do). Empty uses the first of those installed.
     "terminal": "",
 
-    // What a right click on Network, Bluetooth and System opens, and the
-    // button in each popup. Empty hides the button. The monitor runs in the
-    // terminal.
+    // What a right click on Network, Bluetooth, Disks and System opens, and
+    // the button in each popup. Empty hides the button. The monitor runs in
+    // the terminal.
     "networkCommand": "nm-connection-editor",
     "bluetoothCommand": "blueman-manager",
+    "disksCommand": "gnome-disks",
     "monitorCommand": "btop",
 
     // For the launcher's files. Empty: $EDITOR, or nvim without one.

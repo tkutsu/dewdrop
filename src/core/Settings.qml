@@ -85,11 +85,12 @@ Singleton {
     readonly property string cleanupCommand: (root.values.cleanupCommand ?? "").trim()
     readonly property bool commandsInTerminal: root.values.commandsInTerminal !== false
     readonly property string sessionSaveCommand: (root.values.sessionSaveCommand ?? "").trim()
-    // What a right click on Network, Bluetooth or System opens, and the
-    // button in its popup. Empty hides the button. The monitor runs in the
-    // terminal.
+    // What a right click on Network, Bluetooth, Disks or System opens, and
+    // the button in its popup. Empty hides the button. The monitor runs in
+    // the terminal.
     readonly property string networkCommand: (root.values.networkCommand ?? "").trim()
     readonly property string bluetoothCommand: (root.values.bluetoothCommand ?? "").trim()
+    readonly property string disksCommand: (root.values.disksCommand ?? "").trim()
     readonly property string monitorCommand: (root.values.monitorCommand ?? "").trim()
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []

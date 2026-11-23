@@ -3,10 +3,10 @@ import Quickshell
 import qs.src.core
 import qs.src.services
 
-// Each drive with how much is on it, a click on it to open it in the file
+// Each disk with how much is on it, a click on it to open it in the file
 // manager (or mount it, if nothing on it is), and the eject at its right edge
 // to take it out safely. Under them, the batteries of wired things that have
-// one.
+// one. Disk Utility (disksCommand) is the header's way out.
 Popup {
     id: root
 
@@ -25,7 +25,32 @@ Popup {
 
     PopupHeader {
         width: root.bodyWidth
-        title: "Devices"
+        title: "Disks"
+
+        PopupButton {
+            readonly property var command: Settings.helper(Settings.disksCommand, false)
+
+            visible: command.length > 0
+            framed: true
+            glyph: Theme.glyph.openApp
+            name: "Disk Utility"
+            onTapped: {
+                OpenPopup.dismiss();
+                Quickshell.execDetached(command);
+            }
+        }
+    }
+
+    NeedsNote {
+        width: root.bodyWidth
+        feature: "Disk Utility"
+        programs: Settings.disksCommand ? [Settings.program(Settings.disksCommand)] : []
+    }
+
+    PopupNote {
+        width: root.bodyWidth
+        visible: Drives.drives.length === 0
+        text: "No external disks"
     }
 
     Repeater {

@@ -34,6 +34,10 @@ ShellRoot {
                 check(Math.abs(name.mapToItem(row, 0, 0).y + name.height / 2 - row.height / 2) <= 1, "name is centred in the row");
                 check(name.truncated, "long name elides");
                 check(name.mapToItem(row, name.width, 0).x <= usage.mapToItem(row, 0, 0).x, "name ends before the size");
+                const empty = find(popup, "No external disks");
+                check(empty && !empty.visible, "the empty note stays hidden while a disk is in");
+                Drives.drives = [];
+                check(empty.visible, "with nothing plugged in the popup says so");
             }
         }
         Timer { interval: 100; running: true; onTriggered: { try { test.run(); } catch (e) { console.log("FAIL: " + e + "\\n" + e.stack); } Qt.quit(); } }
@@ -45,7 +49,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="quickshell-drives-popup-") as folder:
         target = fixture_root(folder)
         copy_shell(target)
-        (target / "src/core/Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
+        (target / "src/core/Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property var values: ({}); property string disksCommand: ""; function helper(c, t) { return []; } function program(c) { return ""; } }')
         (target / "src/components/Popup.qml").write_text('import QtQuick\nColumn { property real hPadding: 6; property real vPadding: 6 }')
         (target / "src/services/Drives.qml").write_text('''pragma Singleton
 import QtQuick
@@ -64,7 +68,7 @@ QtObject {
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=shell_env(target), capture_output=True, text=True, timeout=5)
         output = result.stdout + result.stderr
         print(output, end='')
-        assert result.returncode == 0 and output.count('PASS:') == 6 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
+        assert result.returncode == 0 and output.count('PASS:') == 8 and not any(error in output for error in ('FAIL:', 'TypeError:', 'ReferenceError:', 'Unable to assign', 'Binding loop')), output
 
 
 if __name__ == '__main__':

@@ -201,7 +201,7 @@ OverlayWindow {
             night: { title: "Night Mode", glyph: Theme.glyph.nightOff },
             sys: { title: "System", glyph: Theme.glyph.gauge },
             settings: { title: "Settings", glyph: Theme.glyph.settings },
-            drives: { title: "Drives", glyph: Theme.glyph.drive },
+            drives: { title: "Disks", glyph: Theme.glyph.drive },
             bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth },
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] },
             tray: { title: "Tray", glyph: Theme.glyph.tray },
@@ -233,6 +233,7 @@ OverlayWindow {
             night: [NightMode.needs, "hyprsunset"].filter(name => name !== ""),
             network: Settings.networkCommand ? [Settings.program(Settings.networkCommand)] : [],
             bluetooth: Settings.bluetoothCommand ? [Settings.program(Settings.bluetoothCommand)] : [],
+            drives: Settings.disksCommand ? [Settings.program(Settings.disksCommand)] : [],
             sys: Settings.monitorCommand ? [Settings.program(Settings.monitorCommand), Tools.terminal] : [],
             email: ["notify-send"]
         })
@@ -681,6 +682,7 @@ OverlayWindow {
                     rows: [
                         root.helperRow("networkCommand", "Network", Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], ""),
                         root.helperRow("bluetoothCommand", "Bluetooth", Theme.glyph.bluetooth, ""),
+                        root.helperRow("disksCommand", "Disks", Theme.glyph.drive, ""),
                         root.helperRow("monitorCommand", "System", Theme.glyph.gauge, "Runs in the terminal.")
                     ]
                 },
