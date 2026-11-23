@@ -41,7 +41,6 @@ BarItem {
             : (root.landing || root.stowed) && root.landingGlyph ? root.landingGlyph : Theme.glyph.timer
         alternates: Services.Timers.glyphs
         badge: root.activeCount > 0 && Settings.badgeStyle("countdown") !== "hide" ? String(root.activeCount) : ""
-        dot: Settings.badgeStyle("countdown") === "dot"
         underdot: Settings.badgeStyle("countdown") === "underdot"
         opacity: root.expanded ? 0 : root.handoffProgress
         transform: [

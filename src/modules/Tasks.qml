@@ -32,7 +32,6 @@ BarItem {
         glyph: Tasks.icon
         glyphSize: Theme.glyphSizeLarge
         badge: Settings.badgeStyle("tasks") === "hide" ? "" : Tasks.label
-        dot: Settings.badgeStyle("tasks") === "dot"
         underdot: Settings.badgeStyle("tasks") === "underdot"
     }
 

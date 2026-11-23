@@ -92,7 +92,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='qs-workspace-badge-') as folder:
         target = fixture_root(folder)
         copy_shell(target)
-        (target / 'settings.json').write_text('{"groupWindowBadges": true}\n')
+        (target / 'settings.json').write_text('{"groupWindowBadgeStyle": "badge"}\n')
         (target / 'shell.qml').write_text(qml)
         result = subprocess.run(
             ['qs', '-p', str(target), '--no-color'], capture_output=True, text=True, timeout=15,

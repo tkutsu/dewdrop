@@ -44,11 +44,8 @@ ShellRoot {
             const missing = Object.keys(Settings.defaults).filter(key => !covered.has(key));
             check(missing.length === 0, "every default preference is reachable (missing: " + missing.join(", ") + ")");
             function sections(title) { return menu.pages.find(p => p.title === title).sections.map(s => s.title).join("|"); }
-            check(sections("Bar") === "Displays|Workspaces|Centre Pill", "Bar contains only its short general preferences");
-            check(row("centrePillRecoil").get() === true, "centre pill recoil stays enabled by default");
-            check(hits("recoil").includes("centrePillRecoil"), "search finds centre pill recoil");
-            row("centrePillRecoil").set(false);
-            check(!Settings.centrePillRecoil, "centre pill recoil can be disabled independently");
+            check(sections("Bar") === "Displays|Workspaces", "Bar contains only its short general preferences");
+            check(hits("recoil").includes("reduceMotion"), "search for recoil finds Reduce Motion, which stops it");
             check(sections("Modules") === "Module Visibility|Tray Icons", "module visibility has a dedicated page");
             check(menu.pages.find(p => p.title === "Weather").sections.find(s => s.title === "Display").rows.map(r => r.id).join("|") === "weatherDisplay|weatherFormat|weatherUnit", "weather has a dedicated tab for forecast, format and units");
             check(row("weatherDisplay").options.map(o => o.value).join("|") === "hour|average|worst|day", "weather offers current, six-hour average, worst and today forecasts");
@@ -111,11 +108,9 @@ ShellRoot {
             check(Settings.screens.length === 0 && menu.displayRows.length === 1, "All Displays restores the empty-array default");
 
             check(row("groupWindowBadgeStyle").get() === "hide", "group indicators are opt-in");
-            Settings.set("groupWindowBadges", true);
-            check(row("groupWindowBadgeStyle").get() === "badge", "legacy group counts remain enabled");
             for (const style of ["badge", "hide", "dot"]) {
                 row("groupWindowBadgeStyle").set(style);
-                check(Settings.groupWindowBadgeStyle === style, "group indicator choice overrides the legacy preference: " + style);
+                check(Settings.groupWindowBadgeStyle === style, "group indicator choice applies: " + style);
             }
 
             Settings.set("font", "Unavailable Test Family");
@@ -131,11 +126,6 @@ ShellRoot {
             Keyboard.layouts = [];
             check(menu.layoutRows.length === 0, "no configured layouts produces no label rows");
             Keyboard.layouts = [{name: "Greek"}, {name: "English (US)"}];
-            check(!ids.includes("layoutChangeShowModule"), "reveal-only setting is folded into Show And Bounce");
-            Settings.user = Object.assign({}, Settings.user, {layoutChangeShowModule: true, layoutChangeBounce: false});
-            check(Settings.layoutChangeBounce, "old reveal-only preference enables combined feedback");
-            row("layoutChangeBounce").set(false);
-            check(!Settings.layoutChangeBounce && !("layoutChangeShowModule" in Settings.user), "combined feedback can be disabled after migration");
             for (const id of ["layoutChangeNotification", "layoutChangeBounce"]) {
                 row(id).set(true); check(Settings[id], "new keyboard feedback preference remains editable: " + id);
             }
@@ -223,7 +213,7 @@ import qs.src.core
 ShellRoot { Timer { interval: 100; running: true; onTriggered: {
     const ok = Settings.values.terminal === "test-terminal" && Settings.values.editor === "test-editor"
         && Settings.layoutNames.Offline === "ZZ" && Settings.layoutChangeBounce && Settings.wallpaperParallaxZoom === 1.22
-        && Settings.groupWindowBadgeStyle === "dot" && !Settings.centrePillRecoil && Settings.ephemeralNotificationApps.includes("Fixture App")
+        && Settings.groupWindowBadgeStyle === "dot" && Settings.ephemeralNotificationApps.includes("Fixture App")
         && !Settings.ephemeralNotificationApps.includes("Gmail") && Settings.ephemeralNotificationApps.includes("Email");
     console.log(ok ? "PASS: settings reopen" : "FAIL: settings reopen"); Qt.quit();
 } } }''')

@@ -36,7 +36,6 @@ BarItem {
         glyph: Updates.icon
         glyphSize: Theme.glyphSizeLarge
         badge: Settings.badgeStyle("updater") === "hide" ? "" : Updates.label
-        dot: Settings.badgeStyle("updater") === "dot"
         underdot: Settings.badgeStyle("updater") === "underdot"
     }
 

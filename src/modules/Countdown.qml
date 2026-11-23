@@ -178,7 +178,6 @@ BarItem {
             alternates: Timers.glyphs
             glyphSize: Theme.glyphSizeLarge
             badge: root.runningCount > 0 && Settings.badgeStyle("countdown") !== "hide" ? String(root.runningCount) : ""
-            dot: Settings.badgeStyle("countdown") === "dot"
             underdot: Settings.badgeStyle("countdown") === "underdot"
             transform: Translate { y: bounce.offset }
         }

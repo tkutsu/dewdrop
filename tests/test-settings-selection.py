@@ -35,12 +35,12 @@ ShellRoot {
         function event(data) { FakeHyprland.rawEvent({name: "custom", data}); }
         function run() {
             Preferences.shown = true;
-            menu.query = "mail badge";
+            menu.query = "bar forecast";
             wait(400);
-            const row = find(menu.contentItem, i => i.setting?.id === "emailBadgeStyle" && i.controls !== undefined);
-            check(row !== null, "badge setting is rendered");
+            const row = find(menu.contentItem, i => i.setting?.id === "weatherDisplay" && i.controls !== undefined);
+            check(row !== null, "forecast setting is rendered");
             const box = row.children.find(c => c.toString().startsWith("QQuickLoader")).item;
-            for (const value of ["underdot", "dot", "badge", "hide"]) {
+            for (const value of ["average", "worst", "day", "hour"]) {
                 mouseMove(box, box.width / 2, box.height / 2);
                 mouseClick(box, box.width / 2, box.height / 2);
                 tryVerify(() => box.popup.visible);
@@ -54,7 +54,7 @@ ShellRoot {
                 mouseClick(option, option.width / 2, option.height / 2);
                 event("click-release");
                 tryVerify(() => !box.popup.visible);
-                check(Settings.badgeStyle("email") === value, "selection applies: " + value);
+                check(Settings.weatherDisplay === value, "selection applies: " + value);
                 check(Preferences.shown, "Settings stays open after selecting " + value);
                 check(!box.popup.visible, "only dropdown closes after selecting " + value);
             }
@@ -65,7 +65,7 @@ ShellRoot {
             wait(100);
             check(!box.popup.visible && Preferences.shown, "closing the dropdown keeps Settings open");
 
-            for (const [query, id] of [["group windows", "groupWindows"], ["group indicator", "groupWindowBadgeStyle"]]) {
+            for (const [query, id] of [["group windows", "groupWindows"], ["group indicator", "groupWindowBadgeStyle"], ["mail badge", "emailBadgeStyle"]]) {
                 menu.query = query;
                 wait(100);
                 const setting = find(menu.contentItem, i => i.setting?.id === id && i.controls !== undefined);

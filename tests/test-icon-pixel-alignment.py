@@ -61,7 +61,7 @@ ShellRoot {
                     "notification has no residual scaling or blur");
             }
             function run() {
-                DrawerPins.pins = {time: true}; wait(700);
+                DrawerPins.pins = {datetime: true}; wait(700);
                 settled("bell hidden");
                 Notifications.waiting = 1; wait(700);
                 settled("bell visible with a pinned time anchor");

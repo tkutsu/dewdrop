@@ -3,7 +3,6 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import "../lib/RightPillOrder.js" as ModuleOrder
 
 // Everything that differs from one machine to the next: which monitors,
 // the clock's format, fonts, the apps the bar opens, where the
@@ -29,14 +28,7 @@ Singleton {
     // --- values --------------------------------------------------------------
     readonly property var screens: root.values.screens ?? []
     readonly property bool groupWindows: root.values.groupWindows === true
-    readonly property string groupWindowBadgeStyle: root.user.groupWindowBadgeStyle
-        ?? (root.user.groupWindowBadges === true ? "badge" : root.values.groupWindowBadgeStyle ?? "hide")
-    readonly property var moduleKeys: ModuleOrder.normalise([])
-    // Date & Time, Weather and Privacy belong to the centre pill; the rest
-    // can be dragged between the two pills.
-    readonly property var fixedCentreKeys: ["datetime", "weather", "privacy"]
-    readonly property var movableKeys: root.moduleKeys.filter(key => !root.fixedCentreKeys.includes(key))
-    readonly property var centralComponents: root.moduleKeys.filter(key => root.savedPosition(key) === "centre")
+    readonly property string groupWindowBadgeStyle: ["dot", "badge"].includes(root.values.groupWindowBadgeStyle) ? root.values.groupWindowBadgeStyle : "hide"
     readonly property string weatherDisplay: ["hour", "average", "worst", "day"].includes(root.values.weatherDisplay)
         ? root.values.weatherDisplay : "hour"
     readonly property string weatherFormat: root.values.weatherFormat || "{icon}{temp}°"
@@ -73,17 +65,8 @@ Singleton {
         ? root.values.weatherUnit : "celsius"
     // Checked against the models the Weather service offers.
     readonly property string weatherModel: root.values.weatherModel ?? "best_match"
-    readonly property bool centrePillRecoil: root.values.centrePillRecoil !== false
-    readonly property string caretAnimation: ["phase", "blink", "static"].includes(root.values.caretAnimation) ? root.values.caretAnimation : "phase"
-    readonly property string caretShape: root.values.caretShape === "block" ? "block" : "line"
-    readonly property string datetimeFormat: root.user.datetimeFormat
-        ?? (root.user.dateFormat !== undefined || root.user.timeFormat !== undefined
-            ? [root.user.dateFormat ?? "ddd d MMM", root.user.timeFormat ?? "HH:mm"].filter(Boolean).join(" ")
-            : root.defaults.datetimeFormat ?? "ddd d MMM HH:mm")
-    readonly property string datetimeCase: {
-        const mode = root.user.datetimeCase ?? root.user.timeCase ?? root.user.dateCase ?? root.defaults.datetimeCase ?? "normal";
-        return ["normal", "uppercase", "lowercase"].includes(mode) ? mode : "uppercase";
-    }
+    readonly property string datetimeFormat: root.values.datetimeFormat ?? "ddd d MMM HH:mm"
+    readonly property string datetimeCase: ["normal", "uppercase", "lowercase"].includes(root.values.datetimeCase) ? root.values.datetimeCase : "normal"
     // Alarm readouts use the same casing and hour notation as Date & Time.
     readonly property string timeCase: root.datetimeCase
     readonly property string dateOrder: ["dmy", "mdy", "ymd"].includes(root.values.dateOrder) ? root.values.dateOrder : "dmy"
@@ -91,7 +74,7 @@ Singleton {
     readonly property bool twelveHour: /AP|ap/.test(root.datetimeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
     readonly property bool layoutChangeNotification: root.values.layoutChangeNotification === true
-    readonly property bool layoutChangeBounce: root.values.layoutChangeBounce === true || root.user.layoutChangeShowModule === true
+    readonly property bool layoutChangeBounce: root.values.layoutChangeBounce === true
     readonly property string font: root.values.font ?? ""
     readonly property string monoFont: root.values.monoFont ?? ""
     // The setting, or the first terminal installed (Tools.terminals).
@@ -130,7 +113,6 @@ Singleton {
     readonly property string downloadsDir: root.expand(root.values.downloadsDir || "~/Downloads")
     readonly property string wallpaperDir: root.expand(root.values.wallpaperDir ?? "")
     readonly property real wallpaperParallaxZoom: Math.max(1, Number(root.values.wallpaperParallaxZoom ?? 1) || 1)
-    readonly property bool glassWorkspaceMark: root.values.glassWorkspaceMark !== false
     // The lock screen: what the glass shows, whether the picture follows the
     // pointer, and PIN Mode: whether the password is checked without Return
     // once it is lockPasswordLength long.
@@ -170,19 +152,8 @@ Singleton {
             return;
         }
         const user = Object.assign({}, root.user, { [key]: value });
-        // The old reveal-only preference is now part of Show And Bounce.
-        if (key === "layoutChangeBounce")
-            delete user.layoutChangeShowModule;
         root.user = user;
         userFile.setText("// This machine's settings over settings.default.json, which documents\n// each one. The settings window (the gear) rewrites this file.\n" + JSON.stringify(user, null, 4) + "\n");
-    }
-
-    function modulePosition(key: string): string {
-        return root.centralComponents.includes(key) ? "centre" : "right";
-    }
-
-    function savedPosition(key: string): string {
-        return root.fixedCentreKeys.includes(key) ? "centre" : root.values[key + "Position"] ?? "right";
     }
 
     // An empty override restores the title supplied by the feed.
@@ -211,7 +182,7 @@ Singleton {
 
     function badgeStyle(key: string): string {
         const style = root.values[key + "BadgeStyle"];
-        return ["dot", "underdot", "hide"].includes(style) ? style : "badge";
+        return ["underdot", "hide"].includes(style) ? style : "badge";
     }
 
     // Apply casing to the complete label before it is drawn in character columns.

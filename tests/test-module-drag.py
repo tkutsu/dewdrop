@@ -38,7 +38,7 @@ ShellRoot {
         Pill { id: clockPill; visible: false }
         Pill {
             id: rightPill
-            order: RightPillOrder.keys
+            place: "right"
             drawsSlab: false
             BarItem {
                 id: audio; pinKey: "audio"
@@ -71,7 +71,7 @@ ShellRoot {
     IpcHandler {
         target: "fixture"
         function state(): string {
-            return JSON.stringify({order: RightPillOrder.keys, dragging: rightPill.dragging,
+            return JSON.stringify({order: ModulePlaces.right, dragging: rightPill.dragging,
                 open: OpenPopup.owner !== null,
                 items: [audio, email, network].map(item => ({key: item.settingsKey,
                     x: item.mapToItem(bar.contentItem, item.width / 2, 0).x,
@@ -146,8 +146,8 @@ def main():
                     assert not after["dragging"] and not after["open"], "release must finish drag and dismiss popup"
                     visible = [key for key in after["order"] if key in ("audio", "email", "network")]
                     assert visible[-1 if direction == 1 else 0] == "audio", "module did not move to the dropped slot"
-                    saved = json.loads((target / "state/quickshell/right-pill.json").read_text())
-                    assert saved["order"] == after["order"], "drop was not persisted"
+                    saved = json.loads((target / "state/quickshell/modules.json").read_text())
+                    assert saved["right"] == after["order"], "drop was not persisted"
                     print("PASS: real Wayland popup and module drag", "right" if direction == 1 else "left", flush=True)
                 before = state()
                 source = next(item for item in before["items"] if item["key"] == "audio")

@@ -1339,7 +1339,7 @@ def check_menu(target, env):
     (modules / "PowerVeil.qml").write_text(offscreen(veil))
     (target / "src/core/Theme.qml").write_text((ROOT / "src/core/Theme.qml").read_text())
     settings = target / "src/core/Settings.qml"
-    settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property string caretAnimation: "phase"; property string caretShape: "line"; property var disabled:').replace('property string launcherHints: "off"', 'property string launcherHints: "cycle"'))
+    settings.write_text(settings.read_text().replace("property var disabled:", 'property string font: "Inter"; property string monoFont: "monospace"; property bool reduceMotion: false; property bool reduceTransparency: false; property var disabled:').replace('property string launcherHints: "off"', 'property string launcherHints: "cycle"'))
     components = target / "src/components"
     (components / "Rim.qml").write_text((ROOT / "src/components/Rim.qml").read_text())
     (components / "TextCaret.qml").write_text((ROOT / "src/components/TextCaret.qml").read_text())

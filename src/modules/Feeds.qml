@@ -27,7 +27,6 @@ BarItem {
         glyph: Feeds.icon
         glyphSize: Theme.glyphSizeLarge
         badge: Settings.badgeStyle("feeds") === "hide" ? "" : Feeds.label
-        dot: Settings.badgeStyle("feeds") === "dot"
         underdot: Settings.badgeStyle("feeds") === "underdot"
     }
 

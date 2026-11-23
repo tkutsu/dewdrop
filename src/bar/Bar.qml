@@ -237,7 +237,7 @@ PanelWindow {
     }
 
     // The modules the two pills order. Date & Time, Weather and Privacy
-    // never leave the centre pill (Settings.fixedCentreKeys; Privacy is
+    // never leave the centre pill (ModulePlaces.fixedCentre; Privacy is
     // declared there, recordingNote); the bell and timers are fused to its
     // right end instead, where they trade places the way the media notes do
     // on its left (fusedModules).
@@ -246,7 +246,7 @@ PanelWindow {
     readonly property var fusedModules: [bell, timerModule]
     // Everything with a drawer mode, in either pill.
     readonly property var drawerModules: [...bar.movableModules, recordingNote, ...bar.fusedModules]
-    readonly property var centreKeys: Settings.centralComponents
+    readonly property var centreKeys: ModulePlaces.centre
 
     // Reparent live modules without rebuilding their controls or service state.
     function placeModules(): void {
@@ -268,8 +268,8 @@ PanelWindow {
     // Whichever pill is against the clock's left end, whose drop pushes it out.
     readonly property Item clockNeighbour: bar.leftOrder.find(item => item.reveal > 0) ?? bar.leftOrder[bar.leftOrder.length - 1]
     readonly property real clockNeighbourReveal: bar.clockNeighbour === music ? musicPill.dropReveal : bar.clockNeighbour.reveal
-    readonly property real leftLip: Settings.centrePillRecoil ? bar.drops.lip(bar.clockNeighbourReveal, bar.clockNeighbour.stowed) * clockPill.recoilStrength : 0
-    readonly property real rightLip: Settings.centrePillRecoil ? (bar.drops.lip(countdownPill.dropReveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(noticePill.dropReveal, notice.stowed))) * clockPill.recoilStrength : 0
+    readonly property real leftLip: Theme.reduceMotion ? 0 : bar.drops.lip(bar.clockNeighbourReveal, bar.clockNeighbour.stowed) * clockPill.recoilStrength
+    readonly property real rightLip: Theme.reduceMotion ? 0 : (bar.drops.lip(countdownPill.dropReveal, countdown.stowed) + (countdown.reveal > 0 ? 0 : bar.drops.lip(noticePill.dropReveal, notice.stowed))) * clockPill.recoilStrength
     readonly property vector4d clockGlass: Qt.vector4d(clockPill.x - leftLip, Theme.barInset, clockPill.width + leftLip + rightLip, Theme.barHeight)
 
     Item {
@@ -325,11 +325,9 @@ PanelWindow {
         backdrop: wallpaperImage
         side: Pill.Side.Centre
         moduleGap: rightPill.moduleGap
-        order: CentrePillOrder.keys
-        orderController: CentrePillOrder
+        place: "centre"
         reorderPeer: rightPill
-        transferableKeys: Settings.movableKeys
-        onModuleReceived: key => Settings.set(key + "Position", "centre")
+        transferableKeys: ModulePlaces.movable
         readonly property var clockItems: shown.filter(item => order.includes(item.settingsKey))
         // What the screen's centre line goes through: the middle of the
         // pinned modules, from the far content edge of the first to that of
@@ -348,11 +346,11 @@ PanelWindow {
             return (left + right) / 2;
         }
         // Clearing folds the bell without turning its width change into a recoil.
-        animatePosition: Settings.centrePillRecoil && (Services.Notifications.list.includes(Services.Notifications.latest)
+        animatePosition: !Theme.reduceMotion && (Services.Notifications.list.includes(Services.Notifications.latest)
             || (!bell.animating && !notice.animating))
         recoilStrength: 0.35
         // Mirror a leading media slot's displacement through Pill's existing centring motion.
-        centreShift: Settings.centrePillRecoil && !Theme.reduceMotion
+        centreShift: !Theme.reduceMotion
             && notice.mergedIcon === bell.keyBox.children[0]
             ? -(bell.width + (bell.visible ? Math.floor(moduleGap / 2) - Theme.pillPad : 0)) : 0
 
@@ -762,13 +760,10 @@ PanelWindow {
 
         side: Pill.Side.Right
         backdrop: wallpaperImage
-        order: RightPillOrder.keys
+        place: "right"
         reorderPeer: clockPill
-        transferableKeys: Settings.movableKeys
-        onModuleReceived: key => {
-            DrawerPins.setMode(key, "pinned");
-            Settings.set(key + "Position", "right");
-        }
+        transferableKeys: ModulePlaces.movable
+        onModuleReceived: key => DrawerPins.setMode(key, "pinned")
         readonly property bool languageAtLauncher: shown[shown.length - 2] === language
 
         // Quiet modules in either pill fold away behind this handle,

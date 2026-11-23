@@ -1,5 +1,6 @@
 import QtQuick
 import qs.src.core
+import qs.src.bar
 
 // Own module drag hit testing, cancellation and the drop indicator for an ordered pill.
 Item {
@@ -77,7 +78,7 @@ Item {
                 const visible = target.shown.filter(item => target.order.includes(item.settingsKey)).map(item => item.settingsKey);
                 if (target !== root.pill)
                     visible.push(key);
-                target.orderController.move(key, beforeAt(local, target)?.settingsKey ?? null, visible);
+                ModulePlaces.move(key, target.place, beforeAt(local, target)?.settingsKey ?? null, visible);
                 if (target !== root.pill)
                     target.moduleReceived(key);
             }

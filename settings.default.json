@@ -30,21 +30,13 @@
     // (window count). Single windows and expanded groups have no indicator.
     "groupWindowBadgeStyle": "hide",
 
-    // The current workspace's mark as clear glass, its whole edge bending the
-    // wallpaper. false keeps the grey mark, bent only at its round ends.
-    "glassWorkspaceMark": true,
-
     // Drag modules between the central and right pills, or within a pill to
-    // reorder them. Moving to the right pins the module; Drawer settings can
-    // return it to Auto or keep it behind the chevron, in either pill.
-    // Positions use <module>Position: centre or right. Date & Time, Weather
+    // reorder them; where they are is kept in the state folder, not here.
+    // Moving to the right pins the module; Drawer settings can return it to
+    // Auto or keep it behind the chevron, in either pill. Date & Time, Weather
     // and Privacy always stay in the centre pill, and the bell and timers are
     // fused to its right end; the centre pill centres the span of its pinned
     // modules on the screen, or itself when none is pinned.
-
-    // Let the central pill recoil as modules change or neighbouring pills merge.
-    // Off keeps its chosen centre point steady and stops its glass edges recoiling.
-    "centrePillRecoil": true,
 
     // Weather in the bar: "hour" now, "average" for the next six hours,
     // "worst" for their worst hour, or "day" for today's daylight outlook.
@@ -69,8 +61,8 @@
     // Show the Now Playing pill for apps that report media through MPRIS.
     "showMpris": true,
 
-    // Module indicators: "badge" shows the count, "dot" shows a corner dot,
-    // "underdot" centers a dot below the icon, "hide" hides the indicator.
+    // Module indicators: "badge" shows the count, "underdot" centers a dot
+    // below the icon, "hide" hides the indicator.
     // Module visibility stays the same.
     "emailBadgeStyle": "badge",
     "tasksBadgeStyle": "badge",
@@ -93,12 +85,6 @@
     // Alarms follow the same 12h/24h notation, always without seconds.
     // https://doc.qt.io/qt-6/qml-qtqml-qt.html#formatDateTime-method
     "datetimeFormat": "ddd d MMM HH:mm",
-
-    // The text cursor in the launcher and every other field. Animation: phase
-    // (a quick fade out and back), blink (hard on and off) or static. Shape: line
-    // or block.
-    "caretAnimation": "phase",
-    "caretShape": "line",
 
     // Letter case for Date & Time and alarms: normal, uppercase or lowercase.
     // Normal preserves the case supplied by the format.
@@ -180,10 +166,11 @@
     // words, as Weather > Bar Forecast works them out.
     "lockWeatherFormat": "{icon} {temp}°",
 
-    // Two accessibility switches. Reduce motion takes the bounce out
-    // of every spring, stops the attention hop, the drawer's wind-up and the
-    // wallpaper's parallax, and opens popups, the launcher and the power menu
-    // in place rather than sliding or wiping them in; fades stay. Reduce
+    // Two accessibility switches. Reduce motion takes the bounce out of
+    // every spring, stops the attention hop, the drawer's wind-up, the centre
+    // pill's recoil and the wallpaper's parallax, and opens popups, the
+    // launcher and the power menu in place rather than sliding or wiping them
+    // in; fades stay. Reduce
     // transparency makes the pills and everything that hangs off the bar a
     // solid dark surface instead of glass.
     "reduceMotion": false,

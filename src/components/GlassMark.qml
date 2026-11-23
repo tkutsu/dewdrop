@@ -56,19 +56,18 @@ ShaderEffect {
     // Clear glass is a flat pane at rest. Moving, or held, it swells past the
     // pill, bends its whole rim and magnifies the icons, then settles back.
     // It all but drops the grey.
-    readonly property bool clearGlass: Settings.glassWorkspaceMark
     // How far it swells, which its parent leaves room for round the pill.
-    readonly property real swell: clearGlass ? 3 : 0
+    readonly property real swell: 3
     readonly property real grown: swell * motion
     readonly property vector4d box: Qt.vector4d(root.at.x + (root.mark?.frontLeft ?? 0) - grown, root.at.y + (root.mark?.slabTop ?? 0) - grown, root.mark ? root.mark.frontRight - root.mark.frontLeft + 2 * grown : 0, (root.mark?.thickness ?? 0) + 2 * grown)
-    readonly property real wholeRim: clearGlass ? 1 : 0
-    readonly property real glow: clearGlass ? 0.25 * motion : 0
-    readonly property real magnify: clearGlass ? 0.12 * motion : 0
-    readonly property real bend: clearGlass ? 20 * motion : 4 + 2 * motion
-    readonly property real depth: clearGlass ? 0.9 : 0.65
-    readonly property real steep: clearGlass ? 1.7 : 1.6
+    readonly property real wholeRim: 1
+    readonly property real glow: 0.25 * motion
+    readonly property real magnify: 0.12 * motion
+    readonly property real bend: 20 * motion
+    readonly property real depth: 0.9
+    readonly property real steep: 1.7
     readonly property real dispersion: Theme.glassDispersion
-    readonly property real tint: clearGlass ? 0.08 : 0.32 - 0.06 * motion
+    readonly property real tint: 0.08
     readonly property vector3d tintColor: Qt.vector3d(0.62, 0.62, 0.64)
     readonly property real lineWidth: Theme.pillBorder
     readonly property vector4d rimTop: Qt.vector4d(Theme.pillRimTop.r, Theme.pillRimTop.g, Theme.pillRimTop.b, Theme.pillRimTop.a)
@@ -92,7 +91,7 @@ ShaderEffect {
         sourceItem: root.inkItem
         sourceRect: Qt.rect(root.windowPos.x - at.x, root.windowPos.y - at.y, root.width, root.height)
         // Twice the pixels, so magnified icons keep their edges.
-        textureSize: root.clearGlass ? Qt.size(root.width * 2, root.height * 2) : Qt.size(0, 0)
+        textureSize: Qt.size(root.width * 2, root.height * 2)
         live: root.visible
         hideSource: false
     }

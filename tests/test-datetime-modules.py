@@ -39,11 +39,11 @@ ShellRoot {
         Pill {
             id: clockPill
             drawsSlab: false
-            order: CentrePillOrder.keys
+            place: 'centre'
             Clock { id: clock; pinKey: "datetime" }
             TIMER_MODULE
         }
-        Pill { id: rightPill; side: Pill.Side.Right; drawsSlab: false; order: RightPillOrder.keys }
+        Pill { id: rightPill; side: Pill.Side.Right; drawsSlab: false; place: 'right' }
         COUNTDOWN_PILL
         TestCase {
             id: test
@@ -51,15 +51,11 @@ ShellRoot {
             function check(ok, why) { if (!ok) throw Error(why); }
             function settle() { wait(Theme.dropMs + Theme.foldMs + 200); }
             function run() {
-                Settings.user = {dateFormat: 'd MMM', timeFormat: 'h:mm AP', timeCase: 'lowercase', datePosition: 'right', timePosition: 'centre', reduceMotion: REDUCED};
-                check(Settings.datetimeFormat === 'd MMM h:mm AP' && Settings.datetimeCase === 'lowercase', 'legacy formats combine and preserve casing');
-                check(CentrePillOrder.keys.slice(0, 4).join(',') === 'privacy,datetime,weather,email', 'saved central order combines clock slots without duplicates, and Privacy joins it at the front');
-                check(RightPillOrder.keys.slice(0, 2).join(',') === 'datetime,network', 'saved right order retains its clock slot');
-                check(Settings.modulePosition('datetime') === 'centre', 'combined clock inherits time placement');
-                DrawerPins.pins = {time: true, date: false};
-                check(DrawerPins.pinned('datetime'), 'clock inherits saved time pin');
-                DrawerPins.setMode('datetime', 'auto');
-                check(DrawerPins.mode('datetime') === 'auto' && DrawerPins.pins.time === undefined, 'Auto removes old clock pin overrides');
+                Settings.user = {datetimeFormat: 'd MMM h:mm AP', datetimeCase: 'lowercase', reduceMotion: REDUCED};
+                check(Settings.datetimeFormat === 'd MMM h:mm AP' && Settings.datetimeCase === 'lowercase', 'format and casing are read');
+                check(ModulePlaces.centre.join(',') === 'weather,datetime,email,privacy', 'saved centre order, a missing fixed module at its end');
+                check(ModulePlaces.right[0] === 'network' && !ModulePlaces.right.includes('datetime') && !ModulePlaces.right.includes('email'),
+                    'each module sits in one pill, fixed ones always in the centre');
                 Settings.setTwelveHour(false);
                 check(Settings.datetimeFormat === 'd MMM H:mm' && !Settings.twelveHour, '24h toggle retains the date');
                 Settings.setTwelveHour(true);
@@ -114,10 +110,10 @@ ShellRoot {
                 check(countdown.popupOpen && countdown.popupItem?.opened, 'expanded pill opens timer controls');
                 OpenPopup.dismiss(); settle();
                 check(timerModule.pill === clockPill && timerModule.trailingControl && timerModule.settingsKey === '', 'timers are fused to the centre pill');
-                for (const style of ['badge', 'dot', 'underdot', 'hide']) {
+                for (const style of ['badge', 'underdot', 'hide']) {
                     Settings.set('countdownBadgeStyle', style); wait(20);
                     check(timerModule.icon.badge === (style === 'hide' ? '' : '2'), 'badge visibility: ' + style);
-                    check(timerModule.icon.dot === (style === 'dot') && timerModule.icon.underdot === (style === 'underdot'), 'badge shape: ' + style);
+                    check(timerModule.icon.underdot === (style === 'underdot'), 'badge shape: ' + style);
                 }
                 DrawerPins.setMode('countdown', 'drawer'); settle();
                 check(timerModule.stowed && countdown.stowed, 'Drawer override hides active timers');
@@ -184,8 +180,7 @@ def main():
             copy_shell(target)
             state = target / 'state/quickshell'
             state.mkdir(parents=True, exist_ok=True)
-            (state / 'centre-pill.json').write_text(json.dumps({'order': ['date', 'weather', 'time', 'email']}))
-            (state / 'right-pill.json').write_text(json.dumps({'order': ['time', 'network', 'date']}))
+            (state / 'modules.json').write_text(json.dumps({'centre': ['weather', 'datetime', 'email'], 'right': ['datetime', 'network', 'email']}))
             service = target / 'src/services/Timers.qml'
             service.write_text(service.read_text().replace('["pw-play", root.alarmSound]', '["/usr/bin/true"]'))
             (target / 'src/core/Notify.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { function send(summary, body, options) {} }\n')

@@ -32,10 +32,12 @@ Item {
     // Ordered pills keep unkeyed controls at their ends: leading ones before
     // the ordered modules, trailing ones after. Each end's order puts its
     // first item on the outer edge (putOutside).
-    property var order: []
+    // Which of ModulePlaces' pills this is ("centre" or "right"), whose
+    // order it lays out and saves drops to.
+    property string place: ""
+    property var order: place ? ModulePlaces.places[place] : []
     property var leadingOrder: []
     property var trailingOrder: []
-    property var orderController: RightPillOrder
     property Item reorderPeer: null
     property var transferableKeys: []
     signal moduleReceived(string key)

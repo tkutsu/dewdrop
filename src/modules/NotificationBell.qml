@@ -36,7 +36,6 @@ BarItem {
         ]
         glyph: Notifications.icon
         badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
-        dot: Settings.badgeStyle("bell") === "dot"
         underdot: Settings.badgeStyle("bell") === "underdot"
     }
 

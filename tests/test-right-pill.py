@@ -18,41 +18,51 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert/strict');
 const context = vm.createContext({});
-vm.runInContext(fs.readFileSync(process.argv[1], 'utf8'), context);
-const normalise = context.normalise;
-const move = context.move;
-const defaults = Array.from(normalise([]));
+// Top-level consts stay out of a vm context's globals, so hand them over.
+vm.runInContext(fs.readFileSync(process.argv[1], 'utf8') + '\nthis.defaults = defaults; this.fixed = fixedCentre;', context);
+const { normalise, move, defaults, fixed } = context;
 const equal = (actual, expected) => assert.equal(JSON.stringify(actual), JSON.stringify(expected));
-equal(normalise(['network', 'audio', 'audio', 'obsolete', null]), ['network', 'audio', ...defaults.filter(k => !['network', 'audio'].includes(k))]);
-for (const bad of [null, {}, 'audio', 42]) equal(normalise(bad), defaults);
-// A module listed in `front` that an older saved order lacks starts at the front.
-equal(normalise(['weather', 'datetime'], ['datetime', 'weather', 'privacy', 'audio'], ['privacy']), ['privacy', 'weather', 'datetime', 'audio']);
-equal(normalise(['datetime', 'privacy'], ['datetime', 'privacy', 'audio'], ['privacy']), ['datetime', 'privacy', 'audio']);
+const plain = places => JSON.parse(JSON.stringify(places));
+const start = plain(normalise(null));
+equal(start, { centre: defaults.centre, right: defaults.right });
+for (const bad of [{}, 'audio', 42, { centre: 'audio', right: null }]) equal(normalise(bad), start);
+// Duplicates, unknown keys and keys in both pills keep their first place;
+// fixed modules come back to the centre, missing ones go to their pill's end.
+equal(normalise({ centre: ['audio', 'weather', 'audio', 'obsolete'], right: ['privacy', 'network', 'audio'] }),
+    { centre: ['audio', 'weather', 'privacy', 'datetime'], right: ['network', ...defaults.right.filter(k => !['audio', 'network'].includes(k))] });
+// Within a pill: visible slots refill, hidden modules keep theirs.
 const visible = ['audio', 'tasks', 'network'];
-const moved = Array.from(move(defaults, 'audio', null, visible));
-const expected = [...defaults];
-expected[0] = 'tasks'; expected[2] = 'network'; expected[defaults.indexOf('network')] = 'audio';
-equal(moved, expected);
-equal(move(moved, 'audio', 'tasks', visible), defaults);
-equal(move(defaults, 'audio', 'tasks', visible), defaults);
-equal(move(defaults, 'audio', 'audio', visible), defaults);
-equal(move(defaults, 'email', null, visible), defaults);
-equal(move(defaults, 'audio', 'email', visible), defaults);
-equal(move(defaults, 'audio', null, ['audio']), defaults);
-equal(move(defaults, 'audio', null, ['network', 'audio', 'tasks', 'tasks', 'obsolete']), expected);
-for (let source = 0; source < defaults.length; source++) {
-    for (let slot = 0; slot <= defaults.length; slot++) {
-        const before = defaults[slot] ?? null;
-        const result = Array.from(move(defaults, defaults[source], before, defaults));
-        const wanted = [...defaults];
-        if (before !== defaults[source]) {
+const moved = plain(move(start, 'audio', 'right', null, visible));
+const expected = [...defaults.right];
+expected[0] = 'tasks'; expected[2] = 'network'; expected[defaults.right.indexOf('network')] = 'audio';
+equal(moved.right, expected);
+equal(moved.centre, defaults.centre);
+equal(move(moved, 'audio', 'right', 'tasks', visible).right, defaults.right);
+for (const noop of [['audio', 'tasks'], ['audio', 'audio'], ['email', null], ['audio', 'email']])
+    equal(move(start, noop[0], 'right', noop[1], visible), start);
+equal(move(start, 'audio', 'right', null, ['audio']), start);
+// Between pills: out of one list, into the other at the drop.
+const across = plain(move(start, 'audio', 'centre', 'datetime', [...defaults.centre, 'audio']));
+equal(across.centre, ['privacy', 'audio', 'datetime', 'weather']);
+equal(across.right, defaults.right.filter(k => k !== 'audio'));
+const back = plain(move(across, 'audio', 'right', null, ['email', 'audio']));
+equal(back.centre, defaults.centre);
+equal(back.right, [...defaults.right.filter(k => k !== 'audio'), 'audio']);
+// Fixed modules never leave the centre.
+for (const key of fixed) equal(move(start, key, 'right', null, [key, 'audio']), start);
+const keys = defaults.right;
+for (let source = 0; source < keys.length; source++) {
+    for (let slot = 0; slot <= keys.length; slot++) {
+        const before = keys[slot] ?? null;
+        const wanted = [...keys];
+        if (before !== keys[source]) {
             wanted.splice(source, 1);
-            wanted.splice(before === null ? wanted.length : wanted.indexOf(before), 0, defaults[source]);
+            wanted.splice(before === null ? wanted.length : wanted.indexOf(before), 0, keys[source]);
         }
-        equal(result, wanted);
+        equal(move(start, keys[source], 'right', before, keys).right, wanted);
     }
 }
-console.log('PASS: normalisation, visible slots and moves in both directions');
+console.log('PASS: normalisation, visible slots, transfers and moves in both directions');
 """
 
 POINTER = r"""
@@ -76,7 +86,7 @@ ShellRoot {
             width: 850; height: 100; x: 30; y: 30
             Pill {
                 id: pill
-                order: RightPillOrder.keys
+                place: 'right'
                 drawsSlab: false
                 BarItem { id: drawer; Rectangle { implicitWidth: 12; implicitHeight: 20 } }
                 BarItem {
@@ -139,12 +149,12 @@ ShellRoot {
                 drag(audio, Qt.point(language.x + language.width, 20));
                 root.check(OpenPopup.owner === null, 'drag dismisses popup');
                 root.check(audio.x > language.x && audio.x < launcher.x, 'first module moves to the last slot');
-                root.check(RightPillOrder.keys[0] === 'email', 'drop updates order');
-                root.check(RightPillOrder.keys[3] === 'updater', 'hidden key keeps its slot');
-                const saved = JSON.stringify(RightPillOrder.keys);
+                root.check(ModulePlaces.right[0] === 'email', 'drop updates order');
+                root.check(ModulePlaces.right[3] === 'updater', 'hidden key keeps its slot');
+                const saved = JSON.stringify(ModulePlaces.right);
                 const clicks = root.clicks;
                 drag(network, Qt.point(-30, 20));
-                root.check(JSON.stringify(RightPillOrder.keys) === saved, 'outside release leaves order unchanged');
+                root.check(JSON.stringify(ModulePlaces.right) === saved, 'outside release leaves order unchanged');
                 root.check(root.clicks === clicks, 'nested tray-style drag suppresses click');
                 mousePress(email, email.width / 2, 20, Qt.LeftButton);
                 mouseMove(pill, launcher.x - 1, 20, 20);
@@ -153,7 +163,7 @@ ShellRoot {
                 email.stowed = true; wait(30);
                 root.check(!pill.dragging, 'stowed source cancels');
                 mouseRelease(pill, launcher.x - 1, 20, Qt.LeftButton);
-                root.check(JSON.stringify(RightPillOrder.keys) === saved, 'cancelled source writes nothing');
+                root.check(JSON.stringify(ModulePlaces.right) === saved, 'cancelled source writes nothing');
                 email.stowed = false; wait(30);
                 drag(audio, Qt.point(email.x, 20));
                 root.check(audio.x < email.x, 'last module moves back to first');
@@ -165,23 +175,23 @@ ShellRoot {
                 root.check(!pill.dragging, 'removed source cancels');
                 mouseRelease(pill, 10, 20, Qt.LeftButton);
                 tasks.present = true; wait(30);
-                const beforeNoop = JSON.stringify(RightPillOrder.keys);
+                const beforeNoop = JSON.stringify(ModulePlaces.right);
                 mousePress(email, email.width / 2, 20, Qt.LeftButton);
                 mouseMove(pill, launcher.x - 1, 20, 20); mouseMove(pill, launcher.x - 1, 20, 20);
                 root.check(pill.dragging, 'drag starts before controller is disabled');
                 pill.order = []; mouseMove(pill, launcher.x - 2, 20, 20); wait(30);
                 root.check(!pill.dragging, 'disabling the controller cancels the drag');
                 mouseRelease(pill, launcher.x - 1, 20, Qt.LeftButton);
-                pill.order = Qt.binding(() => RightPillOrder.keys); wait(30);
-                root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'disabled controller writes nothing');
-                root.check(!RightPillOrder.move('audio', 'email', pill.shown.filter(m => pill.order.includes(m.settingsKey)).map(m => m.settingsKey)), 'own slot does not write');
-                root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'own slot preserves order');
+                pill.order = Qt.binding(() => ModulePlaces.right); wait(30);
+                root.check(JSON.stringify(ModulePlaces.right) === beforeNoop, 'disabled controller writes nothing');
+                root.check(!ModulePlaces.move('audio', 'right', 'email', pill.shown.filter(m => pill.order.includes(m.settingsKey)).map(m => m.settingsKey)), 'own slot does not write');
+                root.check(JSON.stringify(ModulePlaces.right) === beforeNoop, 'own slot preserves order');
                 const own = email.x + email.width - 1;
                 mousePress(email, email.width / 2, 20, Qt.LeftButton);
                 mouseMove(pill, own, 20, 20); mouseMove(pill, own, 20, 20);
                 root.check(pill.dragging && !pill.dropMoves, 'own slot shows no drop line');
                 mouseRelease(pill, own, 20, Qt.LeftButton);
-                root.check(JSON.stringify(RightPillOrder.keys) === beforeNoop, 'own slot drop writes nothing');
+                root.check(JSON.stringify(ModulePlaces.right) === beforeNoop, 'own slot drop writes nothing');
                 mousePress(launcher, launcher.width / 2, 20, Qt.LeftButton);
                 mouseMove(pill, email.x, 20, 20); mouseMove(pill, email.x, 20, 20);
                 root.check(!pill.dragging, 'launcher stays fixed');
@@ -253,7 +263,7 @@ ShellRoot {
             Loader {
                 id: loader
                 sourceComponent: Pill {
-                    order: RightPillOrder.keys
+                    place: 'right'
                     drawsSlab: false
                     BarItem { Rectangle { implicitWidth: 12; implicitHeight: 20 } }
                     BarItem { id: audio; pinKey: 'audio'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
@@ -264,7 +274,7 @@ ShellRoot {
                     function checkPosition(why) {
                         if (!(audio.x > language.x && audio.x < launcher.x))
                             throw Error(why + ': volume reset from beside launcher to the left');
-                        if (JSON.stringify(RightPillOrder.keys) !== JSON.stringify(EXPECTED_ORDER))
+                        if (JSON.stringify(ModulePlaces.right) !== JSON.stringify(EXPECTED_ORDER))
                             throw Error(why + ': saved order changed');
                     }
                 }
@@ -305,7 +315,7 @@ ShellRoot {
         Item {
             id: host; width: 600; height: 80
             Pill {
-                id: pill; side: Pill.Side.Right; order: RightPillOrder.keys; drawsSlab: false
+                id: pill; side: Pill.Side.Right; place: 'right'; drawsSlab: false
                 BarItem { id: audio; pinKey: 'audio'; stowed: true; Rectangle { implicitWidth: 60; implicitHeight: 20 } }
                 BarItem { id: network; pinKey: 'network'; Rectangle { implicitWidth: 30; implicitHeight: 20 } }
                 BarItem { id: launcher; Rectangle { implicitWidth: 40; implicitHeight: 20 } }
@@ -314,7 +324,7 @@ ShellRoot {
         TestCase {
             id: test; when: false
             function run() {
-                const saved = JSON.stringify(RightPillOrder.keys);
+                const saved = JSON.stringify(ModulePlaces.right);
                 for (let cycle = 0; cycle < 4; cycle++) {
                     const point = network.mapToItem(host, network.width / 2, 20);
                     mousePress(host, point.x, point.y);
@@ -323,7 +333,7 @@ ShellRoot {
                     mouseMove(host, point.x + 21, point.y, 20);
                     if (!pill.dragging || pill.dragSource !== network) throw Error('fold changed the pressed module');
                     mouseRelease(host, point.x + 21, point.y); wait(30);
-                    if (JSON.stringify(RightPillOrder.keys) !== saved) throw Error('fold reordered modules on a drop in the original slot');
+                    if (JSON.stringify(ModulePlaces.right) !== saved) throw Error('fold reordered modules on a drop in the original slot');
                 }
                 const fixedPoint = launcher.mapToItem(host, launcher.width / 2, 20);
                 mousePress(host, fixedPoint.x, fixedPoint.y);
@@ -332,7 +342,7 @@ ShellRoot {
                 mouseMove(host, fixedPoint.x - 21, fixedPoint.y, 20);
                 if (pill.dragging) throw Error('fold turned a fixed control into a drag source');
                 mouseRelease(host, fixedPoint.x - 21, fixedPoint.y); wait(30);
-                if (JSON.stringify(RightPillOrder.keys) !== saved) throw Error('fixed control rewrote order');
+                if (JSON.stringify(ModulePlaces.right) !== saved) throw Error('fixed control rewrote order');
                 const absentPoint = network.mapToItem(host, network.width / 2, 20);
                 mousePress(host, absentPoint.x, absentPoint.y);
                 network.present = false; wait(30);
@@ -340,7 +350,7 @@ ShellRoot {
                 mouseMove(host, absentPoint.x - 21, absentPoint.y, 20);
                 if (pill.dragging) throw Error('absent pressed module started a drag');
                 mouseRelease(host, absentPoint.x - 21, absentPoint.y); wait(30);
-                if (JSON.stringify(RightPillOrder.keys) !== saved) throw Error('absent source rewrote order');
+                if (JSON.stringify(ModulePlaces.right) !== saved) throw Error('absent source rewrote order');
                 console.log('PASS: folding pill retains the pressed source; fixed and absent sources cannot reorder');
             }
         }
@@ -444,7 +454,7 @@ ShellRoot {
 
 
 def main():
-    subprocess.run(['node', '-e', LOGIC, str(ROOT / 'src/lib/RightPillOrder.js')], check=True)
+    subprocess.run(['node', '-e', LOGIC, str(ROOT / 'src/lib/ModulePlaces.js')], check=True)
     with tempfile.TemporaryDirectory(prefix='quickshell-right-pill-test-') as folder:
         target = fixture_root(folder)
         copy_shell(target)
@@ -454,33 +464,33 @@ def main():
         for name, text in STUBS.items():
             (target / name).write_text(text)
         # Loading absent or malformed state must not repair it until a changed drop.
-        state = target / 'state/right-pill.json'
+        state = target / 'state/modules.json'
         load = """import QtQuick
 import Quickshell
 import qs.src.core
 import qs.src.bar
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (RightPillOrder.keys[0] !== 'audio' || RightPillOrder.keys.length !== 20 || RightPillOrder.keys.includes('bell') || RightPillOrder.keys.includes('countdown')) console.log('FAIL: defaults');
-    else if (RightPillOrder.move('audio', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
+    if (ModulePlaces.right[0] !== 'audio' || ModulePlaces.right.length + ModulePlaces.centre.length !== 20 || ModulePlaces.right.includes('bell') || ModulePlaces.centre.includes('countdown')) console.log('FAIL: defaults');
+    else if (ModulePlaces.move('audio', 'right', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();
 } } }"""
         run_shell(target, load)
         assert not state.exists(), 'missing state was rewritten on load or no-op'
-        for malformed in ('{ broken json', '{"order": "audio"}'):
+        for malformed in ('{ broken json', '{"right": "audio"}'):
             state.write_text(malformed)
             run_shell(target, load)
             assert state.read_text() == malformed, 'malformed state was rewritten'
         state.unlink()  # This is the fixture's exact file inside its temporary directory.
         run_shell(target, MOVING_LAYOUT)
         run_shell(target, POINTER)
-        saved = json.loads(state.read_text())['order']
+        saved = json.loads(state.read_text())['right']
         restart = """import QtQuick
 import Quickshell
 import qs.src.core
 import qs.src.bar
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    console.log('ORDER:' + JSON.stringify(RightPillOrder.keys));
+    console.log('ORDER:' + JSON.stringify(ModulePlaces.right));
     console.log('PASS: saved order reloaded'); Qt.quit();
 } } }"""
         output = run_shell(target, restart)
@@ -492,16 +502,16 @@ import Quickshell
 import qs.src.core
 import qs.src.bar
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (!RightPillOrder.move('audio', null, ['audio', 'network', 'language']))
+    if (!ModulePlaces.move('audio', 'right', null, ['audio', 'network', 'language']))
         console.log('FAIL: volume did not move');
     else console.log('PASS: saved volume beside launcher');
     Qt.quit();
 } } }"""
         run_shell(target, save_volume)
-        saved = json.loads(state.read_text())['order']
+        saved = json.loads(state.read_text())['right']
         assert [key for key in saved if key in ('audio', 'network', 'language')][-1] == 'audio', 'fixture must save volume in the last visible slot'
         run_shell(target, RESTORED_LAYOUT.replace('EXPECTED_ORDER', json.dumps(saved)))
-        assert json.loads(state.read_text())['order'] == saved, 'restoring the layout rewrote the order'
+        assert json.loads(state.read_text())['right'] == saved, 'restoring the layout rewrote the order'
         check_placement(target)
 
 

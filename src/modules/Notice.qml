@@ -171,7 +171,6 @@ BarItem {
         Layout.fillHeight: true
         glyph: Notifications.icon
         badge: Settings.badgeStyle("bell") === "hide" ? "" : Notifications.label
-        dot: Settings.badgeStyle("bell") === "dot"
         underdot: Settings.badgeStyle("bell") === "underdot"
         opacity: root.mergedIcon ? 1 - root.iconHandoff.progress
             : root.sliding ? root.pill.geometry.contents(root.reveal) : 1

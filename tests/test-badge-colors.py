@@ -104,13 +104,13 @@ ShellRoot {
                 check(strip.sampled, 'wallpaper colour grid is ready');
                 check(same(badge().fill, expected()), 'badge uses the wallpaper under its own icon');
                 const iconWidth = glyph.implicitWidth;
-                glyph.dot = true; wait(20);
-                check(glyph.children[0].layer.enabled, 'corner dot cuts a clear gap out of the icon');
+                glyph.underdot = true; wait(20);
+                check(glyph.children[0].layer.enabled, 'the dot cuts a clear gap out of the icon');
                 const hole = glyph.children.find(item => item.visible === false && item.layer.enabled);
                 check(hole.children[0].width === badge().width + Theme.focusDotClearance * 2
                     && hole.children[0].x + hole.children[0].width / 2 === badge().x + badge().width / 2
                     && hole.children[0].y + hole.children[0].height / 2 === badge().y + badge().height / 2,
-                    'corner cutout follows the dot with the same clearance as the underdot');
+                    'the cutout follows the dot with the left pill clearance');
                 const disc = badge().children[0];
                 check(same(disc.color, Qt.rgba(1, 1, 1, 1)) && Math.abs(disc.color.a - 0.7) < 0.002,
                     'dots use white at 70 percent opacity');
@@ -140,7 +140,6 @@ ShellRoot {
                 before = snapshot();
                 picture.offsetY = 15; wait(40);
                 check(!same(badge().fill, before) && same(badge().fill, expected()), 'badge refreshes during vertical wallpaper parallax');
-                glyph.dot = false; glyph.underdot = true; wait(20);
                 check(badge().width === Theme.focusDotSize && badge().height === Theme.focusDotSize, 'underdot uses the left pill dot size');
                 check(Math.abs(badge().x + badge().width / 2 - glyph.implicitWidth / 2) < 0.01, 'underdot is centred below the icon');
                 check(badge().y === Math.round(Theme.pillTop(glyph.height) + Theme.focusDotLine - badge().height / 2), 'underdot shares the left pill baseline');

@@ -40,7 +40,7 @@ Item {
 
     // Clear workspace glass magnifies what it passes over, so it needs the
     // pixels to do that with.
-    readonly property int detail: Settings.glassWorkspaceMark ? 2 : 1
+    readonly property int detail: 2
 
     readonly property real shift: bounce.offset + (root.pressed ? Theme.pressDip : 0)
 
@@ -103,7 +103,7 @@ Item {
         // Under Reduce motion the bounce dims the artwork instead (Bounce.fade).
         opacity: bounce.fade
         layer.enabled: root.dotShown > 0 || root.cornerDot.width > 0
-        layer.textureSize: root.detail > 1 ? Qt.size(width * root.detail, height * root.detail) : Qt.size(0, 0)
+        layer.textureSize: Qt.size(width * root.detail, height * root.detail)
         layer.effect: MultiEffect {
             autoPaddingEnabled: false
             maskEnabled: true

@@ -38,8 +38,8 @@ ShellRoot {
         onTriggered: {
             try {
                 if (test.phase === 0) {
-                    Settings.set("timeFormat", "h:mm AP");
-                    Settings.set("timeCase", "lowercase");
+                    Settings.set("datetimeFormat", "h:mm AP");
+                    Settings.set("datetimeCase", "lowercase");
                     Settings.set("smallAmPm", true);
                     Settings.set("reduceMotion", true);
                     Timers._commit([{id: "alarm", kind: "alarm", hour: 20, minute: 5, label: "Dinner", running: true, days: [], endsAt: Timers.now + 86400000}]);
@@ -51,7 +51,7 @@ ShellRoot {
                     check(readout.text === `8:05<span style="font-size: ${small}px">pm</span>`, "popup closes up a smaller AM/PM in the selected case: " + readout.text);
                     check(readout.textFormat === Text.RichText && readout.font.pixelSize === Theme.popupTextSize, "popup draws the time as markup at popup size");
                     test.smallWidth = readout.implicitWidth;
-                    Settings.set("timeCase", "uppercase");
+                    Settings.set("datetimeCase", "uppercase");
                     Settings.set("smallAmPm", false);
                 } else if (test.phase === 2) {
                     check(pill.shownLabel === "8:05 PM" && pill.shownSmallRanges.length === 0, "bar settings update live");

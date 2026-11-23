@@ -113,7 +113,7 @@ ShellRoot {
                     if (closing && i === 6)
                         check(sender.opacity >= 0.35 && sender.scale < 0.96,
                               "notification app icon remains legible while shrinking on exit");
-                    const recoil = Settings.centrePillRecoil ? bar.drops.lip(noticePill.dropReveal, notice.stowed) * clockPill.recoilStrength : 0;
+                    const recoil = !Theme.reduceMotion ? bar.drops.lip(noticePill.dropReveal, notice.stowed) * clockPill.recoilStrength : 0;
                     recoiling = recoiling || Math.abs(bar.rightLip) > 0.001;
                     pillTravel = Math.max(pillTravel, Math.abs(clockPill.x - restX));
                     clockTravel = Math.max(clockTravel, Math.abs(clock.keyBox.mapToItem(window.contentItem, 0, 0).x - clockRestX));
@@ -159,8 +159,8 @@ ShellRoot {
                     }
                 }
                 if (closing) {
-                    check(recoiling === Settings.centrePillRecoil, "receiving edge follows the recoil preference");
-                    check(Settings.centrePillRecoil ? pillTravel > 1 : clockTravel < 0.01,
+                    check(recoiling === !Theme.reduceMotion, "receiving edge follows the recoil preference");
+                    check(!Theme.reduceMotion ? pillTravel > 1 : clockTravel < 0.01,
                           "centre anchor follows the recoil preference on the bell merge: pill=" + pillTravel + ", clock=" + clockTravel);
                 }
                 check(frames > 2 && fading && scaling, "sampled the bell handoff and sender fade/scale");
@@ -241,7 +241,7 @@ ShellRoot {
                     }
                 }
                 check(placedFrames > 2, "sampled Auto bell handoff after real module placement");
-                check(Settings.centrePillRecoil ? peakLip > 0.2 && peakLip < 1 && reboundLip < 0 : peakLip === 0 && reboundLip === 0,
+                check(!Theme.reduceMotion ? peakLip > 0.2 && peakLip < 1 && reboundLip < 0 : peakLip === 0 && reboundLip === 0,
                       "receiving edge follows the recoil preference with Auto bell visible");
                 if (PLACEMENT_ONLY) {
                     console.log("PASS: media bell handoff after real module placement in Auto mode");
@@ -330,7 +330,7 @@ def main():
         target = fixture_root(folder)
         copy_shell(target)
         if "--no-recoil" in sys.argv:
-            (target / "settings.json").write_text('{"centrePillRecoil": false}\n')
+            (target / "settings.json").write_text('{"reduceMotion": true}\n')
         (target / "sender.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect width="24" height="24" fill="red"/></svg>')
         (target / "src/services/Notifications.qml").write_text(NOTIFICATIONS)
         (target / "src/components/NotificationsPopup.qml").write_text("import QtQuick\nItem {}\n")

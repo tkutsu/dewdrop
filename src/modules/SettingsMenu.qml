@@ -253,7 +253,7 @@ OverlayWindow {
     function badgeStyle(key: string): var {
         const m = root.modules[key];
         return { type: "choice", id: key + "BadgeStyle", title: m.title, glyph: m.glyph,
-            options: [{ value: "badge", label: "Badge" }, { value: "dot", label: "Dot" }, { value: "underdot", label: "Underdot" }, { value: "hide", label: "Hide" }],
+            options: [{ value: "badge", label: "Badge" }, { value: "underdot", label: "Underdot" }, { value: "hide", label: "Hide" }],
             get: () => Settings.badgeStyle(key), set: v => Settings.set(key + "BadgeStyle", v) };
     }
 
@@ -423,17 +423,7 @@ OverlayWindow {
                         { type: "toggle", id: "groupWindows", title: "Group Windows by App", tooltip: "Click a group to expand its windows.", get: () => Settings.groupWindows, set: v => Settings.set("groupWindows", v) },
                         { type: "choice", id: "groupWindowBadgeStyle", title: "Group Indicator",
                             options: [{ value: "hide", label: "Hide" }, { value: "dot", label: "Dot" }, { value: "badge", label: "Count" }],
-                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) },
-                        { type: "toggle", id: "glassWorkspaceMark", title: "Clear Glass Mark", tooltip: "Bends the wallpaper round the current workspace's mark, in place of the grey fill.", get: () => Settings.glassWorkspaceMark, set: v => Settings.set("glassWorkspaceMark", v) }
-                    ]
-                },
-                {
-                    title: "Centre Pill",
-                    text: "Centres the span of its pinned modules on the screen, or itself when none is pinned.",
-                    rows: [
-                        { type: "toggle", id: "centrePillRecoil", title: "Recoil",
-                            tooltip: "Move the centre pill and flex its edges when modules change or other pills merge into it.",
-                            get: () => Settings.centrePillRecoil, set: v => Settings.set("centrePillRecoil", v) }
+                            get: () => Settings.groupWindowBadgeStyle, set: v => Settings.set("groupWindowBadgeStyle", v) }
                     ]
                 }
             ]
@@ -443,8 +433,8 @@ OverlayWindow {
             sections: [
                 {
                     title: "Module Visibility",
-                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end.",
-                    rows: [...RightPillOrder.keys, "bell", "countdown"].filter(k => root.modules[k]).map(k => root.placement(k))
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end. The centre pill centres the span of its pinned modules on the screen, or itself when none is pinned.",
+                    rows: [...ModulePlaces.centre, "bell", "countdown", ...ModulePlaces.right].filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
                     title: "Tray Icons",
@@ -486,13 +476,6 @@ OverlayWindow {
                     rows: [
                         { type: "dropdown", id: "font", title: "Interface Font", options: root.fontOptions(Settings.font), get: () => Settings.font, set: v => Settings.set("font", v) },
                         { type: "dropdown", id: "monoFont", title: "Monospaced Font", options: root.fontOptions(Settings.monoFont), get: () => Settings.monoFont, set: v => Settings.set("monoFont", v) }
-                    ]
-                },
-                {
-                    title: "Text Cursor",
-                    rows: [
-                        { type: "choice", id: "caretAnimation", title: "Animation", options: [{ value: "phase", label: "Phase" }, { value: "blink", label: "Blink" }, { value: "static", label: "Static" }], get: () => Settings.caretAnimation, set: v => Settings.set("caretAnimation", v) },
-                        { type: "choice", id: "caretShape", title: "Shape", options: [{ value: "line", label: "Line" }, { value: "block", label: "Block" }], get: () => Settings.caretShape, set: v => Settings.set("caretShape", v) }
                     ]
                 },
                 {
@@ -816,7 +799,7 @@ OverlayWindow {
                 {
                     title: "Motion",
                     rows: [
-                        { type: "toggle", id: "reduceMotion", title: "Reduce Motion", text: "Limit animation, parallax and scrolling titles.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) }
+                        { type: "toggle", id: "reduceMotion", title: "Reduce Motion", keywords: "recoil", text: "Limit animation, parallax and scrolling titles.", get: () => Settings.reduceMotion, set: v => Settings.set("reduceMotion", v) }
                     ]
                 },
                 {

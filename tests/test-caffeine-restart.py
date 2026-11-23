@@ -46,7 +46,7 @@ def main():
     failed = False
     with tempfile.TemporaryDirectory(prefix="qs-caffeine-") as folder:
         target = fixture_root(folder)
-        for name in ("src/core/Settings.qml", "src/lib/RightPillOrder.js", "src/core/Paths.qml", "settings.default.json", "src/services/Caffeine.qml"):
+        for name in ("src/core/Settings.qml", "src/core/Paths.qml", "settings.default.json", "src/services/Caffeine.qml"):
             destination = target / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)

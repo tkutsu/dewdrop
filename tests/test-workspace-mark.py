@@ -86,17 +86,14 @@ ShellRoot {
                 } else if (phase === 1) {
                     mark.held = true;
                 } else if (phase === 2) {
-                    check(glass.motion > 0.9 && glass.box.w === mark.thickness
-                        && glass.box.y === mark.slabTop
-                        && glass.box.z === mark.frontRight - mark.frontLeft,
-                        "held glass strengthens the lens without swelling or trailing");
-                    Settings.user = {glassWorkspaceMark: false, reduceMotion: true}; mark.held = false;
+                    check(glass.motion > 0.9, "held glass strengthens the lens");
+                    Settings.user = {reduceMotion: true}; mark.held = false;
                 } else if (phase === 3) {
                     check(glass.motion === 0 && glass.box.w === mark.thickness,
                         "Reduce motion settles the glass");
-                    Settings.user = {glassWorkspaceMark: false, reduceTransparency: true};
+                    Settings.user = {reduceTransparency: true};
                     check(!glass.active, "Reduce transparency uses the plain selection");
-                    Settings.user = {glassWorkspaceMark: false};
+                    Settings.user = {};
                     texture.glassWeight = 0;
                     check(!glass.active, "missing wallpaper uses the plain selection");
                     texture.glassWeight = 1;
@@ -110,7 +107,7 @@ ShellRoot {
                     glass.anchors.fill = null;
                     glass.x = 20;glass.y = 8;glass.width = 320;glass.height = 30;
                 } else if (phase >= 9 && phase < 13) {
-                    Settings.user = {glassWorkspaceMark: true};
+                    Settings.user = {};
                     mark.held = phase >= 11;
                     glass.x = 20 - glass.swell; glass.y = 8 - glass.swell;
                     glass.width = 320 + 2 * glass.swell; glass.height = 30 + 2 * glass.swell;
@@ -127,7 +124,7 @@ ShellRoot {
                 } else if (phase === 15) {
                     check(capture.peak > 0.5, "clear glass grows while it moves");
                     check(glass.motion < 0.05, "clear glass settles after moving");
-                    Settings.user = {glassWorkspaceMark: true, reduceMotion: true};
+                    Settings.user = {reduceMotion: true};
                     mark.held = true;
                 } else if (phase === 16) {
                     check(glass.motion === 0 && glass.box.w === mark.thickness, "Reduce motion keeps clear glass flat");
@@ -157,7 +154,7 @@ def main():
         for source in ROOT.iterdir():
             if source.name not in (".git", "settings.json", "shell.qml"):
                 (target / source.name).symlink_to(source)
-        (target / "settings.json").write_text('{"glassWorkspaceMark": false}\n')
+        (target / "settings.json").write_text('{}\n')
         (target / "shell.qml").write_text(QML)
         # Disable only optical displacement; retain the real tint and border.
         shader = (ROOT / "assets/shaders/glassmark.frag").read_text()

@@ -16,7 +16,6 @@ BarItem {
         glyph: Theme.glyph.downloads
         glyphSize: Theme.glyphSizeLarge
         badge: Settings.badgeStyle("downloads") === "hide" ? "" : Downloads.label
-        dot: Settings.badgeStyle("downloads") === "dot"
         underdot: Settings.badgeStyle("downloads") === "underdot"
     }
 

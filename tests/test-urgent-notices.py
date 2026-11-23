@@ -203,7 +203,7 @@ def main():
         service = (ROOT / "src/services/Notifications.qml").read_text()
         service = service.replace("NotificationUrgency.Low ? 3000 : 6000", "NotificationUrgency.Low ? 300 : 600")
         (target / "src/services/Notifications.qml").write_text(service)
-        for name in ("src/core/Settings.qml", "src/lib/RightPillOrder.js", "settings.default.json"):
+        for name in ("src/core/Settings.qml", "settings.default.json"):
             (target / name).write_text((ROOT / name).read_text())
         (target / "settings.json").write_text("{}\n")
         (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var glyph: ({notif: "N"}) }\n')
