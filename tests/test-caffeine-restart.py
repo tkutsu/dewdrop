@@ -23,7 +23,7 @@ ShellRoot {
         interval: 200; running: true
         onTriggered: {
             console.log(test.first === %(expected)s ? "PASS" : "FAIL: came up " + test.first);
-            Caffeine.active = %(then)s;
+            Caffeine.turn(%(then)s);
             quit.running = true;
         }
     }
@@ -39,6 +39,8 @@ RUNS = (
     ("left off", None, "false", "true"),
     ("left on again", None, "true", "true"),
     ("unreadable file", "not json", "false", "false"),
+    ("timed, still running", '{"active": true, "minutes": 60, "until": 4102444800}', "true", "false"),
+    ("timed, ran out while away", '{"active": true, "minutes": 60, "until": 1}', "false", "false"),
 )
 
 

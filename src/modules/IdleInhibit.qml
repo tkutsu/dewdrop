@@ -14,7 +14,8 @@ BarItem {
 
     readonly property bool active: Caffeine.active
 
-    tooltip: active ? "Caffeine on" : "Caffeine off"
+    tooltip: !active ? "Caffeine off" : Caffeine.endsAt ? `Caffeine on until ${Caffeine.endsAt}` : "Caffeine on"
+    popup: CaffeinePopup {}
     // Only worth a place on the bar while it is holding the screen awake.
     quiet: !active
 
@@ -35,9 +36,8 @@ BarItem {
         fontSize: Theme.glyphSizeLarge + 1
     }
 
+    // Left is the popup (BarItem.popupButton); right flips it.
     actions: ({
-            [Qt.LeftButton]: () => {
-                Caffeine.active = !Caffeine.active;
-            }
+            [Qt.RightButton]: () => Caffeine.toggle()
         })
 }
