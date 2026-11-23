@@ -24,10 +24,11 @@ ShellRoot {
             id: host; anchors.fill: parent
             Pill {
                 id: clockPill; side: Pill.Side.Centre; drawsSlab: false
-                order: ["time", "audio", "bell"]; moduleGap: Theme.gap + 3
+                order: ["datetime", "audio", "bell"]; moduleGap: Theme.gap + 3
+                animatePosition: true
                 CENTRAL_ANCHOR
                 BarItem {
-                    id: timeClock; settingsKey: "time"; visibilityKey: "time"
+                    id: timeClock; settingsKey: "datetime"; visibilityKey: "datetime"
                     Layout.leftMargin: -1; Layout.rightMargin: -1
                     RollingText { Layout.fillHeight: true; tightWidth: true; text: "7:15 PM"; smallRanges: [{start: 5, end: 7}] }
                 }
@@ -67,11 +68,11 @@ ShellRoot {
                 settled("bell visible with a pinned time anchor");
                 const initial = clockPill.x;
                 const width = clockPill.width;
+                // With nothing pinned the whole pill centres, so the bell's
+                // width moves it off the time. Positions animate once the
+                // startup grace is over.
+                tryVerify(() => clockPill._positionReady, Theme.startMs + 500);
                 DrawerPins.pins = {};
-                wait(700);
-                check(clockPill.x === initial, "unpinning time keeps its content centred");
-                // Substitute a non-clock module to exercise whole-pill centring.
-                timeClock.settingsKey = "audio";
                 let moving = false, fractional = false;
                 for (let i = 0; i < 35; i++) {
                     wait(16);
@@ -82,7 +83,7 @@ ShellRoot {
                 }
                 check(moving && fractional && clockPill.x !== initial,
                     "existing transition keeps smooth fractional motion between aligned endpoints");
-                settled("central group without time or date");
+                settled("whole pill centred with nothing pinned");
                 check(clockPill.width === width, "pixel alignment preserves layout widths");
                 const final = clockPill.x; wait(150);
                 check(clockPill.x === final, "no delayed correction after settling");
@@ -121,7 +122,8 @@ def main():
         icon.write_text(icon.read_text().replace("id: image", 'id: image; objectName: "alignmentImage"'))
         source = (ROOT / "src/bar/Bar.qml").read_text()
         start = source.index("        readonly property var clockItems:")
-        end = source.index("\n\n", source.index("        animatePosition: true", start))
+        # Up to animatePosition, which reads the bar's own bell and notice.
+        end = source.index("        animatePosition:", start)
         (target / "shell.qml").write_text(QML.replace("CENTRAL_ANCHOR", source[start:end]))
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),
                                 capture_output=True, text=True, timeout=15)

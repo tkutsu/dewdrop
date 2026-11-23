@@ -4,7 +4,6 @@
 import os
 from pathlib import Path
 from test_support import fixture_root
-import re
 import shutil
 import subprocess
 import tempfile
@@ -31,16 +30,15 @@ def main():
                 shutil.copy2(ROOT / name, destination)
         (target / "settings.json").write_text("{}\n")
         offscreen_ink(target)
-        clock_button = re.search(r'        BarItem \{\n            id: timeClock.*?^        \}',
-                                 (ROOT / "src/bar/Bar.qml").read_text(), re.M | re.S).group()
-        clock_button = clock_button.replace('id: timeClock', 'id: clockButton', 1)
+        # The bar's own clock module, as Bar.qml declares it.
+        clock_button = "Clock { id: clockButton }"
         (target / "shell.qml").write_text('''import QtQuick
 import QtQuick.Layouts
 import QtTest
 import Quickshell
 import qs.src.core
 import qs.src.components
-import qs.src.components
+import qs.src.modules
 import "src/lib/Drops.js" as Drops
 ShellRoot {
     id: bar

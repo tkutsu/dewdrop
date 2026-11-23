@@ -49,6 +49,7 @@ ShellRoot {
     property var api: TestApi
     component WeatherSelection: Item {
         id: root
+        QtObject { id: reel; function syncDay() {} }
         WEATHER_SELECTION
     }
     WeatherSelection { id: weatherSelection }
@@ -86,7 +87,8 @@ ShellRoot {
             Weather.days = [{date: "2026-10-03", hours: hours.slice(0, 1)}, {date: "2026-10-04", hours: hours.slice(1)}];
             check(Weather.summary.startsWith("Rain likely from 02:00, clearing around 04:00."), "summary leads with rain onset and clearing across midnight");
             check(Weather.summary.includes("Strong winds around 03:00") && Weather.summary.includes("Cooling to 18°C"), "summary explains wind and temperature without repeating graph measurements");
-            check(Weather.tooltip === `6h: ${Weather.summary}` && !Weather.tooltip.includes("\\n"), "tooltip has only a single-line heading and summary");
+            check(Weather.tooltip === `Next 6 hours: ${Weather.nextSixHours}` && Weather.nextSixHours.endsWith(Weather.summary)
+                && !Weather.tooltip.includes("\\n"), "tooltip has only a single-line heading and summary");
             weatherSelection.picked = "2026-10-03";
             Weather.now = 10800;
             check(weatherSelection.picked === "" && weatherSelection.day.date === "2026-10-04", "midnight switches a manually selected old day to the new today");
@@ -113,11 +115,11 @@ ShellRoot {
             check(Weather.tooltip.includes("Last forecast"), "cached tooltip identifies stale data");
             Weather.days = [];
             check(Weather.summary === "Forecast unavailable.", "empty summary is explicit");
-            check(Weather.tooltip === "6h: Fixture offline", "empty tooltip keeps its heading and says why");
+            check(Weather.tooltip === "Next 6 hours: Fixture offline", "empty tooltip keeps its heading and says why");
 
             Weather.trouble = "";
             Weather.updatedAt = 0;
-            check(Weather.tooltip === "6h: Loading weather...", "empty tooltip without trouble says it is loading");
+            check(Weather.tooltip === "Next 6 hours: Loading weather...", "empty tooltip without trouble says it is loading");
             check(Weather.thisHour === null && Weather.today === null, "no forecast has no current hour or day");
             // The helper sends a severity with every description (condition() in weather-fetch.py).
             const severities = {"Clear": 0, "Partly cloudy": 1, "Overcast": 2, "Fog": 3, "Rain": 5, "Freezing rain": 7, "Snow": 7, "Thunderstorm": 8, "Unavailable": -1};
@@ -216,6 +218,9 @@ def main():
             if name in ("Http.qml", "Google.qml"):
                 source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")
             (services / name).write_text(source)
+        # GoogleService walks paged lists with it.
+        (target / "src/lib").mkdir(exist_ok=True)
+        (target / "src/lib/Pages.js").write_text((ROOT / "src/lib/Pages.js").read_text())
         (services / "TestApi.qml").write_text("pragma Singleton\nimport QtQuick\nGoogleService { polling: false }\n")
         (services / "FakeRequest.qml").write_text(FAKE_HTTP)
         (services / "Retry.qml").write_text("import QtQuick\nQtObject { property bool active: false; property bool pending: false; signal triggered; function reset() {} function cancel() {} function schedule() {} }\n")
@@ -223,7 +228,7 @@ def main():
         (target / "src/components").mkdir(parents=True, exist_ok=True)
         (target / "src/components/QueuedProcess.qml").write_text("import QtQuick\nQtObject { property string want: ''; property string arg: ''; property int interval: 0; property bool running: false; property var command: []; signal result(arg: string, text: string) }\n")
         (target / "src/core/Theme.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject {}\n")
-        (target / "src/core/Settings.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { function inTerminal(command) { return command; } }\n")
+        (target / "src/core/Settings.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { function inTerminal(command) { return command; } function hourDisplay(date) { return { text: Qt.formatTime(date, 'HH:mm'), smallRanges: [] }; } }\n")
         (target / "src/core/Paths.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath('state/' + name); } function data(name) { return Quickshell.shellPath('data/' + name); } function cache(name) { return Quickshell.shellPath('cache/' + name); } function script(name) { return name; } }\n")
         (target / "state").mkdir()
         (target / "data").mkdir()
@@ -233,7 +238,7 @@ def main():
         (services / "Notifications.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nSingleton { id: root; property var list: []; property var centreFocus: null; property var arrived: ({}); property var passing: ({}); property var observed: ({}); QtObject { id: retained; property string arrivalsJson: '{}' }\n" + methods + "\n}\n")
         weather_popup = (ROOT / "src/components/WeatherPopup.qml").read_text()
         selection_start = weather_popup.index('    property string picked:')
-        selection_end = weather_popup.index('    acceptsKeyboard:', selection_start)
+        selection_end = weather_popup.index('    PopupHeader {', selection_start)
         (target / "shell.qml").write_text(TEST.replace("WEATHER_SELECTION", weather_popup[selection_start:selection_end]))
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)

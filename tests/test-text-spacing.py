@@ -122,8 +122,8 @@ QtObject {
         start = bar.rfind("        BarItem {", 0, bar.index("id: nowPlayingNote"))
         end = bar.rfind("        Clock {", 0, bar.index("id: clock\n"))
         notes = bar[start:end].replace("AppIcon {", 'AppIcon {\n                source: test.phase < 4 ? Qt.resolvedUrl("fixture-player.svg") : ""', 1)
-        date_source = (ROOT / "src/modules/Clock.qml").read_text()
-        time_source = bar[bar.index("id: timeClock"):bar.index("RollingText {", bar.index("id: timeClock"))]
+        # Date and time are one module (Clock.qml), with one padding for both.
+        date_source = time_source = (ROOT / "src/modules/Clock.qml").read_text()
         qml = QML.replace("PLAYER_NOTES", notes)
         for token, source in [("DATE_PADDING", date_source), ("TIME_PADDING", time_source)]:
             padding = [line.strip() for line in source.splitlines()
