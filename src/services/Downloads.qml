@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 import qs.src.core
+import "../lib/HyprExec.js" as HyprExec
 
 // Files that landed in the downloads folder and have not been opened yet.
 //
@@ -49,8 +50,8 @@ Singleton {
         root.clear();
         // Floats this window alone, in the box of hypr/configs/wrules.lua's
         // sizes.standard: the file manager tiles when opened any other way.
-        const command = Settings.inFileManager(Settings.downloadsDir).map(word => `'${word.replace(/'/g, "'\\''")}'`).join(" ");
-        Hyprland.dispatch(`hl.dsp.exec_cmd(${JSON.stringify(command)}, { float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.8" } })`);
+        Hyprland.dispatch(HyprExec.dispatch(Settings.inFileManager(Settings.downloadsDir),
+            '{ float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.8" } }', ""));
     }
 
     // Everything here so far is no longer news. The files stay as they are.

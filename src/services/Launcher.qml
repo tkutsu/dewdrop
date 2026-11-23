@@ -9,6 +9,7 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 import "../lib/Fuzzy.js" as Fuzzy
+import "../lib/HyprExec.js" as HyprExec
 
 // What the launcher knows: the query, where the selection is, what matches,
 // and which apps get reached for often enough to float.
@@ -1160,12 +1161,10 @@ Singleton {
                 const command = r.entry.runInTerminal ? Settings.inTerminal(run.command, run.name, false) : run.command;
                 const dir = r.entry.workingDirectory;
                 // Shift+Enter starts it on an empty workspace and leaves you
-                // where you are. Hyprland hands the line to sh.
-                if (mode === "aside") {
-                    const quote = s => "'" + String(s).replace(/'/g, "'\\''") + "'";
-                    const line = (dir ? `cd ${quote(dir)} && ` : "") + command.map(quote).join(" ");
-                    Hyprland.dispatch(`hl.dsp.exec_cmd(${JSON.stringify(line)}, { workspace = "empty silent" })`);
-                } else if (r.entry.runInTerminal)
+                // where you are.
+                if (mode === "aside")
+                    Hyprland.dispatch(HyprExec.dispatch(command, '{ workspace = "empty silent" }', dir));
+                else if (r.entry.runInTerminal)
                     Quickshell.execDetached({ command, workingDirectory: dir });
                 else
                     run.execute();
