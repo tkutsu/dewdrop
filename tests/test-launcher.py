@@ -21,7 +21,12 @@ MOCKS = {
         function ensure() {}''',
     "Preferences": "property bool shown: false",
     "Hyprland": '''property var toplevels: ({values: []})
-        function dispatch(command) { throw new Error("Unexpected window activation: " + command); }''',
+        property string launched: ""
+        function dispatch(command) {
+            if (!command.startsWith("hl.dsp.exec_cmd("))
+                throw new Error("Unexpected window activation: " + command);
+            launched = command;
+        }''',
     "AppIcons": 'function resolve(windowClass, entry) { return ""; }',
     "Audio": '''property bool muted: false
         property var sink: ({audio: {}})
@@ -539,6 +544,10 @@ ShellRoot {
             check(Launcher.db["launcher-regression:private"]?.count === 1 && !Launcher.shown, "desktop action launches and is ranked");
             Launcher.show();
             check(Launcher.results.some(r => r.action?.name === "Private window"), "used desktop action joins home");
+            Launcher.query = "launcher regression app";
+            Launcher.activate(Launcher.results.findIndex(r => r.kind === "app" && !r.action), "aside");
+            check(Hyprland.launched === `hl.dsp.exec_cmd("'/usr/bin/true'", { workspace = "empty silent" })` && !Launcher.shown, "Shift+Enter opens an app on an empty workspace, silently: " + Hyprland.launched);
+            Launcher.show();
             Launcher.db = ({});
 
             LauncherMusic.rows = [{kind: "music-track", title: "Track", subtitle: ""}];

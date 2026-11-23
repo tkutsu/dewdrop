@@ -792,6 +792,12 @@ OverlayWindow {
                                 input.insert(input.cursorPosition, "\n");
                                 break;
                             }
+                            // On an app, it opens on an empty workspace
+                            // and you stay where you are.
+                            if (shift && !ctrl && Launcher.selected?.kind === "app") {
+                                Launcher.activate(Launcher.index, "aside");
+                                break;
+                            }
                             root.accept(ctrl);
                             break;
                         case Qt.Key_Home:

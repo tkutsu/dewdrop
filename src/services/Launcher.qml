@@ -1151,17 +1151,22 @@ Singleton {
                 r.action.run();
             },
             bluetooth: (r, i) => root.activateBluetooth(r),
-            app: (r, i) => {
+            app: (r, i, mode) => {
                 root.hide();
                 root.bump(r.id);
                 // execute() ignores Terminal=true, so a TUI app would start
                 // with nowhere to draw. An action runs in its app's terminal.
                 const run = r.action ?? r.entry;
-                if (r.entry.runInTerminal)
-                    Quickshell.execDetached({
-                        command: Settings.inTerminal(run.command, run.name, false),
-                        workingDirectory: r.entry.workingDirectory
-                    });
+                const command = r.entry.runInTerminal ? Settings.inTerminal(run.command, run.name, false) : run.command;
+                const dir = r.entry.workingDirectory;
+                // Shift+Enter starts it on an empty workspace and leaves you
+                // where you are. Hyprland hands the line to sh.
+                if (mode === "aside") {
+                    const quote = s => "'" + String(s).replace(/'/g, "'\\''") + "'";
+                    const line = (dir ? `cd ${quote(dir)} && ` : "") + command.map(quote).join(" ");
+                    Hyprland.dispatch(`hl.dsp.exec_cmd(${JSON.stringify(line)}, { workspace = "empty silent" })`);
+                } else if (r.entry.runInTerminal)
+                    Quickshell.execDetached({ command, workingDirectory: dir });
                 else
                     run.execute();
             },
@@ -1206,7 +1211,8 @@ Singleton {
         })
 
     // Ctrl+Enter requests play for library results, compose for mail, or the
-    // folder for a file. Queue rows control the existing playback. A prefix
+    // folder for a file; Shift+Enter ("aside") opens an app on an empty
+    // workspace. Queue rows control the existing playback. A prefix
     // mode's rows belong to its provider, which says whether to close.
     function activate(i, mode): void {
         const r = root.results[i];
@@ -1230,7 +1236,7 @@ Singleton {
                 root.hide();
             return;
         }
-        root.actions[r.kind](r, i);
+        root.actions[r.kind](r, i, mode);
     }
 
     // Ctrl+C with nothing selected in the query line copies the file's full path.

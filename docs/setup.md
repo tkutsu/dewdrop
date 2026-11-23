@@ -117,7 +117,7 @@ Gmail, Google Calendar and Google Tasks open their installed Chromium PWAs when 
 ## Launcher Reference
 
 
-Apps by default, ranked by match and frecency. Sums get answered, and anything else falls back to a web search.
+Apps by default, ranked by match and frecency. Shift+Enter opens an app on an empty workspace and leaves you where you are. Sums get answered, and anything else falls back to a web search.
 
 Starts with a magnifier, Search field and mode hints. Press Down or Enter with an empty query to browse frecency. Typing hides the hints, reveals matches, and selects the first match. Email addresses offer a Gmail search. The query stays pinned while the list opens and its shadow deepens. Rows fade and move up in sequence, 32 ms apart, including when opening directly into a mode.
 
