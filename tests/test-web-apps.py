@@ -59,11 +59,12 @@ ShellRoot {
                 launch(() => calendar.openDay(new Date(2026, 9, 23)));
                 launch(() => barClock.actions[Qt.RightButton]());
 
-                const apps = menu.pages.find(p => p.title === "Apps & Services").sections.reduce((rows, s) => rows.concat(s.rows), []);
+                // Each app's Open With sits on its own module's page.
+                const apps = menu.pages.reduce((rows, p) => rows.concat(...p.sections.map(s => s.rows)), []);
                 const tasks = apps.find(r => r.id === "webApp:tasks");
                 const gmail = apps.find(r => r.id === "webApp:gmail");
                 gmail.set("browser");
-                menu.page = menu.pages.findIndex(p => p.title === "Apps & Services");
+                menu.page = menu.pages.findIndex(p => p.sections.some(s => s.rows.some(r => r.id === "webApp:tasks")));
                 menu.query = "tasks open with";
                 wait(80);
                 const selector = find(menu.contentItem, i => i.setting?.id === "webApp:tasks" && i.currentIndex !== undefined);

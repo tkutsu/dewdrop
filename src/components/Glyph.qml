@@ -30,8 +30,13 @@ Item {
     // A y in this item for the ink's foot to stand on, as a word's letters
     // stand on its baseline; NaN leaves the ink centred.
     property real inkBase: NaN
+    // A drawing takes it as a Translate of its own rather than in its
+    // Loader's y: the lift reads the Loader's size, and a y bound to it looped
+    // whenever the Loader made its drawing (a popup made again, its icons
+    // already measured).
     readonly property int _lift: isNaN(root.inkBase) ? 0
-        : Math.round(root.inkBase - (root.shownDrawing ? art.restY + (art.item?.inkBottom ?? art.height) : label.restingInkBottom))
+        : !root.shownDrawing ? Math.round(root.inkBase - label.restingInkBottom)
+        : art.item ? Math.round(root.inkBase - art.restY - art.item.inkBottom) : 0
 
     // Every glyph this one can turn into. Each is laid out on its own ink,
     // which need not span what the next one's does, so an icon that changed
@@ -126,10 +131,11 @@ Item {
             : root.tightWidth ? -(item?.inkX ?? 0) : 0
         readonly property int restY: Math.floor((root.height - height) / 2)
 
-        y: restY + root.nudge + root._lift
+        y: restY + root.nudge
         opacity: root.inkColor.a
 
         sourceComponent: FittedIcon {
+            transform: Translate { y: root._lift }
             source: root.shownDrawing ? root.shown : ""
             layoutSource: root.layoutSource || source
             // A visible target overrides source margins; otherwise keep the usual sizing.

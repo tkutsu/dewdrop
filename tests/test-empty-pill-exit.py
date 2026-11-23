@@ -41,6 +41,9 @@ import qs.src.modules
 import qs.src.services
 import qs.src.services as Services
 ShellRoot {
+    id: bar
+    // The note asks the bar to put its pill next to the clock.
+    function openFromClock(item) {}
     FloatingWindow {
         implicitWidth: 1000; implicitHeight: 100
         Morph { id: musicMorph; open: music.popupOpen }
@@ -234,6 +237,7 @@ QtObject {
     property string phoneWarning: ""
     signal failed(reason: string)
     signal acknowledged(id: string, firedAt: real)
+    signal finished()
     function notifyPhone(title, body, entry) {}
     function dismiss() {}
 }

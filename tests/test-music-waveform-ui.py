@@ -105,8 +105,10 @@ ShellRoot {
                 check(source.samples.length===256 && JSON.stringify(source.samples)===previous && slider.waving && slider.waveAmount===1,
                     "song change holds the old waveform while the new one decodes");
                 tryVerify(()=>source.loaded.endsWith("b.wav"),2000);
-                tryVerify(()=>ripple.blend>=0.35 && ripple.blend<=0.7,500);
-                ripple.auditMorph.pause();wait(30);
+                // Held halfway: the blend runs a few frames, too few to catch
+                // in a given range by polling.
+                tryVerify(()=>ripple.blend>0 && ripple.blend<1,500);
+                ripple.auditMorph.pause();ripple.blend=0.5;wait(30);
                 check(ripple.blend>0 && ripple.blend<1 && barHeight(2)>oldHeight && barHeight(2)<22,
                     "replacement waveform blends through an intermediate shape after decoding");
                 ripple.auditMorph.resume();
