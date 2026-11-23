@@ -50,23 +50,6 @@ Item {
     property alias dragSource: reorder.dragSource
     readonly property bool dropMoves: reorder.dropMoves
 
-    // The pointer rests on the pill, or one of its modules has its popup
-    // open: what brings out the modules that show on hover (DrawerPins).
-    // Settled after half a second either way, so a pointer passing over on its way
-    // elsewhere leaves the row alone, and crossing a gap does not fold it.
-    readonly property bool pointerIn: rested || modules.some(item => item.popupOpen)
-    property bool rested: false
-    // A quiet module showing on hover comes and goes with the pointer, so
-    // the pill takes it in and lets it go round a steady centre, without
-    // the recoil any other change gets.
-    readonly property bool hoverMoving: modules.some(item => item.quiet && item.animating && DrawerPins.hovers(item.visibilityKey))
-    HoverHandler { id: hover }
-    Timer {
-        interval: 500
-        running: hover.hovered !== root.rested
-        onTriggered: root.rested = hover.hovered
-    }
-
     function arrange(): void {
         if (order.length === 0)
             return;
@@ -239,7 +222,7 @@ Item {
     // Animate between whole-pixel left edges; fractional frames keep the motion smooth.
     property real _centreLeft: parent ? Math.round(parent.width / 2 - centreAt - centreShift) : 0
     Behavior on _centreLeft {
-        enabled: root.animatePosition && !root.hoverMoving && root._positionReady && !Theme.reduceMotion
+        enabled: root.animatePosition && root._positionReady && !Theme.reduceMotion
         NumberAnimation {
             id: centreMove
             duration: Theme.foldMs
@@ -254,7 +237,7 @@ Item {
     readonly property real _rightSpan: width - centreAt
     property real _centreRight: _rightSpan
     Behavior on _centreRight {
-        enabled: root.animatePosition && !root.hoverMoving && root._positionReady && !Theme.reduceMotion
+        enabled: root.animatePosition && root._positionReady && !Theme.reduceMotion
         NumberAnimation {
             id: rightMove
             duration: Theme.foldMs

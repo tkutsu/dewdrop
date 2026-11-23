@@ -214,7 +214,6 @@ OverlayWindow {
 
     readonly property var pinOptions: [
         { value: "auto", label: "Auto" },
-        { value: "hover", label: "Hover" },
         { value: "pinned", label: "Pinned" },
         { value: "drawer", label: "Drawer" }
     ]
@@ -433,7 +432,7 @@ OverlayWindow {
             sections: [
                 {
                     title: "Module Visibility",
-                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end. The centre pill centres the span of its pinned modules on the screen, or itself when none is pinned.",
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. The open drawer lists every module, even one with nothing behind it, so it can be moved. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end. The centre pill centres the span of its pinned modules on the screen, or itself when none is pinned.",
                     rows: [...ModulePlaces.centre, "bell", "countdown", ...ModulePlaces.right].filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
@@ -458,7 +457,6 @@ OverlayWindow {
                 {
                     title: "Keyboard Layout",
                     rows: [
-                        { type: "toggle", id: "layoutChangeNotification", title: "Show Notification", text: "Transient, for three seconds.", get: () => Settings.layoutChangeNotification, set: v => Settings.set("layoutChangeNotification", v) },
                         { type: "toggle", id: "layoutChangeBounce", title: "Show And Bounce For 3s", tooltip: "Shows the module for three seconds and bounces once. Reduce Motion dims it instead.", get: () => Settings.layoutChangeBounce, set: v => Settings.set("layoutChangeBounce", v) }
                     ]
                 },

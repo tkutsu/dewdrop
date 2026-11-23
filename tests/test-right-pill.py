@@ -432,20 +432,18 @@ ShellRoot {
             root.check(night.visible && !night.stowed, 'Pinned shows night mode even when off');
             night.present = false;
             root.check(!night.here && !night.visible, 'absence still overrides placement');
-            DrawerPins.setMode('email', 'hover');
+            night.listedAbsent = true;
             test.wait(30);
-            root.check(DrawerPins.mode('email') === 'hover' && mail.stowed, 'Hover folds a quiet module while the pointer is away');
-            test.mouseMove(rest, 10, 10);
-            test.wait(200);
-            root.check(mail.stowed, 'a pointer passing over leaves Hover modules folded');
-            test.wait(500);
-            root.check(!mail.stowed, 'Hover shows a quiet module while the pointer rests on its pill');
-            test.mouseMove(host, 2, 2);
-            test.wait(250);
-            root.check(!mail.stowed, 'Hover holds the module a moment after the pointer leaves');
-            test.wait(500);
-            root.check(mail.stowed, 'Hover folds the module once the pointer has left');
-            console.log('PASS: legacy settings ignored; Auto, Hover, Pinned and Drawer preserve access');
+            root.check(night.here && night.stowed && !night.visible, 'an absent module, even pinned, stays off the closed bar');
+            root.drawerOpen = true;
+            test.wait(400);
+            root.check(night.visible && !night.stowed, 'the open drawer lists an absent module');
+            root.check(night.acceptedButtons === Qt.NoButton && night.pressAction === null, 'an absent module opens and runs nothing');
+            root.drawerOpen = false;
+            root.check(night.stowed, 'it folds away with the drawer');
+            DrawerPins.setMode('email', 'hover');
+            root.check(DrawerPins.mode('email') === 'auto', 'an unknown mode is Auto');
+            console.log('PASS: legacy settings ignored; Auto, Pinned and Drawer preserve access; absent modules listed in the open drawer');
         } catch (e) { console.log('FAIL: ' + e); }
         Qt.quit();
     } }

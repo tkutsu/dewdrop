@@ -13,8 +13,6 @@ import Quickshell.Io
 //           click on the module toggles.
 //   drawer  kept in, even with something to say (night mode on, but out of
 //           sight). `false`. Opening the drawer still shows it.
-//   hover   auto, and out too while the pointer is on its pill. `"hover"`.
-//           The chevron leaves it out, since the pill shows it anyway.
 //
 // Kept across restarts, and at the root for use by BarItem and the drawer.
 Singleton {
@@ -34,12 +32,8 @@ Singleton {
         return root.pins[key];
     }
 
-    function hovers(key: string): bool {
-        return root.pins[key] === "hover";
-    }
-
     function mode(key: string): string {
-        return root.pinned(key) ? "pinned" : root.kept(key) ? "drawer" : root.hovers(key) ? "hover" : "auto";
+        return root.pinned(key) ? "pinned" : root.kept(key) ? "drawer" : "auto";
     }
 
     function setMode(key: string, mode: string): void {
@@ -48,8 +42,6 @@ Singleton {
             pins[key] = true;
         else if (mode === "drawer")
             pins[key] = false;
-        else if (mode === "hover")
-            pins[key] = "hover";
         else
             delete pins[key];
         root.pins = pins;

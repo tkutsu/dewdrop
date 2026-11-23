@@ -73,7 +73,6 @@ Singleton {
     readonly property bool smallAmPm: root.values.smallAmPm === true
     readonly property bool twelveHour: /AP|ap/.test(root.datetimeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property var layoutNames: root.values.layoutNames ?? ({})
-    readonly property bool layoutChangeNotification: root.values.layoutChangeNotification === true
     readonly property bool layoutChangeBounce: root.values.layoutChangeBounce === true
     readonly property string font: root.values.font ?? ""
     readonly property string monoFont: root.values.monoFont ?? ""

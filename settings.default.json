@@ -17,10 +17,10 @@
 
     // --- what the bar shows ----------------------------------------------
 
-    // The settings window (the gear) places right pill modules as Auto,
-    // Hover, Pinned, or Drawer. Quiet modules stay behind the chevron in Auto,
-    // and Hover also brings them out while the pointer rests on their pill.
-    // A middle click pins one outside the drawer or returns it to Auto.
+    // The settings window (the gear) places modules as Auto, Pinned, or
+    // Drawer. Quiet modules stay behind the chevron in Auto. A middle click
+    // pins one outside the drawer or returns it to Auto. The open drawer
+    // lists every module, even one with nothing behind it, so it can be moved.
 
     // One icon per app on each workspace in the left pill, opened into one
     // per window by a click. false gives every window its own icon.
@@ -100,10 +100,8 @@
     // full size with a space for readability. Requires a 12h clock format.
     "smallAmPm": false,
 
-    // Independent feedback options when the active keyboard layout changes.
-    // Notifications are transient; the module reveal lasts three seconds.
-    // Show and bounce reveals the module for three seconds and bounces once.
-    "layoutChangeNotification": false,
+    // When the keyboard layout changes, bring the language module out for
+    // three seconds and bounce it once.
     "layoutChangeBounce": false,
 
     // What the language module shows for each keyboard layout, keyed by the

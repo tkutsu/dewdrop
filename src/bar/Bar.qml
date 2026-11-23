@@ -258,6 +258,7 @@ PanelWindow {
             item.pinKey = key;
             item.stowed = Qt.binding(() => !item.showsClosed && !drawer.out);
             item.marksPin = Qt.binding(() => drawer.out);
+            item.listedAbsent = true;
         }
     }
     Component.onCompleted: bar.placeModules()
@@ -782,7 +783,7 @@ PanelWindow {
             id: drawer
             leadingControl: true
             // A tray icon kept in counts, though the tray itself is out.
-            holding: bar.drawerModules.some(m => m.here && !m.showsClosed && !DrawerPins.hovers(m.visibilityKey)) || (tray.here && tray.tucks)
+            holding: bar.drawerModules.some(m => m.here && !m.showsClosed) || (tray.here && tray.tucks)
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null || OpenPopup.selected !== null

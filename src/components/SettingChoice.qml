@@ -94,8 +94,12 @@ Rectangle {
 
         // Place the initial selection directly, then spring to later changes.
         property bool placed: false
-        onVisibleChanged: if (visible && !placed)
-            Qt.callLater(() => { if (mark.visible) mark.placed = true; })
+        function place(): void {
+            if (visible && !placed)
+                Qt.callLater(() => { if (mark.visible) mark.placed = true; });
+        }
+        onVisibleChanged: mark.place()
+        Component.onCompleted: mark.place()
 
         // Spring the selection separately so a press stretches only its leading edge.
         property real selectionX: root.shown ? cells.x + root.shown.x : Theme.markInset

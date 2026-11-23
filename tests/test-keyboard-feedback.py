@@ -48,8 +48,8 @@ ShellRoot {
         function layout(name, keyboard = "main") {
             FakeHyprland.rawEvent({name: "activelayout", parse: n => [keyboard, name]});
         }
-        function options(notification, bounce) {
-            Settings.user = {layoutChangeNotification: notification, layoutChangeBounce: bounce};
+        function options(bounce) {
+            Settings.user = {layoutChangeBounce: bounce};
         }
         function reset() {
             module.auditShow.stop(); module.auditDelay.stop(); module.auditBounce.stop();
@@ -72,7 +72,7 @@ ShellRoot {
                     wait(100);
                 }
             }
-            options(true, true);
+            options(true);
             Keyboard.mainKeyboard = "main";
             Keyboard.layouts = [{name: "English (US)"}, {name: "Greek"}];
             layout("English (US)");
@@ -84,25 +84,18 @@ ShellRoot {
                 "duplicates and secondary keyboard events do not announce a switch");
 
             DrawerPins.pins = {language: false};
-            for (let mask = 0; mask < 4; mask++) {
+            for (const bounce of [false, true]) {
                 reset();
-                options(!!(mask & 1), !!(mask & 2));
+                options(bounce);
                 layout(Keyboard.layout === "Greek" ? "English (US)" : "Greek");
-                check(Notify.sent.length === (mask & 1 ? 1 : 0)
-                    && module.auditShow.running === !!(mask & 2)
-                    && (module.auditDelay.running || module.auditBounce.running) === !!(mask & 2)
-                    && module.showsClosed === !!(mask & 2), "independent feedback combination " + mask);
-                if (mask & 1) {
-                    const command = Notify.sent[0];
-                    check(command.includes("-e") && command[command.indexOf("-t") + 1] === "3000"
-                        && command.includes("string:x-canonical-private-synchronous:keyboard-layout")
-                        && command[command.length - 1] === Keyboard.layout,
-                        "notification is transient, timed and replaces the preceding layout notice");
-                }
-                check(DrawerPins.kept("language"), "temporary feedback preserves drawer preference " + mask);
+                check(Notify.sent.length === 0
+                    && module.auditShow.running === bounce
+                    && (module.auditDelay.running || module.auditBounce.running) === bounce
+                    && module.showsClosed === bounce, "bounce " + (bounce ? "on" : "off") + ", and never a notification");
+                check(DrawerPins.kept("language"), "temporary feedback preserves drawer preference");
             }
 
-            reset(); options(false, true);
+            reset(); options(true);
             layout(Keyboard.layout === "Greek" ? "English (US)" : "Greek");
             check(module.auditDelay.running && !module.auditBounce.running,
                 "hidden module unfolds before bouncing");
@@ -122,7 +115,7 @@ ShellRoot {
             check(module.auditBounce.offset === 0, "Reduce Motion dims without moving the label");
             tryVerify(() => !module.forceShown, 3500);
 
-            options(false, true);
+            options(true);
             layout(Keyboard.layout === "Greek" ? "English (US)" : "Greek");
             wait(1700);
             layout(Keyboard.layout === "Greek" ? "English (US)" : "Greek");

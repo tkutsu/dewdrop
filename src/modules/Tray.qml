@@ -22,9 +22,8 @@ BarItem {
         // sorting by service id keeps the bar stable across restarts.
         .sort((a, b) => a.id.localeCompare(b.id))
 
-    // Nothing in the tray is no module at all, rather than an empty one still
-    // holding its gap in the row. It used to always have nm-applet and
-    // blueman in it; now it can be empty.
+    // Nothing in the tray takes it off the closed bar, rather than leaving an
+    // empty one holding its gap in the row; the open drawer still lists it.
     present: entries.length > 0
 
     // Icons the settings window keeps in the drawer ("tray:<id>" in
@@ -50,6 +49,14 @@ BarItem {
         if (item.id.startsWith("Mullvad VPN"))
             return item.tooltipTitle.startsWith("Connected") ? Theme.glyph.vpn : Theme.glyph.vpnOff;
         return "";
+    }
+
+    // An empty tray still has a place in the open drawer, so it can be moved.
+    Glyph {
+        visible: root.entries.length === 0
+        Layout.fillHeight: true
+        text: Theme.glyph.tray
+        fontSize: Theme.trayGlyphSize - 1
     }
 
     Repeater {

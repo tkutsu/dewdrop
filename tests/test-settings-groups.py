@@ -126,9 +126,8 @@ ShellRoot {
             Keyboard.layouts = [];
             check(menu.layoutRows.length === 0, "no configured layouts produces no label rows");
             Keyboard.layouts = [{name: "Greek"}, {name: "English (US)"}];
-            for (const id of ["layoutChangeNotification", "layoutChangeBounce"]) {
-                row(id).set(true); check(Settings[id], "new keyboard feedback preference remains editable: " + id);
-            }
+            row("layoutChangeBounce").set(true);
+            check(Settings.layoutChangeBounce, "keyboard feedback preference remains editable");
             row("editor").set("");
             check(Settings.values.editor === "" && Settings.editor === (Quickshell.env("EDITOR") || "nvim"), "editor fallback is displayed without storing its resolved value");
 

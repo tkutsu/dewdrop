@@ -26,8 +26,6 @@ Singleton {
         if (!previous || !root.layout)
             return;
         root.switched();
-        if (Settings.layoutChangeNotification)
-            Notify.send("Keyboard Layout", root.layout, ["-e", "-i", "input-keyboard", "-u", "low", "-t", "3000", "-h", "string:x-canonical-private-synchronous:keyboard-layout"]);
     }
 
     // Which keyboard's layout the bar is showing. A different event source

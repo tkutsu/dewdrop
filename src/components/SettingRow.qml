@@ -65,6 +65,7 @@ Item {
         return options.length <= 3 && options.every(option => String(option.label).length <= 8);
     }
     readonly property string kind: root.setting.type === "choice" && !root.fitsCapsule(root.setting.options) ? "dropdown" : root.setting.type
+    onKindChanged: control.load()
 
     // A field's refusal takes the place of the line on what it does.
     readonly property string trouble: control.item?.trouble ?? ""
@@ -215,7 +216,12 @@ Item {
         x: root.stacked ? root.lead : root.width - width - Theme.popupInset
         y: root.stacked ? words.y + words.height + 8 : Math.round((root.height - height) / 2)
         width: root.listControl ? root.width - root.lead - Theme.popupInset : Math.min(implicitWidth, root.width - root.lead - Theme.popupInset)
-        source: root.controls[root.kind] ?? ""
+        // Created with its setting already in hand, so it starts in its
+        // state instead of springing there from empty as a page opens.
+        function load(): void {
+            control.setSource(root.controls[root.kind] ?? "", { setting: root.setting });
+        }
+        Component.onCompleted: control.load()
         onLoaded: {
             item.setting = Qt.binding(() => root.setting);
             // A switch stretches its knob while the row is pressed.

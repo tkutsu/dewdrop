@@ -46,7 +46,7 @@ ClickArea {
     // every handler connected, so a handler here would put one on them all.
     hovers: root.tooltip !== ""
     pressAction: {
-        if (root.stowed)
+        if (root.stowed || !root.present)
             return null;
         if (root.popup !== null && root.popupButton === Qt.LeftButton)
             return root.togglePopup;
@@ -116,12 +116,16 @@ ClickArea {
     // set up, which is not the same as having nothing to say. Use this rather
     // than `visible`, which the drawer below drives.
     property bool present: true
+    // Kept in the drawer while absent rather than gone, so the open drawer
+    // still lists it to be reordered or pinned. Absent, it opens nothing,
+    // runs nothing and says nothing; only the drag and the pin answer.
+    property bool listedAbsent: false
 
     // The module's key in its pill's saved order.
     property string settingsKey: pinKey
     property bool leadingControl: false
     property bool trailingControl: false
-    readonly property bool here: present
+    readonly property bool here: present || listedAbsent
 
     // Nothing to say right now: no unread mail, no updates, a tool rather than
     // a status. The drawer hides modules like that in either pill, so the
@@ -141,11 +145,10 @@ ClickArea {
     // Brief feedback can bring a module out without changing its saved mode.
     property bool forceShown: false
     // Whether the module stands out of the drawer while it is closed: when
-    // it has something to say and is not kept in, is pinned, owns the open
-    // popup, or shows on hover and the pointer is on its pill. A quiet popup
-    // owner waits until its popup closes before folding away.
-    readonly property bool showsClosed: forceShown || visibilityKey === "" || popupOpen || DrawerPins.pinned(visibilityKey) || (!quiet && !DrawerPins.kept(visibilityKey))
-        || (DrawerPins.hovers(visibilityKey) && (pill?.pointerIn ?? false))
+    // it is present and has something to say and is not kept in, is pinned,
+    // or owns the open popup. A quiet popup owner waits until its popup
+    // closes before folding away.
+    readonly property bool showsClosed: present && (forceShown || visibilityKey === "" || popupOpen || DrawerPins.pinned(visibilityKey) || (!quiet && !DrawerPins.kept(visibilityKey)))
 
     // Whether to mark a pinned module as pinned. Set by the drawer's owner
     // while the drawer is open, which is when pinned and unpinned stand side
@@ -300,6 +303,7 @@ ClickArea {
     Layout.fillHeight: true
 
     hoverEnabled: true
+    acceptedButtons: present ? Qt.LeftButton | Qt.RightButton | Qt.MiddleButton : Qt.NoButton
     // Keep the normal pointer over bar modules.
     cursorShape: Qt.ArrowCursor
     containmentMask: reach
@@ -409,7 +413,7 @@ ClickArea {
         Accessible.ignored: true
         anchors.fill: span
         containmentMask: reach
-        enabled: root.popup !== null && root.popupButton !== Qt.NoButton
+        enabled: root.present && root.popup !== null && root.popupButton !== Qt.NoButton
         acceptedButtons: root.popupButton
         eagerButtons: root.popupButton
         cursorShape: Qt.ArrowCursor
@@ -419,6 +423,8 @@ ClickArea {
     }
 
     onWheel: function (wheel) {
+        if (!root.present)
+            return;
         root._scrollAcc += wheel.angleDelta.y;
         while (root._scrollAcc >= root.scrollThreshold) {
             root._scrollAcc -= root.scrollThreshold;
@@ -436,7 +442,7 @@ ClickArea {
     HoverPopup {
         id: hover
         anchorItem: root
-        hovered: root.containsMouse && !root.pillDragging && root.tooltipEnabled
+        hovered: root.containsMouse && !root.pillDragging && root.tooltipEnabled && root.present
         pressed: root.pressed || pin.pressed || opener.pressed
         text: root.tooltip
     }
