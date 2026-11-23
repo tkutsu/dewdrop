@@ -96,6 +96,9 @@ ShellRoot {
                 drawer.out = false;
                 wait(1200);
                 check(bell.stowed && !bell.visible, "empty bell is hidden");
+                drawer.out = true; wait(100);
+                check(bell.stowed && !bell.visible, "the open drawer leaves the empty bell out, like the media notes");
+                drawer.out = false;
                 Notifications.list = [Notifications.latest]; Notifications.showing = true;
                 wait(Theme.dropMs + 100);
                 check(notice.reveal === 1 && bell.stowed, "a single notice leaves the bell hidden");

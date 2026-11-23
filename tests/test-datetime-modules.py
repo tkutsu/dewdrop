@@ -65,16 +65,17 @@ ShellRoot {
                 mouseClick(clock, clock.width / 2, clock.height / 2); wait(450);
                 check(clock.popupOpen && clock.popupItem?.opened, 'left click on datetime opens calendar');
                 OpenPopup.dismiss(); settle();
-                check(timerModule.quiet && timerModule.stowed && countdown.stowed, 'an idle timer waits in the drawer');
+                check(timerModule.quiet && timerModule.stowed && countdown.stowed, 'an idle timer has no slot');
                 check(timerModule.pinKey === '', 'the timer has no pin or mode');
                 drawer.out = true; settle();
-                check(!timerModule.stowed && timerModule.visible && countdown.stowed, 'the open drawer shows the idle timer icon');
+                check(timerModule.stowed && !timerModule.visible && countdown.stowed, 'the open drawer leaves an idle timer out, like the media notes');
+                drawer.out = false; settle();
+                OpenPopup.set(timerModule); wait(450);
+                check(!timerModule.stowed && timerModule.visible && timerModule.popupOpen && timerModule.popupItem?.opened, 'its popup, opened, brings the icon out to anchor it');
                 check(timerModule.icon.glyph === Theme.glyph.timer && timerModule.icon.badge === '', 'idle icon has no badge');
-                mouseClick(timerModule, timerModule.width / 2, timerModule.height / 2); wait(450);
-                check(timerModule.popupOpen && timerModule.popupItem?.opened, 'idle icon opens timer popup');
                 Services.Timers.countdown(600000, 'Tea'); settle();
                 check(!countdown.stowed && timerModule.popupOpen, 'creating a timer keeps its open editor accessible');
-                OpenPopup.dismiss(); drawer.out = false; settle();
+                OpenPopup.dismiss(); settle();
                 check(!countdown.stowed && countdown.reveal === 1 && timerModule.stowed, 'active central timer expands and replaces its icon');
                 check(countdownPill.x >= bar.clockRight, 'timer pill sits to the right of centre');
                 Settings.set('countdownBadgeStyle', 'badge');
@@ -142,9 +143,9 @@ ShellRoot {
                 check(landed || Theme.reduceMotion, 'the last timer lands in the central slot, as it was, before leaving');
                 settle();
                 check(timerModule.stowed && !timerModule.visible, 'the empty slot folds away after landing');
-                drawer.out = true; wait(50);
+                OpenPopup.set(timerModule); wait(450);
                 check(timerModule.icon.glyph === Theme.glyph.timer, 'an idle icon shown again is the plain timer');
-                drawer.out = false; settle();
+                OpenPopup.dismiss(); settle();
                 Services.Timers.countdown(600000, 'Last Timer'); settle();
                 OpenPopup.set(countdown); wait(450);
                 const cancel = countdown.popupItem.keyTargets().find(item => item.name === 'Cancel Last Timer');
@@ -152,7 +153,8 @@ ShellRoot {
                 cancel.tapped(); settle();
                 check(OpenPopup.owner === null && countdown.stowed, 'last cancellation closes popup and retracts side pill');
                 drawer.out = true; settle();
-                check(timerModule.visible && !timerModule.stowed && countdown.stowed, 'empty timer remains reachable through drawer');
+                check(!timerModule.visible && timerModule.stowed && countdown.stowed, 'an empty timer stays out of the open drawer');
+                drawer.out = false;
                 console.log('PASS: datetime calendar click, migration, timer placement, visibility, counts and indicator styles');
             }
         }

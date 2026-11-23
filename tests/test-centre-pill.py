@@ -148,6 +148,11 @@ ShellRoot {
                 bar.check(centralItems()[0] === recordingNote, 'Privacy starts left of Date & Time');
                 bar.check(bell.pinKey === '' && timerModule.pinKey === '' && !bar.drawerRows.some(row => row.id === 'pin:bell' || row.id === 'pin:countdown'),
                     'the bell and timers have no pin, like the media notes');
+                // The timers stub is never idle by itself. (The bell has notices
+                // here; test-notification-merge checks it empty.)
+                timerModule.quiet = true; settle();
+                bar.check(timerModule.stowed, 'the open drawer leaves idle timers out, like the media notes');
+                timerModule.quiet = false; settle();
                 for (const item of [clock, weather, recordingNote]) {
                     const key = item.pinKey;
                     mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
@@ -333,7 +338,7 @@ def main():
         (target / 'src/components/AppIcon.qml').write_text('import QtQuick\nItem { implicitWidth: 16; implicitHeight: 20; property string windowClass; property bool tightWidth: false }\n')
         (target / 'src/components/RollingText.qml').write_text('import QtQuick\nItem { implicitWidth: 48; implicitHeight: 20; property string text; property var smallRanges; property bool tightWidth: false }\n')
         (target / 'src/modules/Clock.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { id: root; settingsKey: "datetime"; property date date: new Date(); property int middleClicks: 0; actions: ({ [Qt.MiddleButton]: () => root.middleClicks++ }); popup: Component { Item {} } Rectangle { implicitWidth: 90; implicitHeight: 20 } }\n')
-        (target / 'src/modules/Timers.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { settingsKey: "countdown"; property bool drawerOut: false; property bool expanded: false; property bool wantsExpansion: false; property bool collapsed: false; property real handoffProgress: 1; property real handoffOffset: 0; property bool landing: false; property string landingGlyph: ""; readonly property Item icon: null; signal expandRequested(); popup: Component { Item {} } Rectangle { implicitWidth: 16; implicitHeight: 20 } }\n')
+        (target / 'src/modules/Timers.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { settingsKey: "countdown"; property bool expanded: false; property bool wantsExpansion: false; property bool collapsed: false; property real handoffProgress: 1; property real handoffOffset: 0; property bool landing: false; property string landingGlyph: ""; readonly property Item icon: null; signal expandRequested(); popup: Component { Item {} } Rectangle { implicitWidth: 16; implicitHeight: 20 } }\n')
         (target / 'src/modules/Drawer.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { property bool open: false; property bool out: open; property real windup: 0; property bool moving: false; property bool holding: false; property bool pointerNear: false; present: holding; Rectangle { implicitWidth: 8; implicitHeight: 20 } }\n')
         (target / 'src/modules/LauncherButton.qml').write_text('import QtQuick\nimport qs.src.components\nBarItem { Rectangle { implicitWidth: 16; implicitHeight: 20 } }\n')
         names = ['Audio', 'Email', 'Tasks', 'Updater', 'Feeds', 'Downloads', 'NotificationBell', 'Satty', 'IdleInhibit', 'Wallpaper', 'NightMode', 'Sys', 'SettingsButton', 'Drives', 'Bluetooth', 'Network', 'Tray', 'Language']

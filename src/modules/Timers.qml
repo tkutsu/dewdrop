@@ -4,7 +4,7 @@ import qs.src.core
 import qs.src.components
 import qs.src.services as Services
 
-// Idle timers live in the drawer; active central timers open into the side pill.
+// No slot while idle, like the media notes; active central timers open into the side pill.
 BarItem {
     id: root
     name: "Timers"
@@ -14,7 +14,6 @@ BarItem {
     popup: TimerPopup {}
 
     property bool expanded: false
-    property bool drawerOut: false
     property bool collapsed: false
     property real handoffProgress: 1
     property real handoffOffset: 0
