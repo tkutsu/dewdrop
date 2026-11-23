@@ -278,7 +278,7 @@ PanelWindow {
                     radius: height / 2
                     color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * capsule.alarm)
                     border.width: 1
-                    border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, capsule.alarm))
+                    border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.failure.r, Theme.failure.g, Theme.failure.b, capsule.alarm))
 
                     TextInput {
                         id: field

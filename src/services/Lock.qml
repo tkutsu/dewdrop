@@ -54,6 +54,8 @@ Singleton {
     property bool shift: false
     // The password was wrong: the field shakes.
     signal rejected
+    // The password was right: PIN Mode's line turns green as the lock lifts.
+    signal accepted
 
     // A check under way; the field waits on it and takes no keys.
     readonly property bool checking: pam.active
@@ -64,7 +66,7 @@ Singleton {
     // PIN Mode checks the password the moment it is as long as the length
     // set for it, once, as if Return had been pressed: so through the
     // system's stack like any other try, faillock and all. A miss leaves it
-    // to Return until the next unlock, so a length that no longer fits (a
+    // to Return until the next lock, so a length that no longer fits (a
     // changed password) cannot keep the field from getting any longer.
     property bool missed: false
     readonly property bool automaticReady: Settings.lockAsTyped && Settings.lockPasswordLength > 0 && !root.missed
@@ -76,6 +78,7 @@ Singleton {
             root.password = "";
             root.message = "";
             root.shift = false;
+            root.missed = false;
             kept.phase = "cover";
         } else if (kept.phase === "leave" || kept.phase === "reveal") {
             // Asked again on the way out: back to locked. The fade under
@@ -148,12 +151,14 @@ Singleton {
     }
 
     function finish(success: bool, trouble: string): void {
+        // A miss is kept until the next lock: cleared here, the field would
+        // turn back into PIN Mode's line on its way out.
         if (success && kept.phase === "locked") {
-            root.missed = false;
             root.attempt = "";
             root.password = "";
             root.message = "";
             kept.phase = "leave";
+            root.accepted();
             return;
         }
         if (root.automatic)

@@ -574,6 +574,10 @@ Singleton {
     readonly property color badgeFg: "white"
 
     readonly property color warn: "#ff88aa"
+    // A check's answer, as a password field takes it: failure is warn itself,
+    // success a green at its pastel weight so the two read as a pair.
+    readonly property color success: "#85e0ab"
+    readonly property color failure: warn
     readonly property color releaseWarning: "#ffd60a"
     // Something is listening or watching (modules/Recording.qml): the
     // system red of a recording dot, rather than warn's pink,

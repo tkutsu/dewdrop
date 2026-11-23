@@ -526,14 +526,14 @@ Item {
                         id: box
 
                         anchors.fill: parent
-                        visible: !Lock.automaticReady
+                        visible: !pin.visible
 
                         Rectangle {
                             anchors.fill: parent
                             radius: height / 2
                             color: Qt.rgba(1, 1, 1, 0.12 + 0.06 * field.alarm)
                             border.width: 1
-                            border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
+                            border.color: Qt.tint(Theme.stroke, Qt.rgba(Theme.failure.r, Theme.failure.g, Theme.failure.b, field.alarm))
                         }
 
                         // Just after the caret, which waits at the start.
@@ -641,29 +641,35 @@ Item {
 
                     // PIN Mode: no field, just a line that fills a step with each
                     // key, by the length set for the password. Full, it pulses
-                    // while the password is checked; a miss shakes it, and the
-                    // field comes back for Return.
+                    // while the password is checked, then holds full in the
+                    // answer's colour: green as the lock lifts, red through the
+                    // shake before the field comes back for Return.
                     Item {
                         id: pin
+
+                        property bool holding: false
+                        property color answer: Theme.success
+                        // How far the line has taken the answer's colour.
+                        property real said: 0
 
                         anchors.centerIn: parent
                         width: 200
                         height: 4
-                        visible: Lock.automaticReady
+                        visible: Lock.automaticReady || pin.holding
 
                         Rectangle {
                             anchors.fill: parent
                             radius: height / 2
-                            color: Qt.tint(Qt.rgba(1, 1, 1, 0.18), Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, field.alarm))
+                            color: Qt.rgba(1, 1, 1, 0.18)
                         }
 
                         Rectangle {
                             id: filled
 
-                            width: pin.width * Math.min(1, Lock.password.length / Math.max(1, Settings.lockPasswordLength))
+                            width: pin.holding ? pin.width : pin.width * Math.min(1, Lock.password.length / Math.max(1, Settings.lockPasswordLength))
                             height: pin.height
                             radius: height / 2
-                            color: Theme.fg
+                            color: Qt.tint(Theme.fg, Qt.rgba(pin.answer.r, pin.answer.g, pin.answer.b, pin.said))
 
                             Behavior on width {
                                 NumberAnimation { duration: Theme.reduceMotion ? 0 : 140; easing.type: Easing.OutCubic }
@@ -698,12 +704,63 @@ Item {
                         NumberAnimation { target: field; property: "alarm"; to: 0; duration: 400 }
                     }
 
+                    // Right: green at once, held while the lock fades out with it.
+                    NumberAnimation {
+                        id: passing
+
+                        target: pin
+                        property: "said"
+                        to: 1
+                        duration: 120
+                        easing.type: Easing.OutCubic
+                    }
+
+                    // Wrong: red through the shake, then the field takes over with
+                    // the red still on its edge, fading as the capsule's own does.
+                    SequentialAnimation {
+                        id: failing
+
+                        NumberAnimation { target: pin; property: "said"; to: 1; duration: 80 }
+                        PauseAnimation { duration: 480 }
+                        PropertyAction { target: field; property: "alarm"; value: 1 }
+                        PropertyAction { target: pin; property: "holding"; value: false }
+                        PropertyAction { target: pin; property: "said"; value: 0 }
+                        NumberAnimation { target: field; property: "alarm"; to: 0; duration: 400 }
+                    }
+
+                    // The line is held at once, not by the animations, which start
+                    // a frame later: the password is already cleared by then.
+                    function answer(colour: color, animation: var): void {
+                        pin.answer = colour;
+                        pin.said = 0;
+                        pin.holding = true;
+                        animation.restart();
+                    }
+
                     Connections {
                         target: Lock
                         function onRejected() {
-                            flushing.restart();
+                            if (Lock.automatic)
+                                field.answer(Theme.failure, failing);
+                            else
+                                flushing.restart();
                             if (!Theme.reduceMotion)
                                 shaking.restart();
+                        }
+                        function onAccepted() {
+                            if (Lock.automatic)
+                                field.answer(Theme.success, passing);
+                        }
+                        // Locked again (or on the way back in): the line starts
+                        // over, empty and white.
+                        function onPhaseChanged() {
+                            if (Lock.phase !== "cover" && Lock.phase !== "locked")
+                                return;
+                            passing.stop();
+                            failing.stop();
+                            pin.holding = false;
+                            pin.said = 0;
+                            field.alarm = 0;
                         }
                     }
                 }
