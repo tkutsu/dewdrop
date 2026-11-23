@@ -52,11 +52,6 @@ Popup {
             Quickshell.execDetached(Settings.commandLine(Settings.updateCommand, "Upgrade (floating)"));
         }
 
-        // The note under the header says what a check under way is doing.
-        RefreshStamp {
-            service: Updates
-        }
-
         // The system's maintenance, whatever settings.json's cleanupCommand
         // makes that. A button you have to open the popup to reach rather than
         // a click on the bar, because it may remove things without asking.
@@ -69,6 +64,13 @@ Popup {
                 OpenPopup.dismiss();
                 Quickshell.execDetached(Settings.commandLine(Settings.cleanupCommand, "Clean Up (floating)"));
             }
+        }
+
+        // Last, and only the time: the header is the most crowded there is.
+        // The note under it says what a check under way is doing.
+        RefreshStamp {
+            service: Updates
+            brief: true
         }
     }
 

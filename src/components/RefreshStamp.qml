@@ -26,6 +26,10 @@ PopupButton {
     property var fetch: () => root.failed && root.service?.retryNow ? root.service.retryNow() : root.service?.refresh()
     property int staleAfter: 5 * 60
 
+    // Just the time, for a header crowded with other buttons (Updates); the
+    // refresh glyph after it already says what the button does.
+    property bool brief: false
+
     property bool asked: false
 
     readonly property string when: {
@@ -38,7 +42,7 @@ PopupButton {
     framed: true
     glyph: root.failed ? Theme.glyph.warning : Theme.glyph.refresh
     warn: root.failed
-    label: root.when ? `Updated ${root.when}` : root.failed ? "Couldn't Update" : "Refresh"
+    label: root.when ? (root.brief ? root.when : `Updated ${root.when}`) : root.failed ? "Couldn't Update" : "Refresh"
     name: root.when ? `Refresh, ${root.failed ? "couldn't update since" : "updated"} ${root.when}` : "Refresh"
 
     onTapped: {
