@@ -114,6 +114,9 @@ class EmailTests(unittest.TestCase):
         self.engine.rootContext().setContextProperty('Notifications', self.notices)
         self.popup_state = self.create('import QtQuick\nItem { property bool shown: true; function dismiss() { shown = false; } function close(item) { dismiss(); } }')
         self.engine.rootContext().setContextProperty('OpenPopup', self.popup_state)
+        # Every optional program counts as installed (notify-send for cards).
+        self.tools = self.create('import QtQuick\nQtObject { function has(name) { return true; } }')
+        self.engine.rootContext().setContextProperty('Tools', self.tools)
         self.theme = {
             'bodyFont': 'Sans Serif', 'captionSize': 12,
             'fg': '#ffffff', 'label': '#ffffff', 'label2': '#aaaaaa', 'label3': '#888888', 'warn': '#ff8800', 'selection': '#444488',
@@ -132,6 +135,7 @@ class EmailTests(unittest.TestCase):
         self.engine.rootContext().setContextProperty('sut', None)
         self.engine.rootContext().setContextProperty('OpenPopup', None)
         self.engine.rootContext().setContextProperty('Notifications', None)
+        self.engine.rootContext().setContextProperty('Tools', None)
         self.popup_state.deleteLater()
         self.root.deleteLater()
         self.engine.deleteLater()
@@ -938,6 +942,9 @@ class EmailTests(unittest.TestCase):
         self.check('popup.testOtherRow.visible && popup.testOther.count === 0 && !sut.otherWanted')
         self.click(window, self.js('return popup.testOtherRow;'))
         self.check('popup.otherOpen && sut.otherWanted && popup.testOther.count === 2')
+        # The verbs are out on the open row.
+        self.js('popup.expanded = "x";')
+        QTest.qWait(10)
         self.click(window, self.button(self.js('return popup.testOther.itemAt(0);'), 'Archive'))
         self.check('sut.other === 1 && sut.total === 1 && popup.testOther.count === 1 && OpenPopup.shown')
         self.click(window, self.button(popup, 'Undo: Archived'))
