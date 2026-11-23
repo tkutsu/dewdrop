@@ -30,7 +30,8 @@ CASES = r'''
                 choices.forceLayout();
                 const work = choices.itemAtIndex(1);
                 mouseClick(work, work.width / 2, work.height / 2);
-                wait(60);
+                // The pick lands once the menu's exit blink has shown it.
+                tryVerify(() => Settings.defaultTaskList === "work", 1000);
                 check(Settings.defaultTaskList === "work" && Tasks.parse("call x").list === "work", "dropdown selection stores list ID and routes new tasks");
                 check(!dropdown.popup.visible, "choosing a task list closes dropdown");
                 Tasks.lists = [Tasks.lists[2], Tasks.lists[0], Tasks.lists[1]];

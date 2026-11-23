@@ -31,7 +31,8 @@ QtObject {
     property bool loaded: true; property var entries: []; property var ringing: []
     property var focus: ({id: "tea", label: "Tea", total: 30000, running: true})
     property var nextAlarm: null; property real progress: 0.5; property int beatMs: 1000
-    property string glyph: "T"; property string label: "00:30"
+    property string glyph: "T"; property string label: "00:30"; property var glyphs: []; property real alarmTrackMs: 3600000
+    function alarmDisplay(hour, minute) { return {text: "", smallRanges: []}; }
     property int hushes: 0; property int toggles: 0; property int cancellations: 0
     function hush() { hushes++; ringing = []; } function toggle(id) { toggles++; }
     function cancel(id) { cancellations++; } function bump(id, amount) {}
@@ -115,8 +116,11 @@ ShellRoot {
                 const play = named(music, "slot");
                 mouseClick(play, play.width / 2, play.height / 2); wait(30);
                 check(Mpd.toggles === 1 && OpenPopup.owner === null, "play control acts once without opening popup");
-                const cancel = named(countdown, "slot");
-                mouseClick(cancel, cancel.width / 2, cancel.height / 2); wait(30);
+                // The × comes out beside the label while the pointer is on the pill.
+                mouseMove(countdown, countdown.width / 2, countdown.height / 2); wait(500);
+                const cancel = named(countdown, "cancelBox");
+                check(cancel.width > 0, "hovering the timer pill brings out its cancel mark");
+                mouseClick(cancel, cancel.width - 4, cancel.height / 2); wait(30);
                 check(Timers.cancellations === 1 && OpenPopup.owner === null, "cancel control acts once without opening popup");
                 Timers.ringing = [{id: "done", label: "Tea"}]; countdown.sync(); wait(500);
                 const label = named(countdown, "labelBox");
@@ -223,7 +227,7 @@ def main():
             shutil.copy2(ROOT / name, destination)
         step = target / "src/components/MediaStep.qml"
         step.write_text(step.read_text().replace('id: icon\n', 'id: icon\n        objectName: root.previous ? "prev" : "next"\n'))
-        for module, names in [('Music', ['titleRoom', 'slot', 'next', 'note']), ('Countdown', ['labelBox', 'slot'])]:
+        for module, names in [('Music', ['titleRoom', 'slot', 'next', 'note']), ('Countdown', ['labelBox', 'cancelBox'])]:
             path = target / 'src/modules' / (module + '.qml')
             source = path.read_text()
             for name in names:

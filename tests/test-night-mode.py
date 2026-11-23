@@ -111,6 +111,8 @@ ShellRoot {
                 tryVerify(() => picker.popup.visible, 1000);
                 keyClick(Qt.Key_End);
                 keyClick(Qt.Key_Return);
+                // The pick lands once the menu's exit blink has shown it.
+                tryVerify(() => NightMode.mode === auto, 1000);
                 verify(NightMode.mode === auto && NightMode.automatic, 'Custom hands the mode to the schedule');
                 tryVerify(() => found.dials[0].visible && found.dials[0].parent.parent.opacity === 1, 1000);
                 verify(NightMode.tooltip.endsWith(' · night mode off until 08:00'), NightMode.tooltip);

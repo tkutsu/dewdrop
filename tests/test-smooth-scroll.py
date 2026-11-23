@@ -95,7 +95,8 @@ ShellRoot {
             console.log("CRUISE: " + JSON.stringify(speeds));
             check(Math.min(...speeds) > Math.max(...speeds) * 0.65, "wheel keeps a steady speed through the middle of a glide");
             wait(500);
-            mouseWheel(slider, 100, 15, 0, -120);
+            // Up raises it, as it does the equalizer's bands.
+            mouseWheel(slider, 100, 15, 0, 120);
             wait(300);
             check(Math.abs(slider.value - 0.6) < 0.001 && controls.contentY === 0, "wheel over a slider adjusts its value without scrolling");
             mouseWheel(nested, 100, 50, 0, -120);
