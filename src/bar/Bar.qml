@@ -924,24 +924,6 @@ PanelWindow {
         }
     }
 
-    Connections {
-        target: OpenPopup
-
-        function onControlRequested(key: string, screenName: string): void {
-            if (bar.modelData.name !== screenName)
-                return;
-            const moduleKey = {sound: "audio", display: "night", notifications: "bell"}[key] ?? key;
-            const item = { bell, countdown: timerModule }[moduleKey] ?? bar.drawerModules.find(item => item.pinKey === moduleKey);
-            if (!item?.here)
-                return;
-            controlOpen.interval = item.stowed && !Theme.reduceMotion ? Theme.windupMs + Theme.foldLandMs : 1;
-            controlOpen.item = item;
-            if (item.stowed)
-                drawer.open = true;
-            controlOpen.restart();
-        }
-    }
-
     // Prefer the calendar while visible, otherwise a central control.
     Connections {
         target: OpenPopup
@@ -952,17 +934,6 @@ PanelWindow {
             const item = clock.visible ? clock : clockPill.shown.find(item => item.keyOpens || typeof item.keyPress === "function") ?? bar.stops()[0];
             if (item)
                 OpenPopup.select(item);
-        }
-    }
-
-    // Anchor a requested popup after its drawer slot has finished unfolding.
-    Timer {
-        id: controlOpen
-        property var item: null
-        onTriggered: {
-            if (item?.here && !item.stowed)
-                OpenPopup.set(item);
-            item = null;
         }
     }
 
