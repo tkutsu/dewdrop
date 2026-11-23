@@ -84,6 +84,6 @@ Popup {
     PopupNote {
         width: root.bodyWidth
         visible: Caffeine.endsAt !== ""
-        text: `Turns off at ${Caffeine.endsAt}`
+        text: `On until ${Caffeine.endsAt}`
     }
 }

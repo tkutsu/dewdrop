@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Check that caffeine comes back as it was left after the bar restarts."""
 
+import datetime
+import json
 import os
 from pathlib import Path
+import time
 from test_support import fixture_root
 import shutil
 import subprocess
@@ -22,6 +25,7 @@ ShellRoot {
     Timer {
         interval: 200; running: true
         onTriggered: {
+            console.log("ENDS " + JSON.stringify(Caffeine.endsAt));
             console.log(test.first === %(expected)s ? "PASS" : "FAIL: came up " + test.first);
             Caffeine.turn(%(then)s);
             quit.running = true;
@@ -42,6 +46,16 @@ RUNS = (
     ("timed, still running", '{"active": true, "minutes": 60, "until": 4102444800}', "true", "false"),
     ("timed, ran out while away", '{"active": true, "minutes": 60, "until": 1}', "false", "false"),
 )
+
+# A turn's end, read back as the words after "until": the time alone today,
+# and the day too once it is tomorrow, so a day's hold never reads as now.
+NOW = int(time.time())
+ENDS = (
+    ("ends later today", NOW + 120, lambda ends: "at" not in ends and ends != ""),
+    ("ends tomorrow", NOW + 86400, lambda ends: ends.startswith("tomorrow at ")),
+)
+if datetime.date.fromtimestamp(NOW + 120) != datetime.date.fromtimestamp(NOW):
+    ENDS = ENDS[1:]
 
 
 def main():
@@ -71,6 +85,17 @@ def main():
             else:
                 failed = True
                 print(f"FAIL: {name}\n{log}")
+        for name, until, ok in ENDS:
+            (state / "caffeine.json").write_text(json.dumps({"active": True, "minutes": 1440, "until": until}))
+            (target / "shell.qml").write_text(QML % {"expected": "true", "then": "false"})
+            result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=10)
+            log = result.stdout + result.stderr
+            ends = next((json.loads(line.split("ENDS ", 1)[1]) for line in log.splitlines() if "ENDS " in line), None)
+            if ends is not None and ok(ends):
+                print(f"PASS: {name}: until {ends}")
+            else:
+                failed = True
+                print(f"FAIL: {name}: until {ends!r}\n{log}")
     raise SystemExit(1 if failed else 0)
 
 

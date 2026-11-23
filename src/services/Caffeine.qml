@@ -19,7 +19,19 @@ Singleton {
     readonly property bool active: stored.active && !(stored.until > 0 && stored.until <= root.now)
     // How long a turn on lasts, 0 for until turned off.
     readonly property alias minutes: stored.minutes
-    readonly property string endsAt: root.active && stored.until > 0 ? Settings.sayTime(new Date(stored.until * 1000)) : ""
+    // When it turns off, to follow "until": "14:30", or "tomorrow at 14:30"
+    // once a turn reaches past midnight, so a day's hold does not read as now.
+    readonly property string endsAt: {
+        if (!root.active || stored.until <= 0)
+            return "";
+        const end = new Date(stored.until * 1000);
+        const today = new Date(root.now * 1000);
+        if (end.toDateString() === today.toDateString())
+            return Settings.sayTime(end);
+        today.setDate(today.getDate() + 1);
+        const day = end.toDateString() === today.toDateString() ? "tomorrow" : Qt.formatDate(end, "ddd d MMM");
+        return `${day} at ${Settings.sayTime(end)}`;
+    }
 
     // Seconds since the epoch, moved on by the check below.
     property real now: Date.now() / 1000
