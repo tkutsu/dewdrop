@@ -53,7 +53,7 @@ ShellRoot {
             check(row("weatherFormat").validate("{icon} {tmp}°") === "{tmp} isn't a token. Use {icon} or {temp}.", "weather format names a mistyped token");
             check(row("lockWeatherFormat").validate("{icon} {hi}") && !row("lockWeatherFormat").validate("{desc} {high}/{low}"), "lock weather format refuses a mistyped token");
             check(rows().every(r => r.id !== "centrePillAnchor"), "the centre pill centres its pinned modules, with no anchor setting");
-            check(row("pin:bell") && row("pin:countdown"), "the fused bell and timers keep their visibility modes");
+            check(!rows().some(r => r.id === "pin:bell" || r.id === "pin:countdown"), "the fused bell and timers have no visibility mode");
             check(sections("Weather") === "Location|Display|Forecast" && hits("gfs").includes("weatherModel"), "location and forecast model have their own sections");
             check(hits("sunrise").includes("weatherLocation"), "search finds the location used for Auto Night Mode");
             wait(80);

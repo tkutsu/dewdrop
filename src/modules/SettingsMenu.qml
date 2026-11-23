@@ -432,8 +432,8 @@ OverlayWindow {
             sections: [
                 {
                     title: "Module Visibility",
-                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. The open drawer lists every module, even one with nothing behind it, so it can be moved. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end. The centre pill centres the span of its pinned modules on the screen, or itself when none is pinned.",
-                    rows: [...ModulePlaces.centre, "bell", "countdown", ...ModulePlaces.right].filter(k => root.modules[k]).map(k => root.placement(k))
+                    text: "Auto shows active modules. Pinned always shows them. Drawer keeps them behind the chevron. The open drawer lists every module, even one with nothing behind it, so it can be moved. Drag modules to move or reorder them; Date & Time, Weather and Privacy stay in the centre pill. Notifications and Timers are fused to its right end and come out on their own while something is going. The centre pill centres the span of its pinned modules on the screen, or itself when none is pinned.",
+                    rows: [...ModulePlaces.centre, ...ModulePlaces.right].filter(k => root.modules[k]).map(k => root.placement(k))
                 },
                 {
                     title: "Tray Icons",

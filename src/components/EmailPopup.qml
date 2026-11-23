@@ -172,11 +172,6 @@ Popup {
 
         ReconnectButton {}
 
-        RefreshStamp {
-            service: Email
-            visible: Email.configured && !Google.needsConsent
-        }
-
         // Takes back the latest action still waiting.
         PopupButton {
             id: undoButton
@@ -186,6 +181,11 @@ Popup {
             label: "Undo"
             name: root.lastAction ? `Undo: ${root.lastAction.said}` : "Undo"
             onTapped: Email.undo()
+        }
+
+        RefreshStamp {
+            service: Email
+            visible: Email.configured && !Google.needsConsent
         }
 
         PopupButton {

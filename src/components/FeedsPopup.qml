@@ -225,11 +225,6 @@ Popup {
             }
         }
 
-        RefreshStamp {
-            service: Feeds
-            visible: Feeds.connected
-        }
-
         // Takes back the latest swipe, or the Mark All Seen.
         PopupButton {
             visible: Feeds.undos.length > 0
@@ -237,6 +232,11 @@ Popup {
             glyph: Theme.glyph.undo
             label: "Undo"
             onTapped: Feeds.undo()
+        }
+
+        RefreshStamp {
+            service: Feeds
+            visible: Feeds.connected
         }
 
         PopupButton {

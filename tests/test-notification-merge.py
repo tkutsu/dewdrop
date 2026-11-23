@@ -93,7 +93,7 @@ ShellRoot {
             }
             function reset() {
                 Notifications.showing = false; Notifications.list = [];
-                drawer.out = false; DrawerPins.setMode("bell", "auto");
+                drawer.out = false;
                 wait(1200);
                 check(bell.stowed && !bell.visible, "empty bell is hidden");
                 Notifications.list = [Notifications.latest]; Notifications.showing = true;
@@ -174,11 +174,9 @@ ShellRoot {
                 }
             }
             function run() {
-                bell.visibilityKey = "bell";
                 check(bell.trailingControl && bell.settingsKey === "" && bell.pill === clockPill, "the bell is fused to the centre pill");
                 wait(Theme.startMs + 50);
                 bar.placeModules();
-                DrawerPins.setMode("bell", "auto");
                 if (CLEAR_ONLY) {
                     for (const remaining of [false, true]) {
                         for (const showing of [false, true]) {
@@ -247,7 +245,6 @@ ShellRoot {
                     console.log("PASS: media bell handoff after real module placement in Auto mode");
                     return;
                 }
-                DrawerPins.setMode("bell", "pinned");
                 Notifications.list = [Notifications.latest];
                 wait(700);
                 check(bell.visible, "bell starts at the centre pill's right edge");
@@ -256,7 +253,6 @@ ShellRoot {
                 Notifications.showing = true; wait(Theme.dropMs + 100);
                 check(notice.reveal === 1 && !bell.visible, "interrupted merge returns the bell to the bubble");
                 Notifications.showing = false; wait(Theme.dropMs + 100);
-                DrawerPins.setMode("bell", "auto");
                 Notifications.list = []; Notifications.showing = true; wait(Theme.dropMs + 100);
                 check(notice.reveal === 1 && bell.stowed, "an ephemeral notice shows with the bell hidden");
                 Notifications.showing = false;
@@ -276,9 +272,9 @@ ShellRoot {
                     check(bell.handingOff, "the notice is headed for the fused bell");
                     // The notice carries the bell while it is out, so the
                     // slot here stays shut whatever the bell's mode.
-                    drawer.out = true; DrawerPins.setMode("bell", "pinned"); wait(100);
+                    drawer.out = true; wait(100);
                     check(bell.stowed && !bell.visible, "the notice carries the bell while it is out");
-                    drawer.out = false; DrawerPins.setMode("bell", "auto");
+                    drawer.out = false;
 
                     reset();
                     Notifications.showing = false; wait(80);

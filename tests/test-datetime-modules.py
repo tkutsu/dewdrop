@@ -65,15 +65,16 @@ ShellRoot {
                 mouseClick(clock, clock.width / 2, clock.height / 2); wait(450);
                 check(clock.popupOpen && clock.popupItem?.opened, 'left click on datetime opens calendar');
                 OpenPopup.dismiss(); settle();
-                check(timerModule.quiet && timerModule.stowed && countdown.stowed, 'idle timer is hidden in Auto');
-                DrawerPins.setMode('countdown', 'pinned'); settle();
-                check(!timerModule.stowed && timerModule.visible && countdown.stowed, 'pinning reveals idle timer icon');
+                check(timerModule.quiet && timerModule.stowed && countdown.stowed, 'an idle timer waits in the drawer');
+                check(timerModule.pinKey === '', 'the timer has no pin or mode');
+                drawer.out = true; settle();
+                check(!timerModule.stowed && timerModule.visible && countdown.stowed, 'the open drawer shows the idle timer icon');
                 check(timerModule.icon.glyph === Theme.glyph.timer && timerModule.icon.badge === '', 'idle icon has no badge');
                 mouseClick(timerModule, timerModule.width / 2, timerModule.height / 2); wait(450);
                 check(timerModule.popupOpen && timerModule.popupItem?.opened, 'idle icon opens timer popup');
                 Services.Timers.countdown(600000, 'Tea'); settle();
                 check(!countdown.stowed && timerModule.popupOpen, 'creating a timer keeps its open editor accessible');
-                OpenPopup.dismiss(); settle();
+                OpenPopup.dismiss(); drawer.out = false; settle();
                 check(!countdown.stowed && countdown.reveal === 1 && timerModule.stowed, 'active central timer expands and replaces its icon');
                 check(countdownPill.x >= bar.clockRight, 'timer pill sits to the right of centre');
                 Settings.set('countdownBadgeStyle', 'badge');
@@ -115,14 +116,8 @@ ShellRoot {
                     check(timerModule.icon.badge === (style === 'hide' ? '' : '2'), 'badge visibility: ' + style);
                     check(timerModule.icon.underdot === (style === 'underdot'), 'badge shape: ' + style);
                 }
-                DrawerPins.setMode('countdown', 'drawer'); settle();
-                check(timerModule.stowed && countdown.stowed, 'Drawer override hides active timers');
-                drawer.out = true; settle();
-                check(timerModule.visible && !countdown.stowed, 'open drawer brings the timers back');
-                drawer.out = false; settle();
-                check(timerModule.stowed && countdown.stowed, 'Drawer override hides central expansion');
-                DrawerPins.setMode('countdown', 'auto'); settle();
-                check(!countdown.stowed && timerModule.stowed, 'Auto restores active central expansion');
+                OpenPopup.dismiss(); drawer.out = false; settle();
+                check(!countdown.stowed && timerModule.stowed, 'active timers come out into their pill on their own');
                 Services.Timers._commit([alarm]); settle();
                 check(countdown.target.id === alarm.id && !countdown.stowed, 'alarm alone expands the pill');
                 countdown.collapse(); settle();

@@ -70,9 +70,9 @@ def main():
     qml = qml.replace("implicitHeight: 100", "implicitHeight: 190")
     qml = qml.replace("        TestCase {", references + "        TestCase {", 1)
     run = r'''            function run() {
-                bell.settingsKey = "bell"; bell.visibilityKey = "bell";
+                bell.settingsKey = "bell";
                 wait(Theme.startMs + 50);
-                bar.placeModules(); DrawerPins.setMode("bell", "auto");
+                bar.placeModules();
                 Notifications.list = [Notifications.latest]; Notifications.showing = true;
                 wait(Theme.dropMs + 100);
                 const restingX = clockPill.x;

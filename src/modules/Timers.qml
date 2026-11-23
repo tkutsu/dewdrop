@@ -28,7 +28,6 @@ BarItem {
     handedOver: root.handoffProgress < 1
     implicitWidth: Math.round(_fullWidth * _fold * root.handoffProgress)
     readonly property bool wantsExpansion: Services.Timers.loaded && root.pill?.side === Pill.Side.Centre
-        && (root.showsClosed || root.drawerOut)
     readonly property int activeCount: Services.Timers.entries.filter(entry => entry.running
         && !Services.Timers.ringing.some(ring => ring.id === entry.id)).length + Services.Timers.ringing.length
     readonly property Item icon: timerIcon

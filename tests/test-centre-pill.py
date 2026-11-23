@@ -146,7 +146,9 @@ ShellRoot {
                 checkCentre('nothing pinned');
                 drawer.open = true; settle();
                 bar.check(centralItems()[0] === recordingNote, 'Privacy starts left of Date & Time');
-                for (const item of [clock, weather, recordingNote, timerModule, bell]) {
+                bar.check(bell.pinKey === '' && timerModule.pinKey === '' && !bar.drawerRows.some(row => row.id === 'pin:bell' || row.id === 'pin:countdown'),
+                    'the bell and timers have no pin, like the media notes');
+                for (const item of [clock, weather, recordingNote]) {
                     const key = item.pinKey;
                     mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(DrawerPins.pinned(key), 'middle click pins central ' + key);
@@ -176,7 +178,7 @@ ShellRoot {
                 checkCentre('Weather before Date & Time');
                 ModulePlaces.move('weather', 'centre', null, ['weather', 'datetime']); settle();
                 checkCentre('Weather after Date & Time');
-                DrawerPins.setMode('bell', 'pinned'); DrawerPins.setMode('countdown', 'pinned'); settle();
+                settle();
                 checkCentre('the fused notes grow the pill round the pinned span');
 
                 // The fused notes sit after the ordered modules, the last to
@@ -200,7 +202,6 @@ ShellRoot {
                 clockPill.putOutside(musicNote);
                 bar.check(clockPill.leadingOrder[0] === musicNote && clockPill.leadingOrder[1] === nowPlayingNote,
                     'a note merging again moves out');
-                DrawerPins.setMode('bell', 'auto'); DrawerPins.setMode('countdown', 'auto');
 
                 // Other modules move both ways, and none is locked in.
                 drawer.open = true; settle();
@@ -239,8 +240,8 @@ ShellRoot {
                 DrawerPins.setMode('tray:fixture', 'auto'); wait(10);
                 transfer(tray, rightPill, null);
 
-                // Date & Time, Weather, the fused modules and a right module share the drawer modes.
-                for (const item of [clock, weather, recordingNote, timerModule, bell, audio]) {
+                // Date & Time, Weather, Privacy and a right module share the drawer modes.
+                for (const item of [clock, weather, recordingNote, audio]) {
                     const key = item.pinKey;
                     if (DrawerPins.pinned(key)) mouseClick(item, item.width / 2, 20, Qt.MiddleButton);
                     bar.check(!DrawerPins.pinned(key), 'middle click unpins ' + key);
@@ -362,7 +363,7 @@ property var centreOrder: ModulePlaces.centre
 property var rightOrder: ModulePlaces.right
 property var pins: DrawerPins.pins
 Timer { interval: 150; running: true; onTriggered: {
-    if (centre.slice().sort().join(',') !== 'audio,datetime,privacy,weather' || !DrawerPins.kept('datetime') || !DrawerPins.pinned('bell') || JSON.stringify(centreOrder) !== 'CENTRE_ORDER' || JSON.stringify(rightOrder) !== 'RIGHT_ORDER') console.log('FAIL: saved layout or drawer mode: ' + centre.join(','));
+    if (centre.slice().sort().join(',') !== 'audio,datetime,privacy,weather' || !DrawerPins.kept('datetime') || JSON.stringify(centreOrder) !== 'CENTRE_ORDER' || JSON.stringify(rightOrder) !== 'RIGHT_ORDER') console.log('FAIL: saved layout or drawer mode: ' + centre.join(','));
     else console.log('PASS: module places and drawer modes survive restart');
     Qt.quit();
 } } }'''

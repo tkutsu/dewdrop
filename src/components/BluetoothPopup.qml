@@ -47,6 +47,13 @@ Popup {
             onTapped: Bluetooth.scan(!Bluetooth.scanning)
         }
 
+        SettingSwitch {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "Bluetooth"
+            checked: Bluetooth.on
+            onToggled: Bluetooth.toggle()
+        }
+
         PopupButton {
             readonly property var command: Settings.helper(Settings.bluetoothCommand, false)
 
@@ -58,13 +65,6 @@ Popup {
                 OpenPopup.dismiss();
                 Quickshell.execDetached(command);
             }
-        }
-
-        SettingSwitch {
-            anchors.verticalCenter: parent.verticalCenter
-            name: "Bluetooth"
-            checked: Bluetooth.on
-            onToggled: Bluetooth.toggle()
         }
     }
 

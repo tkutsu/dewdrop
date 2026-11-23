@@ -66,11 +66,9 @@ Popup {
             }
         }
 
-        // Last, and only the time: the header is the most crowded there is.
-        // The note under it says what a check under way is doing.
+        // Last: the note under the header says what a check under way is doing.
         RefreshStamp {
             service: Updates
-            brief: true
         }
     }
 

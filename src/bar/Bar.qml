@@ -243,9 +243,11 @@ PanelWindow {
     // on its left (fusedModules).
     readonly property var movableModules: [clock, weather, audio, email, tasks, updater, feeds, downloads,
         satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
+    // The bell and timers have no mode: like the media notes they come out
+    // while they have something going, and the open drawer shows them anyway.
     readonly property var fusedModules: [bell, timerModule]
     // Everything with a drawer mode, in either pill.
-    readonly property var drawerModules: [...bar.movableModules, recordingNote, ...bar.fusedModules]
+    readonly property var drawerModules: [...bar.movableModules, recordingNote]
     readonly property var centreKeys: ModulePlaces.centre
 
     // Reparent live modules without rebuilding their controls or service state.
@@ -469,7 +471,6 @@ PanelWindow {
         NotificationBell {
             id: bell
             settingsKey: ""
-            pinKey: "bell"
             trailingControl: true
             handingOff: notice.mergedIcon === keyBox.children[0] && (!notice.stowed || notice.reveal > 0)
             handoffProgress: handingOff ? notice.iconHandoff.progress : 1
@@ -480,9 +481,8 @@ PanelWindow {
             // to keep; the empty bell then folds away once the notice is in.
             // One that was dismissed or cleared just goes.
             readonly property bool landing: notice.stowed && !Services.Notifications.withdrawn
-            stowed: handingOff ? handoffProgress === 0 || (!showsClosed && !drawer.out && !landing)
-                : !showsClosed && !drawer.out
-            marksPin: drawer.out
+            stowed: handingOff ? handoffProgress === 0 || (quiet && !drawer.out && !landing)
+                : quiet && !drawer.out
             // The notice going back in, while its slot here is still shut.
             readonly property bool takingBack: handingOff && notice.stowed
             onTakingBackChanged: if (takingBack)
@@ -492,9 +492,7 @@ PanelWindow {
         Timers {
             id: timerModule
             settingsKey: ""
-            pinKey: "countdown"
             trailingControl: true
-            marksPin: drawer.out
             onLandingChanged: if (landing)
                 clockPill.putOutside(timerModule)
             drawerOut: drawer.out
@@ -507,7 +505,7 @@ PanelWindow {
             handoffOffset: handingOff ? countdown.iconHandoff.targetX : 0
             landing: handingOff && countdown.stowed && countdown.reveal > 0
             landingGlyph: countdown.shownGlyph
-            stowed: expanded || (!showsClosed && !drawer.out && !landing)
+            stowed: expanded || (quiet && !popupOpen && !drawer.out && !landing)
             onExpandRequested: countdown.expand()
             onWantsExpansionChanged: if (!wantsExpansion && Services.Timers.loaded)
                 OpenPopup.close(countdown)
@@ -783,7 +781,8 @@ PanelWindow {
             id: drawer
             leadingControl: true
             // A tray icon kept in counts, though the tray itself is out.
-            holding: bar.drawerModules.some(m => m.here && !m.showsClosed) || (tray.here && tray.tucks)
+            holding: bar.drawerModules.some(m => m.here && !m.showsClosed) || bar.fusedModules.some(m => m.here && m.quiet)
+                || (tray.here && tray.tucks)
             // Or a popup is open: one of the drawer's own modules would fold
             // away from under it.
             pointerNear: barHover.hovered || PopupPointer.hovered > 0 || OpenPopup.owner !== null || OpenPopup.selected !== null
@@ -934,7 +933,7 @@ PanelWindow {
             if (bar.modelData.name !== screenName)
                 return;
             const moduleKey = {sound: "audio", display: "night", notifications: "bell"}[key] ?? key;
-            const item = bar.drawerModules.find(item => item.pinKey === moduleKey);
+            const item = { bell, countdown: timerModule }[moduleKey] ?? bar.drawerModules.find(item => item.pinKey === moduleKey);
             if (!item?.here)
                 return;
             controlOpen.interval = item.stowed && !Theme.reduceMotion ? Theme.windupMs + Theme.foldLandMs : 1;

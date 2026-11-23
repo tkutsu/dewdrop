@@ -191,7 +191,45 @@ def menus():
         print("PASS: tray menus tick in the list's column")
 
 
+def header_children(source):
+    """Each PopupHeader's direct children, in order, as the text of each."""
+    headers = []
+    for match in re.finditer(r"PopupHeader \{", source):
+        depth, start, children, at = 1, match.end(), [], match.end()
+        child = None
+        while depth:
+            char = source[at]
+            if char == "{":
+                if depth == 1:
+                    child = source.rfind("\n", start, at) + 1
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 1 and child is not None:
+                    children.append(source[child:at + 1])
+                    child = None
+            at += 1
+        headers.append(children)
+    return headers
+
+
+def header_order():
+    """From the right of every header: the way out to the app, then the
+    refresh stamp, whichever of them it has."""
+    failures = []
+    for path in sorted((Path(__file__).resolve().parents[1] / "src/components").glob("*.qml")):
+        for children in header_children(path.read_text()):
+            kinds = ["app" if "Theme.glyph.openApp" in c else "stamp" if c.lstrip().startswith("RefreshStamp") else "other" for c in children]
+            ends = [k for k in kinds if k != "other"]
+            tail = kinds[len(kinds) - len(ends):]
+            if tail != ends or ends not in ([], ["app"], ["stamp"], ["stamp", "app"]):
+                failures.append(f"{path.name}: header ends {kinds}, not ... stamp, app")
+    assert not failures, "\n".join(failures)
+    print("PASS: headers end with the refresh stamp, then the way out to the app")
+
+
 def main():
+    header_order()
     menus()
     with tempfile.TemporaryDirectory(prefix="quickshell-popup-standards-") as folder:
         target = fixture_root(folder)
