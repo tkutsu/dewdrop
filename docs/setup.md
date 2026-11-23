@@ -52,7 +52,7 @@ Each of these turns on when its tools are installed. Without them the rest of th
 | Brightness | On a monitor: `ddcutil`, the `i2c-dev` kernel module and access to `/dev/i2c-*` (usually the `i2c` group). On a laptop panel: `brightnessctl`. The Display module hides without them. |
 | Night mode tint | `hyprsunset` running in your session. Without it, night mode only dims the screen. |
 | Lock Screen | Nothing for the lock itself. To lock on idle and before sleep, `hypridle` with `lock_cmd = qs ipc call lock lock` and `before_sleep_cmd = loginctl lock-session` |
-| Drives | UDisks2 (`udisksctl`), UPower |
+| Disks | UDisks2 (`udisksctl`), UPower. `gnome-disks` (gnome-disk-utility) opens Disk Utility, for formatting and the rest, by a right click (`disksCommand`) |
 | Music | MPD and `mpc`, with MPD listening on the socket set in `mpdSocket`. Starting and stopping music from the launcher needs a user `mpd.service` with `mpd.socket` disabled, or the bar's reconnect wakes MPD straight back up. The popup's waveform needs Python 3 and FFmpeg. |
 | Music equalizer | Python 3, FFmpeg, and a user `mpd.service`. The config at `mpdConfig` must have one FFmpeg EQ filter attached to an output and a `state_file` to preserve the queue. Apply saves a `.quickshell-eq.bak` backup and briefly restarts MPD. |
 | Launcher file search | `fd`, and `fasd` for recent files |
@@ -102,7 +102,7 @@ Settings > Default Apps holds these, the first three under Updates and the rest 
 | Install Command (`installCommand`) | Runs from an Install link, in the terminal, with Arch package names after it | `sudo pacman -S --needed` where pacman is installed, or else no Install links |
 | Monitor Bus (`displayBus`) | The DDC/CI bus from `ddcutil detect`, which is quicker than searching for the monitor | The first monitor |
 
-Settings > Default Apps > Right Click sets what a right click on Network, Bluetooth and System opens: `networkCommand` (`nm-connection-editor`), `bluetoothCommand` (`blueman-manager`) and `monitorCommand` (`btop`, run in the terminal). An empty one hides the button in that popup, and a right click opens the popup instead.
+Settings > Default Apps > Right Click sets what a right click on Network, Bluetooth, Disks and System opens: `networkCommand` (`nm-connection-editor`), `bluetoothCommand` (`blueman-manager`), `disksCommand` (`gnome-disks`) and `monitorCommand` (`btop`, run in the terminal). An empty one hides the button in that popup, and a right click opens the popup instead.
 
 Power and brightness run the bundled `scripts/power.sh` and `scripts/display.sh`. A keybind can call `scripts/display.sh` too, with `up`, `down` or `toggle`.
 
