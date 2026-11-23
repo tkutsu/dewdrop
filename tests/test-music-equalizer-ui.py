@@ -62,7 +62,8 @@ ShellRoot {
             event("click");
             mouseClick(option, option.width / 2, option.height / 2);
             event("click-release");
-            wait(100);
+            // The pick lands once the menu's exit blink has shown it.
+            tryVerify(() => MpdEqualizer.preset === selector.model[index].value && !selector.popup.visible, 1000);
             check(MpdEqualizer.preset === selector.model[index].value,
                 "click selects " + selector.model[index].label);
             check(OpenPopup.owner === anchor && popup.requestedVisible,

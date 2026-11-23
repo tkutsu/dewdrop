@@ -43,6 +43,8 @@ ShellRoot {
             check(FileUrl.fromPath("") === "", "empty paths stay empty");
             until(() => image.status === Image.Ready, "an image with URL punctuation and Unicode loads");
             until(() => localPath(sleeve.cover) === IMAGE_PATH && sleeve.testArt.status === Image.Ready, "CoverArt finds and loads a named cover in an encoded folder");
+            // What MPD's config answer would set (music_directory).
+            Mpd.musicDirectory = Settings.musicDir;
             Mpd.file = "album #?%20 α/song.flac";
             until(() => localPath(Mpd.cover) === IMAGE_PATH, "MPD finds the current album's cover through the same helper");
             sleeve.dir = "";

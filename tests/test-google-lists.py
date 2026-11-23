@@ -151,8 +151,9 @@ def main():
             source = path.read_text().replace('id: root', 'id: root\n    polling: false', 1)
             if name == "Tasks":
                 source = source.replace('id: root', 'id: root\n    property var auditNotifications: []\n'
-                    '    function auditNotify(command) { auditNotifications = auditNotifications.concat([command]); }', 1)
-                source = source.replace('Quickshell.execDetached(', 'root.auditNotify(')
+                    '    function auditNotify(...words) { auditNotifications = auditNotifications.concat([words]); }', 1)
+                # Each notice as its words, [title, body].
+                source = source.replace('Notify.send(', 'root.auditNotify(')
             path.write_text(source)
         (target / "shell.qml").write_text(QML)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=shell_env(target),

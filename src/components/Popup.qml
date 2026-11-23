@@ -153,14 +153,11 @@ PopupWindow {
     }
 
     // Whether the pointer is on the popup, which the bar counts (below).
-    // Dropdowns move into Qt's overlay, outside the body's hover tree.
-    readonly property bool hovered: pointer.hovered || (dropdownPointer?.hovered ?? false)
-
-    HoverHandler {
-        id: dropdownPointer
-        parent: root.dropdownItem
-        enabled: root.requestedVisible && root.dropdownItem !== null
-    }
+    // Dropdowns move into Qt's overlay, outside the body's hover tree; the
+    // menu's own item says when the pointer is on it. (A HoverHandler moved
+    // onto it never heard the pointer, so picking from a menu counted as a
+    // click outside and closed the popup with it.)
+    readonly property bool hovered: pointer.hovered || (root.requestedVisible && (root.dropdownItem?.hovered ?? false))
 
     // Fade the surface and compositor blur together without crossing the
     // blur mask's alpha cutoff; keep the surface alive through its exit.
