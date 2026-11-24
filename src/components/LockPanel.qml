@@ -780,6 +780,27 @@ Item {
         }
     }
 
+    // Shift held a beat. A keyboard that types a symbol as Shift and a key
+    // (a QMK symbol layer's !) holds it only for that keystroke, and the
+    // capitals mark would flash with each one.
+    property bool shiftHeld: false
+
+    Timer {
+        id: shiftBeat
+        interval: 300
+        onTriggered: root.shiftHeld = true
+    }
+    Connections {
+        target: Lock
+        function onShiftChanged() {
+            root.shiftHeld = false;
+            if (Lock.shift)
+                shiftBeat.restart();
+            else
+                shiftBeat.stop();
+        }
+    }
+
     // One mark for capitals, while Caps Lock is on or Shift is held, and the
     // keyboard layout when there is more than one (a click moves to the
     // next), tucked into the card's corner, clear of its curve. Each mark is
@@ -793,7 +814,8 @@ Item {
         spacing: 12
 
         Glyph {
-            visible: Lock.capsLock || Lock.shift
+            objectName: "capitals"
+            visible: Lock.capsLock || root.shiftHeld
             implicitHeight: layoutName.implicitHeight
             inkBase: layoutName.baselineOffset
             text: Theme.glyph.capsLock
