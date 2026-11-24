@@ -127,16 +127,30 @@ ShellRoot {
                 const range = (a, b) => `${Timers.hhmm(a, 0)}–${Timers.hhmm(b, 0)}`;
                 const preview = line => Launcher.taskResults(" " + line)[0];
                 check(!preview("15:00 call bank").subtitle.includes("event"), "alarm preview promises no event");
-                check(preview("fri 15:00 call bank").subtitle === `event  ·  ${Tasks.sayDay(fri)} ${range(15, 16)}` && preview("fri 15:00 call bank").event, "event preview");
-                check(preview("fri call bank").subtitle.startsWith("task  ·  ") && !preview("fri call bank").event, "task preview");
+                check(preview("fri 15:00 call bank").subtitle === `${Tasks.sayDay(fri)} ${range(15, 16)}` && preview("fri 15:00 call bank").event, "event preview");
+                check(preview("fri call bank").subtitle === `${Tasks.sayDay(fri)}  ·  ${Tasks.lists.find(l => l.id === Tasks.parse("x").list).title}` && !preview("fri call bank").event, "task preview");
                 const notedRow = preview("fri call bank\nbring the card");
-                check(notedRow.title === "fri call bank" && notedRow.subtitle.startsWith("task  ·  ") && notedRow.subtitle.endsWith("  ·  with notes")
+                check(notedRow.title === "fri call bank" && notedRow.subtitle === `${Tasks.sayDay(fri)}  ·  ${Tasks.lists.find(l => l.id === Tasks.parse("x").list).title}  ·  with notes`
                     && notedRow.text.endsWith("\nbring the card"), "add row shows the first line and says notes follow");
                 check(preview("fri 15:00 call bank\nfees").subtitle.endsWith(`${range(15, 16)}  ·  with notes`), "event preview says notes follow");
                 check(!preview("fri call bank").subtitle.includes("notes"), "no notes, no mention");
+
+                // The row's buttons: every kind in one order, live where the
+                // line reads that way, the guess chosen until another is.
+                const buttons = line => Launcher.actionsFor(preview(line));
+                const said = line => buttons(line).map(a => a.label + (a.live ? "" : "-") + (a.primary ? "*" : "")).join(",");
+                check(said("15:00 call bank") === "Add Task,Start Timer-,Set Alarm*,Add Event,Add Notes-", "an alarm line offers task and event: " + said("15:00 call bank"));
+                check(said("fri call bank") === "Add Task*,Start Timer-,Set Alarm-,Add Event,Add Notes", "a dated task offers an event and notes: " + said("fri call bank"));
+                check(said("fri call bank\nfee") === "Add Task*,Start Timer-,Set Alarm-,Add Event,Add Notes-", "notes once only");
+                Launcher.chooseAction("event");
+                check(Launcher.planKind === "event" && preview("fri call bank").event && preview("fri call bank").subtitle === `${Tasks.sayDay(fri)} all day`, "choosing Add Event makes the row an event");
+                check(preview("25m tea").want === "timer", "a kind the line cannot be keeps the guess");
+                Launcher.chooseAction("notes");
+                check(Launcher.planKind === "event", "Add Notes leaves the kind as it was");
+                Launcher.planKind = ""; Launcher.chosenAction = "activate";
                 Google.scopeMissing = true;
                 check(!preview("15:00 call bank").subtitle.includes("calendar") && preview("15:00 call bank").ok, "an alarm has nothing to do with the calendar");
-                check(preview("fri 15:00 call bank").subtitle === "event  ·  calendar needs reconnect" && !preview("fri 15:00 call bank").ok, "event waits for reconnect");
+                check(preview("fri 15:00 call bank").subtitle === "calendar needs reconnect" && !preview("fri 15:00 call bank").ok, "event waits for reconnect");
                 Google.scopeMissing = false;
 
                 // A time already gone today rings tomorrow, with no event.
@@ -183,7 +197,7 @@ ShellRoot {
                 check(Tasks.plan("fri allday trip").event?.allDay && Tasks.plan("fri All Day trip").event.title === "trip", "allday as one word, any case");
                 check(Tasks.plan("fri all day").error === "No event, only a day", "all day with no title");
                 check(Tasks.plan("all day trip").kind === "task" && Tasks.plan("fri all hands").task.title === "all hands", "all day needs a day; all alone is a word");
-                check(preview("fri all day trip").subtitle === `event  ·  ${Tasks.sayDay(fri)} all day`, "all-day preview");
+                check(preview("fri all day trip").subtitle === `${Tasks.sayDay(fri)} all day`, "all-day preview");
                 Agenda.calls = [];
                 check(Tasks.run("20/11/2030 allday x").endsWith(" all day") && Agenda.calls.length === 1
                     && Agenda.calls[0].body.start.date === "2030-11-20" && Agenda.calls[0].body.end.date === "2030-11-21"

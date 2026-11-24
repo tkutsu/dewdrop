@@ -89,6 +89,7 @@ MOCKS = {
         function search(query, all) { searches++; }''',
     "Tasks": '''property bool configured: false
         property string syntax: "task text"
+        readonly property var planKinds: ["task", "timer", "alarm", "event"]
         property var ordered: []
         function commit() {}
         function plan(text) {
@@ -647,12 +648,9 @@ ShellRoot {
             check(Launcher.queryHints.map(h => h.prefix).join() === "task,timer,alarm,event,event", "a bare plan symbol hints what a line makes");
             Launcher.query = ", 25m";
             check(Launcher.queryHints.length === 0, "typing takes the hint away");
+            // Notes are a button on the row (Launcher.planActions), not a hint.
             Launcher.query = ",call bank";
-            check(Launcher.queryHints.map(h => h.prefix + " " + h.hint).join() === "⇧↵ notes", "a task line hints at its notes");
-            Launcher.query = ",fri 15:00 call bank";
-            check(Launcher.queryHints.length === 1, "so does an event line");
-            Launcher.query = ",call bank\nbring the card";
-            check(Launcher.queryHints.length === 0, "the hint goes once notes are begun");
+            check(Launcher.queryHints.length === 0, "a task line has no hint of its own");
             Launcher.query = "?";
             check(Launcher.classification.mode === "?" && Launcher.queryIcon === Theme.glyph.launcherHelp, "? is help");
             const helpRows = () => Launcher.results.filter(r => r.kind === "help");

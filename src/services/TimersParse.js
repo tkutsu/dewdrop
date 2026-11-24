@@ -145,12 +145,13 @@ function parse(text) {
     };
 }
 
-// The parsed time without the label, which the launcher row already shows.
+// The parsed time without the label, which the launcher row already shows,
+// or the kind, which its chosen button says.
 function brief(text, parsed, twelveHour, alarmTime) {
     const p = parsed ?? parse(text);
     if (!p.ok)
         return p.error;
     if (p.kind === "alarm")
-        return `alarm  ·  ${alarmTime ?? hhmm(p.hour, p.minute, twelveHour)} ${dayWord(p.hour, p.minute)}`;
-    return `timer  ·  ${spell(p.ms)}`;
+        return `${alarmTime ?? hhmm(p.hour, p.minute, twelveHour)} ${dayWord(p.hour, p.minute)}`;
+    return spell(p.ms);
 }

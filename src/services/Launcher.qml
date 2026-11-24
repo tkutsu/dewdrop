@@ -113,8 +113,8 @@ Singleton {
     //
     // A bare plan symbol turns it into what the line will make, because the
     // mode is settled by then and how to word it is the question. How the line
-    // starts picks the kind; see Tasks.plan(). Once something is typed, Tab
-    // offers the next kind the line also reads as.
+    // starts picks the kind; see Tasks.plan(). Once something is typed, the
+    // row's buttons offer the other kinds the line reads as (planActions).
     readonly property var queryHints: {
         const c = root.classification;
         if (c.mode === "empty") {
@@ -131,13 +131,7 @@ Singleton {
                 { prefix: "event", hint: "fri 15:00 call" },
                 { prefix: "event", hint: "fri all day trip" }
             ];
-        if (c.mode !== root.taskPrefix)
-            return [];
-        const plan = Tasks.plan(c.text, root.planKind);
-        const next = root.nextPlanKind(plan, 1);
-        return (next ? [{ prefix: "⇥", hint: next }] : []).concat(
-            // A task or event being written can take notes on a line below it.
-            !c.text.includes("\n") && ["task", "event"].includes(plan.kind) ? [{ prefix: "⇧↵", hint: "notes" }] : []);
+        return [];
     }
 
     // How many rows are worth ranking; the box shows a dozen of them at once.
@@ -165,9 +159,9 @@ Singleton {
     }
     property string query: ""
     property int index: 0
-    // The kind Tab picked for the `,` line, over the one its wording suggests
-    // (Tasks.plan). Kept while the line can still be read that way, and
-    // dropped with the line.
+    // The kind picked among the `,` row's buttons, over the one its wording
+    // suggests (Tasks.plan). Kept while the line can still be read that way,
+    // and dropped with the line; Add Notes leaves it as it is.
     property string planKind: ""
     // The power row asking for its second press. Anything else the
     // selection or the query does takes the question back.
@@ -720,6 +714,7 @@ Singleton {
                 kind: "task-add",
                 event: event,
                 want: plan.kind,
+                kinds: plan.kinds,
                 glyph: event ? Theme.glyph.event : Theme.glyph.plus,
                 // Keep the typed day and task list names in the preview.
                 title: line,
@@ -769,36 +764,17 @@ Singleton {
         return rows.concat(scored.slice(0, root.maxResults).map(x => x.row));
     }
 
-    // The kind Tab steps to from this plan (dir 1) or back (-1), or "" when
-    // the line reads only one way.
-    function nextPlanKind(plan, dir) {
-        const kinds = plan?.kinds ?? [];
-        if (kinds.length < 2)
-            return "";
-        return kinds[(kinds.indexOf(plan.kind) + dir + kinds.length) % kinds.length];
-    }
-
-    // Tab on a `,` line: false when there is nothing to switch to, so the key
-    // keeps its usual step down the list.
-    function cyclePlan(dir) {
-        const next = root.nextPlanKind(Tasks.plan(root.classification.text, root.planKind), dir);
-        if (!next)
-            return false;
-        root.planKind = next;
-        root.index = 0;
-        return true;
-    }
-
-    // What Enter makes of a `,` line (Tasks.plan), read from the parse rather
-    // than the line and led by its kind, which Tab changes:
-    // "alarm  ·  15:00 today", "event  ·  fri 15:00–16:00", or
-    // "task  ·  fri  ·  Work", the last two followed by "with notes" when
-    // there are lines under the first.
+    // When and where a `,` line's thing lands (Tasks.plan), read from the
+    // parse rather than the line: "15:00 today", "fri 15:00–16:00",
+    // "fri  ·  Work", followed by "with notes" when there are lines under the
+    // first. What it is, the chosen button says.
     function linePreview(typed, plan) {
         if (!plan.ok)
             return plan.error;
         const said = root.planPreview(typed, plan);
-        return plan.notes && (plan.kind === "task" || plan.kind === "event") ? said + "  ·  with notes" : said;
+        if (!plan.notes || !(plan.kind === "task" || plan.kind === "event"))
+            return said;
+        return said ? said + "  ·  with notes" : "with notes";
     }
 
     function planPreview(typed, plan) {
@@ -810,11 +786,11 @@ Singleton {
         case "alarm":
             return Timers.brief(typed, plan.timer);
         case "event":
-            return "event  ·  " + (calendar() ?? `${Tasks.sayDay(Tasks.dayString(ev.start))} ${ev.allDay ? "all day" : `${time(ev.start)}–${time(ev.end)}`}`);
+            return calendar() ?? `${Tasks.sayDay(Tasks.dayString(ev.start))} ${ev.allDay ? "all day" : `${time(ev.start)}–${time(ev.end)}`}`;
         }
         const p = plan.task;
         const list = Tasks.lists.length > 1 ? Tasks.lists.find(l => l.id === p.list) : null;
-        return "task" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (list ? "  ·  " + list.title : "");
+        return [p.day !== "" ? Tasks.sayDay(p.day) : "", list ? list.title : ""].filter(s => s).join("  ·  ");
     }
 
     // Timer rows in tasks mode: a time being typed first, then existing timers.
@@ -827,6 +803,7 @@ Singleton {
             rows.push({
                 kind: "timer-add",
                 want: plan.kind,
+                kinds: plan.kinds,
                 glyph: plan.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer,
                 title: typed,
                 // Same again: "25m" is what was typed and "25 minutes" is what
@@ -1264,7 +1241,18 @@ Singleton {
     readonly property int actionIndex: {
         const ok = a => a.live && a.shown !== false;
         const chosen = root.rowActions.findIndex(a => a.key === root.chosenAction && ok(a));
-        return chosen >= 0 ? chosen : root.rowActions.findIndex(ok);
+        const primary = root.rowActions.findIndex(a => a.primary && ok(a));
+        return chosen >= 0 ? chosen : primary >= 0 ? primary : root.rowActions.findIndex(ok);
+    }
+
+    // The `,` row: every kind, in one order so the bar holds still while the
+    // line is typed, live where the line reads that way (Tasks.plan's kinds),
+    // with the guess chosen until another is. Add Notes opens the line under
+    // it, for a task or an event that has none yet.
+    function planActions(row) {
+        const labels = { task: "Add Task", timer: "Start Timer", alarm: "Set Alarm", event: "Add Event" };
+        return Tasks.planKinds.map(k => ({ key: k, label: labels[k], live: (row.kinds ?? [row.want]).includes(k), primary: k === row.want }))
+            .concat([{ key: "notes", label: "Add Notes", live: ["task", "event"].includes(row.want) && !row.text.includes("\n") }]);
     }
 
     function actionsFor(row) {
@@ -1311,7 +1299,9 @@ Singleton {
                 actions.push({ key: "music-fold", label: "Collapse", live: true });
             return actions;
         }
-        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": row.want === "alarm" ? "Add Alarm" : "Add Timer", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
+        if (row.kind === "task-add" || row.kind === "timer-add")
+            return root.planActions(row);
+        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
         const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
         return [{ key: "activate", label: label, live: row.ok !== false }];
     }
@@ -1330,6 +1320,8 @@ Singleton {
 
     function chooseAction(key: string): void {
         root.chosenAction = key;
+        if (Tasks.planKinds.includes(key))
+            root.planKind = key;
     }
 
     // The launcher's own actions; any other key is a mode for activate().
@@ -1339,6 +1331,13 @@ Singleton {
             "music-fold": () => LauncherMusic.fold(),
             "copy-path": () => root.copyRow(root.index),
             "forget": () => root.forget(root.index),
+            // The notes line opens and the kind stays chosen, so the next
+            // Enter adds the same thing with them.
+            "notes": () => {
+                const want = root.selected?.want ?? "";
+                root.replaceQuery(root.query.replace(/\s+$/, "") + "\n");
+                root.chooseAction(want);
+            },
             "complete-path": () => {
                 const row = root.selected;
                 if (row?.kind === "path")
