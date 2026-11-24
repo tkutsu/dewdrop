@@ -125,6 +125,8 @@ The launcher opens with a sideways spring: its width settles while text, height 
 
 Long queries scroll horizontally with a soft fade at the hidden edges. The search icon stays fixed, the caret stays clear, and the full query remains editable and selectable.
 
+When the selected row can do more than one thing (open a file or show it in its folder, queue a song or play it), its actions sit as buttons under the query. Enter runs the chosen one, and Tab and Shift+Tab choose another, in every mode. A few have a key of their own as well: Ctrl+Enter for the second action (Play, Show in Folder, New Mail), Ctrl+Delete to delete a clipboard entry, Shift+Enter to open an app on an empty workspace. `?` lists them.
+
 | Prefix | Mode |
 | --- | --- |
 | `/` | Files, with preview. Ctrl+Enter shows the file in its folder, Ctrl+C copies its path |
@@ -141,7 +143,7 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 
 Settings > Launcher > Mode Symbols changes these characters. The rest of this section uses the defaults.
 
-`?` also lists your Hyprland keybinds under the modes, and typing searches both. It reads `hyprctl binds -j` each time it opens, and lists a bind only if it has a description:
+`?` also lists the launcher's own keys and your Hyprland keybinds under the modes, and typing searches them all. It reads `hyprctl binds -j` each time it opens, and lists a bind only if it has a description:
 
 ```lua
 hl.bind("SUPER + L", hl.dsp.exec_cmd("qs ipc call launcher toggle"), { description = "Open the launcher" })
@@ -166,7 +168,7 @@ The more of a time a `,` line gives, the bigger the thing it makes, and the quer
 | `, fri 15:00 call bank` | event Friday 15:00-16:00 |
 | `, 2026-11-03 9:30 dentist` | event on that date |
 
-The row under the line names what Enter makes. When the line also reads as something else, a `⇥` hint at the right of the query line names it and Tab switches to it: `, 15:00 call bank` becomes an event today, `, fri call bank` an all-day event, `, today 15:00 call bank` an alarm.
+That is the guess. The buttons under the query are Add Task, Start Timer, Set Alarm, Add Event and Add Notes, with the guess chosen and the ones the line can also be read as live; Tab picks another. `, 15:00 call bank` can be an event today, `, fri call bank` an all-day event, `, today 15:00 call bank` an alarm. Add Notes, or Shift+Enter, opens a line under a task or event for its notes or description.
 
 Right-clicking a day in the calendar opens the launcher with that day typed in.
 
