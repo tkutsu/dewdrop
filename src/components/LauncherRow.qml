@@ -21,8 +21,44 @@ Rectangle {
     // The fill is the view's `highlight` above; all that marks
     // the selected row here is the colour of its text.
     color: "transparent"
-    opacity: row.enterProgress * (row.modelData.crossed ? 0.45 : 1)
-    transform: Translate { y: 6 * (1 - row.enterProgress) }
+    opacity: row.enterProgress * row.unfold * (row.modelData.crossed ? 0.45 : 1)
+    transform: Translate { y: 6 * (1 - row.enterProgress) + 6 * (1 - row.unfold) }
+
+    // A record just opened: its rows rise in under it one after another, the
+    // way the box's rows do when it opens, and its chevron turns. The list
+    // builds every row afresh when the tree changes, so there is nothing for
+    // a Behavior to start from; each new row asks LauncherMusic.lastFold
+    // whether it is the one that moved. Shutting is a cut, chevron aside:
+    // rows that are going should not hold the selection up.
+    property real unfold: 1
+    property real turn: 0
+    Component.onCompleted: {
+        const f = LauncherMusic.lastFold;
+        if (Theme.reduceMotion || !f.key || !Launcher.musicMode || !row.modelData.key)
+            return;
+        if (row.modelData.key === f.key) {
+            row.turn = f.open ? 90 : -90;
+            turning.start();
+        } else if (f.open && row.modelData.key.startsWith(f.key + "/")) {
+            row.unfold = 0;
+            unfoldDelay.duration = Math.max(0, Math.min(row.index - f.at - 1, row.menu.visibleRows - 1)) * row.menu.rowStaggerMs;
+            unfolding.start();
+        }
+    }
+    SequentialAnimation {
+        id: unfolding
+        PauseAnimation { id: unfoldDelay }
+        NumberAnimation { target: row; property: "unfold"; to: 1; duration: 100; easing.type: Easing.OutCubic }
+    }
+    NumberAnimation {
+        id: turning
+        target: row
+        property: "turn"
+        to: 0
+        // The Tasks popup's fold turn, so the two read as one mark.
+        duration: Math.round(Theme.foldMs * 2 / 3)
+        easing.type: Easing.InOutCubic
+    }
 
     Text {
         id: title
@@ -82,7 +118,7 @@ Rectangle {
             left: title.right
             leftMargin: 8
             right: parent.right
-            rightMargin: row.menu.boxPad + Theme.popupInset
+            rightMargin: row.menu.boxPad + Theme.popupInset + (row.menu.treeShown ? row.menu.chevronSpace : 0)
             verticalCenter: parent.verticalCenter
         }
         visible: text !== ""
@@ -100,6 +136,36 @@ Rectangle {
         font.pixelSize: Theme.captionSize
         horizontalAlignment: Text.AlignRight
         elide: Text.ElideLeft
+    }
+
+    // An artist or a record opens in place: the Tasks popup's fold mark,
+    // pointing the way Right goes and turned down while open. At the far end
+    // because the near one is the icon's, level with the query's glyph, and
+    // the selection's fill leaves no room before it. A click opens or shuts
+    // the row; anywhere else on it is Enter, as on every row.
+    Glyph {
+        id: chevron
+
+        anchors {
+            right: parent.right
+            rightMargin: row.menu.boxPad + Theme.popupInset + (row.menu.chevronSpace - width) / 2
+            verticalCenter: parent.verticalCenter
+        }
+        z: 1
+        visible: !!row.modelData.foldable
+        text: Theme.glyph.sectionShut
+        rotation: (row.modelData.opened ? 90 : 0) - row.turn
+        fontSize: Theme.footnoteSize
+        // The subtitle's colour, a step under the title.
+        color: row.current ? Theme.menuSelectionText : Theme.menuText
+        opacity: 0.6
+
+        ClickArea {
+            anchors.fill: parent
+            anchors.margins: -6
+            name: (row.modelData.opened ? "Hide " : "Show ") + row.modelData.opens + " of " + row.modelData.title
+            actions: ({ [Qt.LeftButton]: () => LauncherMusic.toggle(row.index) })
+        }
     }
 
     Item {
@@ -218,6 +284,8 @@ Rectangle {
         Accessible.role: Accessible.Button
         Accessible.name: row.modelData.title || row.modelData.subtitle || "Launcher result"
         Accessible.ignored: row.modelData.kind === "note" && !row.modelData.install
+        Accessible.expandable: !!row.modelData.foldable
+        Accessible.expanded: !!row.modelData.opened
         Accessible.onPressAction: if (enabled && visible)
             Launcher.activate(row.index)
 

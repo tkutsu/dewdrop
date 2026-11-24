@@ -694,7 +694,8 @@ Singleton {
         ["Shift + Enter", "Start a task's or event's notes"],
         ["Ctrl + Enter", "Play, Show in Folder or New Mail"],
         ["Ctrl + Delete", "Delete a clipboard entry"],
-        ["→", "Expand a music row or complete a path"]
+        ["→ / ←", "Open or close an artist or record"],
+        ["→", "Complete a path"]
     ]
 
     // --- tasks and timers ----------------------------------------------------
@@ -1308,10 +1309,10 @@ Singleton {
                 { key: "activate", label: "Queue", live: true },
                 { key: "play", label: "Play", live: true, shortcut: "ctrl+return" }
             ];
-            if (row.kind === "music-artist" || row.kind === "music-album")
-                actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "Collapse" : "Expand", live: true });
-            else if (row.indent)
-                actions.push({ key: "music-fold", label: "Collapse", live: true });
+            // Named for what it shows, and only on the row it opens: a row
+            // inside a tree is shut from above, or stepped out of with ←.
+            if (row.foldable)
+                actions.push({ key: "music-fold", label: (row.opened ? "Hide " : "Show ") + row.opens, live: true });
             return actions;
         }
         if (row.kind === "task-add" || row.kind === "timer-add")
@@ -1346,7 +1347,7 @@ Singleton {
     readonly property var runs: ({
             "mail-fold": () => LauncherMail.fold(),
             "search-sender": () => LauncherMail.searchSender(root.selected),
-            "music-fold": () => LauncherMusic.fold(),
+            "music-fold": () => LauncherMusic.toggle(root.index),
             "copy-path": () => root.copyRow(root.index),
             "forget": () => root.forget(root.index),
             // The notes line opens and the kind stays chosen, so the next

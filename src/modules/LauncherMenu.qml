@@ -155,6 +155,10 @@ OverlayWindow {
     // to be read as a step rather than a misalignment, narrow enough that a
     // track two levels down still has most of the line for its title.
     readonly property int indentStep: 16
+    // The fold chevron's column at the far end of a music row, kept on every
+    // row of a list that has one so the subtitles stay in one column.
+    readonly property int chevronSpace: 18
+    readonly property bool treeShown: Launcher.musicMode && Launcher.results.some(r => r.foldable)
     // The query line, and the air above and below its rule.
     readonly property int inputHeight: Theme.queryTextSize + 12
     readonly property int contentGap: 8
@@ -200,7 +204,7 @@ OverlayWindow {
         return 0;
     }
 
-    // Music trees toggle with Right at the end of the query.
+    // Music trees open and shut with Right and Left (see the keys below).
     // Page keys page the file under the / list, in music mode step a level
     // of the tree, and elsewhere move the selection a screenful.
     function step(key, dir) {
@@ -703,17 +707,27 @@ OverlayWindow {
                             if (!ctrl || !Launcher.runShortcut("ctrl+delete"))
                                 return;
                             break;
-                        // Right at the end toggles the selected music tree.
-                        // In file mode it completes the line to the
-                        // selected file, the way a shell's Tab does. Written with
-                        // its "~", so the query stays in the files mode, and a
-                        // directory ends in "/" ready for the next name. Anywhere
-                        // short of the end it is the cursor's, as ever.
+                        // At the end of the query, Right and Left walk the
+                        // music tree: in, then down; up, then shut
+                        // (LauncherMusic.right). Left only when there is
+                        // somewhere to go, so it still moves the cursor
+                        // back through what was typed. In file mode Right
+                        // completes the line to the selected file, the
+                        // way a shell's Tab does. Written with its "~", so
+                        // the query stays in the files mode, and a
+                        // directory ends in "/" ready for the next name.
+                        // Anywhere short of the end both are the cursor's.
+                        case Qt.Key_Left:
+                            if (input.cursorPosition < input.text.length || input.selectionStart !== input.selectionEnd
+                                    || !Launcher.musicMode || !LauncherMusic.left())
+                                return;
+                            break;
                         case Qt.Key_Right:
-                            if (input.cursorPosition < input.text.length)
+                            if (input.cursorPosition < input.text.length || input.selectionStart !== input.selectionEnd)
                                 return;
                             if (Launcher.musicMode) {
-                                LauncherMusic.fold();
+                                if (!LauncherMusic.right())
+                                    return;
                                 break;
                             }
                             const row = Launcher.selected;

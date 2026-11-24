@@ -59,13 +59,19 @@ MOCKS = {
         function run(arg) { ran = ran.concat([arg]); }''',
     "LauncherMusic": '''property var rows: []
         property var open: ({})
+        property var lastFold: ({})
         property int folds: 0
+        property int rights: 0
+        property int lefts: 0
+        property bool leftTakes: false
         property int activations: 0
         property string activated: ""
         function cancel() {}
         function route(inMode, rest) {}
         function results(query) { return rows; }
-        function fold() { folds++; }
+        function toggle(index) { folds++; }
+        function right() { rights++; return rows[Launcher.index]?.foldable === true; }
+        function left() { lefts++; return leftTakes; }
         function activate(row, mode) { activations++; activated = mode || "queue"; return false; }''',
     "Mpd": '''property bool connected: true
         property string state: "play"''',
@@ -830,7 +836,7 @@ ShellRoot {
         Email.found = null;
 
         input.adopt("#artist");
-        const artist = {kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""};
+        const artist = {kind: "music-artist", key: "artist:0", title: "Artist", subtitle: "", foldable: true, opened: false, opens: "Albums"};
         const track = {kind: "music-track", title: "Track", subtitle: ""};
         LauncherMusic.rows = [artist, track]; keys.wait(10);
         Launcher.moveAction(-1);
@@ -1179,9 +1185,27 @@ ShellRoot {
             keys.keyClick(Qt.Key_Return);
             check(LauncherMusic.activations === clicksBefore + 3 && input.activeFocus, "Enter still controls the selected queue track");
             input.adopt("#artist"); keys.wait(30);
-            LauncherMusic.rows = [{kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""}];
+            LauncherMusic.rows = [{kind: "music-artist", key: "artist:0", title: "Artist", subtitle: "", foldable: true, opened: false, opens: "Albums"}];
             keys.wait(30);
-            check(Launcher.rowActions[2].label === "Expand", "music tree action is available as a button");
+            check(Launcher.rowActions[2].label === "Show Albums", "music tree action is available as a button, named for what it shows");
+            check(menu.treeShown, "a list with an artist keeps the chevron column");
+            const rights = LauncherMusic.rights;
+            keys.keyClick(Qt.Key_Right);
+            check(LauncherMusic.rights === rights + 1, "Right at the query's end walks the music tree");
+            const caret = input.cursorPosition;
+            keys.keyClick(Qt.Key_Left);
+            check(LauncherMusic.lefts === 1 && input.cursorPosition === caret - 1, "Left with nothing to close moves the cursor");
+            keys.keyClick(Qt.Key_End);
+            LauncherMusic.leftTakes = true;
+            keys.keyClick(Qt.Key_Left);
+            check(LauncherMusic.lefts === 2 && input.cursorPosition === caret, "Left with something to close keeps the cursor at the end");
+            LauncherMusic.leftTakes = false;
+            check(Launcher.actionsFor({kind: "music-artist", key: "artist:0", foldable: true, opened: true, opens: "Albums"})[2]?.label === "Hide Albums",
+                "an open artist's button hides its albums");
+            check(Launcher.actionsFor({kind: "music-album", key: "album:0", foldable: true, opened: false, opens: "Tracks"})[2]?.label === "Show Tracks",
+                "a record's button shows its tracks");
+            check(!Launcher.actionsFor({kind: "music-track", key: "artist:0/track:1", indent: 1}).some(a => a.key === "music-fold"),
+                "a row inside a tree has no button for its parent");
             check(Launcher.chosenAction === "play", "typing within music preserves the chosen action");
             keys.keyClick(Qt.Key_Tab);
             keys.keyClick(Qt.Key_Return);

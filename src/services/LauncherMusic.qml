@@ -15,7 +15,7 @@ import qs.src.services
 Singleton {
     id: root
 
-    // The tree's state: keys of rows opened with Right at the query's end. Keys are
+    // The tree's state: keys of rows opened (see right(), below). Keys are
     // paths ("artist:3/album:7"), so the same record found twice — once on
     // its own, once under its artist — opens where it was asked to and
     // nowhere else.
@@ -63,6 +63,7 @@ Singleton {
         root.inMode = inMode;
         root.queueSelectionPending = inMode && root.queueQuery();
         root.open = ({});
+        root.lastFold = ({});
         if (!inMode) {
             statusDelay.stop();
             root.showStatus = false;
@@ -295,6 +296,11 @@ Singleton {
             key: key,
             at: at,
             indent: 0,
+            // What the row's fold says about it (LauncherRow, Launcher's
+            // buttons), so neither has to look into `open`.
+            foldable: true,
+            opened: !!root.open[key],
+            opens: records ? "Albums" : "Tracks",
             glyph: Theme.glyph.artist,
             title: a.name,
             subtitle: [records ? root.plural(records, "album") : "", root.plural(a.tracks, "track")].filter(x => x).join("  ·  ")
@@ -320,6 +326,9 @@ Singleton {
             key: key,
             at: at,
             indent: indent,
+            foldable: true,
+            opened: !!root.open[key],
+            opens: "Tracks",
             glyph: Theme.glyph.album,
             title: l.name,
             // Under its artist, the artist is the row above and saying so
@@ -353,33 +362,80 @@ Singleton {
 
     // --- walking the tree ----------------------------------------------------
 
-    // Right at the query's end. An artist or a record opens or shuts; anything inside one shuts
-    // the one it is in and goes back up to it, so the same key that went in
-    // comes back out. Opening only adds rows below the selection, and
-    // shutting from inside lands on a row above everything that goes, so the
-    // index never has to be looked up again afterwards.
-    function fold(): void {
+    // The keys walk it the way every tree does (Finder's list, the ARIA tree
+    // pattern): → opens a row and then steps into it, ← steps back out and
+    // then shuts it, so each ← undoes the → before it. Both say whether they
+    // took the key; when they did not, it is the query's cursor's.
+    //
+    // Opening only adds rows below the selection, and shutting happens from
+    // the row itself, so the index never has to be looked up again after.
+    function right(): bool {
         const rows = Launcher.results;
         const r = rows[Launcher.index];
-        if (!r)
-            return;
-        let at = Launcher.index;
-        if (r.kind !== "music-artist" && r.kind !== "music-album") {
-            if (!r.indent)
-                return;
-            while (at > 0 && (rows[at].indent ?? 0) >= r.indent)
-                at--;
+        if (!r?.foldable)
+            return false;
+        if (!r.opened)
+            root.setOpen(r.key, true);
+        else if ((rows[Launcher.index + 1]?.indent ?? 0) > r.indent)
+            Launcher.index++;
+        return true;
+    }
+
+    function left(): bool {
+        const r = Launcher.results[Launcher.index];
+        if (r?.opened) {
+            root.setOpen(r.key, false);
+            return true;
         }
+        const up = root.parentOf(Launcher.index);
+        if (up < 0)
+            return false;
+        Launcher.index = up;
+        return true;
+    }
+
+    // The button and the chevron, which say which way they go.
+    function toggle(index): void {
+        const r = Launcher.results[index];
+        if (!r?.foldable)
+            return;
+        Launcher.index = index;
+        root.setOpen(r.key, !r.opened);
+    }
+
+    // The row this one sits under, or -1 at the top.
+    function parentOf(index): int {
+        const rows = Launcher.results;
+        const indent = rows[index]?.indent ?? 0;
+        if (!indent)
+            return -1;
+        let at = index;
+        while (at > 0 && (rows[at].indent ?? 0) >= indent)
+            at--;
+        return at;
+    }
+
+    // What last opened or shut, and where, for the rows to move to
+    // (LauncherRow). Only for a moment: the list rebuilds every row it shows,
+    // and one rebuilt later, or scrolled into view, is not unfolding.
+    property var lastFold: ({})
+    Timer {
+        id: foldSettle
+        interval: 500
+        onTriggered: root.lastFold = ({})
+    }
+
+    function setOpen(key, on): void {
         // A fresh object rather than a mutation: `open` is a var property,
         // and changing one in place does not notify.
         const next = Object.assign({}, root.open);
-        const key = rows[at].key;
-        if (next[key])
-            delete next[key];
-        else
+        if (on)
             next[key] = true;
+        else
+            delete next[key];
+        root.lastFold = { key: key, open: on, at: Launcher.index };
+        foldSettle.restart();
         root.open = next;
-        Launcher.index = at;
     }
 
     // A page, in a tree, is the next thing at this level rather than twelve

@@ -105,6 +105,28 @@ ShellRoot {
             LauncherMusic.open = {"artist:0": true};
             check(rows.length === 3 && rows[1].kind === "music-album" && rows[2].kind === "music-track" && rows[2].indent === 1,
                 "an open artist lists a single as its track");
+            LauncherMusic.open = ({});
+            Launcher.index = 0;
+            check(rows[0].foldable && !rows[0].opened && rows[0].opens === "Albums", "an artist says it opens to albums");
+            check(LauncherMusic.right() && rows[0].opened && Launcher.index === 0 && rows.length === 3,
+                "Right opens a closed artist and stays on it");
+            check(LauncherMusic.lastFold.key === "artist:0" && LauncherMusic.lastFold.open && LauncherMusic.lastFold.at === 0,
+                "an opening is marked for its rows to rise in");
+            check(LauncherMusic.right() && Launcher.index === 1, "Right on an open artist steps to its first child");
+            check(rows[1].opens === "Tracks" && LauncherMusic.right() && rows[1].opened && Launcher.index === 1 && rows[2].indent === 2,
+                "Right opens a record inside an artist");
+            check(LauncherMusic.left() && !rows[1].opened && Launcher.index === 1, "Left closes an open record");
+            Launcher.index = 2;
+            check(LauncherMusic.left() && Launcher.index === 0 && rows[0].opened, "Left inside a tree steps to its parent and leaves it open");
+            check(LauncherMusic.left() && !rows[0].opened && rows.length === 1, "Left on an open artist closes it");
+            check(!LauncherMusic.left(), "Left with nothing open is the cursor's");
+            LauncherMusic.toggle(0);
+            check(rows[0].opened, "the chevron and button open a row");
+            LauncherMusic.toggle(0);
+            check(!rows[0].opened && !LauncherMusic.lastFold.open, "and close it again");
+            Launcher.query = "#single"; test.wait(80);
+            check(!LauncherMusic.right() && !LauncherMusic.left(), "a top-level track leaves both keys to the cursor");
+            check(!LauncherMusic.lastFold.key, "a new search is never mistaken for an unfolding");
             Launcher.query = "#"; test.wait(10);
             check(rows[0]?.kind === "music-queue" && Launcher.index === 1, "clearing a search returns directly to the current queue");
 
