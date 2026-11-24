@@ -73,118 +73,18 @@ OverlayWindow {
         }
     }
 
-    // Remember the choice while unavailable; actionIndex supplies a live fallback.
-    property string selectedAction: "activate"
-    readonly property string actionMode: Launcher.classification.mode
-    onActionModeChanged: root.selectedAction = "activate"
-    readonly property var rowActions: {
-        const row = Launcher.selected;
-        if (Launcher.mailMode) {
-            const actions = [
-                { key: "activate", label: row?.kind === "mail-address" ? "Search Sender" : "Open in Gmail", live: row?.kind === "mail" || row?.kind === "mail-address" },
-                { key: "mail-fold", label: LauncherMail.open ? "Back to List" : "Read", live: row?.kind === "mail" },
-                { key: "play", label: "New Mail", live: true }
-            ];
-            if (row?.kind === "mail")
-                actions.push({ key: "search-sender", label: "Search Sender", live: !!row.thread.address });
-            return actions;
-        }
-        if (row?.install)
-            return [{ key: "activate", label: "Install", live: true }];
-        if (!row || row.kind === "note")
-            return [];
-        // A line found by its text has no path to complete into the query:
-        // the query there is the text.
-        if (row.kind === "path")
-            return [
-                { key: "activate", label: "Open", live: true },
-                { key: "play", label: "Show in Folder", live: true },
-                { key: "copy-path", label: "Copy Path", live: true },
-                { key: "complete-path", label: "Complete Path", live: true }
-            ].filter(action => !Launcher.textMode || action.key !== "complete-path");
-        if (row.kind === "clip")
-            return [
-                { key: "activate", label: "Copy", live: true },
-                { key: "forget", label: "Delete", live: true }
-            ];
-        if (row.kind === "music-start")
-            return [{ key: "activate", label: "Start Music", live: true }];
-        if (row.kind === "music-queue")
-            return [];
-        if (row.kind.startsWith("music-")) {
-            const actions = [
-                { key: "activate", label: "Queue", live: true },
-                { key: "play", label: "Play", live: true }
-            ];
-            if (row.kind === "music-artist" || row.kind === "music-album")
-                actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "Collapse" : "Expand", live: true });
-            else if (row.indent)
-                actions.push({ key: "music-fold", label: "Collapse", live: true });
-            return actions;
-        }
-        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": row.want === "alarm" ? "Add Alarm" : "Add Timer", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
-        const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
-        return [{ key: "activate", label, live: row.ok !== false }];
-    }
-    readonly property int actionIndex: {
-        const preferred = root.rowActions.findIndex(action => action.key === root.selectedAction && action.live);
-        return preferred >= 0 ? preferred : root.rowActions.findIndex(action => action.live);
-    }
-
-    // Home and End cycle through available actions without moving the caret.
-    function moveAction(dir) {
-        const count = root.rowActions.length;
-        for (let step = 1; step <= count; step++) {
-            const at = (root.actionIndex + dir * step + count) % count;
-            if (root.rowActions[at].live) {
-                root.selectedAction = root.rowActions[at].key;
-                return;
-            }
-        }
-    }
-
-    // Buttons and Enter share the same dispatch; the older shortcuts still work.
+    // The selected row's actions are the launcher's (Launcher.rowActions);
+    // the box only draws them and passes the keys on.
     function runAction(at) {
-        const action = root.rowActions[at];
-        if (!action?.live)
-            return;
-        root.selectedAction = action.key;
-        switch (action.key) {
-        case "mail-fold":
-            LauncherMail.fold();
-            break;
-        case "search-sender":
-            LauncherMail.searchSender(Launcher.selected);
-            break;
-        case "music-fold":
-            LauncherMusic.fold();
-            break;
-        case "copy-path":
-            Launcher.copyRow(Launcher.index);
-            break;
-        case "complete-path":
-            root.completePath();
-            break;
-        case "forget":
-            Launcher.forget(Launcher.index);
-            break;
-        default:
-            Launcher.activate(Launcher.index, action.key === "play" ? "play" : "queue");
-        }
+        Launcher.runAction(at);
         input.forceActiveFocus();
-    }
-
-    function completePath() {
-        const row = Launcher.selected;
-        if (row?.kind === "path")
-            input.adopt(LauncherFiles.tildeHome(row.path) + (row.dir ? "/" : ""));
     }
 
     function accept(ctrl) {
         if (!root.expanded && !input.text.trim())
             root.browse();
-        else if (!ctrl && root.rowActions.length)
-            root.runAction(root.actionIndex);
+        else if (!ctrl && Launcher.rowActions.length)
+            root.runAction(Launcher.actionIndex);
         else
             Launcher.activate(Launcher.index, ctrl ? "play" : "queue");
     }
@@ -219,7 +119,7 @@ OverlayWindow {
         function onShownChanged() {
             if (Launcher.shown) {
                 root.frecencyOpen = false;
-                root.selectedAction = "activate";
+                Launcher.chosenAction = "activate";
                 box.bodyHeight = Qt.binding(() => box.restHeight);
                 list.model = Qt.binding(() => Launcher.results);
                 input.adopt(Launcher.query);
@@ -805,9 +705,9 @@ OverlayWindow {
                             break;
                         case Qt.Key_Home:
                         case Qt.Key_End:
-                            if (event.modifiers !== Qt.NoModifier || !root.rowActions.length)
+                            if (event.modifiers !== Qt.NoModifier || !Launcher.rowActions.length)
                                 return;
-                            root.moveAction(event.key === Qt.Key_Home ? -1 : 1);
+                            Launcher.moveAction(event.key === Qt.Key_Home ? -1 : 1);
                             break;
                         // Drop the row rather than act on it. Only the clipboard
                         // has anything to drop; elsewhere this does nothing, and
@@ -833,7 +733,7 @@ OverlayWindow {
                             const row = Launcher.selected;
                             if (!Launcher.pathMode || row?.kind !== "path")
                                 return;
-                            root.completePath();
+                            Launcher.runs["complete-path"]();
                             break;
                         default:
                             // Everything else this takes is a step one way or the
@@ -855,14 +755,14 @@ OverlayWindow {
                 id: actionBar
                 width: parent.width
                 height: root.actionHeight
-                visible: root.expanded && root.rowActions.length > 1
+                visible: root.expanded && Launcher.rowActions.length > 1
 
                 Row {
                     id: actionButtons
                     spacing: 6
 
                     Repeater {
-                        model: root.rowActions
+                        model: Launcher.rowActions
 
                         PopupButton {
                             required property var modelData
@@ -870,7 +770,7 @@ OverlayWindow {
                             label: modelData.label
                             live: modelData.live
                             framed: true
-                            chosen: root.actionIndex === index
+                            chosen: Launcher.actionIndex === index
                             onTapped: root.runAction(index)
                         }
                     }
@@ -879,7 +779,7 @@ OverlayWindow {
                 Text {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: root.rowActions.filter(action => action.live).length > 1
+                    visible: Launcher.rowActions.filter(action => action.live).length > 1
                     text: "Home / End"
                     color: Theme.label3
                     font.family: Theme.bodyFont

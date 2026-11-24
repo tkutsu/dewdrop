@@ -1242,6 +1242,129 @@ Singleton {
             }
         })
 
+    // --- row actions ---------------------------------------------------------
+    // What the selected row offers, drawn as the buttons under the query
+    // (LauncherMenu). Every way of picking what Enter does goes through here,
+    // in every mode: one list, one chosen action, one dispatch.
+    //
+    // An action is { key, label, live, shown, shortcut }. `key` is what
+    // runAction hands activate() as its mode, unless it is one of the
+    // launcher's own (runs, below). `shown: false` keeps an action to its
+    // shortcut and out of the bar; such actions go last, so the bar's
+    // buttons and this list share their indices.
+
+    // The chosen key, remembered across the rows of one mode so the next file
+    // also copies its path. A row without it falls back to its first live
+    // action, without forgetting the choice.
+    property string chosenAction: "activate"
+    readonly property string actionMode: root.classification.mode
+    onActionModeChanged: root.chosenAction = "activate"
+
+    readonly property var rowActions: root.actionsFor(root.selected)
+    readonly property int actionIndex: {
+        const ok = a => a.live && a.shown !== false;
+        const chosen = root.rowActions.findIndex(a => a.key === root.chosenAction && ok(a));
+        return chosen >= 0 ? chosen : root.rowActions.findIndex(ok);
+    }
+
+    function actionsFor(row) {
+        if (root.mailMode) {
+            const actions = [
+                { key: "activate", label: row?.kind === "mail-address" ? "Search Sender" : "Open in Gmail", live: row?.kind === "mail" || row?.kind === "mail-address" },
+                { key: "mail-fold", label: LauncherMail.open ? "Back to List" : "Read", live: row?.kind === "mail" },
+                { key: "play", label: "New Mail", live: true }
+            ];
+            if (row?.kind === "mail")
+                actions.push({ key: "search-sender", label: "Search Sender", live: !!row.thread.address });
+            return actions;
+        }
+        if (row?.install)
+            return [{ key: "activate", label: "Install", live: true }];
+        if (!row || row.kind === "note")
+            return [];
+        // A line found by its text has no path to complete into the query:
+        // the query there is the text.
+        if (row.kind === "path")
+            return [
+                { key: "activate", label: "Open", live: true },
+                { key: "play", label: "Show in Folder", live: true },
+                { key: "copy-path", label: "Copy Path", live: true },
+                { key: "complete-path", label: "Complete Path", live: true }
+            ].filter(a => !root.textMode || a.key !== "complete-path");
+        if (row.kind === "clip")
+            return [
+                { key: "activate", label: "Copy", live: true },
+                { key: "forget", label: "Delete", live: true }
+            ];
+        if (row.kind === "music-start")
+            return [{ key: "activate", label: "Start Music", live: true }];
+        if (row.kind === "music-queue")
+            return [];
+        if (row.kind.startsWith("music-")) {
+            const actions = [
+                { key: "activate", label: "Queue", live: true },
+                { key: "play", label: "Play", live: true }
+            ];
+            if (row.kind === "music-artist" || row.kind === "music-album")
+                actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "Collapse" : "Expand", live: true });
+            else if (row.indent)
+                actions.push({ key: "music-fold", label: "Collapse", live: true });
+            return actions;
+        }
+        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": row.want === "alarm" ? "Add Alarm" : "Add Timer", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
+        const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
+        return [{ key: "activate", label: label, live: row.ok !== false }];
+    }
+
+    // Step the chosen action along the live, shown ones.
+    function moveAction(dir): void {
+        const count = root.rowActions.length;
+        for (let step = 1; step <= count; step++) {
+            const a = root.rowActions[(root.actionIndex + dir * step + count * step) % count];
+            if (a.live && a.shown !== false) {
+                root.chooseAction(a.key);
+                return;
+            }
+        }
+    }
+
+    function chooseAction(key: string): void {
+        root.chosenAction = key;
+    }
+
+    // The launcher's own actions; any other key is a mode for activate().
+    readonly property var runs: ({
+            "mail-fold": () => LauncherMail.fold(),
+            "search-sender": () => LauncherMail.searchSender(root.selected),
+            "music-fold": () => LauncherMusic.fold(),
+            "copy-path": () => root.copyRow(root.index),
+            "forget": () => root.forget(root.index),
+            "complete-path": () => {
+                const row = root.selected;
+                if (row?.kind === "path")
+                    root.replaceQuery(LauncherFiles.tildeHome(row.path) + (row.dir ? "/" : ""));
+            }
+        })
+
+    // Buttons, Enter and shortcuts all land here.
+    function runAction(at): void {
+        const a = root.rowActions[at];
+        if (!a?.live)
+            return;
+        if (a.shown !== false)
+            root.chooseAction(a.key);
+        if (root.runs[a.key])
+            root.runs[a.key]();
+        else
+            root.activate(root.index, a.key === "activate" ? "queue" : a.key);
+    }
+
+    // The query as if typed, the cursor at its end (LauncherMenu adopts it).
+    function replaceQuery(text: string): void {
+        root.query = text;
+        root.queryReplaced(text);
+    }
+
     // Ctrl+Enter requests play for library results, compose for mail, or the
     // folder for a file; Shift+Enter ("aside") opens an app on an empty
     // workspace. Queue rows control the existing playback. A prefix

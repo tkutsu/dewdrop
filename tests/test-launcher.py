@@ -781,13 +781,13 @@ ShellRoot {
         const thread = {id: "action-mail", subject: "Mail", from: "Sender Name", address: "sender@example.org", at: 0, unread: false, messages: []};
         Email.threads = [thread];
         input.adopt("@"); keys.wait(10);
-        check(menu.actionIndex === 0, "mail initially selects open in gmail");
-        check(menu.rowActions[3].key === "search-sender" && menu.rowActions[3].live,
+        check(Launcher.actionIndex === 0, "mail initially selects open in gmail");
+        check(Launcher.rowActions[3].key === "search-sender" && Launcher.rowActions[3].live,
             "mail offers search sender as an optional action");
         MailAddresses.entries = [{address: "rsample@example.com", name: "Robin", at: 0,
             fields: Launcher.prepFields([["rsample@example.com", 1], ["Robin", 0.8]])}];
         input.adopt("@sampl"); keys.wait(10);
-        check(menu.rowActions[0].label === "Search Sender" && menu.actionIndex === 0 && !menu.rowActions[1].live,
+        check(Launcher.rowActions[0].label === "Search Sender" && Launcher.actionIndex === 0 && !Launcher.rowActions[1].live,
             "matching addresses select search sender and disable the inline reader");
         menu.accept(false); keys.wait(10);
         check(input.text === '@from:"rsample@example.com"' && Launcher.shown && input.activeFocus,
@@ -796,34 +796,34 @@ ShellRoot {
         input.adopt("@"); keys.wait(10);
         menu.runAction(1); keys.wait(10);
         check(!!LauncherMail.open, "sender search is also available from the inline reader");
-        menu.moveAction(1); menu.moveAction(1);
-        check(menu.selectedAction === "search-sender", "action navigation reaches search sender");
+        Launcher.moveAction(1); Launcher.moveAction(1);
+        check(Launcher.chosenAction === "search-sender", "action navigation reaches search sender");
         menu.accept(false); keys.wait(10);
         check(input.text === '@from:"sender@example.org"' && Launcher.shown && input.activeFocus && !LauncherMail.open,
             "search sender uses the address rather than the display name and returns to search");
         input.adopt("@"); keys.wait(10);
         Email.threads = [Object.assign({}, thread, {address: ""})]; keys.wait(10);
-        check(!menu.rowActions[3].live, "mail without a sender address cannot search sender");
-        menu.selectedAction = "activate";
+        check(!Launcher.rowActions[3].live, "mail without a sender address cannot search sender");
+        Launcher.chosenAction = "activate";
         Email.threads = [];
         Email.found = {q: LauncherMail.recentMail, rows: [], at: Date.now()};
         keys.wait(10);
-        check(menu.actionIndex === 2 && menu.selectedAction === "activate", "empty mail falls back to new mail without forgetting open in gmail");
+        check(Launcher.actionIndex === 2 && Launcher.chosenAction === "activate", "empty mail falls back to new mail without forgetting open in gmail");
         Email.threads = [thread]; keys.wait(10);
-        check(menu.actionIndex === 0, "mail restores open in gmail when results return");
-        menu.moveAction(1);
-        check(menu.selectedAction === "mail-fold", "read is the remembered mail action");
+        check(Launcher.actionIndex === 0, "mail restores open in gmail when results return");
+        Launcher.moveAction(1);
+        check(Launcher.chosenAction === "mail-fold", "read is the remembered mail action");
         input.adopt("@missing");
         Email.found = {q: "missing", rows: []}; keys.wait(10);
-        check(menu.actionIndex === 2 && menu.selectedAction === "mail-fold", "unmatched search falls back without forgetting read");
+        check(Launcher.actionIndex === 2 && Launcher.chosenAction === "mail-fold", "unmatched search falls back without forgetting read");
         input.adopt("@matching");
         Email.found = {q: "matching", rows: [thread]}; keys.wait(10);
-        check(menu.actionIndex === 1, "typing a matching query restores read");
+        check(Launcher.actionIndex === 1, "typing a matching query restores read");
         input.adopt("@waiting"); keys.wait(10);
-        check(menu.actionIndex === 2, "pending mail search also selects new mail");
-        menu.moveAction(1);
+        check(Launcher.actionIndex === 2, "pending mail search also selects new mail");
+        Launcher.moveAction(1);
         input.adopt("@"); keys.wait(10);
-        check(menu.actionIndex === 2 && menu.selectedAction === "play", "explicitly choosing the fallback replaces the old preference");
+        check(Launcher.actionIndex === 2 && Launcher.chosenAction === "play", "explicitly choosing the fallback replaces the old preference");
         Email.threads = [];
         Email.found = null;
 
@@ -831,48 +831,48 @@ ShellRoot {
         const artist = {kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""};
         const track = {kind: "music-track", title: "Track", subtitle: ""};
         LauncherMusic.rows = [artist, track]; keys.wait(10);
-        menu.moveAction(-1);
-        check(menu.selectedAction === "music-fold", "music remembers the tree action");
+        Launcher.moveAction(-1);
+        check(Launcher.chosenAction === "music-fold", "music remembers the tree action");
         Launcher.index = 1; keys.wait(10);
-        check(menu.actionIndex === 0 && menu.selectedAction === "music-fold", "a track falls back to queue without forgetting expand");
+        check(Launcher.actionIndex === 0 && Launcher.chosenAction === "music-fold", "a track falls back to queue without forgetting expand");
         Launcher.index = 0; keys.wait(10);
-        check(menu.actionIndex === 2, "returning to an artist restores expand");
+        check(Launcher.actionIndex === 2, "returning to an artist restores expand");
         LauncherMusic.rows = []; keys.wait(10);
-        check(menu.actionIndex === -1, "empty music has no selected action");
+        check(Launcher.actionIndex === -1, "empty music has no selected action");
         input.adopt("#matching"); LauncherMusic.rows = [artist]; keys.wait(10);
-        check(menu.actionIndex === 2, "music restores expand after an empty search");
+        check(Launcher.actionIndex === 2, "music restores expand after an empty search");
 
         input.adopt("/"); keys.wait(30);
         const path = {path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1]])};
         LauncherFiles.pathCache = [path]; keys.wait(10);
-        menu.moveAction(1); menu.moveAction(1);
-        check(menu.selectedAction === "copy-path", "files remember copy path");
+        Launcher.moveAction(1); Launcher.moveAction(1);
+        check(Launcher.chosenAction === "copy-path", "files remember copy path");
         LauncherFiles.pathCache = []; keys.wait(10);
-        check(menu.actionIndex === -1, "empty files have no selected action");
+        check(Launcher.actionIndex === -1, "empty files have no selected action");
         LauncherFiles.pathCache = [path]; keys.wait(10);
-        check(menu.actionIndex === 2, "files restore copy path when results return");
+        check(Launcher.actionIndex === 2, "files restore copy path when results return");
         LauncherFiles.pathCache = [];
 
         input.adopt(Launcher.textPrefix + "zzfixture"); keys.wait(10);
         LauncherText.hits = {q: "zzfixture", list: [{path: Settings.home + "/notes.txt", line: 1, text: "zzfixture", depth: 3}]}; keys.wait(10);
-        const textKeys = menu.rowActions.map(action => action.key);
+        const textKeys = Launcher.rowActions.map(action => action.key);
         check(textKeys.includes("copy-path") && !textKeys.includes("complete-path"), "text hits copy their path but have none to complete");
         LauncherText.hits = null;
 
         input.adopt('"'); keys.wait(30);
         const clip = {id: "action-clip", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]};
         LauncherClipboard.clipEntries = [clip]; keys.wait(10);
-        menu.moveAction(1);
-        check(menu.selectedAction === "forget", "clipboard remembers delete");
+        Launcher.moveAction(1);
+        check(Launcher.chosenAction === "forget", "clipboard remembers delete");
         LauncherClipboard.clipEntries = []; keys.wait(10);
-        check(menu.actionIndex === -1, "empty clipboard has no selected action");
+        check(Launcher.actionIndex === -1, "empty clipboard has no selected action");
         LauncherClipboard.clipEntries = [clip]; keys.wait(10);
-        check(menu.actionIndex === 1, "clipboard restores delete when results return");
+        check(Launcher.actionIndex === 1, "clipboard restores delete when results return");
         LauncherClipboard.clipEntries = [];
         Launcher.openWith("@"); keys.wait(10);
-        check(input.text === "@" && menu.selectedAction === "activate", "external mode changes reset the remembered action");
+        check(input.text === "@" && Launcher.chosenAction === "activate", "external mode changes reset the remembered action");
         input.adopt(""); keys.wait(10);
-        check(menu.selectedAction === "activate", "changing mode resets the remembered action");
+        check(Launcher.chosenAction === "activate", "changing mode resets the remembered action");
     }
     Timer { interval: 150; running: true; onTriggered: {
         try {
@@ -1134,18 +1134,18 @@ ShellRoot {
             check(Launcher.musicMode && box.width > 680, "music preview structure preserved");
             LauncherMusic.rows = [{kind: "music-track", title: "Track", subtitle: ""}];
             keys.wait(30);
-            check(actionBar.visible && actionBar.y >= input.height && menu.rowActions.map(action => action.label).join(",") === "Queue,Play", "music actions appear below the input");
+            check(actionBar.visible && actionBar.y >= input.height && Launcher.rowActions.map(action => action.label).join(",") === "Queue,Play", "music actions appear below the input");
             const musicCaret = input.cursorPosition;
             keys.keyClick(Qt.Key_End);
-            check(menu.selectedAction === "play" && input.activeFocus && input.cursorPosition === musicCaret, "End selects play without moving focus or the caret");
+            check(Launcher.chosenAction === "play" && input.activeFocus && input.cursorPosition === musicCaret, "End selects play without moving focus or the caret");
             keys.keyClick(Qt.Key_Return);
             check(LauncherMusic.activated === "play", "Enter runs the selected play action");
             keys.keyClick(Qt.Key_End);
-            check(menu.selectedAction === "activate", "End wraps to queue");
+            check(Launcher.chosenAction === "activate", "End wraps to queue");
             keys.keyClick(Qt.Key_Return);
             check(LauncherMusic.activated === "queue", "Enter queues after changing the action");
             keys.keyClick(Qt.Key_Home);
-            check(menu.selectedAction === "play", "Home cycles backward to play");
+            check(Launcher.chosenAction === "play", "Home cycles backward to play");
             keys.keyClick(Qt.Key_Return, Qt.ControlModifier);
             check(LauncherMusic.activated === "play", "Ctrl+Enter still plays");
             const playButton = actionButtons.children.find(child => child.label === "Play");
@@ -1157,7 +1157,7 @@ ShellRoot {
                 {kind: "music-queue", title: "Other track", subtitle: "", glyph: ""}
             ];
             keys.wait(30);
-            check(menu.rowActions.length === 0 && !actionBar.visible, "queue playback has no buttons under the input");
+            check(Launcher.rowActions.length === 0 && !actionBar.visible, "queue playback has no buttons under the input");
             const pauseControl = keys.findChild(list.itemAtIndex(0), "queueControl");
             check(pauseControl.visible && pauseControl.name === "Pause Current track", "the right icon exposes a pause action");
             check(!keys.findChild(list.itemAtIndex(1), "queueControl").visible, "other tracks have no playback icon click target");
@@ -1175,37 +1175,37 @@ ShellRoot {
             input.adopt("#artist"); keys.wait(30);
             LauncherMusic.rows = [{kind: "music-artist", key: "artist:0", title: "Artist", subtitle: ""}];
             keys.wait(30);
-            check(menu.rowActions[2].label === "Expand", "music tree action is available as a button");
-            check(menu.selectedAction === "play", "typing within music preserves the chosen action");
+            check(Launcher.rowActions[2].label === "Expand", "music tree action is available as a button");
+            check(Launcher.chosenAction === "play", "typing within music preserves the chosen action");
             keys.keyClick(Qt.Key_End);
             keys.keyClick(Qt.Key_Return);
             check(LauncherMusic.folds === 1, "selected expand button dispatches to the music tree");
             input.adopt("@subject"); keys.wait(30);
-            check(menu.actionIndex === 2 && menu.rowActions[2].label === "New Mail", "mail without a result selects the first available action");
+            check(Launcher.actionIndex === 2 && Launcher.rowActions[2].label === "New Mail", "mail without a result selects the first available action");
             keys.keyClick(Qt.Key_End);
-            check(menu.selectedAction === "play", "action navigation skips unavailable mail actions");
+            check(Launcher.chosenAction === "play", "action navigation skips unavailable mail actions");
             keys.keyClick(Qt.Key_Return);
             check(Email.composed === "subject" && !Launcher.shown, "selected new mail action uses the query as its subject");
             Launcher.show(); menu.requestActivate(); input.forceActiveFocus();
             Email.threads = [{id: "button-mail", subject: "Mail", from: "sender", at: 0, unread: false, messages: []}];
             input.adopt("@"); keys.wait(30);
             keys.keyClick(Qt.Key_End); keys.keyClick(Qt.Key_Return);
-            check(LauncherMail.open?.id === "button-mail" && menu.rowActions[1].label === "Back to List", "read button opens the inline reader");
+            check(LauncherMail.open?.id === "button-mail" && Launcher.rowActions[1].label === "Back to List", "read button opens the inline reader");
             keys.keyClick(Qt.Key_Return);
             check(!LauncherMail.open, "back to list button closes the inline reader");
             Email.threads = [];
             input.adopt("/"); keys.wait(30);
             LauncherFiles.pathCache = [{path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1], [Settings.home + "/notes.txt", 0.5]])}];
             keys.wait(30);
-            check(menu.rowActions.map(action => action.key).join(",") === "activate,play,copy-path,complete-path", "file shortcuts have matching buttons: " + JSON.stringify(Launcher.selected));
+            check(Launcher.rowActions.map(action => action.key).join(",") === "activate,play,copy-path,complete-path", "file shortcuts have matching buttons: " + JSON.stringify(Launcher.selected));
             keys.keyClick(Qt.Key_Home); keys.keyClick(Qt.Key_Return);
             check(input.text === "~/notes.txt" && input.activeFocus, "complete path button fills the query");
             input.adopt('"'); keys.wait(30);
             LauncherClipboard.clipEntries = [{id: "1", line: "1\\tfixture", text: "fixture", fields: [["fixture", 1]]}];
             keys.wait(30);
-            check(menu.rowActions[1]?.key === "forget", "clipboard deletion has a button");
+            check(Launcher.rowActions[1]?.key === "forget", "clipboard deletion has a button");
             input.adopt("#"); keys.wait(30);
-            check(menu.selectedAction === "activate", "changing modes resets the action to the primary one");
+            check(Launcher.chosenAction === "activate", "changing modes resets the action to the primary one");
             LauncherMusic.rows = Array.from({length: 12}, (_, i) => ({kind: "music", title: "row " + i}));
             keys.wait(240);
             const openedMode = Qt.createComponent(Qt.resolvedUrl("src/modules/LauncherMenu.qml")).createObject(null);
