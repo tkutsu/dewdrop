@@ -74,7 +74,9 @@ OverlayWindow {
     }
 
     // The selected row's actions are the launcher's (Launcher.rowActions);
-    // the box only draws them and passes the keys on.
+    // the box only draws them and passes the keys on. Shortcut-only ones
+    // come last and stay out of the bar.
+    readonly property var barActions: Launcher.rowActions.filter(action => action.shown !== false)
     function runAction(at) {
         Launcher.runAction(at);
         input.forceActiveFocus();
@@ -183,11 +185,9 @@ OverlayWindow {
     function stepOf(key, ctrl) {
         switch (key) {
         case Qt.Key_Down:
-        case Qt.Key_Tab:
         case Qt.Key_PageDown:
             return 1;
         case Qt.Key_Up:
-        case Qt.Key_Backtab:
         case Qt.Key_PageUp:
             return -1;
         case Qt.Key_N:
@@ -200,8 +200,7 @@ OverlayWindow {
         return 0;
     }
 
-    // Tab opens and shuts a mail in mail mode and moves the selection
-    // elsewhere. Music trees toggle with Right at the end of the query.
+    // Music trees toggle with Right at the end of the query.
     // Page keys page the file under the / list, in music mode step a level
     // of the tree, and elsewhere move the selection a screenful.
     function step(key, dir) {
@@ -214,24 +213,13 @@ OverlayWindow {
             root.frecencyOpen = false;
             return;
         }
-        const tab = key === Qt.Key_Tab || key === Qt.Key_Backtab;
         const page = key === Qt.Key_PageDown || key === Qt.Key_PageUp;
-        // Reading a mail, every step is the reader's: Tab back to the list,
-        // the arrows a row's height of text, the page keys a screenful.
+        // Reading a mail, every step is the reader's: the arrows a row's
+        // height of text, the page keys a screenful.
         if (LauncherMail.open) {
-            if (tab)
-                LauncherMail.fold();
-            else
-                reader.scroll(dir * (page ? reader.height - root.rowHeight : root.rowHeight));
+            reader.scroll(dir * (page ? reader.height - root.rowHeight : root.rowHeight));
             return;
         }
-        if (Launcher.mailMode && tab) {
-            LauncherMail.fold();
-            return;
-        }
-        // On a `,` line, Tab turns it into the next kind it reads as.
-        if (Launcher.taskMode && tab && Launcher.cyclePlan(dir))
-            return;
         if (Launcher.musicMode && page) {
             LauncherMusic.skip(dir);
             return;
@@ -703,11 +691,12 @@ OverlayWindow {
                             }
                             root.accept(ctrl);
                             break;
-                        case Qt.Key_Home:
-                        case Qt.Key_End:
-                            if (event.modifiers !== Qt.NoModifier || !Launcher.rowActions.length)
-                                return;
-                            Launcher.moveAction(event.key === Qt.Key_Home ? -1 : 1);
+                        // Tab and Shift+Tab pick among the row's actions,
+                        // whatever the mode (Launcher.rowActions).
+                        case Qt.Key_Tab:
+                        case Qt.Key_Backtab:
+                            if (root.expanded)
+                                Launcher.moveAction(event.key === Qt.Key_Backtab ? -1 : 1);
                             break;
                         // Drop the row rather than act on it. Only the clipboard
                         // has anything to drop; elsewhere this does nothing, and
@@ -755,14 +744,14 @@ OverlayWindow {
                 id: actionBar
                 width: parent.width
                 height: root.actionHeight
-                visible: root.expanded && Launcher.rowActions.length > 1
+                visible: root.expanded && root.barActions.length > 1
 
                 Row {
                     id: actionButtons
                     spacing: 6
 
                     Repeater {
-                        model: Launcher.rowActions
+                        model: root.barActions
 
                         PopupButton {
                             required property var modelData
@@ -779,8 +768,8 @@ OverlayWindow {
                 Text {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: Launcher.rowActions.filter(action => action.live).length > 1
-                    text: "Home / End"
+                    visible: root.barActions.filter(action => action.live).length > 1
+                    text: "Tab"
                     color: Theme.label3
                     font.family: Theme.bodyFont
                     font.pixelSize: Theme.footnoteSize
