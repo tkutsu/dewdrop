@@ -113,7 +113,8 @@ Singleton {
     //
     // A bare plan symbol turns it into what the line will make, because the
     // mode is settled by then and how to word it is the question. How the line
-    // starts picks the kind; see Tasks.plan().
+    // starts picks the kind; see Tasks.plan(). Once something is typed, Tab
+    // offers the next kind the line also reads as.
     readonly property var queryHints: {
         const c = root.classification;
         if (c.mode === "empty") {
@@ -130,11 +131,13 @@ Singleton {
                 { prefix: "event", hint: "fri 15:00 call" },
                 { prefix: "event", hint: "fri all day trip" }
             ];
-        // A task or event being written can take notes on a line below it.
-        if (c.mode === root.taskPrefix && !c.text.includes("\n")
-                && ["task", "event"].includes(Tasks.plan(c.text).kind))
-            return [{ prefix: "⇧↵", hint: "notes" }];
-        return [];
+        if (c.mode !== root.taskPrefix)
+            return [];
+        const plan = Tasks.plan(c.text, root.planKind);
+        const next = root.nextPlanKind(plan, 1);
+        return (next ? [{ prefix: "⇥", hint: next }] : []).concat(
+            // A task or event being written can take notes on a line below it.
+            !c.text.includes("\n") && ["task", "event"].includes(plan.kind) ? [{ prefix: "⇧↵", hint: "notes" }] : []);
     }
 
     // How many rows are worth ranking; the box shows a dozen of them at once.
@@ -162,6 +165,10 @@ Singleton {
     }
     property string query: ""
     property int index: 0
+    // The kind Tab picked for the `,` line, over the one its wording suggests
+    // (Tasks.plan). Kept while the line can still be read that way, and
+    // dropped with the line.
+    property string planKind: ""
     // The power row asking for its second press. Anything else the
     // selection or the query does takes the question back.
     property string armed: ""
@@ -197,7 +204,7 @@ Singleton {
         case root.emojiPrefix: return Theme.glyph.launcherEmoji;
         case root.helpPrefix: return Theme.glyph.launcherHelp;
         case root.taskPrefix: {
-            switch (Tasks.plan(c.text).kind) {
+            switch (Tasks.plan(c.text, root.planKind).kind) {
             case "alarm": return Theme.glyph.alarm;
             case "timer": return Theme.glyph.timer;
             case "event": return Theme.glyph.event;
@@ -264,6 +271,9 @@ Singleton {
     onQueryChanged: {
         root.index = 0;
         root.armed = "";
+        const c = root.classifyQuery(root.query);
+        if (c.mode !== root.taskPrefix || !c.text.trim())
+            root.planKind = "";
 
         root.route();
     }
@@ -692,7 +702,7 @@ Singleton {
     // which is a thing you came to do rather than a thing you are mid-flow on.
     function taskResults(query) {
         const typed = query.trim();
-        const plan = typed.length ? Tasks.plan(typed) : null;
+        const plan = typed.length ? Tasks.plan(typed, root.planKind) : null;
         // The first line; the notes under it only ride along.
         const line = plan?.line ?? "";
         const timerInput = plan?.kind === "timer" || plan?.kind === "alarm";
@@ -709,6 +719,7 @@ Singleton {
             rows.unshift({
                 kind: "task-add",
                 event: event,
+                want: plan.kind,
                 glyph: event ? Theme.glyph.event : Theme.glyph.plus,
                 // Keep the typed day and task list names in the preview.
                 title: line,
@@ -758,10 +769,31 @@ Singleton {
         return rows.concat(scored.slice(0, root.maxResults).map(x => x.row));
     }
 
+    // The kind Tab steps to from this plan (dir 1) or back (-1), or "" when
+    // the line reads only one way.
+    function nextPlanKind(plan, dir) {
+        const kinds = plan?.kinds ?? [];
+        if (kinds.length < 2)
+            return "";
+        return kinds[(kinds.indexOf(plan.kind) + dir + kinds.length) % kinds.length];
+    }
+
+    // Tab on a `,` line: false when there is nothing to switch to, so the key
+    // keeps its usual step down the list.
+    function cyclePlan(dir) {
+        const next = root.nextPlanKind(Tasks.plan(root.classification.text, root.planKind), dir);
+        if (!next)
+            return false;
+        root.planKind = next;
+        root.index = 0;
+        return true;
+    }
+
     // What Enter makes of a `,` line (Tasks.plan), read from the parse rather
-    // than the line: "alarm 15:00 today  ·  event 15:00–16:00",
-    // "event  ·  fri 15:00–16:00", or the task's day and task list, each
-    // followed by "with notes" when there are lines under the first.
+    // than the line and led by its kind, which Tab changes:
+    // "alarm  ·  15:00 today", "event  ·  fri 15:00–16:00", or
+    // "task  ·  fri  ·  Work", the last two followed by "with notes" when
+    // there are lines under the first.
     function linePreview(typed, plan) {
         if (!plan.ok)
             return plan.error;
@@ -782,7 +814,7 @@ Singleton {
         }
         const p = plan.task;
         const list = Tasks.lists.length > 1 ? Tasks.lists.find(l => l.id === p.list) : null;
-        return "add" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (list ? "  ·  " + list.title : "");
+        return "task" + (p.day !== "" ? "  ·  " + Tasks.sayDay(p.day) : "") + (list ? "  ·  " + list.title : "");
     }
 
     // Timer rows in tasks mode: a time being typed first, then existing timers.
@@ -794,6 +826,7 @@ Singleton {
         if (typed.length) {
             rows.push({
                 kind: "timer-add",
+                want: plan.kind,
                 glyph: plan.kind === "alarm" ? Theme.glyph.alarm : Theme.glyph.timer,
                 title: typed,
                 // Same again: "25m" is what was typed and "25 minutes" is what
@@ -1197,15 +1230,15 @@ Singleton {
                 if (!r.ok)
                     return;
                 root.hide();
-                Tasks.run(r.text);
+                Tasks.run(r.text, r.want);
             },
             timer: (r, i) => Timers.toggle(r.entry.id),
             "timer-add": (r, i) => {
                 if (!r.ok)
                     return;
                 root.hide();
-                // Tasks, not Timers: an alarm with a title is an event too.
-                Tasks.run(r.text);
+                // Tasks, not Timers: it knows "today 15:00 call" as an alarm.
+                Tasks.run(r.text, r.want);
             }
         })
 

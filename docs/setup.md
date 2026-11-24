@@ -166,6 +166,8 @@ The more of a time a `,` line gives, the bigger the thing it makes, and the quer
 | `, fri 15:00 call bank` | event Friday 15:00-16:00 |
 | `, 2026-11-03 9:30 dentist` | event on that date |
 
+The row under the line names what Enter makes. When the line also reads as something else, a `⇥` hint at the right of the query line names it and Tab switches to it: `, 15:00 call bank` becomes an event today, `, fri call bank` an all-day event, `, today 15:00 call bank` an alarm.
+
 Right-clicking a day in the calendar opens the launcher with that day typed in.
 
 Paths also select file mode automatically. Names starting with `_` try windows first.

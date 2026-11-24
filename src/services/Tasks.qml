@@ -610,34 +610,84 @@ GoogleService {
     // Only the first line is read that way. The lines under it (Shift+Return
     // in the launcher) are the notes of a task or the description of an
     // event, as in the popup's editor; a timer has nowhere to keep them.
-    function plan(text: string): var {
+    //
+    // That order is only the guess. The launcher's Tab turns the line into
+    // any other kind it reads as (`want`), so a wrong guess costs one key
+    // rather than a rewording. `kinds` lists them in the order Tab steps.
+    readonly property var planKinds: ["task", "timer", "alarm", "event"]
+
+    function plan(text: string, want): var {
         const lines = (text ?? "").replace(/\r/g, "").split("\n");
         const typed = lines.shift().trim();
         const notes = lines.join("\n").trim();
-        const said = p => Object.assign(p, { line: typed, notes: notes });
-        const timer = Timers.parse(typed);
-        if (timer.ok)
-            return said({ ok: true, kind: timer.kind === "countdown" ? "timer" : "alarm", timer: timer });
+        const read = root.readings(typed, notes);
+        const guess = ["timer", "alarm", "event"].find(k => read[k]?.spelled) ?? "task";
+        const kind = read[want]?.ok ? want : guess;
+        return Object.assign({}, read[kind], {
+            line: typed,
+            notes: notes,
+            guess: guess,
+            kinds: root.planKinds.filter(k => k === kind || read[k]?.ok)
+        });
+    }
+
+    // Every kind the first line reads as, keyed by kind. `spelled` marks the
+    // one the line asks for outright (the numbered list above); the rest are
+    // what Tab offers instead.
+    function readings(typed: string, notes: string): var {
+        const out = {};
         const words = typed.split(/\s+/);
+        const clock = Timers.parse(typed);
+        if (clock.ok)
+            out[clock.kind === "countdown" ? "timer" : "alarm"] = { ok: true, kind: clock.kind === "countdown" ? "timer" : "alarm", timer: clock, timerLine: typed, spelled: true };
+
         const day = words.length > 1 ? root.readDay(words[0].toLowerCase()) : "";
+        // "today 15:00 call" is an event, or an alarm if Tab says so.
+        if (day !== "" && day === root.today) {
+            const rest = words.slice(1).join(" ");
+            const at = Timers.parse(rest);
+            if (at.ok && at.kind === "alarm")
+                out.alarm = { ok: true, kind: "alarm", timer: at, timerLine: rest };
+        }
+
+        const event = root.readEvent(words, day, clock, notes);
+        if (event)
+            out.event = Object.assign({ kind: "event" }, event);
+
+        // A bare duration or time has no title to write down.
+        if (!clock.ok || clock.label) {
+            const task = root.parse(typed);
+            const error = task.error || root.overLimit("Notes are", notes, root.notesLimit);
+            out.task = { ok: task.ok && !error, kind: "task", task: task, error: error };
+        }
+        return out;
+    }
+
+    function readEvent(words: var, day: string, clock: var, notes: string): var {
+        // "15:00 call" is an alarm, or an event today if Tab says so.
+        if (day === "") {
+            if (!clock.ok || clock.kind !== "alarm" || !clock.label)
+                return null;
+            const [y, m, d] = root.today.split("-").map(Number);
+            return { ok: true, event: root.event(clock.label, new Date(y, m - 1, d, clock.hour, clock.minute), notes) };
+        }
         const [y, m, d] = day.split("-").map(Number);
-        const allDay = day === "" ? 0 : words[1].toLowerCase() === "allday" ? 1
+        const allDay = words[1].toLowerCase() === "allday" ? 1
             : words[1].toLowerCase() === "all" && words[2]?.toLowerCase() === "day" ? 2 : 0;
         if (allDay) {
             const title = words.slice(1 + allDay).join(" ");
             if (!title)
-                return said({ ok: false, kind: "event", error: "No event, only a day" });
-            return said({ ok: true, kind: "event", event: { title: title, start: new Date(y, m - 1, d), end: new Date(y, m - 1, d + 1), allDay: true, notes: notes } });
+                return { ok: false, spelled: true, error: "No event, only a day" };
+            return { ok: true, spelled: true, event: root.allDayEvent(title, y, m, d, notes) };
         }
-        const at = day !== "" ? Timers.parse(words.slice(1).join(" ")) : null;
-        if (at?.ok && at.kind === "alarm") {
+        const at = Timers.parse(words.slice(1).join(" "));
+        if (at.ok && at.kind === "alarm") {
             if (!at.label)
-                return said({ ok: false, kind: "event", error: "No event, only a time" });
-            return said({ ok: true, kind: "event", event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute), notes) });
+                return { ok: false, spelled: true, error: "No event, only a time" };
+            return { ok: true, spelled: true, event: root.event(at.label, new Date(y, m - 1, d, at.hour, at.minute), notes) };
         }
-        const task = root.parse(typed);
-        const error = task.error || root.overLimit("Notes are", notes, root.notesLimit);
-        return said({ ok: task.ok && !error, kind: "task", task: task, error: error });
+        // "fri call bank" is a task due Friday, or an all-day event if Tab says so.
+        return { ok: true, event: root.allDayEvent(words.slice(1).join(" "), y, m, d, notes) };
     }
 
     // Events last an hour.
@@ -645,14 +695,18 @@ GoogleService {
         return { title: title, start: start, end: new Date(start.getTime() + 3600000), notes: notes };
     }
 
+    function allDayEvent(title: string, y: int, m: int, d: int, notes: string): var {
+        return { title: title, start: new Date(y, m - 1, d), end: new Date(y, m - 1, d + 1), allDay: true, notes: notes };
+    }
+
     // What the line makes, said once it is done. The one entry point the
-    // launcher and the IPC both use.
-    function run(text: string): string {
-        const p = root.plan(text);
+    // launcher and the IPC both use; the launcher passes the kind Tab picked.
+    function run(text: string, want): string {
+        const p = root.plan(text, want);
         if (!p.ok)
             return p.error;
         if (p.kind === "timer" || p.kind === "alarm")
-            return Timers.run(p.line);
+            return Timers.run(p.timerLine);
         if (p.kind === "event") {
             Agenda.insert(p.event);
             const when = p.event.allDay ? "all day" : "at " + Timers.hhmm(p.event.start.getHours(), p.event.start.getMinutes());

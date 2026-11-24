@@ -122,7 +122,7 @@ OverlayWindow {
                 actions.push({ key: "music-fold", label: "Collapse", live: true });
             return actions;
         }
-        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": "Add Timer", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
+        const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", "task-add": row.event ? "Add Event" : "Add Task", "timer-add": row.want === "alarm" ? "Add Alarm" : "Add Timer", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
         const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
         return [{ key: "activate", label, live: row.ok !== false }];
     }
@@ -329,6 +329,9 @@ OverlayWindow {
             LauncherMail.fold();
             return;
         }
+        // On a `,` line, Tab turns it into the next kind it reads as.
+        if (Launcher.taskMode && tab && Launcher.cyclePlan(dir))
+            return;
         if (Launcher.musicMode && page) {
             LauncherMusic.skip(dir);
             return;
@@ -787,7 +790,7 @@ OverlayWindow {
                             // its notes on the line below (Tasks.plan). A
                             // timer has nowhere to keep them.
                             if (shift && Launcher.taskMode
-                                    && ["task", "event"].includes(Tasks.plan(Launcher.classification.text).kind)) {
+                                    && ["task", "event"].includes(Tasks.plan(Launcher.classification.text, Launcher.planKind).kind)) {
                                 input.remove(input.selectionStart, input.selectionEnd);
                                 input.insert(input.cursorPosition, "\n");
                                 break;

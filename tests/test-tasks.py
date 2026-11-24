@@ -110,14 +110,27 @@ ShellRoot {
                 check(Tasks.plan("25m tea\nsteep it").kind === "timer" && Tasks.plan("fri\ncall bank").error === "No task, only a day", "notes never change what the first line makes");
                 check(Tasks.plan("x\n" + "n".repeat(8200)).error === "Notes are 8200 characters, 8 over Google's 8192", "launcher names overlong notes");
 
+                // Tab: the other kinds a line reads as, the guess first.
+                const kinds = line => Tasks.plan(line).kinds.join(",");
+                check(kinds("15:00 call bank") === "task,alarm,event" && at(Tasks.plan("15:00 call bank", "event"), Tasks.today, 15, 0), "an alarm line can be an event today");
+                check(Tasks.plan("15:00 call bank", "task").task.title === "15:00 call bank", "or a task with the time in its title");
+                check(kinds("15:00") === "alarm" && kinds("25m") === "timer", "a bare time or duration reads one way");
+                check(kinds("25m tea") === "task,timer", "a timer with a label can be a task");
+                const allDayFri = Tasks.plan("fri call bank", "event");
+                check(Tasks.plan("fri call bank").kind === "task" && allDayFri.event.allDay && allDayFri.event.title === "call bank" && day(allDayFri.event.start) === fri, "a dated task can be an all-day event");
+                check(kinds("call bank") === "task" && Tasks.plan("call bank", "event").kind === "task", "an undated task has nothing else to be");
+                const ring = Tasks.plan("today 15:00 call bank", "alarm");
+                check(ring.kind === "alarm" && ring.timerLine === "15:00 call bank" && Tasks.plan("today 15:00 call bank").guess === "event", "today with a time can be an alarm");
+                check(Tasks.plan("fri 15:00").error === "No event, only a time" && kinds("fri 15:00") === "task,event", "a broken guess still offers what works");
+
                 // What Enter will make, said before it is made.
                 const range = (a, b) => `${Timers.hhmm(a, 0)}–${Timers.hhmm(b, 0)}`;
                 const preview = line => Launcher.taskResults(" " + line)[0];
                 check(!preview("15:00 call bank").subtitle.includes("event"), "alarm preview promises no event");
                 check(preview("fri 15:00 call bank").subtitle === `event  ·  ${Tasks.sayDay(fri)} ${range(15, 16)}` && preview("fri 15:00 call bank").event, "event preview");
-                check(preview("fri call bank").subtitle.startsWith("add  ·  ") && !preview("fri call bank").event, "task preview");
+                check(preview("fri call bank").subtitle.startsWith("task  ·  ") && !preview("fri call bank").event, "task preview");
                 const notedRow = preview("fri call bank\nbring the card");
-                check(notedRow.title === "fri call bank" && notedRow.subtitle.startsWith("add  ·  ") && notedRow.subtitle.endsWith("  ·  with notes")
+                check(notedRow.title === "fri call bank" && notedRow.subtitle.startsWith("task  ·  ") && notedRow.subtitle.endsWith("  ·  with notes")
                     && notedRow.text.endsWith("\nbring the card"), "add row shows the first line and says notes follow");
                 check(preview("fri 15:00 call bank\nfees").subtitle.endsWith(`${range(15, 16)}  ·  with notes`), "event preview says notes follow");
                 check(!preview("fri call bank").subtitle.includes("notes"), "no notes, no mention");
