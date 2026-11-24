@@ -677,11 +677,25 @@ Singleton {
     // keybinds follow, so one search answers both "how do I get to…" questions.
     function helpResults(query) {
         const terms = root.prepTerms(query);
+        const keys = root.launcherKeys
+            .filter(([combo, what]) => !terms.length || root.matchScore(terms, [[what, 1], [combo, 0.8], ["Launcher", 0.4]]) !== null)
+            .map(([combo, what]) => ({ kind: "keybind", glyph: Theme.glyph.keyboard, title: "Launcher: " + what, subtitle: combo }));
         return root.modes
             .filter(m => m.prefix !== root.helpPrefix && (!terms.length || root.matchScore(terms, [[m.about, 1], [m.hint, 1]]) !== null))
             .map(m => ({ kind: "help", badge: m.prefix, title: m.about, prefix: m.prefix }))
-            .concat(LauncherKeys.results(query));
+            .concat(keys, LauncherKeys.results(query));
     }
+
+    // The box's own keys, for the ? list: the buttons under the query say
+    // the rest.
+    readonly property var launcherKeys: [
+        ["Tab / Shift + Tab", "Choose among a row's buttons"],
+        ["Shift + Enter", "Open an app on an empty workspace"],
+        ["Shift + Enter", "Start a task's or event's notes"],
+        ["Ctrl + Enter", "Play, Show in Folder or New Mail"],
+        ["Ctrl + Delete", "Delete a clipboard entry"],
+        ["→", "Expand a music row or complete a path"]
+    ]
 
     // --- tasks and timers ----------------------------------------------------
 
@@ -1226,7 +1240,8 @@ Singleton {
     //
     // An action is { key, label, live, shown, shortcut }. `key` is what
     // runAction hands activate() as its mode, unless it is one of the
-    // launcher's own (runs, below). `shown: false` keeps an action to its
+    // launcher's own (runs, below). `shortcut` ("ctrl+return") runs it from
+    // the keyboard without choosing it. `shown: false` keeps an action to its
     // shortcut and out of the bar; such actions go last, so the bar's
     // buttons and this list share their indices.
 
@@ -1260,7 +1275,7 @@ Singleton {
             const actions = [
                 { key: "activate", label: row?.kind === "mail-address" ? "Search Sender" : "Open in Gmail", live: row?.kind === "mail" || row?.kind === "mail-address" },
                 { key: "mail-fold", label: LauncherMail.open ? "Back to List" : "Read", live: row?.kind === "mail" },
-                { key: "play", label: "New Mail", live: true }
+                { key: "play", label: "New Mail", live: true, shortcut: "ctrl+return" }
             ];
             if (row?.kind === "mail")
                 actions.push({ key: "search-sender", label: "Search Sender", live: !!row.thread.address });
@@ -1275,14 +1290,14 @@ Singleton {
         if (row.kind === "path")
             return [
                 { key: "activate", label: "Open", live: true },
-                { key: "play", label: "Show in Folder", live: true },
+                { key: "play", label: "Show in Folder", live: true, shortcut: "ctrl+return" },
                 { key: "copy-path", label: "Copy Path", live: true },
                 { key: "complete-path", label: "Complete Path", live: true }
             ].filter(a => !root.textMode || a.key !== "complete-path");
         if (row.kind === "clip")
             return [
                 { key: "activate", label: "Copy", live: true },
-                { key: "forget", label: "Delete", live: true }
+                { key: "forget", label: "Delete", live: true, shortcut: "ctrl+delete" }
             ];
         if (row.kind === "music-start")
             return [{ key: "activate", label: "Start Music", live: true }];
@@ -1291,7 +1306,7 @@ Singleton {
         if (row.kind.startsWith("music-")) {
             const actions = [
                 { key: "activate", label: "Queue", live: true },
-                { key: "play", label: "Play", live: true }
+                { key: "play", label: "Play", live: true, shortcut: "ctrl+return" }
             ];
             if (row.kind === "music-artist" || row.kind === "music-album")
                 actions.push({ key: "music-fold", label: LauncherMusic.open[row.key] ? "Collapse" : "Expand", live: true });
@@ -1303,7 +1318,10 @@ Singleton {
             return root.planActions(row);
         const labels = { calc: "Copy Answer", window: "Focus", task: "Complete", desktop: "Run", emoji: "Copy", power: row.action?.name, bluetooth: row.connect ? "Connect" : "Disconnect" };
         const label = row.kind === "timer" ? (row.entry.running ? "Pause" : "Resume") : labels[row.kind] ?? "Open";
-        return [{ key: "activate", label: label, live: row.ok !== false }];
+        const open = [{ key: "activate", label: label, live: row.ok !== false }];
+        // An app opens on an empty workspace and leaves you where you are:
+        // one keystroke too few to earn a button on every app row.
+        return row.kind === "app" ? open.concat([{ key: "aside", label: "Open Aside", live: true, shown: false, shortcut: "shift+return" }]) : open;
     }
 
     // Step the chosen action along the live, shown ones.
@@ -1356,6 +1374,16 @@ Singleton {
             root.runs[a.key]();
         else
             root.activate(root.index, a.key === "activate" ? "queue" : a.key);
+    }
+
+    // A key held with Enter or Delete: the action that declares it, if the
+    // row has one live.
+    function runShortcut(name: string): bool {
+        const at = root.rowActions.findIndex(a => a.shortcut === name && a.live);
+        if (at < 0)
+            return false;
+        root.runAction(at);
+        return true;
     }
 
     // The query as if typed, the cursor at its end (LauncherMenu adopts it).

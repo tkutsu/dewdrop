@@ -82,13 +82,13 @@ OverlayWindow {
         input.forceActiveFocus();
     }
 
-    function accept(ctrl) {
+    function accept() {
         if (!root.expanded && !input.text.trim())
             root.browse();
-        else if (!ctrl && Launcher.rowActions.length)
+        else if (Launcher.rowActions.length)
             root.runAction(Launcher.actionIndex);
         else
-            Launcher.activate(Launcher.index, ctrl ? "play" : "queue");
+            Launcher.activate(Launcher.index, "queue");
     }
 
     // The sides follow LauncherMotion's width curve; contents never scale.
@@ -674,22 +674,20 @@ OverlayWindow {
                             break;
                         case Qt.Key_Return:
                         case Qt.Key_Enter:
-                            // Under a task or an event, Shift+Return starts
-                            // its notes on the line below (Tasks.plan). A
-                            // timer has nowhere to keep them.
+                            // A modifier runs the action that declares it
+                            // (Launcher.rowActions), chosen or not.
+                            if ((ctrl || shift) && Launcher.runShortcut((ctrl ? "ctrl+" : "") + (shift ? "shift+" : "") + "return"))
+                                break;
+                            // Under a task or an event, Shift+Return is a
+                            // new line, as in any text box: its notes
+                            // (Tasks.plan). A timer has nowhere to keep them.
                             if (shift && Launcher.taskMode
                                     && ["task", "event"].includes(Tasks.plan(Launcher.classification.text, Launcher.planKind).kind)) {
                                 input.remove(input.selectionStart, input.selectionEnd);
                                 input.insert(input.cursorPosition, "\n");
                                 break;
                             }
-                            // On an app, it opens on an empty workspace
-                            // and you stay where you are.
-                            if (shift && !ctrl && Launcher.selected?.kind === "app") {
-                                Launcher.activate(Launcher.index, "aside");
-                                break;
-                            }
-                            root.accept(ctrl);
+                            root.accept();
                             break;
                         // Tab and Shift+Tab pick among the row's actions,
                         // whatever the mode (Launcher.rowActions).
@@ -698,13 +696,12 @@ OverlayWindow {
                             if (root.expanded)
                                 Launcher.moveAction(event.key === Qt.Key_Backtab ? -1 : 1);
                             break;
-                        // Drop the row rather than act on it. Only the clipboard
-                        // has anything to drop; elsewhere this does nothing, and
-                        // plain Delete still edits the query.
+                        // Drop the row rather than act on it, where the row
+                        // declares it (the clipboard). Elsewhere Delete,
+                        // held or not, still edits the query.
                         case Qt.Key_Delete:
-                            if (!ctrl)
+                            if (!ctrl || !Launcher.runShortcut("ctrl+delete"))
                                 return;
-                            Launcher.forget(Launcher.index);
                             break;
                         // Right at the end toggles the selected music tree.
                         // In file mode it completes the line to the

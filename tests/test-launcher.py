@@ -546,8 +546,9 @@ ShellRoot {
             Launcher.show();
             check(Launcher.results.some(r => r.action?.name === "Private window"), "used desktop action joins home");
             Launcher.query = "launcher regression app";
-            Launcher.activate(Launcher.results.findIndex(r => r.kind === "app" && !r.action), "aside");
-            check(Hyprland.launched === `hl.dsp.exec_cmd("'/usr/bin/true'", { workspace = "empty silent" })` && !Launcher.shown, "Shift+Enter opens an app on an empty workspace, silently: " + Hyprland.launched);
+            Launcher.index = Launcher.results.findIndex(r => r.kind === "app" && !r.action);
+            check(Launcher.rowActions.map(a => a.key + (a.shown === false ? "-" : "")).join() === "activate,aside-", "Open Aside is a shortcut, not a button");
+            check(Launcher.runShortcut("shift+return") && Hyprland.launched === `hl.dsp.exec_cmd("'/usr/bin/true'", { workspace = "empty silent" })` && !Launcher.shown, "Shift+Enter opens an app on an empty workspace, silently: " + Hyprland.launched);
             Launcher.show();
             Launcher.db = ({});
 
@@ -657,10 +658,13 @@ ShellRoot {
             const bindRows = () => Launcher.results.filter(r => r.kind === "keybind");
             check(helpRows().length === Launcher.modes.length - 1 && helpRows().every(r => r.prefix !== "?"), "help lists every other mode");
             check(Launcher.results.find(r => r.prefix === ",").title.includes("alarms"), "help spells out what the plan word covers");
-            for (let i = 0; i < 40 && !bindRows().length; i++)
+            const hyprRows = () => bindRows().filter(r => r.title.startsWith("Hyprland: "));
+            for (let i = 0; i < 40 && !hyprRows().length; i++)
                 fileKeys.wait(50);
             check(Launcher.results.findIndex(r => r.kind === "keybind") === helpRows().length, "keybinds follow the modes");
-            check(JSON.stringify(bindRows().map(r => [r.title, r.subtitle])) === JSON.stringify([["Hyprland: Open the launcher", "Super + L"], ["Hyprland: Move focus left", "Super + I / ←"], ["Hyprland: Move window", "Super + Left Drag"], ["Hyprland: Resize left", "resize  ·  Shift + H"]]), "keybinds read as their description and keys: " + JSON.stringify(bindRows().map(r => [r.title, r.subtitle])));
+            check(bindRows().slice(0, Launcher.launcherKeys.length).every(r => r.title.startsWith("Launcher: "))
+                && bindRows()[0].subtitle === "Tab / Shift + Tab", "the launcher's own keys come first");
+            check(JSON.stringify(hyprRows().map(r => [r.title, r.subtitle])) === JSON.stringify([["Hyprland: Open the launcher", "Super + L"], ["Hyprland: Move focus left", "Super + I / ←"], ["Hyprland: Move window", "Super + Left Drag"], ["Hyprland: Resize left", "resize  ·  Shift + H"]]), "keybinds read as their description and keys: " + JSON.stringify(hyprRows().map(r => [r.title, r.subtitle])));
             const lastHelp = Launcher.results[Launcher.results.length - 1];
             check(lastHelp.kind === "note" && lastHelp.title === "1 keybind has no description", "binds without a description are counted, and click listeners are not binds");
             Launcher.query = "?focus";
