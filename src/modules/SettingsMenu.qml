@@ -60,14 +60,15 @@ OverlayWindow {
     // What a date and time format takes: the clock's, and the lock's.
     readonly property string dateTokens: "Date and time tokens can be combined.\nH/HH: 24h hour. h/hh: 12h hour with AP/ap.\nm/mm: minutes. s/ss: seconds.\nAP/ap: upper/lowercase AM/PM.\nd/dd: day. ddd/dddd: short/full weekday.\nM/MM: month. MMM/MMMM: short/full month name.\nyy/yyyy: year. Names use your locale.\nz/zzz: fractional seconds. t: time zone.\ntt/ttt: UTC offset without/with colon.\ntttt: full time zone name.\nPut literal text in single quotes.\n^[…] and _[…] draw small, the size of a small AM/PM:\n^[…] raised to the capitals' tops, _[…] on the baseline.\nHour Format rewrites the hours here."
     // Why a weather format is refused: a braced word that is none of `tokens`
-    // (a typo would show as typed), or no token at all.
-    function formatProblem(text: string, tokens: var): string {
+    // (a typo would show as typed), or no token at all unless they are
+    // `optional`.
+    function formatProblem(text: string, tokens: var, optional: var): string {
         const named = tokens.map(t => `{${t}}`);
         const list = named.slice(0, -1).join(", ") + " or " + named[named.length - 1];
         const stray = (text.match(/\{[^{}\s]*\}/g) ?? []).find(t => !named.includes(t));
         if (stray)
             return `${stray} isn't a token. Use ${list}.`;
-        return named.some(t => text.includes(t)) ? "" : `Include ${list}.`;
+        return optional || named.some(t => text.includes(t)) ? "" : `Include ${list}.`;
     }
     // A field or pop-up button chosen by Return or Space, entered on that
     // key's release: a pop-up button would take the release as a pick.
@@ -500,8 +501,7 @@ OverlayWindow {
                     title: "Show",
                     text: "What the glass shows over the password.",
                     rows: [
-                        { type: "toggle", id: "lockClock", title: "Date and Time", get: () => Settings.lockClock, set: v => Settings.set("lockClock", v) },
-                        { type: "toggle", id: "lockWeather", title: "Weather", tooltip: "On the date's line, as a phone shows it, once a location is set. Lock Screen > Weather sets what it says.", get: () => Settings.lockWeather, set: v => Settings.set("lockWeather", v) },
+                        { type: "toggle", id: "lockClock", title: "Time", get: () => Settings.lockClock, set: v => Settings.set("lockClock", v) },
                         { type: "toggle", id: "lockNotifications", title: "Notifications", tooltip: "The latest three, and how many more.", get: () => Settings.lockNotifications, set: v => Settings.set("lockNotifications", v) },
                         { type: "toggle", id: "lockPreviews", title: "Show Previews", text: "Off shows only the app and when.", enabled: Settings.lockNotifications, get: () => Settings.lockPreviews, set: v => Settings.set("lockPreviews", v) },
                         { type: "toggle", id: "lockPower", title: "Sleep, Restart and Shut Down", text: "Buttons along the foot of the screen.", tooltip: "Restart and Shut Down ask for a second press. Anyone at the computer can use them, as with its power button.", get: () => Settings.lockPower, set: v => Settings.set("lockPower", v) }
@@ -514,21 +514,16 @@ OverlayWindow {
                             options: [{ value: false, label: "24h" }, { value: true, label: "12h" }], get: () => Settings.lockTwelveHour, set: v => Settings.setLockTwelveHour(v) },
                         { type: "toggle", id: "lockSmallAmPm", title: "Smaller AM/PM", enabled: Settings.lockClock && Settings.lockTwelveHour,
                             get: () => Settings.lockSmallAmPm, set: v => Settings.set("lockSmallAmPm", v) },
-                        { type: "text", id: "lockDateFormat", title: "Date Format", tooltip: root.dateTokens, enabled: Settings.lockClock,
-                            get: () => Settings.lockDateFormat, set: v => Settings.set("lockDateFormat", v) },
+                        { type: "text", id: "lockDateLine", title: "Date and Weather", text: "Over the time. Blank shows neither.", fieldWidth: 250,
+                            tooltip: "The date first, in date tokens; the weather from the first word with a weather token on, once a location is set.\n\n"
+                                + "Weather tokens:\n{icon}: this hour's weather icon. {temp}: the temperature now.\n{avgicon} and {worsticon}: the next six hours' average and worst icons.\n{avgtemp} and {avgdesc}: the next six hours' average temperature and sky in words.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nAfter the first, other text appears as typed.\n\n"
+                                + root.dateTokens.replace(/\nHour Format rewrites the hours here\.$/, "") + "\n\nExample: ddd d  {icon} {temp}°  {desc}",
+                            validate: v => root.formatProblem(v, Settings.lockWeatherTokens, true),
+                            get: () => Settings.lockDateLine, set: v => Settings.set("lockDateLine", v) },
                         { type: "text", id: "lockTimeFormat", title: "Time Format", tooltip: root.dateTokens, enabled: Settings.lockClock,
                             get: () => Settings.lockTimeFormat, set: v => Settings.set("lockTimeFormat", v) },
-                        { type: "choice", id: "lockCase", title: "Letter Case", enabled: Settings.lockClock,
+                        { type: "choice", id: "lockCase", title: "Letter Case",
                             options: [{ value: "normal", label: "Default" }, { value: "uppercase", label: "UPPER" }, { value: "lowercase", label: "lower" }], get: () => Settings.lockCase, set: v => Settings.set("lockCase", v) }
-                    ]
-                },
-                {
-                    title: "Weather",
-                    rows: [
-                        { type: "text", id: "lockWeatherFormat", title: "Custom Format", fieldWidth: 250, enabled: Settings.lockWeather,
-                            tooltip: "{icon}: this hour's weather icon. {temp}: the temperature now.\n{avgicon} and {worsticon}: the next six hours' average and worst icons.\n{avgtemp} and {avgdesc}: the next six hours' average temperature and sky in words.\n{desc}: the sky in words, such as Partly cloudy.\n{high} and {low}: today's.\nTemperatures are bare numbers; add ° or a unit as you like.\nOther text appears as typed.\nExample: {icon} {temp}°  {desc}",
-                            validate: v => root.formatProblem(v, ["icon", "temp", "avgicon", "worsticon", "avgtemp", "desc", "avgdesc", "high", "low"]),
-                            get: () => Settings.lockWeatherFormat, set: v => Settings.set("lockWeatherFormat", v) }
                     ]
                 },
                 {

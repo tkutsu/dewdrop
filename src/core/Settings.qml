@@ -117,21 +117,24 @@ Singleton {
     // pointer, and PIN Mode: whether the password is checked without Return
     // once it is lockPasswordLength long.
     readonly property bool lockClock: root.values.lockClock !== false
-    readonly property bool lockWeather: root.values.lockWeather !== false
     readonly property bool lockNotifications: root.values.lockNotifications !== false
     readonly property bool lockPreviews: root.values.lockPreviews === true
     readonly property bool lockPower: root.values.lockPower !== false
     readonly property bool lockAsTyped: root.values.lockAsTyped === true
     readonly property int lockPasswordLength: Math.max(0, Math.floor(Number(root.values.lockPasswordLength) || 0))
-    // The lock's clock and weather, each its own: a blank date is the short
-    // day and its number, as a phone's lock screen shortens it beside the
-    // weather; a blank time follows Hour Format.
-    readonly property string lockDateFormat: root.values.lockDateFormat || "ddd d"
+    // The line over the lock's time, in one format: the date in Date & Time's
+    // tokens, then the weather from the first word holding a weather token on,
+    // its other text as typed. Blank shows no line. A blank time follows
+    // Hour Format.
+    readonly property var lockWeatherTokens: ["icon", "temp", "avgicon", "worsticon", "avgtemp", "desc", "avgdesc", "high", "low"]
+    readonly property string lockDateLine: root.values.lockDateLine ?? "ddd d  {icon} {temp}°"
+    readonly property int lockWeatherAt: root.lockDateLine.search(new RegExp(`\\S*\\{(?:${root.lockWeatherTokens.join("|")})\\}`))
+    readonly property string lockDateFormat: (root.lockWeatherAt < 0 ? root.lockDateLine : root.lockDateLine.slice(0, root.lockWeatherAt)).trim()
+    readonly property string lockWeatherFormat: root.lockWeatherAt < 0 ? "" : root.lockDateLine.slice(root.lockWeatherAt).trim()
     readonly property string lockTimeFormat: root.values.lockTimeFormat || root.hourFormat
     readonly property bool lockTwelveHour: /AP|ap/.test(root.lockTimeFormat.replace(/'(?:[^']|'')*'/g, ""))
     readonly property bool lockSmallAmPm: root.values.lockSmallAmPm !== false
     readonly property string lockCase: ["normal", "uppercase", "lowercase"].includes(root.values.lockCase) ? root.values.lockCase : "normal"
-    readonly property string lockWeatherFormat: root.values.lockWeatherFormat || "{icon} {temp}°"
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true

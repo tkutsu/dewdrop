@@ -124,7 +124,7 @@ Item {
         Column {
             id: clock
 
-            visible: Settings.lockClock || weather.visible
+            visible: Settings.lockClock || date.visible || weather.visible
             width: parent.width
             spacing: 0
 
@@ -133,7 +133,7 @@ Item {
             readonly property int step: /s/.test(Settings.lockTimeFormat.replace(/'(?:[^']|'')*'/g, "")) ? 1000 : 60000
 
             Timer {
-                running: Settings.lockClock
+                running: clock.visible
                 repeat: true
                 triggeredOnStart: true
                 interval: clock.step - clock.now.getTime() % clock.step + 50
@@ -170,14 +170,14 @@ Item {
                     id: date
 
                     x: dateline.stacked ? Math.round((dateline.width - dateline.dateWidth) / 2) : dateline.lineX
-                    visible: Settings.lockClock
+                    visible: Settings.lockDateFormat !== ""
                     display: Settings.timeDisplay(clock.now, Settings.lockDateFormat, Settings.lockSmallAmPm, Settings.lockCase)
                     color: Theme.label
                     fontSize: 18
                     weight: Font.DemiBold
                 }
 
-                // This hour's weather in Lock Screen > Weather's format: the icons
+                // This hour's weather in the date line's weather half: the icons
                 // drawn as glyphs (this hour's, and the next six hours' average and
                 // worst, as the bar's Forecast has them), the temperatures as
                 // figures that roll to the next hour's, the rest as words.
@@ -194,7 +194,7 @@ Item {
                             "{avgicon}": Weather.average,
                             "{worsticon}": Weather.outlook
                         })
-                    visible: Settings.lockWeather && Weather.location !== null && weather.hour !== null
+                    visible: Settings.lockWeatherFormat !== "" && Weather.location !== null && weather.hour !== null
 
                     readonly property var figures: {
                         const [high, low] = Weather.today ? Weather.highAndLow(Weather.today) : [NaN, NaN];
