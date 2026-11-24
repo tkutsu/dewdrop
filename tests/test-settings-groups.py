@@ -52,6 +52,11 @@ ShellRoot {
             check(!row("weatherFormat").validate("{temp} {icon}") && row("weatherFormat").validate("nothing"), "weather format requires an icon or temperature token");
             check(row("weatherFormat").validate("{icon} {tmp}°") === "{tmp} isn't a token. Use {icon} or {temp}.", "weather format names a mistyped token");
             check(row("lockDateLine").validate("ddd d {icon} {hi}") && !row("lockDateLine").validate("ddd d {desc} {high}/{low}") && !row("lockDateLine").validate("dddd d MMMM"), "the lock's date line refuses a mistyped token but needs no weather");
+            function password() { return menu.pages.find(p => p.title === "Lock Screen").sections.find(s => s.title === "Password").rows.map(r => r.id).join("|"); }
+            check(password() === "lockAsTyped|lockPasswordLength", "PIN Mode off shows no warning");
+            Settings.set("lockAsTyped", true); wait(30);
+            check(password() === "lockAsTyped|lockPinRisk|lockPasswordLength", "PIN Mode on shows its warning under the switch");
+            Settings.set("lockAsTyped", false); wait(30);
             check(rows().every(r => r.id !== "centrePillAnchor"), "the centre pill centres its pinned modules, with no anchor setting");
             check(!rows().some(r => r.id === "pin:bell" || r.id === "pin:countdown"), "the fused bell and timers have no visibility mode");
             check(sections("Weather") === "Location|Display|Forecast" && hits("gfs").includes("weatherModel"), "location and forecast model have their own sections");

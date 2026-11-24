@@ -529,13 +529,14 @@ OverlayWindow {
                 {
                     title: "Password",
                     rows: [
-                        { type: "notice", id: "lockPinRisk", title: "PIN Mode Gives Away Your Password's Length",
-                            text: "Anyone at your computer can tell how long your password is, by counting the keys until it checks. That makes a short one easier to guess."
-                                + "\n\nFine with a password of 12 characters or more on a computer that stays at home. Leave it off on a laptop you take out." },
                         { type: "toggle", id: "lockAsTyped", title: "PIN Mode",
                             text: Settings.lockAsTyped && !Settings.lockPasswordLength ? "Type your password's length below to start." : "Unlocks without Return, like a phone's PIN.",
                             tooltip: "Return still works. Wrong tries count toward the system's lockout, as with Return.\nAfter one, from a typo or a length that no longer fits, the lock waits for Return until you are in.",
                             get: () => Settings.lockAsTyped, set: v => Settings.set("lockAsTyped", v) },
+                        // The risk, while it is taken.
+                        ...(Settings.lockAsTyped ? [{ type: "notice", id: "lockPinRisk", title: "PIN Mode Gives Away Your Password's Length",
+                            text: "Anyone at your computer can tell how long your password is, by counting the keys until it checks. That makes a short one easier to guess."
+                                + "\n\nFine with a password of 12 characters or more on a computer that stays at home. Leave it off on a laptop you take out." }] : []),
                         { type: "text", id: "lockPasswordLength", title: "Password Length", fieldWidth: 56,
                             tooltip: "Kept in plain text in this computer's settings.json.",
                             enabled: Settings.lockAsTyped,
