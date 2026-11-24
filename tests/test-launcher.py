@@ -1396,7 +1396,7 @@ def check_menu(target, env):
     (components / "RollingSpring.js").write_text((ROOT / "src/components/RollingSpring.js").read_text())
     stubs = {
         "OverlayWindow": 'import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true; color: "#333333" }',
-        "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5 }',
+        "BackdropProbe": 'import QtQuick\nItem { required property var screen; required property rect area; property bool active; property real luma: 0.5; property color frost: Qt.rgba(0.12, 0.12, 0.12, 0.6) }',
         "FilePreview": 'import QtQuick\nItem { property string path; property int line; function scroll(dir) {} }',
         "CoverArt": 'import QtQuick\nItem { property string dir; property string title; property string subtitle; property string glyph }',
         "Glyph": 'import QtQuick\nItem { property real inkBase; property string text; property real fontSize: 16; property int inkSize: 0; property color color }',

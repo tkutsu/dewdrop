@@ -871,7 +871,7 @@ OverlayWindow {
         visible: root.presenting
         clip: true
         radius: Theme.panelRadius
-        color: Theme.frostOver(under.luma)
+        color: under.frost
 
         // Keep the glass above the compositor's blur cutoff until the final fade.
         layer.enabled: root.exitBlur > 0

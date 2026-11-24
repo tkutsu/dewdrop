@@ -93,7 +93,7 @@ def main():
         (target / 'src/modules/SettingsMenu.qml').write_text(source)
         # Substitute the Wayland surface; retain real field, row, menu and Preferences timing.
         (target / 'src/components/OverlayWindow.qml').write_text('import QtQuick\nimport QtQuick.Window\nWindow { required property bool shown; required property string name; required property Item inputItem; signal dismissed; readonly property bool opened: shown; width: 1100; height: 800; visible: true }')
-        (target / 'src/components/BackdropProbe.qml').write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property real luma: 0.5 }')
+        (target / 'src/components/BackdropProbe.qml').write_text('import QtQuick\nItem { property var screen; property rect area; property bool active; property real luma: 0.5; property color frost: Qt.rgba(0.12, 0.12, 0.12, 0.6) }')
         (target / 'src/components/HoverPopup.qml').write_text('import QtQuick\nItem { property Item anchorItem; property real anchorHeight; property bool hovered; property string text; property var item: null }')
         (target / 'src/components/Glyph.qml').write_text('import QtQuick\nItem { property real inkBase; property string text; property real fontSize; property color color }')
         (target / 'shell.qml').write_text(SHELL)
