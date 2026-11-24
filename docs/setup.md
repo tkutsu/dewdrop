@@ -127,6 +127,8 @@ Long queries scroll horizontally with a soft fade at the hidden edges. The searc
 
 When the selected row can do more than one thing (open a file or show it in its folder, queue a song or play it), its actions sit as buttons under the query. Enter runs the chosen one, and Tab and Shift+Tab choose another, in every mode. A few have a key of their own as well: Ctrl+Enter for the second action (Play, Show in Folder, New Mail), Ctrl+Delete to delete a clipboard entry, Shift+Enter to open an app on an empty workspace. `?` lists them.
 
+In music mode an artist or a record opens in place, with a chevron at the end of its row. With the cursor at the end of the query, → opens the selected one and, once it is open, steps into it; ← steps back out to the row above and, on an open row, closes it. Clicking the chevron, or the Show Tracks button, does the same. Page Up and Page Down jump to the next row at the same level.
+
 | Prefix | Mode |
 | --- | --- |
 | `/` | Files, with preview. Ctrl+Enter shows the file in its folder, Ctrl+C copies its path |
