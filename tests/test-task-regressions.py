@@ -157,7 +157,7 @@ CASES = r'''
                 probe("single list launcher", () => {
                     reset();
                     Tasks.lists = [Tasks.lists[0]];
-                    check(Launcher.taskResults("new task")[0].subtitle === "add", "single list add preview omits task list name");
+                    check(Launcher.taskResults("new task")[0].subtitle === "", "single list add preview omits task list name");
                 });
                 probe("long notes", () => {
                     reset();
