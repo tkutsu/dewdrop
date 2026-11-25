@@ -167,9 +167,11 @@ Scope {
         // never goes true. A moment's grace for the second, so a reload's
         // handover is never taken for a refusal.
         onLockedChanged: {
+            LockTrace.note("session lock " + (session.locked ? "asked" : "dropped"));
             if (!session.locked && Lock.held)
                 Lock.refused();
         }
+        onSecureStateChanged: LockTrace.note("compositor " + (session.secure ? "confirmed the lock" : "released the lock"))
 
         WlSessionLockSurface {
             id: surface
@@ -190,7 +192,13 @@ Scope {
                 }
             }
 
-            Component.onCompleted: surface.follow()
+            Component.onCompleted: {
+                LockTrace.note("surface made on " + (surface.screen?.name ?? "no screen"));
+                surface.follow();
+            }
+            Component.onDestruction: LockTrace.note("surface gone")
+            onScreenChanged: LockTrace.note("surface moved to " + (surface.screen?.name ?? "no screen"))
+            onVisibleChanged: LockTrace.note("surface " + (surface.visible ? "shown" : "hidden"))
 
             Connections {
                 target: Lock
@@ -250,8 +258,15 @@ Scope {
             // Every key comes here, whichever screen has the keyboard: the
             // password is one, shared by every screen's field.
             Item {
+                id: keys
+
                 anchors.fill: parent
                 focus: true
+
+                // Temporary trace (LockTrace): whether the keyboard reaches
+                // the lock, at most one line every two seconds, no key named.
+                property double traced: 0
+                onActiveFocusChanged: LockTrace.note("keyboard " + (keys.activeFocus ? "on" : "off") + " the lock on " + (surface.screen?.name ?? "no screen"))
 
                 // Shift as held: its own press and release, and with any
                 // other key, whatever the modifiers say, in case a release
@@ -261,6 +276,10 @@ Scope {
                 }
                 Keys.onPressed: event => {
                     event.accepted = true;
+                    if (Date.now() - keys.traced > 2000) {
+                        keys.traced = Date.now();
+                        LockTrace.note("keys arriving on " + (surface.screen?.name ?? "no screen"));
+                    }
                     Lock.shift = event.key === Qt.Key_Shift || !!(event.modifiers & Qt.ShiftModifier);
                     const command = event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier);
                     switch (event.key) {

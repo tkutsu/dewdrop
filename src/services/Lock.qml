@@ -41,7 +41,9 @@ Singleton {
     Component.onCompleted: {
         if (kept.phase === "" && lockFlag.text().trim() === "locked")
             kept.phase = "locked";
+        LockTrace.note("lock service up, phase '" + kept.phase + "'");
     }
+    onPhaseChanged: LockTrace.note("phase '" + root.phase + "'")
 
     // What has been typed. Never leaves this file but into PAM.
     property string password: ""
@@ -119,8 +121,10 @@ Singleton {
 
     // --- typing --------------------------------------------------------------
     function type(text: string): void {
-        if (kept.phase !== "locked" || root.checking || !text)
+        if (kept.phase !== "locked" || root.checking || !text) {
+            LockTrace.note("key refused: phase '" + kept.phase + "', checking " + root.checking);
             return;
+        }
         root.password += text;
         root.message = "";
         if (root.automaticReady && root.password.length === Settings.lockPasswordLength)
@@ -146,11 +150,15 @@ Singleton {
         root.attempt = root.password;
         root.answered = false;
         root.automatic = automatic;
-        if (!pam.start())
+        LockTrace.note("check started" + (automatic ? " (PIN Mode)" : ""));
+        if (!pam.start()) {
+            LockTrace.note("check could not start");
             root.message = "Could not check the password.";
+        }
     }
 
     function finish(success: bool, trouble: string): void {
+        LockTrace.note("check " + (success ? "passed" : "failed") + (trouble ? ": " + trouble : ""));
         // A miss is kept until the next lock: cleared here, the field would
         // turn back into PIN Mode's line on its way out.
         if (success && kept.phase === "locked") {
