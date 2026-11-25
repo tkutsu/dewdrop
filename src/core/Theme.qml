@@ -877,7 +877,7 @@ Singleton {
         //
         // Drawn in code (WifiMark): a dot and three thin arcs about it,
         // lit from the dot up with the rest left faint, the way the volume
-        // speaker's waves fade in, so every step stands the same size. The
+        // speaker's waves light (VolumeMark), so every step stands the same size. The
         // font's cone it replaces filled solid as the signal rose. Five
         // because nm-applet quantised the signal to five buckets, and
         // Network.bars still does — the bar has the steps it has, not the ones
@@ -973,16 +973,16 @@ Singleton {
         check: "\u{f012c}",          // nf-md-check, the one in use in a list
         popUp: "\u{f054f}",          // nf-md-unfold_more_horizontal, a pop-up button's chevrons
 
-        // One speaker for every output (see services/Audio.qml), drawn from
-        // nf-md-volume_high so each wave can take its own opacity, the way
-        // the caffeine cup's steam does: empty is both waves at .25, then the
-        // inner one comes up through .5 and .75 to full, then the outer one.
-        // Muted is nf-md-volume_off, drawn the same way.
-        muted: fontCut("audio-volume-muted"),
-        vol: [0, 1, 2, 3, 4, 5, 6].map(n => fontCut("audio-volume-" + n)),
+        // One speaker for every output (see services/Audio.qml), drawn in
+        // code (VolumeMark) after nf-md-volume_high so each wave can take its
+        // own opacity: empty is both waves at .25, then the inner one comes up
+        // through .5 and .75 to full, then the outer one. Muted strikes it
+        // through, after nf-md-volume_off.
+        muted: "volume:muted",
+        vol: [0, 1, 2, 3, 4, 5, 6].map(n => "volume:" + n),
         // No output to play through reads as the same struck-out speaker as
-        // muted, not the struck-out note it used to be (nf-md-volume_off).
-        audioOff: fontCut("audio-volume-muted"),
+        // muted, not the struck-out note it used to be.
+        audioOff: "volume:muted",
         // The input's row in the sound popup, and its mute.
         mic: "\u{f036e}",            // nf-md-microphone_outline
         micMuted: "\u{f036d}",       // nf-md-microphone_off

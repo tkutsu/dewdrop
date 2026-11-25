@@ -7,9 +7,10 @@ import qs.src.services
 // Medium only blurs them).
 //
 // Or a drawing, when Theme.glyph holds a file rather than a codepoint (see
-// Theme.panel), or the Wi-Fi fan drawn in code, when it holds "wifi:<bars>"
-// (see WifiMark). Every caller passes whatever the table holds, so which a
-// slot shows is decided there once rather than at each of them.
+// Theme.panel), or a mark drawn in code, when it holds "wifi:<bars>" (see
+// WifiMark) or "volume:<level>" (see VolumeMark). Every caller passes
+// whatever the table holds, so which a slot shows is decided there once
+// rather than at each of them.
 Item {
     id: root
     transform: ModuleIconScale { icon: root }
@@ -51,13 +52,14 @@ Item {
     readonly property bool drawing: text.startsWith("file:")
     readonly property bool fontCut: shown.endsWith("#em")
     readonly property bool shownDrawing: shown.startsWith("file:")
-    readonly property bool shownMark: shown.startsWith("wifi:")
+    readonly property bool shownMark: /^(wifi|volume):/.test(shown)
 
     // What is on screen, which is `text` except while a drawing the bar has
     // never measured is being measured. Shown straight away, it came in at
     // its whole box and shrank onto its ink a frame later, a zoom and a jolt
-    // of the pill the first time caffeine went on or the volume reached a new
-    // step. So the old picture stays until Ink has the new one's size.
+    // of the pill the first time a drawing came on, such as the music
+    // popup's shuffle. So the old picture stays until Ink has the new one's
+    // size.
     property string shown
 
     // Off `text` itself rather than `drawing`: this runs from onTextChanged,
@@ -158,9 +160,8 @@ Item {
         }
     }
 
-    // Drawn at the height a drawing's ink comes to at this font size, so it
-    // stands as tall as the SVG it replaced. Its box is its ink, and every
-    // strength has the same box, so nothing needs measuring.
+    // A mark's box is its ink, and every state of it has the same box, so
+    // nothing needs measuring.
     Loader {
         id: mark
         active: root.shownMark
@@ -168,10 +169,30 @@ Item {
         readonly property int restY: Math.floor((root.height - height) / 2)
 
         y: restY + root.nudge + root._lift
-        sourceComponent: WifiMark {
+        sourceComponent: root.shown.startsWith("volume:") ? volumeMark : wifiMark
+    }
+
+    // At the height a drawing's ink comes to at this font size, so it stands
+    // as tall as the SVG it replaced.
+    Component {
+        id: wifiMark
+
+        WifiMark {
             bars: root.shown === "wifi:off" ? -1 : Number(root.shown.slice(5))
             size: root.inkSize > 0 ? root.inkSize
                 : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize * Theme.glyphInk)
+            color: root.inkColor
+        }
+    }
+
+    // As tall as the font's speaker it took over from: 1496 units of the
+    // em's 2048.
+    Component {
+        id: volumeMark
+
+        VolumeMark {
+            level: root.shown === "volume:muted" ? -1 : Number(root.shown.slice(7))
+            size: root.inkSize > 0 ? root.inkSize : Math.round(root.fontSize * 1496 / 2048)
             color: root.inkColor
         }
     }

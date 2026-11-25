@@ -24,9 +24,10 @@ BarItem {
     // output turns up.
     quiet: !Audio.connected
 
-    // A pixel in from the left: beside the thin Wi-Fi arcs the full gap read
-    // as wider than the rest of the row.
-    trimLeft: 1
+    // A pixel nearer the language label: the outer wave meets the box's
+    // right edge with only its thin apex, so the full gap after it read as
+    // wider than the rest of the row.
+    trimRight: 1
 
     // Mute stays visible at full opacity; disconnected and zero volume dim.
     opacity: Audio.connected && (Audio.muted || !Audio.silent) ? 1 : Theme.label2.a
@@ -37,38 +38,11 @@ BarItem {
         }
     }
 
-    // As wide as the widest icon it can show, whichever it is showing. Every
-    // glyph on the bar is laid out on its ink, and the struck-out speaker's
-    // ink need not span what the others do (they all carry both waves, lit or
-    // not), so the module could otherwise change width on mute and shove the
-    // language label along. The speaker sits against the left edge.
-    Item {
+    // Every level and mute draw in the same box (VolumeMark), so muting
+    // never changes the module's width or shoves the language label along.
+    Glyph {
         Layout.fillHeight: true
-        implicitWidth: Math.max(widest.implicitWidth, widestMuted.implicitWidth)
-
-        Glyph {
-            // A pixel towards the language label: the speaker's mouth carries
-            // a column of faint anti-aliasing the ink box counts and the eye
-            // does not, so on the box's own left edge it read a pixel too far
-            // from its neighbour on the right.
-            x: 1
-            height: parent.height
-            text: Audio.icon
-        }
-
-        // The rulers. Drawn at no opacity rather than hidden, because a hidden
-        // glyph is never grabbed and measured (see BarText) and would report
-        // the font's own guess at its width instead of its pixels.
-        Glyph {
-            id: widest
-            text: Theme.glyph.vol[Theme.glyph.vol.length - 1]
-            opacity: 0
-        }
-        Glyph {
-            id: widestMuted
-            text: Theme.glyph.muted
-            opacity: 0
-        }
+        text: Audio.icon
     }
 
     // Left used to open pavucontrol. Everything it was opened for, the

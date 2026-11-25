@@ -8,12 +8,6 @@ from the launcher comparison sheet. Their 1-unit outlines match the weight
 of the WhiteSur power icons. The launcher uses power-lock.svg separately
 from the font glyph used for secured Wi-Fi networks.
 
-audio-volume-0 to -6 are Material Design's volume_high (Pictogrammers,
-https://pictogrammers.com, licensed Apache-2.0), taken out of Symbols Nerd
-Font as the bar drew it, split so each wave has its own opacity: 0 has both
-waves at .25, 1 to 3 bring the inner one to .5, .75 and full, 4 to 6 the
-outer one. audio-volume-muted is volume_off, taken out the same way.
-
 launcher.svg is our own drawing of a thin magnifying glass, in an 18px box so it lands on whole pixels. It is pure
 white rather than WhiteSur's #ececec: Glyph gives a drawing the label's alpha,
 and #ececec under that came out a step dimmer than the text beside it.
