@@ -142,6 +142,8 @@ Singleton {
     readonly property string lockCase: ["normal", "uppercase", "lowercase"].includes(root.values.lockCase) ? root.values.lockCase : "normal"
     readonly property bool reduceMotion: root.values.reduceMotion === true
     readonly property bool reduceTransparency: root.values.reduceTransparency === true
+    // How much darker than standard the pills are, 0 to 1 (stored as a percent).
+    readonly property real pillDarkness: Math.max(0, Math.min(100, Number(root.values.pillDarkness) || 0)) / 100
     readonly property bool scrollMusicTitles: root.values.scrollMusicTitles === true
     readonly property bool showMpris: root.values.showMpris !== false
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")

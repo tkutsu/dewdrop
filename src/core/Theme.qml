@@ -353,7 +353,15 @@ Singleton {
     // compositor stops blurring what is behind it — that threshold is also
     // what keeps the gaps between the pills unblurred, so this is the one
     // number both ends depend on.
-    readonly property color barBg: reduceTransparency ? frost : Qt.rgba(tint.r, tint.g, tint.b, 0.35)
+    readonly property color barBg: reduceTransparency ? Qt.rgba(frost.r, frost.g, frost.b, darkened(frost.a)) : Qt.rgba(tint.r, tint.g, tint.b, darkened(0.35))
+    // Pill Darkness (Settings): takes each of the pills' alphas the given
+    // share of the way to opaque, so 0 is the glass above and 1 is the
+    // tint made solid. The fill, the clear glass's tint and the frost all
+    // follow it; the popups do not.
+    readonly property real pillDarkness: Settings.pillDarkness ?? 0
+    function darkened(alpha: real): real {
+        return alpha + (1 - alpha) * pillDarkness;
+    }
     // What hangs off the bar — tooltips, popups, menus and the launcher — is
     // frosted glass rather than the bar's clear glass: a thin
     // fill at little more than the 0.3 the blur rule ignores, so most of what
@@ -449,7 +457,7 @@ Singleton {
     readonly property real glassDispersion: 0.08
     readonly property real glassSoften: 1.5
     readonly property real glassSaturation: 1.5
-    readonly property real glassTint: 0.3
+    readonly property real glassTint: darkened(0.3)
     // The pointer's light on the glass (GlassLight): a glow glassHoverSpread
     // across under the pointer, at glassHover's strength. Kept to a breath:
     // the glass warms where the pointer is, it does not shine.
@@ -568,10 +576,10 @@ Singleton {
     // What the clear glass makes of a colour behind it, the way liquid.frag
     // does it: saturation raised by glassSaturation, then the tint laid over
     // at glassTint. Under Reduce transparency it is the frost instead: the
-    // colour laid under frost's own at frost's alpha.
+    // colour laid under frost's own at the pills' alpha.
     function glassOver(c) {
         if (reduceTransparency)
-            return mix(Qt.rgba(c.r, c.g, c.b, 1), Qt.rgba(frost.r, frost.g, frost.b, 1), frost.a);
+            return mix(Qt.rgba(c.r, c.g, c.b, 1), Qt.rgba(frost.r, frost.g, frost.b, 1), barBg.a);
         return mix(saturate(Qt.rgba(c.r, c.g, c.b, 1), glassSaturation), tint, glassTint);
     }
     readonly property color badgeFg: "white"

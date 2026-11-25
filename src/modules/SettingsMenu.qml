@@ -486,6 +486,13 @@ OverlayWindow {
                         { type: "text", id: "wallpaperDir", title: "Image Folder", placeholder: Settings.defaults.wallpaperDir, get: () => Settings.values.wallpaperDir, set: v => Settings.set("wallpaperDir", v.trim() || Settings.defaults.wallpaperDir) }
                     ]
                 },
+                {
+                    title: "Bar",
+                    rows: [
+                        { type: "slider", id: "pillDarkness", title: "Darken Pills", keywords: "dark darkness tint opacity glass", tooltip: "0% is the standard glass, 100% a solid dark pill. Popups keep their own glass.",
+                            from: 0, to: 100, step: 5, format: v => v + "%", get: () => Math.round(Settings.pillDarkness * 100), set: v => Settings.set("pillDarkness", v) }
+                    ]
+                },
                 // Only while it is missing: the bar asks for Themis by name
                 // (shell.qml), and falls back to plain icons without it.
                 ...(Tools.has("themis") ? [] : [{

@@ -181,6 +181,10 @@
     "reduceMotion": false,
     "reduceTransparency": false,
 
+    // Darkens the pills, in percent: 0 is the standard glass, 100 a solid
+    // near-black in the wallpaper's hue. Popups stay as they are.
+    "pillDarkness": 0,
+
     // --- apps it opens -----------------------------------------------------
 
     // Opens btop, yazi, the editor and the Google sign-in. Whatever it is
