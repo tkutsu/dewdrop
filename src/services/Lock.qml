@@ -89,10 +89,53 @@ Singleton {
         }
     }
 
-    // LockScreen.qml reports each fade done.
+    // LockScreen.qml reports each fade done. A cover held for sleep locks
+    // only after the wake.
     function covered(): void {
-        if (kept.phase === "cover")
+        if (kept.phase === "cover" && !root.sleeping)
             kept.phase = "locked";
+    }
+
+    // --- sleep ---------------------------------------------------------------
+    // Sleep from the bar covers the screen and locks as it wakes. A lock that
+    // already has the keyboard when the machine goes down wakes without it:
+    // the kernel switches the console for the sleep, Hyprland drops every
+    // input device with it and never gives the keyboard back to the lock
+    // (hyprwm/Hyprland#16178). The curtain holds the keys and clicks until
+    // then, as it does while any lock comes up.
+    property bool sleeping: false
+    property double sleptAt: 0
+    property double lastTick: 0
+
+    function sleep(): void {
+        root.lock();
+        if (kept.phase === "locked") {
+            // The lock screen's own Sleep: back to the cover until the wake.
+            root.password = "";
+            kept.phase = "cover";
+        }
+        root.sleeping = true;
+        root.sleptAt = root.lastTick = Date.now();
+        LockTrace.note("covered for sleep");
+    }
+
+    // Timers stand still while the machine sleeps, so the wake is the first
+    // tick that comes late. Locks anyway once no sleep came of it.
+    function sample(at: double): void {
+        const late = at - root.lastTick > 2000;
+        root.lastTick = at;
+        if (late || at - root.sleptAt > 30000) {
+            LockTrace.note(late ? "woke, locking" : "no sleep came, locking");
+            root.sleeping = false;
+            root.covered();
+        }
+    }
+
+    Timer {
+        interval: 250
+        repeat: true
+        running: root.sleeping
+        onTriggered: root.sample(Date.now())
     }
 
     function left(): void {

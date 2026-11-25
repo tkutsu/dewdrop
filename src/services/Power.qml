@@ -70,22 +70,17 @@ Singleton {
         }
     ]
 
-    // Locking is the shell's own lock screen, not the script's. Sleep locks
-    // first, so a wake never opens on the desktop whether or not anything
-    // answers logind's PrepareForSleep (hypridle's before_sleep_cmd).
-    //
-    // A lock held across sleep wakes without the keyboard if anything
-    // switches the console on the way down: NVIDIA's nvidia-suspend.service
-    // does (chvt 63), and Hyprland never hands the keyboard back to the
-    // lock. The driver's own suspend notifiers make that service needless.
+    // Locking is the shell's own lock screen, not the script's. Sleep covers
+    // the screen first and locks as it wakes (Lock.qml has why), so a wake
+    // never opens on the desktop whether or not anything answers logind's
+    // PrepareForSleep (hypridle's before_sleep_cmd).
     function run(arg: string): void {
         LockTrace.note("power " + arg);
         if (arg === "--lock")
             Lock.lock();
-        else if (arg === "--suspend" && !Lock.held) {
-            Lock.lock();
-            lockThenSleep.waited = 0;
-            lockThenSleep.restart();
+        else if (arg === "--suspend") {
+            Lock.sleep();
+            coverThenSleep.restart();
         } else
             root.start(arg);
     }
@@ -94,26 +89,11 @@ Singleton {
         Quickshell.execDetached([root.script, arg, Settings.sessionSaveCommand]);
     }
 
-    // Sleeps a tick after the lock holds, so the glass is drawn before the
-    // screen goes. Goes anyway once the compositor refuses the lock, or
-    // after five seconds: a machine left awake is no safer than one asleep.
+    // Sleeps once the curtain has faded in over the windows (up to 400 ms
+    // waiting on the picture, then 320 ms).
     Timer {
-        id: lockThenSleep
-
-        property int waited: 0
-        property bool wasHeld: false
-
-        interval: 100
-        repeat: true
-        onTriggered: {
-            waited += interval;
-            if (wasHeld || !Lock.active || waited >= 5000) {
-                stop();
-                wasHeld = false;
-                root.start("--suspend");
-            } else {
-                wasHeld = Lock.held;
-            }
-        }
+        id: coverThenSleep
+        interval: 800
+        onTriggered: root.start("--suspend")
     }
 }
