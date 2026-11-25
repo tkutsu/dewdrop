@@ -302,6 +302,11 @@ OverlayWindow {
 
     // The box's shadow, as a sibling rather than a child: the box clips its
     // children to itself, and a shadow is everything outside the box.
+    //
+    // The popups' one shadow, at their colour: the fill is translucent, so the
+    // middle of the shadow shows through it, and a second, stacked shadow made
+    // the launcher a shade darker than a popup over the same screen. Only its
+    // reach lifts as results open, which the middle never shows.
     RectangularShadow {
         x: box.x
         y: box.y
@@ -309,23 +314,10 @@ OverlayWindow {
         height: box.height
         visible: root.presenting && box.height > 0
         opacity: root.contentAlpha
-        offset.y: 5 + 11 * root.elevation
+        offset.y: Theme.shadowY + 12 * root.elevation
         radius: box.radius
-        blur: 20 + 28 * root.elevation
-        color: Qt.rgba(0, 0, 0, 0.19)
-    }
-
-    RectangularShadow {
-        x: box.x
-        y: box.y
-        width: box.width
-        height: box.height
-        visible: root.presenting && box.height > 0
-        opacity: root.contentAlpha
-        offset.y: 3
-        radius: box.radius
-        blur: 9
-        color: Qt.rgba(0, 0, 0, 0.14)
+        blur: Theme.shadowBlur + 32 * root.elevation
+        color: Theme.shadow
     }
 
     Rectangle {
