@@ -2,6 +2,7 @@ import QtQuick
 import qs.src.core
 import qs.src.components
 import qs.src.services
+import "../lib/EmailText.js" as EmailText
 
 // Unread mail, newest first, as a list to clear rather than
 // one to read: a swipe archives or marks read, and every verb can be taken
@@ -708,7 +709,7 @@ Popup {
                                                 TextEdit {
                                                     id: messageText
                                                     width: parent.width
-                                                    text: Email.richText(link.fetched !== undefined ? link.fetched : link.modelData.snippet + "…")
+                                                    text: EmailText.richText(link.fetched !== undefined ? link.fetched : link.modelData.snippet + "…", Theme.label2)
                                                     font.family: Theme.bodyFont
                                                     font.pixelSize: Theme.captionSize
                                                     color: link.fetched !== undefined ? Theme.label : Theme.label3

@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import qs.src.core
 import "../lib/Fuzzy.js" as Fuzzy
+import "../lib/EmailText.js" as EmailText
 
 // Mail search, inline reading and activation for the launcher.
 Singleton {
@@ -84,7 +85,7 @@ Singleton {
     property var open: null
     // Its text, "" until it lands.
     readonly property string text: !root.open ? "" : (root.open.messages ?? []).map(message => {
-        const body = Email.plain(Email.bodies[message.id] ?? message.snippet ?? "");
+        const body = EmailText.plain(Email.bodies[message.id] ?? message.snippet ?? "");
         return `${message.from}  ${Email.sayWhen(message.at)}\n${body}`;
     }).join("\n\n")
 

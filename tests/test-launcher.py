@@ -90,7 +90,6 @@ MOCKS = {
         function read(thread) {}
         function markRead(thread) {}
         function sayWhen(at) { return "10:00"; }
-        function plain(text) { return text; }
         property int searches: 0
         function search(query, all) { searches++; }''',
     "Tasks": '''property bool configured: false
@@ -1466,7 +1465,7 @@ def main():
             imports = 'import "TimersParse.js" as Parse\n' if name == "Timers" else ""
             (services / (name + ".qml")).write_text("pragma Singleton\nimport QtQuick\n" + imports + "QtObject {\n" + body + "\n}\n")
         (services / "TimersParse.js").write_text((ROOT / "src/services/TimersParse.js").read_text())
-        for name in ("src/lib/Fuzzy.js", "src/lib/HyprExec.js", "src/components/Linger.qml"):
+        for name in ("src/lib/Fuzzy.js", "src/lib/HyprExec.js", "src/lib/EmailText.js", "src/lib/EmailEntities.js", "src/components/Linger.qml"):
             (target / name).parent.mkdir(exist_ok=True)
             (target / name).write_text((ROOT / name).read_text())
         (target / "src/core/OpenPopup.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { function dismiss() {} }\n')

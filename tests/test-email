@@ -75,7 +75,6 @@ STATE = '''
     property int bodyParallel: 4
     property int headerParallel: 6
     property int bodyKeep: 200
-    readonly property int partLimit: 512 * 1024
     property string fixtureText: ""
     property var requests: []
     property int maxPending: 0
@@ -107,7 +106,7 @@ class EmailTests(unittest.TestCase):
     def setUp(self):
         self.engine = QQmlEngine()
         self.components = []
-        self.root = self.create('import QtQuick\nimport \"src/services/EmailEntities.js\" as EmailEntities\nimport \"src/lib/Pages.js\" as Pages\nItem { id: root\n' + STATE + METHODS + '\n}')
+        self.root = self.create('import QtQuick\nimport \"src/lib/EmailText.js\" as EmailText\nimport \"src/lib/Pages.js\" as Pages\nItem { id: root\n' + STATE + METHODS + '\n}')
         self.engine.rootContext().setContextProperty('sut', self.root)
         self.engine.rootContext().setContextProperty('Email', self.root)
         self.notices = self.create('import QtQuick\nQtObject { property var withdrawn: []; function withdraw(hint, value) { withdrawn = withdrawn.concat([hint + "=" + value]); } }')
@@ -150,7 +149,7 @@ class EmailTests(unittest.TestCase):
         return result
 
     def js(self, code):
-        expr = QQmlExpression(self.engine.rootContext(), self.root, '(function () {' + code + '\n})()')
+        expr = QQmlExpression(QQmlEngine.contextForObject(self.root), self.root, '(function () {' + code + '\n})()')
         value, _ = expr.evaluate()
         self.assertFalse(expr.hasError(), expr.error().toString())
         return value
@@ -258,58 +257,58 @@ class EmailTests(unittest.TestCase):
         self.check('sut.trouble === "fixture failure" && sut.found === null')
 
     def test_named_and_numeric_entities(self):
-        self.check('sut.unentity("&nbsp;&copy;&mdash;&eacute;&#x1F600;&#39;") === "\\u00a0©—é😀\\\'"')
-        self.check('sut.unentity("&#1114112; &#xD800; &#0;") === "� � �"')
-        self.check('sut.unentity("&unknown; &constructor; &toString; &amp;lt; &#38;amp;") === "&unknown; &constructor; &toString; &lt; &amp;"')
-        self.check('sut.unentity("&NotEqualTilde;&ZeroWidthSpace;&#128;") === "≂̸\\u200b€"')
-        self.check('sut.unentity("<b> &lt;b&gt;\\nline") === "<b> <b>\\nline"')
+        self.check('EmailText.unentity("&nbsp;&copy;&mdash;&eacute;&#x1F600;&#39;") === "\\u00a0©—é😀\\\'"')
+        self.check('EmailText.unentity("&#1114112; &#xD800; &#0;") === "� � �"')
+        self.check('EmailText.unentity("&unknown; &constructor; &toString; &amp;lt; &#38;amp;") === "&unknown; &constructor; &toString; &lt; &amp;"')
+        self.check('EmailText.unentity("&NotEqualTilde;&ZeroWidthSpace;&#128;") === "≂̸\\u200b€"')
+        self.check('EmailText.unentity("<b> &lt;b&gt;\\nline") === "<b> <b>\\nline"')
 
     def test_html_layout_and_links(self):
         html = '<head>hidden</head><style>x</style><!-- hidden --><div> One </div>\n    <div> Two&nbsp; &copy; </div><a href="https://example.com?a=1&amp;b=2">Visit</a><script>hidden</script>'
-        self.check('sut.plain(sut.unquote(sut.untag(' + json.dumps(html) + '))) === "One\\nTwo ©\\nVisit (https://example.com?a=1&b=2)"')
-        self.check('sut.richText(sut.untag(' + json.dumps(html) + ')).includes("href=\\"https://example.com?a=1&amp;b=2\\" style=\\"color: #aaaaaa\\">Visit</a>")')
-        self.check('sut.untag("<a href=javascript:bad>Label</a>") === "Label"')
-        self.check('sut.plain(sut.untag("<a href=https://example.com>https://example.com</a>")) === "https://example.com"')
-        self.check('sut.richText(sut.untag("<a href=https://example.com/x>https://example.com/x</a>")).includes(">example.com</a>")')
-        self.check('sut.untag("<table><tr><td>A</td><td>B</td></tr></table>").trim() === "A B"')
+        self.check('EmailText.plain(EmailText.unquote(EmailText.untag(' + json.dumps(html) + '))) === "One\\nTwo ©\\nVisit (https://example.com?a=1&b=2)"')
+        self.check('EmailText.richText(EmailText.untag(' + json.dumps(html) + '), Theme.label2).includes("href=\\"https://example.com?a=1&amp;b=2\\" style=\\"color: #aaaaaa\\">Visit</a>")')
+        self.check('EmailText.untag("<a href=javascript:bad>Label</a>") === "Label"')
+        self.check('EmailText.plain(EmailText.untag("<a href=https://example.com>https://example.com</a>")) === "https://example.com"')
+        self.check('EmailText.richText(EmailText.untag("<a href=https://example.com/x>https://example.com/x</a>"), Theme.label2).includes(">example.com</a>")')
+        self.check('EmailText.untag("<table><tr><td>A</td><td>B</td></tr></table>").trim() === "A B"')
 
     def test_hostile_markup_reads_in_linear_time(self):
         # Thousands of openings with no closing tag sent each pattern on to
         # the end of the mail once per opening: seconds on the bar's thread.
         for piece, count in (('<span style=\\"display:none\\">x', 8000), ('<a href=https://x.y>x', 8000),
                              ('<!--x', 8000), ('<br x', 20000), ('<p x', 20000)):
-            expression = f'(() => {{ const t = Date.now(); const s = sut.tidy(sut.untag("{piece}".repeat({count}))); return [Date.now() - t, s.length]; }})()'
+            expression = f'(() => {{ const t = Date.now(); const s = EmailText.tidy(EmailText.untag("{piece}".repeat({count}))); return [Date.now() - t, s.length]; }})()'
             took, length = self.js('return ' + expression + ';').toVariant()
             self.assertLess(took, 400, f'{piece!r} x{count} took {took} ms')
             self.assertGreater(length, 0, f'{piece!r} x{count} read as nothing')
         # A closed hidden element still goes, after unclosed ones before it.
-        self.check('sut.untag("<span style=\\"display:none\\">a<span style=\\"display:none\\">b</span>Seen") === "Seen"')
-        self.check('sut.untag("<!-- open <p>Kept</p>") .includes("Kept")')
+        self.check('EmailText.untag("<span style=\\"display:none\\">a<span style=\\"display:none\\">b</span>Seen") === "Seen"')
+        self.check('EmailText.untag("<!-- open <p>Kept</p>") .includes("Kept")')
 
     def test_mail_text_is_tidied(self):
         # Hidden preview padding and Outlook-only copies go; paragraphs keep a gap; lists get bullets.
         html = '<div style="display:none;max-height:0">Preview &zwnj;&nbsp;&#847;</div><p>Hello</p><p>Second</p><ul><li>One</li><li>Two</li></ul><title>T</title>'
-        self.check('sut.untag(' + json.dumps(html) + ') === "Hello\\n\\nSecond\\n\\n• One\\n• Two"')
-        self.check('sut.untag("<div style=\\"mso-hide:all\\">Outlook</div><div>Seen</div>") === "Seen"')
+        self.check('EmailText.untag(' + json.dumps(html) + ') === "Hello\\n\\nSecond\\n\\n• One\\n• Two"')
+        self.check('EmailText.untag("<div style=\\"mso-hide:all\\">Outlook</div><div>Seen</div>") === "Seen"')
         # A plain part that is HTML, written-out tags, invisible padding, placeholders and rules.
-        self.check('sut.tidy("<p>Hi</p><br>there") === "Hi\\n\\nthere"')
-        self.check('sut.tidy("Hi &lt;br&gt;".replace("&lt;br&gt;", "<br/>") + " there").indexOf("<") < 0')
-        self.check('sut.tidy("A\\u200b\\u034f\\u00adB\\u200c") === "AB"')
-        self.check('sut.tidy("Logo [image: Shop logo]\\nText") === "Logo\\nText"')
-        self.check('sut.tidy("Top\\n------------\\nBottom\\n\\n\\n\\nEnd") === "Top\\n\\nBottom\\n\\nEnd"')
+        self.check('EmailText.tidy("<p>Hi</p><br>there") === "Hi\\n\\nthere"')
+        self.check('EmailText.tidy("Hi &lt;br&gt;".replace("&lt;br&gt;", "<br/>") + " there").indexOf("<") < 0')
+        self.check('EmailText.tidy("A\\u200b\\u034f\\u00adB\\u200c") === "AB"')
+        self.check('EmailText.tidy("Logo [image: Shop logo]\\nText") === "Logo\\nText"')
+        self.check('EmailText.tidy("Top\\n------------\\nBottom\\n\\n\\n\\nEnd") === "Top\\n\\nBottom\\n\\nEnd"')
         # Addresses in angle brackets are not tags; the emoji joiner stays.
-        self.check('sut.tidy("From <s@example.com>") === "From <s@example.com>"')
-        self.check('sut.tidy("\\ud83d\\udc68\\u200d\\ud83d\\udcbb") === "\\ud83d\\udc68\\u200d\\ud83d\\udcbb"')
+        self.check('EmailText.tidy("From <s@example.com>") === "From <s@example.com>"')
+        self.check('EmailText.tidy("\\ud83d\\udc68\\u200d\\ud83d\\udcbb") === "\\ud83d\\udc68\\u200d\\ud83d\\udcbb"')
 
     def test_html_quoted_replies_are_not_repeated_in_chain(self):
-        self.check('sut.unquote(sut.untag("<div>New</div><div class=\\"gmail_quote\\"><blockquote>Old reply</blockquote></div>")) === "New"')
-        self.check('sut.unquote(sut.untag("<div>New</div><blockquote type=\\"cite\\">Old reply</blockquote>")) === "New"')
-        self.check('sut.unquote(sut.untag("<blockquote>Newsletter quotation</blockquote>")) === "Newsletter quotation"')
+        self.check('EmailText.unquote(EmailText.untag("<div>New</div><div class=\\"gmail_quote\\"><blockquote>Old reply</blockquote></div>")) === "New"')
+        self.check('EmailText.unquote(EmailText.untag("<div>New</div><blockquote type=\\"cite\\">Old reply</blockquote>")) === "New"')
+        self.check('EmailText.unquote(EmailText.untag("<blockquote>Newsletter quotation</blockquote>")) === "Newsletter quotation"')
 
     def test_plain_text_and_reply_history(self):
-        self.check('sut.unquote("Hi  \\r\\n\\r\\n\\r\\nBye\\u00a0\\u200b\\rOn Monday Ann\\nwrote:\\nquoted") === "Hi\\n\\nBye"')
-        self.check('sut.unquote("New\\n> quoted\\nEnd") === "New\\nEnd"')
-        self.check('sut.unquote("  if (x) {\\n    y();\\n  }") === "if (x) {\\n    y();\\n  }"')
+        self.check('EmailText.unquote("Hi  \\r\\n\\r\\n\\r\\nBye\\u00a0\\u200b\\rOn Monday Ann\\nwrote:\\nquoted") === "Hi\\n\\nBye"')
+        self.check('EmailText.unquote("New\\n> quoted\\nEnd") === "New\\nEnd"')
+        self.check('EmailText.unquote("  if (x) {\\n    y();\\n  }") === "if (x) {\\n    y();\\n  }"')
 
     def test_utf8_and_nested_mime(self):
         plain = encoded('Καλημέρα 😀\n\nHello')
@@ -322,7 +321,7 @@ class EmailTests(unittest.TestCase):
             ]},
         ]}
         self.assertEqual(self.text_of(payload), "Καλημέρα 😀\n\nHello")
-        self.check('sut.utf8([0xf4,0xbf,0xbf,0xbf,0xed,0xa0,0x80,0xc0,0xaf,0xe2]) === "�".repeat(10)')
+        self.check('EmailText.utf8([0xf4,0xbf,0xbf,0xbf,0xed,0xa0,0x80,0xc0,0xaf,0xe2]) === "�".repeat(10)')
         self.assertEqual(self.text_of(None), "")
 
     def test_unread_chain_order_and_read_reply_exclusion(self):
@@ -648,16 +647,16 @@ class EmailTests(unittest.TestCase):
         self.check('sut.bodies.fast === "fast" && sut.files.fast === undefined && sut.bodyRequests === 0')
 
     def test_link_markup_and_escaping(self):
-        self.check('sut.richText("<img src=x> https://example.com?a=1&b=2. www.example.com").includes("&lt;img src=x&gt;")')
-        self.check('sut.richText("https://example.com?a=1&b=2.").includes("href=\\"https://example.com?a=1&amp;b=2\\"")')
-        self.check('sut.richText("(https://example.com/a_(b)).").includes("href=\\"https://example.com/a_(b)\\"")')
-        self.check('!sut.richText("javascript:bad file:///tmp/x").includes("<a ")')
-        self.check('sut.richText("www.example.com").includes("href=\\"https://www.example.com\\"")')
+        self.check('EmailText.richText("<img src=x> https://example.com?a=1&b=2. www.example.com", Theme.label2).includes("&lt;img src=x&gt;")')
+        self.check('EmailText.richText("https://example.com?a=1&b=2.", Theme.label2).includes("href=\\"https://example.com?a=1&amp;b=2\\"")')
+        self.check('EmailText.richText("(https://example.com/a_(b)).", Theme.label2).includes("href=\\"https://example.com/a_(b)\\"")')
+        self.check('!EmailText.richText("javascript:bad file:///tmp/x", Theme.label2).includes("<a ")')
+        self.check('EmailText.richText("www.example.com", Theme.label2).includes("href=\\"https://www.example.com\\"")')
         # The address stays in the href; the text says what it is.
-        self.check('sut.richText("Read https://www.example.com/long/path?utm=1 now").includes(">example.com</a> now")')
-        self.check('sut.richText("Intro\\nView online <https://example.com/v?id=1>").includes("Intro<br><a href=\\"https://example.com/v?id=1\\" style=\\"color: #aaaaaa\\">View online</a></span>")')
-        self.check('sut.richText("Docs: [https://example.com/d]").includes("<a href=\\"https://example.com/d\\" style=\\"color: #aaaaaa\\">Docs</a>")')
-        self.check('!sut.richText("Docs <https://example.com/d>").includes("&lt;")')
+        self.check('EmailText.richText("Read https://www.example.com/long/path?utm=1 now", Theme.label2).includes(">example.com</a> now")')
+        self.check('EmailText.richText("Intro\\nView online <https://example.com/v?id=1>", Theme.label2).includes("Intro<br><a href=\\"https://example.com/v?id=1\\" style=\\"color: #aaaaaa\\">View online</a></span>")')
+        self.check('EmailText.richText("Docs: [https://example.com/d]", Theme.label2).includes("<a href=\\"https://example.com/d\\" style=\\"color: #aaaaaa\\">Docs</a>")')
+        self.check('!EmailText.richText("Docs <https://example.com/d>", Theme.label2).includes("&lt;")')
 
     def build_popup(self, fold_ms=360):
         """The full popup with its real row and text components, only window
@@ -1231,6 +1230,7 @@ class EmailTests(unittest.TestCase):
         # Keep the real popup control; intercept the external browser boundary.
         body = BODY.replace('Qt.openUrlExternally(url);', 'link.activated = url;')
         ui = self.create('''import QtQuick
+            import "''' + QUrl.fromLocalFile(str(CONFIG / 'src/lib/EmailText.js')).toString() + '''" as EmailText
             Item {
                 id: link; width: 320; height: 240
                 property string activated: ""
