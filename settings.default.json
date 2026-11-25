@@ -100,6 +100,14 @@
     // full size with a space for readability. Requires a 12h clock format.
     "smallAmPm": false,
 
+    // Minutes without input before the display turns off, and before the
+    // machine sleeps; 0 is never. The energy popup sets both. The bar keeps
+    // these timers itself, so leave suspend out of hypridle or swayidle, or
+    // the shorter of the two wins. Idle inhibitors (Caffeine, a playing
+    // video) hold both off.
+    "displayOffMinutes": 10,
+    "sleepMinutes": 45,
+
     // When the keyboard layout changes, bring the language module out for
     // three seconds and bounce it once.
     "layoutChangeBounce": false,
@@ -180,12 +188,14 @@
     // and ghostty all do). Empty uses the first of those installed.
     "terminal": "",
 
-    // What a right click on Network, Bluetooth, Disks and System opens, and
-    // the button in each popup. Empty hides the button. The monitor runs in
-    // the terminal.
+    // What a right click on Network, Bluetooth, Disks, Battery and System
+    // opens, and the button in each popup. Empty hides the button. The
+    // monitor runs in the terminal. Battery's is only offered on a machine
+    // with one.
     "networkCommand": "nm-connection-editor",
     "bluetoothCommand": "blueman-manager",
     "disksCommand": "gnome-disks",
+    "batteryCommand": "gnome-power-statistics",
     "monitorCommand": "btop",
 
     // For the launcher's files. Empty: $EDITOR, or nvim without one.

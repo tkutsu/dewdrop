@@ -203,6 +203,7 @@ OverlayWindow {
             sys: { title: "System", glyph: Theme.glyph.gauge },
             settings: { title: "Settings", glyph: Theme.glyph.settings },
             drives: { title: "Disks", glyph: Theme.glyph.drive },
+            energy: { title: Energy.battery ? "Battery" : "Energy", glyph: Energy.battery ? Theme.glyph.battery[10] : Theme.glyph.plug },
             bluetooth: { title: "Bluetooth", glyph: Theme.glyph.bluetooth },
             network: { title: "Network", glyph: Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1] },
             tray: { title: "Tray", glyph: Theme.glyph.tray },
@@ -235,6 +236,7 @@ OverlayWindow {
             network: Settings.networkCommand ? [Settings.program(Settings.networkCommand)] : [],
             bluetooth: Settings.bluetoothCommand ? [Settings.program(Settings.bluetoothCommand)] : [],
             drives: Settings.disksCommand ? [Settings.program(Settings.disksCommand)] : [],
+            energy: ["powerprofilesctl", ...(Energy.battery && Settings.batteryCommand ? [Settings.program(Settings.batteryCommand)] : [])],
             sys: Settings.monitorCommand ? [Settings.program(Settings.monitorCommand), Tools.terminal] : [],
             email: ["notify-send"]
         })
@@ -498,6 +500,17 @@ OverlayWindow {
             title: "Lock Screen",
             sections: [
                 {
+                    // Also in the energy module's popup.
+                    title: "When Idle",
+                    text: "After this long without input. Caffeine and playing video hold both off.",
+                    rows: [
+                        { type: "dropdown", id: "displayOffMinutes", title: "Turn Display Off", options: Energy.waits(Energy.displayOffStops, Settings.displayOffMinutes),
+                            get: () => Settings.displayOffMinutes, set: v => Settings.set("displayOffMinutes", v) },
+                        { type: "dropdown", id: "sleepMinutes", title: "Sleep", options: Energy.waits(Energy.sleepStops, Settings.sleepMinutes),
+                            get: () => Settings.sleepMinutes, set: v => Settings.set("sleepMinutes", v) }
+                    ]
+                },
+                {
                     title: "Show",
                     text: "What the glass shows over the password.",
                     rows: [
@@ -679,6 +692,7 @@ OverlayWindow {
                         root.helperRow("networkCommand", "Network", Theme.glyph.wifiStrength[Theme.glyph.wifiStrength.length - 1], ""),
                         root.helperRow("bluetoothCommand", "Bluetooth", Theme.glyph.bluetooth, ""),
                         root.helperRow("disksCommand", "Disks", Theme.glyph.drive, ""),
+                        root.helperRow("batteryCommand", "Battery", Theme.glyph.battery[10], "Only on a machine with a battery."),
                         root.helperRow("monitorCommand", "System", Theme.glyph.gauge, "Runs in the terminal.")
                     ]
                 },

@@ -242,7 +242,7 @@ PanelWindow {
     // right end instead, where they trade places the way the media notes do
     // on its left (fusedModules).
     readonly property var movableModules: [clock, weather, audio, email, tasks, updater, feeds, downloads,
-        satty, idle, wallpaper, night, sys, settings, drives, bluetooth, network, tray, language]
+        satty, idle, wallpaper, night, sys, settings, drives, energy, bluetooth, network, tray, language]
     // The bell and timers have no mode: like the media notes they come out
     // while they have something going, and are absent otherwise, open drawer
     // or not.
@@ -865,6 +865,12 @@ PanelWindow {
         Drives {
             id: drives
             pinKey: "drives"
+            stowed: !showsClosed && !drawer.out
+            marksPin: drawer.out
+        }
+        Energy {
+            id: energy
+            pinKey: "energy"
             stowed: !showsClosed && !drawer.out
             marksPin: drawer.out
         }

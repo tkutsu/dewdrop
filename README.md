@@ -30,7 +30,7 @@ Calendar, mail, tasks and feeds open in popovers that grow out of the bar, and a
 
 ![Calendar, task, mail, feed, notification, music and timer popovers](docs/media/popovers-productivity.gif)
 
-Weather, per-app volume, Wi-Fi, Bluetooth and the system controls are there too. Settings are searchable, with Reduce Motion and Reduce Transparency for when the bouncing and the glass get to be too much.
+Weather, per-app volume, Wi-Fi, Bluetooth, battery and sleep timers, and the system controls are there too. Settings are searchable, with Reduce Motion and Reduce Transparency for when the bouncing and the glass get to be too much.
 
 ![Weather, audio, network, display and system-control popovers](docs/media/popovers-controls.gif)
 

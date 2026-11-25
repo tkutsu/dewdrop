@@ -7,7 +7,7 @@ const fixedCentre = ["privacy", "datetime", "weather"];
 const defaults = {
     centre: fixedCentre,
     right: ["audio", "email", "tasks", "updater", "feeds", "downloads", "satty", "idle",
-        "wallpaper", "night", "sys", "settings", "drives", "bluetooth", "network", "tray", "language"],
+        "wallpaper", "night", "sys", "settings", "drives", "energy", "bluetooth", "network", "tray", "language"],
 };
 const keys = [...defaults.centre, ...defaults.right];
 

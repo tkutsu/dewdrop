@@ -468,7 +468,7 @@ import Quickshell
 import qs.src.core
 import qs.src.bar
 ShellRoot { Timer { interval: 150; running: true; onTriggered: {
-    if (ModulePlaces.right[0] !== 'audio' || ModulePlaces.right.length + ModulePlaces.centre.length !== 20 || ModulePlaces.right.includes('bell') || ModulePlaces.centre.includes('countdown')) console.log('FAIL: defaults');
+    if (ModulePlaces.right[0] !== 'audio' || ModulePlaces.right.length + ModulePlaces.centre.length !== 21 || ModulePlaces.right.includes('bell') || ModulePlaces.centre.includes('countdown')) console.log('FAIL: defaults');
     else if (ModulePlaces.move('audio', 'right', 'tasks', ['audio', 'tasks'])) console.log('FAIL: no-op');
     else console.log('PASS: defaults and no-op');
     Qt.quit();

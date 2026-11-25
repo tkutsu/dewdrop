@@ -85,12 +85,17 @@ Singleton {
     readonly property string cleanupCommand: (root.values.cleanupCommand ?? "").trim()
     readonly property bool commandsInTerminal: root.values.commandsInTerminal !== false
     readonly property string sessionSaveCommand: (root.values.sessionSaveCommand ?? "").trim()
-    // What a right click on Network, Bluetooth, Disks or System opens, and
-    // the button in its popup. Empty hides the button. The monitor runs in
-    // the terminal.
+    // What a right click on Network, Bluetooth, Disks, Battery or System
+    // opens, and the button in its popup. Empty hides the button. The
+    // monitor runs in the terminal.
     readonly property string networkCommand: (root.values.networkCommand ?? "").trim()
     readonly property string bluetoothCommand: (root.values.bluetoothCommand ?? "").trim()
     readonly property string disksCommand: (root.values.disksCommand ?? "").trim()
+    readonly property string batteryCommand: (root.values.batteryCommand ?? "").trim()
+    // The idle timers (services/Energy.qml): minutes without input before
+    // the display turns off, and before the machine sleeps. 0 is never.
+    readonly property int displayOffMinutes: root.minutes(root.values.displayOffMinutes)
+    readonly property int sleepMinutes: root.minutes(root.values.sleepMinutes)
     readonly property string monitorCommand: (root.values.monitorCommand ?? "").trim()
     readonly property string fileSearchIgnore: root.expand(root.values.fileSearchIgnore ?? "")
     readonly property var hiddenApps: root.values.hiddenApps ?? []
@@ -141,6 +146,11 @@ Singleton {
     readonly property bool showMpris: root.values.showMpris !== false
     readonly property string mpdSocket: root.expand(root.values.mpdSocket ?? "")
     readonly property string mpdConfig: root.expand(root.values.mpdConfig ?? "~/.config/mpd/mpd.conf")
+
+    // A whole number of minutes, 0 for anything that is not one.
+    function minutes(value: var): int {
+        return Math.max(0, Math.round(Number(value) || 0));
+    }
 
     // The settings window's way in: one key into settings.json. The file is
     // written back whole as plain JSON, so comments typed into it by hand go;
