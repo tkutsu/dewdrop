@@ -35,10 +35,11 @@ Item {
     // compositor first, and its still came back clean.
     property bool ringOnly: false
 
-    // How bright the brightest part of the area is, 0 to 1: the luma a tenth
-    // of it is at or over. The mean would read a half-white screen as grey,
-    // and the text over its white half is what has to hold. -1 until the first
-    // reading, and kept through the next one so the frost never drops back.
+    // How bright the area is on average, 0 to 1. Not its brightest tenth:
+    // sized to that, the frost went to a dark slab over a bright wallpaper
+    // while a popover over a darker corner stayed glass, and the blur spreads
+    // a bright patch over the box anyway. -1 until the first reading, and
+    // kept through the next one so the frost never drops back.
     property real luma: -1
 
     readonly property int scale: 16
@@ -140,19 +141,19 @@ Item {
                         return root.done(-1);
                     const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
 
-                    const lumas = [];
+                    let sum = 0, count = 0;
                     for (let i = 0; i < data.length; i += 4) {
                         const x = (x0 + (i / 4) % (x1 - x0) + 0.5) * root.scale;
                         const y = (y0 + Math.floor(i / 4 / (x1 - x0)) + 0.5) * root.scale;
                         const pad = Theme.shadowPad;
                         if (root.around && x >= a.x - pad && x < a.x + a.width + pad && y >= a.y - pad && y < a.y + a.height + pad)
                             continue;
-                        lumas.push((0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255);
+                        sum += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+                        count++;
                     }
-                    if (lumas.length === 0)
+                    if (count === 0)
                         return root.done(-1);
-                    lumas.sort((p, q) => p - q);
-                    root.done(lumas[Math.floor(lumas.length * 0.9)]);
+                    root.done(sum / count);
                 }
             }
         }

@@ -381,10 +381,13 @@ Singleton {
     // over (components/BackdropProbe.qml), and popupBg itself for one that
     // does not know yet (-1). Over white, 0.36 of a dark fill
     // comes out a light grey, and `label` on that is white on grey. The fill
-    // is thickened until what shows through lands at frostCeiling, where
-    // `label` holds about 6.5:1 and `label2` about 4:1; behind anything at or
-    // under that it is popupBg exactly, so a dark window gets the same glass
-    // as ever. Never past 0.85, so it stays frost and never goes solid.
+    // is thickened until what shows through lands at frostCeiling on
+    // average, where `label` holds about 6.5:1 and `label2` about 4:1; a
+    // brighter patch behind comes through lighter, and the glass stays glass
+    // rather than going to a dark slab over a bright wallpaper. Behind
+    // anything at or under that it is popupBg exactly, so a dark window gets
+    // the same glass as ever. Never past 0.85, so it stays frost and never
+    // goes solid.
     readonly property real frostCeiling: 0.3
     function frostOver(luma) {
         const c = popupBg;
