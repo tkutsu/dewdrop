@@ -23,8 +23,8 @@ import qs.src.services
 OverlayWindow {
     id: root
 
-    // The launcher's layer namespace, for its blur rule in wrules.lua: the
-    // same box on the same terms.
+    // The launcher's layer namespace, for its blur rule in hypr/dewdrop.lua:
+    // the same box on the same terms.
     name: "launcher"
     shown: Preferences.shown
     inputItem: box

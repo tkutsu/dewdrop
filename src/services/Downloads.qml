@@ -48,8 +48,8 @@ Singleton {
 
     function open(): void {
         root.clear();
-        // Floats this window alone, in the box of hypr/configs/wrules.lua's
-        // sizes.standard: the file manager tiles when opened any other way.
+        // Floats this window alone, in the box hypr/dewdrop.lua gives the
+        // floating terminals: the file manager tiles when opened any other way.
         Hyprland.dispatch(HyprExec.dispatch(Settings.inFileManager(Settings.downloadsDir),
             '{ float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.8" } }', ""));
     }

@@ -349,7 +349,7 @@ Singleton {
     // A pill's fill: half black, and what the clear glass lays over the
     // wallpaper it draws (glassTint), rather than the near-opaque grey GTK
     // gave the bar. popupBg below is the popups' own. The fill has to stay
-    // above the 0.3 alpha that wrules.lua's layer rule ignores, or the
+    // above the 0.3 alpha that hypr/dewdrop.lua's layer rule ignores, or the
     // compositor stops blurring what is behind it — that threshold is also
     // what keeps the gaps between the pills unblurred, so this is the one
     // number both ends depend on.
@@ -778,11 +778,11 @@ Singleton {
     readonly property int jumpPeriodMs: 3000
 
     // --- glyphs --------------------------------------------------------------
-    // Lifted verbatim from config.jsonc and the scripts it called, by codepoint
-    // so nothing is lost to a copy/paste through a non-symbol font.
+    // By codepoint, so nothing is lost to a copy/paste through a non-symbol
+    // font.
 
-    // A drawing, by file rather than by name, from the copies in icons/ beside
-    // this file (its README says where each came from), so the config does not
+    // A drawing, by file rather than by name, from the copies in assets/icons/
+    // (its README says where each came from), so the config does not
     // depend on an icon theme having them. Glyph draws any entry below that is
     // one of these in place of the font.
     function panel(name) {

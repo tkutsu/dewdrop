@@ -8,8 +8,8 @@ import qs.src.services
 //
 // A window of its own so the compositor can fade it: Hyprland blurs a layer
 // all at once wherever its pixels pass the alpha floor, and only fades that
-// blur along with the whole surface as it maps and unmaps. wrules.lua gives
-// quickshell:veil blur and the "fade" animation; animation.lua's
+// blur along with the whole surface as it maps and unmaps. hypr/dewdrop.lua
+// gives quickshell:veil blur and the "fade" animation, and its
 // fadeLayersIn/Out set how long it takes.
 //
 // It also takes every click that misses the box: on the Top layer, under the

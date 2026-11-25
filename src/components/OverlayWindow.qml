@@ -13,8 +13,8 @@ import qs.src.core
 // wanted, a first frame at zero for the reveal, and a click outside the
 // box closing it. Each menu chooses its input area.
 //
-// Drawn transparent on purpose: wrules.lua's layer rule ignores anything under
-// 0.3 alpha, so only the box on top of this gets blurred and the rest of the
+// Drawn transparent on purpose: hypr/dewdrop.lua's layer rule ignores anything
+// under 0.3 alpha, so only the box on top of this gets blurred and the rest of the
 // screen is left alone. This is the part rofi could not do for itself — see
 // services/Launcher.qml.
 PanelWindow {
