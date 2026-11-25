@@ -1,17 +1,12 @@
 These drawings are from the WhiteSur icon theme by vinceliuice
 (https://github.com/vinceliuice/WhiteSur-icon-theme), licensed GPL-3.0.
-Theme.panel() loads them by path for the launcher's power rows and the idle inhibitor.
+Theme.panel() loads them by path for the launcher's power rows.
 
 power-lock.svg, power-kill.svg and power-log-out.svg are our own drawings:
 the rounded keyhole (L1), circle close (K6) and person leaving (O3) selected
 from the launcher comparison sheet. Their 1-unit outlines match the weight
 of the WhiteSur power icons. The launcher uses power-lock.svg separately
 from the font glyph used for secured Wi-Fi networks.
-
-The two caffeine cups are retouched: white rather than #ececec, and outlined
-with a 0.4-unit stroke of their own colour. The bar draws them at 14px, where
-WhiteSur's 1-unit walls came out under a pixel thick and a step greyer than
-the outlined glyphs beside them (1.1px against the bell's 1.4px).
 
 audio-volume-0 to -6 are Material Design's volume_high (Pictogrammers,
 https://pictogrammers.com, licensed Apache-2.0), taken out of Symbols Nerd

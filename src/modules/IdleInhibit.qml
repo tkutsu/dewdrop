@@ -33,7 +33,7 @@ BarItem {
         Layout.fillHeight: true
         text: root.active ? Theme.glyph.idleOn : Theme.glyph.idleOff
         alternates: [Theme.glyph.idleOn, Theme.glyph.idleOff]
-        fontSize: Theme.glyphSizeLarge + 1
+        fontSize: Theme.glyphSizeLarge
     }
 
     // Left is the popup (BarItem.popupButton); right flips it.

@@ -843,8 +843,10 @@ Singleton {
         wallpaper: "\u{f0e09}",
         window: "\u{f4c3}",           // workspace taskbar fallback
 
-        idleOn: panel("caffeine-cup-full"),
-        idleOff: panel("caffeine-cup-empty"),
+        // Caffeine: the outlined cup, struck through while the screen may
+        // sleep (nf-md-coffee_outline, nf-md-coffee_off_outline).
+        idleOn: "\u{f06ca}",
+        idleOff: "\u{f0fab}",
 
         nightOn: "\u{f0336}",         // nf-md-lightbulb_outline (dim)
         nightOff: "\u{f06e8}",        // nf-md-lightbulb_on_outline (lit)

@@ -13,7 +13,7 @@ GROUPS = {
     "vpn": ("[Theme.glyph.vpn, Theme.glyph.vpnOff]", "Theme.trayGlyphSize - 1"),
     "bluetooth": ("[Theme.glyph.bluetooth, Theme.glyph.bluetoothOff]", "Theme.trayGlyphSize"),
     "network": ("[Theme.glyph.wifiStrength[4], Theme.glyph.wifiOff, Theme.glyph.wired]", "Theme.trayGlyphSize"),
-    "caffeine": ("[Theme.glyph.idleOn, Theme.glyph.idleOff]", "Theme.glyphSizeLarge + 1"),
+    "caffeine": ("[Theme.glyph.idleOn, Theme.glyph.idleOff]", "Theme.glyphSizeLarge"),
     "night": ("[Theme.glyph.nightOn, Theme.glyph.nightOff]", "Theme.glyphSize - 1"),
     "mail": ("[Theme.glyph.mailUnread, Theme.glyph.mailRead]", "Theme.glyphSizeLarge"),
     "timer": ("[Theme.glyph.timer, Theme.glyph.timerPaused, Theme.glyph.timerRing, Theme.glyph.alarm]", "Theme.glyphSizeLarge"),
