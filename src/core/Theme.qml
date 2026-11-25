@@ -976,8 +976,8 @@ Singleton {
         // One speaker for every output (see services/Audio.qml), drawn in
         // code (VolumeMark) after nf-md-volume_high so each wave can take its
         // own opacity: empty is both waves at .25, then the inner one comes up
-        // through .5 and .75 to full, then the outer one. Muted strikes it
-        // through, after nf-md-volume_off.
+        // through .5 and .75 to full, then the outer one. Muted lights both
+        // waves and strikes it all through, after nf-md-volume_off.
         muted: "volume:muted",
         vol: [0, 1, 2, 3, 4, 5, 6].map(n => "volume:" + n),
         // No output to play through reads as the same struck-out speaker as

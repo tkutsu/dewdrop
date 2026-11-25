@@ -48,9 +48,11 @@ ShellRoot {
                 return [0, 1, 2].map(part => Math.round(4 * art.ink(part).a / icon.inkColor.a));
             }
 
+            // Muted lights the waves as fully as the speaker.
             function expected(index) {
-                const level = index === 7 ? -1 : index;
-                return [4, 1 + Math.min(3, Math.max(0, level)), 1 + Math.min(3, Math.max(0, level - 3))];
+                if (index === 7)
+                    return [4, 4, 4];
+                return [4, 1 + Math.min(3, index), 1 + Math.min(3, Math.max(0, index - 3))];
             }
 
             function test_mark() {
@@ -68,8 +70,8 @@ ShellRoot {
                                 'Identical geometry for ' + other.text + ' at size ' + icon.fontSize);
                         check(JSON.stringify(quarters(other)) === JSON.stringify(expected(index)),
                                 other.text + ' lights ' + expected(index) + ', not ' + quarters(other));
-                        check(mark(other).item.pieces[1].length > 0 === (index === 7),
-                                'Only muted cuts the body in two: ' + other.text);
+                        check(mark(other).item.pieces.length === (index === 7 ? 7 : 3),
+                                'Only muted cuts each part in two and adds the slash: ' + other.text);
                     }
                     for (let index of [6, 0, 7, 3, 1, 5]) {
                         icon.text = index === 7 ? Theme.glyph.muted : Theme.glyph.vol[index];

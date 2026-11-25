@@ -4,7 +4,8 @@ import QtQuick.Shapes
 // The speaker, drawn rather than cut out of the font: Material's
 // volume_high, measured and set on whole pixels, its two waves lit one after
 // the other as the volume rises, so every level stands the same size and only
-// the light moves. Muted strikes it through, the way volume_off does.
+// the light moves. Muted lights everything and strikes it through, the way
+// volume_off does.
 //
 // Glyph draws one for any Theme.glyph entry spelled "volume:<level>" or
 // "volume:muted", so every place that shows a glyph can show this too.
@@ -43,25 +44,54 @@ Item {
     implicitHeight: size
     implicitWidth: Math.ceil(waveX + outerReach)
 
+    // Half an ellipse on the upright, top to foot, in enough steps to read
+    // as a curve at these sizes.
+    function halfEllipse(radiusX: real, radiusY: real): var {
+        const steps = 16;
+        return Array.from({ length: steps + 1 }, (_, step) => {
+            const angle = Math.PI * (step / steps - 0.5);
+            return Qt.point(waveX + radiusX * Math.cos(angle), centreY + radiusY * Math.sin(angle));
+        });
+    }
+
+    // The inner wave is a half-moon; the outer, a thin arc from the top of
+    // the ink to its foot.
+    readonly property var inner: halfEllipse(1.7 * unit, 2.75 * unit)
+    readonly property var outer: halfEllipse(outerReach, centreY)
+        .concat(halfEllipse(outerReach - stroke, centreY - stroke).reverse())
+
     // Part 0 is the body, 1 the inner wave, 2 the outer. Each wave comes up
-    // from a quarter over three steps, the inner one first.
+    // from a quarter over three steps, the inner one first. Muted lights
+    // them all, and the slash says they are silent.
+    readonly property bool muted: level < 0
     function ink(part: int): color {
-        const steps = part === 0 ? 3 : Math.min(3, Math.max(0, level - 3 * (part - 1)));
+        const steps = part === 0 || muted ? 3 : Math.min(3, Math.max(0, level - 3 * (part - 1)));
         return Qt.rgba(color.r, color.g, color.b, color.a * (0.25 + 0.25 * steps));
     }
 
-    // The slash runs corner to corner at 45°, and the body is cut a gap clear
+    // The slash runs corner to corner at 45°. Every part is cut a gap clear
     // of its upper side; below, it runs into the slash, as in volume_off.
-    readonly property bool muted: level < 0
     readonly property real slashLift: 0.15 * unit
     readonly property real slashGap: 1.2 * unit
     function below(point: point): real {
         return (point.y - point.x + slashLift) * Math.SQRT1_2;
     }
+    function aboveGap(point: point): real {
+        return -below(point) - stroke / 2 - slashGap;
+    }
+    // Its square ends far enough in that their corners stay in the box.
+    readonly property var slash: {
+        const half = stroke * Math.SQRT1_2 / 2;
+        const start = Qt.point(half + slashLift, half);
+        const end = Qt.point(size - half + slashLift, size - half);
+        return [Qt.point(start.x + half, start.y - half), Qt.point(end.x + half, end.y - half),
+            Qt.point(end.x - half, end.y + half), Qt.point(start.x - half, start.y + half)];
+    }
 
     // The part of a polygon where side(point) >= 0 (Sutherland–Hodgman
-    // against one line, which holds for the body since each side of the
-    // slash is one piece of it).
+    // against one line). Where one side holds two pieces of the outer wave,
+    // they come out joined by an edge along the line and back, which fills
+    // nothing.
     function clip(points: var, side: var): var {
         const kept = [];
         points.forEach((a, index) => {
@@ -78,73 +108,39 @@ Item {
         return kept;
     }
 
-    readonly property var pieces: muted
-        ? [clip(body, below), clip(body, p => -below(p) - stroke / 2 - slashGap)]
-        : [body, []]
-
-    component Piece: ShapePath {
-        required property int index
-        strokeColor: "transparent"
-        fillColor: root.ink(0)
-
-        PathPolyline {
-            path: root.pieces[index]
+    // What is filled: each part whole, or muted, each cut in two along the
+    // slash, then the slash.
+    readonly property var pieces: {
+        const parts = [body, inner, outer].map((points, part) => ({ points, ink: ink(part) }));
+        if (!muted)
+            return parts;
+        const cut = [];
+        for (const part of parts) {
+            for (const side of [below, aboveGap])
+                cut.push({ points: clip(part.points, side), ink: part.ink });
         }
+        return cut.concat([{ points: slash, ink: ink(0) }]);
     }
 
-    Shape {
-        anchors.fill: parent
-        preferredRendererType: Shape.CurveRenderer
+    // A slot for every piece muted can have, so a change of level relights
+    // them rather than making them again.
+    Repeater {
+        model: 7
 
-        Piece { index: 0 }
-        Piece { index: 1 }
+        Shape {
+            id: piece
+            required property int index
+            readonly property var shown: root.pieces?.[index] ?? { points: [], ink: "transparent" }
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
 
-        // The inner wave, a half-moon on the upright.
-        ShapePath {
-            strokeColor: "transparent"
-            fillColor: root.ink(1)
+            ShapePath {
+                strokeColor: "transparent"
+                fillColor: piece.shown.ink
 
-            PathAngleArc {
-                centerX: root.waveX
-                centerY: root.centreY
-                radiusX: 1.7 * root.unit
-                radiusY: 2.75 * root.unit
-                startAngle: -90
-                sweepAngle: 180
-            }
-        }
-
-        // The outer wave, a thin arc from the top of the ink to its foot.
-        ShapePath {
-            strokeColor: root.ink(2)
-            strokeWidth: root.stroke
-            fillColor: "transparent"
-            capStyle: ShapePath.FlatCap
-
-            PathAngleArc {
-                centerX: root.waveX
-                centerY: root.centreY
-                radiusX: root.outerReach - root.stroke / 2
-                radiusY: root.centreY - root.stroke / 2
-                startAngle: -90
-                sweepAngle: 180
-            }
-        }
-
-        ShapePath {
-            id: slash
-            strokeColor: root.muted ? root.ink(0) : "transparent"
-            strokeWidth: root.stroke
-            fillColor: "transparent"
-            capStyle: ShapePath.FlatCap
-            // Ends far enough in that their corners stay in the box.
-            readonly property real inset: root.stroke * Math.SQRT1_2 / 2
-            startX: inset + root.slashLift
-            startY: inset
-
-            PathLine {
-                x: root.size - slash.inset + root.slashLift
-                y: root.size - slash.inset
+                PathPolyline {
+                    path: piece.shown.points
+                }
             }
         }
     }
