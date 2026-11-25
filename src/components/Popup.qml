@@ -142,13 +142,14 @@ PopupWindow {
         return Qt.point(Math.max(0, Math.min(root.screen.width - root.width, x)), Math.max(0, Math.min(root.screen.height - root.height, y)));
     }
 
-    // The frost for the box, from what is round it on the screen.
+    // How bright the screen is behind the box, for its frost.
     BackdropProbe {
         id: under
 
         screen: root.screen
         area: Qt.rect(root.windowOnScreen.x + root.shadowSide, root.windowOnScreen.y + root.shadowTop, root.width - root.shadowSide * 2, chrome.height)
         active: root.visible && root.probes
+        ringOnly: true
     }
 
     // Whether the pointer is on the popup, which the bar counts (below).
@@ -588,9 +589,17 @@ PopupWindow {
                 readonly property bool shaped: (root.morphs && !root.landed)
                     || (root.animateContents && Math.abs(chrome.sag) > 0.01)
                 radius: root.radius
-                // The shell's one frost (BackdropProbe).
-                property color frost: under.frost
+                // Thickened over a bright screen (BackdropProbe), and eased
+                // there: the reading lands a few frames after the box. Only
+                // ever up from popupBg, so the blur stays.
+                property color frost: Theme.frostOver(under.luma)
                 color: chrome.shaped ? "transparent" : frost
+
+                Behavior on frost {
+                    ColorAnimation {
+                        duration: Theme.revealMs
+                    }
+                }
 
                 Rim {
                     visible: !chrome.shaped

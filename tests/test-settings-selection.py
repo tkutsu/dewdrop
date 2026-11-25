@@ -116,7 +116,7 @@ def main():
         (target / "src/services/FakeHyprland.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { signal rawEvent(var event) }\n")
         menu = target / "src/modules/SettingsMenu.qml"
         menu.write_text(menu.read_text().replace("layer.enabled: contentHeight + topMargin + bottomMargin > height", "layer.enabled: false"))
-        (target / "src/components/BackdropProbe.qml").write_text("import QtQuick\nItem { property var screen; property rect area; property bool active; property real luma: 0.5; property color frost: Qt.rgba(0.12, 0.12, 0.12, 0.6) }")
+        (target / "src/components/BackdropProbe.qml").write_text("import QtQuick\nItem { property var screen; property rect area; property bool active; property bool ringOnly: false; property real luma: 0.5 }")
         (target / "src/services/Keyboard.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { property var layouts: [] }")
         (target / "src/services/Power.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { property var actions: [] }")
         (target / "src/services/Tasks.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var lists: []; property var defaultList: ({id: ""}) }')

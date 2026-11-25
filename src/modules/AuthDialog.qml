@@ -169,7 +169,7 @@ PanelWindow {
         width: root.boxWidth
         height: column.implicitHeight + root.pad * 2
         radius: Theme.panelRadius
-        color: under.frost
+        color: Theme.frostOver(under.luma)
 
         Accessible.role: Accessible.Dialog
         Accessible.name: title.text

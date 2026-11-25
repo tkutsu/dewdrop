@@ -288,9 +288,10 @@ OverlayWindow {
         easing.type: Easing.OutCubic
     }
 
-    // The frost for where the box will be, preview panel and all. The window
-    // is the screen, so its pixels are the screen's. A window reused inside its
-    // own fold-away keeps the reading it has, since it is over the same screen.
+    // How bright the screen is under where the box will be, preview panel and
+    // all, for the frost (Theme.frostOver). The window is the screen, so its
+    // pixels are the screen's. A window reused inside its own fold-away keeps
+    // the reading it has, since it is over the same screen.
     BackdropProbe {
         id: under
 
@@ -371,8 +372,16 @@ OverlayWindow {
         height: Math.round(box.bodyHeight)
         visible: root.presenting
         clip: true
-        // The popups' frost (BackdropProbe).
-        color: under.frost
+        // The popups' frost, at an alpha held over the 0.3 that keeps the
+        // compositor blurring behind it, and thickened over a bright screen.
+        // Ease in a new backdrop reading without fading below the blur floor.
+        color: Theme.frostOver(under.luma)
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.revealMs
+            }
+        }
         radius: Theme.panelRadius
 
         // Its edge, above everything drawn inside it so that no row's fill
