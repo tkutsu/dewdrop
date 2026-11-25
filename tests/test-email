@@ -267,7 +267,7 @@ class EmailTests(unittest.TestCase):
     def test_html_layout_and_links(self):
         html = '<head>hidden</head><style>x</style><!-- hidden --><div> One </div>\n    <div> Two&nbsp; &copy; </div><a href="https://example.com?a=1&amp;b=2">Visit</a><script>hidden</script>'
         self.check('sut.plain(sut.unquote(sut.untag(' + json.dumps(html) + '))) === "One\\nTwo ©\\nVisit (https://example.com?a=1&b=2)"')
-        self.check('sut.richText(sut.untag(' + json.dumps(html) + ')).includes("href=\\"https://example.com?a=1&amp;b=2\\" style=\\"color: #c0c0c0\\">Visit</a>")')
+        self.check('sut.richText(sut.untag(' + json.dumps(html) + ')).includes("href=\\"https://example.com?a=1&amp;b=2\\" style=\\"color: #aaaaaa\\">Visit</a>")')
         self.check('sut.untag("<a href=javascript:bad>Label</a>") === "Label"')
         self.check('sut.plain(sut.untag("<a href=https://example.com>https://example.com</a>")) === "https://example.com"')
         self.check('sut.richText(sut.untag("<a href=https://example.com/x>https://example.com/x</a>")).includes(">example.com</a>")')
@@ -655,8 +655,8 @@ class EmailTests(unittest.TestCase):
         self.check('sut.richText("www.example.com").includes("href=\\"https://www.example.com\\"")')
         # The address stays in the href; the text says what it is.
         self.check('sut.richText("Read https://www.example.com/long/path?utm=1 now").includes(">example.com</a> now")')
-        self.check('sut.richText("Intro\\nView online <https://example.com/v?id=1>").includes("Intro<br><a href=\\"https://example.com/v?id=1\\" style=\\"color: #c0c0c0\\">View online</a></span>")')
-        self.check('sut.richText("Docs: [https://example.com/d]").includes("<a href=\\"https://example.com/d\\" style=\\"color: #c0c0c0\\">Docs</a>")')
+        self.check('sut.richText("Intro\\nView online <https://example.com/v?id=1>").includes("Intro<br><a href=\\"https://example.com/v?id=1\\" style=\\"color: #aaaaaa\\">View online</a></span>")')
+        self.check('sut.richText("Docs: [https://example.com/d]").includes("<a href=\\"https://example.com/d\\" style=\\"color: #aaaaaa\\">Docs</a>")')
         self.check('!sut.richText("Docs <https://example.com/d>").includes("&lt;")')
 
     def build_popup(self, fold_ms=360):
@@ -1250,7 +1250,7 @@ class EmailTests(unittest.TestCase):
         quick_document = editor_item.property('textDocument')
         document = quick_document.textDocument()
         link_cursor = document.find('example.com')
-        self.assertEqual(link_cursor.charFormat().foreground().color().name(), '#c0c0c0')
+        self.assertEqual(link_cursor.charFormat().foreground().color().name(), '#aaaaaa')
         QTest.mouseMove(window, QPoint(80, 8))
         QTest.qWait(5)
         self.assertEqual(window.cursor().shape(), Qt.PointingHandCursor)

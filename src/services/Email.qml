@@ -979,7 +979,7 @@ GoogleService {
     function richText(text: string): string {
         const escape = value => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         const site = url => url.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[\/?#]/)[0];
-        const link = (url, words) => `<a href="${escape(/^www\./i.test(url) ? "https://" + url : url)}" style="color: #c0c0c0">${escape(words || site(url))}</a>`;
+        const link = (url, words) => `<a href="${escape(/^www\./i.test(url) ? "https://" + url : url)}" style="color: ${Theme.label2}">${escape(words || site(url))}</a>`;
         const closers = { "<": ">", "[": "]", "(": ")" };
         const pattern = /(?:https?:\/\/|www\.)[^\s<>"\]\u200b-\u200d\ufeff]+/gi;
         const linkify = function (part) {
