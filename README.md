@@ -82,7 +82,7 @@ Before you log out and back in:
 - Remove any exec line of your own that runs `qs` or `quickshell`.
 - Remove your old polkit agent, since only one can run per session. The [setup guide](docs/setup.md#polkit-agent) lists the common ones.
 - Keep the top outer gap at 8 pixels so windows line up below the bar.
-- If you use hypridle, point it at Dewdrop's lock as in [Lock screen and hypridle](docs/setup.md#lock-screen-and-hypridle).
+- If you use hypridle, point it at Dewdrop's lock and remove its display-off and suspend listeners, as in [Lock screen and hypridle](docs/setup.md#lock-screen-and-hypridle). Dewdrop turns the display off and sleeps on its own timers.
 - If you have your own Escape or close-window binds, see [Escape and close keybinds](docs/setup.md#escape-and-close-keybinds).
 
 If the bar ever stops on its own, Hyprland says so, and Super+Ctrl+Alt+V starts it again.

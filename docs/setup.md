@@ -53,6 +53,8 @@ lock_cmd = qs ipc call lock lock
 before_sleep_cmd = loginctl lock-session
 ```
 
+Dewdrop turns the display off and puts the machine to sleep on its own timers, set under When Idle in the energy popup or on the Lock Screen settings page. Remove hypridle's `listener` blocks that run `dpms off` or `systemctl suspend`, or whichever timer is shorter wins. Sleep from Dewdrop locks the screen first, with or without hypridle; `before_sleep_cmd` covers sleeps that start elsewhere, such as closing the lid or `systemctl suspend`. Apps that hold the screen awake through Wayland, such as browsers and mpv playing video, pause both timers; apps that only ask over D-Bus, such as Steam, do not, so use Caffeine for those.
+
 ## Icons
 
 Dewdrop does not require Themis. The SVGs used for its own controls are bundled in `icons/`; other interface glyphs use Symbols Nerd Font. Application icons in the left bar, the launcher and notifications come from an icon theme, and missing icons fall back to a generic glyph.

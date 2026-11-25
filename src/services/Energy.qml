@@ -13,8 +13,8 @@ import qs.src.core
 //
 // The timers are the bar's own rather than hypridle's, so a change in the
 // popup holds at once. They count from the last input and wait while an idle
-// inhibitor is held, Caffeine's among them. Locking before sleep stays with
-// whatever answers logind's PrepareForSleep (hypridle's before_sleep_cmd).
+// inhibitor is held, Caffeine's among them. Sleep goes through Power.run,
+// which locks the screen first.
 Singleton {
     id: root
 

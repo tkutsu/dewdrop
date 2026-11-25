@@ -70,11 +70,44 @@ Singleton {
         }
     ]
 
-    // Locking is the shell's own lock screen, not the script's.
+    // Locking is the shell's own lock screen, not the script's. Sleep locks
+    // first, so a wake never opens on the desktop whether or not anything
+    // answers logind's PrepareForSleep (hypridle's before_sleep_cmd).
     function run(arg: string): void {
         if (arg === "--lock")
             Lock.lock();
-        else
-            Quickshell.execDetached([root.script, arg, Settings.sessionSaveCommand]);
+        else if (arg === "--suspend" && !Lock.held) {
+            Lock.lock();
+            lockThenSleep.waited = 0;
+            lockThenSleep.restart();
+        } else
+            root.start(arg);
+    }
+
+    function start(arg: string): void {
+        Quickshell.execDetached([root.script, arg, Settings.sessionSaveCommand]);
+    }
+
+    // Sleeps a tick after the lock holds, so the glass is drawn before the
+    // screen goes. Goes anyway once the compositor refuses the lock, or
+    // after five seconds: a machine left awake is no safer than one asleep.
+    Timer {
+        id: lockThenSleep
+
+        property int waited: 0
+        property bool wasHeld: false
+
+        interval: 100
+        repeat: true
+        onTriggered: {
+            waited += interval;
+            if (wasHeld || !Lock.active || waited >= 5000) {
+                stop();
+                wasHeld = false;
+                root.start("--suspend");
+            } else {
+                wasHeld = Lock.held;
+            }
+        }
     }
 }

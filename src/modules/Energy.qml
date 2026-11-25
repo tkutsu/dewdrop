@@ -6,15 +6,16 @@ import qs.src.components
 import qs.src.services
 
 // The laptop's battery in tenths, with a bolt while on the adapter, or a
-// plug on a machine without one. Always out: the popup holds the energy mode
-// and the idle timers, which every machine has. Right click opens
-// batteryCommand (Power Statistics) where there is a battery to graph, and
-// the popup otherwise.
+// plug on a machine without one. In the drawer until pinned, and out on its
+// own only while the battery runs low. Right click opens batteryCommand
+// (Power Statistics) where there is a battery to graph, and the popup
+// otherwise.
 BarItem {
     id: root
     name: Energy.battery ? "Battery" : "Energy"
 
     settingsKey: "energy"
+    quiet: !Energy.low
     tooltip: Energy.battery ? `Battery ${Energy.summary}` : Energy.hasModes ? `Energy mode: ${Energy.modeName}` : "Energy"
     popup: EnergyPopup {}
 
