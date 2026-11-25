@@ -133,7 +133,6 @@ Popup {
                 Glyph {
                     height: parent.height
                     text: Theme.glyph.wifiStrength[Network.bars(row.modelData.signalStrength)]
-                    layoutSource: Theme.glyph.wifiStrength[4]
                     fontSize: Theme.popupGlyphSize
                 }
             }

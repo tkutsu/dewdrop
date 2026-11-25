@@ -7,8 +7,9 @@ import qs.src.services
 // Medium only blurs them).
 //
 // Or a drawing, when Theme.glyph holds a file rather than a codepoint (see
-// Theme.panel). Every caller passes whatever the table holds, so which of the
-// two a slot shows is decided there once rather than at each of them.
+// Theme.panel), or the Wi-Fi fan drawn in code, when it holds "wifi:<bars>"
+// (see WifiMark). Every caller passes whatever the table holds, so which a
+// slot shows is decided there once rather than at each of them.
 Item {
     id: root
     transform: ModuleIconScale { icon: root }
@@ -35,6 +36,7 @@ Item {
     // whenever the Loader made its drawing (a popup made again, its icons
     // already measured).
     readonly property int _lift: isNaN(root.inkBase) ? 0
+        : root.shownMark ? Math.round(root.inkBase - mark.restY - mark.height)
         : !root.shownDrawing ? Math.round(root.inkBase - label.restingInkBottom)
         : art.item ? Math.round(root.inkBase - art.restY - art.item.inkBottom) : 0
 
@@ -49,6 +51,7 @@ Item {
     readonly property bool drawing: text.startsWith("file:")
     readonly property bool fontCut: shown.endsWith("#em")
     readonly property bool shownDrawing: shown.startsWith("file:")
+    readonly property bool shownMark: shown.startsWith("wifi:")
 
     // What is on screen, which is `text` except while a drawing the bar has
     // never measured is being measured. Shown straight away, it came in at
@@ -84,7 +87,8 @@ Item {
     // than on the square box it is drawn in: the launcher's 12px magnifier
     // sat in 18px of box and stood three pixels further from its neighbours
     // than the glyphs between them stood from each other.
-    readonly property real inkWidth: !shownDrawing ? label.implicitWidth : tightWidth ? (art.item?.inkWidth ?? 0) : art.implicitWidth
+    readonly property real inkWidth: shownMark ? mark.width
+        : !shownDrawing ? label.implicitWidth : tightWidth ? (art.item?.inkWidth ?? 0) : art.implicitWidth
     implicitWidth: Math.max(inkWidth, rulers.implicitWidth)
     implicitHeight: Theme.barHeight
     baselineOffset: label.baselineOffset
@@ -100,11 +104,11 @@ Item {
 
     BarText {
         id: label
-        visible: !root.shownDrawing
+        visible: !root.shownDrawing && !root.shownMark
         x: root.slotted ? Math.floor((root.width - width) / 2) : 0
         width: implicitWidth
         height: parent.height
-        text: root.shownDrawing ? "" : root.shown
+        text: root.shownDrawing || root.shownMark ? "" : root.shown
         family: Theme.glyphFont
         weight: Font.Normal
         opticalCentre: true
@@ -151,6 +155,24 @@ Item {
             box: size
             ink: root.inkSize > 0 ? 0 : Theme.glyphInk
             fitsInk: !root.fontCut
+        }
+    }
+
+    // Drawn at the height a drawing's ink comes to at this font size, so it
+    // stands as tall as the SVG it replaced. Its box is its ink, and every
+    // strength has the same box, so nothing needs measuring.
+    Loader {
+        id: mark
+        active: root.shownMark
+        x: root.slotted ? Math.floor((root.width - width) / 2) : 0
+        readonly property int restY: Math.floor((root.height - height) / 2)
+
+        y: restY + root.nudge + root._lift
+        sourceComponent: WifiMark {
+            bars: root.shown === "wifi:off" ? -1 : Number(root.shown.slice(5))
+            size: root.inkSize > 0 ? root.inkSize
+                : Math.round(root.fontSize * Theme.iconSize / Theme.glyphSize * Theme.glyphInk)
+            color: root.inkColor
         }
     }
 

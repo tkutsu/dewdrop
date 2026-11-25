@@ -875,7 +875,7 @@ Singleton {
         // blob beside the outlined glyphs every other module carries). The
         // cable is in the same hand. See services/Network.qml.
         //
-        // Drawn by hand: a dot and three thin arcs about it,
+        // Drawn in code (WifiMark): a dot and three thin arcs about it,
         // lit from the dot up with the rest left faint, the way the volume
         // speaker's waves fade in, so every step stands the same size. The
         // font's cone it replaces filled solid as the signal rose. Five
@@ -883,9 +883,9 @@ Singleton {
         // Network.bars still does — the bar has the steps it has, not the ones
         // a percentage would suggest. wifiStrength[0] keeps the dot lit even
         // without signal; the arcs light as the signal rises.
-        wifiStrength: [0, 1, 2, 3, 4].map(n => panel("network-wireless-" + n)),
+        wifiStrength: [0, 1, 2, 3, 4].map(n => "wifi:" + n),
         // The dot and arcs are all faint when the Wi-Fi radio is disabled.
-        wifiOff: panel("network-wireless-off"),
+        wifiOff: "wifi:off",
         wired: "\u{f0200}",
         // Mullvad, whose own icon is a solid padlock filling its box with a
         // status dot on it. The same outlined hand as the cone: shut while the

@@ -5,8 +5,8 @@ import qs.src.core
 import qs.src.components
 import qs.src.services
 
-// The connection, where nm-applet's tray icon was: the cone filling with the
-// signal, or the cable, dimmed with neither. The networks and the radio are in
+// The connection, where nm-applet's tray icon was: the Wi-Fi fan lighting
+// with the signal, or the cable, dimmed with neither. The networks and the radio are in
 // the popup. Right click is NetworkManager's connection editor, for what the
 // popup cannot do (enterprise Wi-Fi, static addresses, VPNs).
 BarItem {
@@ -48,7 +48,6 @@ BarItem {
     Glyph {
         Layout.fillHeight: true
         text: Network.icon
-        layoutSource: root.cone ? Theme.glyph.wifiStrength[4] : text
         alternates: [Theme.glyph.wifiStrength[4], Theme.glyph.wired]
         fontSize: Theme.trayGlyphSize
         nudge: root.cone ? -1 : 0

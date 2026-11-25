@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Render Wi-Fi variants and keep their layout fixed as signal strength changes."""
+"""Draw the Wi-Fi mark at every strength: one box per size, the right parts lit."""
 
-from pathlib import Path
 from test_support import fixture_root
 import subprocess
 import tempfile
@@ -24,7 +23,6 @@ ShellRoot {
                 x: (index % 6) * 60; y: Math.floor(index / 6) * 50
                 height: 40
                 fontSize: index < 6 ? Theme.trayGlyphSize : Theme.popupGlyphSize
-                layoutSource: Theme.glyph.wifiStrength[4]
                 text: index % 6 === 5 ? Theme.glyph.wifiOff : Theme.glyph.wifiStrength[index % 6]
             }
         }
@@ -34,38 +32,49 @@ ShellRoot {
 
             function check(ok, message) { if (!ok) throw Error(message); }
 
+            function mark(icon) {
+                return icon.children.find(child => child.item instanceof WifiMark);
+            }
+
             function geometry(icon) {
-                const art = icon.children[1];
-                return [icon.width, art.x, art.y, art.item.drawn, art.item.inkX, art.item.inkWidth];
+                const art = mark(icon);
+                return [icon.width, art.x, art.y, art.width, art.height];
+            }
+
+            // Dot, then the arcs from the inside out: 1 lit, 0 faint.
+            function lit(icon) {
+                const art = mark(icon).item;
+                return [0, 1, 2, 3].map(part => art.ink(part).a === icon.inkColor.a ? 1 : 0);
+            }
+
+            function expected(index) {
+                return index === 5 ? [0, 0, 0, 0] : [1, index > 1 ? 1 : 0, index > 2 ? 1 : 0, index > 3 ? 1 : 0];
             }
 
             function test_geometry() {
-                const ready = () => {
-                    for (let index = 0; index < 12; index++) {
-                        const icon = icons.itemAt(index);
-                        const art = icon.children[1];
-                        if (icon.shown !== icon.text || !art.item || art.item.extent <= 0
-                                || art.item.status !== Image.Ready)
-                            return false;
-                    }
-                    return true;
-                };
-                for (let attempt = 0; !ready() && attempt < 100; attempt++) wait(50);
-                check(ready(), 'Wi-Fi drawings loaded and measured');
+                for (let index = 0; index < 12; index++) {
+                    const icon = icons.itemAt(index);
+                    check(icon.shown === icon.text && mark(icon), 'Wi-Fi drawn in code for ' + icon.text);
+                }
                 for (let group = 0; group < 2; group++) {
                     const icon = icons.itemAt(group * 6);
-                    const expected = geometry(icon);
-                    check(expected[0] > 0, 'Measured Wi-Fi width');
-                    for (let index = 0; index < 6; index++)
-                        check(JSON.stringify(geometry(icons.itemAt(group * 6 + index))) === JSON.stringify(expected),
+                    const box = geometry(icon);
+                    check(box[0] > 0 && box[3] % 2 === 1, 'An odd width, for the dot to sit on a pixel: ' + box);
+                    for (let index = 0; index < 6; index++) {
+                        const other = icons.itemAt(group * 6 + index);
+                        check(JSON.stringify(geometry(other)) === JSON.stringify(box),
                                 'Identical geometry for strength ' + index + ' at size ' + icon.fontSize);
+                        check(JSON.stringify(lit(other)) === JSON.stringify(expected(index)),
+                                'Strength ' + index + ' lights ' + expected(index) + ', not ' + lit(other));
+                    }
                     for (let index of [4, 0, 3, 5, 1, 2]) {
                         icon.text = index === 5 ? Theme.glyph.wifiOff : Theme.glyph.wifiStrength[index];
-                        wait(20);
-                        check(icon.shown === icon.text && icon.children[1].item.status === Image.Ready, 'New strength shown');
-                        check(JSON.stringify(geometry(icon)) === JSON.stringify(expected), 'Signal changes preserve geometry');
+                        check(icon.shown === icon.text, 'New strength shown at once');
+                        check(JSON.stringify(geometry(icon)) === JSON.stringify(box), 'Signal changes preserve geometry');
+                        check(JSON.stringify(lit(icon)) === JSON.stringify(expected(index)), 'Signal changes relight the parts');
                     }
                 }
+                check(geometry(icons.itemAt(0))[4] === 13, 'Thirteen pixels of ink at the bar size');
             }
         }
     }
