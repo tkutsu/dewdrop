@@ -43,10 +43,11 @@ REPO = Path(__file__).resolve().parent.parent
 CACHE = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "dewdrop-fresh-test"
 IMAGE_URL = "https://geo.mirror.pkgbuild.com/images/latest/Arch-Linux-x86_64-cloudimg.qcow2"
 
-# The README's "What it needs", by Arch package, and what the test itself uses.
+# The README's pacman line (git aside: the files are copied in), Hyprland, and
+# foot as the terminal the README asks for.
 PACKAGES = [
-    "hyprland", "quickshell", "pipewire", "pipewire-pulse", "wireplumber", "libpulse", "libnotify", "xdg-utils",
-    "imagemagick", "coreutils", "ttf-nerd-fonts-symbols", "inter-font", "ttf-iosevkaterm-nerd",
+    "hyprland", "quickshell", "python", "pipewire-pulse", "wireplumber", "libnotify",
+    "imagemagick", "ttf-nerd-fonts-symbols", "inter-font", "ttf-iosevkaterm-nerd",
     "foot",
 ]
 

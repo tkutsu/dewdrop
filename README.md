@@ -6,11 +6,11 @@ A glass bar and keyboard launcher for Hyprland, built with [Quickshell](https://
 
 ## The Bar
 
-Switch workspaces and a glass mark slides over to the new one, bouncing a little when it hits either end. The wallpaper drifts along behind it. You can also scroll over the strip to switch, or drag a window onto another workspace.
+Switch workspaces and a glass mark slides over to the new one, bouncing a little at either end, while the wallpaper drifts behind it. Scroll over the strip to switch, or drag a window onto another workspace.
 
 ![The workspace pill, with the glass mark moving between apps as the wallpaper slides behind it](docs/media/workspaces.gif)
 
-Controls you don't reach for often fold into a drawer. Drag modules to reorder them or to move them between the centre and the right, and pin the ones you want to keep in view.
+Controls you don't reach for often fold into a drawer. Drag modules to reorder them or move them between the centre and the right, and pin the ones you want in view.
 
 ![The right drawer opening to show the rest of the controls](docs/media/drawer.gif)
 
@@ -20,43 +20,43 @@ The clock and the weather hold the middle. Music joins them on the left, the bel
 
 ## The Launcher
 
-One shortcut for most of the small stuff: open apps, preview files, jump to a window, search your clipboard, pick an emoji, read mail right there, browse your music, do some quick maths, or type in a task, timer, alarm or calendar event. Type `?` to see every mode, with your Hyprland keybinds under them.
+One shortcut for the small stuff: open apps, preview files, jump to a window, search your clipboard, pick an emoji, read mail, browse your music, do quick maths, or type in a task, timer, alarm or calendar event. Type `?` for every mode and your Hyprland keybinds.
 
 ![A keyboard launcher tour through every mode](docs/media/launcher-tour.gif)
 
 ## Popovers
 
-Calendar, mail, tasks and feeds open in popovers that grow out of the bar, so checking them doesn't mean opening another window. They all work from the keyboard.
+Calendar, mail, tasks and feeds open in popovers that grow out of the bar, and all of them work from the keyboard.
 
 ![Calendar, task, mail, feed, notification, music and timer popovers](docs/media/popovers-productivity.gif)
 
-Weather, per-app volume, Wi-Fi, Bluetooth and the system controls are there too. Settings are searchable and cover the layout, fonts and motion, with Reduce Motion and Reduce Transparency for when the bouncing and the glass get to be too much.
+Weather, per-app volume, Wi-Fi, Bluetooth and the system controls are there too. Settings are searchable, with Reduce Motion and Reduce Transparency for when the bouncing and the glass get to be too much.
 
 ![Weather, audio, network, display and system-control popovers](docs/media/popovers-controls.gif)
 
+## Lock Screen And Passwords
+
+Locking fades your windows into the wallpaper and raises a pane of glass with the time, the weather, what came in while you were away and the password field. PIN Mode checks the password once it reaches the length you set, without Return.
+
 Dewdrop is also your polkit agent. When `pkexec` or an app needs an administrator's password, it asks in a small glass panel, and shakes it if the password is wrong.
-
-## The Lock Screen
-
-Locking fades your windows into the wallpaper and raises a pane of glass with the time, the weather, what notified while you were away and the password field. Settings > Lock Screen chooses what the glass shows and how its date, time and weather read, and has a PIN Mode that checks the password without Return once it is as long as the length you give it.
 
 ## Install
 
 Dewdrop is my personal config, and I run it on Arch Linux. It needs Quickshell 0.3.2 or newer and Hyprland 0.56 or newer with a Lua config (`hyprland.lua`).
 
-### 1. Install The Base Packages
+### 1. Install The Packages
 
-In an existing Hyprland session, install [Quickshell from Arch's official repository](https://archlinux.org/packages/extra/x86_64/quickshell/) and the base tools and fonts:
+In a Hyprland session, install Quickshell from Arch's official repository, with the tools and fonts the bar uses:
 
 ```sh
-sudo pacman -Syu --needed quickshell git python pipewire pipewire-pulse wireplumber libpulse libnotify xdg-utils imagemagick coreutils ttf-nerd-fonts-symbols inter-font ttf-iosevkaterm-nerd foot
+sudo pacman -Syu --needed quickshell git python pipewire-pulse wireplumber libnotify imagemagick ttf-nerd-fonts-symbols inter-font ttf-iosevkaterm-nerd
 ```
 
-`foot` is the fallback terminal; kitty, alacritty and ghostty are also detected. Keep your existing terminal if you have one.
+You also need a terminal. Dewdrop uses kitty, foot, alacritty or ghostty, whichever you have.
 
 ### 2. Get Dewdrop
 
-If `~/.config/quickshell` already contains another config, move it aside first.
+Move any other config in `~/.config/quickshell` aside first.
 
 ```sh
 git clone https://github.com/tkutsu/dewdrop ~/.config/quickshell
@@ -64,61 +64,41 @@ git clone https://github.com/tkutsu/dewdrop ~/.config/quickshell
 
 ### 3. Connect It To Hyprland
 
-Add the integration near the top of `~/.config/hypr/hyprland.lua`, before your own overrides:
+Load the integration near the top of `~/.config/hypr/hyprland.lua`, before your own overrides. It supplies the blur, popup dismissal and workspace helpers, and starts the bar with Hyprland:
 
 ```lua
 dofile(os.getenv("HOME") .. "/.config/quickshell/hypr/dewdrop.lua")
 ```
 
-This supplies the blur, popup dismissal and workspace helpers. It also closes gaps in numbered workspaces as they empty. If you have your own Escape or close-window binds, see [Escape and close keybinds](docs/setup.md#escape-and-close-keybinds) so they leave the launcher and settings alone. Keep the top outer gap at 8 pixels so windows line up below the bar; for example, `hl.config({ general = { gaps_out = 8 } })` sets all sides to 8.
-
-It also starts Dewdrop with Hyprland, so remove any exec line of your own that runs `qs` or `quickshell`. If the bar stops on its own, Hyprland shows a notice, and Super+Ctrl+Alt+V starts it again.
-
-Then add a shortcut for the launcher. Pick another key if Super+Space is already taken; see [Hyprland's keybind syntax](https://wiki.hypr.land/configuring/core/binds/).
+Then bind the launcher and the lock screen. Pick other keys if these are taken, and replace any bind that ran `hyprlock`:
 
 ```lua
 hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("qs ipc call launcher toggle"))
-```
-
-Dewdrop is also your polkit agent, and only one agent can run per session. Remove the line that starts your old one, wherever your config keeps its exec lines: `hyprland.lua` itself, or a file it loads such as `exec.lua`. Common agents are `polkit-kde-authentication-agent-1`, `hyprpolkitagent`, `polkit-gnome-authentication-agent-1` and `lxpolkit`. If a package such as `hyprpolkitagent` runs as a systemd user service instead, turn it off with `systemctl --user disable --now hyprpolkitagent`.
-
-Dewdrop has its own lock screen, so it takes over from hyprlock or any other locker. If the bar crashes while the screen is locked, it starts again and locks again. Point your lock shortcut at it, replacing the bind that ran `hyprlock`:
-
-```lua
 hl.bind("SUPER + ESCAPE", hl.dsp.exec_cmd("qs ipc call lock lock"))
 ```
 
-If you use hypridle, replace its `lock_cmd` (often `pidof hyprlock || hyprlock`) so idle locking and `loginctl lock-session` use Dewdrop too, and lock before sleep so a wake never opens on the desktop:
+Before you log out and back in:
 
-```ini
-# ~/.config/hypr/hypridle.conf, under general
-lock_cmd = qs ipc call lock lock
-before_sleep_cmd = loginctl lock-session
-```
+- Remove any exec line of your own that runs `qs` or `quickshell`.
+- Remove your old polkit agent, since only one can run per session. The [setup guide](docs/setup.md#polkit-agent) lists the common ones.
+- Keep the top outer gap at 8 pixels so windows line up below the bar.
+- If you use hypridle, point it at Dewdrop's lock as in [Lock screen and hypridle](docs/setup.md#lock-screen-and-hypridle).
+- If you have your own Escape or close-window binds, see [Escape and close keybinds](docs/setup.md#escape-and-close-keybinds).
 
-Log out and back in, and the bar comes up with Hyprland, with no other polkit agent beside it.
+If the bar ever stops on its own, Hyprland says so, and Super+Ctrl+Alt+V starts it again.
 
 ### 4. Make It Yours
 
-Open the gear in the bar to choose modules, your wallpaper folder and default apps. The first run creates `settings.json`; edits there reload on save. [The default settings](settings.default.json) explain each option.
+Open the gear in the bar to choose modules, your wallpaper folder and default apps. Your changes go to `settings.json`, which reloads on save; [the default settings](settings.default.json) explain each option.
 
-Install [Themis Icons](https://github.com/tkutsu/themis-icons) for the monochrome app icons in the GIFs above. Other themes work by changing the icon-theme pragma in `shell.qml`.
+For the monochrome app icons in the GIFs, install [Themis Icons](https://github.com/tkutsu/themis-icons), or set another theme in the icon-theme pragma in `shell.qml`.
 
-Optional features need their own tools or services. File search uses `fd`, the calculator uses `libqalculate`, and clipboard history uses `cliphist` with a running watcher. Mail, Tasks, Calendar and YouTube require your own Google OAuth client. The [setup guide](docs/setup.md#optional-features) covers those dependencies, [Google sign-in](docs/setup.md#google-setup) and the [launcher shortcuts](docs/setup.md#launcher-reference). [Android phone alarms](docs/automate-setup.md) have a separate tutorial.
+File search, the calculator, clipboard history and a few other features need their own tools, and Mail, Tasks, Calendar and YouTube need your own Google OAuth client. The [setup guide](docs/setup.md) covers [those dependencies](docs/setup.md#optional-features), [Google sign-in](docs/setup.md#google-setup) and [the launcher](docs/setup.md#launcher-reference). [Android phone alarms](docs/automate-setup.md) have their own tutorial.
 
 ## Troubleshooting
 
-| Symptom | What To Check |
-| --- | --- |
-| The bar is gone, and the launcher with it | Press Super+Ctrl+Alt+V to start it again. If it stops again, open a terminal with your Hyprland terminal shortcut, which works without the bar, and follow the next row. |
-| The bar does not start | Run `qs -n` from a terminal inside Hyprland and read the first error. Check `qs --version` and `hyprctl version`. For a running instance, `qs log -t 80` shows recent messages. |
-| It broke after a Qt update | [Quickshell must match the installed Qt libraries](https://github.com/quickshell-mirror/quickshell/blob/master/BUILD.md). Fully update Arch with `sudo pacman -Syu`; if you built Quickshell yourself, rebuild it against the updated Qt. |
-| Glass looks flat, or outside clicks do not close popovers | Check that `hypr/dewdrop.lua` is loaded, reload Hyprland and check for config errors. Turn off Reduce Transparency in Dewdrop's settings if you want the glass effect. |
-| A password prompt comes from another app, or none comes at all | Only one polkit agent can run per session. Remove other agents from your exec lines, such as `polkit-kde-authentication-agent-1` or `hyprpolkitagent`, then restart Hyprland. If Dewdrop could not register, `qs log -t 80` shows a polkit warning. |
-| Icons are boxes or look different | Install Symbols Nerd Font for glyphs and Themis Icons for the app icons shown here. Relaunch the bar after installing fonts or an icon theme. |
-| A module is missing or clipboard history is empty | Open the drawer: every module is listed there, even one with nothing to show yet. Check its place in Settings and its [optional dependencies](docs/setup.md#optional-features). Wi-Fi needs NetworkManager running when the bar starts. Clipboard history needs `wl-paste --watch cliphist store` running in your session. |
-| Google features fail or ask to reconnect every week | Enable the relevant APIs in your Cloud project and follow [Google setup](docs/setup.md#google-setup). Google [expires these refresh tokens after 7 days in Testing](https://developers.google.com/identity/protocols/oauth2/#expiration). Run `scripts/gtasks-auth --check` from the repo to check the saved sign-in. |
+If something doesn't work, see [Troubleshooting](docs/troubleshooting.md).
 
 ## License
 
-[MIT](LICENSE). Bundled icons and the alarm sound retain their own licenses; see [icon credits](assets/icons/README.md).
+[MIT](LICENSE). Bundled icons and the alarm sound keep their own licenses; see [icon credits](assets/icons/README.md).

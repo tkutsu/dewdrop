@@ -35,6 +35,24 @@ They are layers, not windows, so while one is open `hl.get_active_window()` stil
 
 Keep the top of `gaps_out` at 8, which is `Theme.barMargin`. The bar reserves its strip counting on that gap, so another value changes the space under the bar.
 
+### Polkit agent
+
+Dewdrop is your polkit agent, and only one agent can run per session. Remove the line that starts your old one, wherever your config keeps its exec lines: `hyprland.lua` itself, or a file it loads such as `exec.lua`. Common agents are `polkit-kde-authentication-agent-1`, `hyprpolkitagent`, `polkit-gnome-authentication-agent-1` and `lxpolkit`. If a package such as `hyprpolkitagent` runs as a systemd user service instead, turn it off:
+
+```sh
+systemctl --user disable --now hyprpolkitagent
+```
+
+### Lock screen and hypridle
+
+Dewdrop's lock screen takes over from hyprlock or any other locker. If the bar crashes while the screen is locked, it starts again and locks again. If you use hypridle, replace its `lock_cmd` (often `pidof hyprlock || hyprlock`) so idle locking and `loginctl lock-session` use Dewdrop too, and lock before sleep so a wake never opens on the desktop:
+
+```ini
+# ~/.config/hypr/hypridle.conf, under general
+lock_cmd = qs ipc call lock lock
+before_sleep_cmd = loginctl lock-session
+```
+
 ## Icons
 
 Dewdrop does not require Themis. The SVGs used for its own controls are bundled in `icons/`; other interface glyphs use Symbols Nerd Font. Application icons in the left bar, the launcher and notifications come from an icon theme, and missing icons fall back to a generic glyph.
