@@ -14,9 +14,22 @@ from test_support import copy_shell, shell_env
 QML = r'''import QtQuick
 import QtTest
 import Quickshell
+import Quickshell.Io
 import qs.src.services
 ShellRoot {
     id: root
+    FileView { id: creds; path: Quickshell.shellPath('gtasks.json'); blockWrites: true }
+    // Answers the refresh asked again once the new credentials are read,
+    // inside the fixture's 30 ms deadline.
+    property bool answering: false
+    property string answered: ""
+    Connections { target: Google; function onReady() {
+        if (!root.answering) return;
+        const last = FakeRequest.requests.length - 1;
+        root.answered = FakeRequest.requests[last].body;
+        root.answering = false;
+        FakeRequest.reply(last, {access_token: 'new account', expires_in: 3600});
+    } }
     property int successes: 0
     property int failures: 0
     property string reason: ""
@@ -102,6 +115,18 @@ ShellRoot {
             check(successes === beforeSuccesses + 1 && !Google.needsConsent,
                 'primary Calendar event write grant is accepted: ' + scope);
         }
+        clear();Google.scopeMissing = false;next = FakeRequest.requests.length;
+        const beforeSwitch = successes;
+        Google.authorised(go, fail);
+        creds.setText(JSON.stringify({client_id: 'fixture', client_secret: 'x', refresh_token: 'second'}));
+        Google.reread();
+        FakeRequest.reply(next, {access_token: 'old account', expires_in: 3600});
+        check(Google.accessToken === '' && successes === beforeSwitch && FakeRequest.requests.length === next + 1,
+            'a refresh that lands after another sign-in is dropped');
+        answering = true;
+        test.tryVerify(() => !answering, 1000);
+        check(answered.includes('refresh_token=second') && Google.accessToken === 'new account' && successes === beforeSwitch + 1,
+            'and asked again with the new sign-in once it is read, for the same caller');
         console.log('PASS: Google refresh lifecycle');
     }
     Timer { interval: 100; running: true; onTriggered: {

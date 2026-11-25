@@ -30,6 +30,12 @@ Singleton {
     // phone until the next poll put it back, which reads as the bar losing a
     // click.
     property var waiting: []
+    // Counts the credentials read. A refresh that lands after another
+    // sign-in was read is for the account before it: dropped, and asked again.
+    property int generation: 0
+    // Between reread() and the file landing: no refresh goes out on the old
+    // sign-in still loaded; callers wait for the new one.
+    property bool reading: false
     readonly property int refreshTimeoutMs: 15000
     readonly property int requestTimeoutMs: 15000
 
@@ -83,12 +89,25 @@ Singleton {
     // `loaded` is `ready`, which has every service fetch again under the new
     // grant.
     function reread(): void {
+        root.generation++;
+        root.reading = true;
         root.accessToken = "";
         root.tokenExpiry = 0;
         root.tokenDead = false;
         root.scopeMissing = false;
         root.wrongAccount = false;
         credentials.reload();
+    }
+
+    // The file is in (or gone): whoever waited on it asks again.
+    function read(): void {
+        if (!root.reading)
+            return;
+        root.reading = false;
+        const queued = root.waiting;
+        root.waiting = [];
+        for (const held of queued)
+            root.authorised(held.go, held.bad);
     }
 
     // --- requests ------------------------------------------------------------
@@ -175,9 +194,10 @@ Singleton {
                 go: then,
                 bad: fail
             }]);
-        if (root.refreshing)
+        if (root.refreshing || root.reading)
             return;
         root.refreshing = true;
+        const generation = root.generation;
 
         // Clear the queue before callbacks, so a caller may safely request another refresh.
         const settle = function (why, status) {
@@ -186,7 +206,9 @@ Singleton {
             root.waiting = [];
             for (const held of queued) {
                 try {
-                    if (why !== "")
+                    if (generation !== root.generation)
+                        root.authorised(held.go, held.bad);
+                    else if (why !== "")
                         held.bad(why, status ?? 0);
                     else
                         held.go();
@@ -201,6 +223,10 @@ Singleton {
             refresh_token: adapter.refresh_token,
             grant_type: "refresh_token"
         }, root.refreshTimeoutMs, function (xhr) {
+            if (generation !== root.generation) {
+                settle("");
+                return;
+            }
             if (xhr.status < 200 || xhr.status >= 300) {
                 // 400 here is the refresh token itself being dead — revoked, or
                 // expired because the app was left in Testing. Nothing the bar
@@ -246,7 +272,11 @@ Singleton {
         watchChanges: true
         onFileChanged: root.reread()
 
-        onLoaded: root.ready()
+        onLoaded: {
+            root.read();
+            root.ready();
+        }
+        onLoadFailed: root.read()
 
         JsonAdapter {
             id: adapter

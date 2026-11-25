@@ -626,9 +626,10 @@ Singleton {
                     urls: [url],
                     got: text => read[url] = root.parseStories(text, url)
                 })), () => {
-            // An empty answer is not in hand either; it may be a broken page.
-            // A feed not in hand keeps what it last said.
-            const fresh = url => read[url]?.items.length > 0;
+            // A page that is no feed (a broken one) is not in hand either; a
+            // feed with nothing in it is, and empties its row. A feed not in
+            // hand keeps what it last said.
+            const fresh = url => read[url]?.feed === true;
             root.sources = urls.map(url => {
                 const source = fresh(url) ? read[url] : root.sources.find(s => s.url === url);
                 return source ? Object.assign({ url: url }, source) : null;
@@ -951,7 +952,9 @@ Singleton {
             .sort((a, b) => b.points - a.points || b.published - a.published);
         return {
             title: root.tag(head, "title"),
-            items: items
+            items: items,
+            // RSS, Atom or RDF, stories or not.
+            feed: /<(?:rss|feed|rdf:RDF)[\s>]/.test(xml)
         };
     }
 

@@ -350,8 +350,8 @@ ShellRoot {
             Feeds.sources = [];
 
             // No feed answering is trouble, and not a good fetch; one dead
-            // feed among the rest is neither. A feed not in hand, or empty,
-            // keeps what it last said.
+            // feed among the rest is neither. A feed not in hand, or a page
+            // that is no feed, keeps what it last said.
             let answers = {};
             Feeds.feedStub = function (method, url, payload, headers, timeout, accepted, failed) {
                 if (answers[url] === undefined)
@@ -374,7 +374,15 @@ ShellRoot {
                 "one dead feed is no trouble and keeps its stories");
             answers["https://a.example/rss"] = "<html>Bad gateway</html>";
             Feeds.refresh();
-            root.check(Feeds.sources.length === 2, "an empty answer keeps the feed's stories");
+            root.check(Feeds.sources.length === 2, "an answer that is no feed keeps the feed's stories");
+            answers["https://a.example/rss"] = "<rss><channel><title>A</title></channel></rss>";
+            Feeds.updatedAt = 0;
+            Feeds.refresh();
+            root.check(Feeds.sources.length === 1 && Feeds.sources[0].url === "https://b.example/rss"
+                && Feeds.trouble === "" && Feeds.updatedAt > 0,
+                "a feed with no stories left empties its row, and is no trouble");
+            answers = {"https://a.example/rss": hn, "https://b.example/rss": hn};
+            Feeds.refresh();
             answers = {};
             Feeds.updatedAt = 0;
             Feeds.refresh();
