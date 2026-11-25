@@ -10,17 +10,17 @@ Switch workspaces and a glass mark slides over to the new one, bouncing a little
 
 ![The workspace pill, with the glass mark moving between apps as the wallpaper slides behind it](docs/media/workspaces.gif)
 
-Controls you don't reach for often fold into a drawer on the right. Drag modules around to reorder them, and pin the ones you want to keep in view.
+Controls you don't reach for often fold into a drawer. Drag modules to reorder them or to move them between the centre and the right, and pin the ones you want to keep in view.
 
 ![The right drawer opening to show the rest of the controls](docs/media/drawer.gif)
 
-Music and timers merge into the clock, open up when you need them, and slide out of the way when a notification comes in.
+The clock and the weather hold the middle. Music joins them on the left, the bell and timers on the right, each only while it has something going. A notification slides out beside them, then folds into the bell.
 
-![Music, the clock and a timer merging and splitting, then a notification sliding in beside them](docs/media/pills.gif)
+![The centre pill: a timer coming out, music pausing and resuming, then a notification folding into the bell](docs/media/pills.gif)
 
 ## The Launcher
 
-One shortcut for most of the small stuff: open apps, preview files, jump to a window, search your clipboard, read mail right there, browse your music, do some quick maths, or type in a task, timer, alarm or calendar event. Type `?` to see every mode.
+One shortcut for most of the small stuff: open apps, preview files, jump to a window, search your clipboard, pick an emoji, read mail right there, browse your music, do some quick maths, or type in a task, timer, alarm or calendar event. Type `?` to see every mode, with your Hyprland keybinds under them.
 
 ![A keyboard launcher tour through every mode](docs/media/launcher-tour.gif)
 
@@ -116,7 +116,7 @@ Optional features need their own tools or services. File search uses `fd`, the c
 | Glass looks flat, or outside clicks do not close popovers | Check that `hypr/dewdrop.lua` is loaded, reload Hyprland and check for config errors. Turn off Reduce Transparency in Dewdrop's settings if you want the glass effect. |
 | A password prompt comes from another app, or none comes at all | Only one polkit agent can run per session. Remove other agents from your exec lines, such as `polkit-kde-authentication-agent-1` or `hyprpolkitagent`, then restart Hyprland. If Dewdrop could not register, `qs log -t 80` shows a polkit warning. |
 | Icons are boxes or look different | Install Symbols Nerd Font for glyphs and Themis Icons for the app icons shown here. Relaunch the bar after installing fonts or an icon theme. |
-| A module is missing or clipboard history is empty | Check its visibility in Settings and its [optional dependencies](docs/setup.md#optional-features). Wi-Fi needs NetworkManager running when the bar starts. Clipboard history needs `wl-paste --watch cliphist store` running in your session. |
+| A module is missing or clipboard history is empty | Open the drawer: every module is listed there, even one with nothing to show yet. Check its place in Settings and its [optional dependencies](docs/setup.md#optional-features). Wi-Fi needs NetworkManager running when the bar starts. Clipboard history needs `wl-paste --watch cliphist store` running in your session. |
 | Google features fail or ask to reconnect every week | Enable the relevant APIs in your Cloud project and follow [Google setup](docs/setup.md#google-setup). Google [expires these refresh tokens after 7 days in Testing](https://developers.google.com/identity/protocols/oauth2/#expiration). Run `scripts/gtasks-auth --check` from the repo to check the saved sign-in. |
 
 ## License
