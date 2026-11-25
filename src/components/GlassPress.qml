@@ -20,11 +20,25 @@ Singleton {
     property var window: null
     property point at: Qt.point(0, 0)
     property bool down: false
+    // Whether the button is still held. A quick click lets go before the
+    // glass has lit or the spring has run, so the glass stays down for at
+    // least `minHold` and lets go after that if the button is up by then.
+    property bool held: false
+    readonly property int minHold: 150
 
     // The icon went while held (a tray app quit mid-press): its release
     // never comes, and the glass would glow there until the next press.
-    onItemChanged: if (!root.item)
-        root.down = false
+    onItemChanged: if (!root.item) {
+        root.held = false;
+        root.down = false;
+    }
+
+    Timer {
+        id: hold
+        interval: root.minHold
+        onTriggered: if (!root.held)
+            root.down = false
+    }
 
     // Under Reduce motion the glass still lights, but the icon does not shrink.
     readonly property bool pops: !Theme.reduceMotion
@@ -54,11 +68,16 @@ Singleton {
         root.item = icon;
         root.window = win;
         root.at = at;
+        root.held = true;
         root.down = true;
+        hold.restart();
     }
 
     function release(icon: Item): void {
-        if (icon === root.item)
+        if (icon !== root.item)
+            return;
+        root.held = false;
+        if (!hold.running)
             root.down = false;
     }
 
