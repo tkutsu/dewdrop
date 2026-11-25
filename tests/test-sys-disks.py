@@ -15,7 +15,7 @@ ShellRoot {
     function check(ok, message) { console.log((ok ? "PASS: " : "FAIL: ") + message); }
     Process {
         id: real
-        command: ["sh", "-c", Sys.diskScript]
+        command: ["sh", Sys.sampler, "disks"]
         stdout: StdioCollector { id: out }
         onExited: code => {
             check(code === 0 && out.text.split("\n").every(l => l === "" || l.split("\t").length >= 4),

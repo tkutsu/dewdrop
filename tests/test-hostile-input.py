@@ -42,7 +42,7 @@ ShellRoot {
                 check(said("Setting not saved").length === 1, "a change made meanwhile is refused out loud");
                 Settings.userBroken = false;
 
-                // What procScript prints for a process called "a\n;echo PWNED; x".
+                // What sys-sample.sh procs prints for a process called "a\n;echo PWNED; x".
                 Sys.parseProcs("10 1 5 100 bash\n4242 (a 0  a\n;echo 1 0 300 ;echo PWNED; x\n11 10 7 200 Web Content\n");
                 check(Sys._procs.map(p => p.pid).join() === "10,11", "a process named with a newline adds no rows");
                 const find = Sys.exeCommand(["10", "11"]);
