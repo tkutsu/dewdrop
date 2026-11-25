@@ -119,3 +119,51 @@ function scorePrepped(q, raw, t) {
     else if (t.startsWith(q)) s += 20;       // prefix match
     return s;
 }
+
+// --- terms against fields -----------------------------------------------
+
+// Space-separated terms are ANDed: "fire priv" finds Firefox's private-window entry. Each term scores
+// against every field it is given and keeps its best hit; a term that
+// lands nowhere makes the whole thing a miss, which is null rather than a
+// low score — the caller drops those entirely.
+//
+// Folding is the expensive half of a score (above), so both sides
+// are folded before the loop rather than inside it: the terms once per
+// keystroke by prepTerms, the fields once per list by prepFields — or,
+// for a list too short to be worth keeping, once per call by matchScore.
+function prepTerms(query) {
+    return query.split(/\s+/).filter(t => t.length).map(t => prepQuery(t));
+}
+
+// [text, weight] pairs to [raw, low, weight], with the empty ones gone: a
+// missing generic name is not a field that fails to match, it is no field.
+function prepFields(fields) {
+    const out = [];
+    for (const [text, weight] of fields) {
+        if (!text)
+            continue;
+        const p = prep(text);
+        out.push([p[0], p[1], weight]);
+    }
+    return out;
+}
+
+function matchScore(terms, fields) {
+    return matchPrepped(terms, prepFields(fields));
+}
+
+function matchPrepped(terms, fields) {
+    let total = 0;
+    for (const term of terms) {
+        let best = null;
+        for (const [raw, low, weight] of fields) {
+            const v = scorePrepped(term, raw, low);
+            if (v !== null && (best === null || v * weight > best))
+                best = v * weight;
+        }
+        if (best === null)
+            return null;
+        total += best;
+    }
+    return total;
+}

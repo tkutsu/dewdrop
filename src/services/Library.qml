@@ -281,7 +281,7 @@ Singleton {
         if (!root.loaded)
             return [];
 
-        const terms = Launcher.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         if (!terms.length)
             return [];
 

@@ -233,6 +233,7 @@ def main():
         services = target / "src/services"
         services.mkdir()
         (services / "LauncherMusic.qml").write_text((ROOT / "src/services/LauncherMusic.qml").read_text())
+        (target / "src/lib/Fuzzy.js").write_text((ROOT / "src/lib/Fuzzy.js").read_text())
         mocks = {
             "Launcher": '''property string query: ""
                 readonly property string musicPrefix: "#"
@@ -243,8 +244,6 @@ def main():
                 readonly property var results: musicMode ? LauncherMusic.results(classification.text) : []
                 readonly property var selected: results[index] ?? null
                 function classifyQuery(text) { return {text: text.slice(1).trim()}; }
-                function prepTerms(text) { return text.toLowerCase().split(" "); }
-                function matchScore(terms, fields) { return terms.every(term => fields[0][0].toLowerCase().includes(term)) ? 1 : null; }
                 function noteRow(glyph, title) { return {kind: "note", glyph, title}; }
                 onQueryChanged: LauncherMusic.route(query.startsWith("#"), classifyQuery(query).text)''',
             "Mpd": '''property bool connected: false

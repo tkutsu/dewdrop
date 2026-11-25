@@ -111,6 +111,7 @@ MOCKS = {
 
 TEST = '''import QtQuick
 import Quickshell
+import "src/lib/Fuzzy.js" as Fuzzy
 import Quickshell.Bluetooth as BlueZ
 import QtTest
 import qs.src.core
@@ -566,7 +567,7 @@ ShellRoot {
             check(LauncherMusic.activated === "play", "Ctrl+Enter play dispatch preserved");
 
             const addressEntry = (address, name, at) => ({address, name, at,
-                fields: Launcher.prepFields([[address, 1], [name, 0.8]])});
+                fields: Fuzzy.prepFields([[address, 1], [name, 0.8]])});
             MailAddresses.entries = [
                 addressEntry("rsample@example.com", "Robin Sample", 20),
                 addressEntry("unrelated@example.com", "Other Person", 10)
@@ -766,6 +767,7 @@ def check_file_dispatch(target):
 
 MENU_TEST = '''import QtQuick
 import QtQuick.Window
+import "src/lib/Fuzzy.js" as Fuzzy
 import QtTest
 import Quickshell
 import qs.src.core
@@ -793,7 +795,7 @@ ShellRoot {
         check(Launcher.rowActions[3].key === "search-sender" && Launcher.rowActions[3].live,
             "mail offers search sender as an optional action");
         MailAddresses.entries = [{address: "rsample@example.com", name: "Robin", at: 0,
-            fields: Launcher.prepFields([["rsample@example.com", 1], ["Robin", 0.8]])}];
+            fields: Fuzzy.prepFields([["rsample@example.com", 1], ["Robin", 0.8]])}];
         input.adopt("@sampl"); keys.wait(10);
         check(Launcher.rowActions[0].label === "Search Sender" && Launcher.actionIndex === 0 && !Launcher.rowActions[1].live,
             "matching addresses select search sender and disable the inline reader");
@@ -851,7 +853,7 @@ ShellRoot {
         check(Launcher.actionIndex === 2, "music restores expand after an empty search");
 
         input.adopt("/"); keys.wait(30);
-        const path = {path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1]])};
+        const path = {path: Settings.home + "/notes.txt", dir: false, fields: Fuzzy.prepFields([["notes.txt", 1]])};
         LauncherFiles.pathCache = [path]; keys.wait(10);
         Launcher.moveAction(1); Launcher.moveAction(1);
         check(Launcher.chosenAction === "copy-path", "files remember copy path");
@@ -1122,7 +1124,7 @@ ShellRoot {
             check(menu.frecencyOpen && Launcher.shown && box.height > 54, "empty Enter discloses without launching");
             check(box.y === pinned && list.enabled, "expansion pins the query and enables results");
             check(divider.opacity === 1 && hint.visible, "empty expanded list shows mode hints and divider");
-            menu.toggleList(); keys.wait(250);
+            keys.keyClick(Qt.Key_Escape); keys.wait(250);
             keys.keyClick(Qt.Key_Down); keys.wait(240);
             check(menu.frecencyOpen && Launcher.index === 0, "first Down discloses without skipping the first result");
             keys.keyClick(Qt.Key_Down);
@@ -1225,7 +1227,7 @@ ShellRoot {
             check(!LauncherMail.open, "back to list button closes the inline reader");
             Email.threads = [];
             input.adopt("/"); keys.wait(30);
-            LauncherFiles.pathCache = [{path: Settings.home + "/notes.txt", dir: false, fields: Launcher.prepFields([["notes.txt", 1], [Settings.home + "/notes.txt", 0.5]])}];
+            LauncherFiles.pathCache = [{path: Settings.home + "/notes.txt", dir: false, fields: Fuzzy.prepFields([["notes.txt", 1], [Settings.home + "/notes.txt", 0.5]])}];
             keys.wait(30);
             check(Launcher.rowActions.map(action => action.key).join(",") === "activate,play,copy-path,complete-path", "file shortcuts have matching buttons: " + JSON.stringify(Launcher.selected));
             keys.keyClick(Qt.Key_Backtab, Qt.ShiftModifier); keys.keyClick(Qt.Key_Return);
@@ -1298,12 +1300,12 @@ ShellRoot {
             input.adopt(""); keys.wait(250);
             check(box.height === 54, "clearing typed search returns to compact");
             check(divider.opacity === 0 && hint.visible, "collapse removes divider and restores hints");
-            menu.toggleList(); keys.wait(45); menu.toggleList(); keys.wait(30); menu.toggleList(); keys.wait(250);
+            keys.keyClick(Qt.Key_Return); keys.wait(45); keys.keyClick(Qt.Key_Escape); keys.wait(30); keys.keyClick(Qt.Key_Return); keys.wait(250);
             check(menu.expanded && box.height === box.restHeight, "interrupted expansion settles at current intent");
             Launcher.hide(); keys.wait(120); Launcher.show(); keys.wait(400);
             check(!menu.frecencyOpen && box.height === 54 && box.width === 680 && menu.contentAlpha === 1 && menu.exitBlur === 0 && !box.layer.enabled, "reopening during exit restores compact geometry and sharp rendering");
             Settings.reduceMotion = true;
-            menu.toggleList(); keys.wait(20);
+            keys.keyClick(Qt.Key_Return); keys.wait(20);
             check(box.height === box.restHeight && menu.elevation === 1 && menu.rowsReveal === 1, "reduced motion applies geometry immediately");
             Launcher.hide(); keys.wait(20); Launcher.show(); keys.wait(20);
             check(menu.widthRatio === 1 && menu.contentAlpha === 1 && box.width === 680 && menu.exitBlur === 0, "reduced motion skips lateral spring and defocus");

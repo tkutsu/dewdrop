@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.src.core
 import qs.src.services
+import "../lib/Fuzzy.js" as Fuzzy
 
 // The keybind cheatsheet under the ? mode: Hyprland's own list of binds, read
 // each time the mode opens, so a bind added to the config shows up without a
@@ -105,7 +106,7 @@ Singleton {
                     // modes above it and "?hypr" narrows to the binds.
                     title: "Hyprland: " + r.title,
                     combo: r.submap ? r.submap + "  ·  " + combo : combo,
-                    fields: Launcher.prepFields([[r.title, 1], [combo, 0.8], [r.submap, 0.6], ["Hyprland", 0.4]])
+                    fields: Fuzzy.prepFields([[r.title, 1], [combo, 0.8], [r.submap, 0.6], ["Hyprland", 0.4]])
                 };
             })
         };
@@ -114,10 +115,10 @@ Singleton {
     // Narrowed and ranked once something is typed; the config's own order
     // otherwise, which is how its author grouped them.
     function results(query) {
-        const terms = Launcher.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         const scored = [];
         root.binds.forEach((b, i) => {
-            const m = terms.length ? Launcher.matchPrepped(terms, b.fields) : -i;
+            const m = terms.length ? Fuzzy.matchPrepped(terms, b.fields) : -i;
             if (m !== null)
                 scored.push({ s: m, b: b });
         });

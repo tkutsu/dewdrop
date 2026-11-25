@@ -64,15 +64,6 @@ OverlayWindow {
         input.forceActiveFocus();
     }
 
-    function toggleList() {
-        if (root.expanded) {
-            root.frecencyOpen = false;
-            input.adopt("");
-        } else {
-            root.browse();
-        }
-    }
-
     // The selected row's actions are the launcher's (Launcher.rowActions);
     // the box only draws them and passes the keys on. Shortcut-only ones
     // come last and stay out of the bar.

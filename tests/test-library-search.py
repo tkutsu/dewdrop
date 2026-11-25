@@ -75,11 +75,9 @@ def main():
         (services / "Mpd.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool connected: false; property var playlists: []; property var queue: []; property int songPos: -1; signal databaseChanged() }\n')
         (services / "Launcher.qml").write_text('''pragma Singleton
 import QtQuick
-import "../lib/Fuzzy.js" as Fuzzy
 QtObject {
     readonly property int maxResults: 50
     readonly property bool musicMode: false
-    function prepTerms(query) { return query.split(/\\s+/).filter(t => t.length).map(t => Fuzzy.prepQuery(t)); }
 }
 ''')
         (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { readonly property var glyph: ({artist: "artist", album: "album", track: "track"}) }\n')

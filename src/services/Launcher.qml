@@ -338,53 +338,7 @@ Singleton {
             provider.cancel();
     }
 
-    // --- matching ------------------------------------------------------------
-
-    // Space-separated terms are ANDed: "fire priv" finds Firefox's private-window entry. Each term scores
-    // against every field it is given and keeps its best hit; a term that
-    // lands nowhere makes the whole thing a miss, which is null rather than a
-    // low score — the caller drops those entirely.
-    //
-    // Folding is the expensive half of a score (see Fuzzy.js), so both sides
-    // are folded before the loop rather than inside it: the terms once per
-    // keystroke by prepTerms, the fields once per list by prepFields — or,
-    // for a list too short to be worth keeping, once per call by matchScore.
-    function prepTerms(query) {
-        return query.split(/\s+/).filter(t => t.length).map(t => Fuzzy.prepQuery(t));
-    }
-
-    // [text, weight] pairs to [raw, low, weight], with the empty ones gone: a
-    // missing generic name is not a field that fails to match, it is no field.
-    function prepFields(fields) {
-        const out = [];
-        for (const [text, weight] of fields) {
-            if (!text)
-                continue;
-            const p = Fuzzy.prep(text);
-            out.push([p[0], p[1], weight]);
-        }
-        return out;
-    }
-
-    function matchScore(terms, fields) {
-        return root.matchPrepped(terms, root.prepFields(fields));
-    }
-
-    function matchPrepped(terms, fields) {
-        let total = 0;
-        for (const term of terms) {
-            let best = null;
-            for (const [raw, low, weight] of fields) {
-                const v = Fuzzy.scorePrepped(term, raw, low);
-                if (v !== null && (best === null || v * weight > best))
-                    best = v * weight;
-            }
-            if (best === null)
-                return null;
-            total += best;
-        }
-        return total;
-    }
+    // --- modes ---------------------------------------------------------------
 
     // Each explicit mode builds rows from the text prepared by classifyQuery.
     // The explicit calculator accepts whatever qalc says; automatic maths is strict.
@@ -441,7 +395,7 @@ Singleton {
 
     // Rank apps, power commands, desktop controls and paired Bluetooth devices.
     function mainResults(query) {
-        const terms = root.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         const scored = root.appMatches(terms).concat(root.powerMatches(terms), root.desktopMatches(terms), root.bluetoothMatches(terms));
         scored.sort((a, b) => b.s - a.s || (a.row.sortTitle ?? a.row.title).localeCompare(b.row.sortTitle ?? b.row.title));
         return scored.slice(0, root.maxResults).map(x => x.row);
@@ -471,7 +425,7 @@ Singleton {
             rows.push({
                 id: e.id,
                 entry: e,
-                fields: root.prepFields([[e.name, 1], [e.genericName, 0.8]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
+                fields: Fuzzy.prepFields([[e.name, 1], [e.genericName, 0.8]].concat(Array.from(e.keywords ?? []).map(k => [k, 0.6])).concat(Array.from(e.categories ?? []).map(c => [c, 0.4])))
             });
             if (!Settings.showDesktopActions)
                 continue;
@@ -483,7 +437,7 @@ Singleton {
                     id: id,
                     entry: e,
                     action: a,
-                    fields: root.prepFields([[a.name, 1], [e.name, 0.5]])
+                    fields: Fuzzy.prepFields([[a.name, 1], [e.name, 0.5]])
                 });
             }
         }
@@ -505,7 +459,7 @@ Singleton {
             let s = f;
 
             if (terms.length) {
-                const m = root.matchPrepped(terms, a.fields);
+                const m = Fuzzy.matchPrepped(terms, a.fields);
                 if (m === null)
                     continue;
                 // Logarithmic, so history breaks ties between comparable
@@ -544,7 +498,7 @@ Singleton {
         for (const action of root.desktopCommands) {
             if (action.available === false || Settings.hiddenApps.includes("desktop:" + action.key))
                 continue;
-            const m = terms.length ? root.matchScore(terms, [[action.title, 1], [action.aliases, 0.8]]) : 0;
+            const m = terms.length ? Fuzzy.matchScore(terms, [[action.title, 1], [action.aliases, 0.8]]) : 0;
             if (m === null)
                 continue;
             const f = root.frecency("desktop:" + action.key);
@@ -572,7 +526,7 @@ Singleton {
             const title = (connecting ? "Connecting to " : disconnecting ? "Disconnecting " : device.connected ? "Disconnect " : "Connect ") + device.name;
             const status = connecting ? "Connecting…" : disconnecting ? "Disconnecting…" : device.pairing ? "Pairing…" : device.connected ? "Connected" : "Disconnected";
             const aliases = "bluetooth wireless connect disconnect" + (device.icon?.startsWith("audio-") ? " headphones headset audio" : "");
-            const m = terms.length ? root.matchScore(terms, [[device.name, 1], ["Connect " + device.name, 1], ["Disconnect " + device.name, 1], [aliases, 0.8]]) : 0;
+            const m = terms.length ? Fuzzy.matchScore(terms, [[device.name, 1], ["Connect " + device.name, 1], ["Disconnect " + device.name, 1], [aliases, 0.8]]) : 0;
             if (m !== null)
                 scored.push({
                     s: m + root.frecencyWeight * Math.log2(1 + root.frecency("bluetooth:" + device.address)),
@@ -651,7 +605,7 @@ Singleton {
                 continue;
             // Aliases score just under the name, so a command found by its
             // real name outranks one found by a nickname.
-            const m = root.matchScore(terms, [[a.name, 1]].concat((root.powerAliases[a.key] ?? "").split(" ").map(w => [w, 0.85])));
+            const m = Fuzzy.matchScore(terms, [[a.name, 1]].concat((root.powerAliases[a.key] ?? "").split(" ").map(w => [w, 0.85])));
             if (m === null)
                 continue;
             scored.push({
@@ -665,7 +619,7 @@ Singleton {
     // The ! mode: the whole menu in its own order, narrowed and ranked once
     // something is typed.
     function powerResults(query) {
-        const terms = root.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         if (!terms.length)
             return Power.actions.filter(a => !Settings.hiddenApps.includes("power:" + a.key)).map(a => root.powerRow(a));
         return root.powerMatches(terms).sort((a, b) => b.s - a.s).map(x => x.row);
@@ -676,12 +630,12 @@ Singleton {
     // A row per mode, its symbol in the row's badge. Enter goes there. The
     // keybinds follow, so one search answers both "how do I get to…" questions.
     function helpResults(query) {
-        const terms = root.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         const keys = root.launcherKeys
-            .filter(([combo, what]) => !terms.length || root.matchScore(terms, [[what, 1], [combo, 0.8], ["Launcher", 0.4]]) !== null)
+            .filter(([combo, what]) => !terms.length || Fuzzy.matchScore(terms, [[what, 1], [combo, 0.8], ["Launcher", 0.4]]) !== null)
             .map(([combo, what]) => ({ kind: "keybind", glyph: Theme.glyph.keyboard, title: "Launcher: " + what, subtitle: combo }));
         return root.modes
-            .filter(m => m.prefix !== root.helpPrefix && (!terms.length || root.matchScore(terms, [[m.about, 1], [m.hint, 1]]) !== null))
+            .filter(m => m.prefix !== root.helpPrefix && (!terms.length || Fuzzy.matchScore(terms, [[m.about, 1], [m.hint, 1]]) !== null))
             .map(m => ({ kind: "help", badge: m.prefix, title: m.about, prefix: m.prefix }))
             .concat(keys, LauncherKeys.results(query));
     }
@@ -742,13 +696,13 @@ Singleton {
 
         // Day and task list names route the add; only the title filters tasks.
         const core = parsedTask?.title ?? "";
-        const terms = root.prepTerms(core);
+        const terms = Fuzzy.prepTerms(core);
         const scored = [];
 
         for (const task of Tasks.ordered) {
             let s = 0;
             if (terms.length) {
-                const m = root.matchScore(terms, [[task.title, 1], [task.notes, 0.5]]);
+                const m = Fuzzy.matchScore(terms, [[task.title, 1], [task.notes, 0.5]]);
                 if (m === null)
                     continue;
                 s = m;
@@ -871,7 +825,7 @@ Singleton {
     // window found by name is still found where it lives. Special workspaces
     // go last, being the ones nobody keeps in their head.
     function windowResults(query) {
-        const terms = root.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         const rows = [];
 
         for (const t of Hyprland.toplevels.values) {
@@ -884,7 +838,7 @@ Singleton {
             const entry = cls ? DesktopEntries.heuristicLookup(cls) : null;
             const app = entry?.name || cls;
 
-            if (terms.length && root.matchScore(terms, [[t.title, 1], [app, 0.8], [cls, 0.6]]) === null)
+            if (terms.length && Fuzzy.matchScore(terms, [[t.title, 1], [app, 0.8], [cls, 0.6]]) === null)
                 continue;
 
             rows.push({

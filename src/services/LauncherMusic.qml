@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import qs.src.core
 import qs.src.services
+import "../lib/Fuzzy.js" as Fuzzy
 
 // The launcher's # mode: the queue, all tracks with a space, or a library search.
 //
@@ -174,9 +175,9 @@ Singleton {
                     hit: h,
                     s: h.score
                 }));
-        const terms = Launcher.prepTerms(root.query);
+        const terms = Fuzzy.prepTerms(root.query);
         for (const name of Mpd.playlists) {
-            const m = Launcher.matchScore(terms, [[name, 1]]);
+            const m = Fuzzy.matchScore(terms, [[name, 1]]);
             if (m !== null)
                 scored.push({
                     playlist: name,

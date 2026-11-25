@@ -45,7 +45,7 @@ Singleton {
                 Launcher.noteRow(Theme.glyph.clipboard, "No clipboard history", "Needs cliphist storing")
             ];
 
-        const terms = Launcher.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         const scored = [];
         const entries = root.clipEntries;
 
@@ -56,7 +56,7 @@ Singleton {
             let s = -i;
 
             if (terms.length) {
-                const m = Launcher.matchPrepped(terms, e.fields);
+                const m = Fuzzy.matchPrepped(terms, e.fields);
                 if (m === null)
                     continue;
                 s = m - i * 0.1;
@@ -101,7 +101,7 @@ Singleton {
                     id: l.slice(0, l.indexOf("\t")),
                     line: l,
                     text: body,
-                    fields: Launcher.prepFields([[body, 1]])
+                    fields: Fuzzy.prepFields([[body, 1]])
                 };
             })
         }

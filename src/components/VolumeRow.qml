@@ -11,12 +11,8 @@ Row {
     property bool iconBeforeReadout: false
     property alias sliderWidth: slider.width
     property alias readoutWidth: readoutSpace.width
-    property alias iconWidth: speaker.width
-    property alias iconFontSize: glyph.fontSize
     property alias wheelStep: slider.wheelStep
     property alias wheelSnap: slider.wheelSnap
-    property alias readoutColor: readout.color
-    property alias readoutFontSize: readout.font.pixelSize
     signal moved(real value)
     signal iconTapped
 

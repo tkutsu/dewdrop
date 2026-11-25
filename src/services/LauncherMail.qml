@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import qs.src.core
+import "../lib/Fuzzy.js" as Fuzzy
 
 // Mail search, inline reading and activation for the launcher.
 Singleton {
@@ -56,12 +57,12 @@ Singleton {
     function addressResults(query) {
         if (/["{}():]|(?:^|\s)(?:OR|AND|NOT)(?:\s|$)/.test(query))
             return [];
-        const terms = Launcher.prepTerms(query);
+        const terms = Fuzzy.prepTerms(query);
         if (!terms.length)
             return [];
         const scored = [];
         for (const entry of MailAddresses.entries) {
-            const score = Launcher.matchPrepped(terms, entry.fields);
+            const score = Fuzzy.matchPrepped(terms, entry.fields);
             if (score !== null)
                 scored.push({entry, score});
         }

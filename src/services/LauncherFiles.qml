@@ -59,7 +59,7 @@ Singleton {
                         dir: l.charAt(0) === "d",
                         path: path,
                         base: base,
-                        fields: Launcher.prepFields([[base, 1], [path, 0.5]])
+                        fields: Fuzzy.prepFields([[base, 1], [path, 0.5]])
                     };
                 });
             }
@@ -182,7 +182,7 @@ Singleton {
             let s = -i;
 
             if (terms.length) {
-                const m = Launcher.matchPrepped(terms, e.fields);
+                const m = Fuzzy.matchPrepped(terms, e.fields);
                 if (m === null)
                     continue;
                 // Rank still breaks ties between equally good matches, gently.
