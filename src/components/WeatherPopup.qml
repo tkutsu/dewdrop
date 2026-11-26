@@ -12,7 +12,12 @@ Popup {
     readonly property string todayDate: Weather.today?.date ?? ""
     onTodayDateChanged: if (root.todayDate) root.picked = ""
     readonly property int selected: Math.max(0, root.picked ? Weather.days.findIndex(day => day.date === root.picked) : Weather.days.indexOf(Weather.today))
-    readonly property var day: Weather.days[root.selected] ?? null
+    readonly property int dayWidth: Math.floor((root.bodyWidth - week.spacing * (Weather.days.length - 1)) / Math.max(1, Weather.days.length))
+    // The day under the pointer, counting the gaps after each day so a sweep
+    // across the week never falls back to the picked one in between.
+    readonly property int hoveredDay: weekHover.hovered ? Math.max(0, Math.min(Weather.days.length - 1, Math.floor(weekHover.point.position.x / (root.dayWidth + week.spacing)))) : -1
+    // The graphs preview the day under the pointer, then return to the picked one.
+    readonly property var day: Weather.days[root.hoveredDay >= 0 ? root.hoveredDay : root.selected] ?? null
     readonly property var hours: root.day?.hours ?? []
     onDayChanged: Qt.callLater(reel.syncDay)
 
@@ -205,6 +210,9 @@ Popup {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: wheel => forecastScroll.scroll(wheel.angleDelta.y)
             }
+            HoverHandler {
+                id: weekHover
+            }
 
             Repeater {
                 model: Weather.days
@@ -214,7 +222,7 @@ Popup {
                     required property int index
                     name: "Forecast for " + daily.modelData.date
                     Accessible.description: daily.modelData.description ? `Predominant daylight: ${daily.modelData.description}. Most severe: ${daily.modelData.severeDescription}.` : ""
-                    width: Math.floor((root.bodyWidth - week.spacing * (Weather.days.length - 1)) / Math.max(1, Weather.days.length))
+                    width: root.dayWidth
                     height: root.panelHeight
                     onTapped: root.picked = daily.modelData.date
 
