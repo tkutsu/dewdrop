@@ -12,9 +12,6 @@ Item {
     property bool feelsLike: false
     property real contentOffset: 0
     property bool showAxes: true
-    property bool showReadout: true
-    property Item readoutSource: graph
-    readonly property var readoutHour: graph.readoutSource.selectedHour
     property MouseArea cursor: plotHover
     // Whether the week has any rain to draw (Weather.rainyWeek). A week
     // without drops the graph; a dry day in a wet week keeps its place and
@@ -355,6 +352,26 @@ Item {
                 }
             }
         }
+
+        // The readings' hour at the foot of the line, or "Now" under today's
+        // dots; it slides with its day and stays inside the plot's ends.
+        Item {
+            x: graph.plotLeft
+            width: graph.plotWidth
+            height: readoutTime.implicitHeight
+            clip: true
+
+            PopupText {
+                id: readoutTime
+                readonly property real markX: graph.selectedHour ? (graph.selectedHour.at - graph.start) / Math.max(1, graph.end - graph.start) * graph.plotWidth : 0
+                x: graph.contentOffset + Math.max(0, Math.min(graph.plotWidth - width, markX - width / 2))
+                visible: graph.selectedHour !== null
+                textFormat: Text.RichText
+                text: graph.hoveredHour ? Settings.timeMarkup(Weather.hourDisplay(graph.hoveredHour), font.pixelSize) : "Now"
+                color: Theme.label2
+                font.pixelSize: Theme.footnoteSize
+            }
+        }
     }
 
     // A single hover surface over the icons and the plots keeps the readings
@@ -378,17 +395,5 @@ Item {
         visible: graph.hoveredHour !== null && x >= graph.plotLeft && x <= graph.plotLeft + graph.plotWidth
         color: Theme.stroke
         opacity: 0.7
-    }
-
-    // The readings' hour, in the corner left of the icons; it stays put while
-    // the days slide, like the axes.
-    PopupText {
-        x: 8
-        y: stack.y + strip.y + (strip.height - height) / 2
-        visible: graph.showReadout
-        textFormat: Text.RichText
-        text: graph.readoutHour ? graph.readoutSource.hoveredHour ? Settings.timeMarkup(Weather.hourDisplay(graph.readoutHour), font.pixelSize) : "Now" : ""
-        color: Theme.label2
-        font.pixelSize: Theme.captionSize
     }
 }

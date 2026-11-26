@@ -158,7 +158,6 @@ Popup {
             scaleHours: reel.scaleHours
             showRain: Weather.rainyWeek
             feelsLike: Weather.feelsLike
-            readoutSource: incoming.hoveredHour !== null ? incoming : outgoing
         }
 
         WeatherGraph {
@@ -170,7 +169,6 @@ Popup {
             scaleHours: reel.scaleHours
             showRain: Weather.rainyWeek
             showAxes: false
-            showReadout: false
             feelsLike: Weather.feelsLike
             cursor: outgoing.cursor
             enabled: false

@@ -31,7 +31,7 @@ def main():
                 source = source.replace("id: strip\n", 'id: strip\n            objectName: "strip"\n')
                 for item in ("seriesTitle", "plot"):
                     source = source.replace(f"id: {item}\n", f'id: {item}\n                        objectName: "{item}"\n')
-                source = source.replace('text: graph.readoutHour ?', 'objectName: "readoutTime"\n        text: graph.readoutHour ?')
+                source = source.replace('id: readoutTime\n', 'id: readoutTime\n                objectName: "readoutTime"\n')
                 source = source.replace('text: plot.marked ?', 'objectName: "reading"\n                                text: plot.marked ?')
                 source = source.replace('y: plots.y + 2\n', 'objectName: "cursorLine"\n        y: plots.y + 2\n', 1)
                 source = source.replace('id: plots\n', 'id: plots\n            objectName: "plots"\n')
@@ -157,8 +157,10 @@ ShellRoot {
                     mouseMove(plots, graph.plotLeft + (graph.plotWidth + graph.contentOffset) / 2, gapY);
                     wait(20);
                     check(graph.hoveredHour !== null && named(graph, "cursorLine").visible, "cursor line follows the forecast under the pointer during the slide");
-                    check(outgoing.readoutSource === graph && outgoing.readoutHour === graph.hoveredHour, "stationary readout follows the forecast under the pointer during the slide");
-                    check(named(outgoing, "readoutTime").text === Weather.sayHour(graph.hoveredHour), "corner time updates to the cursor's hour during the slide");
+                    const time = named(graph, "readoutTime"), line = named(graph, "cursorLine");
+                    const timeCentre = time.mapToItem(graph, time.width / 2, 0);
+                    check(time.visible && time.text === Weather.sayHour(graph.hoveredHour), "the hovered day's time follows the cursor during the slide");
+                    check(Math.abs(timeCentre.x - line.x) <= 1 && timeCentre.y >= line.y + line.height, "the time sits at the foot of the cursor line during the slide");
                 }
                 slide.resume();
             }
@@ -187,7 +189,6 @@ ShellRoot {
                 check(direction * outgoing.contentOffset < 0 && direction * incoming.contentOffset > 0, "old day exits as new day enters from the opposite edge");
                 check(Math.abs(Math.abs(incoming.contentOffset - outgoing.contentOffset) - outgoing.plotWidth) < 0.01, "plots form a continuous reel with no gap");
                 check(outgoing.x === 0 && incoming.x === 0, "graph frames stay in place");
-                check(named(outgoing, "readoutTime").x === 8 && named(outgoing, "readoutTime").visible && !named(incoming, "readoutTime").visible, "one stationary corner time stays visible during the slide");
                 const title = named(outgoing, "seriesTitle"), tick = named(outgoing, "axisTick");
                 const titlePosition = title.mapToItem(reel, 0, 0), tickPosition = tick.mapToItem(reel, 0, 0);
                 check(title.visible && tick.visible && !named(incoming, "seriesTitle").visible && !named(incoming, "axisTick").visible, "one stationary set of Y-axis labels is visible");
@@ -251,6 +252,9 @@ ShellRoot {
                     for (const plot of namedAll(graph, "plot"))
                         check(Math.abs(plot.markX - (at - graph.start) / (graph.end - graph.start) * plot.width) < 0.01,
                             "every dot moves to the selected hourly tick");
+                    const time = named(graph, "readoutTime");
+                    check(time.visible && time.text === "Now" && time.mapToItem(graph, 0, 0).y > plots.y + plots.height,
+                        "idle, Now sits under the plots");
                     check(Weather.thisHour.at === Math.floor(now / 3600) * 3600,
                         "rounding the graph does not advance the shared current hour");
                 }
@@ -294,7 +298,7 @@ ShellRoot {
                 const strip = named(graph, "strip");
                 mouseMove(strip, strip.width / 4, strip.height / 2);
                 wait(30);
-                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text === Weather.sayHour(graph.hours[6]) && Weather.sayHour(graph.hours[6]) === "06:00", "hovering the icon ranges picks their hour for the corner time");
+                check(graph.hoveredHour === graph.hours[6] && named(graph, "readoutTime").text === Weather.sayHour(graph.hours[6]) && Weather.sayHour(graph.hours[6]) === "06:00", "hovering the icon ranges picks their hour for the time under the line");
                 check(namedAll(graph, "reading").length === 3, "every plot has a reading");
                 for (const reading of namedAll(graph, "reading")) {
                     const plot = reading.parent;
