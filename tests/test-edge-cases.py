@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Exercise the audit's small correctness and lifecycle fixes in isolation."""
+"""Edge cases and lifecycles too small for a test of their own, in one shell.
+
+Outside the shell: OAuth saves (private file, old token kept on failure),
+consent arguments, fd word order and dashed queries, parent-death helpers.
+In it: drive polling only while Devices is open and the udev monitor's
+restart, impossible task dates, library names like "constructor", a slider
+saving on a fast close, the calendar releasing its month, Glyph swapping
+font and artwork lazily, Ink measuring ink rather than boxes, BarText
+measured only when shown, and glass lighting stopping when still.
+"""
 
 import json
 import ctypes
@@ -50,23 +59,23 @@ ShellRoot {
         Glyph { id: glyph; text: "A"; height: 30 }
         Connections {
             target: glyph
-            function onAuditArtChanged() { suite.checkArtSource(); }
+            function onTestArtChanged() { suite.checkArtSource(); }
         }
         Connections {
-            target: glyph.auditArt
+            target: glyph.testArt
             function onSourceChanged() { suite.checkArtSource(); }
         }
-        BarText { id: inkText; text: "audit measured text"; opticalCentre: true; visible: false }
+        BarText { id: inkText; text: "measured text"; opticalCentre: true; visible: false }
         TestCase { id: test; when: false }
         Component { id: sliderFactory; SettingSlider {} }
     }
     Component { id: calendarFactory; Calendar { anchorItem: fixtureAnchor; visible: false; requestedVisible: false; probes: false } }
     function checkArtSource() {
-        const source = String(glyph.auditArt?.source ?? "");
+        const source = String(glyph.testArt?.source ?? "");
         if (source !== "" && !source.startsWith("file:")) suite.invalidSources++;
     }
     function fittedIcons(item) {
-        return (item.objectName === "audit-fitted-icon" ? 1 : 0)
+        return (item.objectName === "test-fitted-icon" ? 1 : 0)
             + item.children.reduce((count, child) => count + fittedIcons(child), 0);
     }
     function check(ok, message) { if (!ok) throw Error(message); console.log("PASS: " + message); }
@@ -76,18 +85,18 @@ ShellRoot {
             try {
                 test.tryVerify(() => Drives.drives.length === 1, 1000);
                 check(Drives.drives.length === 1 && Drives.drives[0].disk === "/dev/fixture", "drive monitor reads isolated lsblk data");
-                let refreshes = Drives.auditRefreshes;
+                let refreshes = Drives.testRefreshes;
                 test.wait(120);
-                check(Drives.auditRefreshes === refreshes, "drive usage is not polled with its popup closed");
+                check(Drives.testRefreshes === refreshes, "drive usage is not polled with its popup closed");
                 OpenPopup.owner = fixtureAnchor;
                 test.wait(120);
-                check(Drives.auditRefreshes >= refreshes + 2, "opening Devices refreshes and keeps usage polling");
+                check(Drives.testRefreshes >= refreshes + 2, "opening Devices refreshes and keeps usage polling");
                 OpenPopup.owner = null;
-                refreshes = Drives.auditRefreshes;
+                refreshes = Drives.testRefreshes;
                 test.wait(120);
-                check(Drives.auditRefreshes === refreshes, "closing Devices stops usage polling");
-                Drives.auditSettle.restart(); test.wait(90);
-                check(Drives.auditRefreshes === refreshes + 1, "hotplug still refreshes drives with the popup closed");
+                check(Drives.testRefreshes === refreshes, "closing Devices stops usage polling");
+                Drives.testSettle.restart(); test.wait(90);
+                check(Drives.testRefreshes === refreshes + 1, "hotplug still refreshes drives with the popup closed");
                 for (const title of ["we need milk", "mo money", "tom needs milk"])
                     check(Tasks.parse(title).title === title && Tasks.parse(title).day === "", "ordinary task title: " + title);
                 check(Tasks.parse("tomorrow milk").day === "2026-10-14", "tomorrow remains a date keyword");
@@ -121,36 +130,36 @@ ShellRoot {
                 check(fittedIcons(glyph) === 0, "font glyphs allocate no artwork objects");
                 const artwork = String(Qt.resolvedUrl("fixture.svg"));
                 glyph.text = artwork;
-                check(glyph.shown === "A" && glyph.auditLabel.visible && glyph.auditArt === null,
+                check(glyph.shown === "A" && glyph.testLabel.visible && glyph.testArt === null,
                     "font glyph stays displayed while artwork is pending");
                 Ink.remember(artwork, 1, 0, 1); test.wait(50);
-                check(glyph.shown === artwork && glyph.auditArt.visible && !glyph.auditLabel.visible, "measured artwork replaces the font glyph");
+                check(glyph.shown === artwork && glyph.testArt.visible && !glyph.testLabel.visible, "measured artwork replaces the font glyph");
                 check(fittedIcons(glyph) === 1, "settled artwork holds one picture");
                 glyph.text = "B"; test.wait(50);
-                check(glyph.shown === "B" && glyph.auditLabel.visible && glyph.auditArt === null, "switching back to a font unloads artwork");
+                check(glyph.shown === "B" && glyph.testLabel.visible && glyph.testArt === null, "switching back to a font unloads artwork");
                 check(fittedIcons(glyph) === 0, "returning to a font leaves no artwork objects");
                 check(suite.invalidSources === 0, "artwork never receives a font codepoint as its source");
                 glyph.text = artwork + "#em";
                 check(Ink._queue.some(job => job.source === artwork + "#em" && job.size === glyph.fontSize), "pending font-cut artwork is measured at the font size");
                 Ink.remember(artwork + "#em", 1, 0, 1); test.wait(50);
-                check(glyph.auditArt.size === glyph.fontSize, "displayed font-cut artwork keeps its font size");
+                check(glyph.testArt.size === glyph.fontSize, "displayed font-cut artwork keeps its font size");
                 glyph.text = artwork;
                 check(glyph.shown === artwork, "an already measured drawing replaces the font cut at once");
                 test.wait(50);
-                check(glyph.auditArt.size === Math.round(glyph.fontSize * Theme.iconSize / Theme.glyphSize), "ordinary artwork uses the theme icon size");
+                check(glyph.testArt.size === Math.round(glyph.fontSize * Theme.iconSize / Theme.glyphSize), "ordinary artwork uses the theme icon size");
 
                 const unseen = String(Qt.resolvedUrl("fixture-unseen.svg"));
                 glyph.text = unseen;
                 check(glyph.shown === artwork && fittedIcons(glyph) === 1, "unmeasured replacement keeps the displayed artwork");
                 test.tryVerify(() => glyph.shown === unseen && Ink.extentOf(unseen) > 0, 2000);
                 check(fittedIcons(glyph) === 1 && Math.abs(Ink.extentOf(unseen) - 14 / 20) < 0.08, "Ink measures the artwork's ink, not its box");
-                check(glyph.implicitWidth === glyph.auditArt.inkWidth
-                    && glyph.auditArt.mapToItem(glyph, 0, 0).x === -glyph.auditArt.inkX,
+                check(glyph.implicitWidth === glyph.testArt.inkWidth
+                    && glyph.testArt.mapToItem(glyph, 0, 0).x === -glyph.testArt.inkX,
                     "lazy artwork keeps tight ink layout");
-                check(glyph.auditArt.mapToItem(glyph, 0, 0).y === Math.floor((glyph.height - glyph.auditArt.height) / 2),
+                check(glyph.testArt.mapToItem(glyph, 0, 0).y === Math.floor((glyph.height - glyph.testArt.height) / 2),
                     "lazy artwork stays vertically centred");
                 glyph.tightWidth = false;
-                check(glyph.implicitWidth === glyph.auditArt.implicitWidth, "ordinary box width remains available");
+                check(glyph.implicitWidth === glyph.testArt.implicitWidth, "ordinary box width remains available");
                 glyph.tightWidth = true;
                 glyph.text = String(Qt.resolvedUrl("fixture-aborted.svg")); test.wait(1);
                 glyph.text = "C"; test.wait(50);
@@ -160,18 +169,18 @@ ShellRoot {
                 check(!(("glyph:" + inkText.inkKey) in Ink._asked), "hidden text is not measured");
                 inkText.visible = true;
                 test.tryVerify(() => inkText.inked !== null, 2000);
-                check(inkText.inked.top >= Ink.glyphPad && inkText.inked.bottom < inkText.auditDrawn.height, "visible text is measured inside its padded Text");
+                check(inkText.inked.top >= Ink.glyphPad && inkText.inked.bottom < inkText.testDrawn.height, "visible text is measured inside its padded Text");
                 inkText.visible = false;
 
                 GlassLight.track(fixtureAnchor, Qt.point(20, 10)); test.wait(1400);
-                check(GlassLight.presence === 1 && !GlassLight.auditFrames.running, "stationary hover stops per-frame lighting work");
+                check(GlassLight.presence === 1 && !GlassLight.testFrames.running, "stationary hover stops per-frame lighting work");
                 GlassLight.track(fixtureAnchor, Qt.point(40, 20));
-                check(GlassLight.auditFrames.running, "pointer movement restarts lighting");
+                check(GlassLight.testFrames.running, "pointer movement restarts lighting");
                 test.wait(800);
-                check(GlassLight.x === 40 && GlassLight.y === 20 && !GlassLight.auditFrames.running, "lighting snaps to the new position and stops");
+                check(GlassLight.x === 40 && GlassLight.y === 20 && !GlassLight.testFrames.running, "lighting snaps to the new position and stops");
                 GlassLight.leave(fixtureAnchor); test.wait(1400);
-                check(GlassLight.presence === 0 && !GlassLight.auditFrames.running, "pointer leave finishes fading and stops");
-                console.log("PASS: audit fixes");
+                check(GlassLight.presence === 0 && !GlassLight.testFrames.running, "pointer leave finishes fading and stops");
+                console.log("PASS: edge cases");
             } catch (error) { console.log("FAIL: " + error + "\\n" + error.stack); }
             Qt.quit();
         }
@@ -276,7 +285,7 @@ def check_parent_death():
 
 
 def main():
-    with tempfile.TemporaryDirectory(prefix="quickshell-audit-fixes-") as folder:
+    with tempfile.TemporaryDirectory(prefix="quickshell-edge-cases-") as folder:
         target = fixture_root(folder)
         files = subprocess.check_output(["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard"], text=True)
         for name in files.splitlines():
@@ -295,22 +304,22 @@ def main():
         (target / "src/services/Mpd.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool connected: false; signal databaseChanged }')
         (target / "src/services/Network.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property bool online: false }')
         source = (target / "src/services/Drives.qml").read_text().replace("interval: 5000", "interval: 50").replace("interval: 800", "interval: 50")
-        source = source.replace("id: root", "id: root\n    property int auditRefreshes: 0\n    property alias auditSettle: settle", 1)
-        source = source.replace("function refresh(): void {", "function refresh(): void {\n        root.auditRefreshes++;")
+        source = source.replace("id: root", "id: root\n    property int testRefreshes: 0\n    property alias testSettle: settle", 1)
+        source = source.replace("function refresh(): void {", "function refresh(): void {\n        root.testRefreshes++;")
         (target / "src/services/Drives.qml").write_text(source)
         (target / "bin").mkdir()
         monitor_log = target / "monitor.log"
-        (target / "bin/udevadm").write_text('#!/bin/sh\nif [ ! -s "$QS_AUDIT_MONITOR_LOG" ]; then printf "first\\n" >> "$QS_AUDIT_MONITOR_LOG"; exit 1; fi\nprintf "retry\\n" >> "$QS_AUDIT_MONITOR_LOG"\nexec sleep 30\n')
+        (target / "bin/udevadm").write_text('#!/bin/sh\nif [ ! -s "$QS_TEST_MONITOR_LOG" ]; then printf "first\\n" >> "$QS_TEST_MONITOR_LOG"; exit 1; fi\nprintf "retry\\n" >> "$QS_TEST_MONITOR_LOG"\nexec sleep 30\n')
         (target / "bin/lsblk").write_text('#!/bin/sh\nprintf \'{"blockdevices":[{"path":"/dev/fixture","type":"disk","size":1000,"tran":"usb","fstype":"ext4","mountpoint":"/fixture","fssize":1000,"fsused":200}]}\\n\'\n')
         for name in ("udevadm", "lsblk"):
             (target / "bin" / name).chmod(0o700)
-        source = (target / "src/components/FittedIcon.qml").read_text().replace("id: root", 'id: root\n    objectName: "audit-fitted-icon"', 1)
+        source = (target / "src/components/FittedIcon.qml").read_text().replace("id: root", 'id: root\n    objectName: "test-fitted-icon"', 1)
         (target / "src/components/FittedIcon.qml").write_text(source)
-        source = (target / "src/components/Glyph.qml").read_text().replace("id: root", "id: root\n    readonly property var auditArt: art.item\n    property alias auditLabel: label", 1)
+        source = (target / "src/components/Glyph.qml").read_text().replace("id: root", "id: root\n    readonly property var testArt: art.item\n    property alias testLabel: label", 1)
         (target / "src/components/Glyph.qml").write_text(source)
-        source = (target / "src/components/BarText.qml").read_text().replace("id: root", "id: root\n    property alias auditDrawn: drawn", 1)
+        source = (target / "src/components/BarText.qml").read_text().replace("id: root", "id: root\n    property alias testDrawn: drawn", 1)
         (target / "src/components/BarText.qml").write_text(source)
-        source = (target / "src/components/GlassLight.qml").read_text().replace("id: root", "id: root\n    property alias auditFrames: frames", 1).replace("FrameAnimation {", "FrameAnimation {\n        id: frames", 1)
+        source = (target / "src/components/GlassLight.qml").read_text().replace("id: root", "id: root\n    property alias testFrames: frames", 1).replace("FrameAnimation {", "FrameAnimation {\n        id: frames", 1)
         (target / "src/components/GlassLight.qml").write_text(source)
         (target / "fixture.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="white"/></svg>')
         for name in ("fixture-unseen.svg", "fixture-aborted.svg"):
@@ -320,7 +329,7 @@ def main():
         (target / "runtime").mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", LC_ALL="C.UTF-8", XDG_RUNTIME_DIR=str(target / "runtime"), XDG_DATA_HOME=str(target / "data"), XDG_STATE_HOME=str(target / "state"), XDG_CACHE_HOME=str(target / "cache"))
         env["PATH"] = str(target / "bin") + os.pathsep + env["PATH"]
-        env["QS_AUDIT_MONITOR_LOG"] = str(monitor_log)
+        env["QS_TEST_MONITOR_LOG"] = str(monitor_log)
         for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
             env.pop(key, None)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=12)
@@ -329,7 +338,7 @@ def main():
         assert monitor_log.read_text().splitlines() == ["first", "retry"], "drive monitor must restart after an unexpected exit"
         print("PASS: failed USB monitor restarts once and keeps running")
         errors = ("FAIL:", "ReferenceError:", "TypeError:", "Binding loop", "Unable to assign", "Cannot open:")
-        return 0 if result.returncode == 0 and "PASS: audit fixes" in output and not any(error in output for error in errors) else 1
+        return 0 if result.returncode == 0 and "PASS: edge cases" in output and not any(error in output for error in errors) else 1
 
 
 if __name__ == "__main__":
