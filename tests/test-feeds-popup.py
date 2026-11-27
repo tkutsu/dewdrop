@@ -18,6 +18,7 @@ import qs.src.components
 import qs.src.services
 ShellRoot {
     FloatingWindow {
+        readonly property ChoiceBlink choice: ChoiceBlink {}
         implicitWidth: 800; implicitHeight: 800
         FeedsPopup { id: popup }
         TestCase {

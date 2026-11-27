@@ -119,7 +119,7 @@ def main():
             path = target / filename
             source = path.read_text()
             if filename == "src/components/TimerPopup.qml":
-                source = source.replace("Popup {", "Column {\n    property bool morphs: false", 1)
+                source = source.replace("Popup {", "Column {\n    property bool morphs: false\n    readonly property ChoiceBlink choice: ChoiceBlink {}", 1)
             for name in names:
                 source = source.replace(f"id: {name}\n", f'id: {name}\n                objectName: "{name}"\n')
             path.write_text(source)

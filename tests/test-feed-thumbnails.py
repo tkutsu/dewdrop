@@ -71,6 +71,7 @@ import qs.src.services
 import qs.src.components
 ShellRoot {
     FloatingWindow {
+        readonly property ChoiceBlink choice: ChoiceBlink {}
         implicitWidth: 800; implicitHeight: 800
         Loader { id: loader; sourceComponent: FeedsPopup {} }
         Component { id: pressure; Image { sourceSize: Qt.size(2048, 2048); asynchronous: true } }

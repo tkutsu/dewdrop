@@ -23,10 +23,16 @@ ALL = STANDARD + AT_LEAST + WIDE + OWN
 
 # The window chrome is Popup.qml's business; here the body is all there is.
 POPUP = '''import QtQuick
+import Quickshell
 import qs.src.core
 Item {
     id: root
     property var screen: ({width: 1920, height: 1080})
+    // The real Popup is the window its buttons and rows find this on; a
+    // window without one still gives the popup's own code something to use.
+    readonly property ChoiceBlink ownChoice: ChoiceBlink {}
+    readonly property var choice: QsWindow.window?.choice ?? ownChoice
+    onRequestedVisibleChanged: if (!requestedVisible) choice.cancel()
     property Item anchorItem: null
     property real padding: Theme.popupPadding
     property real hPadding: padding
