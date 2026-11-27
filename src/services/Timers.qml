@@ -540,7 +540,7 @@ Singleton {
     // --- written down --------------------------------------------------------
     // No watchChanges: nothing else writes this file, and a watcher on a file
     // we save on every change is a reload for every keystroke that reaches it.
-    FileView {
+    StateFile {
         id: file
 
         path: Paths.state("timers.json")

@@ -95,16 +95,20 @@ Singleton {
     }
 
     // The folder is listed only once the last visit is known. On the first run
-    // there is none, and what is already there is not new.
-    FileView {
+    // there is none, and what is already there is not new. The same for a
+    // file that did not parse.
+    StateFile {
         id: state
 
         path: Paths.state("downloads.json")
         printErrors: false
-        onLoaded: poll.running = true
+        onLoaded: {
+            if (state.setAside)
+                root.clear();
+            poll.running = true;
+        }
         onLoadFailed: {
-            stored.seen = Date.now() / 1000;
-            state.writeAdapter();
+            root.clear();
             poll.running = true;
         }
 

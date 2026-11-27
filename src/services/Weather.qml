@@ -360,7 +360,7 @@ Singleton {
     Component.onCompleted: saved.text()
     onFeelsLikeChanged: if (root.restored) saved.writeAdapter()
 
-    FileView {
+    StateFile {
         id: saved
         path: Paths.state("weather.json")
         blockLoading: true

@@ -54,7 +54,7 @@ Singleton {
         root.setMode(key, root.pinned(key) ? "auto" : "pinned");
     }
 
-    FileView {
+    StateFile {
         id: file
 
         path: Paths.state("drawer.json")

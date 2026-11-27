@@ -31,7 +31,7 @@ Singleton {
         return true;
     }
 
-    FileView {
+    StateFile {
         id: view
 
         path: Paths.state("modules.json")

@@ -1021,7 +1021,7 @@ Singleton {
             file.writeAdapter();
     }
 
-    FileView {
+    StateFile {
         id: file
 
         path: Paths.state("feeds.json")

@@ -716,7 +716,7 @@ GoogleService {
         return p.task.day === "" ? `Adding ${p.task.title}` : `Adding ${p.task.title} for ${root.sayDay(p.task.day)}`;
     }
 
-    FileView {
+    StateFile {
         id: foldFile
         path: Paths.state("tasks.json")
         printErrors: false
