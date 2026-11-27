@@ -26,6 +26,9 @@ Item {
     property string addLabel: "New"
     property string addName: "Add " + root.title.toLowerCase()
     readonly property alias addButton: action
+    // Marks the header for the buttons in it, which flash before they act
+    // (PopupButton.flashes).
+    readonly property bool popupHeader: true
 
     signal add
 

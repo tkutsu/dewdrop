@@ -54,11 +54,9 @@ ShellRoot {
             check(control.mapToItem(popup.contentItem, 0, 0).y + control.height <= metadata.mapToItem(popup.contentItem, 0, 0).y,
                 "the volume button leads the controls line, above the title and the artist");
             check(/^\d+%$/.test(control.label), "the volume button reads the volume");
-            mouseClick(control, control.width / 2, control.height / 2);
-            // A framed button flashes before it acts.
-            tryVerify(() => slider.visible, 700);
+            mouseClick(control, control.width / 2, control.height / 2); wait(30);
             check(slider.visible && !metadata.visible, "pressing the volume button puts its slider in place of artist and album");
-            mouseClick(control, control.width / 2, control.height / 2); tryVerify(() => !slider.visible, 700);
+            mouseClick(control, control.width / 2, control.height / 2); wait(30);
             check(!slider.visible && metadata.visible, "pressing it again puts artist and album back");
             mouseClick(control, control.width / 2, control.height / 2, Qt.RightButton); wait(30);
             check(Mpd.muteCount === 1 && !slider.visible, "a right click on the volume button mutes");

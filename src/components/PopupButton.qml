@@ -42,18 +42,26 @@ Item {
 
     // Lit under the pointer or when the keys reach it (PopupRow says how).
     property bool keyed: false
-    // The popup's ChoiceBlink (Popup.choice). A framed button flashes on it,
-    // off and on the way a menu item does, and acts once the flash is over;
-    // one whose press flashes something else (a notification's action
-    // flashes its card) sets `flashes: false` and starts that itself.
+    // The popup's ChoiceBlink (Popup.choice). A header's buttons (inside a
+    // PopupHeader) flash on it, off and on the way a menu item does, and act
+    // once the flash is over; every other button acts at once.
     property var blink: QsWindow.window?.choice ?? null
-    property bool flashes: root.framed
+    property bool flashes: false
     property bool chosen: root.blink?.item === root
     property bool blinkOn: root.blink?.lit ?? true
     readonly property var keyPress: root.live && root.name !== "" ? () => root.press() : null
     readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     signal tapped
+
+    // Looked up once: a header's buttons stay in its header.
+    Component.onCompleted: {
+        for (let p = root.parent; p; p = p.parent)
+            if (p.popupHeader === true) {
+                root.flashes = true;
+                break;
+            }
+    }
 
     // A press from the pointer, the keys or a screen reader.
     function press(): void {

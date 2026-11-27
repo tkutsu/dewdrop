@@ -38,18 +38,22 @@ ShellRoot {
     FloatingWindow {
         // What Popup.qml gives every popup.
         readonly property ChoiceBlink choice: ChoiceBlink {}
-        implicitWidth: 260
+        implicitWidth: 420
         implicitHeight: 60
         color: "black"
         Row {
             id: scene
             x: 10; y: 10
             spacing: 10
-            RefreshStamp { id: stamp; service: feed }
+            PopupHeader {
+                width: 200
+                title: "Feed"
+                PopupButton { id: other; framed: true; label: "Clear"; property int hits: 0; onTapped: hits++ }
+                RefreshStamp { id: stamp; service: feed }
+            }
             RetryButton { id: retry; service: broken }
             PopupButton { id: plain; glyph: Theme.glyph.close; property int hits: 0; onTapped: hits++ }
-            PopupButton { id: quiet; framed: true; flashes: false; label: "Open"; property int hits: 0; onTapped: hits++ }
-            PopupButton { id: other; framed: true; label: "Clear"; property int hits: 0; onTapped: hits++ }
+            PopupButton { id: quiet; framed: true; label: "Open"; property int hits: 0; onTapped: hits++ }
         }
     }
     TestCase { id: test; when: false }
@@ -59,7 +63,7 @@ ShellRoot {
     }
     function run() {
         stamp.press();
-        check(feed.refreshes === 0 && stamp.chosen && !stamp.blinkOn, "a framed button goes dark first instead of acting");
+        check(feed.refreshes === 0 && stamp.chosen && !stamp.blinkOn, "a header button goes dark first instead of acting");
         test.wait(Theme.blinkMs + 20);
         check(feed.refreshes === 0 && stamp.blinkOn, "then lights again, still waiting");
         test.tryVerify(() => feed.refreshes === 1, Theme.blinkMs + 200);
@@ -75,7 +79,7 @@ ShellRoot {
         plain.press();
         check(plain.hits === 1, "an unframed row control acts at once");
         quiet.press();
-        check(quiet.hits === 1 && !quiet.chosen, "a framed button that flashes something else acts at once");
+        check(quiet.hits === 1 && !quiet.chosen, "a framed button outside the header acts at once");
         stamp.press();
         other.press();
         check(stamp.chosen && !other.chosen, "one choice at a time in a popup");

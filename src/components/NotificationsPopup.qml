@@ -555,8 +555,6 @@ Popup {
                             required property var modelData
 
                             framed: true
-                            // The card flashes, as the choice it is.
-                            flashes: false
                             label: modelData.text.trim() || modelData.identifier
                             live: !root.choice.running
                             onTapped: {
