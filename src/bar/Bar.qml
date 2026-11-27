@@ -625,7 +625,6 @@ PanelWindow {
         edgeOffset: bar.width - bar.musicEdge + Theme.pillSpread
         progress: music.progress
         rate: music.rate
-        trackColor: music.accent
         trackWidth: music.handsOut ? Theme.pillTrack * 2 : Theme.pillTrack
 
         Behavior on trackWidth {

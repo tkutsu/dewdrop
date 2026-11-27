@@ -39,7 +39,7 @@ QtObject {
 }
 ''',
     'src/services/Launcher.qml': 'pragma Singleton\nimport QtQuick\nQtObject { property string taskPrefix: ""; function openWith(prefix) {} }\n',
-    'src/components/MusicPopup.qml': 'import QtQuick\nItem { property bool morphs; property color accent }\n',
+    'src/components/MusicPopup.qml': 'import QtQuick\nItem { property bool morphs }\n',
     'src/components/TimerPopup.qml': 'import QtQuick\nItem { property bool morphs }\n',
     'src/components/HoverPopup.qml': 'import QtQuick\nItem { property Item anchorItem; property bool hovered; property bool pressed; property bool open; property string text; property Component popup; property var item: null }\n',
 }

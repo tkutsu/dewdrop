@@ -117,8 +117,7 @@ Item {
     // clock at full strength read as the last of the pill to leave.
     property real trackOpacity: 1
 
-    // The colour of that line: white, or whatever colour the thing it
-    // measures has of its own (the music pill's sleeve).
+    // The colour of that line.
     property color trackColor: Theme.fg
 
     // Keep the path and its faint remainder aligned as the line thickens.

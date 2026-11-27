@@ -110,42 +110,6 @@ BarItem {
     property string outgoingLabel: ""
     property real titleMix: 1
 
-    // The track's colour, taken off the sleeve: the record's most vivid colour, lifted to read on dark
-    // glass. A grey or colourless sleeve, or none, leaves the line white.
-    ColorQuantizer {
-        id: palette
-        source: root.shownCover
-        depth: 3
-        rescaleSize: 64
-    }
-
-    property color accent: {
-        // Not left to the palette, which may go on holding the last sleeve's.
-        if (!root.shownCover)
-            return Theme.fg;
-        const colors = palette.colors;
-        let best = null;
-        // Below this much colour (saturation times brightness) a sleeve has
-        // none worth taking.
-        let most = 0.2;
-        for (let i = 0; i < colors.length; i++) {
-            const vivid = colors[i].hsvSaturation * colors[i].hsvValue;
-            if (vivid > most) {
-                best = colors[i];
-                most = vivid;
-            }
-        }
-        if (!best)
-            return Theme.fg;
-        return Qt.hsla(best.hslHue, Math.max(best.hslSaturation, 0.5), Math.min(Math.max(best.hslLightness, 0.65), 0.8), 1);
-    }
-
-    Behavior on accent {
-        ColorAnimation {
-            duration: Theme.foldMs
-        }
-    }
-
     // The titles overlap as the pill springs to the arriving title's width.
     function follow() {
         if (!Mpd.connected)
@@ -208,7 +172,6 @@ BarItem {
     // The pill turns into it rather than opening it (Popup.morphs): it is
     // where everything the pill does lives.
     popup: MusicPopup {
-        accent: root.accent
         morphs: true
     }
     // The title opens it (below), not the whole pill.

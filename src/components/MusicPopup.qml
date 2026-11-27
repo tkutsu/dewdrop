@@ -15,9 +15,6 @@ Popup {
     ChoiceBlink { id: choice }
 
     readonly property int columnWidth: 290
-    // The pill's colour for the track, taken off the sleeve (Music.accent),
-    // so the position here is the same line as the one round the pill.
-    property color accent: Theme.fg
     // Fixed readout space keeps both tracks aligned as the figures change.
     readonly property int readoutWidth: 84
     readonly property int sliderWidth: columnWidth - readoutWidth - 2
@@ -526,7 +523,8 @@ Popup {
                     // A stream has no length to seek through.
                     enabled: Mpd.duration > 0
                     knob: false
-                    fill: root.accent
+                    // White, the same line as the one round the pill.
+                    fill: Theme.fg
                     wave: waveform.samples.length > 0
                     waveSamples: waveform.samples
                     waveBass: waveform.bass
