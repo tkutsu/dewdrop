@@ -13,6 +13,7 @@ import shlex
 import socket
 import subprocess
 import tempfile
+import time
 
 
 FREQUENCIES = (31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
@@ -179,6 +180,20 @@ def systemctl(*args):
                           capture_output=True, text=True, timeout=25)
 
 
+def seek(player, elapsed):
+    """A song MPD has just restored is not seekable until its decoder opens it,
+    a moment after the restart (MPD 0.24.20 on)."""
+    deadline = time.monotonic() + 3
+    while True:
+        try:
+            player.command(f'seekcur {elapsed}')
+            return
+        except ValueError as error:
+            if 'Not seekable' not in str(error) or time.monotonic() > deadline:
+                raise
+            time.sleep(0.05)
+
+
 def restore_playback(path, status, song):
     """Resume the same song and preserve pause/stop even with restore_paused set."""
     with contextlib.closing(Mpd(path)) as player:
@@ -190,7 +205,7 @@ def restore_playback(path, status, song):
             raise ValueError("MPD did not restore the same song after restarting.")
         player.command('pause 1')
         if float(status.get('duration', '0')) > 0:
-            player.command('seekcur ' + str(float(status.get('elapsed', '0'))))
+            seek(player, float(status.get('elapsed', '0')))
         if status['state'] == 'play':
             player.command('pause 0')
 
