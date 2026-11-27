@@ -286,16 +286,4 @@ Popup {
             color: Weather.trouble ? Theme.warn : Theme.label2
         }
     }
-
-    PopupText {
-        width: root.bodyWidth
-        leftPadding: Theme.popupInset
-        rightPadding: Theme.popupInset
-        // With no forecast at all, the panel above already says this.
-        visible: Weather.days.length > 0 && (Weather.trouble !== "" || Weather.loading)
-        font.pixelSize: Theme.footnoteSize
-        color: Weather.trouble ? Theme.warn : Theme.label2
-        wrapMode: Text.WordWrap
-        text: Weather.trouble ? `${Weather.trouble} Showing the last forecast.` : "Updating the forecast…"
-    }
 }

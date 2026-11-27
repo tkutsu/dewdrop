@@ -50,7 +50,8 @@ Item {
         (components / "PopupHeader.qml").write_text('import QtQuick\nRow { property string title: ""; height: 24 }\n')
         (components / "PopupButton.qml").write_text('''import QtQuick
 Item { property bool framed: false; property bool lit: false; property bool live: true; property bool warn: false
-    property string label: ""; property string name: label; property string glyph: ""; signal tapped; width: 70; height: 24 }
+    property string label: ""; property string name: label; property string glyph: ""; property var alternates: []
+    function spin() {} function confirm() {} signal tapped; width: 70; height: 24 }
 ''')
         (components / "Glyph.qml").write_text('import QtQuick\nText { property real inkBase; property real turn; property int fontSize: 16; font.pixelSize: fontSize }\n')
         (components / "QueuedProcess.qml").write_text('''import QtQuick
@@ -75,7 +76,8 @@ QtObject {
     property int captionSize: 12; property int footnoteSize: 10; property int popupTextSize: 14
     property int popupGlyphSize: 16; property int iconSize: 20; property int figureTextSize: 34
     property string bodyFont: "sans-serif"
-    property var figures: ({}); property color fg: "white"; property color label2: "grey"
+    property var figures: ({}); property var glyph: ({ refresh: "r", warning: "!", check: "c" })
+    property color fg: "white"; property color label2: "grey"
     property color selection: "#333333"; property color selectionStrong: "#444444"
     property color stroke: "#666666"; property color warn: "orange"
 }
