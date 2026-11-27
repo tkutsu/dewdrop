@@ -98,15 +98,23 @@ Singleton {
 
     // A timeout of 0 would report idle at once, so Never turns the monitor
     // off instead.
+    //
+    // Caffeine turns both off too: Hyprland ignores the inhibitor of a
+    // surface it doesn't show, and a fullscreen window hides the bar's.
+    // Turned off with the screen already dark (Caffeine from a script or
+    // its timer), this one would never send "on", and a key press doesn't
+    // wake the screen by itself, so it sends that first.
     IdleMonitor {
-        enabled: Settings.displayOffMinutes > 0
+        enabled: Settings.displayOffMinutes > 0 && !Caffeine.active
         timeout: Settings.displayOffMinutes * 60
         respectInhibitors: true
         onIsIdleChanged: Hyprland.dispatch(`hl.dsp.dpms({ action = "${isIdle ? "off" : "on"}" })`)
+        onEnabledChanged: if (!enabled && isIdle)
+            Hyprland.dispatch(`hl.dsp.dpms({ action = "on" })`)
     }
 
     IdleMonitor {
-        enabled: Settings.sleepMinutes > 0
+        enabled: Settings.sleepMinutes > 0 && !Caffeine.active
         timeout: Settings.sleepMinutes * 60
         respectInhibitors: true
         onIsIdleChanged: if (isIdle)
