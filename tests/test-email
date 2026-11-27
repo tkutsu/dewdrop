@@ -778,7 +778,9 @@ class EmailTests(unittest.TestCase):
         self.assertTrue(editor.property('selectedText'))
         self.assertEqual(popup.property('expanded'), 't')
         QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, point)
-        self.assertTrue(APP.clipboard().text())
+        menu = next(child for child in editor.childItems() if child.property('rows') is not None)
+        self.assertTrue(menu.property('open'))
+        self.assertTrue(editor.property('selectedText'))
         self.assertEqual(popup.property('expanded'), 't')
         self.js('popup.expanded=""; sut.threads=[sut.rowOf({id:"replacement"},{messages:[{id:"new",internalDate:20,labelIds:["UNREAD"]}]})];')
         self.check('sut.requests.length === 1 && sut.requests[0].url.includes("messages/new?")')
@@ -1231,10 +1233,18 @@ class EmailTests(unittest.TestCase):
     def test_real_text_control_selection_copy_and_links(self):
         # Keep the real popup control; intercept the external browser boundary.
         body = BODY.replace('Qt.openUrlExternally(url);', 'link.activated = url;')
+        # The real TextMenu, without the qs import this engine lacks (Theme
+        # is a context property here).
+        parts = Path(tempfile.mkdtemp(prefix='email-text-menu-'))
+        self.addCleanup(shutil.rmtree, parts, True)
+        for name in ('TextMenu.qml', 'Linger.qml'):
+            (parts / name).write_text((CONFIG / 'src/components' / name).read_text().replace('import qs.src.core\n', ''))
         ui = self.create('''import QtQuick
             import "''' + QUrl.fromLocalFile(str(CONFIG / 'src/lib/EmailText.js')).toString() + '''" as EmailText
+            import "''' + QUrl.fromLocalFile(str(parts)).toString() + '''"
             Item {
                 id: link; width: 320; height: 240
+                readonly property var menu: messageText.children.find(child => child.rows !== undefined) ?? null
                 property string activated: ""
                 property var fetched: "Hello https://example.com?a=1&b=2\\nsecond line"
                 property var modelData: ({snippet:"fallback"})
@@ -1259,12 +1269,19 @@ class EmailTests(unittest.TestCase):
         QTest.mouseMove(window, QPoint(5, 8))
         QTest.qWait(5)
         self.assertEqual(window.cursor().shape(), Qt.IBeamCursor)
+        # A right click opens the read-only text menu and keeps the selection,
+        # wherever it lands; Copy All leaves that selection as it was.
+        self.check('ui.menu && JSON.stringify(ui.menu.rows) === JSON.stringify(["Copy", "Copy All", "", "Select All"])')
+        self.check('!ui.menu.can("Copy") && ui.menu.can("Copy All")')
         self.js('ui.editor.select(0,5);')
-        QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, QPoint(10, 8))
+        away = self.js('const r = ui.editor.positionToRectangle(ui.editor.length - 3); return Math.round(r.x) + "," + Math.round(r.y + r.height / 2);')
+        QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, QPoint(*map(int, away.split(','))))
+        self.check('ui.menu.open && ui.editor.selectedText === "Hello" && ui.menu.can("Copy")')
+        self.js('ui.menu.act("Copy"); ui.menu.close(true);')
         self.assertEqual(APP.clipboard().text(), 'Hello')
-        self.js('ui.editor.deselect();')
-        QTest.mouseClick(window, Qt.RightButton, Qt.NoModifier, QPoint(10, 8))
+        self.js('ui.menu.act("Copy All");')
         self.assertEqual(APP.clipboard().text(), 'Hello example.com\nsecond line')
+        self.check('ui.editor.selectionStart === 0 && ui.editor.selectionEnd === 5')
         self.js('ui.editor.deselect();')
         QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, QPoint(1, 8))
         QTest.mouseMove(window, QPoint(32, 8), 20)

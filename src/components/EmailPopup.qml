@@ -754,20 +754,11 @@ Popup {
                                                         }
                                                     }
 
-                                                    // Right-click copies the selection, or the whole message.
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        acceptedButtons: Qt.RightButton
-                                                        Accessible.role: Accessible.StaticText
-                                                        Accessible.name: "Message text"
-                                                        Accessible.description: "Pointer: right click"
-                                                        cursorShape: messageText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
-                                                        onClicked: {
-                                                            if (messageText.selectedText === "")
-                                                                messageText.selectAll();
-                                                            messageText.copy();
-                                                        }
-                                                    }
+                                                    Accessible.role: Accessible.StaticText
+                                                    Accessible.name: "Message text"
+                                                    Accessible.description: "Pointer: right click for Copy, Copy All and Select All"
+
+                                                    TextMenu {}
                                                 }
                                             }
                                         }

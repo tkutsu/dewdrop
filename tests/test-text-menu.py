@@ -238,8 +238,8 @@ ShellRoot {
                 mouseClick(reader, p.x, p.y, Qt.RightButton);
                 tryVerify(() => menuOf(readerMenu) !== null && readerMenu.open, 1000);
                 menu = menuOf(readerMenu);
-                check(JSON.stringify(rows(menu).map(r => r.modelData)) === JSON.stringify(["Copy", "", "Select All"]),
-                      "read-only text offers Copy and Select All");
+                check(JSON.stringify(rows(menu).map(r => r.modelData)) === JSON.stringify(["Copy", "Copy All", "", "Select All"]),
+                      "read-only text offers Copy, Copy All and Select All");
                 choose(menu, "Select All");
                 check(reader.selectedText === "read only words", "Select All selects the message");
                 // A TextEdit keeps its selection while the pointer moves on

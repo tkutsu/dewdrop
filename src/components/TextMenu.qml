@@ -6,8 +6,8 @@ import qs.src.core
 // selection can be picked up and dropped somewhere else in its field.
 // Goes inside the field: `TextMenu {}`.
 //
-// Read-only text gets only Copy and Select All, and a password field only
-// Paste and Select All: what it holds is never read back out of it.
+// Read-only text gets Copy, Copy All and Select All, and a password field
+// only Paste and Select All: what it holds is never read back out of it.
 Item {
     id: root
 
@@ -79,7 +79,7 @@ Item {
     // The menu's rows, in order, with a hairline ("") between the groups.
     readonly property var rows: root.secret ? ["Paste", "", "Select All"]
         : root.editable ? ["Cut", "Copy", "Paste", "", "Select All"]
-        : ["Copy", "", "Select All"]
+        : ["Copy", "Copy All", "", "Select All"]
 
     function can(row: string): bool {
         switch (row) {
@@ -89,6 +89,7 @@ Item {
             return root.hasSelection;
         case "Paste":
             return root.editable;
+        case "Copy All":
         case "Select All":
             return root.field.length > 0;
         default:
@@ -104,6 +105,15 @@ Item {
         case "Copy":
             root.field.copy();
             break;
+        case "Copy All": {
+            // Through a selection of everything, then back to the one there was.
+            const f = root.field;
+            const from = f.selectionStart, to = f.selectionEnd;
+            f.selectAll();
+            f.copy();
+            f.select(from, to);
+            break;
+        }
         case "Paste":
             root.field.paste();
             break;
@@ -130,11 +140,12 @@ Item {
     }
 
     // A right click away from the selection puts the cursor there first, so
-    // Paste lands where you clicked. On a menu that is already up, it moves
-    // the menu there.
+    // Paste lands where you clicked; read-only text has no Paste and keeps
+    // its selection for Copy. On a menu that is already up, it moves the
+    // menu there.
     function openAt(x: real, y: real): void {
         const f = root.field;
-        if (!root.onSelection(x, y))
+        if (root.editable && !root.onSelection(x, y))
             f.cursorPosition = f.positionAt(x, y);
         if (f.activeFocusOnPress)
             f.forceActiveFocus();
@@ -192,9 +203,6 @@ Item {
 
     HoverHandler {
         id: hover
-        // An arrow over text that can be picked up.
-        cursorShape: root.dragging || root.movable && root.onSelection(hover.point.position.x, hover.point.position.y)
-            ? Qt.ArrowCursor : Qt.IBeamCursor
     }
 
     HoverHandler {
@@ -222,6 +230,12 @@ Item {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        // The cursor is set here: a MouseArea that takes buttons hides a
+        // HoverHandler's cursor beside it, leaving the arrow. An arrow over
+        // text that can be picked up, a hand over a link (a TextEdit's rich
+        // text; a TextInput has none), the I-beam over the rest.
+        cursorShape: root.dragging || root.movable && root.onSelection(hover.point.position.x, hover.point.position.y)
+            ? Qt.ArrowCursor : (root.field.hoveredLink ?? "") !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
         // A list the field is in would take a drag for a scroll.
         preventStealing: root.holding || root.tracking
 
