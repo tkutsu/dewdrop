@@ -72,23 +72,21 @@ Item {
             done.restart();
     }
 
-    // One turn of the glyph on the spot, for a button whose press sends a
-    // request off (RefreshStamp, RetryButton), so the press always shows.
-    // The glyph it started on stays for the whole turn, so the arrows go
-    // round and only then become the check or warning the request brought.
-    // Reduce motion keeps it still.
+    // One turn of the refresh arrows on the spot, for a button whose press
+    // sends a request off (RefreshStamp, RetryButton), so the press always
+    // shows. The arrows stand in for whatever the button showed (a warning
+    // after a failed fetch) for the whole turn, and only then give way to
+    // the check or warning the request brought. Reduce motion keeps it still.
     function spin(): void {
         if (Theme.reduceMotion || turning.running)
             return;
-        root.turningGlyph = root.glyph;
         root.turningWarn = root.warn;
         turning.start();
     }
 
-    // What the glyph slot shows: the turning glyph, the check, or the glyph.
-    readonly property string shownGlyph: turning.running ? root.turningGlyph : done.running ? Theme.glyph.check : root.glyph
+    // What the glyph slot shows: the turning arrows, the check, or the glyph.
+    readonly property string shownGlyph: turning.running ? Theme.glyph.refresh : done.running ? Theme.glyph.check : root.glyph
     property bool confirmAfterTurn: false
-    property string turningGlyph: ""
     property bool turningWarn: false
 
 

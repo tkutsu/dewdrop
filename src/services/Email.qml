@@ -896,9 +896,7 @@ GoogleService {
     // stars a message rather than a thread, so a star goes on the newest
     // one and coming off it comes off them all. Needs the gmail.modify
     // scope; a token granted before it was added gets a 403, and a dropped
-    // row returns after the grace period, with `trouble` saying why. A label
-    // change lands the same however often it is sent, so one that stalls
-    // goes again over the fallback the way reads do.
+    // row returns after the grace period, with `trouble` saying why.
     function perform(kind: string, row: var): void {
         const thread = `${root.api}/threads/${row.id}/modify`;
         const [url, labels] = {
@@ -908,7 +906,7 @@ GoogleService {
             unstar: [thread, { removeLabelIds: ["STARRED"] }]
         }[kind] ?? [];
         if (url)
-            root.send("POST", url, labels, function () {}, null, true);
+            root.send("POST", url, labels, function () {});
     }
 
     // A row's star turned here, in its list and in the cache, so a poll

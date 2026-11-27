@@ -101,6 +101,18 @@ ShellRoot {
         test.wait(1300);
         check(stamp.shownGlyph === Theme.glyph.refresh, "and the check gives way to the arrows");
 
+        feed.retryable = true;
+        test.wait(30);
+        check(stamp.shownGlyph === Theme.glyph.warning, "a failed fetch shows the warning");
+        stamp.tapped();
+        test.wait(Theme.spinMs / 4);
+        check(stamp.shownGlyph === Theme.glyph.refresh && stamp.glyphTurn > 0, "a retry turns the arrows, not the warning");
+        test.tryVerify(() => stamp.glyphTurn === 360, Theme.spinMs + 500);
+        test.wait(30);
+        check(stamp.shownGlyph === Theme.glyph.warning, "then the warning is back while it still fails");
+        feed.retryable = false;
+        test.tryVerify(() => stamp.shownGlyph === Theme.glyph.refresh, 1500);
+
         feed.refreshes = 0;
         stamp.tapped();
         check(feed.refreshes === 1, "a press asks for one fetch");

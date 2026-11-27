@@ -15,26 +15,29 @@ ROOT = Path(__file__).resolve().parents[1]
 FAKE_HTTP = """pragma Singleton
 import QtQuick
 import Quickshell
+// Stands in for Http.qml's curl job: swap `curl.createObject(root, ` for
+// `FakeRequest.make(` and answer each request with reply().
 Singleton {
     id: root
     property var requests: []
-    function make() {
-        const request = {
-            readyState: 0, status: 0, responseText: "", headers: {}, aborted: false,
-            open: function(method, url) { this.method = method; this.url = url; },
-            setRequestHeader: function(key, value) { this.headers[key] = value; },
-            send: function(body) { this.body = body; },
-            abort: function() { this.aborted = true; this.readyState = 4; this.onreadystatechange(); }
-        };
+    function make(props) {
+        const request = Object.assign({
+            launched: true, aborted: false, running: false, listeners: [],
+            stop: function() { this.aborted = true; }
+        }, props);
+        request.answered = { connect: function(callback) { request.listeners.push(callback); } };
         root.requests = root.requests.concat([request]);
         return request;
     }
-    function reply(index, body, status) {
+    // status 0 is no answer at all, as curl failing to connect.
+    function replyText(index, text, status) {
         const request = root.requests[index];
-        request.status = status ?? 200;
-        request.responseText = JSON.stringify(body);
-        request.readyState = 4;
-        request.onreadystatechange();
+        const code = status ?? 200;
+        for (const listener of request.listeners)
+            listener(code, code > 0 ? text : "", code > 0 ? 0 : 7);
+    }
+    function reply(index, body, status) {
+        root.replyText(index, JSON.stringify(body), status);
     }
 }
 """
@@ -216,7 +219,7 @@ def main():
         for name in ("Weather.qml", "Http.qml", "Google.qml", "GoogleAccount.qml", "GoogleService.qml", "WallClock.qml"):
             source = (ROOT / "src/services" / name).read_text()
             if name in ("Http.qml", "Google.qml"):
-                source = source.replace("new XMLHttpRequest()", "FakeRequest.make()")
+                source = source.replace("curl.createObject(root, ", "FakeRequest.make(")
             (services / name).write_text(source)
         # GoogleService walks paged lists with it.
         (target / "src/lib").mkdir(exist_ok=True)

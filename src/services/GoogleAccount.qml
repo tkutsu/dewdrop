@@ -114,7 +114,7 @@ Singleton {
     // One place that knows about headers and status codes. `then` is handed the
     // parsed body; anything that is not a 2xx goes to `fail` with a reason and
     // the status it came from.
-    function send(method: string, url: string, body: var, then: var, fail: var, repeatable: var): void {
+    function send(method: string, url: string, body: var, then: var, fail: var): void {
         // A 401 means the token died in flight: rather than reporting it and
         // waiting for the next poll, the token is dropped and the request goes
         // again once behind a fresh one. Once, because a second 401 with a
@@ -160,7 +160,7 @@ Singleton {
                         return;
                     }
                 then(parsed);
-            }, fail, repeatable);
+            }, fail);
         };
         attempt(true);
     }

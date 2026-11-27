@@ -59,8 +59,7 @@ ShellRoot {
         check(failures === 3 && reason === 'Sign-in failed (503)' && !Google.tokenDead,
             'temporary HTTP failure keeps consent usable');
         Google.authorised(go, fail);
-        FakeRequest.requests[3].responseText = 'broken';FakeRequest.requests[3].status = 200;
-        FakeRequest.requests[3].readyState = 4;FakeRequest.requests[3].onreadystatechange();
+        FakeRequest.replyText(3, 'broken', 200);
         check(failures === 4 && reason.includes('unreadable'), 'malformed refresh fails and clears its queue');
         Google.authorised(go, fail);FakeRequest.reply(4, {}, 400);
         check(failures === 5 && Google.tokenDead && reason === Google.reconnect,
@@ -74,7 +73,7 @@ ShellRoot {
         check(successes === 3 && !Google.refreshing && Google.waiting.length === 0,
             'reentrant refresh settles independently');
         Http.send("POST", "https://fixture/tasks/move", null, {}, 1000, () => {}, fail);
-        check(FakeRequest.requests[7].body === undefined,
+        check(FakeRequest.requests[7].body === "",
             'empty move request sends no body rather than a null string');
         FakeRequest.reply(7, {});
 
@@ -143,7 +142,7 @@ def main():
         copy_shell(target)
         (target / 'src/services/FakeRequest.qml').write_text(fake)
         path = target / 'src/services/Http.qml'
-        path.write_text(path.read_text().replace('new XMLHttpRequest()', 'FakeRequest.make()'))
+        path.write_text(path.read_text().replace('curl.createObject(root, ', 'FakeRequest.make('))
         path = target / 'src/services/GoogleAccount.qml'
         path.write_text(path.read_text().replace('refreshTimeoutMs: 15000', 'refreshTimeoutMs: 30'))
         (target / 'src/services/WallClock.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { signal wokeUp }')

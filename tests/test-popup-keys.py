@@ -14,6 +14,7 @@ from test_support import offscreen_ink
 ROOT = Path(__file__).resolve().parents[1]
 
 SHELL = '''import QtQuick
+import QtTest
 import Quickshell
 import qs.src.core
 import qs.src.components
@@ -24,6 +25,7 @@ ShellRoot {
     property int adds: 0
     property int rings: 0
     property real level: 0.5
+    TestCase { id: waiter; when: false }
 
     FloatingWindow {
         implicitWidth: 300; implicitHeight: 60
@@ -76,6 +78,8 @@ ShellRoot {
         const plus = targets[0];
         check(popup.keyItem === plus && plus.keyed && plus.hovered, "Down picks the header's plus first");
         press(Qt.Key_Return);
+        // A framed button flashes before it acts.
+        waiter.tryVerify(() => test.adds === 1, Theme.blinkMs * 2 + 500);
         check(test.adds === 1, "Return presses the header's plus");
 
         // The plus is a framed button at the header's right end, so Down

@@ -99,7 +99,7 @@ def main():
         source=source.replace('Timer { interval: 150 }','Timer { interval: 1 }')
         source=source.replace('onTriggered: root.pump()','onTriggered: {}')
         (target/'src/services/PhoneAlarms.qml').write_text(source)
-        source=(target/'src/services/Http.qml').read_text().replace('new XMLHttpRequest()','FakeRequest.make()')
+        source=(target/'src/services/Http.qml').read_text().replace('curl.createObject(root, ','FakeRequest.make(')
         (target/'src/services/Http.qml').write_text(source)
         (target/'src/services/FakeRequest.qml').write_text(shared.FAKE_HTTP)
         (target/'src/services/Network.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property var current: ({name:"Home",known:true}) }\n')

@@ -60,7 +60,7 @@ def main():
         phone = target / 'src/services/PhoneAlarms.qml'
         phone.write_text(phone.read_text().replace('Timer { interval: 150 }', 'Timer { interval: 1 }'))
         http = target / 'src/services/Http.qml'
-        http.write_text(http.read_text().replace('new XMLHttpRequest()', 'FakeRequest.make()'))
+        http.write_text(http.read_text().replace('curl.createObject(root, ', 'FakeRequest.make('))
         (target / 'src/services/FakeRequest.qml').write_text(shared.FAKE_HTTP)
         (target / 'src/services/Network.qml').write_text(
             'pragma Singleton\nimport QtQuick\nQtObject { property var current: ({name:"Home",known:true}) }')

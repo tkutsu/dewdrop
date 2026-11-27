@@ -99,6 +99,8 @@ ShellRoot {
 
                 const code = test.find(row, "Copy code 654321");
                 mouseClick(code, code.width / 2, code.height / 2);
+                // A framed button flashes before it acts.
+                tryVerify(() => Email.pending.length === 1, Theme.blinkMs * 2 + 500);
                 test.check(Email.pending.length === 1 && p.expanded === "b", "footer button acts and opens next mail: pending=" + Email.pending.length + ", expanded=" + p.expanded);
                 Email.undo();
                 test.check(p.expanded === "a", "undo restores mail after pointer action");
