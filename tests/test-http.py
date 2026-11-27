@@ -24,6 +24,8 @@ if "/unavailable" in config:
     sys.exit(7)
 if "/slow" in config:
     sys.exit(28)
+if "/huge" in config:
+    sys.exit(63)
 if "oauth2.googleapis.com/token" in config:
     print('{"access_token":"fixture-renewed-token","expires_in":3600}\\n200', end="")
 elif "/unauthorised" in config and "fixture-renewed-token" not in config:
@@ -92,6 +94,10 @@ ShellRoot {
         test.tryVerify(() => accepted === 5, 2500);
         check(Google.accessToken === "fixture-renewed-token" && failed === 4 && api.requests === 0,
             "a 401 renews the token and the request goes again behind it");
+
+        Http.send("GET", "https://fixture.invalid/huge", null, {}, 2000, success, failure);
+        test.tryVerify(() => failed === 5, 1800);
+        check(reason === "The answer was too large.", "an answer past the size limit says so");
         console.log("PASS: HTTP lifecycle");
     }
     Timer { interval: 100; running: true; onTriggered: {
@@ -144,6 +150,10 @@ def main():
         assert not any("file:" in call["config"] for call in requests), "a non-http URL never reaches curl"
         assert all(call["args"][0] == "--disable" for call in requests), "user curlrc cannot change requests"
         assert all("--ipv4" not in call["args"] and "--compressed" in call["args"] for call in requests)
+        flag = lambda args, name: args[args.index(name) + 1] if name in args else None
+        assert all(flag(call["args"], "--max-filesize") == "20M" for call in requests), "every answer has a size limit"
+        assert all(flag(call["args"], "--user-agent") == "Dewdrop/1 (Quickshell)" for call in requests), "every request has the fixed User-Agent"
+        assert "outcome=too-large status=0" in output and "exit=63" in output
         assert all("fixture-private" not in " ".join(call["args"]) for call in requests), "secrets stay out of process arguments"
         assert "fixture-private" not in output, "logs must not contain tokens, bodies, queries or curl stderr"
         assert "outcome=http-error status=503" in output and "outcome=network-error status=0" in output and "exit=7" in output

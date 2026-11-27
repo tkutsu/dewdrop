@@ -74,6 +74,9 @@ Singleton {
                 if (status < 200 || status >= 300)
                     log("http-error", status, exit);
                 accepted({status: status, responseText: text});
+            } else if (exit === 63) {
+                log("too-large", 0, exit);
+                failed("The answer was too large.", 0);
             } else {
                 const late = exit === 28;
                 log(late ? "timeout" : "network-error", 0, exit);
@@ -105,8 +108,12 @@ Singleton {
             signal answered(int status, string text, int exit)
 
             // --max-time a second inside the deadline, so curl's own timeout
-            // (exit 28) is what reports a slow server.
+            // (exit 28) is what reports a slow server. The whole answer is
+            // held in memory, so past 20 MB curl stops (exit 63). Some hosts
+            // turn curl's own User-Agent away; this one says nothing about
+            // the machine or its user.
             command: ["curl", "--disable", "--silent", "--globoff", "--compressed",
+                "--max-filesize", "20M", "--user-agent", "Dewdrop/1 (Quickshell)",
                 "--proto", "=http,https", "--location", "--proto-redir", "=http,https",
                 "--connect-timeout", String(Math.max(1, Math.min(10, Math.floor(timeoutMs / 1000) - 1))),
                 "--max-time", String(Math.max(1, Math.floor(timeoutMs / 1000) - 1)),
