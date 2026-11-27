@@ -53,7 +53,7 @@ Item { property bool framed: false; property bool lit: false; property bool live
     property string label: ""; property string name: label; property string glyph: ""; property var alternates: []
     function spin() {} function confirm() {} signal tapped; width: 70; height: 24 }
 ''')
-        (components / "Glyph.qml").write_text('import QtQuick\nText { property real inkBase; property real turn; property int fontSize: 16; font.pixelSize: fontSize }\n')
+        (components / "Glyph.qml").write_text('import QtQuick\nText { property real inkBase; property real turn; property var alternates: []; property int fontSize: 16; font.pixelSize: fontSize }\n')
         (components / "QueuedProcess.qml").write_text('''import QtQuick
 QtObject { property string want: ""; property string arg: ""; property int interval: 0
     property bool running: false; property var command: []; signal result(arg: string, text: string) }

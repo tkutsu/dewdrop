@@ -208,10 +208,10 @@ ShellRoot {
     }
 
     function list(p) {
-        // The first Repeater in the popup: the Primary rows.
+        // The Primary rows, by name: buttons hold Repeaters of their own.
         const walk = item => {
             for (const child of item.children) {
-                if (child instanceof Repeater)
+                if (child.objectName === "mailRows")
                     return child;
                 const found = walk(child);
                 if (found)

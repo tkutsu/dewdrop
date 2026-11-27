@@ -48,7 +48,7 @@ def main():
         copy_shell(target)
         (target / "src/core/Settings.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property var values: ({}); property string monitorCommand: ""; function program(command) { return ""; } function helper(command, inTerminal) { return []; } property string font: "Sans"; property string monoFont: "Monospace"; property bool reduceMotion: false; property bool reduceTransparency: false }')
         (target / "src/components/Popup.qml").write_text('import QtQuick\nColumn { property real hPadding: 6; property real vPadding: 6 }')
-        (target / "src/components/Glyph.qml").write_text('import QtQuick\nItem { property real inkBase; property real turn; property string text: ""; property int fontSize: 16; property color color: "white"; implicitWidth: 16 }')
+        (target / "src/components/Glyph.qml").write_text('import QtQuick\nItem { property real inkBase; property real turn; property var alternates: []; property string text: ""; property int fontSize: 16; property color color: "white"; implicitWidth: 16 }')
         (target / "src/services/Sys.qml").write_text('''pragma Singleton
 import QtQuick
 QtObject {

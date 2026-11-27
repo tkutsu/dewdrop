@@ -255,6 +255,7 @@ Popup {
 
             Repeater {
                 id: list
+                objectName: "mailRows"
 
                 model: root.rows
                 delegate: mailRow

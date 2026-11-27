@@ -80,7 +80,7 @@ Item {
     Column { id: body }
 }
 ''')
-        (target / "Glyph.qml").write_text('import QtQuick\nItem { property real inkBase; property real turn; property int fontSize: 16; property alias text: label.text; property alias color: label.color; implicitWidth: label.implicitWidth; Text { id: label; font.pixelSize: parent.fontSize } }\n')
+        (target / "Glyph.qml").write_text('import QtQuick\nItem { property real inkBase; property real turn; property var alternates: []; property int fontSize: 16; property alias text: label.text; property alias color: label.color; implicitWidth: label.implicitWidth; Text { id: label; font.pixelSize: parent.fontSize } }\n')
         (target / "Badge.qml").write_text('import QtQuick\nText {}\n')
         (target / "src/services/OpenPopup.qml").write_text('''pragma Singleton
 import QtQuick
