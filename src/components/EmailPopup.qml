@@ -832,6 +832,7 @@ Popup {
                             framed: true
                             pressFeedback: true
                             glyph: Theme.glyph.copy
+                            alternates: [Theme.glyph.check]
                             label: code
                             name: "Copy code " + code
                             onTapped: {

@@ -15,6 +15,10 @@ Item {
     id: root
 
     property string glyph: ""
+    // The other glyphs this button's mark turns into (the check a confirm()
+    // shows, a stamp's warning). The mark keeps the widest one's room, so a
+    // framed button does not change width under the pointer (Glyph.alternates).
+    property var alternates: []
     property string label: ""
     property string name: root.label
     // Drawn but not answering. A control with nothing to do right now stays
@@ -136,6 +140,7 @@ Item {
         Glyph {
             visible: root.glyph !== ""
             text: root.shownGlyph
+            alternates: root.alternates.length > 0 ? [root.glyph].concat(root.alternates) : []
             fontSize: root.glyphSize
             turn: root.glyphTurn
             implicitHeight: root.height

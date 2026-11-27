@@ -91,6 +91,7 @@ ShellRoot {
         test.tryVerify(() => other.hits === 1, Theme.blinkMs * 2 + 200);
         check(true, "then the next press flashes and acts");
 
+        const stampWidth = stamp.width;
         stamp.tapped();
         test.wait(Theme.spinMs / 4);
         stamp.confirm();
@@ -101,13 +102,16 @@ ShellRoot {
         test.tryVerify(() => stamp.glyphTurn === 360, Theme.spinMs + 500);
         test.wait(30);
         check(stamp.shownGlyph === Theme.glyph.check, "then the turn ends on the check");
+        check(stamp.width === stampWidth, "the check takes the arrows' room: " + stampWidth + " -> " + stamp.width);
         feed.retryable = false;
         test.wait(1300);
         check(stamp.shownGlyph === Theme.glyph.refresh, "and the check gives way to the arrows");
 
+        const wide = stamp.width;
         feed.retryable = true;
         test.wait(30);
         check(stamp.shownGlyph === Theme.glyph.warning, "a failed fetch shows the warning");
+        check(stamp.width === wide, "the warning takes the arrows' room: " + wide + " -> " + stamp.width);
         stamp.tapped();
         test.wait(Theme.spinMs / 4);
         check(stamp.shownGlyph === Theme.glyph.refresh && stamp.glyphTurn > 0, "a retry turns the arrows, not the warning");

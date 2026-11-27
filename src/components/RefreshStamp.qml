@@ -45,6 +45,7 @@ PopupButton {
 
     framed: true
     glyph: root.failed ? Theme.glyph.warning : Theme.glyph.refresh
+    alternates: [Theme.glyph.refresh, Theme.glyph.warning, Theme.glyph.check]
     warn: root.failed
     label: root.when || (root.failed ? "Couldn't Update" : "Refresh")
     name: root.when ? `Refresh, ${root.failed ? "couldn't update since" : "updated"} ${root.when}` : "Refresh"
