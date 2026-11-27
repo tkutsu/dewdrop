@@ -7,7 +7,7 @@ import subprocess
 import sys
 import tempfile
 
-from test_support import offscreen_ink
+from test_support import offscreen_meters
 root=Path(__file__).resolve().parents[1]
 folder=tempfile.TemporaryDirectory(prefix='workspace-test-')
 target=fixture_root(folder.name)
@@ -82,7 +82,7 @@ if '--real-icons' in sys.argv or '--app-names' in sys.argv:
         (target/f'src/services/{name}.qml').write_text((root/f'src/services/{name}.qml').read_text())
     (target/'src/components/RollingSpring.js').write_text((root/'src/components/RollingSpring.js').read_text())
     (target/'src/core/Paths.qml').write_text((root/'src/core/Paths.qml').read_text())
-    offscreen_ink(target)
+    offscreen_meters(target)
     (target/'assets').symlink_to(root/'assets', target_is_directory=True)
 if '--real-bar' in sys.argv:
     (target/'src/components/GlassPress.qml').write_text((root/'src/components/GlassPress.qml').read_text())

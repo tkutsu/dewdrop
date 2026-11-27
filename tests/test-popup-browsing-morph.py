@@ -8,7 +8,7 @@ import re
 import subprocess
 import tempfile
 
-from test_support import copy_shell, offscreen_ink
+from test_support import copy_shell, offscreen_meters
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -142,7 +142,7 @@ ShellRoot {
         target = fixture_root(folder)
         copy_shell(target)
         (target / "settings.json").write_text("{}\n")
-        offscreen_ink(target)
+        offscreen_meters(target)
         (target / "shell.qml").write_text(qml)
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)

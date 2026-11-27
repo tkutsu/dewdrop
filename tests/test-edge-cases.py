@@ -24,7 +24,7 @@ import tempfile
 import time
 from unittest.mock import patch
 
-from test_support import offscreen_ink
+from test_support import offscreen_meters
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -324,7 +324,7 @@ def main():
         (target / "fixture.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="white"/></svg>')
         for name in ("fixture-unseen.svg", "fixture-aborted.svg"):
             (target / name).write_text('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect x="5" y="3" width="10" height="14" fill="white"/></svg>')
-        offscreen_ink(target)
+        offscreen_meters(target)
         (target / "shell.qml").write_text(SHELL)
         (target / "runtime").mkdir(mode=0o700)
         env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", LC_ALL="C.UTF-8", XDG_RUNTIME_DIR=str(target / "runtime"), XDG_DATA_HOME=str(target / "data"), XDG_STATE_HOME=str(target / "state"), XDG_CACHE_HOME=str(target / "cache"))

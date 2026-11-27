@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
-from test_support import offscreen_ink
+from test_support import offscreen_meters
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -168,7 +168,7 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, destination)
         (target / "settings.json").write_text("{}\n")
-        offscreen_ink(target)
+        offscreen_meters(target)
         (target / "shell.qml").write_text(SHELL)
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)

@@ -12,7 +12,7 @@ import tempfile
 
 from PIL import Image
 
-from test_support import ROOT, offscreen_ink, shell_env
+from test_support import ROOT, offscreen_meters, shell_env
 
 
 NAMES = (
@@ -82,7 +82,7 @@ def main():
         services = target / "src/services"
         services.mkdir()
         shutil.copy2(ROOT / "src/services/Ink.qml", services / "Ink.qml")
-        offscreen_ink(target)
+        offscreen_meters(target)
         (target / "src/core/Paths.qml").write_text('pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function cache(name) { return Quickshell.shellPath(name); } }\n')
         (target / "src/core/Theme.qml").write_text('''pragma Singleton
 import QtQuick

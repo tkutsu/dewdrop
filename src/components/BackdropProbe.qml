@@ -1,8 +1,7 @@
 import QtQuick
-import Quickshell
 import Quickshell.Hyprland
-import Quickshell.Wayland
 import qs.src.core
+import qs.src.services
 
 // How bright the screen is behind a box of frost, for Theme.frostOver.
 //
@@ -13,8 +12,9 @@ import qs.src.core
 //
 // Read from one still of the screen, taken as the box comes up. A box whose
 // first frame is not on screen yet by then is read exactly: what is under it.
-// One that is (ringOnly) is read by the ring round it, below. Read at a sixteenth of the size, which is the
-// blur's scale anyway and next to nothing to walk, and let go once read.
+// One that is (ringOnly) is read by the ring round it, below. Read at a
+// sixteenth of the size, which is the blur's scale anyway and next to nothing
+// to walk.
 //
 // Read again once a workspace switched under an open box has slid into place.
 // The box is in that still, so that reading takes the ring round the box and
@@ -46,29 +46,24 @@ Item {
     readonly property int scale: 16
     readonly property int ring: 64
 
-    property bool reading: false
+    // The still asked for and not yet answered, 0 when none is, and whether
+    // its reading takes the ring.
+    property int ticket: 0
     property bool around: false
 
-    // The answer, or -1 for a reading that found nothing to read, which
-    // keeps whatever there was. Out of the paint first: it
-    // is what retires the canvas, and a canvas should not go from inside its
-    // own paint.
-    function done(luma: real): void {
-        Qt.callLater(() => {
-            if (luma >= 0)
-                root.luma = luma;
-            root.reading = false;
-        });
+    function ask(around: bool): void {
+        root.around = around;
+        root.ticket = Stills.take(root.screen, root.scale);
     }
 
-    onActiveChanged: if (active) {
-        root.around = root.ringOnly;
-        root.reading = true;
+    // Once all of a new probe's properties are in: one made with `active`
+    // already set hears it change before it has its screen, then completes.
+    function start(): void {
+        if (root.active)
+            root.ask(root.ringOnly);
     }
-    Component.onCompleted: if (active) {
-        root.around = root.ringOnly;
-        root.reading = true;
-    }
+    onActiveChanged: Qt.callLater(root.start)
+    Component.onCompleted: Qt.callLater(root.start)
 
     // A still taken mid-slide would be half of each workspace. The slide is
     // Hyprland's `glide` spring, critically damped at 0.4 s
@@ -77,10 +72,7 @@ Item {
         id: settle
 
         interval: 450
-        onTriggered: {
-            root.around = true;
-            root.reading = true;
-        }
+        onTriggered: root.ask(true)
     }
 
     Connections {
@@ -92,76 +84,47 @@ Item {
         }
     }
 
-    // Quickshell 0.3.2 crashes capturing a screen that is gone, unplugged
-    // mid-read, or the stand-in it keeps once the last monitor is (no name).
-    // Nothing is read from those, and luma stays as it was.
-    readonly property bool capturable: !!root.screen?.name && Quickshell.screens.includes(root.screen)
+    // The still is taken in Stills, never here: a grab of an item in the
+    // popup's own window crashed the bar when the popup went mid-grab.
+    Connections {
+        target: Stills
 
-    Loader {
-        active: root.reading && root.capturable
+        function onTaken(ticket: int, still: var) {
+            if (ticket !== root.ticket)
+                return;
+            root.ticket = 0;
+            const luma = still ? root.read(still) : -1;
+            if (luma >= 0)
+                root.luma = luma;
+        }
+    }
 
-        sourceComponent: Item {
-            // Drawn, but contributing nothing, as Ink's meter is: the view only
-            // has to be in the scene for the grab to have something to render.
-            opacity: 0
+    // How bright the still is where the box is, or around it for the ring:
+    // -1 for a reading that found nothing to read, which keeps whatever
+    // there was.
+    function read(still: var): real {
+        const {width, height, data} = still;
+        // Everything read, and what is left out of it: nothing for a first
+        // reading, the box and its shadow for the ring.
+        const a = root.area;
+        const pad = Theme.shadowPad;
+        const out = root.around ? pad + root.ring : 0;
+        const x0 = Math.max(0, Math.floor((a.x - out) / root.scale)), x1 = Math.min(width, Math.ceil((a.x + a.width + out) / root.scale));
+        const y0 = Math.max(0, Math.floor((a.y - out) / root.scale)), y1 = Math.min(height, Math.ceil((a.y + a.height + out) / root.scale));
+        if (x1 <= x0 || y1 <= y0)
+            return -1;
 
-            ScreencopyView {
-                id: view
-
-                width: root.screen?.width ?? 0
-                height: root.screen?.height ?? 0
-                captureSource: root.screen
-                live: false
-
-                onHasContentChanged: if (hasContent)
-                    view.grabToImage(result => {
-                        canvas.grab = result;
-                        canvas.requestPaint();
-                    }, Qt.size(canvas.width, canvas.height))
-            }
-
-            Canvas {
-                id: canvas
-
-                property var grab: null
-
-                width: Math.max(1, Math.round(view.width / root.scale))
-                height: Math.max(1, Math.round(view.height / root.scale))
-                renderTarget: Canvas.Image
-                renderStrategy: Canvas.Immediate
-
-                onPaint: {
-                    if (!grab)
-                        return;
-                    const ctx = getContext("2d");
-                    ctx.drawImage(grab.url, 0, 0, width, height);
-                    grab = null;
-
-                    // Everything read, and what is left out of it: nothing for
-                    // a first reading, the box and its shadow for the ring.
-                    const a = root.area;
-                    const out = root.around ? Theme.shadowPad + root.ring : 0;
-                    const x0 = Math.max(0, Math.floor((a.x - out) / root.scale)), x1 = Math.min(width, Math.ceil((a.x + a.width + out) / root.scale));
-                    const y0 = Math.max(0, Math.floor((a.y - out) / root.scale)), y1 = Math.min(height, Math.ceil((a.y + a.height + out) / root.scale));
-                    if (x1 <= x0 || y1 <= y0)
-                        return root.done(-1);
-                    const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
-
-                    let sum = 0, count = 0;
-                    for (let i = 0; i < data.length; i += 4) {
-                        const x = (x0 + (i / 4) % (x1 - x0) + 0.5) * root.scale;
-                        const y = (y0 + Math.floor(i / 4 / (x1 - x0)) + 0.5) * root.scale;
-                        const pad = Theme.shadowPad;
-                        if (root.around && x >= a.x - pad && x < a.x + a.width + pad && y >= a.y - pad && y < a.y + a.height + pad)
-                            continue;
-                        sum += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
-                        count++;
-                    }
-                    if (count === 0)
-                        return root.done(-1);
-                    root.done(sum / count);
-                }
+        let sum = 0, count = 0;
+        for (let py = y0; py < y1; py++) {
+            for (let px = x0; px < x1; px++) {
+                const x = (px + 0.5) * root.scale, y = (py + 0.5) * root.scale;
+                if (root.around && x >= a.x - pad && x < a.x + a.width + pad && y >= a.y - pad && y < a.y + a.height + pad)
+                    continue;
+                const i = (py * width + px) * 4;
+                sum += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+                count++;
             }
         }
+        return count === 0 ? -1 : sum / count;
     }
 }

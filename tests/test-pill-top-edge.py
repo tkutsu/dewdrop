@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
-from test_support import offscreen_ink
+from test_support import offscreen_meters
 
 ROOT = Path(__file__).resolve().parents[1]
 STUBS = {
@@ -236,7 +236,7 @@ def main():
         for name, source in STUBS.items():
             (target / name).write_text(source)
         (target / 'settings.json').write_text('{}\n')
-        offscreen_ink(target)
+        offscreen_meters(target)
         bar = (ROOT / 'src/bar/Bar.qml').read_text()
         note = bar[bar.rfind('        BarItem {', 0, bar.index('id: musicNote')):bar.index('        Clock {')]
         (target / 'shell.qml').write_text(SHELL.replace('MUSIC_NOTE', note))

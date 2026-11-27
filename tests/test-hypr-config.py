@@ -11,8 +11,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 HYPR = ROOT / 'hypr'
 PUBLISHED = (HYPR / 'dewdrop.lua').read_text()
-# A meter that is never seen, so nothing blurs or animates it.
-UNSTYLED = {'ink'}
+# Meters that are never seen, so nothing blurs or animates them.
+UNSTYLED = {'ink', 'stills'}
 
 
 def namespaces_in_shell():
