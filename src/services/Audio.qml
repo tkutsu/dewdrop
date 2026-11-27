@@ -195,9 +195,16 @@ Singleton {
         Notify.send("Sound output", sink.description, ["-e", "-u", "low", "-h", "string:x-canonical-private-synchronous:audio-output"]);
     }
 
+    // pactl translates what it reads out, JSON values ("not available") and
+    // subscribe's events alike, and both are matched in English here. C.UTF-8,
+    // not C, as device names need not be ASCII; LANGUAGE too, as gettext
+    // reads it before LC_ALL.
+    readonly property var untranslated: ({ LC_ALL: "C.UTF-8", LANGUAGE: "C.UTF-8" })
+
     Process {
         id: probe
         command: ["pactl", "--format=json", "list"]
+        environment: root.untranslated
 
         // A burst of pactl events can land while the probe is already out. The
         // debounce collapses those into one reload() that then finds `running`
@@ -240,6 +247,7 @@ Singleton {
         id: subscription
         running: true
         command: ["setpriv", "--pdeathsig", "TERM", "--", "pactl", "subscribe"]
+        environment: root.untranslated
         // With no Pulse server answering it exits at once, and a retry a
         // second would spawn it (and a probe) for ever: the wait doubles
         // while it dies within moments, up to a minute, and is back to a

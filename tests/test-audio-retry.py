@@ -35,9 +35,10 @@ ShellRoot {
 '''
 
 # A pactl that answers nothing, as with no server: `list` prints nothing and
-# `subscribe` exits at once. Each run is logged.
+# `subscribe` exits at once. Each run is logged, and the locale it ran in.
 PACTL = '''#!/bin/sh
 echo "$*" >> "$(dirname "$0")/pactl.log"
+echo "$* LC_ALL=$LC_ALL LANGUAGE=$LANGUAGE" >> "$(dirname "$0")/locale.log"
 exit 1
 '''
 
@@ -60,6 +61,12 @@ def main():
         # 1 s, 2 s, 4 s: four runs at most, where a fixed second gave seven.
         assert 2 <= subscribes <= 4, f"subscribe ran {subscribes} times: no backoff"
         assert output.count("PASS:") == 3 and "FAIL:" not in output, output
+        # pactl translates what it prints, and the service reads it in English.
+        runs = (target / "locale.log").read_text().splitlines()
+        for command in ("--format=json list", "subscribe"):
+            ran = [line for line in runs if line.startswith(command + " ")]
+            assert ran and all(line.endswith(" LC_ALL=C.UTF-8 LANGUAGE=C.UTF-8") for line in ran), f"{command} runs untranslated: {ran}"
+        print("PASS: both pactl commands run untranslated")
 
 
 if __name__ == "__main__":
