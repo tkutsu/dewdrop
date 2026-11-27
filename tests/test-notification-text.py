@@ -17,6 +17,7 @@ def main():
     start = service.index("    // --- presentation helpers")
     end = service.index("    // What AppIcon", start)
     tooltip = service[service.index("    // How many from each app"):service.index("    // --- the notice beside the clock")]
+    icons = service[service.index("    // A file or image URL"):service.index("    // \"now\"")]
     popup = (ROOT / "src/components/NotificationsPopup.qml").read_text()
     labels = re.findall(r"                PopupText \{\n.*?\n                \}", popup, re.S)
     labels = [label for label in labels if "card.n?.summary" in label or "card.n?.body" in label]
@@ -40,7 +41,8 @@ ShellRoot {
     Text { id: expected; font.pixelSize: 16; textFormat: Text.StyledText; text: "<b>xxx</b>" }
     function check(ok, message) { if (!ok) throw Error(message); }
     Timer {
-        interval: 100; running: true
+        // Desktop entries load in the background.
+        interval: 100; running: DesktopEntries.applications.values.length > 0
         onTriggered: {
             try {
                 check(Math.abs(bodyLabel.contentWidth - expected.contentWidth) < 1, "body renders bold xxx without literal asterisks");
@@ -88,6 +90,10 @@ ShellRoot {
                 check(Notifications.tooltip === "No notifications", "an empty tooltip says so");
                 Notifications.list = [{appName: "Discord"}, {appName: ""}, {appName: "Firefox"}, {appName: "Discord"}, {appName: "Discord"}];
                 check(Notifications.tooltip === "Discord · 3\\nNotification · 1\\nFirefox · 1", "tooltip counts by app, the latest to arrive first");
+                // The fixture's one app has no StartupWMClass, which an empty lookup matches.
+                check(DesktopEntries.heuristicLookup("")?.id === "fixture-app", "an empty lookup matches an app in this fixture");
+                check(Notifications.iconFor({appName: "Fixture App", desktopEntry: "fixture-app", appIcon: ""}).includes("fixture-app"), "a sender naming its entry gets that app's icon");
+                check(Notifications.iconFor({appName: "", desktopEntry: "", appIcon: ""}) === "", "a sender with no name and no entry borrows no app's icon");
                 console.log("PASS: notification formatting and bar preview");
             } catch (error) { console.log("FAIL: " + error); }
             Qt.quit();
@@ -99,12 +105,20 @@ ShellRoot {
         target = fixture_root(folder)
         (target / "src/services").mkdir(parents=True, exist_ok=True)
         (target / "src/services/Notifications.qml").write_text(
-            "pragma Singleton\nimport QtQuick\nQtObject {\n    id: root\n    property var list: []\n" + tooltip + service[start:end] + "}\n")
+            "pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject {\n    id: root\n    property var list: []\n" + tooltip + service[start:end] + icons + "}\n")
         (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property color label: "white"; property color label2: "grey"; property color warn: "red" }\n')
         (target / "shell.qml").write_text(test)
         runtime = target / "runtime"
         runtime.mkdir(mode=0o700)
-        env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime))
+        share = target / "share"
+        (share / "applications").mkdir(parents=True)
+        (share / "applications/fixture-app.desktop").write_text("[Desktop Entry]\nType=Application\nName=Fixture App\nExec=true\nIcon=fixture-app\n")
+        icon = share / "icons/hicolor/16x16/apps"
+        icon.mkdir(parents=True)
+        (share / "icons/hicolor/index.theme").write_text("[Icon Theme]\nName=Hicolor\nDirectories=16x16/apps\n\n[16x16/apps]\nSize=16\nType=Fixed\n")
+        (icon / "fixture-app.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16"/></svg>\n')
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", XDG_RUNTIME_DIR=str(runtime),
+                   XDG_DATA_DIRS=str(share), XDG_DATA_HOME=str(target / "home-share"))
         for key in ("WAYLAND_DISPLAY", "HYPRLAND_INSTANCE_SIGNATURE"):
             env.pop(key, None)
         result = subprocess.run(["qs", "-p", str(target), "--no-color"], env=env, capture_output=True, text=True, timeout=15)

@@ -91,7 +91,9 @@ Singleton {
         if (props["application.name"])
             return props["application.name"];
         DesktopEntries.applications.values.length;
-        return DesktopEntries.heuristicLookup(props["application.id"] || props["application.process.binary"] || node.name)?.name || props["node.description"] || node.description || node.name || "An app";
+        // An empty key would match any entry without a StartupWMClass.
+        const key = props["application.id"] || props["application.process.binary"] || node.name;
+        return (key ? DesktopEntries.heuristicLookup(key)?.name : "") || props["node.description"] || node.description || node.name || "An app";
     }
 
     // Either the app or its input can silence a capture; other apps stay live.
