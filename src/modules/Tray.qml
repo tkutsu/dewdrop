@@ -135,11 +135,13 @@ BarItem {
             // either side; blueman's drawing carries 4px, so the tray stood a
             // pixel further from its left neighbour than from its right.
             Layout.fillHeight: true
-            // Mullvad's lock stands in the open lock's slot and reads as
-            // sitting right of it, so it is drawn back towards the left.
+            // Mullvad's closed lock stands in the open lock's slot and reads as
+            // sitting right of it, so it is drawn back towards the left; the
+            // open one less so. Both take the same room, so the row holds still.
             readonly property bool isMullvad: modelData.id.startsWith("Mullvad VPN")
-            Layout.leftMargin: isMullvad ? -3 : 0
-            Layout.rightMargin: isMullvad ? 1 : 0
+            readonly property bool lockOpen: glyph === Theme.glyph.vpnOff
+            Layout.leftMargin: !isMullvad ? 0 : lockOpen ? -1 : -3
+            Layout.rightMargin: !isMullvad ? 0 : lockOpen ? -1 : 1
             implicitWidth: Math.round((entry.glyph ? substitute.implicitWidth : entry.slot) * entry.out)
 
             // An app changes its artwork with its state too (Telegram's
