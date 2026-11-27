@@ -388,7 +388,19 @@ Singleton {
         }
         if (root.isFleeting(n))
             root.passing[n.id] = true;
+        root.trim(n);
         root.announce(n);
+    }
+
+    // Kept until dismissed, but not without end: past `keep`, the oldest
+    // expire to make room. A critical one stays, since it waits on an answer.
+    readonly property int keep: 200
+    function trim(arriving) {
+        const others = root.list.filter(n => n !== arriving);
+        const spare = others.filter(n => n.urgency !== NotificationUrgency.Critical);
+        const over = others.length + 1 - root.keep;
+        for (const n of spare.slice(Math.max(0, spare.length - over)))
+            n.expire();
     }
 
     // Show the arriving notification on the bar beside the clock.
