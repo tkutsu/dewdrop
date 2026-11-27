@@ -36,6 +36,8 @@ Item {
     // A framed one is a popup header's (PopupHeader), a size down from the
     // controls on a row.
     property int glyphSize: framed ? Theme.captionSize : Theme.popupTextSize
+    // Degrees the glyph is turned on its own middle; spin() runs it.
+    property real glyphTurn: 0
     property int textSize: Theme.captionSize
 
     // Lit under the pointer or when the keys reach it (PopupRow says how).
@@ -52,6 +54,14 @@ Item {
     // Done, for a moment: the glyph turns to a check, so a copy says it took.
     function confirm(): void {
         done.restart();
+    }
+
+    // One turn of the glyph on the spot, for a button whose press sends a
+    // request off (RefreshStamp, RetryButton), so the press always shows.
+    // Reduce motion keeps it still.
+    function spin(): void {
+        if (!Theme.reduceMotion && !turning.running)
+            turning.start();
     }
 
     Accessible.role: Accessible.Button
@@ -93,6 +103,7 @@ Item {
             visible: root.glyph !== ""
             text: done.running ? Theme.glyph.check : root.glyph
             fontSize: root.glyphSize
+            turn: root.glyphTurn
             implicitHeight: root.height
             color: root.warn ? Theme.warn : Theme.fg
             inkBase: word.visible ? word.y + word.baselineOffset : NaN
@@ -114,6 +125,16 @@ Item {
     Timer {
         id: done
         interval: 1200
+    }
+
+    NumberAnimation {
+        id: turning
+        target: root
+        property: "glyphTurn"
+        from: 0
+        to: 360
+        duration: Theme.spinMs
+        easing.type: Easing.InOutCubic
     }
 
     HoverHandler {

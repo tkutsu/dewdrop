@@ -28,6 +28,9 @@ Item {
         ColorAnimation { duration: Theme.fadeMs; easing.type: Easing.InOutQuad }
     }
     property real nudge: 0
+    // Degrees turned about the ink's own middle rather than the box's, so a
+    // mark standing on a word's baseline spins in place. Font glyphs only.
+    property real turn: 0
     property bool tightWidth: true
     // A y in this item for the ink's foot to stand on, as a word's letters
     // stand on its baseline; NaN leaves the ink centred.
@@ -124,6 +127,11 @@ Item {
         color: root.color
         inkColor: root.inkColor
         nudge: root.nudge + root._lift
+        transform: Rotation {
+            origin.x: label.inkCentre.x
+            origin.y: label.inkCentre.y
+            angle: root.turn
+        }
     }
 
     // Scaled with the font size it stands in for, so a popup's smaller glyphs

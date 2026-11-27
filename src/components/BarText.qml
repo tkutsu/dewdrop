@@ -137,6 +137,11 @@ Item {
     // lining the ink up on something else nudges from.
     readonly property real restingInkBottom: inked ? root._rest - inkPad + inked.bottom + 1 : root._rest + fm.ascent + _ink.y + _ink.height
 
+    // The middle of the ink as drawn, for a mark turning on the spot.
+    readonly property point inkCentre: inked
+        ? Qt.point(root._x - inkPad + (inked.left + inked.right + 1) / 2, root._y - inkPad + (inked.top + inked.bottom + 1) / 2)
+        : Qt.point(root.width / 2, root.height / 2)
+
     Text {
         id: drawn
 

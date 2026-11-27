@@ -8,7 +8,9 @@ import qs.src.services
 // A fetch that failed says so with the warning mark and colour, still with the
 // time of the last good one, so a list that stopped updating never passes for
 // a fresh one, and the button keeps its width in a header with no room to
-// spare. A check mark answers a fetch asked for here once it lands.
+// spare. The arrows go round once whenever a fetch is asked for, from a press
+// or from the popup opening, so asking always shows; a check mark answers a
+// press once that fetch lands.
 //
 // Opening the popup fetches what is older than `staleAfter`, unless the last
 // try failed: that one waits on its service's back-off, or on a press here.
@@ -29,6 +31,11 @@ PopupButton {
 
     property bool asked: false
 
+    function ask(): void {
+        root.spin();
+        root.fetch();
+    }
+
     readonly property string when: {
         if (!root.at)
             return "";
@@ -44,7 +51,7 @@ PopupButton {
 
     onTapped: {
         root.asked = true;
-        root.fetch();
+        root.ask();
     }
     onBusyChanged: if (!root.busy && root.asked) {
         root.asked = false;
@@ -52,5 +59,5 @@ PopupButton {
             root.confirm();
     }
     Component.onCompleted: if (root.live && !root.busy && !root.failed && root.at > 0 && Date.now() / 1000 - root.at > root.staleAfter)
-        root.fetch()
+        root.ask()
 }

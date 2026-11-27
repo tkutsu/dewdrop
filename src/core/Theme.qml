@@ -706,6 +706,11 @@ Singleton {
     // handle answering rather than as a second thing moving.
     readonly property int turnMs: 240
 
+    // The refresh arrows' one turn when a fetch is asked for (PopupButton.spin):
+    // slow enough to read as the arrows going round once, done well before
+    // a healthy fetch's check mark lands.
+    readonly property int spinMs: 600
+
     // A pill beside the clock being drawn into its neighbour, or coming back
     // out (Bar.drop). Longer than a fold: it is three moves in a row, the
     // contents going, the pill rounding up and the drop travelling in, and
