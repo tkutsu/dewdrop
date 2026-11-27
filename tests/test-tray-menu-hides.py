@@ -7,6 +7,7 @@ with nothing above it goes too. The test is read out of Tray.qml, so this runs
 the bar's own rule against rows labelled the way Steam labels them.
 """
 
+import json
 import os
 import re
 import subprocess
@@ -72,71 +73,13 @@ ShellRoot {
 }
 '''.replace('HIDES', HIDES)
 
-TRAY = '''import dbus, dbus.service, dbus.mainloop.glib
-from gi.repository import GLib
-
-dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-bus = dbus.SessionBus()
-PROPS = 'org.freedesktop.DBus.Properties'
-MENU = 'com.canonical.dbusmenu'
-WATCHER = 'org.kde.StatusNotifierWatcher'
-
-
-class Item(dbus.service.Object):
-    @dbus.service.method(PROPS, in_signature='ss', out_signature='v')
-    def Get(self, _iface, name):
-        return self.GetAll(_iface)[name]
-
-    @dbus.service.method(PROPS, in_signature='s', out_signature='a{sv}')
-    def GetAll(self, _iface):
-        return dbus.Dictionary({'Id': 'fake', 'Status': 'Active', 'IconName': 'dialog-information',
-                                'Menu': dbus.ObjectPath('/com/canonical/dbusmenu')}, signature='sv')
-
-
-class Menu(dbus.service.Object):
-    @dbus.service.method(MENU, in_signature='iias', out_signature='u(ia{sv}av)')
-    def GetLayout(self, _parent, _depth, _names):
-        rows = [{'label': 'Proton 11.0'}, {'label': 'Steam Linux Runtime 4.0'}, {'type': 'separator'},
-                {'label': 'Paranormasight 2'}, {'label': 'Proton Experimental'}, {'type': 'separator'},
-                {'label': 'Store'}]
-        children = dbus.Array([dbus.Struct((1 + i, dbus.Dictionary(r, signature='sv'), dbus.Array([], signature='v')),
-                                           signature='ia{sv}av', variant_level=1) for i, r in enumerate(rows)], signature='v')
-        root = dbus.Struct((0, dbus.Dictionary({'children-display': 'submenu'}, signature='sv'), children), signature='ia{sv}av')
-        return dbus.UInt32(1), root
-
-    @dbus.service.method(MENU, in_signature='ias', out_signature='a(ia{sv})')
-    def GetGroupProperties(self, _ids, _names):
-        return dbus.Array([], signature='(ia{sv})')
-
-    @dbus.service.method(MENU, in_signature='i', out_signature='b')
-    def AboutToShow(self, _id):
-        return False
-
-    @dbus.service.method(MENU, in_signature='isvu')
-    def Event(self, _id, _kind, _data, _time):
-        pass
-
-
-item = Item(bus, '/StatusNotifierItem')
-menu = Menu(bus, '/com/canonical/dbusmenu')
-
-
-def register():
-    if not bus.name_has_owner(WATCHER):
-        return True
-    bus.get_object(WATCHER, '/StatusNotifierWatcher').RegisterStatusNotifierItem('/StatusNotifierItem', dbus_interface=WATCHER)
-    return False
-
-
-GLib.timeout_add(100, register)
-GLib.MainLoop().run()
-'''
+ROWS = [{"label": "Proton 11.0"}, {"label": "Steam Linux Runtime 4.0"}, {"type": "separator"}, {"label": "Paranormasight 2"}, {"label": "Proton Experimental"}, {"type": "separator"}, {"label": "Store"}]
 
 
 def run(target):
     """Inside the private bus: the fake app alongside the shell."""
     env = shell_env(target, DBUS_SESSION_BUS_ADDRESS=os.environ['DBUS_SESSION_BUS_ADDRESS'], QT_NO_XDG_DESKTOP_PORTAL='1')
-    tray = subprocess.Popen([sys.executable, '-I', str(target / 'fake_tray.py')])
+    tray = subprocess.Popen([sys.executable, '-I', str(ROOT / 'tests/fixtures/fake_tray.py'), json.dumps(ROWS)])
     try:
         result = subprocess.run(['qs', '-p', str(target), '--no-color'], env=env, capture_output=True, text=True, timeout=30)
     finally:
@@ -154,7 +97,6 @@ def main():
         target = fixture_root(folder)
         copy_shell(target)
         (target / 'shell.qml').write_text(SHELL)
-        (target / 'fake_tray.py').write_text(TRAY)
         subprocess.run(['dbus-run-session', '--', sys.executable, __file__, folder], check=True, timeout=60)
     print('tray menu hides ok')
 
