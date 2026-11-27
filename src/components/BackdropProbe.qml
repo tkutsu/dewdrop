@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Wayland
 import qs.src.core
@@ -91,8 +92,13 @@ Item {
         }
     }
 
+    // Quickshell 0.3.2 crashes capturing a screen that is gone, unplugged
+    // mid-read, or the stand-in it keeps once the last monitor is (no name).
+    // Nothing is read from those, and luma stays as it was.
+    readonly property bool capturable: !!root.screen?.name && Quickshell.screens.includes(root.screen)
+
     Loader {
-        active: root.reading
+        active: root.reading && root.capturable
 
         sourceComponent: Item {
             // Drawn, but contributing nothing, as Ink's meter is: the view only
