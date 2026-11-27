@@ -151,4 +151,36 @@ Singleton {
         interval: 1000
         onTriggered: verify.running = false
     }
+
+    // Hyprland closes a client's event socket once 64 events wait for it, and
+    // Quickshell 0.3.2 never reconnects (quickshell#989): workspaces, windows
+    // and monitors then stay as they were. A stall that long leaves this
+    // socket just as unread, so it closes with the bar's own. The models
+    // can't be told to resubscribe and a reload keeps them, so the bar starts
+    // again. Only once it has been up a minute: a compositor that keeps
+    // closing sockets can't make it loop.
+    readonly property int canaryGrace: 60000
+    property double canarySince: 0
+
+    Socket {
+        path: `${Quickshell.env("XDG_RUNTIME_DIR")}/hypr/${Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")}/.socket2.sock`
+        connected: !!Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE")
+
+        // Read and drop every line, so its own queue never fills.
+        parser: SplitParser {
+            onRead: line => {}
+        }
+
+        onConnectedChanged: {
+            if (connected) {
+                root.canarySince = Date.now();
+            } else if (root.canarySince && Date.now() - root.canarySince < root.canaryGrace) {
+                console.warn("[hyprland] event socket closed within a minute of the last start; not restarting");
+            } else if (root.canarySince) {
+                console.warn("[hyprland] event socket closed, restarting");
+                Quickshell.execDetached(["hyprctl", "dispatch", "start_bar()"]);
+                Qt.quit();
+            }
+        }
+    }
 }

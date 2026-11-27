@@ -4,8 +4,11 @@ import json
 import os
 from pathlib import Path
 from test_support import fixture_root
+import socket
 import subprocess
 import tempfile
+import threading
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,6 +45,10 @@ from pathlib import Path
 import sys
 import time
 folder = Path(__file__).parent
+if sys.argv[1:2] == ['dispatch']:
+    with (folder / 'dispatched.txt').open('a') as log:
+        print(' '.join(sys.argv[1:]), file=log)
+    sys.exit(0)
 mode = (folder / 'mode.txt').read_text()
 with (folder / 'attempts.txt').open('a') as log:
     print(mode, file=log)
@@ -170,4 +177,56 @@ ShellRoot {
     output = result.stdout + result.stderr
     print(output, end='')
     errors = ('ReferenceError:', 'TypeError:', 'Binding loop', 'Cannot assign', 'Unable to assign', 'Failed to load configuration')
-    raise SystemExit(0 if result.returncode == 0 and 'PASS:' in output and 'FAIL:' not in output and not any(error in output for error in errors) else 1)
+    passed = result.returncode == 0 and 'PASS:' in output and 'FAIL:' not in output and not any(error in output for error in errors)
+
+    # The canary: Hyprland closing the event socket restarts the bar, but not
+    # one that came up less than a minute ago (shortened here).
+    canary = source.replace('canaryGrace: 60000', 'canaryGrace: 400').replace('Qt.quit();', 'console.log("QUIT");')
+    (target / 'src/services/WorkspaceSync.qml').write_text(canary)
+    (target / 'shell.qml').write_text('''import QtQuick
+import Quickshell
+import qs.src.services
+ShellRoot {
+ property bool touched: WorkspaceSync.settled
+ Timer { interval: 2000; running: true; onTriggered: Qt.quit() }
+}''')
+    sockets = target / 'runtime/hypr/fakesig'
+    sockets.mkdir(parents=True)
+
+    def serve(hold):
+        server = socket.socket(socket.AF_UNIX)
+        server.bind(str(sockets / '.socket2.sock'))
+        server.listen()
+        server.settimeout(5)
+        client, _ = server.accept()
+        client.sendall(b'workspacev2>>1,1\nactivewindowv2>>a\n')
+        time.sleep(hold)
+        client.close()
+        server.close()
+        (sockets / '.socket2.sock').unlink()
+
+    def run(hold):
+        dispatched = target / 'dispatched.txt'
+        dispatched.unlink(missing_ok=True)
+        thread = threading.Thread(target=serve, args=(hold,))
+        thread.start()
+        canary_env = dict(env, HYPRLAND_INSTANCE_SIGNATURE='fakesig')
+        out = subprocess.run(['quickshell', '-p', str(target), '--no-color'], env=canary_env, capture_output=True, text=True, timeout=30)
+        thread.join()
+        text = out.stdout + out.stderr
+        print(text, end='')
+        return text, dispatched.read_text().splitlines() if dispatched.exists() else []
+
+    def check(ok, message):
+        global passed
+        print(('PASS: ' if ok else 'FAIL: ') + message)
+        passed = passed and ok
+
+    text, dispatched = run(1.0)
+    check('event socket closed, restarting' in text and 'QUIT' in text and dispatched == ['dispatch start_bar()'],
+          'a closed event socket starts the bar again and quits this one')
+    text, dispatched = run(0.1)
+    check('not restarting' in text and 'QUIT' not in text and dispatched == [],
+          'a socket closed soon after the start asks for nothing')
+    check(not any(error in text for error in errors), 'the canary loads cleanly')
+    raise SystemExit(0 if passed else 1)
