@@ -53,6 +53,10 @@ ShellRoot {
     component WeatherSelection: Item {
         id: root
         QtObject { id: reel; function syncDay() {} }
+        // The week strip the slice measures, with the pointer away from it.
+        property real bodyWidth: 300
+        QtObject { id: week; property real spacing: 4 }
+        QtObject { id: weekHover; property bool hovered: false; property var point: ({position: {x: 0}}) }
         WEATHER_SELECTION
     }
     WeatherSelection { id: weatherSelection }
@@ -230,6 +234,7 @@ def main():
         (services / "Network.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { property bool online: false }\n")
         (target / "src/components").mkdir(parents=True, exist_ok=True)
         (target / "src/components/QueuedProcess.qml").write_text("import QtQuick\nQtObject { property string want: ''; property string arg: ''; property int interval: 0; property bool running: false; property var command: []; signal result(arg: string, text: string) }\n")
+        (target / "src/core/StateFile.qml").write_text((ROOT / "src/core/StateFile.qml").read_text())
         (target / "src/core/Theme.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject {}\n")
         (target / "src/core/Settings.qml").write_text("pragma Singleton\nimport QtQuick\nQtObject { function inTerminal(command) { return command; } function hourDisplay(date) { return { text: Qt.formatTime(date, 'HH:mm'), smallRanges: [] }; } }\n")
         (target / "src/core/Paths.qml").write_text("pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject { function state(name) { return Quickshell.shellPath('state/' + name); } function data(name) { return Quickshell.shellPath('data/' + name); } function cache(name) { return Quickshell.shellPath('cache/' + name); } function script(name) { return name; } }\n")
