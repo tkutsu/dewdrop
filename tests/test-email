@@ -309,6 +309,8 @@ class EmailTests(unittest.TestCase):
         self.check('EmailText.unquote("Hi  \\r\\n\\r\\n\\r\\nBye\\u00a0\\u200b\\rOn Monday Ann\\nwrote:\\nquoted") === "Hi\\n\\nBye"')
         self.check('EmailText.unquote("New\\n> quoted\\nEnd") === "New\\nEnd"')
         self.check('EmailText.unquote("  if (x) {\\n    y();\\n  }") === "if (x) {\\n    y();\\n  }"')
+        plain = encoded('&Alpha;&gamma;&alpha;&pi;&eta;&tau;έ &pi;&epsilon;&lambda;ά&tau;&eta;,\nTom & Jerry: 9,55 &euro;')
+        self.check('EmailText.body(' + json.dumps(plain) + ', false) === "Αγαπητέ πελάτη,\\nTom & Jerry: 9,55 €"')
 
     def test_utf8_and_nested_mime(self):
         plain = encoded('Καλημέρα 😀\n\nHello')

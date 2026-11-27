@@ -11,9 +11,11 @@
 var partLimit = 512 * 1024;
 
 // A part's base64url body as the reader shows it, "" when nothing is left.
+// Some senders write a plain part's letters as entities too (ΔΕΗ's Greek,
+// "&Alpha;&gamma;…"), so it is unescaped like an HTML one.
 function body(data, html) {
     const text = utf8(unbase64(data.slice(0, partLimit)));
-    return unquote(tidy(html ? untag(text) : text));
+    return unquote(tidy(html ? untag(text) : unentity(text)));
 }
 
 // Gmail sends the snippet HTML-escaped, apostrophes included.
