@@ -120,7 +120,7 @@ ShellRoot {
                 popup.picked = "2026-10-15";
                 wait(50);
                 const nextRow = find(popup.contentItem, i => i.upcoming !== undefined);
-                check(nextRow.visible && nextRow.ev.title === "Dentist" && nextRow.aside.indexOf("16") >= 0, "an empty day shows the next event");
+                check(nextRow.visible && nextRow.ev.title === "Dentist" && nextRow.faint && nextRow.lead === "16 Oct" && nextRow.aside.indexOf("15") >= 0, "an empty day shows the next event in grey, its date where the time goes");
                 mouseClick(nextRow, 120, 10);
                 wait(50);
                 check(popup.selected === fri, "tapping the next event goes to its day");

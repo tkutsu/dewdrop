@@ -73,8 +73,9 @@ Popup {
     readonly property int listRows: 5
     readonly property int listRowHeight: 22
     readonly property int dotSize: 3
-    // The time column fits the widest time, 12:30 PM or 12:30, and "in 59m".
-    readonly property int timeWidth: Math.max(42, Math.ceil(Math.max(widestTime.advanceWidth, widestSoon.advanceWidth)) + 2)
+    // The time column fits the widest time, 12:30 PM or 12:30, "in 59m", and
+    // the next event's date on an empty day.
+    readonly property int timeWidth: Math.max(42, Math.ceil(Math.max(widestTime.advanceWidth, widestSoon.advanceWidth, widestDate.advanceWidth)) + 2)
 
     TextMetrics {
         id: widestTime
@@ -88,6 +89,12 @@ Popup {
         id: widestSoon
         font: widestTime.font
         text: "in 59m"
+    }
+
+    TextMetrics {
+        id: widestDate
+        font: widestTime.font
+        text: "28 May"
     }
 
     // --- now and next, on today ---------------------------------------------
@@ -461,8 +468,9 @@ Popup {
             text: Agenda.loaded ? "No events" : "Connecting…"
         }
 
-        // An empty day from today on says what comes after it, from the
-        // months already held; a tap goes to that day.
+        // An empty day from today on says what comes after it, in grey with
+        // its date in the time column, from the months already held; a tap
+        // goes to that day.
         EventRow {
             id: nextUp
 
@@ -472,9 +480,9 @@ Popup {
 
             visible: nextUp.upcoming !== null
             ev: nextUp.upcoming ?? ({})
-            lead: "Next"
-            aside: !nextUp.upcoming ? "" : Qt.formatDate(nextUp.upcomingDay, "ddd d MMM")
-                + (nextUp.upcoming.allDay ? "" : " · " + Settings.sayTime(nextUp.upcomingDay))
+            faint: true
+            lead: nextUp.upcoming ? Qt.formatDate(nextUp.upcomingDay, "d MMM") : ""
+            aside: nextUp.upcoming && !nextUp.upcoming.allDay ? Settings.sayTime(nextUp.upcomingDay) : ""
             name: nextUp.upcoming ? "Show " + root.sayDay(Agenda.dayString(nextUp.upcomingDay)) : ""
             onTapped: root.select(nextUp.upcomingDay)
         }
@@ -529,6 +537,8 @@ Popup {
         property string aside: ""
         // Over, today: drawn faint, the way a ticked-off task is.
         property bool dim: false
+        // Not on the chosen day: every word in grey.
+        property bool faint: false
 
         readonly property bool live: root.isNow(row.ev)
         readonly property int textX: Theme.popupInset + root.timeWidth + 14
@@ -545,7 +555,7 @@ Popup {
             verticalAlignment: Text.AlignVCenter
             textFormat: row.lead !== "" ? Text.PlainText : Text.RichText
             text: row.lead !== "" ? row.lead : Settings.timeMarkup(Settings.hourDisplay(new Date(row.ev.start ?? 0)), font.pixelSize)
-            color: row.live || (row.lead !== "" && root.isNext(row.ev)) ? Theme.fg : row.lead === "all day" || row.lead === "Next" ? Theme.label3 : Theme.label2
+            color: row.faint || row.lead === "all day" ? Theme.label3 : row.live || (row.lead !== "" && root.isNext(row.ev)) ? Theme.fg : Theme.label2
             font.pixelSize: Theme.captionSize
         }
 
@@ -572,6 +582,7 @@ Popup {
                 width: Math.min(implicitWidth, words.room)
                 text: row.ev.title ?? ""
                 textFormat: Text.PlainText
+                color: row.faint ? Theme.label3 : Theme.fg
                 elide: Text.ElideRight
             }
 
