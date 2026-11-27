@@ -437,6 +437,7 @@ Popup {
                         framed: true
                         implicitHeight: root.headerButtonSize
                         glyph: root.quitArmed ? Theme.glyph.check : Theme.glyph.close
+                        alternates: [Theme.glyph.check]
                         label: "Quit"
                         warn: root.quitArmed
                         onTapped: {
@@ -620,6 +621,8 @@ Popup {
                 anchors.leftMargin: 6
                 anchors.verticalCenter: parent.verticalCenter
                 text: Mpd.playlistsOpen ? Theme.glyph.sectionOpen : Theme.glyph.sectionShut
+                // One width open or shut, so the heading beside it stays put.
+                alternates: [Theme.glyph.sectionOpen, Theme.glyph.sectionShut]
                 fontSize: Theme.footnoteSize
                 implicitHeight: root.rowHeight
                 color: Theme.label2

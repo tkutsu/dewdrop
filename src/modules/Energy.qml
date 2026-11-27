@@ -23,6 +23,9 @@ BarItem {
         Layout.fillHeight: true
         text: !Energy.battery ? Theme.glyph.plug
             : (Energy.plugged ? Theme.glyph.batteryCharging : Theme.glyph.battery)[Math.round(Energy.percent / 10)]
+        // Every level, charging or not, in one width, so the pill does not
+        // twitch as the battery runs down or the plug goes in.
+        alternates: [Theme.glyph.plug].concat(Theme.glyph.battery, Theme.glyph.batteryCharging)
         color: Energy.low ? Theme.warn : Theme.fg
     }
 
