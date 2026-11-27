@@ -896,17 +896,19 @@ GoogleService {
     // stars a message rather than a thread, so a star goes on the newest
     // one and coming off it comes off them all. Needs the gmail.modify
     // scope; a token granted before it was added gets a 403, and a dropped
-    // row returns after the grace period, with `trouble` saying why.
+    // row returns after the grace period, with `trouble` saying why. A label
+    // change lands the same however often it is sent, so one that stalls
+    // goes again over the fallback the way reads do.
     function perform(kind: string, row: var): void {
         const thread = `${root.api}/threads/${row.id}/modify`;
-        if (kind === "archive")
-            root.send("POST", thread, { removeLabelIds: ["INBOX", "UNREAD"] }, function () {});
-        else if (kind === "read")
-            root.send("POST", thread, { removeLabelIds: ["UNREAD"] }, function () {});
-        else if (kind === "star")
-            root.send("POST", `${root.api}/messages/${row.last || row.message}/modify`, { addLabelIds: ["STARRED"] }, function () {});
-        else if (kind === "unstar")
-            root.send("POST", thread, { removeLabelIds: ["STARRED"] }, function () {});
+        const [url, labels] = {
+            archive: [thread, { removeLabelIds: ["INBOX", "UNREAD"] }],
+            read: [thread, { removeLabelIds: ["UNREAD"] }],
+            star: [`${root.api}/messages/${row.last || row.message}/modify`, { addLabelIds: ["STARRED"] }],
+            unstar: [thread, { removeLabelIds: ["STARRED"] }]
+        }[kind] ?? [];
+        if (url)
+            root.send("POST", url, labels, function () {}, null, true);
     }
 
     // A row's star turned here, in its list and in the cache, so a poll

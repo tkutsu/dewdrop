@@ -10,10 +10,13 @@ Singleton {
 
     property int sequence: 0
 
-    function send(method: string, url: string, body: var, headers: var, timeoutMs: int, accepted: var, failed: var): void {
+    // `repeatable` says a write lands the same however often it is sent (a
+    // Gmail label change), so a stalled one may go again like a read. Any
+    // other write that stalls fails: it may have landed already.
+    function send(method: string, url: string, body: var, headers: var, timeoutMs: int, accepted: var, failed: var, repeatable: var): void {
         const encoded = body === null ? null : JSON.stringify(body);
         const requestHeaders = body === null ? headers : Object.assign({}, headers, {"Content-Type": "application/json"});
-        root.request(method, url, encoded, requestHeaders, timeoutMs, accepted, failed);
+        root.request(method, url, encoded, requestHeaders, timeoutMs, accepted, failed, repeatable);
     }
 
     // OAuth token refresh uses form encoding but shares the same completion/deadline logic.
@@ -22,7 +25,7 @@ Singleton {
         root.request("POST", url, body, {"Content-Type": "application/x-www-form-urlencoded"}, timeoutMs, accepted, failed);
     }
 
-    function request(method: string, url: string, body: var, headers: var, timeoutMs: int, accepted: var, failed: var): void {
+    function request(method: string, url: string, body: var, headers: var, timeoutMs: int, accepted: var, failed: var, repeatable: var): void {
         const id = ++root.sequence;
         const began = Date.now();
         // Host only: paths and queries can contain mail, task ids or search text.
@@ -39,9 +42,9 @@ Singleton {
             timeout.destroy();
         };
         const recover = function (why) {
-            if (method === "GET" && body === null && /^https?:\/\//i.test(url)) {
+            if ((method === "GET" || repeatable) && /^https?:\/\//i.test(url)) {
                 const job = fallback.createObject(root, {
-                    url: url, headers: headers, timeoutMs: timeoutMs,
+                    method: method, url: url, body: body ?? "", headers: headers, timeoutMs: timeoutMs,
                     accepted: accepted, failed: failed, diagnostic: log
                 });
                 job.running = true;
@@ -83,12 +86,15 @@ Singleton {
         Timer {}
     }
 
-    // One fresh IPv4 process escapes Qt's connection state; only GETs arrive here.
+    // One fresh IPv4 process escapes Qt's connection state; only reads and
+    // repeatable writes arrive here.
     Component {
         id: fallback
         Process {
             id: job
+            required property string method
             required property string url
+            required property string body
             required property var headers
             required property int timeoutMs
             required property var accepted
@@ -103,7 +109,7 @@ Singleton {
                 "--config", "-", "--write-out", "\n%{http_code}"]
             stdinEnabled: true
 
-            // curl config is stdin, so credentials and private URLs never enter argv.
+            // curl config is stdin, so credentials, bodies and private URLs never enter argv.
             function quote(value: string): string {
                 return '"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n").replace(/\t/g, "\\t") + '"';
             }
@@ -111,6 +117,10 @@ Singleton {
             onStarted: {
                 job.launched = true;
                 let config = "url = " + job.quote(job.url) + "\n";
+                if (job.method !== "GET")
+                    config += "request = " + job.quote(job.method) + "\n";
+                if (job.body !== "")
+                    config += "data-raw = " + job.quote(job.body) + "\n";
                 for (const [key, value] of Object.entries(job.headers))
                     config += "header = " + job.quote(key + ": " + value) + "\n";
                 job.write(config);

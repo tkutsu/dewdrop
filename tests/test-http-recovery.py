@@ -89,6 +89,12 @@ ShellRoot {
         FakeRequest.reply(next, {});
         check(accepted === 2 && failed === 3, "timed-out writes fail once without being replayed");
 
+        next = FakeRequest.requests.length;
+        Http.send("POST", "https://fixture.invalid/label", {secret: "fixture-private-body"}, {}, 30, success, failure, true);
+        test.tryVerify(() => accepted === 3, 1800);
+        FakeRequest.reply(next, {});
+        check(accepted === 3 && failed === 3, "a stalled repeatable write recovers once through a fresh process");
+
         api.refresh();
         api.send("GET", "https://fixture.invalid/http-error", null, () => { throw Error("accepted HTTP failure"); });
         test.tryVerify(() => !api.loading, 1800);
@@ -103,14 +109,14 @@ ShellRoot {
             "fallback 401 follows the existing shared token refresh");
         FakeRequest.reply(next + 1, {access_token: "fixture-renewed-token", expires_in: 3600});
         FakeRequest.reply(next + 2, {});
-        check(accepted === 3 && failed === 3 && api.requests === 0,
+        check(accepted === 4 && failed === 3 && api.requests === 0,
             "authenticated recovery settles the original callback chain once");
 
         next = FakeRequest.requests.length;
         Http.send("GET", "https://fixture.invalid/normal-http-error", null, {}, 30,
             xhr => { check(xhr.status === 503, "HTTP response status is preserved"); success(); }, failure);
         FakeRequest.reply(next, {}, 503);
-        check(accepted === 4 && failed === 3, "HTTP failures are returned without a transport replay");
+        check(accepted === 5 && failed === 3, "HTTP failures are returned without a transport replay");
         console.log("PASS: HTTP recovery lifecycle");
     }
     Timer { interval: 100; running: true; onTriggered: {
@@ -159,14 +165,17 @@ GoogleService {
         if result.returncode or "PASS: HTTP recovery lifecycle" not in output or any(error in output for error in errors):
             return 1
         requests = [json.loads(line) for line in calls.read_text().splitlines()]
-        assert len(requests) == 7, "only failed reads may launch one fallback each"
+        assert len(requests) == 8, "only failed reads and repeatable writes may launch one fallback each"
+        label = next(call["config"] for call in requests if "/label" in call["config"])
+        assert 'request = "POST"' in label and 'data-raw = "{\\"secret\\":\\"fixture-private-body\\"}"' in label, label
+        assert 'request =' not in requests[0]["config"] and 'data-raw' not in requests[0]["config"], "reads stay plain GETs"
         assert all("--ipv4" in call["args"] and "--max-time" in call["args"] for call in requests)
         assert all(call["args"][0] == "--disable" for call in requests), "user curlrc cannot change recovery"
         assert all("fixture-private" not in " ".join(call["args"]) for call in requests), "secrets stay out of process arguments"
         assert "Authorization: Bearer fixture-private-token" in requests[0]["config"]
         assert "fixture-private" not in output, "logs must not contain tokens, bodies, queries or curl stderr"
         assert "outcome=recovered" in output and "outcome=timeout" in output and "exit=7" in output
-        print("PASS: recovery is bounded, read-only and keeps credentials out of logs and argv")
+        print("PASS: recovery is bounded, replays only what may repeat, and keeps credentials out of logs and argv")
 
         # A missing executable has no exited signal; its deadline must still settle.
         path = services / "Http.qml"

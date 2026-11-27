@@ -82,11 +82,12 @@ Singleton {
     // The sign-in and the status codes are Google.qml's; what is kept here is
     // what a failure means for the bar. `fail` defaults to setting `trouble`;
     // search and body-reading callbacks can keep their errors local.
-    function send(method: string, url: string, body: var, then: var, fail: var): void {
+    // `repeatable` is Http.send's: a write that may safely go twice.
+    function send(method: string, url: string, body: var, then: var, fail: var, repeatable: var): void {
         // A parallel success must not erase another request's failure.
         base.requests++;
         const rejected = base.settle(fail ?? base.fail);
-        Google.authorised(() => Google.send(method, url, body, base.settle(then), rejected), rejected);
+        Google.authorised(() => Google.send(method, url, body, base.settle(then), rejected, repeatable), rejected);
     }
 
     function fail(why: string, status: int): void {
