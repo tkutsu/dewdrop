@@ -12,7 +12,6 @@ import "../lib/MediaText.js" as MediaText
 // played from, reordered and cut down without opening the player it belongs to.
 Popup {
     id: root
-    ChoiceBlink { id: choice }
 
     readonly property int columnWidth: 290
     // Fixed readout space keeps both tracks aligned as the figures change.
@@ -661,7 +660,6 @@ Popup {
                 id: entry
 
                 required property string modelData
-                blink: choice
 
                 width: root.bodyWidth
                 height: root.rowHeight
@@ -735,8 +733,8 @@ Popup {
                                 act: () => {
                                     if (entry.armed) {
                                         const name = entry.modelData;
-                                        choice.start(entry, () => Mpd.removePlaylist(name));
-                                    } else if (!choice.running)
+                                        root.choice.start(entry, () => Mpd.removePlaylist(name));
+                                    } else if (!root.choice.running)
                                         Mpd.armedPlaylist = entry.modelData;
                                 }
                             }
@@ -753,7 +751,7 @@ Popup {
                             height: root.rowHeight
                             name: modelData.name
                             glyph: modelData.glyph
-                            live: modelData.live && !choice.running
+                            live: modelData.live && !root.choice.running
                             warn: modelData.warn
                             onTapped: modelData.act()
                         }
@@ -868,7 +866,7 @@ Popup {
             rowHeight: root.rowHeight
             rightGuard: root.buttonWidth + Theme.popupInset
             onMoved: (from, to) => { if (from !== to) Mpd.moveTo(rows[from].pos, rows[to].pos); }
-            onClicked: index => { if (!choice.running) Mpd.playAt(rows[index].pos); }
+            onClicked: index => { if (!root.choice.running) Mpd.playAt(rows[index].pos); }
             lifted: Component {
                 QueueTrack {
                     song: reorder.showing ? reorder.rows[reorder.from] : null
@@ -884,7 +882,6 @@ Popup {
 
             required property var modelData
             required property int index
-            blink: choice
             acceptsTap: false
 
             readonly property bool current: Mpd.songPos === row.index
@@ -892,7 +889,7 @@ Popup {
             name: "Play " + (row.modelData.title || "Track " + (row.index + 1))
             width: ListView.view.width
             height: root.rowHeight * (row.index === root.removing ? 1 - root.departureFold : 1)
-            onTapped: if (!choice.running) Mpd.playAt(row.modelData.pos)
+            onTapped: if (!root.choice.running) Mpd.playAt(row.modelData.pos)
             opacity: reorder.showing && row.index === reorder.from ? 0
                 : row.index === root.removing ? 1 - root.departureFade : 1
             transform: Translate {
@@ -936,11 +933,11 @@ Popup {
                     visible: row.hovered && row.opacity > 0
                     name: "Remove " + (row.modelData.title || "track") + " from queue"
                     glyph: Theme.glyph.queueRemove
-                    live: !choice.running && !root.removingTrack
+                    live: !root.choice.running && !root.removingTrack
                     onTapped: {
                         const queue = Mpd.queue;
                         const pos = row.modelData.pos;
-                        choice.start(row, () => {
+                        root.choice.start(row, () => {
                             root.removeTrack(queue, pos);
                         });
                     }

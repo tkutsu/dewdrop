@@ -42,33 +42,61 @@ Item {
 
     // Lit under the pointer or when the keys reach it (PopupRow says how).
     property bool keyed: false
-    // Rows sharing a ChoiceBlink need only supply that controller.
-    property var blink: null
+    // The popup's ChoiceBlink (Popup.choice). A framed button flashes on it,
+    // off and on the way a menu item does, and acts once the flash is over;
+    // one whose press flashes something else (a notification's action
+    // flashes its card) sets `flashes: false` and starts that itself.
+    property var blink: QsWindow.window?.choice ?? null
+    property bool flashes: root.framed
     property bool chosen: root.blink?.item === root
     property bool blinkOn: root.blink?.lit ?? true
-    readonly property var keyPress: root.live && root.name !== "" ? () => root.tapped() : null
+    readonly property var keyPress: root.live && root.name !== "" ? () => root.press() : null
     readonly property bool hovered: root.chosen ? root.blinkOn : QsWindow.window?.keyItem ? root.keyed : hover.hovered
 
     signal tapped
 
+    // A press from the pointer, the keys or a screen reader.
+    function press(): void {
+        if (root.flashes && root.blink)
+            root.blink.start(root, () => root.tapped());
+        else
+            root.tapped();
+    }
+
     // Done, for a moment: the glyph turns to a check, so a copy says it took.
+    // Asked for mid-turn, the check waits for the turn to finish.
     function confirm(): void {
-        done.restart();
+        if (turning.running)
+            root.confirmAfterTurn = true;
+        else
+            done.restart();
     }
 
     // One turn of the glyph on the spot, for a button whose press sends a
     // request off (RefreshStamp, RetryButton), so the press always shows.
+    // The glyph it started on stays for the whole turn, so the arrows go
+    // round and only then become the check or warning the request brought.
     // Reduce motion keeps it still.
     function spin(): void {
-        if (!Theme.reduceMotion && !turning.running)
-            turning.start();
+        if (Theme.reduceMotion || turning.running)
+            return;
+        root.turningGlyph = root.glyph;
+        root.turningWarn = root.warn;
+        turning.start();
     }
+
+    // What the glyph slot shows: the turning glyph, the check, or the glyph.
+    readonly property string shownGlyph: turning.running ? root.turningGlyph : done.running ? Theme.glyph.check : root.glyph
+    property bool confirmAfterTurn: false
+    property string turningGlyph: ""
+    property bool turningWarn: false
+
 
     Accessible.role: Accessible.Button
     Accessible.name: root.name
     Accessible.ignored: root.name === "" || !root.live
     Accessible.onPressAction: if (root.live && root.enabled && root.visible)
-        root.tapped()
+        root.press()
 
     // A run of plain controls is laid out on a fixed pitch so the columns line
     // up down a list; a framed one is as wide as what it says, and square
@@ -101,11 +129,11 @@ Item {
         // would; on its own it is centred.
         Glyph {
             visible: root.glyph !== ""
-            text: done.running ? Theme.glyph.check : root.glyph
+            text: root.shownGlyph
             fontSize: root.glyphSize
             turn: root.glyphTurn
             implicitHeight: root.height
-            color: root.warn ? Theme.warn : Theme.fg
+            color: (turning.running ? root.turningWarn : root.warn) ? Theme.warn : Theme.fg
             inkBase: word.visible ? word.y + word.baselineOffset : NaN
         }
 
@@ -135,6 +163,10 @@ Item {
         to: 360
         duration: Theme.spinMs
         easing.type: Easing.InOutCubic
+        onFinished: if (root.confirmAfterTurn) {
+            root.confirmAfterTurn = false;
+            done.restart();
+        }
     }
 
     HoverHandler {
@@ -145,7 +177,7 @@ Item {
         id: tap
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: if (root.live)
-            root.tapped()
+            root.press()
     }
 
     PressGlass {

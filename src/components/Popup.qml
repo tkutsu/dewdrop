@@ -164,6 +164,12 @@ PopupWindow {
     // Tooltips fade without moving their content.
     property bool grows: true
     property bool requestedVisible: true
+    // The popup's one choice at a time: the flash a button or row gives
+    // before it acts, the way a menu item does. Every PopupButton and
+    // PopupRow inside takes it unasked; closing drops a pending choice.
+    readonly property ChoiceBlink choice: ChoiceBlink {}
+    onRequestedVisibleChanged: if (!root.requestedVisible)
+        root.choice.cancel()
     readonly property bool opened: root.backingWindowVisible && root.requestedVisible
     HyprlandWindow.opacity: root.morphRun ? root.morphShown : root.revealProgress
     property real revealProgress: root.opened ? 1 : 0

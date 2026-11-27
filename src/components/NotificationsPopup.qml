@@ -22,7 +22,6 @@ import qs.src.services
 Popup {
     id: root
     dismissWhenEmpty: Notifications.count === 0
-    ChoiceBlink { id: choice }
 
     readonly property int bodyWidth: Theme.popupWideWidth
     // The text's inset from the edge of the popup, as the other popups keep it.
@@ -148,12 +147,8 @@ Popup {
         addGlyph: Theme.glyph.clearAll
         addLabel: "Clear"
         addName: "Clear all notifications"
-        blink: choice
-        enabled: !choice.running && !dismissal.running
-        onAdd: {
-            const items = Notifications.list.slice();
-            choice.start(clearAll.addButton, () => root.clear(items));
-        }
+        enabled: !root.choice.running && !dismissal.running
+        onAdd: root.clear(Notifications.list.slice())
     }
 
     // Nothing waiting: a line saying so, rather than a header over nothing.
@@ -276,12 +271,8 @@ Popup {
                     framed: true
                     glyph: Theme.glyph.clearAll
                     label: "Clear"
-                    blink: choice
-                    live: !choice.running
-                    onTapped: {
-                        const items = group.items.slice();
-                        choice.start(groupClear, () => root.clear(items));
-                    }
+                    live: !root.choice.running
+                    onTapped: root.clear(group.items.slice())
                 }
             }
         }
@@ -339,7 +330,7 @@ Popup {
                 return;
             }
             const n = card.n;
-            choice.start(card, () => {
+            root.choice.start(card, () => {
                 if (Notifications.list.includes(n)) Notifications.activate(n);
             });
         }
@@ -357,7 +348,6 @@ Popup {
         fullHeight: content.implicitHeight + root.cardPad * 2
         glyph: Theme.glyph.close
         name: Notifications.plain(card.n?.summary) || card.n?.appName || "Notification"
-        blink: choice
         opacity: root.departing.includes(card.n) ? 1 - root.departureFade : 1
         showHighlight: false
         onTapped: card.open()
@@ -381,10 +371,10 @@ Popup {
             height: card.height
             radius: root.cardRadius
             color: fill.focused ? Theme.selectionStrong : Theme.selection
-            opacity: choice.item === card ? (choice.lit ? 1 : 0) : fill.focused || hover.hovered || card.swiping ? 1 : 0.5
+            opacity: root.choice.item === card ? (root.choice.lit ? 1 : 0) : fill.focused || hover.hovered || card.swiping ? 1 : 0.5
 
             Behavior on opacity {
-                enabled: root.animateContents && choice.item !== card
+                enabled: root.animateContents && root.choice.item !== card
                 NumberAnimation {
                     duration: Theme.fadeMs
                 }
@@ -488,10 +478,10 @@ Popup {
                         visible: hover.hovered
                         glyph: Theme.glyph.close
                         glyphSize: Theme.captionSize
-                        live: !choice.running
+                        live: !root.choice.running
                         onTapped: {
                             const items = [card.n, ...card.others];
-                            choice.start(card, () => root.clear(items));
+                            root.choice.start(card, () => root.clear(items));
                         }
                     }
                 }
@@ -565,12 +555,14 @@ Popup {
                             required property var modelData
 
                             framed: true
+                            // The card flashes, as the choice it is.
+                            flashes: false
                             label: modelData.text.trim() || modelData.identifier
-                            live: !choice.running
+                            live: !root.choice.running
                             onTapped: {
                                 const action = modelData;
                                 const n = card.n;
-                                choice.start(card, () => {
+                                root.choice.start(card, () => {
                                     if (Notifications.list.includes(n)) Notifications.run(action, n);
                                 });
                             }

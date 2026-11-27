@@ -43,11 +43,9 @@ Popup {
     property real headerExpansion: 1
     property real heldListHeight: -1
 
-    ChoiceBlink { id: choice }
 
-    onRequestedVisibleChanged: if (!root.requestedVisible) choice.cancel()
     onRequestedSectionChanged: {
-        choice.cancel();
+        root.choice.cancel();
         root.updateSection();
     }
     onSectionsChanged: root.syncSectionOrder()
@@ -189,7 +187,7 @@ Popup {
 
     onVisibleChanged: {
         if (!root.visible)
-            choice.cancel();
+            root.choice.cancel();
         Feeds.undos = [];
         root.updateSection();
         if (root.visible)
@@ -398,15 +396,14 @@ Popup {
             required property var modelData
 
             name: video.modelData.title
-            blink: choice
-            enabled: !choice.running || video.chosen
-            draggable: !choice.running
+            enabled: !root.choice.running || video.chosen
+            draggable: !root.choice.running
             width: root.bodyWidth
             fullHeight: root.thumbHeight + root.rowPad * 2
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: {
                 const item = video.modelData;
-                choice.start(video, () => Feeds.open(item, ""));
+                root.choice.start(video, () => Feeds.open(item, ""));
             }
             onSwiped: Feeds.hide(video.modelData)
 
@@ -478,16 +475,15 @@ Popup {
             ].filter(s => s !== "")
 
             name: story.modelData.title
-            blink: choice
-            enabled: !choice.running || story.chosen
-            draggable: !choice.running
+            enabled: !root.choice.running || story.chosen
+            draggable: !root.choice.running
             Accessible.description: story.modelData.release?.breaking ? "Breaking changes" : ""
             width: root.bodyWidth
             fullHeight: Math.max(lines.implicitHeight, thumbnail.visible ? root.thumbHeight : 0) + root.rowPad * 2
             gesturePolicy: TapHandler.ReleaseWithinBounds
             onTapped: {
                 const item = story.modelData;
-                choice.start(story, () => Feeds.open(item, ""));
+                root.choice.start(story, () => Feeds.open(item, ""));
             }
             onSwiped: Feeds.hide(story.modelData)
 

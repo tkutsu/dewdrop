@@ -23,8 +23,9 @@ Item {
     // Reached by the keys (Popup.qml), which hold the selection until the
     // pointer moves again.
     property bool keyed: false
-    // Rows sharing a ChoiceBlink need only supply that controller.
-    property var blink: null
+    // The popup's ChoiceBlink (Popup.choice), which the row lights with
+    // while its choice flashes.
+    property var blink: QsWindow.window?.choice ?? null
     property bool chosen: root.blink?.item === root
     property bool blinkOn: root.blink?.lit ?? true
     readonly property var keyPress: root.name !== "" ? () => root.tapped() : null

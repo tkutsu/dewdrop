@@ -25,8 +25,6 @@ Item {
     property string addGlyph: Theme.glyph.plus
     property string addLabel: "New"
     property string addName: "Add " + root.title.toLowerCase()
-    // A ChoiceBlink to flash the button with, started on `addButton`.
-    property var blink: null
     readonly property alias addButton: action
 
     signal add
@@ -45,7 +43,6 @@ Item {
         label: root.addLabel
         glyph: root.addGlyph
         name: root.addName
-        blink: root.blink
         onTapped: root.add()
     }
 

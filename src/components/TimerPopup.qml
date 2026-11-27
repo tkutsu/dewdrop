@@ -24,7 +24,6 @@ Popup {
     readonly property int buttonWidth: 20
     readonly property int gutter: 18
 
-    ChoiceBlink { id: choice }
 
     // An alarm's time as the bar draws it, Smaller AM/PM and all.
     function time(e: var): string {
@@ -175,9 +174,8 @@ Popup {
             width: root.bodyWidth
             height: root.rowHeight
             name: row.modelData.name
-            blink: choice
             gesturePolicy: TapHandler.ReleaseWithinBounds
-            onTapped: choice.start(row, row.modelData.act)
+            onTapped: root.choice.start(row, row.modelData.act)
 
             Glyph {
                 x: Theme.popupInset
@@ -247,7 +245,7 @@ Popup {
                         height: root.rowHeight
                         name: modelData.name
                         glyph: modelData.glyph
-                        live: !choice.running
+                        live: !root.choice.running
                         onTapped: modelData.act()
                     }
                 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh buttons turn their arrows once per request, on the spot."""
+"""Header buttons flash before they act; refresh arrows turn once, on the spot."""
 
 from pathlib import Path
 import subprocess
@@ -36,7 +36,9 @@ ShellRoot {
         function retryNow() { retries++; }
     }
     FloatingWindow {
-        implicitWidth: 200
+        // What Popup.qml gives every popup.
+        readonly property ChoiceBlink choice: ChoiceBlink {}
+        implicitWidth: 260
         implicitHeight: 60
         color: "black"
         Row {
@@ -45,6 +47,9 @@ ShellRoot {
             spacing: 10
             RefreshStamp { id: stamp; service: feed }
             RetryButton { id: retry; service: broken }
+            PopupButton { id: plain; glyph: Theme.glyph.close; property int hits: 0; onTapped: hits++ }
+            PopupButton { id: quiet; framed: true; flashes: false; label: "Open"; property int hits: 0; onTapped: hits++ }
+            PopupButton { id: other; framed: true; label: "Clear"; property int hits: 0; onTapped: hits++ }
         }
     }
     TestCase { id: test; when: false }
@@ -53,6 +58,50 @@ ShellRoot {
         stamp.grabToImage(result => { result.saveToFile(Quickshell.shellPath(name)); then(); });
     }
     function run() {
+        stamp.press();
+        check(feed.refreshes === 0 && stamp.chosen && !stamp.blinkOn, "a framed button goes dark first instead of acting");
+        test.wait(Theme.blinkMs + 20);
+        check(feed.refreshes === 0 && stamp.blinkOn, "then lights again, still waiting");
+        test.tryVerify(() => feed.refreshes === 1, Theme.blinkMs + 200);
+        test.wait(60);
+        check(!stamp.chosen && stamp.glyphTurn > 0, "and acts once the flash is over, turning its arrows");
+        stamp.press();
+        stamp.press();
+        test.tryVerify(() => feed.refreshes === 2, Theme.spinMs + 500);
+        test.wait(Theme.blinkMs * 3);
+        check(feed.refreshes === 2, "a press during the flash is not a second one");
+        test.tryVerify(() => stamp.glyphTurn === 360, Theme.spinMs + 500);
+
+        plain.press();
+        check(plain.hits === 1, "an unframed row control acts at once");
+        quiet.press();
+        check(quiet.hits === 1 && !quiet.chosen, "a framed button that flashes something else acts at once");
+        stamp.press();
+        other.press();
+        check(stamp.chosen && !other.chosen, "one choice at a time in a popup");
+        test.tryVerify(() => feed.refreshes === 3, Theme.blinkMs * 2 + 200);
+        test.wait(Theme.blinkMs * 3);
+        check(other.hits === 0, "a press on another button mid-flash is dropped");
+        test.tryVerify(() => stamp.glyphTurn === 360, Theme.spinMs + 500);
+        other.press();
+        test.tryVerify(() => other.hits === 1, Theme.blinkMs * 2 + 200);
+        check(true, "then the next press flashes and acts");
+
+        stamp.tapped();
+        test.wait(Theme.spinMs / 4);
+        stamp.confirm();
+        feed.retryable = true;
+        test.wait(30);
+        check(stamp.warn && stamp.shownGlyph === Theme.glyph.refresh,
+            "mid-turn the arrows stay arrows, whatever the request brought");
+        test.tryVerify(() => stamp.glyphTurn === 360, Theme.spinMs + 500);
+        test.wait(30);
+        check(stamp.shownGlyph === Theme.glyph.check, "then the turn ends on the check");
+        feed.retryable = false;
+        test.wait(1300);
+        check(stamp.shownGlyph === Theme.glyph.refresh, "and the check gives way to the arrows");
+
+        feed.refreshes = 0;
         stamp.tapped();
         check(feed.refreshes === 1, "a press asks for one fetch");
         test.wait(Theme.spinMs / 2);
