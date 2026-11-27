@@ -278,7 +278,7 @@ Singleton {
         // An empty name matches any entry without a StartupWMClass: a sender
         // that gives none gets the card's own mark, not some app's icon.
         const key = n.desktopEntry || n.appName;
-        const name = n.appIcon || (key ? DesktopEntries.heuristicLookup(key)?.icon : "") || "";
+        const name = n.appIcon || (key ? AppIcons.themed(DesktopEntries.heuristicLookup(key)?.icon ?? "") : "");
         return name ? Quickshell.iconPath(name, true) : "";
     }
 

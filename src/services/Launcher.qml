@@ -474,7 +474,7 @@ Singleton {
                     id: a.id,
                     entry: e,
                     action: a.action ?? null,
-                    icon: a.action?.icon || e.icon,
+                    icon: a.action?.icon || AppIcons.themed(e.icon),
                     title: a.action?.name ?? e.name,
                     subtitle: a.action ? e.name : ""
                 }

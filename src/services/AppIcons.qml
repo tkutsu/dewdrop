@@ -19,6 +19,14 @@ Singleton {
         return own !== windowClass && Quickshell.hasThemeIcon(own) ? own : Theme.gameIcon;
     }
 
+    // Waydroid writes each Android app's entry with Icon= its own PNG and
+    // rewrites it every session start, so the theme can only step in here:
+    // an icon named after the package (com.android.vending) wins over the PNG.
+    function themed(icon: string): string {
+        const pkg = /\/waydroid\/data\/icons\/([^/]+)\.png$/.exec(icon)?.[1];
+        return pkg && Quickshell.hasThemeIcon(pkg) ? pkg : icon;
+    }
+
     // Prefer overrides and desktop metadata, then try the window class as a theme name.
     function resolve(windowClass: string, entry: var): string {
         const override = Theme.appIconOverride[windowClass];
@@ -27,7 +35,7 @@ Singleton {
         if (isGame(windowClass))
             return gameIcon(windowClass);
         if (entry?.icon)
-            return entry.icon;
+            return themed(entry.icon);
         for (const candidate of [windowClass, windowClass.toLowerCase()])
             if (candidate && Quickshell.hasThemeIcon(candidate))
                 return candidate;

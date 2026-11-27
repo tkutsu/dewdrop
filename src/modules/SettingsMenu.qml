@@ -287,11 +287,12 @@ OverlayWindow {
     readonly property var appRows: {
         const rows = [];
         for (const e of DesktopEntries.applications.values.slice().sort((a, b) => a.name.localeCompare(b.name))) {
-            rows.push(root.shownInLauncher(e.id, e.name, { icon: e.icon }));
+            const icon = AppIcons.themed(e.icon);
+            rows.push(root.shownInLauncher(e.id, e.name, { icon: icon }));
             if (!Settings.showDesktopActions)
                 continue;
             for (const a of e.actions ?? [])
-                rows.push(root.shownInLauncher(e.id + ":" + a.id, e.name + " · " + a.name, { icon: a.icon || e.icon }));
+                rows.push(root.shownInLauncher(e.id + ":" + a.id, e.name + " · " + a.name, { icon: a.icon || icon }));
         }
         return rows;
     }

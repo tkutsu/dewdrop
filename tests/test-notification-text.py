@@ -94,6 +94,8 @@ ShellRoot {
                 check(DesktopEntries.heuristicLookup("")?.id === "fixture-app", "an empty lookup matches an app in this fixture");
                 check(Notifications.iconFor({appName: "Fixture App", desktopEntry: "fixture-app", appIcon: ""}).includes("fixture-app"), "a sender naming its entry gets that app's icon");
                 check(Notifications.iconFor({appName: "", desktopEntry: "", appIcon: ""}) === "", "a sender with no name and no entry borrows no app's icon");
+                const droid = Notifications.iconFor({appName: "Fixture Droid", desktopEntry: "waydroid.fixture-droid", appIcon: ""});
+                check(droid.includes("fixture-app") && !droid.includes("waydroid"), "a Waydroid app's PNG gives way to the theme icon named after its package: " + droid);
                 console.log("PASS: notification formatting and bar preview");
             } catch (error) { console.log("FAIL: " + error); }
             Qt.quit();
@@ -106,6 +108,7 @@ ShellRoot {
         (target / "src/services").mkdir(parents=True, exist_ok=True)
         (target / "src/services/Notifications.qml").write_text(
             "pragma Singleton\nimport QtQuick\nimport Quickshell\nQtObject {\n    id: root\n    property var list: []\n" + tooltip + service[start:end] + icons + "}\n")
+        (target / "src/services/AppIcons.qml").write_text((ROOT / "src/services/AppIcons.qml").read_text())
         (target / "src/core/Theme.qml").write_text('pragma Singleton\nimport QtQuick\nQtObject { property color label: "white"; property color label2: "grey"; property color warn: "red" }\n')
         (target / "shell.qml").write_text(test)
         runtime = target / "runtime"
@@ -113,6 +116,7 @@ ShellRoot {
         share = target / "share"
         (share / "applications").mkdir(parents=True)
         (share / "applications/fixture-app.desktop").write_text("[Desktop Entry]\nType=Application\nName=Fixture App\nExec=true\nIcon=fixture-app\n")
+        (share / "applications/waydroid.fixture-droid.desktop").write_text("[Desktop Entry]\nType=Application\nName=Fixture Droid\nExec=true\nStartupWMClass=fixture-droid\nIcon=/nowhere/waydroid/data/icons/fixture-app.png\n")
         icon = share / "icons/hicolor/16x16/apps"
         icon.mkdir(parents=True)
         (share / "icons/hicolor/index.theme").write_text("[Icon Theme]\nName=Hicolor\nDirectories=16x16/apps\n\n[16x16/apps]\nSize=16\nType=Fixed\n")
