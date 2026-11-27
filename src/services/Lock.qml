@@ -61,6 +61,10 @@ Singleton {
 
     // A check under way; the field waits on it and takes no keys.
     readonly property bool checking: pam.active
+    // The last thing PAM said during this check that was not a prompt.
+    // Lockouts (faillock's "The account is locked...") come as information,
+    // not as an error.
+    property string notice: ""
     property string attempt: ""
     property bool answered: false
     property bool automatic: false
@@ -191,6 +195,7 @@ Singleton {
 
     function check(automatic: bool): void {
         root.attempt = root.password;
+        root.notice = "";
         root.answered = false;
         root.automatic = automatic;
         LockTrace.note("check started" + (automatic ? " (PIN Mode)" : ""));
@@ -239,9 +244,11 @@ Singleton {
             root.answered = true;
             pam.respond(root.attempt);
         }
+        onPamMessage: if (!pam.responseRequired && pam.message)
+            root.notice = pam.message
         onCompleted: result => {
             const error = result === PamResult.Error ? "Could not check the password." : "";
-            root.finish(result === PamResult.Success, pam.messageIsError ? pam.message : error);
+            root.finish(result === PamResult.Success, pam.messageIsError ? pam.message : root.notice || error);
         }
         onError: root.finish(false, "Could not check the password.")
     }

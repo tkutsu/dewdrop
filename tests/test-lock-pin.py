@@ -18,11 +18,23 @@ QtObject {
     property var tries: []
     signal completed(int result)
     signal error(int error)
-    function start() { active = true; responseRequired = true; return true; }
+    signal pamMessage
+    // As Quickshell 0.3.2 does: the prompt is a message too, its properties
+    // change before pamMessage, and an answer leaves responseRequired alone
+    // until PAM's next message.
+    function start() { active = true; message = "Password: "; messageIsError = false; responseRequired = true; pamMessage(); return true; }
     function respond(text) {
         tries.push(text);
-        responseRequired = false;
-        Qt.callLater(() => { active = false; completed(text === "right" ? PamResult.Success : PamResult.Failed); });
+        Qt.callLater(() => {
+            // faillock reports a lockout as information, then fails.
+            if (text === "faillock")
+                message = "The account is locked due to 3 failed logins.";
+            responseRequired = false;
+            if (text === "faillock")
+                pamMessage();
+            active = false;
+            completed(text === "right" ? PamResult.Success : PamResult.Failed);
+        });
     }
     function abort() { active = false; }
 }
@@ -60,39 +72,45 @@ ShellRoot {
                 Lock.submit();
             } else if (s === 3) {
                 check(tries().length === 2 && tries()[1] === "abcdefg", "Return still checks");
-                Lock.clear(); typeAll("right"); Lock.submit();
+                Lock.clear(); typeAll("faillock"); Lock.submit();
             } else if (s === 4) {
+                check(Lock.message === "The account is locked due to 3 failed logins.", "a lockout PAM sends as information is shown: " + Lock.message);
+                Lock.clear(); typeAll("wrongpw"); Lock.submit();
+            } else if (s === 5) {
+                check(tries().length === 4 && Lock.message === "", "the next miss does not repeat the old notice");
+                Lock.clear(); typeAll("right"); Lock.submit();
+            } else if (s === 6) {
                 check(Lock.phase === "leave", "Return with the right password unlocks");
                 Lock.left(); Lock.revealed();
                 Lock.lock(); Lock.covered();
-            } else if (s === 5) {
+            } else if (s === 7) {
                 check(!Lock.missed && Lock.automaticReady, "the next lock is back in PIN Mode");
                 typeAll("right");
-            } else if (s === 6) {
-                check(tries().length === 4 && Lock.phase === "leave", "the right password at its length unlocks without Return");
+            } else if (s === 8) {
+                check(tries().length === 6 && Lock.phase === "leave", "the right password at its length unlocks without Return");
                 Lock.left(); Lock.revealed();
                 Settings.set("lockAsTyped", false);
                 Lock.lock(); Lock.covered();
-            } else if (s === 7) {
+            } else if (s === 9) {
                 typeAll("right");
-                check(!Lock.checking && tries().length === 4 && Lock.phase === "locked", "PIN Mode off: no check without Return");
+                check(!Lock.checking && tries().length === 6 && Lock.phase === "locked", "PIN Mode off: no check without Return");
                 Settings.set("lockAsTyped", true);
                 Settings.set("lockPasswordLength", 0);
                 Lock.clear(); typeAll("right");
-                check(!Lock.checking && tries().length === 4, "no length set: no check without Return");
+                check(!Lock.checking && tries().length === 6, "no length set: no check without Return");
                 Lock.clear(); typeAll("right"); Lock.submit();
-            } else if (s === 8) {
+            } else if (s === 10) {
                 check(Lock.phase === "leave", "unlocking");
                 Lock.lock();
                 check(Lock.phase === "locked" && Lock.held, "a lock asked for as the glass goes holds");
                 Lock.left(); Lock.revealed();
                 check(Lock.phase === "locked" && Lock.held, "the interrupted fade's ends do not unlock");
                 typeAll("right"); Lock.submit();
-            } else if (s === 9) {
+            } else if (s === 11) {
                 Lock.left(); Lock.revealed();
                 check(Lock.phase === "", "unlocked");
                 Lock.lock();
-            } else if (s === 10) {
+            } else if (s === 12) {
                 check(Lock.phase === "cover" && !Lock.held, "the cover waits on the curtain");
                 tick.stop();
                 late.start();

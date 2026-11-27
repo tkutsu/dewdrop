@@ -18,6 +18,7 @@ QtObject {
     property bool messageIsError: false
     signal completed(int result)
     signal error(int error)
+    signal pamMessage
     function start() { return true; }
     function respond(text) {}
     function abort() {}
